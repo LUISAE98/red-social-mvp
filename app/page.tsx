@@ -1,65 +1,154 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
+import { db } from "../lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../lib/firebase";
+
+type Group = {
+  id: string;
+  name?: string;
+  description?: string;
+  visibility?: string;
+};
+
+export default function HomePage() {
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+
+  // ✅ NUEVO: para evitar que se muestre el mensaje de /login mientras Firebase aún “resuelve” la sesión
+  const [authReady, setAuthReady] = useState(false);
+
+  // ✅ NUEVO: rol/status desde Firestore members/{uid}
+  const [myRole, setMyRole] = useState<string | null>(null);
+  const [myStatus, setMyStatus] = useState<string | null>(null);
+
+  // 1) Escuchar sesión (Auth)
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u);
+      setAuthReady(true);
+    });
+    return () => unsub();
+  }, []);
+
+  // 2) Cargar grupos (Firestore) -> SOLO PUBLICOS
+  useEffect(() => {
+    async function load() {
+      try {
+        const q = query(collection(db, "groups"), where("visibility", "==", "public"));
+        const snap = await getDocs(q);
+
+        const data: Group[] = snap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as any),
+        }));
+
+        setGroups(data);
+      } catch (e: any) {
+        setError(e?.message ?? "Error desconocido leyendo Firestore");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
+  }, []);
+
+  // ✅ 3) Cargar mi membership (members/{uid}) para sacar role/status
+  useEffect(() => {
+    async function loadMyMembership() {
+      if (!user) {
+        setMyRole(null);
+        setMyStatus(null);
+        return;
+      }
+
+      const firstGroupId = groups?.[0]?.id;
+      if (!firstGroupId) {
+        setMyRole(null);
+        setMyStatus(null);
+        return;
+      }
+
+      try {
+        const ref = doc(db, "groups", firstGroupId, "members", user.uid);
+        const snap = await getDoc(ref);
+
+        if (!snap.exists()) {
+          setMyRole(null);
+          setMyStatus(null);
+          return;
+        }
+
+        const data = snap.data() as any;
+        setMyRole(data.role ?? null);
+        setMyStatus(data.status ?? null);
+      } catch (e: any) {
+        // si algo falla, lo mostramos como error general (sin romper la app)
+        setError(e?.message ?? "Error leyendo rol en members");
+      }
+    }
+
+    loadMyMembership();
+  }, [user, groups]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main style={{ padding: 24 }}>
+      <h1 style={{ fontSize: 24, fontWeight: 700 }}>Grupos (desde Firestore)</h1>
+
+      {loading && <p>Cargando...</p>}
+      {error && (
+        <p style={{ color: "red" }}>
+          Error: {error}
+        </p>
+      )}
+
+      {!loading && !error && (
+        <ul style={{ marginTop: 16, paddingLeft: 18 }}>
+          {groups.map((g) => (
+            <li key={g.id} style={{ marginBottom: 10 }}>
+              <div>
+                <b>{g.name ?? "(sin nombre)"}</b> — <small>{g.visibility ?? "?"}</small>
+              </div>
+              <div style={{ opacity: 0.8 }}>{g.description ?? ""}</div>
+              <div style={{ fontSize: 12, opacity: 0.6 }}>id: {g.id}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <hr style={{ margin: "24px 0" }} />
+
+      <section style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8, maxWidth: 520 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700 }}>Mi sesión y rol</h2>
+        <p style={{ marginTop: 8 }}>
+          Ve a <a href="/login">/login</a> para iniciar sesión.
+        </p>
+      </section>
+
+      <section style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8, maxWidth: 520 }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700 }}>Mi sesión y rol</h2>
+
+        {/* ✅ CAMBIO: solo mostramos el mensaje “Ve a /login” cuando authReady ya es true */}
+        {authReady && !user && (
+          <p style={{ marginTop: 8 }}>
+            Ve a <a href="/login">/login</a> para iniciar sesión.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        )}
+
+        {user && (
+          <div style={{ marginTop: 8 }}>
+            <p><b>UID:</b> {user.uid}</p>
+            <p><b>Email:</b> {user.email}</p>
+            <p><b>Rol:</b> {myRole ?? "(sin rol / no es miembro)"}</p>
+            <p><b>Status:</b> {myStatus ?? "(n/a)"}</p>
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
