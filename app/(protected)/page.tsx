@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { db } from "../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { auth } from "../../lib/firebase";
 
 type Group = {
   id: string;
