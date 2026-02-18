@@ -24,6 +24,6 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-            - name: Build project (webpack)
+        name: Build project (webpack)
         run: npm run build -- --no-turbo
 
