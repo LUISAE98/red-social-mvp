@@ -1,15 +1,11 @@
 "use client";
 
-import LogoutButton from "../LogoutButton";
 import { useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { useAuth } from "../providers";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/app/providers";
+import LogoutButton from "@/app/LogoutButton";
 
-export default function ProtectedLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function GroupsLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -20,20 +16,11 @@ export default function ProtectedLayout({
     }
   }, [loading, user, router, pathname]);
 
-  // 🔹 Mientras valida sesión
-  if (loading) {
-    return <div style={{ padding: 24 }}>Cargando sesión...</div>;
-  }
+  if (loading) return <div style={{ padding: 24 }}>Cargando sesión...</div>;
+  if (!user) return null;
 
-  // 🔹 Si no hay usuario (ya redirige en useEffect)
-  if (!user) {
-    return null;
-  }
-
-  // 🔹 Layout protegido real
   return (
     <div>
-      {/* Header simple */}
       <header
         style={{
           padding: "12px 24px",
@@ -47,7 +34,6 @@ export default function ProtectedLayout({
         <LogoutButton />
       </header>
 
-      {/* Contenido protegido */}
       <main style={{ padding: 24 }}>{children}</main>
     </div>
   );

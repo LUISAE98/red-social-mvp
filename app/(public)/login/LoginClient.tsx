@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function LoginClient() {
   const [email, setEmail] = useState("");
@@ -10,13 +11,25 @@ export default function LoginClient() {
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
     setLoading(true);
+
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
+
+      // ✅ a dónde redirigir
+      const next = searchParams.get("next") || "/";
+
+      // (opcional) mensaje rápido
       setMsg(`✅ Sesión iniciada. UID: ${cred.user.uid}`);
+
+      // ✅ redirige
+      router.replace(next);
     } catch (err: any) {
       setMsg(`❌ Error: ${err?.message ?? "desconocido"}`);
     } finally {
@@ -28,7 +41,10 @@ export default function LoginClient() {
     <main style={{ padding: 24, maxWidth: 420 }}>
       <h1 style={{ fontSize: 24, fontWeight: 700 }}>Login</h1>
 
-      <form onSubmit={handleLogin} style={{ marginTop: 16, display: "grid", gap: 12 }}>
+      <form
+        onSubmit={handleLogin}
+        style={{ marginTop: 16, display: "grid", gap: 12 }}
+      >
         <label>
           Correo
           <input
@@ -57,9 +73,6 @@ export default function LoginClient() {
       </form>
 
       {msg && <p style={{ marginTop: 12 }}>{msg}</p>}
-      <p style={{ marginTop: 18, opacity: 0.7 }}>
-        Tip: abre <code>/login</code> en tu navegador.
-      </p>
     </main>
   );
 }
