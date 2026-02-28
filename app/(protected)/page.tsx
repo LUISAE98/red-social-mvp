@@ -12,66 +12,113 @@ type Group = {
   description?: string;
   visibility?: "public" | "private" | "hidden" | string;
   ownerId?: string;
+  monetization?: {
+    isPaid?: boolean;
+    priceMonthly?: number | null;
+    currency?: string | null;
+  };
 };
 
-export default function HomePage() {
+type PublicUser = {
+  uid: string;
+  handle: string;
+  displayName?: string;
+  firstName?: string;
+  lastName?: string;
+  photoURL?: string | null;
+};
+
+function initials(name: string) {
+  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+  const a = parts[0]?.[0] ?? "";
+  const b = parts[1]?.[0] ?? "";
+  return (a + b).toUpperCase();
+}
+
+export default function GroupsHome() {
   const router = useRouter();
 
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  const [profile, setProfile] = useState<PublicUser | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  const [groups, setGroups] = useState<Group[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const [user, setUser] = useState<any>(null);
-  const [authReady, setAuthReady] = useState(false);
-
+  const [memberMap, setMemberMap] = useState<Record<string, boolean>>({});
+  const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
 
-  // groupId -> es miembro?
-  const [memberMap, setMemberMap] = useState<Record<string, boolean>>({});
-
-  // groupId -> tiene joinRequest pending?
-  const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
-
-  // debug (primer grupo)
-  const [myRole, setMyRole] = useState<string | null>(null);
-  const [myStatus, setMyStatus] = useState<string | null>(null);
-
-  // 1) sesión
+  // auth
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      setAuthReady(true);
+      setLoading(false);
     });
     return () => unsub();
   }, []);
 
-  // 2) grupos public + private (no hidden)
+  // load my profile
   useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
-
+    async function loadProfile() {
+      if (!user) {
+        setProfile(null);
+        return;
+      }
+      setProfileLoading(true);
       try {
-        const q = query(collection(db, "groups"), where("visibility", "in", ["public", "private"]));
-        const snap = await getDocs(q);
-
-        const data: Group[] = snap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as any),
-        }));
-
-        setGroups(data);
+        const ref = doc(db, "users", user.uid);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) {
+          setProfile(null);
+          return;
+        }
+        setProfile(snap.data() as any);
       } catch (e: any) {
-        setError(e?.message ?? "Error leyendo Firestore");
+        setError(e?.message ?? "Error leyendo perfil");
+      } finally {
+        setProfileLoading(false);
+      }
+    }
+    loadProfile();
+  }, [user]);
+
+  // load groups (public + private if signed in)
+  useEffect(() => {
+    async function loadGroups() {
+      setError(null);
+      setLoading(true);
+      try {
+        const col = collection(db, "groups");
+
+        // público
+        const qPublic = query(col, where("visibility", "==", "public"));
+        const publicSnap = await getDocs(qPublic);
+
+        const list: Group[] = [];
+        publicSnap.forEach((d) => list.push({ id: d.id, ...(d.data() as any) }));
+
+        // privados también visibles si hay sesión (tu regla permite list cuando private && signedIn)
+        if (user) {
+          const qPrivate = query(col, where("visibility", "==", "private"));
+          const privateSnap = await getDocs(qPrivate);
+          privateSnap.forEach((d) => list.push({ id: d.id, ...(d.data() as any) }));
+        }
+
+        setGroups(list);
+      } catch (e: any) {
+        setError(e?.message ?? "Error cargando grupos");
       } finally {
         setLoading(false);
       }
     }
 
-    load();
-  }, []);
+    loadGroups();
+  }, [user]);
 
-  // 3) membership + joinRequests por grupo
+  // load memberships/joinRequests map
   useEffect(() => {
     async function loadMembershipsAndRequests() {
       if (!user || groups.length === 0) {
@@ -89,9 +136,7 @@ export default function HomePage() {
             const jref = doc(db, "groups", g.id, "joinRequests", user.uid);
             const jsnap = await getDoc(jref);
 
-            const pending =
-              jsnap.exists() && (((jsnap.data() as any)?.status ?? "pending") === "pending");
-
+            const pending = jsnap.exists() && (((jsnap.data() as any)?.status ?? "pending") === "pending");
             return { groupId: g.id, isMember: msnap.exists(), hasPendingReq: pending };
           })
         );
@@ -113,43 +158,6 @@ export default function HomePage() {
     loadMembershipsAndRequests();
   }, [user, groups]);
 
-  // 4) debug primer grupo
-  useEffect(() => {
-    async function loadMyMembership() {
-      if (!user) {
-        setMyRole(null);
-        setMyStatus(null);
-        return;
-      }
-
-      const firstGroupId = groups?.[0]?.id;
-      if (!firstGroupId) {
-        setMyRole(null);
-        setMyStatus(null);
-        return;
-      }
-
-      try {
-        const ref = doc(db, "groups", firstGroupId, "members", user.uid);
-        const snap = await getDoc(ref);
-
-        if (!snap.exists()) {
-          setMyRole(null);
-          setMyStatus(null);
-          return;
-        }
-
-        const data = snap.data() as any;
-        setMyRole(data.role ?? null);
-        setMyStatus(data.status ?? null);
-      } catch (e: any) {
-        setError(e?.message ?? "Error leyendo rol en members");
-      }
-    }
-
-    loadMyMembership();
-  }, [user, groups]);
-
   const filteredGroups = useMemo(() => {
     if (!search.trim()) return groups;
     const s = search.toLowerCase();
@@ -158,7 +166,6 @@ export default function HomePage() {
 
   async function handleJoinPublic(groupId: string) {
     if (!user) return;
-
     try {
       setError(null);
       const { joinGroup } = await import("../../lib/groups/membership");
@@ -171,12 +178,10 @@ export default function HomePage() {
 
   async function handleRequestPrivate(groupId: string) {
     if (!user) return;
-
     try {
       setError(null);
       const { requestToJoin } = await import("../../lib/groups/joinRequests");
       await requestToJoin(groupId, user.uid);
-
       setReqMap((r) => ({ ...r, [groupId]: true }));
     } catch (e: any) {
       setError(e?.message ?? "No se pudo enviar solicitud");
@@ -185,12 +190,10 @@ export default function HomePage() {
 
   async function handleCancelRequest(groupId: string) {
     if (!user) return;
-
     try {
       setError(null);
       const { cancelJoinRequest } = await import("../../lib/groups/joinRequests");
       await cancelJoinRequest(groupId, user.uid);
-
       setReqMap((r) => ({ ...r, [groupId]: false }));
     } catch (e: any) {
       setError(e?.message ?? "No se pudo cancelar solicitud");
@@ -209,172 +212,302 @@ export default function HomePage() {
       setError(null);
       const { leaveGroup } = await import("../../lib/groups/membership");
       await leaveGroup(groupId, user.uid);
-
       setMemberMap((m) => ({ ...m, [groupId]: false }));
     } catch (e: any) {
       setError(e?.message ?? "No se pudo salir del grupo");
     }
   }
 
+  function goToMyProfile() {
+    if (!profile?.handle) {
+      setError("No se encontró tu perfil aún. Termina tu registro o revisa /users/{uid}.");
+      return;
+    }
+    router.push(`/u/${profile.handle}`);
+  }
+
+  const myDisplayName =
+    profile?.displayName || `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim() || user?.email || "Mi perfil";
+
   return (
-    <main style={{ padding: 24, maxWidth: 900 }}>
-      <h1 style={{ fontSize: 26, fontWeight: 700 }}>Explorar grupos</h1>
+    <main style={{ padding: 24 }}>
+      <div style={{ maxWidth: 980, margin: "0 auto" }}>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div>
+            <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0 }}>Explorar grupos</h1>
+            <p style={{ marginTop: 6, marginBottom: 0, color: "#666" }}>
+              Busca grupos públicos/privados y administra tu membresía.
+            </p>
+          </div>
 
-      <div style={{ marginTop: 16, display: "flex", gap: 12 }}>
-        <input
-          placeholder="Buscar grupo por nombre..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
-        />
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              onClick={() => router.push("/groups/new")}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: "1px solid #111",
+                background: "#111",
+                color: "#fff",
+                cursor: "pointer",
+                fontWeight: 800,
+              }}
+            >
+              + Crear grupo
+            </button>
 
-        <button
-          onClick={() => router.push("/groups/new")}
-          style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #444", cursor: "pointer" }}
-        >
-          + Crear grupo
-        </button>
-      </div>
+            <button
+              onClick={goToMyProfile}
+              disabled={!user || profileLoading}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 10,
+                border: "1px solid #ddd",
+                background: "#fff",
+                cursor: !user || profileLoading ? "not-allowed" : "pointer",
+                fontWeight: 800,
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                opacity: !user ? 0.6 : 1,
+              }}
+              title={!user ? "Inicia sesión para ver tu perfil" : "Ir a mi perfil"}
+            >
+              <span
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  border: "1px solid #ddd",
+                  display: "grid",
+                  placeItems: "center",
+                  overflow: "hidden",
+                  background: "#f5f5f5",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  color: "#555",
+                }}
+              >
+                {profile?.photoURL ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={profile.photoURL} alt="me" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  initials(myDisplayName)
+                )}
+              </span>
 
-      {loading && <p style={{ marginTop: 16 }}>Cargando...</p>}
+              <span>Mi perfil</span>
+            </button>
+          </div>
+        </div>
 
-      {error && (
-        <p style={{ color: "red", marginTop: 16 }}>
-          Error: {error}
-        </p>
-      )}
+        {/* Search */}
+        <div style={{ marginTop: 18, display: "flex", gap: 12, alignItems: "center" }}>
+          <input
+            placeholder="Buscar grupo por nombre..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ flex: 1, padding: 12, borderRadius: 12, border: "1px solid #ddd", outline: "none" }}
+          />
+        </div>
 
-      {!loading && !error && (
-        <ul style={{ marginTop: 20, paddingLeft: 0, listStyle: "none" }}>
-          {filteredGroups.length === 0 && <p>No se encontraron grupos.</p>}
+        {loading && <p style={{ marginTop: 16 }}>Cargando...</p>}
 
-          {filteredGroups.map((g) => {
-            const isOwner = !!user && !!g.ownerId && g.ownerId === user.uid;
+        {error && (
+          <div
+            style={{
+              marginTop: 16,
+              padding: 12,
+              border: "1px solid #ffd6d6",
+              background: "#fff5f5",
+              borderRadius: 12,
+              color: "#b42318",
+            }}
+          >
+            {error}
+          </div>
+        )}
 
-            // owner cuenta como miembro efectivo
-            const isMember = isOwner || !!memberMap[g.id];
+        {!loading && !error && (
+          <div style={{ marginTop: 18, display: "grid", gap: 12 }}>
+            {filteredGroups.length === 0 && <p>No se encontraron grupos.</p>}
 
-            const isPrivate = g.visibility === "private";
-            const isPublic = g.visibility === "public";
+            {filteredGroups.map((g) => {
+              const isOwner = !!user && !!g.ownerId && g.ownerId === user.uid;
+              const isMember = isOwner || !!memberMap[g.id];
 
-            const hasPendingReq = !!reqMap[g.id];
+              const isPrivate = g.visibility === "private";
+              const isPublic = g.visibility === "public";
 
-            return (
-              <li key={g.id} style={{ padding: 16, border: "1px solid #ddd", borderRadius: 10, marginBottom: 12 }}>
-                <div style={{ cursor: "pointer" }} onClick={() => router.push(`/groups/${g.id}`)}>
-                  <div>
-                    <b>{g.name ?? "(sin nombre)"}</b> — <small>{g.visibility ?? "?"}</small>
-                  </div>
-                  <div style={{ opacity: 0.8 }}>{g.description ?? ""}</div>
-                  <div style={{ fontSize: 12, opacity: 0.6 }}>id: {g.id}</div>
-                </div>
+              const hasPendingReq = !!reqMap[g.id];
 
-                <div style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "center" }}>
-                  {/* PUBLIC: Unirme directo */}
-                  {!isOwner && !isMember && isPublic && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleJoinPublic(g.id);
-                      }}
-                      style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #444", cursor: "pointer" }}
-                    >
-                      Unirme
-                    </button>
-                  )}
+              const paid = !!g.monetization?.isPaid;
+              const price = g.monetization?.priceMonthly ?? null;
+              const cur = g.monetization?.currency ?? null;
 
-                  {/* PRIVATE: solicitar acceso / cancelar solicitud */}
-                  {!isOwner && !isMember && isPrivate && (
-                    <>
-                      {!hasPendingReq ? (
+              return (
+                <div
+                  key={g.id}
+                  onClick={() => router.push(`/groups/${g.id}`)}
+                  style={{
+                    padding: 16,
+                    border: "1px solid #eaeaea",
+                    borderRadius: 16,
+                    cursor: "pointer",
+                    background: "#fff",
+                    boxShadow: "0 1px 0 rgba(0,0,0,0.03)",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                        <b style={{ fontSize: 16 }}>{g.name ?? "(sin nombre)"}</b>
+
+                        <span
+                          style={{
+                            fontSize: 12,
+                            padding: "3px 8px",
+                            borderRadius: 999,
+                            border: "1px solid #ddd",
+                            color: "#555",
+                          }}
+                        >
+                          {g.visibility ?? "?"}
+                        </span>
+
+                        {/* ✅ Badge suscripción */}
+                        {paid && (
+                          <span
+                            style={{
+                              fontSize: 12,
+                              padding: "3px 8px",
+                              borderRadius: 999,
+                              border: "1px solid #ffe1a6",
+                              background: "#fff7e6",
+                              color: "#7a4b00",
+                              fontWeight: 800,
+                            }}
+                          >
+                            Con suscripción{price != null ? ` · ${price} ${cur ?? ""}` : ""}
+                          </span>
+                        )}
+
+                        {isOwner && <span style={{ fontSize: 12, color: "#666" }}>(Eres owner)</span>}
+                        {!isOwner && isMember && <span style={{ fontSize: 12, color: "#666" }}>(Ya estás unido)</span>}
+                        {!isOwner && !isMember && isPrivate && hasPendingReq && (
+                          <span style={{ fontSize: 12, color: "#666" }}>(Pendiente)</span>
+                        )}
+                      </div>
+
+                      <div style={{ marginTop: 6, color: "#666" }}>{g.description ?? ""}</div>
+                      <div style={{ marginTop: 8, fontSize: 12, color: "#aaa" }}>id: {g.id}</div>
+                    </div>
+
+                    {/* Actions */}
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                      {!isOwner && !isMember && isPublic && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleRequestPrivate(g.id);
+                            handleJoinPublic(g.id);
                           }}
-                          style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #444", cursor: "pointer" }}
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 10,
+                            border: "1px solid #111",
+                            background: "#111",
+                            color: "#fff",
+                            cursor: "pointer",
+                            fontWeight: 800,
+                          }}
                         >
-                          Solicitar acceso
+                          Unirme
                         </button>
-                      ) : (
-                        <>
-                          <button
-                            disabled
-                            style={{
-                              padding: "8px 12px",
-                              borderRadius: 8,
-                              border: "1px solid #444",
-                              opacity: 0.6,
-                            }}
-                          >
-                            Solicitud enviada
-                          </button>
+                      )}
 
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCancelRequest(g.id);
-                            }}
-                            style={{
-                              padding: "8px 12px",
-                              borderRadius: 8,
-                              border: "1px solid #ccc",
-                              cursor: "pointer",
-                            }}
-                          >
-                            Cancelar solicitud
-                          </button>
+                      {!isOwner && !isMember && isPrivate && (
+                        <>
+                          {!hasPendingReq ? (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRequestPrivate(g.id);
+                              }}
+                              style={{
+                                padding: "8px 12px",
+                                borderRadius: 10,
+                                border: "1px solid #111",
+                                background: "#fff",
+                                cursor: "pointer",
+                                fontWeight: 800,
+                              }}
+                            >
+                              Solicitar acceso
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                disabled
+                                style={{
+                                  padding: "8px 12px",
+                                  borderRadius: 10,
+                                  border: "1px solid #ddd",
+                                  background: "#f5f5f5",
+                                  opacity: 0.8,
+                                  fontWeight: 800,
+                                }}
+                              >
+                                Solicitud enviada
+                              </button>
+
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancelRequest(g.id);
+                                }}
+                                style={{
+                                  padding: "8px 12px",
+                                  borderRadius: 10,
+                                  border: "1px solid #ddd",
+                                  background: "#fff",
+                                  cursor: "pointer",
+                                  fontWeight: 800,
+                                }}
+                              >
+                                Cancelar
+                              </button>
+                            </>
+                          )}
                         </>
                       )}
-                    </>
-                  )}
 
-                  {/* Salir: si soy miembro y no soy owner */}
-                  {isMember && !isOwner && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleLeave(g.id, g.ownerId);
-                      }}
-                      style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #ccc", cursor: "pointer" }}
-                    >
-                      Salir
-                    </button>
-                  )}
-
-                  {/* etiquetas */}
-                  {isOwner && <span style={{ fontSize: 12, opacity: 0.75 }}>(Eres owner)</span>}
-                  {!isOwner && isMember && <span style={{ fontSize: 12, opacity: 0.75 }}>(Ya estás unido)</span>}
-                  {!isOwner && !isMember && isPrivate && hasPendingReq && (
-                    <span style={{ fontSize: 12, opacity: 0.75 }}>(Pendiente)</span>
-                  )}
+                      {isMember && !isOwner && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleLeave(g.id, g.ownerId);
+                          }}
+                          style={{
+                            padding: "8px 12px",
+                            borderRadius: 10,
+                            border: "1px solid #ddd",
+                            background: "#fff",
+                            cursor: "pointer",
+                            fontWeight: 800,
+                          }}
+                        >
+                          Salir
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      <hr style={{ margin: "32px 0" }} />
-
-      <section style={{ padding: 12, border: "1px solid #ddd", borderRadius: 8 }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700 }}>Mi sesión</h2>
-
-        {authReady && !user && (
-          <p style={{ marginTop: 8 }}>
-            Ve a <a href="/login">/login</a> para iniciar sesión.
-          </p>
-        )}
-
-        {user && (
-          <div style={{ marginTop: 8 }}>
-            <p><b>UID:</b> {user.uid}</p>
-            <p><b>Email:</b> {user.email}</p>
-            <p><b>Rol (primer grupo):</b> {myRole ?? "(no miembro)"}</p>
-            <p><b>Status:</b> {myStatus ?? "(n/a)"}</p>
+              );
+            })}
           </div>
         )}
-      </section>
+      </div>
     </main>
   );
 }

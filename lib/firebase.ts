@@ -1,8 +1,9 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
+import { initializeApp, getApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
+import { getFunctions } from "firebase/functions";
 
-// Configuración tomada de .env.local
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
@@ -12,9 +13,14 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
 
-// Evita inicializar Firebase más de una vez (importante en Next.js)
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const app = !getApps().length
+  ? initializeApp(firebaseConfig)
+  : getApp();
 
-// Servicios que usará la app
+// ✅ Core services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+export const storage = getStorage(app);
+
+// ✅ Cloud Functions (callable)
+export const functions = getFunctions(app);

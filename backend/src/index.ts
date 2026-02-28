@@ -1,10 +1,10 @@
 import { onRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 
-// Healthcheck público (sin auth) para validar que Functions está vivo.
+// Healthcheck público
 export const healthcheck = onRequest(
   {
-    cors: true, // MVP: permite verificación desde navegador. (Luego lo cerramos por dominio en Deploy/Prod)
+    cors: true,
     region: "us-central1",
   },
   (req, res) => {
@@ -20,3 +20,9 @@ export const healthcheck = onRequest(
     });
   }
 );
+
+// Join requests
+export { approveJoinRequest, rejectJoinRequest } from "./joinRequests";
+
+// Greeting requests (saludos/consejos/mensajes)
+export { createGreetingRequest, respondGreetingRequest } from "./greetingRequests";

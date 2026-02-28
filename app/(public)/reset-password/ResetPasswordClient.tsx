@@ -1,43 +1,34 @@
 "use client";
 
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 function friendlyAuthError(err: any) {
   const code = err?.code as string | undefined;
 
-  if (code === "auth/invalid-credential") return "Correo o contraseña incorrectos.";
-  if (code === "auth/user-not-found") return "Usuario no encontrado.";
-  if (code === "auth/wrong-password") return "Contraseña incorrecta.";
+  if (code === "auth/invalid-email") return "El correo no es válido.";
+  if (code === "auth/user-not-found") return "No existe una cuenta con ese correo.";
   if (code === "auth/too-many-requests") return "Demasiados intentos. Intenta más tarde.";
   if (code === "auth/network-request-failed") return "Error de red. Revisa tu conexión.";
 
   return "Error inesperado. Intenta nuevamente.";
 }
 
-export default function LoginClient() {
+export default function ResetPasswordClient() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const registered = searchParams.get("registered") === "1";
-
-  async function handleLogin(e: React.FormEvent) {
+  async function handleReset(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
     setLoading(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      const next = searchParams.get("next") || "/";
-      router.replace(next);
+      await sendPasswordResetEmail(auth, email);
+      setMsg("✅ Listo. Te enviamos un correo para restablecer tu contraseña.");
     } catch (err: any) {
       setMsg(`❌ ${friendlyAuthError(err)}`);
     } finally {
@@ -64,30 +55,14 @@ export default function LoginClient() {
         }}
       >
         <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>
-          Iniciar sesión
+          Recuperar contraseña
         </h1>
 
         <p style={{ marginTop: 8, marginBottom: 16, color: "#555" }}>
-          Accede con tu correo y contraseña.
+          Escribe tu correo y te mandaremos un enlace para restablecerla.
         </p>
 
-        {/* ✅ Banner post-registro */}
-        {registered && (
-          <div
-            style={{
-              background: "#e7f5ff",
-              border: "1px solid #b3e5ff",
-              padding: 10,
-              borderRadius: 10,
-              marginBottom: 12,
-              fontSize: 14,
-            }}
-          >
-            ✅ Cuenta creada. Revisa tu correo para verificarla (inbox o spam).
-          </div>
-        )}
-
-        <form onSubmit={handleLogin} style={{ display: "grid", gap: 12 }}>
+        <form onSubmit={handleReset} style={{ display: "grid", gap: 12 }}>
           <label style={{ display: "grid", gap: 6 }}>
             <span>Correo</span>
             <input
@@ -96,22 +71,6 @@ export default function LoginClient() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={{
-                padding: 10,
-                borderRadius: 10,
-                border: "1px solid #ddd",
-              }}
-            />
-          </label>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Contraseña</span>
-            <input
-              type="password"
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
               style={{
                 padding: 10,
                 borderRadius: 10,
@@ -133,22 +92,15 @@ export default function LoginClient() {
               fontWeight: 700,
             }}
           >
-            {loading ? "Entrando..." : "Entrar"}
+            {loading ? "Enviando..." : "Enviar correo"}
           </button>
         </form>
 
         {msg && <p style={{ marginTop: 12, marginBottom: 0 }}>{msg}</p>}
 
-        <div
-          style={{
-            marginTop: 16,
-            display: "flex",
-            justifyContent: "space-between",
-            fontSize: 14,
-          }}
-        >
+        <div style={{ marginTop: 16, display: "flex", gap: 12, fontSize: 14 }}>
+          <Link href="/login">Volver a login</Link>
           <Link href="/register">Crear cuenta</Link>
-          <Link href="/reset-password">Olvidé mi contraseña</Link>
         </div>
       </div>
     </main>

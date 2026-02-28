@@ -9,7 +9,8 @@ export async function requestToJoin(groupId: string, uid: string) {
     {
       userId: uid,
       status: "pending",
-      requestedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     },
     { merge: true }
   );

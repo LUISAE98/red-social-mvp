@@ -1,12 +1,13 @@
 "use client";
 
-import { doc, getDoc } from "firebase/firestore";
-import { useEffect, useState } from "react";
+import { doc, onSnapshot } from "firebase/firestore";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import { joinGroup, leaveGroup } from "@/lib/groups/membership";
 import { requestToJoin, cancelJoinRequest } from "@/lib/groups/joinRequests";
+import JoinRequestsPanel from "./components/JoinRequestsPanel";
 
 type JoinRequestStatus = "pending" | "approved" | "rejected" | string;
 
@@ -16,6 +17,18 @@ type GroupDoc = {
   description?: string;
   ownerId?: string;
   visibility?: "public" | "private" | "hidden" | string;
+  isActive?: boolean;
+  monetization?: {
+    isPaid?: boolean;
+    priceMonthly?: number | null;
+    currency?: string | null;
+  };
+  offerings?: Array<{
+    type: "saludo" | "consejo" | "mensaje" | string;
+    enabled?: boolean;
+    price?: number | null;
+    currency?: string | null;
+  }>;
 };
 
 export default function GroupPage() {
@@ -33,63 +46,74 @@ export default function GroupPage() {
   const [leaving, setLeaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isOwner = !!user && !!group?.ownerId && group.ownerId === user.uid;
+  const isOwner = useMemo(() => !!user && !!group?.ownerId && group.ownerId === user.uid, [user, group]);
   const effectiveIsMember = isOwner || isMember;
 
   useEffect(() => {
-    async function load() {
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
 
-      try {
-        // 1) leer grupo
-        const gref = doc(db, "groups", groupId);
-        const gsnap = await getDoc(gref);
+    const gref = doc(db, "groups", groupId);
 
+    const unsubGroup = onSnapshot(
+      gref,
+      (gsnap) => {
         if (!gsnap.exists()) {
+          setGroup(null);
           setError("Grupo no encontrado.");
+          setLoading(false);
           return;
         }
 
-        const gdata: GroupDoc = {
+        setGroup({
           id: gsnap.id,
-          ...(gsnap.data() as Omit<GroupDoc, "id">),
-        };
+          ...(gsnap.data() as any),
+        });
 
-        setGroup(gdata);
+        setLoading(false);
+      },
+      (e) => {
+        setError(e.message);
+        setLoading(false);
+      }
+    );
 
-        // 2) membership
-        if (user) {
-          const mref = doc(db, "groups", groupId, "members", user.uid);
-          const msnap = await getDoc(mref);
-          setIsMember(msnap.exists());
-        } else {
-          setIsMember(false);
-        }
+    let unsubMember = () => {};
+    if (user) {
+      const mref = doc(db, "groups", groupId, "members", user.uid);
+      unsubMember = onSnapshot(
+        mref,
+        (msnap) => setIsMember(msnap.exists()),
+        () => setIsMember(false)
+      );
+    } else {
+      setIsMember(false);
+    }
 
-        // 3) joinRequest si es private
-        const visibility = gdata.visibility ?? "";
-        if (user && visibility === "private") {
-          const jref = doc(db, "groups", groupId, "joinRequests", user.uid);
-          const jsnap = await getDoc(jref);
-
+    let unsubJoinReq = () => {};
+    if (user) {
+      const jref = doc(db, "groups", groupId, "joinRequests", user.uid);
+      unsubJoinReq = onSnapshot(
+        jref,
+        (jsnap) => {
           if (!jsnap.exists()) {
             setJoinReqStatus(null);
           } else {
             const jd = jsnap.data() as any;
             setJoinReqStatus(jd.status ?? "pending");
           }
-        } else {
-          setJoinReqStatus(null);
-        }
-      } catch (e: any) {
-        setError(e?.message ?? "Error cargando grupo");
-      } finally {
-        setLoading(false);
-      }
+        },
+        () => setJoinReqStatus(null)
+      );
+    } else {
+      setJoinReqStatus(null);
     }
 
-    load();
+    return () => {
+      unsubGroup();
+      unsubMember();
+      unsubJoinReq();
+    };
   }, [groupId, user]);
 
   async function handleJoinPublic() {
@@ -100,7 +124,6 @@ export default function GroupPage() {
 
     try {
       await joinGroup(groupId, user.uid);
-      setIsMember(true);
     } catch (e: any) {
       setError(e?.message ?? "No se pudo unir");
     } finally {
@@ -116,7 +139,6 @@ export default function GroupPage() {
 
     try {
       await requestToJoin(groupId, user.uid);
-      setJoinReqStatus("pending");
     } catch (e: any) {
       setError(e?.message ?? "No se pudo enviar la solicitud");
     } finally {
@@ -132,7 +154,6 @@ export default function GroupPage() {
 
     try {
       await cancelJoinRequest(groupId, user.uid);
-      setJoinReqStatus(null);
     } catch (e: any) {
       setError(e?.message ?? "No se pudo cancelar la solicitud");
     } finally {
@@ -153,7 +174,6 @@ export default function GroupPage() {
 
     try {
       await leaveGroup(groupId, user.uid);
-      setIsMember(false);
     } catch (e: any) {
       setError(e?.message ?? "No se pudo salir");
     } finally {
@@ -167,38 +187,74 @@ export default function GroupPage() {
 
   const visibility = group.visibility ?? "";
 
-  // private y no miembro/owner => landing bloqueada con solicitar/cancelar
+  // Private y no miembro/owner => landing bloqueada
   if (visibility === "private" && !effectiveIsMember) {
     const pending = joinReqStatus === "pending";
+    const rejected = joinReqStatus === "rejected";
+    const approved = joinReqStatus === "approved";
+
+    const isPaid = !!group.monetization?.isPaid;
+    const price = group.monetization?.priceMonthly ?? null;
+    const curr = group.monetization?.currency ?? null;
 
     return (
-      <main style={{ padding: 24 }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700 }}>{group.name ?? ""}</h1>
+      <main style={{ padding: 24, maxWidth: 760 }}>
+        <h1 style={{ fontSize: 26, fontWeight: 800 }}>{group.name ?? ""}</h1>
         <p style={{ marginTop: 8, opacity: 0.85 }}>{group.description ?? ""}</p>
 
         <p style={{ marginTop: 12, opacity: 0.75 }}>
           Visibilidad: <b>private</b>
         </p>
 
-        {pending ? (
+        {/* Aviso suscripción (informativo) */}
+        {isPaid && (
+          <div style={{ marginTop: 12, padding: 10, borderRadius: 12, background: "#fff7e6", border: "1px solid #ffe1a6" }}>
+            <b>Grupo con suscripción</b>
+            {price != null && curr ? (
+              <span> — {curr} {price}/mes</span>
+            ) : null}
+            <div style={{ fontSize: 13, opacity: 0.8, marginTop: 6 }}>
+              (MVP) Por ahora puedes unirte igual si el owner te aprueba. Más adelante se activarán cobros reales.
+            </div>
+          </div>
+        )}
+
+        {approved && (
+          <p style={{ marginTop: 14, opacity: 0.9 }}>
+            ✅ Tu solicitud fue <b>aprobada</b>. Entrando al grupo…
+          </p>
+        )}
+
+        {pending && (
           <p style={{ marginTop: 14, opacity: 0.8 }}>
             ✅ Solicitud enviada <b>(pendiente)</b>. El owner debe aprobarte para entrar.
           </p>
-        ) : (
+        )}
+
+        {!pending && !approved && !rejected && (
           <p style={{ marginTop: 14, opacity: 0.8 }}>
             Este grupo es privado. Necesitas aprobación del owner.
           </p>
         )}
 
-        <div style={{ marginTop: 14, display: "flex", gap: 10 }}>
-          {!pending ? (
+        {rejected && (
+          <p style={{ marginTop: 14, opacity: 0.85, color: "#b00020" }}>
+            ❌ Tu solicitud fue <b>rechazada</b>.
+          </p>
+        )}
+
+        <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {!pending && !rejected ? (
             <button
               onClick={handleRequestPrivate}
               disabled={joining}
               style={{
                 padding: "10px 14px",
-                borderRadius: 8,
-                border: "1px solid #444",
+                borderRadius: 10,
+                border: "1px solid #111",
+                background: "#111",
+                color: "#fff",
+                fontWeight: 700,
                 cursor: "pointer",
               }}
             >
@@ -210,9 +266,11 @@ export default function GroupPage() {
                 disabled
                 style={{
                   padding: "10px 14px",
-                  borderRadius: 8,
-                  border: "1px solid #444",
-                  opacity: 0.6,
+                  borderRadius: 10,
+                  border: "1px solid #d0d0d0",
+                  background: "#fff",
+                  opacity: 0.75,
+                  fontWeight: 700,
                 }}
               >
                 Solicitud enviada
@@ -223,8 +281,10 @@ export default function GroupPage() {
                 disabled={joining}
                 style={{
                   padding: "10px 14px",
-                  borderRadius: 8,
-                  border: "1px solid #ccc",
+                  borderRadius: 10,
+                  border: "1px solid #d0d0d0",
+                  background: "#fff",
+                  fontWeight: 700,
                   cursor: "pointer",
                 }}
               >
@@ -237,25 +297,53 @@ export default function GroupPage() {
     );
   }
 
-  // contenido normal (public o private con membresía/owner)
+  // Contenido normal (public o private con membresía/owner)
+  const offerings = Array.isArray(group.offerings) ? group.offerings : [];
+  const enabledOfferings = offerings.filter((o) => (o as any).enabled !== false); // por compatibilidad
+
+  const isPaidGroup = !!group.monetization?.isPaid;
+  const subPrice = group.monetization?.priceMonthly ?? null;
+  const subCurr = group.monetization?.currency ?? null;
+
   return (
-    <main style={{ padding: 24 }}>
-      <h1 style={{ fontSize: 26, fontWeight: 700 }}>{group.name ?? ""}</h1>
+    <main style={{ padding: 24, maxWidth: 820 }}>
+      <h1 style={{ fontSize: 26, fontWeight: 800 }}>{group.name ?? ""}</h1>
       <p style={{ marginTop: 8 }}>{group.description ?? ""}</p>
 
       <p style={{ marginTop: 12, opacity: 0.75 }}>
         Visibilidad: <b>{group.visibility ?? ""}</b>
       </p>
 
-      <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center" }}>
+      {/* Leyenda en grupo ya creado (para Home/UX futura, aquí queda visible) */}
+      {isPaidGroup && (
+        <div style={{ marginTop: 10, padding: 10, borderRadius: 12, background: "#fff7e6", border: "1px solid #ffe1a6" }}>
+          <b>Grupo con suscripción</b>
+          {subPrice != null && subCurr ? <span> — {subCurr} {subPrice}/mes</span> : null}
+          <div style={{ fontSize: 13, opacity: 0.8, marginTop: 6 }}>
+            (MVP) Configuración guardada. Cobros reales y bloqueo por suscripción se activan más adelante.
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         {isOwner && <span style={{ fontSize: 12, opacity: 0.75 }}>(Eres owner)</span>}
         {!isOwner && effectiveIsMember && <span style={{ fontSize: 12, opacity: 0.75 }}>(Eres miembro)</span>}
+
+        {isOwner && <JoinRequestsPanel groupId={groupId} />}
 
         {!isOwner && !effectiveIsMember && visibility === "public" && (
           <button
             onClick={handleJoinPublic}
             disabled={joining}
-            style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #444", cursor: "pointer" }}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid #111",
+              background: "#111",
+              color: "#fff",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
           >
             {joining ? "Uniéndote..." : "Unirme"}
           </button>
@@ -265,12 +353,57 @@ export default function GroupPage() {
           <button
             onClick={handleLeave}
             disabled={leaving}
-            style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #ccc", cursor: "pointer" }}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid #d0d0d0",
+              background: "#fff",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
           >
             {leaving ? "Saliendo..." : "Salir"}
           </button>
         )}
       </div>
+
+      {/* ✅ Servicios del creador: solo si eres miembro/owner */}
+      {effectiveIsMember && enabledOfferings.length > 0 && (
+        <section style={{ marginTop: 18, border: "1px solid #eee", borderRadius: 14, padding: 14, maxWidth: 560 }}>
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>Comprar al creador</div>
+          <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 12 }}>
+            El creador ofrece estos servicios (MVP: botones informativos; pagos se agregan después).
+          </div>
+
+          <div style={{ display: "grid", gap: 10 }}>
+            {enabledOfferings.map((o: any) => {
+              const label = o.type === "saludo" ? "Saludo" : o.type === "consejo" ? "Consejo" : "Mensaje";
+              const priceText = o.price != null && o.currency ? ` — ${o.currency} ${o.price}` : "";
+              return (
+                <button
+                  key={o.type}
+                  type="button"
+                  onClick={() => alert(`Próximamente: compra de ${label}${priceText}`)}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid #111",
+                    background: "#111",
+                    color: "#fff",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  Comprar {label}{priceText}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Aquí va tu contenido interno del grupo (posts, etc.) */}
     </main>
   );
 }
