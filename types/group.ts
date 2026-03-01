@@ -63,8 +63,7 @@ export type GroupCategory =
   | "otros";
 
 /**
- * Cosas que el creador puede vender dentro del grupo.
- * MVP: solo configuración + UI/CTA (sin pago real todavía).
+ * Cosas que el creador puede vender.
  */
 export type OfferingType = "saludo" | "consejo" | "mensaje";
 
@@ -73,11 +72,24 @@ export type GroupOffering = {
   enabled: boolean;
 
   /**
-   * Si el creador quiere mostrar precio desde ya (recomendado).
-   * Puede ser null si aún no define.
+   * Precio para miembros/suscriptores (cuando compran dentro del grupo).
+   * Puede ser null si todavía no define precio.
    */
-  price: number | null;
+  memberPrice: number | null;
+
+  /**
+   * Precio público (cuando NO son miembros; típicamente desde perfil).
+   * En grupos gratis, debe ser igual a memberPrice.
+   */
+  publicPrice: number | null;
+
   currency: Currency | null;
+
+  /**
+   * Compatibilidad (legacy): antes usábamos "price".
+   * Ya no se usa para guardar, pero si existe, se normaliza a memberPrice/publicPrice.
+   */
+  price?: number | null;
 };
 
 export interface Group {

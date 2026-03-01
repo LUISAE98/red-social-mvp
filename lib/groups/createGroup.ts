@@ -1,6 +1,6 @@
 import { addDoc, collection, doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import type { Group, GroupVisibility } from "@/types/group";
+import type { Group, GroupVisibility, GroupOffering, Currency } from "@/types/group";
 
 function normalizeTags(tags?: string[]): string[] {
   if (!Array.isArray(tags)) return [];
@@ -11,6 +11,70 @@ function normalizeTags(tags?: string[]): string[] {
 }
 
 type CreateGroupInput = Omit<Group, "id" | "createdAt" | "updatedAt">;
+
+function isFinitePositiveNumber(n: unknown): n is number {
+  return typeof n === "number" && Number.isFinite(n) && n > 0;
+}
+
+function normalizeOfferings(params: {
+  offerings: any[];
+  groupIsPaid: boolean;
+}): GroupOffering[] {
+  const { offerings, groupIsPaid } = params;
+
+  const allowedTypes = new Set(["saludo", "consejo", "mensaje"]);
+
+  return offerings.map((o) => {
+    const type = (o?.type ?? "").toString();
+    if (!allowedTypes.has(type)) throw new Error("Tipo de servicio inválido.");
+
+    const enabled = !!o?.enabled;
+
+    // Compatibilidad legacy:
+    // - Antes: price + currency
+    // - Ahora: memberPrice/publicPrice + currency
+    const legacyPrice = o?.price ?? null;
+
+    const memberPriceRaw = o?.memberPrice ?? legacyPrice ?? null;
+    const publicPriceRaw = o?.publicPrice ?? (groupIsPaid ? null : memberPriceRaw) ?? null;
+
+    const currencyRaw = o?.currency ?? null;
+
+    const memberPrice = memberPriceRaw == null ? null : Number(memberPriceRaw);
+    const publicPrice = publicPriceRaw == null ? null : Number(publicPriceRaw);
+    const currency = currencyRaw == null ? null : (currencyRaw as Currency);
+
+    // Validaciones:
+    // 1) Si hay precio(s), deben ser > 0
+    if (memberPrice != null && !isFinitePositiveNumber(memberPrice)) {
+      throw new Error("memberPrice inválido en servicios (debe ser > 0).");
+    }
+    if (publicPrice != null && !isFinitePositiveNumber(publicPrice)) {
+      throw new Error("publicPrice inválido en servicios (debe ser > 0).");
+    }
+
+    // 2) Si existe cualquier precio, debe existir moneda
+    const hasAnyPrice = memberPrice != null || publicPrice != null;
+    if (hasAnyPrice && !currency) {
+      throw new Error("Si hay precio en servicios, debes seleccionar moneda.");
+    }
+    if (!hasAnyPrice && currency) {
+      throw new Error("Si hay moneda en servicios, debes definir al menos un precio.");
+    }
+
+    // 3) Si el grupo NO es de paga, publicPrice debe ser igual a memberPrice (o null)
+    //    Para simplificar el MVP: si viene distinto, lo forzamos a memberPrice.
+    const finalPublicPrice = groupIsPaid ? publicPrice : memberPrice;
+
+    return {
+      type: type as GroupOffering["type"],
+      enabled,
+      memberPrice,
+      publicPrice: finalPublicPrice ?? null,
+      currency: currency ?? null,
+    };
+  });
+}
 
 export async function createGroup(input: CreateGroupInput): Promise<string> {
   // Validaciones mínimas
@@ -42,22 +106,10 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
   }
 
   // Offerings (servicios del creador)
-  const offerings = Array.isArray(input.offerings) ? input.offerings : [];
-  if (offerings.length) {
-    for (const o of offerings) {
-      if (!["saludo", "consejo", "mensaje"].includes((o as any).type)) {
-        throw new Error("Tipo de servicio inválido.");
-      }
-      const price = (o as any).price ?? null;
-      const curr = (o as any).currency ?? null;
-
-      if (price != null) {
-        if (!(price > 0) || !Number.isFinite(price)) throw new Error("Precio inválido en servicios.");
-      }
-      // Si hay precio debe haber moneda y viceversa
-      if ((price == null) !== (curr == null)) throw new Error("Si hay precio debe haber moneda (y viceversa).");
-    }
-  }
+  const rawOfferings = Array.isArray(input.offerings) ? input.offerings : [];
+  const offerings = rawOfferings.length
+    ? normalizeOfferings({ offerings: rawOfferings, groupIsPaid: finalIsPaid })
+    : [];
 
   const payload: Omit<Group, "id"> = {
     name: input.name.trim(),
