@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
+import GreetingRequestsWidget from "@/app/groups/[groupId]/components/GreetingRequestsWidget";
 
 export default function GroupsLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -20,7 +21,7 @@ export default function GroupsLayout({ children }: { children: React.ReactNode }
   if (!user) return null;
 
   return (
-    <div>
+    <div style={{ position: "relative", minHeight: "100vh" }}>
       <header
         style={{
           padding: "12px 24px",
@@ -34,7 +35,11 @@ export default function GroupsLayout({ children }: { children: React.ReactNode }
         <LogoutButton />
       </header>
 
-      <main style={{ padding: 24 }}>{children}</main>
+      {/* Importante: sin padding aquí para no duplicarlo con pages */}
+      <main>{children}</main>
+
+      {/* ✅ Widget global en /groups/* */}
+      <GreetingRequestsWidget />
     </div>
   );
 }

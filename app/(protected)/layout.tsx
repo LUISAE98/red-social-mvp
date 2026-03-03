@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "../providers";
 import { sendEmailVerification } from "firebase/auth";
+import GreetingRequestsWidget from "@/app/groups/[groupId]/components/GreetingRequestsWidget";
 
 const RESEND_COOLDOWN_SECONDS = 30;
 
@@ -83,7 +84,7 @@ export default function ProtectedLayout({
   const resendDisabled = sending || cooldown > 0;
 
   return (
-    <div>
+    <div style={{ position: "relative", minHeight: "100vh" }}>
       <header
         style={{
           padding: "12px 24px",
@@ -134,6 +135,9 @@ export default function ProtectedLayout({
       )}
 
       <main style={{ padding: 24 }}>{children}</main>
+
+      {/* ✅ Widget global bottom-right (solo dentro de la zona logueada) */}
+      <GreetingRequestsWidget />
     </div>
   );
 }
