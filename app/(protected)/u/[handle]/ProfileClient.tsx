@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   collection,
   getDocs,
@@ -27,7 +27,6 @@ type UserDoc = {
   sex: string;
   photoURL: string | null;
 
-  // ✅ NUEVO: config de saludos en perfil
   profileGreeting?: {
     enabled: boolean;
     price: number | null;
@@ -63,7 +62,10 @@ function pickSaludoOffering(offerings: GroupDocLite["offerings"]) {
   return { enabled, price, currency };
 }
 
+const LS_WIDGET_OPEN_KEY = "rs_widget_groups_open_v1";
+
 export default function ProfileClient() {
+  const router = useRouter();
   const params = useParams<{ handle: string }>();
   const handle = useMemo(() => String(params?.handle || "").toLowerCase(), [params]);
 
@@ -80,23 +82,36 @@ export default function ProfileClient() {
   const isOwner = !!viewer && !!userDoc && viewer.uid === userDoc.uid;
 
   // ==========================
-  // ✅ Saludos en perfil (owner)
+  // ✅ Profile greeting (se gestiona desde widget como "Mi perfil")
   // ==========================
   const [pgEnabled, setPgEnabled] = useState(false);
-  const [pgPrice, setPgPrice] = useState<string>(""); // string para input controlado
+  const [pgPrice, setPgPrice] = useState<string>(""); // input controlado
   const [pgCurrency, setPgCurrency] = useState<"MXN" | "USD">("MXN");
   const [savingProfileGreeting, setSavingProfileGreeting] = useState(false);
 
   // ==========================
-  // ✅ Cajita: mis grupos + saludos
+  // ✅ Cajita: mis grupos + saludos + mi perfil
   // ==========================
+  const [widgetOpen, setWidgetOpen] = useState(true);
+
   const [myGroups, setMyGroups] = useState<GroupDocLite[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [groupsErr, setGroupsErr] = useState<string | null>(null);
   const [savingGroupId, setSavingGroupId] = useState<string | null>(null);
 
-  // UI local editable por grupo (para precio/enable sin escribir en cada tecla)
-  const [groupDraft, setGroupDraft] = useState<Record<string, { enabled: boolean; price: string; currency: "MXN" | "USD" }>>({});
+  // drafts por grupo
+  const [groupDraft, setGroupDraft] = useState<
+    Record<string, { enabled: boolean; price: string; currency: "MXN" | "USD" }>
+  >({});
+
+  // draft para "mi perfil" dentro del widget
+  const profileDraft = useMemo(() => {
+    return {
+      enabled: pgEnabled,
+      price: pgPrice,
+      currency: pgCurrency,
+    };
+  }, [pgEnabled, pgPrice, pgCurrency]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -105,6 +120,21 @@ export default function ProfileClient() {
     });
     return () => unsub();
   }, []);
+
+  // ✅ Persistir estado open/close del widget (como el de notificaciones)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(LS_WIDGET_OPEN_KEY);
+      if (raw === "0") setWidgetOpen(false);
+      if (raw === "1") setWidgetOpen(true);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(LS_WIDGET_OPEN_KEY, widgetOpen ? "1" : "0");
+    } catch {}
+  }, [widgetOpen]);
 
   async function loadProfile() {
     setLoading(true);
@@ -139,7 +169,7 @@ export default function ProfileClient() {
       const u = usnap.data() as UserDoc;
       setUserDoc(u);
 
-      // ✅ hidratar config de saludos perfil
+      // hidratar profileGreeting
       const pg = u.profileGreeting;
       setPgEnabled(pg?.enabled === true);
       setPgPrice(pg?.price == null ? "" : String(pg.price));
@@ -158,7 +188,7 @@ export default function ProfileClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handle]);
 
-  // ✅ Cargar mis grupos (solo si soy owner viendo mi perfil)
+  // ✅ cargar mis grupos (solo si soy owner viendo mi perfil)
   useEffect(() => {
     async function loadMyGroups() {
       if (!isOwner || !viewer?.uid) {
@@ -177,7 +207,6 @@ export default function ProfileClient() {
         const rows: GroupDocLite[] = gs.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
         setMyGroups(rows);
 
-        // preparar drafts por grupo
         const draft: Record<string, { enabled: boolean; price: string; currency: "MXN" | "USD" }> = {};
         for (const g of rows) {
           const s = pickSaludoOffering(g.offerings);
@@ -235,7 +264,7 @@ export default function ProfileClient() {
     }
   }
 
-  async function saveProfileGreeting() {
+  async function saveProfileGreetingFromWidget() {
     if (!userDoc || !isOwner) return;
 
     setSavingProfileGreeting(true);
@@ -280,13 +309,12 @@ export default function ProfileClient() {
       return;
     }
 
-    // construir offerings manteniendo consejo/mensaje como estén (no borrarlos)
     const existing = Array.isArray(g.offerings) ? g.offerings : [];
     const next: GroupOffering[] = [];
 
     const hasType = (t: string) => existing.some((o: any) => String(o?.type) === t);
 
-    // saludo (editable)
+    // saludo editable
     next.push({
       type: "saludo",
       enabled: d.enabled,
@@ -294,7 +322,7 @@ export default function ProfileClient() {
       currency: d.enabled ? d.currency : null,
     });
 
-    // conservar otros offerings si existían
+    // conservar otros
     if (hasType("consejo")) {
       const o = existing.find((x: any) => String(x?.type) === "consejo") as any;
       next.push({
@@ -320,7 +348,7 @@ export default function ProfileClient() {
     try {
       await updateOfferings(groupId, next);
 
-      // refrescar el grupo localmente para que cuadre con Firestore
+      // actualizar local
       setMyGroups((prev) =>
         prev.map((gg) => {
           if (gg.id !== groupId) return gg;
@@ -357,9 +385,7 @@ export default function ProfileClient() {
 
   return (
     <>
-      {/* ==========================
-          PERFIL (NO TOCADO: lo que tú ya tenías)
-         ========================== */}
+      {/* PERFIL */}
       <main style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
         <div style={{ border: "1px solid #e5e5e5", borderRadius: 16, padding: 22 }}>
           {/* Avatar */}
@@ -440,67 +466,11 @@ export default function ProfileClient() {
             </div>
           </div>
 
-          {/* ✅ NUEVO: Config saludos en perfil (solo owner) */}
-          {isOwner && (
-            <div style={{ marginTop: 18, border: "1px solid #eee", borderRadius: 14, padding: 14 }}>
-              <div style={{ fontWeight: 900, marginBottom: 6 }}>Saludos desde mi perfil</div>
-              <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 12 }}>
-                Activa/desactiva y configura el precio exclusivo de tu perfil (puede ser distinto a tus grupos).
-              </div>
-
-              <label style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800 }}>
-                <input
-                  type="checkbox"
-                  checked={pgEnabled}
-                  onChange={(e) => setPgEnabled(e.target.checked)}
-                />
-                Activar saludos en perfil
-              </label>
-
-              {pgEnabled && (
-                <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <input
-                    type="number"
-                    value={pgPrice}
-                    onChange={(e) => setPgPrice(e.target.value)}
-                    placeholder="Precio"
-                    style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #d0d0d0" }}
-                  />
-                  <select
-                    value={pgCurrency}
-                    onChange={(e) => setPgCurrency(e.target.value as "MXN" | "USD")}
-                    style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #d0d0d0" }}
-                  >
-                    <option value="MXN">MXN</option>
-                    <option value="USD">USD</option>
-                  </select>
-                </div>
-              )}
-
-              <button
-                type="button"
-                onClick={saveProfileGreeting}
-                disabled={savingProfileGreeting}
-                style={{
-                  marginTop: 12,
-                  padding: "10px 14px",
-                  borderRadius: 10,
-                  border: "1px solid #111",
-                  background: "#111",
-                  color: "#fff",
-                  fontWeight: 900,
-                  cursor: "pointer",
-                  opacity: savingProfileGreeting ? 0.75 : 1,
-                }}
-              >
-                {savingProfileGreeting ? "Guardando..." : "Guardar"}
-              </button>
-            </div>
-          )}
+          {/* ✅ Ya NO mostramos la caja "Saludos desde mi perfil" aquí.
+              Se gestiona desde el widget como "Mi perfil". */}
 
           {msg && <p style={{ marginTop: 16, marginBottom: 0 }}>{msg}</p>}
 
-          {/* Debug sesión */}
           {authReady && viewer && (
             <p style={{ marginTop: 16, opacity: 0.65, fontSize: 12 }}>
               Sesión activa: {viewer.email}
@@ -509,16 +479,14 @@ export default function ProfileClient() {
         </div>
       </main>
 
-      {/* ==========================
-          ✅ Cajita fija: Mis grupos — Saludos (otra esquina)
-         ========================== */}
+      {/* WIDGET: Mis grupos — Saludos + Mi perfil */}
       {isOwner && (
         <div
           style={{
             position: "fixed",
             left: 16,
             bottom: 16,
-            width: 360,
+            width: 380,
             zIndex: 9998,
             fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
           }}
@@ -532,7 +500,9 @@ export default function ProfileClient() {
               overflow: "hidden",
             }}
           >
-            <div
+            <button
+              type="button"
+              onClick={() => setWidgetOpen((v) => !v)}
               style={{
                 width: "100%",
                 padding: "10px 12px",
@@ -543,100 +513,182 @@ export default function ProfileClient() {
                 border: "none",
                 background: "#111",
                 color: "#fff",
+                cursor: "pointer",
                 fontWeight: 900,
               }}
             >
               <span>Mis grupos — Saludos</span>
-              <span style={{ fontSize: 12, opacity: 0.85 }}>{loadingGroups ? "Cargando..." : `${myGroups.length}`}</span>
-            </div>
+              <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 12, opacity: 0.85 }}>
+                  {loadingGroups ? "Cargando..." : `${myGroups.length}`}
+                </span>
+                <span style={{ fontSize: 12, opacity: 0.9 }}>{widgetOpen ? "▲" : "▼"}</span>
+              </span>
+            </button>
 
-            <div style={{ padding: 12, display: "grid", gap: 10 }}>
-              {groupsErr && <div style={{ fontSize: 12, color: "#b00020" }}>{groupsErr}</div>}
+            {!widgetOpen ? null : (
+              <div style={{ padding: 12, display: "grid", gap: 10 }}>
+                {groupsErr && <div style={{ fontSize: 12, color: "#b00020" }}>{groupsErr}</div>}
 
-              {!loadingGroups && myGroups.length === 0 && (
-                <div style={{ fontSize: 12, opacity: 0.75 }}>
-                  No tienes grupos como owner.
-                </div>
-              )}
-
-              {myGroups.map((g) => {
-                const d = groupDraft[g.id];
-                if (!d) return null;
-
-                const saving = savingGroupId === g.id;
-
-                return (
-                  <div key={g.id} style={{ border: "1px solid #eee", borderRadius: 12, padding: 10 }}>
-                    <div style={{ fontWeight: 900, fontSize: 13 }}>{g.name ?? "(Sin nombre)"}</div>
-                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>id: {g.id}</div>
-
-                    <label style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, fontWeight: 800 }}>
-                      <input
-                        type="checkbox"
-                        checked={d.enabled}
-                        onChange={(e) =>
-                          setGroupDraft((prev) => ({
-                            ...prev,
-                            [g.id]: { ...prev[g.id], enabled: e.target.checked },
-                          }))
-                        }
-                      />
-                      Saludos activos en este grupo
-                    </label>
-
-                    {d.enabled && (
-                      <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <input
-                          type="number"
-                          value={d.price}
-                          onChange={(e) =>
-                            setGroupDraft((prev) => ({
-                              ...prev,
-                              [g.id]: { ...prev[g.id], price: e.target.value },
-                            }))
-                          }
-                          placeholder="Precio"
-                          style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #d0d0d0" }}
-                        />
-                        <select
-                          value={d.currency}
-                          onChange={(e) =>
-                            setGroupDraft((prev) => ({
-                              ...prev,
-                              [g.id]: { ...prev[g.id], currency: e.target.value as "MXN" | "USD" },
-                            }))
-                          }
-                          style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #d0d0d0" }}
-                        >
-                          <option value="MXN">MXN</option>
-                          <option value="USD">USD</option>
-                        </select>
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => saveGroupSaludo(g.id)}
-                      disabled={saving}
-                      style={{
-                        marginTop: 10,
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "1px solid #111",
-                        background: "#111",
-                        color: "#fff",
-                        fontWeight: 900,
-                        cursor: "pointer",
-                        opacity: saving ? 0.75 : 1,
-                        width: "100%",
-                      }}
-                    >
-                      {saving ? "Guardando..." : "Guardar cambios"}
-                    </button>
+                {/* MI PERFIL */}
+                <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 10 }}>
+                  <div style={{ fontWeight: 900, fontSize: 13, display: "flex", justifyContent: "space-between", gap: 10 }}>
+                    <span>Mi perfil</span>
+                    <span style={{ fontSize: 12, opacity: 0.7 }}>saludo</span>
                   </div>
-                );
-              })}
-            </div>
+
+                  <label style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, fontWeight: 800 }}>
+                    <input
+                      type="checkbox"
+                      checked={profileDraft.enabled}
+                      onChange={(e) => setPgEnabled(e.target.checked)}
+                    />
+                    Vender saludos en mi perfil
+                  </label>
+
+                  {profileDraft.enabled && (
+                    <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                      <input
+                        type="number"
+                        value={profileDraft.price}
+                        onChange={(e) => setPgPrice(e.target.value)}
+                        placeholder="Precio"
+                        style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #d0d0d0" }}
+                      />
+                      <select
+                        value={profileDraft.currency}
+                        onChange={(e) => setPgCurrency(e.target.value as "MXN" | "USD")}
+                        style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #d0d0d0" }}
+                      >
+                        <option value="MXN">MXN</option>
+                        <option value="USD">USD</option>
+                      </select>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={saveProfileGreetingFromWidget}
+                    disabled={savingProfileGreeting}
+                    style={{
+                      marginTop: 10,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #111",
+                      background: "#111",
+                      color: "#fff",
+                      fontWeight: 900,
+                      cursor: "pointer",
+                      opacity: savingProfileGreeting ? 0.75 : 1,
+                      width: "100%",
+                    }}
+                  >
+                    {savingProfileGreeting ? "Guardando..." : "Guardar Mi perfil"}
+                  </button>
+                </div>
+
+                {/* GRUPOS */}
+                {!loadingGroups && myGroups.length === 0 && (
+                  <div style={{ fontSize: 12, opacity: 0.75 }}>No tienes grupos como owner.</div>
+                )}
+
+                {myGroups.map((g) => {
+                  const d = groupDraft[g.id];
+                  if (!d) return null;
+
+                  const saving = savingGroupId === g.id;
+
+                  return (
+                    <div key={g.id} style={{ border: "1px solid #eee", borderRadius: 12, padding: 10 }}>
+                      {/* ✅ Click en nombre para ir al grupo */}
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/groups/${g.id}`)}
+                        style={{
+                          fontWeight: 900,
+                          fontSize: 13,
+                          background: "transparent",
+                          border: "none",
+                          padding: 0,
+                          textAlign: "left",
+                          cursor: "pointer",
+                          textDecoration: "underline",
+                        }}
+                        title="Abrir grupo"
+                      >
+                        {g.name ?? "(Sin nombre)"}
+                      </button>
+
+                      <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>id: {g.id}</div>
+
+                      <label style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10, fontWeight: 800 }}>
+                        <input
+                          type="checkbox"
+                          checked={d.enabled}
+                          onChange={(e) =>
+                            setGroupDraft((prev) => ({
+                              ...prev,
+                              [g.id]: { ...prev[g.id], enabled: e.target.checked },
+                            }))
+                          }
+                        />
+                        Saludos activos en este grupo
+                      </label>
+
+                      {d.enabled && (
+                        <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                          <input
+                            type="number"
+                            value={d.price}
+                            onChange={(e) =>
+                              setGroupDraft((prev) => ({
+                                ...prev,
+                                [g.id]: { ...prev[g.id], price: e.target.value },
+                              }))
+                            }
+                            placeholder="Precio"
+                            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #d0d0d0" }}
+                          />
+                          <select
+                            value={d.currency}
+                            onChange={(e) =>
+                              setGroupDraft((prev) => ({
+                                ...prev,
+                                [g.id]: { ...prev[g.id], currency: e.target.value as "MXN" | "USD" },
+                              }))
+                            }
+                            style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #d0d0d0" }}
+                          >
+                            <option value="MXN">MXN</option>
+                            <option value="USD">USD</option>
+                          </select>
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => saveGroupSaludo(g.id)}
+                        disabled={saving}
+                        style={{
+                          marginTop: 10,
+                          padding: "10px 12px",
+                          borderRadius: 10,
+                          border: "1px solid #111",
+                          background: "#111",
+                          color: "#fff",
+                          fontWeight: 900,
+                          cursor: "pointer",
+                          opacity: saving ? 0.75 : 1,
+                          width: "100%",
+                        }}
+                      >
+                        {saving ? "Guardando..." : "Guardar cambios"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
