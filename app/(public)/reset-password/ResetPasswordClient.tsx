@@ -36,6 +36,13 @@ export default function ResetPasswordClient() {
     }
   }
 
+  const fontStack =
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+
+  const cardBorder = "1px solid rgba(255,255,255,0.22)";
+  const fieldBorder = "1px solid rgba(255,255,255,0.30)";
+  const fieldBg = "rgba(0,0,0,0.32)";
+
   return (
     <main
       style={{
@@ -43,64 +50,90 @@ export default function ResetPasswordClient() {
         display: "grid",
         placeItems: "center",
         padding: 24,
+        background: "#000",
+        color: "#fff",
+        fontFamily: fontStack,
       }}
     >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 420,
-          border: "1px solid #e5e5e5",
-          borderRadius: 12,
-          padding: 20,
-        }}
-      >
-        <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>
-          Recuperar contraseña
-        </h1>
+      <div style={{ width: "100%", maxWidth: 420 }}>
+        <div
+          style={{
+            borderRadius: 16,
+            border: cardBorder,
+            background: "rgba(12,12,12,0.9)",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+          }}
+        >
+          <div style={{ padding: 24 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Recuperar contraseña</h1>
 
-        <p style={{ marginTop: 8, marginBottom: 16, color: "#555" }}>
-          Escribe tu correo y te mandaremos un enlace para restablecerla.
-        </p>
-
-        <form onSubmit={handleReset} style={{ display: "grid", gap: 12 }}>
-          <label style={{ display: "grid", gap: 6 }}>
-            <span>Correo</span>
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+            <p
               style={{
-                padding: 10,
-                borderRadius: 10,
-                border: "1px solid #ddd",
+                marginTop: 6,
+                marginBottom: 20,
+                color: "rgba(255,255,255,0.78)",
+                fontWeight: 400,
+                fontSize: 14,
               }}
-            />
-          </label>
+            >
+              Escribe tu correo y te mandaremos un enlace para restablecerla.
+            </p>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              padding: 10,
-              borderRadius: 10,
-              border: "1px solid #111",
-              background: loading ? "#ddd" : "#111",
-              color: loading ? "#333" : "#fff",
-              cursor: loading ? "not-allowed" : "pointer",
-              fontWeight: 700,
-            }}
-          >
-            {loading ? "Enviando..." : "Enviar correo"}
-          </button>
-        </form>
+            <form onSubmit={handleReset} style={{ display: "grid", gap: 14 }}>
+              <label style={{ display: "grid", gap: 6 }}>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.90)" }}>Correo</span>
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={{
+                    padding: "11px 12px",
+                    borderRadius: 10,
+                    border: fieldBorder,
+                    background: fieldBg,
+                    color: "#fff",
+                    outline: "none",
+                    fontSize: 14,
+                  }}
+                />
+              </label>
 
-        {msg && <p style={{ marginTop: 12, marginBottom: 0 }}>{msg}</p>}
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  marginTop: 4,
+                  padding: "11px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.28)",
+                  background: loading ? "rgba(255,255,255,0.15)" : "#fff",
+                  color: loading ? "#fff" : "#000",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                {loading ? "Enviando..." : "Enviar correo"}
+              </button>
+            </form>
 
-        <div style={{ marginTop: 16, display: "flex", gap: 12, fontSize: 14 }}>
-          <Link href="/login">Volver a login</Link>
-          <Link href="/register">Crear cuenta</Link>
+            {msg && (
+              <div style={{ marginTop: 14, fontSize: 13, color: "rgba(255,255,255,0.92)" }}>
+                {msg}
+              </div>
+            )}
+
+            <div style={{ marginTop: 18, display: "flex", gap: 12, fontSize: 13 }}>
+              <Link href="/login" style={{ color: "rgba(255,255,255,0.85)", textDecoration: "none" }}>
+                Volver a login
+              </Link>
+              <Link href="/register" style={{ color: "rgba(255,255,255,0.85)", textDecoration: "none" }}>
+                Crear cuenta
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </main>

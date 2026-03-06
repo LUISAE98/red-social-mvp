@@ -51,6 +51,26 @@ export default function GroupsHome() {
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
 
+  // ✅ UI tokens (dark minimal, líneas claras sin exagerar)
+  const fontStack =
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+
+  const pageWrap: React.CSSProperties = {
+    padding: 24,
+    background: "#000",
+    minHeight: "100vh",
+    color: "#fff",
+    fontFamily: fontStack,
+  };
+
+  const container: React.CSSProperties = { maxWidth: 980, margin: "0 auto", width: "100%" };
+
+  const cardBorder = "1px solid rgba(255,255,255,0.18)";
+  const softBorder = "1px solid rgba(255,255,255,0.22)";
+  const fieldBorder = "1px solid rgba(255,255,255,0.30)";
+  const surface = "rgba(12,12,12,0.90)";
+  const fieldBg = "rgba(0,0,0,0.32)";
+
   // auth
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -230,47 +250,52 @@ export default function GroupsHome() {
     profile?.displayName || `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim() || user?.email || "Mi perfil";
 
   return (
-    <main style={{ padding: 24 }}>
-      <div style={{ maxWidth: 980, margin: "0 auto" }}>
+    <main style={pageWrap}>
+      <div style={container}>
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <div>
-            <h1 style={{ fontSize: 28, fontWeight: 900, margin: 0 }}>Explorar grupos</h1>
-            <p style={{ marginTop: 6, marginBottom: 0, color: "#666" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ minWidth: 0 }}>
+            <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.2 }}>Explorar grupos</h1>
+            <p style={{ marginTop: 6, marginBottom: 0, color: "rgba(255,255,255,0.76)", fontSize: 14, fontWeight: 400 }}>
               Busca grupos públicos/privados y administra tu membresía.
             </p>
           </div>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            {/* + Crear grupo (primary) */}
             <button
               onClick={() => router.push("/groups/new")}
               style={{
                 padding: "10px 14px",
-                borderRadius: 10,
-                border: "1px solid #111",
-                background: "#111",
-                color: "#fff",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.28)",
+                background: "#fff",
+                color: "#000",
                 cursor: "pointer",
-                fontWeight: 800,
+                fontWeight: 600,
+                fontSize: 14,
               }}
             >
               + Crear grupo
             </button>
 
+            {/* Mi perfil */}
             <button
               onClick={goToMyProfile}
               disabled={!user || profileLoading}
               style={{
                 padding: "10px 14px",
-                borderRadius: 10,
-                border: "1px solid #ddd",
-                background: "#fff",
+                borderRadius: 12,
+                border: softBorder,
+                background: "rgba(255,255,255,0.06)",
+                color: "#fff",
                 cursor: !user || profileLoading ? "not-allowed" : "pointer",
-                fontWeight: 800,
+                fontWeight: 600,
+                fontSize: 14,
                 display: "flex",
                 alignItems: "center",
                 gap: 10,
-                opacity: !user ? 0.6 : 1,
+                opacity: !user ? 0.55 : 1,
               }}
               title={!user ? "Inicia sesión para ver tu perfil" : "Ir a mi perfil"}
             >
@@ -279,14 +304,14 @@ export default function GroupsHome() {
                   width: 28,
                   height: 28,
                   borderRadius: "50%",
-                  border: "1px solid #ddd",
+                  border: "1px solid rgba(255,255,255,0.26)",
                   display: "grid",
                   placeItems: "center",
                   overflow: "hidden",
-                  background: "#f5f5f5",
+                  background: "rgba(0,0,0,0.35)",
                   fontSize: 12,
-                  fontWeight: 900,
-                  color: "#555",
+                  fontWeight: 600,
+                  color: "rgba(255,255,255,0.86)",
                 }}
               >
                 {profile?.photoURL ? (
@@ -308,21 +333,31 @@ export default function GroupsHome() {
             placeholder="Buscar grupo por nombre..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ flex: 1, padding: 12, borderRadius: 12, border: "1px solid #ddd", outline: "none" }}
+            style={{
+              flex: 1,
+              padding: "11px 12px",
+              borderRadius: 12,
+              border: fieldBorder,
+              background: fieldBg,
+              color: "#fff",
+              outline: "none",
+              fontSize: 14,
+            }}
           />
         </div>
 
-        {loading && <p style={{ marginTop: 16 }}>Cargando...</p>}
+        {loading && <p style={{ marginTop: 16, color: "rgba(255,255,255,0.75)" }}>Cargando...</p>}
 
         {error && (
           <div
             style={{
               marginTop: 16,
               padding: 12,
-              border: "1px solid #ffd6d6",
-              background: "#fff5f5",
+              border: "1px solid rgba(255, 107, 107, 0.45)",
+              background: "rgba(255, 107, 107, 0.10)",
               borderRadius: 12,
-              color: "#b42318",
+              color: "rgba(255,255,255,0.92)",
+              fontSize: 13,
             }}
           >
             {error}
@@ -331,7 +366,7 @@ export default function GroupsHome() {
 
         {!loading && !error && (
           <div style={{ marginTop: 18, display: "grid", gap: 12 }}>
-            {filteredGroups.length === 0 && <p>No se encontraron grupos.</p>}
+            {filteredGroups.length === 0 && <p style={{ color: "rgba(255,255,255,0.75)" }}>No se encontraron grupos.</p>}
 
             {filteredGroups.map((g) => {
               const isOwner = !!user && !!g.ownerId && g.ownerId === user.uid;
@@ -346,62 +381,76 @@ export default function GroupsHome() {
               const price = g.monetization?.priceMonthly ?? null;
               const cur = g.monetization?.currency ?? null;
 
+              const visLabel =
+                g.visibility === "public" ? "Grupo público" : g.visibility === "private" ? "Grupo privado" : "Grupo oculto";
+
               return (
                 <div
                   key={g.id}
                   onClick={() => router.push(`/groups/${g.id}`)}
                   style={{
                     padding: 16,
-                    border: "1px solid #eaeaea",
+                    border: cardBorder,
                     borderRadius: 16,
                     cursor: "pointer",
-                    background: "#fff",
-                    boxShadow: "0 1px 0 rgba(0,0,0,0.03)",
+                    background: surface,
+                    boxShadow: "0 14px 40px rgba(0,0,0,0.35)",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.border = "1px solid rgba(255,255,255,0.26)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.border = cardBorder;
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                    <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+                    <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                        <b style={{ fontSize: 16 }}>{g.name ?? "(sin nombre)"}</b>
+                        <span style={{ fontSize: 16, fontWeight: 600, color: "#fff" }}>{g.name ?? "(sin nombre)"}</span>
 
                         <span
                           style={{
                             fontSize: 12,
                             padding: "3px 8px",
                             borderRadius: 999,
-                            border: "1px solid #ddd",
-                            color: "#555",
+                            border: "1px solid rgba(255,255,255,0.24)",
+                            background: "rgba(255,255,255,0.06)",
+                            color: "rgba(255,255,255,0.85)",
+                            fontWeight: 500,
                           }}
                         >
-                          {g.visibility ?? "?"}
+                          {visLabel}
                         </span>
 
-                        {/* ✅ Badge suscripción */}
+                        {/* ✅ Badge suscripción (dark) */}
                         {paid && (
                           <span
                             style={{
                               fontSize: 12,
                               padding: "3px 8px",
                               borderRadius: 999,
-                              border: "1px solid #ffe1a6",
-                              background: "#fff7e6",
-                              color: "#7a4b00",
-                              fontWeight: 800,
+                              border: "1px solid rgba(255, 225, 166, 0.40)",
+                              background: "rgba(255, 225, 166, 0.10)",
+                              color: "rgba(255,255,255,0.88)",
+                              fontWeight: 600,
                             }}
                           >
                             Con suscripción{price != null ? ` · ${price} ${cur ?? ""}` : ""}
                           </span>
                         )}
 
-                        {isOwner && <span style={{ fontSize: 12, color: "#666" }}>(Eres owner)</span>}
-                        {!isOwner && isMember && <span style={{ fontSize: 12, color: "#666" }}>(Ya estás unido)</span>}
+                        {isOwner && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.62)" }}>(Eres owner)</span>}
+                        {!isOwner && isMember && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.62)" }}>(Ya estás unido)</span>}
                         {!isOwner && !isMember && isPrivate && hasPendingReq && (
-                          <span style={{ fontSize: 12, color: "#666" }}>(Pendiente)</span>
+                          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.62)" }}>(Pendiente)</span>
                         )}
                       </div>
 
-                      <div style={{ marginTop: 6, color: "#666" }}>{g.description ?? ""}</div>
-                      <div style={{ marginTop: 8, fontSize: 12, color: "#aaa" }}>id: {g.id}</div>
+                      <div style={{ marginTop: 6, color: "rgba(255,255,255,0.76)", fontSize: 14 }}>
+                        {g.description ?? ""}
+                      </div>
+
+                      <div style={{ marginTop: 8, fontSize: 12, color: "rgba(255,255,255,0.45)" }}>id: {g.id}</div>
                     </div>
 
                     {/* Actions */}
@@ -414,12 +463,13 @@ export default function GroupsHome() {
                           }}
                           style={{
                             padding: "8px 12px",
-                            borderRadius: 10,
-                            border: "1px solid #111",
-                            background: "#111",
-                            color: "#fff",
+                            borderRadius: 12,
+                            border: "1px solid rgba(255,255,255,0.28)",
+                            background: "#fff",
+                            color: "#000",
                             cursor: "pointer",
-                            fontWeight: 800,
+                            fontWeight: 600,
+                            fontSize: 14,
                           }}
                         >
                           Unirme
@@ -436,11 +486,13 @@ export default function GroupsHome() {
                               }}
                               style={{
                                 padding: "8px 12px",
-                                borderRadius: 10,
-                                border: "1px solid #111",
-                                background: "#fff",
+                                borderRadius: 12,
+                                border: "1px solid rgba(255,255,255,0.26)",
+                                background: "rgba(255,255,255,0.06)",
+                                color: "#fff",
                                 cursor: "pointer",
-                                fontWeight: 800,
+                                fontWeight: 600,
+                                fontSize: 14,
                               }}
                             >
                               Solicitar acceso
@@ -451,11 +503,14 @@ export default function GroupsHome() {
                                 disabled
                                 style={{
                                   padding: "8px 12px",
-                                  borderRadius: 10,
-                                  border: "1px solid #ddd",
-                                  background: "#f5f5f5",
-                                  opacity: 0.8,
-                                  fontWeight: 800,
+                                  borderRadius: 12,
+                                  border: "1px solid rgba(255,255,255,0.22)",
+                                  background: "rgba(255,255,255,0.05)",
+                                  color: "rgba(255,255,255,0.75)",
+                                  opacity: 0.9,
+                                  fontWeight: 600,
+                                  fontSize: 14,
+                                  cursor: "not-allowed",
                                 }}
                               >
                                 Solicitud enviada
@@ -468,11 +523,13 @@ export default function GroupsHome() {
                                 }}
                                 style={{
                                   padding: "8px 12px",
-                                  borderRadius: 10,
-                                  border: "1px solid #ddd",
-                                  background: "#fff",
+                                  borderRadius: 12,
+                                  border: "1px solid rgba(255,255,255,0.26)",
+                                  background: "rgba(255,255,255,0.06)",
+                                  color: "#fff",
                                   cursor: "pointer",
-                                  fontWeight: 800,
+                                  fontWeight: 600,
+                                  fontSize: 14,
                                 }}
                               >
                                 Cancelar
@@ -490,11 +547,13 @@ export default function GroupsHome() {
                           }}
                           style={{
                             padding: "8px 12px",
-                            borderRadius: 10,
-                            border: "1px solid #ddd",
-                            background: "#fff",
+                            borderRadius: 12,
+                            border: "1px solid rgba(255,255,255,0.26)",
+                            background: "rgba(255,255,255,0.06)",
+                            color: "#fff",
                             cursor: "pointer",
-                            fontWeight: 800,
+                            fontWeight: 600,
+                            fontSize: 14,
                           }}
                         >
                           Salir

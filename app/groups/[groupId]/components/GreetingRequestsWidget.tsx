@@ -54,21 +54,16 @@ export default function GreetingRequestsWidget() {
   const { user } = useAuth();
   const uid = user?.uid ?? null;
 
-  // ==========================
-  // Persistencia open/cerrado
-  // ==========================
   const storageKey = uid ? `gr_widget_open_${uid}` : "gr_widget_open";
 
   const [open, setOpen] = useState<boolean>(true);
   const [openReady, setOpenReady] = useState<boolean>(false);
 
-  // Carga preferencia al montar / cuando cambia uid
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw === "0") setOpen(false);
       else if (raw === "1") setOpen(true);
-      // si no existe, queda por default true
     } catch {
       // ignore
     } finally {
@@ -76,7 +71,6 @@ export default function GreetingRequestsWidget() {
     }
   }, [storageKey]);
 
-  // Guarda preferencia al cambiar open
   useEffect(() => {
     if (!openReady) return;
     try {
@@ -86,9 +80,6 @@ export default function GreetingRequestsWidget() {
     }
   }, [open, openReady, storageKey]);
 
-  // ==========================
-  // Data (incoming + buyerPending)
-  // ==========================
   const [incoming, setIncoming] = useState<Array<{ id: string; data: GreetingRequestDoc }>>([]);
   const [buyerPending, setBuyerPending] = useState<Array<{ id: string; data: GreetingRequestDoc }>>([]);
 
@@ -103,7 +94,7 @@ export default function GreetingRequestsWidget() {
 
   const showWidget = useMemo(() => hasIncoming || hasBuyer, [hasIncoming, hasBuyer]);
 
-  const pendingBadge = incoming.length; // badge solo para recibidas
+  const pendingBadge = incoming.length;
 
   useEffect(() => {
     if (!uid) {
@@ -114,7 +105,6 @@ export default function GreetingRequestsWidget() {
 
     setErr(null);
 
-    // OWNER: solicitudes pendientes recibidas
     setLoadingIncoming(true);
     const incomingQ = query(
       collection(db, "greetingRequests"),
@@ -137,7 +127,6 @@ export default function GreetingRequestsWidget() {
       }
     );
 
-    // BUYER: mis solicitudes pendientes
     setLoadingBuyer(true);
     const buyerQ = query(
       collection(db, "greetingRequests"),
@@ -181,12 +170,65 @@ export default function GreetingRequestsWidget() {
   }
 
   if (!uid) return null;
-
-  // Evita “brinco” antes de leer localStorage
   if (!openReady) return null;
-
-  // Si no hay nada real (y no estamos cargando), no se muestra
   if (!showWidget && !loadingIncoming && !loadingBuyer) return null;
+
+  const fontStack =
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+
+  const card: React.CSSProperties = {
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.22)",
+    background: "rgba(12,12,12,0.92)",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+    overflow: "hidden",
+    color: "#fff",
+    backdropFilter: "blur(10px)",
+  };
+
+  const panel: React.CSSProperties = {
+    border: "1px solid rgba(255,255,255,0.14)",
+    borderRadius: 12,
+    padding: 10,
+    background: "rgba(255,255,255,0.03)",
+  };
+
+  const subtle: React.CSSProperties = {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.72)",
+  };
+
+  const buttonPrimary: React.CSSProperties = {
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.28)",
+    background: "#fff",
+    color: "#000",
+    fontWeight: 600,
+    cursor: "pointer",
+    fontSize: 13,
+  };
+
+  const buttonSecondary: React.CSSProperties = {
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.20)",
+    background: "rgba(255,255,255,0.08)",
+    color: "#fff",
+    fontWeight: 500,
+    cursor: "pointer",
+    fontSize: 13,
+  };
+
+  const badge: React.CSSProperties = {
+    fontSize: 12,
+    background: "rgba(255,255,255,0.12)",
+    color: "#fff",
+    border: "1px solid rgba(255,255,255,0.18)",
+    borderRadius: 999,
+    padding: "2px 8px",
+    fontWeight: 600,
+  };
 
   return (
     <div
@@ -196,18 +238,10 @@ export default function GreetingRequestsWidget() {
         bottom: 16,
         width: 360,
         zIndex: 9999,
-        fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+        fontFamily: fontStack,
       }}
     >
-      <div
-        style={{
-          borderRadius: 14,
-          border: "1px solid #ddd",
-          background: "#fff",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.10)",
-          overflow: "hidden",
-        }}
-      >
+      <div style={card}>
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
@@ -219,26 +253,17 @@ export default function GreetingRequestsWidget() {
             justifyContent: "space-between",
             gap: 10,
             border: "none",
-            background: "#111",
+            background: "rgba(255,255,255,0.06)",
             color: "#fff",
             cursor: "pointer",
-            fontWeight: 900,
+            fontWeight: 600,
+            fontSize: 14,
           }}
         >
           <span>Notificaciones — Saludos</span>
           <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {pendingBadge > 0 && (
-              <span
-                style={{
-                  fontSize: 12,
-                  background: "#ff3b30",
-                  color: "#fff",
-                  borderRadius: 999,
-                  padding: "2px 8px",
-                  fontWeight: 900,
-                }}
-                title="Solicitudes pendientes (recibidas)"
-              >
+              <span style={badge} title="Solicitudes pendientes (recibidas)">
                 {pendingBadge}
               </span>
             )}
@@ -248,31 +273,68 @@ export default function GreetingRequestsWidget() {
 
         {!open ? null : (
           <div style={{ padding: 12, display: "grid", gap: 12 }}>
-            {err && <div style={{ fontSize: 12, color: "#b00020" }}>{err}</div>}
+            {err && (
+              <div
+                style={{
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(255,255,255,0.16)",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "rgba(255,255,255,0.92)",
+                  fontSize: 12,
+                }}
+              >
+                ❌ {err}
+              </div>
+            )}
 
-            {/* OWNER: recibidas */}
             {hasIncoming && (
-              <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                  <div style={{ fontWeight: 900 }}>Solicitudes recibidas</div>
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>
-                    {loadingIncoming ? "Cargando..." : `${incoming.length}`}
-                  </div>
+              <div style={panel}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Solicitudes recibidas</div>
+                  <div style={subtle}>{loadingIncoming ? "Cargando..." : `${incoming.length}`}</div>
                 </div>
 
                 <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
                   {incoming.map((r) => {
                     const d = r.data;
                     const disabled = actionLoadingId === r.id;
+
                     return (
-                      <div key={r.id} style={{ border: "1px solid #eee", borderRadius: 12, padding: 10 }}>
-                        <div style={{ fontWeight: 900, fontSize: 13 }}>
-                          {typeLabel(d.type)} — Para: <span style={{ fontWeight: 900 }}>{d.toName}</span>
+                      <div
+                        key={r.id}
+                        style={{
+                          border: "1px solid rgba(255,255,255,0.14)",
+                          borderRadius: 12,
+                          padding: 10,
+                          background: "rgba(0,0,0,0.22)",
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, fontSize: 13, color: "#fff" }}>
+                          {typeLabel(d.type)} — Para:{" "}
+                          <span style={{ fontWeight: 600, color: "rgba(255,255,255,0.92)" }}>
+                            {d.toName}
+                          </span>
                         </div>
-                        <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>
-                          {fmtDate(d.createdAt)}
-                        </div>
-                        <div style={{ fontSize: 12, marginTop: 8, whiteSpace: "pre-wrap" }}>
+
+                        <div style={{ ...subtle, marginTop: 4 }}>{fmtDate(d.createdAt)}</div>
+
+                        <div
+                          style={{
+                            fontSize: 12,
+                            marginTop: 8,
+                            whiteSpace: "pre-wrap",
+                            color: "rgba(255,255,255,0.88)",
+                            lineHeight: 1.35,
+                          }}
+                        >
                           {d.instructions}
                         </div>
 
@@ -282,14 +344,11 @@ export default function GreetingRequestsWidget() {
                             onClick={() => act(r.id, "accept")}
                             disabled={disabled}
                             style={{
-                              padding: "8px 10px",
-                              borderRadius: 10,
-                              border: "1px solid #111",
-                              background: "#111",
-                              color: "#fff",
-                              fontWeight: 900,
+                              ...buttonPrimary,
+                              background: disabled ? "rgba(255,255,255,0.15)" : "#fff",
+                              color: disabled ? "#fff" : "#000",
                               cursor: disabled ? "not-allowed" : "pointer",
-                              opacity: disabled ? 0.7 : 1,
+                              opacity: disabled ? 0.8 : 1,
                             }}
                           >
                             {disabled ? "Procesando..." : "Aceptar"}
@@ -300,11 +359,7 @@ export default function GreetingRequestsWidget() {
                             onClick={() => act(r.id, "reject")}
                             disabled={disabled}
                             style={{
-                              padding: "8px 10px",
-                              borderRadius: 10,
-                              border: "1px solid #d0d0d0",
-                              background: "#fff",
-                              fontWeight: 900,
+                              ...buttonSecondary,
                               cursor: disabled ? "not-allowed" : "pointer",
                               opacity: disabled ? 0.7 : 1,
                             }}
@@ -319,32 +374,58 @@ export default function GreetingRequestsWidget() {
               </div>
             )}
 
-            {/* BUYER: mis pendientes */}
             {hasBuyer && (
-              <div style={{ border: "1px solid #eee", borderRadius: 12, padding: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
-                  <div style={{ fontWeight: 900 }}>Mis solicitudes</div>
-                  <div style={{ fontSize: 12, opacity: 0.7 }}>
-                    {loadingBuyer ? "Cargando..." : `${buyerPending.length}`}
-                  </div>
+              <div style={panel}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>Mis solicitudes</div>
+                  <div style={subtle}>{loadingBuyer ? "Cargando..." : `${buyerPending.length}`}</div>
                 </div>
 
                 <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
                   {buyerPending.map((r) => {
                     const d = r.data;
                     return (
-                      <div key={r.id} style={{ border: "1px solid #eee", borderRadius: 12, padding: 10 }}>
+                      <div
+                        key={r.id}
+                        style={{
+                          border: "1px solid rgba(255,255,255,0.14)",
+                          borderRadius: 12,
+                          padding: 10,
+                          background: "rgba(0,0,0,0.22)",
+                        }}
+                      >
                         <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                          <div style={{ fontWeight: 900, fontSize: 13 }}>
-                            {typeLabel(d.type)} — Para: <span style={{ fontWeight: 900 }}>{d.toName}</span>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>
+                            {typeLabel(d.type)} — Para:{" "}
+                            <span style={{ fontWeight: 600, color: "rgba(255,255,255,0.92)" }}>
+                              {d.toName}
+                            </span>
                           </div>
-                          <div style={{ fontSize: 12, fontWeight: 900 }}>
+
+                          <div
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: "rgba(255,255,255,0.85)",
+                              border: "1px solid rgba(255,255,255,0.16)",
+                              background: "rgba(255,255,255,0.06)",
+                              padding: "2px 8px",
+                              borderRadius: 999,
+                              whiteSpace: "nowrap",
+                            }}
+                          >
                             {statusLabel(d.status)}
                           </div>
                         </div>
-                        <div style={{ fontSize: 12, opacity: 0.75, marginTop: 4 }}>
-                          {fmtDate(d.createdAt)}
-                        </div>
+
+                        <div style={{ ...subtle, marginTop: 6 }}>{fmtDate(d.createdAt)}</div>
                       </div>
                     );
                   })}

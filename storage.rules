@@ -19,9 +19,24 @@ service firebase.storage {
     }
 
     // ==============================
+    // USERS (avatar / cover) ✅ NEW
+    // ==============================
+    match /users/{uid}/{folder}/{fileName} {
+
+      // MVP: perfiles publicos pueden cargar imagenes
+      allow read: if true;
+
+      // Solo el dueño puede escribir en su carpeta
+      allow write: if isSignedIn()
+        && request.auth.uid == uid
+        && (folder == "avatar" || folder == "cover")
+        && isImage()
+        && maxSize(5 * 1024 * 1024);
+    }
+
+    // ==============================
     // GROUPS (avatar / cover)
     // ==============================
-
     match /groups/{groupId}/{folder}/{fileName} {
 
       allow read: if true;
@@ -35,7 +50,6 @@ service firebase.storage {
     // ==============================
     // POSTS (imagenes)
     // ==============================
-
     match /posts/{postId}/{fileName} {
 
       allow read: if true;
@@ -48,7 +62,6 @@ service firebase.storage {
     // ==============================
     // GREETINGS (videos)
     // ==============================
-
     match /greetings/{requestId}/{fileName} {
 
       allow read: if isSignedIn();

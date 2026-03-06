@@ -23,7 +23,26 @@ export default function LogoutButton() {
     <button
       onClick={handleLogout}
       disabled={loading}
-      style={{ padding: "6px 10px", cursor: "pointer" }}
+      style={{
+        height: 36,
+        padding: "0 12px",
+        borderRadius: 10,
+        border: "1px solid rgba(255,255,255,0.18)",
+        background: "rgba(0,0,0,0.45)",
+        color: "#fff",
+        cursor: loading ? "not-allowed" : "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backdropFilter: "blur(8px)",
+        fontSize: 13,
+        fontWeight: 600, // 👈 más elegante (no exagerado)
+        letterSpacing: 0.2,
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+        transition: "all 0.15s ease",
+        opacity: loading ? 0.7 : 1,
+      }}
     >
       {loading ? "Cerrando..." : "Cerrar sesión"}
     </button>

@@ -1,15 +1,17 @@
 "use client";
 
-import { doc, onSnapshot } from "firebase/firestore";
-import { useEffect, useMemo, useState } from "react";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { db } from "@/lib/firebase";
+import { db, storage } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import { joinGroup, leaveGroup } from "@/lib/groups/membership";
 import { requestToJoin, cancelJoinRequest } from "@/lib/groups/joinRequests";
 import JoinRequestsPanel from "./components/JoinRequestsPanel";
 import OwnerAdminPanel from "./components/OwnerAdminPanel";
 import { createGreetingRequest, type GreetingType } from "@/lib/greetings/greetingRequests";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import Cropper from "react-easy-crop";
 
 type JoinRequestStatus = "pending" | "approved" | "rejected" | string;
 
@@ -20,21 +22,15 @@ type GroupDoc = {
   ownerId?: string;
   visibility?: "public" | "private" | "hidden" | string;
   isActive?: boolean;
-
-  // ✅ imágenes
   avatarUrl?: string | null;
   coverUrl?: string | null;
-
-  // ✅ general
   category?: string | null;
   tags?: string[] | null;
-
   monetization?: {
     isPaid?: boolean;
     priceMonthly?: number | null;
     currency?: string | null;
   };
-
   offerings?: Array<{
     type: "saludo" | "consejo" | "mensaje" | string;
     enabled?: boolean;
@@ -51,6 +47,68 @@ function labelForOfferingType(t: string) {
 
 function isGreetingType(t: string): t is GreetingType {
   return t === "saludo" || t === "consejo" || t === "mensaje";
+}
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+type CropMode = "avatar" | "cover";
+type Area = { x: number; y: number; width: number; height: number };
+
+function dataUrlFromFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result || ""));
+    r.onerror = (e) => reject(e);
+    r.readAsDataURL(file);
+  });
+}
+
+function createImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.addEventListener("load", () => resolve(img));
+    img.addEventListener("error", (e) => reject(e));
+    img.setAttribute("crossOrigin", "anonymous");
+    img.src = url;
+  });
+}
+
+async function getCroppedBlob(imageSrc: string, pixelCrop: Area, mime = "image/jpeg"): Promise<Blob> {
+  const image = await createImage(imageSrc);
+
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No se pudo inicializar canvas");
+
+  const safeX = clamp(pixelCrop.x, 0, image.width);
+  const safeY = clamp(pixelCrop.y, 0, image.height);
+  const safeW = clamp(pixelCrop.width, 1, image.width - safeX);
+  const safeH = clamp(pixelCrop.height, 1, image.height - safeY);
+
+  canvas.width = Math.floor(safeW);
+  canvas.height = Math.floor(safeH);
+
+  ctx.drawImage(image, safeX, safeY, safeW, safeH, 0, 0, canvas.width, canvas.height);
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) return reject(new Error("No se pudo generar blob"));
+        resolve(blob);
+      },
+      mime,
+      0.9
+    );
+  });
+}
+
+function visibilityLabel(v: string) {
+  if (v === "public") return "Grupo público";
+  if (v === "private") return "Grupo privado";
+  if (v === "hidden") return "Grupo oculto";
+  return v ? `Grupo ${v}` : "";
 }
 
 export default function GroupPage() {
@@ -71,7 +129,6 @@ export default function GroupPage() {
   const isOwner = useMemo(() => !!user && !!group?.ownerId && group.ownerId === user.uid, [user, group]);
   const effectiveIsMember = isOwner || isMember;
 
-  // Greeting request UI state (MVP sin pagos)
   const [greetOpen, setGreetOpen] = useState(false);
   const [greetType, setGreetType] = useState<GreetingType>("saludo");
   const [toName, setToName] = useState("");
@@ -80,14 +137,126 @@ export default function GroupPage() {
   const [greetError, setGreetError] = useState<string | null>(null);
   const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
 
-  // ✅ estilos base (dark)
-  const pageWrap: React.CSSProperties = { padding: 24, background: "#000", minHeight: "100vh", color: "#fff" };
-  const container: React.CSSProperties = { maxWidth: 980, margin: "0 auto", width: "100%" };
+  const fontStack =
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  // ✅ header sizes
-  const coverHeight = 300; // más grande hacia abajo
-  const avatarSize = 300; // más grande
-  const avatarBorder = "6px solid rgba(255,255,255,0.08)";
+  const pageWrap: React.CSSProperties = {
+    minHeight: "calc(100vh - 70px)",
+    padding: "28px 16px 140px",
+    background: "#000",
+    color: "#fff",
+    fontFamily: fontStack,
+    WebkitFontSmoothing: "antialiased",
+    MozOsxFontSmoothing: "grayscale",
+    textRendering: "optimizeLegibility",
+  };
+
+  const container: React.CSSProperties = {
+    maxWidth: 980,
+    margin: "0 auto",
+    width: "100%",
+  };
+
+  const coverHeight = 260;
+  const avatarSize = 300;
+
+  const [adminOpen, setAdminOpen] = useState(false);
+
+  const [uploading, setUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropMode, setCropMode] = useState<CropMode>("avatar");
+  const [cropImageSrc, setCropImageSrc] = useState<string>("");
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const cropAspect = cropMode === "avatar" ? 1 / 1 : 16 / 9;
+
+  const cardStyle: React.CSSProperties = {
+    borderRadius: 16,
+    overflow: "hidden",
+    border: "1px solid rgba(255,255,255,0.22)",
+    background: "rgba(12,12,12,0.92)",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+    color: "#fff",
+    backdropFilter: "blur(10px)",
+  };
+
+  const subtleText: React.CSSProperties = {
+    fontSize: 14,
+    fontWeight: 400,
+    color: "rgba(255,255,255,0.78)",
+  };
+
+  const microText: React.CSSProperties = {
+    fontSize: 13,
+    fontWeight: 400,
+    color: "rgba(255,255,255,0.72)",
+  };
+
+  const primaryButton: React.CSSProperties = {
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.28)",
+    background: "#fff",
+    color: "#000",
+    fontWeight: 600,
+    fontSize: 14,
+    cursor: "pointer",
+    fontFamily: fontStack,
+  };
+
+  const secondaryButton: React.CSSProperties = {
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.22)",
+    background: "rgba(255,255,255,0.08)",
+    color: "#fff",
+    fontWeight: 600,
+    fontSize: 14,
+    cursor: "pointer",
+    fontFamily: fontStack,
+  };
+
+  const smallSecondaryButton: React.CSSProperties = {
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.22)",
+    background: "rgba(12,12,12,0.92)",
+    color: "#fff",
+    fontWeight: 600,
+    fontSize: 14,
+    cursor: "pointer",
+    fontFamily: fontStack,
+    backdropFilter: "blur(10px)",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.22)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#fff",
+    outline: "none",
+    fontSize: 14,
+    fontWeight: 400,
+    fontFamily: fontStack,
+    boxSizing: "border-box",
+  };
+
+  const messageBox: React.CSSProperties = {
+    padding: "10px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(255,255,255,0.05)",
+    fontSize: 13,
+    fontWeight: 400,
+    color: "rgba(255,255,255,0.92)",
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -280,13 +449,82 @@ export default function GroupPage() {
     }
   }
 
-  if (loading) return <div style={pageWrap}>Cargando...</div>;
-  if (error) return <div style={{ ...pageWrap, color: "#ff6b6b" }}>{error}</div>;
+  const openCropWithFile = useCallback(
+    async (mode: CropMode, file: File) => {
+      if (!isOwner) return;
+      setError(null);
+
+      const src = await dataUrlFromFile(file);
+
+      setCropMode(mode);
+      setCropImageSrc(src);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+      setCropOpen(true);
+    },
+    [isOwner]
+  );
+
+  function handlePickAvatar() {
+    if (!isOwner) return;
+    avatarInputRef.current?.click();
+  }
+
+  function handlePickCover() {
+    if (!isOwner) return;
+    coverInputRef.current?.click();
+  }
+
+  const onCropComplete = useCallback((_croppedArea: any, croppedAreaPixelsArg: any) => {
+    setCroppedAreaPixels(croppedAreaPixelsArg as Area);
+  }, []);
+
+  async function uploadCropped(mode: CropMode) {
+    if (!group) return;
+    if (!isOwner) return;
+    if (!cropImageSrc || !croppedAreaPixels) {
+      setError("❌ No se pudo recortar la imagen.");
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
+    try {
+      const blob = await getCroppedBlob(cropImageSrc, croppedAreaPixels, "image/jpeg");
+
+      const path = mode === "avatar" ? `groups/${groupId}/avatar/avatar.jpg` : `groups/${groupId}/cover/cover.jpg`;
+      const fileRef = ref(storage, path);
+
+      await uploadBytes(fileRef, blob, { contentType: "image/jpeg" });
+      const url = await getDownloadURL(fileRef);
+
+      const gref = doc(db, "groups", groupId);
+      if (mode === "avatar") {
+        await updateDoc(gref, { avatarUrl: url });
+      } else {
+        await updateDoc(gref, { coverUrl: url });
+      }
+
+      setCropOpen(false);
+    } catch (e: any) {
+      setError(
+        e?.code === "permission-denied"
+          ? "❌ Permiso denegado. Revisa reglas de Storage/Firestore."
+          : `❌ No se pudo subir la imagen: ${e?.message ?? "error"}`
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  if (loading) return <div style={{ ...pageWrap, ...subtleText }}>Cargando...</div>;
+  if (error) return <div style={{ ...pageWrap, color: "#ff6b6b", fontSize: 14, fontWeight: 400 }}>{error}</div>;
   if (!group) return null;
 
   const visibility = group.visibility ?? "";
 
-  // Private y no miembro/owner => landing bloqueada
   if (visibility === "private" && !effectiveIsMember) {
     const pending = joinReqStatus === "pending";
     const rejected = joinReqStatus === "rejected";
@@ -295,30 +533,38 @@ export default function GroupPage() {
     return (
       <main style={pageWrap}>
         <div style={container}>
-          <div
-            style={{
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 18,
-              overflow: "hidden",
-              background: "#0b0b0c",
-            }}
-          >
-            {/* Portada */}
-            <div style={{ height: coverHeight, background: "rgba(255,255,255,0.04)", position: "relative" }}>
+          <div style={cardStyle}>
+            <div style={{ position: "relative", height: coverHeight, background: "#0b0b0b" }}>
               {group.coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={group.coverUrl} alt="Cover" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <img
+                  src={group.coverUrl}
+                  alt="Cover"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.95 }}
+                />
               ) : null}
+
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background:
+                    "linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.75) 85%, rgba(0,0,0,0.9) 100%)",
+                }}
+              />
             </div>
 
             <div style={{ padding: 18 }}>
-              <h1 style={{ fontSize: 26, fontWeight: 900 }}>{group.name ?? ""}</h1>
-              <p style={{ marginTop: 8, opacity: 0.8 }}>{group.description ?? ""}</p>
+              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, lineHeight: 1.15 }}>
+                {group.name ?? ""}
+              </h1>
+              <p style={{ marginTop: 8, marginBottom: 0, ...subtleText }}>{group.description ?? ""}</p>
 
-              {approved && <p style={{ marginTop: 14, opacity: 0.9 }}>✅ Aprobado. Entrando…</p>}
-              {pending && <p style={{ marginTop: 14, opacity: 0.8 }}>✅ Solicitud enviada (pendiente).</p>}
-              {!pending && !approved && !rejected && <p style={{ marginTop: 14, opacity: 0.8 }}>Este grupo es privado.</p>}
-              {rejected && <p style={{ marginTop: 14, opacity: 0.9, color: "#ff6b6b" }}>❌ Rechazado.</p>}
+              {approved && <p style={{ marginTop: 14, ...subtleText, color: "#fff" }}>✅ Aprobado. Entrando…</p>}
+              {pending && <p style={{ marginTop: 14, ...subtleText }}>✅ Solicitud enviada (pendiente).</p>}
+              {!pending && !approved && !rejected && (
+                <p style={{ marginTop: 14, ...subtleText }}>Este grupo es privado.</p>
+              )}
+              {rejected && <p style={{ marginTop: 14, ...subtleText, color: "#ff6b6b" }}>❌ Rechazado.</p>}
 
               <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
                 {!pending && !rejected ? (
@@ -326,14 +572,9 @@ export default function GroupPage() {
                     onClick={handleRequestPrivate}
                     disabled={joining}
                     style={{
-                      padding: "10px 14px",
-                      borderRadius: 12,
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      background: "#fff",
-                      color: "#000",
-                      fontWeight: 900,
-                      cursor: "pointer",
-                      opacity: joining ? 0.7 : 1,
+                      ...primaryButton,
+                      opacity: joining ? 0.75 : 1,
+                      cursor: joining ? "not-allowed" : "pointer",
                     }}
                   >
                     {joining ? "Enviando..." : "Solicitar acceso"}
@@ -343,14 +584,9 @@ export default function GroupPage() {
                     onClick={handleCancelPrivate}
                     disabled={joining}
                     style={{
-                      padding: "10px 14px",
-                      borderRadius: 12,
-                      border: "1px solid rgba(255,255,255,0.12)",
-                      background: "rgba(255,255,255,0.06)",
-                      color: "#fff",
-                      fontWeight: 900,
-                      cursor: "pointer",
-                      opacity: joining ? 0.7 : 1,
+                      ...secondaryButton,
+                      opacity: joining ? 0.75 : 1,
+                      cursor: joining ? "not-allowed" : "pointer",
                     }}
                   >
                     {joining ? "Cancelando..." : "Cancelar solicitud"}
@@ -364,302 +600,674 @@ export default function GroupPage() {
     );
   }
 
-  // Contenido normal (public o private con membresía/owner)
   const offerings = Array.isArray(group.offerings) ? group.offerings : [];
   const enabledOfferings = offerings.filter((o) => (o as any).enabled !== false);
 
+  const coverBg =
+    group.coverUrl ||
+    "data:image/svg+xml;base64," +
+      btoa(`
+      <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="600">
+        <defs>
+          <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0" stop-color="#0b0b0b"/>
+            <stop offset="1" stop-color="#1a1a1a"/>
+          </linearGradient>
+        </defs>
+        <rect width="1600" height="600" fill="url(#g)"/>
+        <circle cx="1250" cy="170" r="180" fill="#141414"/>
+        <circle cx="1350" cy="250" r="210" fill="#101010"/>
+      </svg>
+    `);
+
   return (
-    <main style={pageWrap}>
-      <div style={container}>
-        {/* CARD principal */}
-        <div
+    <>
+      {isOwner && (
+        <button
+          type="button"
           style={{
-            border: "1px solid rgba(255,255,255,0.08)",
-            borderRadius: 18,
-            overflow: "hidden",
-            background: "#0b0b0c",
+            position: "fixed",
+            right: 16,
+            top: 92,
+            height: 42,
+            padding: "0 14px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.22)",
+            background: "rgba(12,12,12,0.92)",
+            color: "#fff",
+            fontWeight: 600,
+            fontSize: 14,
+            lineHeight: 1,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+            zIndex: 20000,
+            backdropFilter: "blur(10px)",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+            fontFamily: fontStack,
+            letterSpacing: 0,
+            WebkitFontSmoothing: "antialiased",
+            MozOsxFontSmoothing: "grayscale",
+            textRendering: "optimizeLegibility",
           }}
+          title={adminOpen ? "Cerrar administración" : "Administrar"}
+          onClick={() => setAdminOpen((v) => !v)}
         >
-          {/* ✅ Header: Portada más alta + Avatar encimado */}
-          <div style={{ position: "relative" }}>
-            <div style={{ height: coverHeight, background: "rgba(255,255,255,0.04)" }}>
-              {group.coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={group.coverUrl} alt="Cover" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : null}
-            </div>
+          <span style={{ fontWeight: 600, fontSize: 14, lineHeight: 1 }}>
+            {adminOpen ? "Cerrar administración" : "Administrar"}
+          </span>
+          <span
+            aria-hidden="true"
+            style={{
+              opacity: 0.88,
+              fontWeight: 400,
+              fontSize: 13,
+              lineHeight: 1,
+              display: "inline-flex",
+              alignItems: "center",
+            }}
+          >
+            ⚙
+          </span>
+        </button>
+      )}
 
-            {/* Avatar centrado: mitad dentro/mitad fuera */}
-            <div
-              style={{
-                position: "absolute",
-                left: "50%",
-                bottom: 0,
-                transform: "translate(-50%, 50%)",
-                width: avatarSize,
-                height: avatarSize,
-                borderRadius: 999,
-                overflow: "hidden",
-                border: avatarBorder,
-                background: "rgba(255,255,255,0.06)",
-                boxShadow: "0 12px 30px rgba(0,0,0,0.55)",
-              }}
-            >
-              {group.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={group.avatarUrl} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : null}
-            </div>
-          </div>
-
-          {/* Contenido (con padding extra arriba por el avatar encimado) */}
-          <div style={{ padding: 18, paddingTop: 18 + avatarSize / 2 + 10 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-              <div>
-                <h1 style={{ fontSize: 26, fontWeight: 900 }}>{group.name ?? ""}</h1>
-                <p style={{ marginTop: 8, opacity: 0.8 }}>{group.description ?? ""}</p>
-                <p style={{ marginTop: 10, opacity: 0.6, fontSize: 13 }}>
-                  Visibilidad: <b style={{ opacity: 0.9 }}>{group.visibility ?? ""}</b>
-                </p>
-              </div>
-
-              {/* ✅ Admin panel dentro del grupo */}
-              {user && group.ownerId ? (
-                <OwnerAdminPanel
-                  groupId={groupId}
-                  ownerId={group.ownerId}
-                  currentUserId={user.uid}
-                  currentAvatarUrl={group.avatarUrl ?? null}
-                  currentCoverUrl={group.coverUrl ?? null}
-                  currentName={group.name ?? null}
-                  currentDescription={group.description ?? null}
-                  currentCategory={group.category ?? null}
-                  currentTags={group.tags ?? null}
-                />
-              ) : null}
-            </div>
-
-            <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              {isOwner && <span style={{ fontSize: 12, opacity: 0.7 }}>(Eres owner)</span>}
-              {!isOwner && effectiveIsMember && <span style={{ fontSize: 12, opacity: 0.7 }}>(Eres miembro)</span>}
-
-              {isOwner && <JoinRequestsPanel groupId={groupId} />}
-
-              {!isOwner && !effectiveIsMember && visibility === "public" && (
-                <button
-                  onClick={handleJoinPublic}
-                  disabled={joining}
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    background: "#fff",
-                    color: "#000",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    opacity: joining ? 0.7 : 1,
-                  }}
-                >
-                  {joining ? "Uniéndote..." : "Unirme"}
-                </button>
-              )}
-
-              {!isOwner && effectiveIsMember && (
-                <button
-                  onClick={handleLeave}
-                  disabled={leaving}
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(255,255,255,0.12)",
-                    background: "rgba(255,255,255,0.06)",
-                    color: "#fff",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                    opacity: leaving ? 0.7 : 1,
-                  }}
-                >
-                  {leaving ? "Saliendo..." : "Salir"}
-                </button>
-              )}
-            </div>
-
-            {/* ✅ Servicios del creador: solo si eres miembro (NO owner) */}
-            {!isOwner && effectiveIsMember && enabledOfferings.length > 0 && (
-              <section
+      <main style={pageWrap}>
+        <div style={container}>
+          <div style={cardStyle}>
+            <div style={{ position: "relative", height: coverHeight, background: "#0b0b0b" }}>
+              <img
+                src={coverBg}
+                alt="cover"
                 style={{
-                  marginTop: 18,
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  borderRadius: 16,
-                  padding: 14,
-                  background: "rgba(255,255,255,0.03)",
-                  maxWidth: 640,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  filter: "contrast(1.05) saturate(1.05)",
+                  opacity: 0.95,
+                }}
+              />
+
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background:
+                    "linear-gradient(180deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.75) 85%, rgba(0,0,0,0.9) 100%)",
+                }}
+              />
+
+              {isOwner && (
+                <button
+                  onClick={handlePickCover}
+                  disabled={uploading}
+                  type="button"
+                  style={{
+                    ...smallSecondaryButton,
+                    position: "absolute",
+                    right: 16,
+                    top: 16,
+                    opacity: uploading ? 0.7 : 1,
+                    cursor: uploading ? "not-allowed" : "pointer",
+                    zIndex: 3,
+                  }}
+                  title="Cambiar portada"
+                >
+                  {uploading && cropMode === "cover" ? "Subiendo..." : "Cambiar portada"}
+                </button>
+              )}
+            </div>
+
+            <div style={{ position: "relative", padding: "0 22px 22px" }}>
+              <div
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: -92,
+                  transform: "translateX(-50%)",
+                  zIndex: 50,
                 }}
               >
-                <div style={{ fontWeight: 900, marginBottom: 6 }}>Comprar al creador</div>
-                <div style={{ fontSize: 13, opacity: 0.7, marginBottom: 12 }}>
-                  (MVP sin pagos) Envías una solicitud al creador. El creador podrá aceptarla o rechazarla.
-                </div>
-
-                <div style={{ display: "grid", gap: 10 }}>
-                  {enabledOfferings.map((o: any) => {
-                    const t = String(o.type ?? "");
-                    const label = labelForOfferingType(t);
-                    const priceText = o.price != null && o.currency ? ` — ${o.currency} ${o.price}` : "";
-
-                    const disabled = !isGreetingType(t);
-                    return (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => {
-                          if (!isGreetingType(t)) return;
-                          openGreetingForm(t);
-                        }}
-                        disabled={disabled}
+                <div style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handlePickAvatar();
+                    }}
+                    disabled={!isOwner || uploading}
+                    style={{
+                      width: avatarSize,
+                      height: avatarSize,
+                      borderRadius: "50%",
+                      overflow: "hidden",
+                      border: "6px solid rgba(0,0,0,0.9)",
+                      boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+                      display: "grid",
+                      placeItems: "center",
+                      background: "#0c0c0c",
+                      userSelect: "none",
+                      padding: 0,
+                      margin: 0,
+                      cursor: !isOwner || uploading ? "default" : "pointer",
+                      pointerEvents: isOwner ? "auto" : "none",
+                    }}
+                    aria-label="Cambiar foto de perfil del grupo"
+                    title={isOwner ? "Cambiar foto de perfil del grupo" : undefined}
+                  >
+                    {group.avatarUrl ? (
+                      <img
+                        src={group.avatarUrl}
+                        alt="avatar"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      <span
                         style={{
-                          padding: "10px 12px",
-                          borderRadius: 12,
-                          border: "1px solid rgba(255,255,255,0.10)",
-                          background: disabled ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.06)",
-                          color: "#fff",
-                          fontWeight: 900,
-                          cursor: disabled ? "not-allowed" : "pointer",
-                          textAlign: "left",
-                          opacity: disabled ? 0.55 : 0.95,
+                          fontSize: 34,
+                          fontWeight: 600,
+                          color: "rgba(255,255,255,0.85)",
+                          fontFamily: fontStack,
                         }}
-                        title={disabled ? "Tipo de servicio no soportado en MVP" : undefined}
                       >
-                        Solicitar {label}
-                        {priceText}
-                      </button>
-                    );
-                  })}
-                </div>
+                        {(group.name ?? "G").trim().slice(0, 2).toUpperCase()}
+                      </span>
+                    )}
+                  </button>
 
-                {greetOpen && (
+                  {isOwner && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handlePickAvatar();
+                      }}
+                      disabled={uploading}
+                      style={{
+                        position: "absolute",
+                        right: 14,
+                        bottom: 16,
+                        width: 56,
+                        height: 56,
+                        borderRadius: 999,
+                        border: "1px solid rgba(255,255,255,0.22)",
+                        background: uploading ? "rgba(255,255,255,0.14)" : "rgba(12,12,12,0.92)",
+                        color: "#fff",
+                        cursor: uploading ? "not-allowed" : "pointer",
+                        fontSize: 20,
+                        fontWeight: 400,
+                        display: "grid",
+                        placeItems: "center",
+                        boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+                        backdropFilter: "blur(10px)",
+                        zIndex: 200,
+                        pointerEvents: "auto",
+                        fontFamily: fontStack,
+                      }}
+                      title="Cambiar foto de perfil del grupo"
+                      aria-label="Cambiar foto de perfil del grupo"
+                    >
+                      {uploading && cropMode === "avatar" ? "⚙" : "✎"}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ paddingTop: 250, position: "relative", zIndex: 1 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    placeItems: "center",
+                    textAlign: "center",
+                    pointerEvents: "none",
+                  }}
+                >
                   <div
                     style={{
-                      marginTop: 14,
-                      padding: 12,
-                      borderRadius: 12,
-                      border: "1px solid rgba(255,255,255,0.10)",
-                      background: "rgba(0,0,0,0.35)",
+                      fontSize: 22,
+                      fontWeight: 600,
+                      lineHeight: 1.15,
+                      letterSpacing: 0,
                     }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
-                      <div style={{ fontWeight: 900 }}>Solicitar {labelForOfferingType(greetType)}</div>
-                      <button
-                        type="button"
-                        onClick={closeGreetingForm}
-                        disabled={greetSubmitting}
-                        style={{
-                          padding: "8px 10px",
-                          borderRadius: 10,
-                          border: "1px solid rgba(255,255,255,0.12)",
-                          background: "rgba(255,255,255,0.06)",
-                          color: "#fff",
-                          fontWeight: 900,
-                          cursor: "pointer",
-                        }}
-                      >
-                        Cerrar
-                      </button>
+                    {group.name ?? ""}
+                  </div>
+
+                  {!!group.description && (
+                    <div
+                      style={{
+                        marginTop: 10,
+                        maxWidth: 720,
+                        fontSize: 14,
+                        fontWeight: 400,
+                        lineHeight: 1.45,
+                        color: "rgba(255,255,255,0.78)",
+                      }}
+                    >
+                      {group.description}
                     </div>
+                  )}
 
-                    <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
-                      <label style={{ display: "grid", gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 900, opacity: 0.85 }}>¿A quién va dirigido?</span>
-                        <input
-                          value={toName}
-                          onChange={(e) => setToName(e.target.value)}
-                          placeholder="Ej. Para Juan"
-                          disabled={greetSubmitting}
-                          style={{
-                            padding: "10px 12px",
-                            borderRadius: 10,
-                            border: "1px solid rgba(255,255,255,0.12)",
-                            background: "rgba(255,255,255,0.06)",
-                            color: "#fff",
-                            outline: "none",
-                          }}
-                        />
-                      </label>
+                  <div
+                    style={{
+                      marginTop: 10,
+                      fontSize: 13,
+                      fontWeight: 400,
+                      color: "rgba(255,255,255,0.72)",
+                    }}
+                  >
+                    {visibilityLabel(String(group.visibility ?? ""))}
+                  </div>
+                </div>
+              </div>
 
-                      <label style={{ display: "grid", gap: 6 }}>
-                        <span style={{ fontSize: 13, fontWeight: 900, opacity: 0.85 }}>Contexto / instrucciones</span>
-                        <textarea
-                          value={instructions}
-                          onChange={(e) => setInstructions(e.target.value)}
-                          placeholder="Ej. Cumpleaños, felicitación por logro, tono del mensaje, etc."
-                          disabled={greetSubmitting}
-                          rows={5}
-                          style={{
-                            padding: "10px 12px",
-                            borderRadius: 10,
-                            border: "1px solid rgba(255,255,255,0.12)",
-                            background: "rgba(255,255,255,0.06)",
-                            color: "#fff",
-                            resize: "vertical",
-                            outline: "none",
-                          }}
-                        />
-                      </label>
+              <div
+                style={{
+                  marginTop: 18,
+                  borderTop: "1px solid rgba(255,255,255,0.10)",
+                  paddingTop: 16,
+                  display: "grid",
+                  gap: 12,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    gap: 10,
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {isOwner && <JoinRequestsPanel groupId={groupId} />}
 
-                      {greetError && <div style={{ color: "#ff6b6b", fontSize: 13 }}>{greetError}</div>}
-                      {greetSuccess && <div style={{ color: "#55efc4", fontSize: 13 }}>{greetSuccess}</div>}
+                  {!isOwner && !effectiveIsMember && visibility === "public" && (
+                    <button
+                      onClick={handleJoinPublic}
+                      disabled={joining}
+                      style={{
+                        ...primaryButton,
+                        opacity: joining ? 0.75 : 1,
+                        cursor: joining ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {joining ? "Uniéndote..." : "Unirme"}
+                    </button>
+                  )}
 
-                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                        <button
-                          type="button"
-                          onClick={submitGreetingRequest}
-                          disabled={greetSubmitting}
-                          style={{
-                            padding: "10px 14px",
-                            borderRadius: 12,
-                            border: "1px solid rgba(255,255,255,0.12)",
-                            background: "#fff",
-                            color: "#000",
-                            fontWeight: 900,
-                            cursor: "pointer",
-                            opacity: greetSubmitting ? 0.7 : 1,
-                          }}
-                        >
-                          {greetSubmitting ? "Enviando..." : "Enviar solicitud"}
-                        </button>
+                  {!isOwner && effectiveIsMember && (
+                    <button
+                      onClick={handleLeave}
+                      disabled={leaving}
+                      style={{
+                        ...secondaryButton,
+                        opacity: leaving ? 0.75 : 1,
+                        cursor: leaving ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {leaving ? "Saliendo..." : "Salir"}
+                    </button>
+                  )}
+                </div>
 
-                        <button
-                          type="button"
-                          onClick={closeGreetingForm}
-                          disabled={greetSubmitting}
-                          style={{
-                            padding: "10px 14px",
-                            borderRadius: 12,
-                            border: "1px solid rgba(255,255,255,0.12)",
-                            background: "rgba(255,255,255,0.06)",
-                            color: "#fff",
-                            fontWeight: 900,
-                            cursor: "pointer",
-                            opacity: greetSubmitting ? 0.7 : 1,
-                          }}
-                        >
-                          Cancelar
-                        </button>
-                      </div>
+                {isOwner && user && group.ownerId ? (
+                  <OwnerAdminPanel
+                    groupId={groupId}
+                    ownerId={group.ownerId}
+                    currentUserId={user.uid}
+                    currentAvatarUrl={group.avatarUrl ?? null}
+                    currentCoverUrl={group.coverUrl ?? null}
+                    currentName={group.name ?? null}
+                    currentDescription={group.description ?? null}
+                    currentCategory={group.category ?? null}
+                    currentTags={group.tags ?? null}
+                    isOpen={adminOpen}
+                    onClose={() => setAdminOpen(false)}
+                  />
+                ) : null}
 
-                      <div style={{ fontSize: 12, opacity: 0.7 }}>
-                        Nota: el creador podrá aceptar o rechazar tu solicitud. (Pagos y entrega de video se integran después.)
-                      </div>
-                    </div>
+                {error && (
+                  <div
+                    style={{
+                      ...messageBox,
+                      marginTop: 6,
+                      textAlign: "center",
+                      color: "#ff6b6b",
+                    }}
+                  >
+                    {error}
                   </div>
                 )}
-              </section>
-            )}
 
-            {/* Aquí va tu contenido interno del grupo (posts, etc.) */}
+                {!isOwner && effectiveIsMember && enabledOfferings.length > 0 && (
+                  <section
+                    style={{
+                      marginTop: 6,
+                      border: "1px solid rgba(255,255,255,0.14)",
+                      borderRadius: 16,
+                      padding: 14,
+                      background: "rgba(255,255,255,0.03)",
+                      maxWidth: 640,
+                      marginLeft: "auto",
+                      marginRight: "auto",
+                      boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: 22, marginBottom: 6 }}>
+                      Comprar al creador
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 400, color: "rgba(255,255,255,0.72)", marginBottom: 12 }}>
+                      (MVP sin pagos) Envías una solicitud al creador. El creador podrá aceptarla o rechazarla.
+                    </div>
+
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {enabledOfferings.map((o: any) => {
+                        const t = String(o.type ?? "");
+                        const label = labelForOfferingType(t);
+                        const priceText = o.price != null && o.currency ? ` — ${o.currency} ${o.price}` : "";
+                        const disabled = !isGreetingType(t);
+
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => {
+                              if (!isGreetingType(t)) return;
+                              openGreetingForm(t);
+                            }}
+                            disabled={disabled}
+                            style={{
+                              ...secondaryButton,
+                              textAlign: "left",
+                              opacity: disabled ? 0.55 : 0.95,
+                              cursor: disabled ? "not-allowed" : "pointer",
+                            }}
+                            title={disabled ? "Tipo de servicio no soportado en MVP" : undefined}
+                          >
+                            Solicitar {label}
+                            {priceText}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {greetOpen && (
+                      <div
+                        style={{
+                          marginTop: 14,
+                          padding: 12,
+                          borderRadius: 12,
+                          border: "1px solid rgba(255,255,255,0.14)",
+                          background: "rgba(0,0,0,0.35)",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 12,
+                            alignItems: "center",
+                          }}
+                        >
+                          <div style={{ fontWeight: 600, fontSize: 22 }}>
+                            Solicitar {labelForOfferingType(greetType)}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={closeGreetingForm}
+                            disabled={greetSubmitting}
+                            style={{
+                              ...secondaryButton,
+                              padding: "8px 10px",
+                            }}
+                          >
+                            Cerrar
+                          </button>
+                        </div>
+
+                        <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+                          <label style={{ display: "grid", gap: 6 }}>
+                            <span style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>
+                              ¿A quién va dirigido?
+                            </span>
+                            <input
+                              value={toName}
+                              onChange={(e) => setToName(e.target.value)}
+                              placeholder="Ej. Para Juan"
+                              disabled={greetSubmitting}
+                              style={inputStyle}
+                            />
+                          </label>
+
+                          <label style={{ display: "grid", gap: 6 }}>
+                            <span style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>
+                              Contexto / instrucciones
+                            </span>
+                            <textarea
+                              value={instructions}
+                              onChange={(e) => setInstructions(e.target.value)}
+                              placeholder="Ej. Cumpleaños, felicitación por logro, tono del mensaje, etc."
+                              disabled={greetSubmitting}
+                              rows={5}
+                              style={{
+                                ...inputStyle,
+                                resize: "vertical",
+                              }}
+                            />
+                          </label>
+
+                          {greetError && <div style={{ ...messageBox, color: "#ff6b6b" }}>{greetError}</div>}
+                          {greetSuccess && <div style={messageBox}>{greetSuccess}</div>}
+
+                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              onClick={submitGreetingRequest}
+                              disabled={greetSubmitting}
+                              style={{
+                                ...primaryButton,
+                                opacity: greetSubmitting ? 0.75 : 1,
+                                cursor: greetSubmitting ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              {greetSubmitting ? "Enviando..." : "Enviar solicitud"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={closeGreetingForm}
+                              disabled={greetSubmitting}
+                              style={{
+                                ...secondaryButton,
+                                opacity: greetSubmitting ? 0.75 : 1,
+                                cursor: greetSubmitting ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+
+                          <div style={microText}>
+                            Nota: el creador podrá aceptar o rechazar tu solicitud. (Pagos y entrega de video se integran después.)
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </section>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <input
+            ref={avatarInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (f) await openCropWithFile("avatar", f);
+              e.currentTarget.value = "";
+            }}
+          />
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (f) await openCropWithFile("cover", f);
+              e.currentTarget.value = "";
+            }}
+          />
+        </div>
+      </main>
+
+      {!cropOpen ? null : (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            background: "rgba(0,0,0,0.72)",
+            display: "grid",
+            placeItems: "center",
+            padding: 16,
+            fontFamily: fontStack,
+          }}
+          onClick={() => {
+            if (!uploading) setCropOpen(false);
+          }}
+        >
+          <div
+            style={{
+              width: "min(820px, 96vw)",
+              background: "rgba(12,12,12,0.92)",
+              border: "1px solid rgba(255,255,255,0.22)",
+              borderRadius: 16,
+              overflow: "hidden",
+              boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+              color: "#fff",
+              backdropFilter: "blur(10px)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                padding: "12px 14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+                borderBottom: "1px solid rgba(255,255,255,0.10)",
+                background: "rgba(255,255,255,0.06)",
+              }}
+            >
+              <div style={{ fontSize: 22, fontWeight: 600, color: "#fff", lineHeight: 1.15 }}>
+                {cropMode === "avatar" ? "Recortar foto de perfil del grupo" : "Recortar portada del grupo"}
+              </div>
+              <button
+                type="button"
+                onClick={() => !uploading && setCropOpen(false)}
+                style={{
+                  ...secondaryButton,
+                  padding: "8px 10px",
+                  opacity: uploading ? 0.6 : 1,
+                  cursor: uploading ? "not-allowed" : "pointer",
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+
+            <div style={{ padding: 14 }}>
+              <div
+                style={{
+                  position: "relative",
+                  width: "100%",
+                  height: cropMode === "avatar" ? 420 : 360,
+                  background: "#050505",
+                  borderRadius: 14,
+                  overflow: "hidden",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                }}
+              >
+                <Cropper
+                  image={cropImageSrc}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={cropAspect}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                  cropShape={cropMode === "avatar" ? "round" : "rect"}
+                  showGrid={cropMode !== "avatar"}
+                />
+              </div>
+
+              <div
+                style={{
+                  marginTop: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <label style={{ color: "#fff", fontWeight: 500, fontSize: 13 }}>Zoom</label>
+                <input
+                  type="range"
+                  min={1}
+                  max={3}
+                  step={0.05}
+                  value={zoom}
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  style={{ width: 240 }}
+                />
+
+                <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => !uploading && setCropOpen(false)}
+                    style={{
+                      ...secondaryButton,
+                      opacity: uploading ? 0.6 : 1,
+                      cursor: uploading ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => uploadCropped(cropMode)}
+                    disabled={uploading}
+                    style={{
+                      ...primaryButton,
+                      background: uploading ? "rgba(255,255,255,0.15)" : "#fff",
+                      color: uploading ? "#fff" : "#000",
+                      opacity: uploading ? 0.8 : 1,
+                      cursor: uploading ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {uploading ? "Subiendo..." : "Guardar"}
+                  </button>
+                </div>
+              </div>
+
+              <div style={{ marginTop: 10, ...microText }}>
+                Tip: mueve la imagen para encuadrar. {cropMode === "avatar" ? "Avatar 1:1" : "Portada 16:9"}.
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </main>
+      )}
+    </>
   );
 }
