@@ -12,14 +12,7 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Nuestro MVP será dark siempre (aunque el sistema esté en light) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #000000;
-    --foreground: #ffffff;
-  }
-}
-
+/* MVP dark fijo */
 html,
 body {
   margin: 0;
@@ -29,12 +22,20 @@ body {
   color: var(--foreground);
 }
 
-* {
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 body {
+  min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
   overflow-x: hidden;
+  line-height: 1.5;
 }

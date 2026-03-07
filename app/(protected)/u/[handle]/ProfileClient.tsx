@@ -42,6 +42,7 @@ type GroupDocLite = {
   id: string;
   name?: string;
   ownerId?: string;
+  visibility?: "public" | "private" | "hidden" | string;
   offerings?: Array<{
     type: "saludo" | "consejo" | "mensaje" | string;
     enabled?: boolean;
@@ -65,8 +66,6 @@ function pickSaludoOffering(offerings: GroupDocLite["offerings"]) {
   const currency = (found?.currency ?? "MXN") as "MXN" | "USD";
   return { enabled, price, currency };
 }
-
-const LS_WIDGET_OPEN_KEY = "rs_widget_groups_open_v1";
 
 type CropMode = "avatar" | "cover";
 type Area = { x: number; y: number; width: number; height: number };
@@ -136,6 +135,60 @@ async function getCroppedBlob(
   });
 }
 
+function Switch({
+  checked,
+  onChange,
+  disabled = false,
+  label,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => !disabled && onChange(!checked)}
+      disabled={disabled}
+      aria-pressed={checked}
+      title={label}
+      style={{
+        width: 42,
+        height: 24,
+        borderRadius: 999,
+        border: "1px solid rgba(255,255,255,0.16)",
+        background: checked ? "#ffffff" : "rgba(255,255,255,0.10)",
+        padding: 2,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: checked ? "flex-end" : "flex-start",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.6 : 1,
+        transition: "all 160ms ease",
+      }}
+    >
+      <span
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: "50%",
+          background: checked ? "#000" : "#fff",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
+          transition: "all 160ms ease",
+        }}
+      />
+    </button>
+  );
+}
+
+function visibilitySectionTitle(v: string) {
+  if (v === "public") return "Públicos";
+  if (v === "private") return "Privados";
+  if (v === "hidden") return "Ocultos";
+  return "Otros";
+}
+
 export default function ProfileClient() {
   const router = useRouter();
   const params = useParams<{ handle: string }>();
@@ -162,7 +215,6 @@ export default function ProfileClient() {
   const [pgCurrency, setPgCurrency] = useState<"MXN" | "USD">("MXN");
   const [savingProfileGreeting, setSavingProfileGreeting] = useState(false);
 
-  const [widgetOpen, setWidgetOpen] = useState(true);
   const [myGroups, setMyGroups] = useState<GroupDocLite[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [groupsErr, setGroupsErr] = useState<string | null>(null);
@@ -194,75 +246,84 @@ export default function ProfileClient() {
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
   const ui = {
+    pageMaxWidth: 860,
+    sidebarWidth: 290,
+    coverHeight: 210,
+    avatarSize: 210,
+    avatarOffsetTop: -66,
+    contentTopPadding: 160,
+    cardRadius: 14,
+    buttonRadius: 9,
+    buttonPadding: "8px 12px",
+    fontTitle: 18,
+    fontSubtitle: 16,
+    fontBody: 13,
+    fontMicro: 12,
+    borderSoft: "1px solid rgba(255,255,255,0.18)",
+    borderFaint: "1px solid rgba(255,255,255,0.12)",
+    shadow: "0 18px 48px rgba(0,0,0,0.55)",
+  };
+
+  const styles = {
     card: {
-      borderRadius: 16,
-      border: "1px solid rgba(255,255,255,0.22)",
-      background: "rgba(12,12,12,0.9)",
-      boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+      borderRadius: ui.cardRadius,
+      border: ui.borderSoft,
+      background: "rgba(12,12,12,0.92)",
+      boxShadow: ui.shadow,
+      backdropFilter: "blur(10px)",
     } as React.CSSProperties,
     input: {
-      padding: "11px 12px",
-      borderRadius: 10,
-      border: "1px solid rgba(255,255,255,0.30)",
-      background: "rgba(0,0,0,0.32)",
+      padding: "9px 11px",
+      borderRadius: 9,
+      border: "1px solid rgba(255,255,255,0.18)",
+      background: "rgba(255,255,255,0.06)",
       color: "#fff",
       outline: "none",
-      fontSize: 14,
+      fontSize: ui.fontBody,
       fontFamily: fontStack,
+      boxSizing: "border-box",
     } as React.CSSProperties,
     buttonPrimary: {
-      padding: "11px 12px",
-      borderRadius: 10,
-      border: "1px solid rgba(255,255,255,0.28)",
+      padding: ui.buttonPadding,
+      borderRadius: ui.buttonRadius,
+      border: "1px solid rgba(255,255,255,0.24)",
       background: "#fff",
       color: "#000",
       cursor: "pointer",
       fontWeight: 600,
-      fontSize: 14,
+      fontSize: ui.fontBody,
       fontFamily: fontStack,
+      lineHeight: 1.2,
     } as React.CSSProperties,
     buttonSecondary: {
-      padding: "10px 12px",
-      borderRadius: 10,
-      border: "1px solid rgba(255,255,255,0.24)",
-      background: "rgba(255,255,255,0.08)",
+      padding: ui.buttonPadding,
+      borderRadius: ui.buttonRadius,
+      border: "1px solid rgba(255,255,255,0.18)",
+      background: "rgba(255,255,255,0.07)",
       color: "#fff",
       cursor: "pointer",
-      fontWeight: 500,
-      fontSize: 13,
-      fontFamily: fontStack,
-    } as React.CSSProperties,
-    title: {
-      fontSize: 22,
       fontWeight: 600,
-      margin: 0,
-    } as React.CSSProperties,
-    subtitle: {
-      fontSize: 14,
-      fontWeight: 400,
-      color: "rgba(255,255,255,0.78)",
+      fontSize: ui.fontBody,
+      fontFamily: fontStack,
+      lineHeight: 1.2,
     } as React.CSSProperties,
     label: {
-      fontSize: 13,
+      fontSize: ui.fontMicro,
       fontWeight: 500,
       color: "rgba(255,255,255,0.90)",
     } as React.CSSProperties,
-    meta: {
-      fontSize: 13,
-      color: "rgba(255,255,255,0.78)",
+    message: {
+      padding: "10px 12px",
+      borderRadius: 10,
+      border: "1px solid rgba(255,255,255,0.14)",
+      background: "rgba(255,255,255,0.05)",
+      color: "#fff",
+      fontSize: ui.fontMicro,
     } as React.CSSProperties,
     panel: {
       borderRadius: 12,
-      border: "1px solid rgba(255,255,255,0.14)",
+      border: ui.borderFaint,
       background: "rgba(255,255,255,0.03)",
-    } as React.CSSProperties,
-    message: {
-      padding: "10px 12px",
-      borderRadius: 12,
-      border: "1px solid rgba(255,255,255,0.16)",
-      background: "rgba(255,255,255,0.05)",
-      color: "#fff",
-      fontSize: 13,
     } as React.CSSProperties,
   };
 
@@ -273,20 +334,6 @@ export default function ProfileClient() {
     });
     return () => unsub();
   }, []);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_WIDGET_OPEN_KEY);
-      if (raw === "0") setWidgetOpen(false);
-      if (raw === "1") setWidgetOpen(true);
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(LS_WIDGET_OPEN_KEY, widgetOpen ? "1" : "0");
-    } catch {}
-  }, [widgetOpen]);
 
   async function loadProfile() {
     setLoading(true);
@@ -602,6 +649,25 @@ export default function ProfileClient() {
     }
   }
 
+  const grouped = useMemo(() => {
+    const publics = myGroups.filter((g) => g.visibility === "public");
+    const privates = myGroups.filter((g) => g.visibility === "private");
+    const hiddens = myGroups.filter((g) => g.visibility === "hidden");
+    const others = myGroups.filter(
+      (g) =>
+        g.visibility !== "public" &&
+        g.visibility !== "private" &&
+        g.visibility !== "hidden"
+    );
+
+    return [
+      { key: "public", title: visibilitySectionTitle("public"), items: publics },
+      { key: "private", title: visibilitySectionTitle("private"), items: privates },
+      { key: "hidden", title: visibilitySectionTitle("hidden"), items: hiddens },
+      { key: "other", title: visibilitySectionTitle("other"), items: others },
+    ].filter((section) => section.items.length > 0);
+  }, [myGroups]);
+
   if (loading) {
     return (
       <main
@@ -609,11 +675,13 @@ export default function ProfileClient() {
           minHeight: "100vh",
           background: "#000",
           color: "#fff",
-          padding: 24,
+          padding: "20px 14px 120px",
           fontFamily: fontStack,
         }}
       >
-        <div style={{ maxWidth: 980, margin: "0 auto" }}>Cargando perfil...</div>
+        <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto" }}>
+          Cargando perfil...
+        </div>
       </main>
     );
   }
@@ -625,11 +693,11 @@ export default function ProfileClient() {
           minHeight: "100vh",
           background: "#000",
           color: "#fff",
-          padding: 24,
+          padding: "20px 14px 120px",
           fontFamily: fontStack,
         }}
       >
-        <div style={{ maxWidth: 980, margin: "0 auto" }}>
+        <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto" }}>
           {msg ?? "Perfil no disponible"}
         </div>
       </main>
@@ -658,57 +726,29 @@ export default function ProfileClient() {
 
   return (
     <>
-      {isOwner && (
-        <button
-          type="button"
-          style={{
-            position: "fixed",
-            right: 18,
-            top: 18,
-            height: 42,
-            padding: "0 14px",
-            borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.22)",
-            background: "rgba(12,12,12,0.9)",
-            color: "#fff",
-            fontWeight: 600,
-            fontSize: 14,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            zIndex: 20000,
-            backdropFilter: "blur(10px)",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
-            fontFamily: fontStack,
-          }}
-          title="Administrar"
-          onClick={() => {
-            // router.push("/settings");
-          }}
-        >
-          Administrar <span style={{ opacity: 0.9 }}>⚙️</span>
-        </button>
-      )}
-
       <main
         style={{
           minHeight: "calc(100vh - 70px)",
-          padding: "28px 16px 140px",
+          padding: "20px 14px 140px",
           background: "#000",
           color: "#fff",
           fontFamily: fontStack,
         }}
       >
-        <div style={{ maxWidth: 980, margin: "0 auto" }}>
+        <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto" }}>
           <div
             style={{
-              ...ui.card,
-              borderRadius: 18,
+              ...styles.card,
               overflow: "hidden",
             }}
           >
-            <div style={{ position: "relative", height: 260, background: "#0b0b0b" }}>
+            <div
+              style={{
+                position: "relative",
+                height: ui.coverHeight,
+                background: "#0b0b0b",
+              }}
+            >
               <img
                 src={coverBg}
                 alt="cover"
@@ -737,9 +777,9 @@ export default function ProfileClient() {
                   type="button"
                   style={{
                     position: "absolute",
-                    right: 16,
-                    top: 16,
-                    ...ui.buttonSecondary,
+                    right: 14,
+                    top: 14,
+                    ...styles.buttonSecondary,
                     background: uploading
                       ? "rgba(255,255,255,0.12)"
                       : "rgba(12,12,12,0.72)",
@@ -754,12 +794,12 @@ export default function ProfileClient() {
               )}
             </div>
 
-            <div style={{ position: "relative", padding: "0 22px 22px" }}>
+            <div style={{ position: "relative", padding: "0 18px 18px" }}>
               <div
                 style={{
                   position: "absolute",
                   left: "50%",
-                  top: -92,
+                  top: ui.avatarOffsetTop,
                   transform: "translateX(-50%)",
                   zIndex: 50,
                 }}
@@ -774,12 +814,12 @@ export default function ProfileClient() {
                     }}
                     disabled={!isOwner || uploading}
                     style={{
-                      width: 300,
-                      height: 300,
+                      width: ui.avatarSize,
+                      height: ui.avatarSize,
                       borderRadius: "50%",
                       overflow: "hidden",
-                      border: "6px solid rgba(0,0,0,0.9)",
-                      boxShadow: "0 16px 40px rgba(0,0,0,0.7)",
+                      border: "4px solid rgba(0,0,0,0.9)",
+                      boxShadow: ui.shadow,
                       display: "grid",
                       placeItems: "center",
                       background: "#0c0c0c",
@@ -801,7 +841,7 @@ export default function ProfileClient() {
                     ) : (
                       <span
                         style={{
-                          fontSize: 36,
+                          fontSize: 28,
                           fontWeight: 600,
                           color: "rgba(255,255,255,0.9)",
                         }}
@@ -822,22 +862,22 @@ export default function ProfileClient() {
                       disabled={uploading}
                       style={{
                         position: "absolute",
-                        right: 14,
-                        bottom: 16,
-                        width: 56,
-                        height: 56,
+                        right: 10,
+                        bottom: 10,
+                        width: 44,
+                        height: 44,
                         borderRadius: 999,
-                        border: "1px solid rgba(255,255,255,0.22)",
+                        border: "1px solid rgba(255,255,255,0.18)",
                         background: uploading
                           ? "rgba(255,255,255,0.14)"
                           : "rgba(12,12,12,0.9)",
                         color: "#fff",
                         cursor: uploading ? "not-allowed" : "pointer",
-                        fontSize: 18,
+                        fontSize: 16,
                         fontWeight: 600,
                         display: "grid",
                         placeItems: "center",
-                        boxShadow: "0 10px 24px rgba(0,0,0,0.6)",
+                        boxShadow: ui.shadow,
                         backdropFilter: "blur(10px)",
                         zIndex: 200,
                         pointerEvents: "auto",
@@ -852,7 +892,7 @@ export default function ProfileClient() {
                 </div>
               </div>
 
-              <div style={{ paddingTop: 250, position: "relative", zIndex: 1 }}>
+              <div style={{ paddingTop: ui.contentTopPadding, position: "relative", zIndex: 1 }}>
                 <div
                   style={{
                     display: "grid",
@@ -863,10 +903,10 @@ export default function ProfileClient() {
                 >
                   <div
                     style={{
-                      fontSize: 28,
+                      fontSize: ui.fontTitle,
                       fontWeight: 600,
-                      letterSpacing: -0.4,
-                      lineHeight: 1.1,
+                      lineHeight: 1.15,
+                      letterSpacing: 0,
                     }}
                   >
                     {fullName}
@@ -877,7 +917,7 @@ export default function ProfileClient() {
                       marginTop: 6,
                       color: "rgba(255,255,255,0.72)",
                       fontWeight: 500,
-                      fontSize: 14,
+                      fontSize: ui.fontBody,
                     }}
                   >
                     @{userDoc.handle}
@@ -885,8 +925,8 @@ export default function ProfileClient() {
 
                   <div
                     style={{
-                      marginTop: 10,
-                      fontSize: 12,
+                      marginTop: 8,
+                      fontSize: ui.fontMicro,
                       color: "rgba(255,255,255,0.55)",
                     }}
                   >
@@ -897,27 +937,31 @@ export default function ProfileClient() {
 
               <div
                 style={{
-                  marginTop: 18,
+                  marginTop: 16,
                   borderTop: "1px solid rgba(255,255,255,0.10)",
-                  paddingTop: 16,
+                  paddingTop: 14,
                   display: "grid",
                   gap: 10,
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 14 }}>Edad</span>
-                  <b style={{ color: "#fff", fontSize: 14 }}>{userDoc.age}</b>
+                  <span style={{ color: "rgba(255,255,255,0.65)", fontSize: ui.fontBody }}>
+                    Edad
+                  </span>
+                  <b style={{ color: "#fff", fontSize: ui.fontBody }}>{userDoc.age}</b>
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 14 }}>Sexo</span>
-                  <b style={{ color: "#fff", fontSize: 14 }}>{userDoc.sex}</b>
+                  <span style={{ color: "rgba(255,255,255,0.65)", fontSize: ui.fontBody }}>
+                    Sexo
+                  </span>
+                  <b style={{ color: "#fff", fontSize: ui.fontBody }}>{userDoc.sex}</b>
                 </div>
 
                 {msg && (
                   <div
                     style={{
-                      ...ui.message,
+                      ...styles.message,
                       marginTop: 6,
                     }}
                   >
@@ -926,7 +970,14 @@ export default function ProfileClient() {
                 )}
 
                 {authReady && viewer && (
-                  <p style={{ marginTop: 8, marginBottom: 0, opacity: 0.6, fontSize: 12 }}>
+                  <p
+                    style={{
+                      marginTop: 8,
+                      marginBottom: 0,
+                      opacity: 0.6,
+                      fontSize: ui.fontMicro,
+                    }}
+                  >
                     Sesión activa: {viewer.email}
                   </p>
                 )}
@@ -971,7 +1022,7 @@ export default function ProfileClient() {
             background: "rgba(0,0,0,0.72)",
             display: "grid",
             placeItems: "center",
-            padding: 16,
+            padding: 14,
             fontFamily: fontStack,
           }}
           onClick={() => {
@@ -980,15 +1031,15 @@ export default function ProfileClient() {
         >
           <div
             style={{
-              width: "min(820px, 96vw)",
-              ...ui.card,
+              width: "min(680px, 92vw)",
+              ...styles.card,
               overflow: "hidden",
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div
               style={{
-                padding: "12px 14px",
+                padding: "10px 12px",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -1004,7 +1055,7 @@ export default function ProfileClient() {
                 type="button"
                 onClick={() => !uploading && setCropOpen(false)}
                 style={{
-                  ...ui.buttonSecondary,
+                  ...styles.buttonSecondary,
                   cursor: uploading ? "not-allowed" : "pointer",
                   opacity: uploading ? 0.6 : 1,
                 }}
@@ -1013,14 +1064,14 @@ export default function ProfileClient() {
               </button>
             </div>
 
-            <div style={{ padding: 14 }}>
+            <div style={{ padding: 12 }}>
               <div
                 style={{
                   position: "relative",
                   width: "100%",
-                  height: cropMode === "avatar" ? 420 : 360,
+                  height: cropMode === "avatar" ? 300 : 240,
                   background: "#050505",
-                  borderRadius: 14,
+                  borderRadius: 12,
                   overflow: "hidden",
                   border: "1px solid rgba(255,255,255,0.10)",
                 }}
@@ -1047,7 +1098,7 @@ export default function ProfileClient() {
                   flexWrap: "wrap",
                 }}
               >
-                <label style={{ ...ui.label, fontSize: 12 }}>Zoom</label>
+                <label style={{ ...styles.label }}>Zoom</label>
 
                 <input
                   type="range"
@@ -1056,7 +1107,7 @@ export default function ProfileClient() {
                   step={0.05}
                   value={zoom}
                   onChange={(e) => setZoom(Number(e.target.value))}
-                  style={{ width: 240 }}
+                  style={{ width: 200 }}
                 />
 
                 <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
@@ -1064,7 +1115,7 @@ export default function ProfileClient() {
                     type="button"
                     onClick={() => !uploading && setCropOpen(false)}
                     style={{
-                      ...ui.buttonSecondary,
+                      ...styles.buttonSecondary,
                       cursor: uploading ? "not-allowed" : "pointer",
                       opacity: uploading ? 0.6 : 1,
                     }}
@@ -1077,7 +1128,7 @@ export default function ProfileClient() {
                     onClick={() => uploadCropped(cropMode)}
                     disabled={uploading}
                     style={{
-                      ...ui.buttonPrimary,
+                      ...styles.buttonPrimary,
                       background: uploading ? "rgba(255,255,255,0.15)" : "#ffffff",
                       color: uploading ? "#fff" : "#000",
                       cursor: uploading ? "not-allowed" : "pointer",
@@ -1088,7 +1139,7 @@ export default function ProfileClient() {
                 </div>
               </div>
 
-              <div style={{ marginTop: 10, fontSize: 12, color: "rgba(255,255,255,0.55)" }}>
+              <div style={{ marginTop: 10, fontSize: ui.fontMicro, color: "rgba(255,255,255,0.55)" }}>
                 Tip: mueve la imagen para encuadrar.{" "}
                 {cropMode === "avatar" ? "Avatar 1:1" : "Portada 16:9"}.
               </div>
@@ -1098,258 +1149,282 @@ export default function ProfileClient() {
       )}
 
       {isOwner && (
-        <div
+        <aside
           style={{
             position: "fixed",
             left: 16,
             bottom: 16,
-            width: 380,
+            width: `min(${ui.sidebarWidth}px, calc(100vw - 32px))`,
             zIndex: 9998,
             fontFamily: fontStack,
           }}
         >
           <div
             style={{
-              ...ui.card,
+              ...styles.card,
               borderRadius: 14,
               overflow: "hidden",
               color: "#fff",
             }}
           >
-            <button
-              type="button"
-              onClick={() => setWidgetOpen((v) => !v)}
+            <div
               style={{
-                width: "100%",
                 padding: "10px 12px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-                border: "none",
+                borderBottom: "1px solid rgba(255,255,255,0.10)",
                 background: "rgba(255,255,255,0.06)",
-                color: "#fff",
-                cursor: "pointer",
                 fontWeight: 600,
-                fontSize: 14,
-                fontFamily: fontStack,
+                fontSize: ui.fontBody,
               }}
             >
-              <span>Mis grupos — Saludos</span>
+              Mis grupos — Saludos
+            </div>
 
-              <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 12, opacity: 0.85 }}>
-                  {loadingGroups ? "Cargando..." : `${myGroups.length}`}
-                </span>
-                <span style={{ fontSize: 12, opacity: 0.9 }}>
-                  {widgetOpen ? "▲" : "▼"}
-                </span>
-              </span>
-            </button>
+            <div
+              style={{
+                padding: 10,
+                display: "grid",
+                gap: 10,
+                maxHeight: "70vh",
+                overflowY: "auto",
+              }}
+            >
+              {groupsErr && <div style={styles.message}>{groupsErr}</div>}
 
-            {!widgetOpen ? null : (
-              <div style={{ padding: 12, display: "grid", gap: 10 }}>
-                {groupsErr && (
-                  <div style={ui.message}>{groupsErr}</div>
-                )}
+              <div
+                style={{
+                  ...styles.panel,
+                  padding: 10,
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 600,
+                    fontSize: ui.fontBody,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 10,
+                  }}
+                >
+                  <span>Mi perfil</span>
+                  <Switch
+                    checked={profileDraft.enabled}
+                    disabled={savingProfileGreeting}
+                    onChange={(next) => setPgEnabled(next)}
+                    label="Vender saludos en mi perfil"
+                  />
+                </div>
 
                 <div
                   style={{
-                    ...ui.panel,
-                    padding: 10,
+                    marginTop: 8,
+                    fontSize: ui.fontMicro,
+                    color: "rgba(255,255,255,0.68)",
                   }}
                 >
-                  <div
-                    style={{
-                      fontWeight: 600,
-                      fontSize: 13,
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 10,
-                    }}
-                  >
-                    <span>Mi perfil</span>
-                    <span style={{ fontSize: 12, opacity: 0.7 }}>saludo</span>
-                  </div>
-
-                  <label
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      marginTop: 10,
-                      fontSize: 13,
-                      fontWeight: 500,
-                    }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={profileDraft.enabled}
-                      onChange={(e) => setPgEnabled(e.target.checked)}
-                    />
-                    Vender saludos en mi perfil
-                  </label>
-
-                  {profileDraft.enabled && (
-                    <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                      <input
-                        type="number"
-                        value={profileDraft.price}
-                        onChange={(e) => setPgPrice(e.target.value)}
-                        placeholder="Precio"
-                        style={{
-                          ...ui.input,
-                          width: 140,
-                        }}
-                      />
-
-                      <select
-                        value={profileDraft.currency}
-                        onChange={(e) => setPgCurrency(e.target.value as "MXN" | "USD")}
-                        style={ui.input}
-                      >
-                        <option value="MXN">MXN</option>
-                        <option value="USD">USD</option>
-                      </select>
-                    </div>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={saveProfileGreetingFromWidget}
-                    disabled={savingProfileGreeting}
-                    style={{
-                      ...ui.buttonSecondary,
-                      marginTop: 10,
-                      opacity: savingProfileGreeting ? 0.7 : 1,
-                      width: "100%",
-                      cursor: savingProfileGreeting ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {savingProfileGreeting ? "Guardando..." : "Guardar Mi perfil"}
-                  </button>
+                  Saludos en el perfil
                 </div>
 
-                {!loadingGroups && myGroups.length === 0 && (
-                  <div style={{ fontSize: 12, opacity: 0.75 }}>No tienes grupos como owner.</div>
-                )}
-
-                {myGroups.map((g) => {
-                  const d = groupDraft[g.id];
-                  if (!d) return null;
-
-                  const saving = savingGroupId === g.id;
-
-                  return (
-                    <div
-                      key={g.id}
+                {profileDraft.enabled && (
+                  <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <input
+                      type="number"
+                      value={profileDraft.price}
+                      onChange={(e) => setPgPrice(e.target.value)}
+                      placeholder="Precio"
                       style={{
-                        ...ui.panel,
-                        padding: 10,
+                        ...styles.input,
+                        width: 110,
+                      }}
+                    />
+
+                    <select
+                      value={profileDraft.currency}
+                      onChange={(e) => setPgCurrency(e.target.value as "MXN" | "USD")}
+                      style={{
+                        ...styles.input,
+                        flex: 1,
+                        minWidth: 90,
                       }}
                     >
-                      <button
-                        type="button"
-                        onClick={() => router.push(`/groups/${g.id}`)}
-                        style={{
-                          fontWeight: 600,
-                          fontSize: 13,
-                          background: "transparent",
-                          border: "none",
-                          padding: 0,
-                          textAlign: "left",
-                          cursor: "pointer",
-                          textDecoration: "underline",
-                          color: "#fff",
-                          fontFamily: fontStack,
-                        }}
-                        title="Abrir grupo"
-                      >
-                        {g.name ?? "(Sin nombre)"}
-                      </button>
+                      <option value="MXN">MXN</option>
+                      <option value="USD">USD</option>
+                    </select>
+                  </div>
+                )}
 
-                      <div style={{ fontSize: 12, opacity: 0.65, marginTop: 2 }}>
-                        id: {g.id}
-                      </div>
-
-                      <label
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 10,
-                          marginTop: 10,
-                          fontSize: 13,
-                          fontWeight: 500,
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={d.enabled}
-                          onChange={(e) =>
-                            setGroupDraft((prev) => ({
-                              ...prev,
-                              [g.id]: { ...prev[g.id], enabled: e.target.checked },
-                            }))
-                          }
-                        />
-                        Saludos activos en este grupo
-                      </label>
-
-                      {d.enabled && (
-                        <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                          <input
-                            type="number"
-                            value={d.price}
-                            onChange={(e) =>
-                              setGroupDraft((prev) => ({
-                                ...prev,
-                                [g.id]: { ...prev[g.id], price: e.target.value },
-                              }))
-                            }
-                            placeholder="Precio"
-                            style={{
-                              ...ui.input,
-                              width: 140,
-                            }}
-                          />
-
-                          <select
-                            value={d.currency}
-                            onChange={(e) =>
-                              setGroupDraft((prev) => ({
-                                ...prev,
-                                [g.id]: { ...prev[g.id], currency: e.target.value as "MXN" | "USD" },
-                              }))
-                            }
-                            style={ui.input}
-                          >
-                            <option value="MXN">MXN</option>
-                            <option value="USD">USD</option>
-                          </select>
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => saveGroupSaludo(g.id)}
-                        disabled={saving}
-                        style={{
-                          ...ui.buttonSecondary,
-                          marginTop: 10,
-                          opacity: saving ? 0.7 : 1,
-                          width: "100%",
-                          cursor: saving ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        {saving ? "Guardando..." : "Guardar cambios"}
-                      </button>
-                    </div>
-                  );
-                })}
+                <button
+                  type="button"
+                  onClick={saveProfileGreetingFromWidget}
+                  disabled={savingProfileGreeting}
+                  style={{
+                    ...styles.buttonSecondary,
+                    marginTop: 10,
+                    opacity: savingProfileGreeting ? 0.7 : 1,
+                    width: "100%",
+                    cursor: savingProfileGreeting ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {savingProfileGreeting ? "Guardando..." : "Guardar Mi perfil"}
+                </button>
               </div>
-            )}
+
+              {!loadingGroups && myGroups.length === 0 && (
+                <div style={{ fontSize: ui.fontMicro, opacity: 0.75 }}>
+                  No tienes grupos como owner.
+                </div>
+              )}
+
+              {grouped.map((section) => (
+                <div key={section.key} style={{ display: "grid", gap: 8 }}>
+                  <div
+                    style={{
+                      fontSize: ui.fontMicro,
+                      fontWeight: 600,
+                      color: "rgba(255,255,255,0.72)",
+                      textTransform: "uppercase",
+                      letterSpacing: 0.5,
+                      paddingLeft: 2,
+                    }}
+                  >
+                    {section.title}
+                  </div>
+
+                  {section.items.map((g) => {
+                    const d = groupDraft[g.id];
+                    if (!d) return null;
+
+                    const saving = savingGroupId === g.id;
+
+                    return (
+                      <div
+                        key={g.id}
+                        style={{
+                          ...styles.panel,
+                          padding: 10,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 10,
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/groups/${g.id}`)}
+                            style={{
+                              fontWeight: 600,
+                              fontSize: ui.fontBody,
+                              background: "transparent",
+                              border: "none",
+                              padding: 0,
+                              textAlign: "left",
+                              cursor: "pointer",
+                              textDecoration: "underline",
+                              color: "#fff",
+                              fontFamily: fontStack,
+                              flex: 1,
+                            }}
+                            title="Abrir grupo"
+                          >
+                            {g.name ?? "(Sin nombre)"}
+                          </button>
+
+                          <Switch
+                            checked={d.enabled}
+                            disabled={saving}
+                            onChange={(next) =>
+                              setGroupDraft((prev) => ({
+                                ...prev,
+                                [g.id]: { ...prev[g.id], enabled: next },
+                              }))
+                            }
+                            label="Saludos activos en este grupo"
+                          />
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 8,
+                            fontSize: ui.fontMicro,
+                            color: "rgba(255,255,255,0.68)",
+                          }}
+                        >
+                          Saludos activos en este grupo
+                        </div>
+
+                        {d.enabled && (
+                          <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                            <input
+                              type="number"
+                              value={d.price}
+                              onChange={(e) =>
+                                setGroupDraft((prev) => ({
+                                  ...prev,
+                                  [g.id]: { ...prev[g.id], price: e.target.value },
+                                }))
+                              }
+                              placeholder="Precio"
+                              style={{
+                                ...styles.input,
+                                width: 110,
+                              }}
+                            />
+
+                            <select
+                              value={d.currency}
+                              onChange={(e) =>
+                                setGroupDraft((prev) => ({
+                                  ...prev,
+                                  [g.id]: {
+                                    ...prev[g.id],
+                                    currency: e.target.value as "MXN" | "USD",
+                                  },
+                                }))
+                              }
+                              style={{
+                                ...styles.input,
+                                flex: 1,
+                                minWidth: 90,
+                              }}
+                            >
+                              <option value="MXN">MXN</option>
+                              <option value="USD">USD</option>
+                            </select>
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => saveGroupSaludo(g.id)}
+                          disabled={saving}
+                          style={{
+                            ...styles.buttonSecondary,
+                            marginTop: 10,
+                            opacity: saving ? 0.7 : 1,
+                            width: "100%",
+                            cursor: saving ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {saving ? "Guardando..." : "Guardar cambios"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+
+              {loadingGroups && (
+                <div style={{ fontSize: ui.fontMicro, opacity: 0.75 }}>
+                  Cargando grupos...
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </aside>
       )}
     </>
   );

@@ -28,9 +28,9 @@ export default function ResetPasswordClient() {
 
     try {
       await sendPasswordResetEmail(auth, email);
-      setMsg("✅ Listo. Te enviamos un correo para restablecer tu contraseña.");
+      setMsg("Listo. Te enviamos un correo para restablecer tu contraseña.");
     } catch (err: any) {
-      setMsg(`❌ ${friendlyAuthError(err)}`);
+      setMsg(friendlyAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -39,100 +39,187 @@ export default function ResetPasswordClient() {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  const cardBorder = "1px solid rgba(255,255,255,0.22)";
-  const fieldBorder = "1px solid rgba(255,255,255,0.30)";
-  const fieldBg = "rgba(0,0,0,0.32)";
+  const pageStyle: React.CSSProperties = {
+    minHeight: "100vh",
+    background:
+      "radial-gradient(circle at top, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 18%, #000 52%)",
+    color: "#fff",
+    fontFamily: fontStack,
+    padding: "20px 14px 120px",
+    display: "grid",
+    placeItems: "center",
+  };
+
+  const shellStyle: React.CSSProperties = {
+    width: "100%",
+    maxWidth: 860,
+    display: "flex",
+    justifyContent: "center",
+  };
+
+  const cardStyle: React.CSSProperties = {
+    width: "100%",
+    maxWidth: 460,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: "rgba(12,12,12,0.92)",
+    boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
+    overflow: "hidden",
+    backdropFilter: "blur(10px)",
+  };
+
+  const innerPanelStyle: React.CSSProperties = {
+    marginTop: 16,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.03)",
+    padding: 14,
+  };
+
+  const labelTextStyle: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.92)",
+    lineHeight: 1.2,
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "9px 11px",
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#fff",
+    outline: "none",
+    fontSize: 13,
+    fontWeight: 400,
+    fontFamily: fontStack,
+    boxSizing: "border-box",
+  };
+
+  const linkStyle: React.CSSProperties = {
+    color: "rgba(255,255,255,0.82)",
+    textDecoration: "none",
+    fontSize: 12,
+    fontWeight: 400,
+  };
+
+  const secondaryButtonStyle: React.CSSProperties = {
+    padding: "8px 12px",
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.05)",
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: 600,
+    fontFamily: fontStack,
+    cursor: "pointer",
+  };
+
+  const primaryButtonStyle: React.CSSProperties = {
+    padding: "8px 12px",
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "#fff",
+    color: "#000",
+    fontSize: 13,
+    fontWeight: 600,
+    fontFamily: fontStack,
+    cursor: "pointer",
+  };
+
+  const messageStyle: React.CSSProperties = {
+    marginTop: 12,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+    padding: "10px 12px",
+    fontSize: 12,
+    fontWeight: 400,
+    color: "rgba(255,255,255,0.90)",
+    lineHeight: 1.45,
+  };
 
   return (
-    <main
-      style={{
-        minHeight: "calc(100vh - 48px)",
-        display: "grid",
-        placeItems: "center",
-        padding: 24,
-        background: "#000",
-        color: "#fff",
-        fontFamily: fontStack,
-      }}
-    >
-      <div style={{ width: "100%", maxWidth: 420 }}>
-        <div
-          style={{
-            borderRadius: 16,
-            border: cardBorder,
-            background: "rgba(12,12,12,0.9)",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
-          }}
-        >
-          <div style={{ padding: 24 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 600, margin: 0 }}>Recuperar contraseña</h1>
-
-            <p
-              style={{
-                marginTop: 6,
-                marginBottom: 20,
-                color: "rgba(255,255,255,0.78)",
-                fontWeight: 400,
-                fontSize: 14,
-              }}
-            >
-              Escribe tu correo y te mandaremos un enlace para restablecerla.
-            </p>
-
-            <form onSubmit={handleReset} style={{ display: "grid", gap: 14 }}>
-              <label style={{ display: "grid", gap: 6 }}>
-                <span style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,0.90)" }}>Correo</span>
-                <input
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  style={{
-                    padding: "11px 12px",
-                    borderRadius: 10,
-                    border: fieldBorder,
-                    background: fieldBg,
-                    color: "#fff",
-                    outline: "none",
-                    fontSize: 14,
-                  }}
-                />
-              </label>
-
-              <button
-                type="submit"
-                disabled={loading}
+    <main style={pageStyle}>
+      <div style={shellStyle}>
+        <div style={cardStyle}>
+          <div style={{ padding: 18 }}>
+            <div>
+              <h1
                 style={{
-                  marginTop: 4,
-                  padding: "11px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.28)",
-                  background: loading ? "rgba(255,255,255,0.15)" : "#fff",
-                  color: loading ? "#fff" : "#000",
-                  cursor: loading ? "not-allowed" : "pointer",
+                  margin: 0,
+                  fontSize: 18,
                   fontWeight: 600,
-                  fontSize: 14,
+                  lineHeight: 1.2,
+                  letterSpacing: "-0.01em",
                 }}
               >
-                {loading ? "Enviando..." : "Enviar correo"}
-              </button>
-            </form>
+                Recuperar contraseña
+              </h1>
 
-            {msg && (
-              <div style={{ marginTop: 14, fontSize: 13, color: "rgba(255,255,255,0.92)" }}>
-                {msg}
-              </div>
-            )}
-
-            <div style={{ marginTop: 18, display: "flex", gap: 12, fontSize: 13 }}>
-              <Link href="/login" style={{ color: "rgba(255,255,255,0.85)", textDecoration: "none" }}>
-                Volver a login
-              </Link>
-              <Link href="/register" style={{ color: "rgba(255,255,255,0.85)", textDecoration: "none" }}>
-                Crear cuenta
-              </Link>
+              <p
+                style={{
+                  margin: "6px 0 0 0",
+                  fontSize: 13,
+                  fontWeight: 400,
+                  color: "rgba(255,255,255,0.68)",
+                  lineHeight: 1.45,
+                }}
+              >
+                Escribe tu correo y te mandaremos un enlace para restablecerla.
+              </p>
             </div>
+
+            <div style={innerPanelStyle}>
+              <form onSubmit={handleReset} style={{ display: "grid", gap: 12 }}>
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={labelTextStyle}>Correo</span>
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    style={inputStyle}
+                    placeholder="tucorreo@ejemplo.com"
+                  />
+                </label>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    marginTop: 2,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <Link href="/login" style={linkStyle}>
+                    Volver a login
+                  </Link>
+
+                  <Link href="/register" style={linkStyle}>
+                    Crear cuenta
+                  </Link>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{
+                    ...(loading ? secondaryButtonStyle : primaryButtonStyle),
+                    marginTop: 4,
+                    opacity: loading ? 0.82 : 1,
+                    cursor: loading ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {loading ? "Enviando..." : "Enviar correo"}
+                </button>
+              </form>
+            </div>
+
+            {msg ? <div style={messageStyle}>{msg}</div> : null}
           </div>
         </div>
       </div>

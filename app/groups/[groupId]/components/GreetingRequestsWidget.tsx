@@ -46,8 +46,7 @@ function statusLabel(s: string) {
 
 function fmtDate(ts?: Timestamp) {
   if (!ts) return "";
-  const d = ts.toDate();
-  return d.toLocaleString();
+  return ts.toDate().toLocaleString();
 }
 
 export default function GreetingRequestsWidget() {
@@ -58,6 +57,15 @@ export default function GreetingRequestsWidget() {
 
   const [open, setOpen] = useState<boolean>(true);
   const [openReady, setOpenReady] = useState<boolean>(false);
+
+  const [incoming, setIncoming] = useState<Array<{ id: string; data: GreetingRequestDoc }>>([]);
+  const [buyerPending, setBuyerPending] = useState<Array<{ id: string; data: GreetingRequestDoc }>>([]);
+
+  const [loadingIncoming, setLoadingIncoming] = useState(false);
+  const [loadingBuyer, setLoadingBuyer] = useState(false);
+
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -80,20 +88,9 @@ export default function GreetingRequestsWidget() {
     }
   }, [open, openReady, storageKey]);
 
-  const [incoming, setIncoming] = useState<Array<{ id: string; data: GreetingRequestDoc }>>([]);
-  const [buyerPending, setBuyerPending] = useState<Array<{ id: string; data: GreetingRequestDoc }>>([]);
-
-  const [loadingIncoming, setLoadingIncoming] = useState(false);
-  const [loadingBuyer, setLoadingBuyer] = useState(false);
-
-  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-
   const hasIncoming = incoming.length > 0;
   const hasBuyer = buyerPending.length > 0;
-
   const showWidget = useMemo(() => hasIncoming || hasBuyer, [hasIncoming, hasBuyer]);
-
   const pendingBadge = incoming.length;
 
   useEffect(() => {
@@ -116,7 +113,10 @@ export default function GreetingRequestsWidget() {
     const unsubIncoming = onSnapshot(
       incomingQ,
       (snap) => {
-        const rows = snap.docs.map((d) => ({ id: d.id, data: d.data() as GreetingRequestDoc }));
+        const rows = snap.docs.map((d) => ({
+          id: d.id,
+          data: d.data() as GreetingRequestDoc,
+        }));
         setIncoming(rows);
         setLoadingIncoming(false);
       },
@@ -138,7 +138,10 @@ export default function GreetingRequestsWidget() {
     const unsubBuyer = onSnapshot(
       buyerQ,
       (snap) => {
-        const rows = snap.docs.map((d) => ({ id: d.id, data: d.data() as GreetingRequestDoc }));
+        const rows = snap.docs.map((d) => ({
+          id: d.id,
+          data: d.data() as GreetingRequestDoc,
+        }));
         setBuyerPending(rows);
         setLoadingBuyer(false);
       },
@@ -157,6 +160,7 @@ export default function GreetingRequestsWidget() {
 
   async function act(requestId: string, action: "accept" | "reject") {
     if (!uid) return;
+
     setErr(null);
     setActionLoadingId(requestId);
 
@@ -178,65 +182,113 @@ export default function GreetingRequestsWidget() {
 
   const card: React.CSSProperties = {
     borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.22)",
+    border: "1px solid rgba(255,255,255,0.18)",
     background: "rgba(12,12,12,0.92)",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+    boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
     overflow: "hidden",
     color: "#fff",
     backdropFilter: "blur(10px)",
   };
 
-  const panel: React.CSSProperties = {
-    border: "1px solid rgba(255,255,255,0.14)",
+  const innerPanel: React.CSSProperties = {
     borderRadius: 12,
-    padding: 10,
+    border: "1px solid rgba(255,255,255,0.12)",
     background: "rgba(255,255,255,0.03)",
+    padding: 10,
+  };
+
+  const itemPanel: React.CSSProperties = {
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.03)",
+    padding: 10,
+  };
+
+  const titleStyle: React.CSSProperties = {
+    fontSize: 16,
+    fontWeight: 600,
+    letterSpacing: -0.2,
+    color: "#fff",
+  };
+
+  const sectionTitle: React.CSSProperties = {
+    fontSize: 13,
+    fontWeight: 600,
+    color: "#fff",
+    letterSpacing: -0.1,
+  };
+
+  const textStyle: React.CSSProperties = {
+    fontSize: 13,
+    fontWeight: 400,
+    color: "rgba(255,255,255,0.9)",
+    lineHeight: 1.4,
   };
 
   const subtle: React.CSSProperties = {
     fontSize: 12,
-    color: "rgba(255,255,255,0.72)",
-  };
-
-  const buttonPrimary: React.CSSProperties = {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.28)",
-    background: "#fff",
-    color: "#000",
-    fontWeight: 600,
-    cursor: "pointer",
-    fontSize: 13,
-  };
-
-  const buttonSecondary: React.CSSProperties = {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.20)",
-    background: "rgba(255,255,255,0.08)",
-    color: "#fff",
-    fontWeight: 500,
-    cursor: "pointer",
-    fontSize: 13,
+    fontWeight: 400,
+    color: "rgba(255,255,255,0.68)",
+    lineHeight: 1.35,
   };
 
   const badge: React.CSSProperties = {
-    fontSize: 12,
-    background: "rgba(255,255,255,0.12)",
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,0.18)",
+    height: 22,
+    minWidth: 22,
+    padding: "0 8px",
     borderRadius: 999,
-    padding: "2px 8px",
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(255,255,255,0.08)",
+    color: "#fff",
+    fontSize: 12,
     fontWeight: 600,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+  };
+
+  const statusBadge: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.88)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.05)",
+    padding: "2px 8px",
+    borderRadius: 999,
+    whiteSpace: "nowrap",
+  };
+
+  const buttonPrimary: React.CSSProperties = {
+    padding: "8px 12px",
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: "#fff",
+    color: "#000",
+    fontSize: 13,
+    fontWeight: 600,
+    lineHeight: 1.1,
+    cursor: "pointer",
+  };
+
+  const buttonSecondary: React.CSSProperties = {
+    padding: "8px 12px",
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: 600,
+    lineHeight: 1.1,
+    cursor: "pointer",
   };
 
   return (
     <div
       style={{
         position: "fixed",
-        right: 16,
-        bottom: 16,
-        width: 360,
+        right: 14,
+        bottom: 14,
+        width: "min(340px, calc(100vw - 28px))",
         zIndex: 9999,
         fontFamily: fontStack,
       }}
@@ -247,106 +299,142 @@ export default function GreetingRequestsWidget() {
           onClick={() => setOpen((v) => !v)}
           style={{
             width: "100%",
-            padding: "10px 12px",
+            padding: "11px 12px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             gap: 10,
             border: "none",
-            background: "rgba(255,255,255,0.06)",
+            background: "rgba(255,255,255,0.04)",
             color: "#fff",
             cursor: "pointer",
-            fontWeight: 600,
-            fontSize: 14,
+            textAlign: "left",
           }}
         >
-          <span>Notificaciones — Saludos</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "grid", gap: 3 }}>
+            <div style={titleStyle}>Saludos</div>
+            <div style={subtle}>Solicitudes y estado reciente</div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             {pendingBadge > 0 && (
-              <span style={badge} title="Solicitudes pendientes (recibidas)">
+              <span style={badge} title="Solicitudes pendientes recibidas">
                 {pendingBadge}
               </span>
             )}
-            <span style={{ fontSize: 12, opacity: 0.9 }}>{open ? "▲" : "▼"}</span>
-          </span>
+            <span
+              style={{
+                ...subtle,
+                fontSize: 11,
+                color: "rgba(255,255,255,0.82)",
+              }}
+            >
+              {open ? "Ocultar" : "Ver"}
+            </span>
+          </div>
         </button>
 
         {!open ? null : (
-          <div style={{ padding: 12, display: "grid", gap: 12 }}>
+          <div
+            style={{
+              padding: 12,
+              display: "grid",
+              gap: 10,
+            }}
+          >
             {err && (
               <div
                 style={{
-                  padding: "10px 12px",
                   borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.16)",
-                  background: "rgba(255,255,255,0.05)",
-                  color: "rgba(255,255,255,0.92)",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(255,255,255,0.04)",
+                  padding: "10px 12px",
+                  color: "#fff",
                   fontSize: 12,
+                  fontWeight: 400,
+                  lineHeight: 1.35,
                 }}
               >
-                ❌ {err}
+                {err}
               </div>
             )}
 
             {hasIncoming && (
-              <div style={panel}>
+              <div style={innerPanel}>
                 <div
                   style={{
                     display: "flex",
+                    alignItems: "center",
                     justifyContent: "space-between",
                     gap: 10,
-                    alignItems: "center",
                   }}
                 >
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>Solicitudes recibidas</div>
+                  <div style={sectionTitle}>Solicitudes recibidas</div>
                   <div style={subtle}>{loadingIncoming ? "Cargando..." : `${incoming.length}`}</div>
                 </div>
 
-                <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+                <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                   {incoming.map((r) => {
                     const d = r.data;
                     const disabled = actionLoadingId === r.id;
 
                     return (
-                      <div
-                        key={r.id}
-                        style={{
-                          border: "1px solid rgba(255,255,255,0.14)",
-                          borderRadius: 12,
-                          padding: 10,
-                          background: "rgba(0,0,0,0.22)",
-                        }}
-                      >
-                        <div style={{ fontWeight: 600, fontSize: 13, color: "#fff" }}>
-                          {typeLabel(d.type)} — Para:{" "}
-                          <span style={{ fontWeight: 600, color: "rgba(255,255,255,0.92)" }}>
-                            {d.toName}
-                          </span>
+                      <div key={r.id} style={itemPanel}>
+                        <div
+                          style={{
+                            display: "grid",
+                            gap: 4,
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 600,
+                              color: "#fff",
+                              lineHeight: 1.3,
+                            }}
+                          >
+                            {typeLabel(d.type)} para{" "}
+                            <span style={{ color: "rgba(255,255,255,0.88)" }}>{d.toName}</span>
+                          </div>
+
+                          {d.createdAt ? (
+                            <div style={subtle}>{fmtDate(d.createdAt)}</div>
+                          ) : null}
                         </div>
 
-                        <div style={{ ...subtle, marginTop: 4 }}>{fmtDate(d.createdAt)}</div>
+                        {d.instructions ? (
+                          <div
+                            style={{
+                              marginTop: 8,
+                              borderRadius: 10,
+                              border: "1px solid rgba(255,255,255,0.10)",
+                              background: "rgba(0,0,0,0.18)",
+                              padding: "8px 9px",
+                              whiteSpace: "pre-wrap",
+                              ...textStyle,
+                            }}
+                          >
+                            {d.instructions}
+                          </div>
+                        ) : null}
 
                         <div
                           style={{
-                            fontSize: 12,
-                            marginTop: 8,
-                            whiteSpace: "pre-wrap",
-                            color: "rgba(255,255,255,0.88)",
-                            lineHeight: 1.35,
+                            display: "flex",
+                            gap: 8,
+                            marginTop: 10,
+                            flexWrap: "wrap",
                           }}
                         >
-                          {d.instructions}
-                        </div>
-
-                        <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                           <button
                             type="button"
                             onClick={() => act(r.id, "accept")}
                             disabled={disabled}
                             style={{
                               ...buttonPrimary,
-                              background: disabled ? "rgba(255,255,255,0.15)" : "#fff",
-                              color: disabled ? "#fff" : "#000",
+                              background: disabled ? "rgba(255,255,255,0.18)" : "#fff",
+                              color: disabled ? "rgba(255,255,255,0.92)" : "#000",
                               cursor: disabled ? "not-allowed" : "pointer",
                               opacity: disabled ? 0.8 : 1,
                             }}
@@ -375,61 +463,65 @@ export default function GreetingRequestsWidget() {
             )}
 
             {hasBuyer && (
-              <div style={panel}>
+              <div style={innerPanel}>
                 <div
                   style={{
                     display: "flex",
+                    alignItems: "center",
                     justifyContent: "space-between",
                     gap: 10,
-                    alignItems: "center",
                   }}
                 >
-                  <div style={{ fontWeight: 600, fontSize: 13 }}>Mis solicitudes</div>
+                  <div style={sectionTitle}>Mis solicitudes</div>
                   <div style={subtle}>{loadingBuyer ? "Cargando..." : `${buyerPending.length}`}</div>
                 </div>
 
-                <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
+                <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                   {buyerPending.map((r) => {
                     const d = r.data;
-                    return (
-                      <div
-                        key={r.id}
-                        style={{
-                          border: "1px solid rgba(255,255,255,0.14)",
-                          borderRadius: 12,
-                          padding: 10,
-                          background: "rgba(0,0,0,0.22)",
-                        }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>
-                            {typeLabel(d.type)} — Para:{" "}
-                            <span style={{ fontWeight: 600, color: "rgba(255,255,255,0.92)" }}>
-                              {d.toName}
-                            </span>
-                          </div>
 
+                    return (
+                      <div key={r.id} style={itemPanel}>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                            gap: 10,
+                          }}
+                        >
                           <div
                             style={{
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: 600,
-                              color: "rgba(255,255,255,0.85)",
-                              border: "1px solid rgba(255,255,255,0.16)",
-                              background: "rgba(255,255,255,0.06)",
-                              padding: "2px 8px",
-                              borderRadius: 999,
-                              whiteSpace: "nowrap",
+                              color: "#fff",
+                              lineHeight: 1.3,
                             }}
                           >
-                            {statusLabel(d.status)}
+                            {typeLabel(d.type)} para{" "}
+                            <span style={{ color: "rgba(255,255,255,0.88)" }}>{d.toName}</span>
                           </div>
+
+                          <div style={statusBadge}>{statusLabel(d.status)}</div>
                         </div>
 
-                        <div style={{ ...subtle, marginTop: 6 }}>{fmtDate(d.createdAt)}</div>
+                        {d.createdAt ? <div style={{ ...subtle, marginTop: 6 }}>{fmtDate(d.createdAt)}</div> : null}
                       </div>
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {!hasIncoming && loadingIncoming && (
+              <div style={innerPanel}>
+                <div style={subtle}>Cargando solicitudes recibidas...</div>
+              </div>
+            )}
+
+            {!hasBuyer && loadingBuyer && (
+              <div style={innerPanel}>
+                <div style={subtle}>Cargando tus solicitudes...</div>
               </div>
             )}
           </div>

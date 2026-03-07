@@ -69,8 +69,6 @@ export default function OwnerAdminPanel(props: Props) {
     currentDescription = "",
     currentCategory = null,
     currentTags = null,
-    currentAvatarUrl = null,
-    currentCoverUrl = null,
     isOpen,
     onClose,
   } = props;
@@ -81,9 +79,6 @@ export default function OwnerAdminPanel(props: Props) {
   );
 
   const [tab, setTab] = useState<TabKey>("general");
-
-  const PANEL_WIDTH = 360;
-  const PANEL_MIN_HEIGHT = 0;
 
   const [name, setName] = useState(currentName ?? "");
   const [description, setDescription] = useState(currentDescription ?? "");
@@ -143,7 +138,7 @@ export default function OwnerAdminPanel(props: Props) {
         updatedAt: Date.now(),
       });
 
-      setGeneralMsg("✅ Cambios guardados.");
+      setGeneralMsg("Cambios guardados.");
     } catch (e: any) {
       setGeneralErr(e?.message ?? "No se pudieron guardar cambios.");
     } finally {
@@ -162,7 +157,7 @@ export default function OwnerAdminPanel(props: Props) {
         updatedAt: Date.now(),
       });
 
-      setStatusMsg(isActive ? "✅ Grupo reactivado." : "✅ Grupo pausado.");
+      setStatusMsg(isActive ? "Grupo reactivado." : "Grupo pausado.");
     } catch (e: any) {
       setStatusErr(e?.message ?? "No se pudo actualizar el estado.");
     } finally {
@@ -175,18 +170,39 @@ export default function OwnerAdminPanel(props: Props) {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
+  const shellStyle: React.CSSProperties = {
+    position: "fixed",
+    right: 14,
+    top: 96,
+    width: "min(320px, calc(100vw - 24px))",
+    maxHeight: "calc(100vh - 110px)",
+    zIndex: 19999,
+    fontFamily: fontStack,
+  };
+
   const card: React.CSSProperties = {
     borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.22)",
+    border: "1px solid rgba(255,255,255,0.18)",
     background: "rgba(12,12,12,0.92)",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+    boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
     overflow: "hidden",
     color: "#fff",
     backdropFilter: "blur(10px)",
+    display: "flex",
+    flexDirection: "column",
+    maxHeight: "calc(100vh - 110px)",
+  };
+
+  const scrollBody: React.CSSProperties = {
+    padding: 12,
+    display: "grid",
+    gap: 10,
+    overflowY: "auto",
+    minHeight: 0,
   };
 
   const panel: React.CSSProperties = {
-    border: "1px solid rgba(255,255,255,0.14)",
+    border: "1px solid rgba(255,255,255,0.12)",
     borderRadius: 12,
     padding: 10,
     background: "rgba(255,255,255,0.03)",
@@ -194,53 +210,63 @@ export default function OwnerAdminPanel(props: Props) {
 
   const subtle: React.CSSProperties = {
     fontSize: 12,
-    color: "rgba(255,255,255,0.72)",
+    color: "rgba(255,255,255,0.68)",
     fontWeight: 400,
+    lineHeight: 1.35,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontWeight: 500,
+    fontSize: 12,
+    color: "#fff",
   };
 
   const buttonPrimary: React.CSSProperties = {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.28)",
+    padding: "8px 12px",
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.18)",
     background: "#fff",
     color: "#000",
     fontWeight: 600,
     cursor: "pointer",
     fontSize: 13,
+    lineHeight: 1.1,
   };
 
   const buttonSecondary: React.CSSProperties = {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.20)",
-    background: "rgba(255,255,255,0.08)",
+    padding: "8px 12px",
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(255,255,255,0.06)",
     color: "#fff",
     fontWeight: 600,
     cursor: "pointer",
     fontSize: 13,
+    lineHeight: 1.1,
   };
 
   const tabBase: React.CSSProperties = {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.20)",
-    background: "rgba(255,255,255,0.08)",
+    padding: "8px 12px",
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(255,255,255,0.06)",
     color: "#fff",
     fontWeight: 600,
     cursor: "pointer",
     fontSize: 13,
+    lineHeight: 1.1,
   };
 
   const tabActive: React.CSSProperties = {
     background: "#fff",
     color: "#000",
-    border: "1px solid rgba(255,255,255,0.28)",
+    border: "1px solid rgba(255,255,255,0.18)",
   };
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    padding: "10px 12px",
-    borderRadius: 10,
+    padding: "9px 11px",
+    borderRadius: 9,
     border: "1px solid rgba(255,255,255,0.14)",
     background: "rgba(0,0,0,0.22)",
     color: "#fff",
@@ -248,55 +274,82 @@ export default function OwnerAdminPanel(props: Props) {
     fontSize: 13,
     fontWeight: 400,
     boxSizing: "border-box",
+    appearance: "none",
+    WebkitAppearance: "none",
+    MozAppearance: "none",
+  };
+
+  const selectStyle: React.CSSProperties = {
+    ...inputStyle,
+    background: "rgba(0,0,0,0.22)",
+    color: "#fff",
   };
 
   const messageBox: React.CSSProperties = {
     padding: "10px 12px",
     borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.16)",
-    background: "rgba(255,255,255,0.05)",
-    color: "rgba(255,255,255,0.92)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#fff",
     fontSize: 12,
     fontWeight: 400,
+    lineHeight: 1.35,
   };
 
   return (
-    <div
-      style={{
-        position: "fixed",
-        right: 16,
-        top: 144,
-        width: PANEL_WIDTH,
-        zIndex: 19999,
-        fontFamily: fontStack,
-      }}
-    >
+    <div style={shellStyle}>
       <div style={card}>
-        <button
-          type="button"
-          onClick={onClose}
+        <div
           style={{
-            width: "100%",
-            padding: "10px 12px",
+            padding: "11px 12px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             gap: 10,
-            border: "none",
-            background: "rgba(255,255,255,0.06)",
-            color: "#fff",
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: 14,
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            background: "rgba(255,255,255,0.04)",
           }}
-          aria-label="Cerrar panel"
-          title="Cerrar"
         >
-          <span>Administración del grupo</span>
-          <span style={{ fontSize: 12, opacity: 0.9, fontWeight: 400 }}>✕</span>
-        </button>
+          <div style={{ display: "grid", gap: 3 }}>
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 600,
+                color: "#fff",
+                letterSpacing: -0.2,
+              }}
+            >
+              Administración del grupo
+            </div>
+            <div style={subtle}>Panel compacto de edición</div>
+          </div>
 
-        <div style={{ padding: 12, display: "grid", gap: 12, minHeight: PANEL_MIN_HEIGHT }}>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar panel"
+            title="Cerrar"
+            style={{
+              border: "1px solid rgba(255,255,255,0.14)",
+              background: "rgba(255,255,255,0.04)",
+              color: "#fff",
+              width: 30,
+              height: 30,
+              borderRadius: 9,
+              cursor: "pointer",
+              fontSize: 14,
+              lineHeight: 1,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <div style={scrollBody}>
           <div style={panel}>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button
@@ -318,7 +371,7 @@ export default function OwnerAdminPanel(props: Props) {
                   ...(tab === "status" ? tabActive : {}),
                 }}
               >
-                Pausar / Baja
+                Estado
               </button>
             </div>
           </div>
@@ -327,7 +380,7 @@ export default function OwnerAdminPanel(props: Props) {
             <div style={panel}>
               <div style={{ display: "grid", gap: 10 }}>
                 <div style={{ display: "grid", gap: 6 }}>
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>Nombre</div>
+                  <div style={labelStyle}>Nombre</div>
                   <input
                     style={inputStyle}
                     value={name}
@@ -336,11 +389,11 @@ export default function OwnerAdminPanel(props: Props) {
                 </div>
 
                 <div style={{ display: "grid", gap: 6 }}>
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>Descripción</div>
+                  <div style={labelStyle}>Descripción</div>
                   <textarea
                     style={{
                       ...inputStyle,
-                      minHeight: 84,
+                      minHeight: 82,
                       resize: "vertical",
                     }}
                     value={description}
@@ -349,52 +402,76 @@ export default function OwnerAdminPanel(props: Props) {
                 </div>
 
                 <div style={{ display: "grid", gap: 6 }}>
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>Categoría</div>
+                  <div style={labelStyle}>Categoría</div>
                   <select
-                    style={inputStyle}
+                    style={selectStyle}
                     value={category ?? "otros"}
                     onChange={(e) => setCategory(e.target.value)}
                   >
-                    <option value="otros">Otros</option>
-                    <option value="entretenimiento">Entretenimiento</option>
-                    <option value="influencer">Influencer</option>
-                    <option value="actor">Actor</option>
-                    <option value="comediante">Comediante</option>
-                    <option value="cantante">Cantante</option>
-                    <option value="youtuber">YouTuber</option>
-                    <option value="streamer">Streamer</option>
-                    <option value="podcaster">Podcaster</option>
-                    <option value="tecnologia">Tecnología</option>
-                    <option value="videojuegos">Videojuegos</option>
-                    <option value="fitness">Fitness</option>
-                    <option value="negocios">Negocios</option>
-                    <option value="educacion">Educación</option>
-                    <option value="viajes">Viajes</option>
-                    <option value="comida">Comida</option>
+                    <option value="otros" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Otros
+                    </option>
+                    <option value="entretenimiento" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Entretenimiento
+                    </option>
+                    <option value="influencer" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Influencer
+                    </option>
+                    <option value="actor" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Actor
+                    </option>
+                    <option value="comediante" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Comediante
+                    </option>
+                    <option value="cantante" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Cantante
+                    </option>
+                    <option value="youtuber" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      YouTuber
+                    </option>
+                    <option value="streamer" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Streamer
+                    </option>
+                    <option value="podcaster" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Podcaster
+                    </option>
+                    <option value="tecnologia" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Tecnología
+                    </option>
+                    <option value="videojuegos" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Videojuegos
+                    </option>
+                    <option value="fitness" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Fitness
+                    </option>
+                    <option value="negocios" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Negocios
+                    </option>
+                    <option value="educacion" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Educación
+                    </option>
+                    <option value="viajes" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Viajes
+                    </option>
+                    <option value="comida" style={{ background: "#0c0c0c", color: "#fff" }}>
+                      Comida
+                    </option>
                   </select>
                 </div>
 
                 <div style={{ display: "grid", gap: 6 }}>
-                  <div style={{ fontWeight: 500, fontSize: 13 }}>Tags (coma)</div>
+                  <div style={labelStyle}>Tags</div>
                   <input
                     style={inputStyle}
                     value={tagsRaw}
                     onChange={(e) => setTagsRaw(e.target.value)}
+                    placeholder="drift, autos, carreras"
                   />
-                  <div style={subtle}>Máximo 10 tags. Se guardan como array.</div>
+                  <div style={subtle}>Máximo 10 tags separadas por coma.</div>
                 </div>
 
-                {generalErr && (
-                  <div style={messageBox}>
-                    ❌ {generalErr}
-                  </div>
-                )}
-
-                {generalMsg && (
-                  <div style={messageBox}>
-                    {generalMsg}
-                  </div>
-                )}
+                {generalErr && <div style={messageBox}>{generalErr}</div>}
+                {generalMsg && <div style={messageBox}>{generalMsg}</div>}
 
                 <button
                   type="button"
@@ -407,7 +484,7 @@ export default function OwnerAdminPanel(props: Props) {
                     alignItems: "center",
                     justifyContent: "center",
                     gap: 8,
-                    background: savingGeneral ? "rgba(255,255,255,0.15)" : "#fff",
+                    background: savingGeneral ? "rgba(255,255,255,0.18)" : "#fff",
                     color: savingGeneral ? "#fff" : "#000",
                     cursor: savingGeneral ? "not-allowed" : "pointer",
                     opacity: savingGeneral ? 0.8 : 1,
@@ -430,10 +507,20 @@ export default function OwnerAdminPanel(props: Props) {
             <div style={panel}>
               <div style={{ display: "grid", gap: 10 }}>
                 <div style={subtle}>
-                  Pausar un grupo lo marca como inactivo (soft). No borra contenido.
+                  Pausar un grupo lo marca como inactivo. No elimina contenido.
                 </div>
 
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    borderRadius: 10,
+                    background: "rgba(0,0,0,0.18)",
+                    padding: 9,
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <button
                     type="button"
                     onClick={() => setActive(false)}
@@ -468,7 +555,7 @@ export default function OwnerAdminPanel(props: Props) {
                       alignItems: "center",
                       justifyContent: "center",
                       gap: 8,
-                      background: statusBusy ? "rgba(255,255,255,0.15)" : "#fff",
+                      background: statusBusy ? "rgba(255,255,255,0.18)" : "#fff",
                       color: statusBusy ? "#fff" : "#000",
                       cursor: statusBusy ? "not-allowed" : "pointer",
                       opacity: statusBusy ? 0.8 : 1,
@@ -485,20 +572,11 @@ export default function OwnerAdminPanel(props: Props) {
                   </button>
                 </div>
 
-                {statusErr && (
-                  <div style={messageBox}>
-                    ❌ {statusErr}
-                  </div>
-                )}
-
-                {statusMsg && (
-                  <div style={messageBox}>
-                    {statusMsg}
-                  </div>
-                )}
+                {statusErr && <div style={messageBox}>{statusErr}</div>}
+                {statusMsg && <div style={messageBox}>{statusMsg}</div>}
 
                 <div style={subtle}>
-                  Más adelante podemos agregar confirmación fuerte y motivo/auditoría para “dar de baja”.
+                  Después puedes agregar confirmación fuerte y motivo de auditoría para una baja más avanzada.
                 </div>
               </div>
             </div>

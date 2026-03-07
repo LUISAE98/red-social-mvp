@@ -10,6 +10,7 @@ type Group = {
   id: string;
   name?: string;
   description?: string;
+  avatarUrl?: string | null;
   visibility?: "public" | "private" | "hidden" | string;
   ownerId?: string;
   monetization?: {
@@ -51,7 +52,6 @@ export default function GroupsHome() {
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
 
-  // ✅ UI tokens (dark minimal, líneas claras sin exagerar)
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
@@ -63,7 +63,11 @@ export default function GroupsHome() {
     fontFamily: fontStack,
   };
 
-  const container: React.CSSProperties = { maxWidth: 980, margin: "0 auto", width: "100%" };
+  const container: React.CSSProperties = {
+    maxWidth: 860,
+    margin: "0 auto",
+    width: "100%",
+  };
 
   const cardBorder = "1px solid rgba(255,255,255,0.18)";
   const softBorder = "1px solid rgba(255,255,255,0.22)";
@@ -71,7 +75,6 @@ export default function GroupsHome() {
   const surface = "rgba(12,12,12,0.90)";
   const fieldBg = "rgba(0,0,0,0.32)";
 
-  // auth
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -80,7 +83,6 @@ export default function GroupsHome() {
     return () => unsub();
   }, []);
 
-  // load my profile
   useEffect(() => {
     async function loadProfile() {
       if (!user) {
@@ -105,7 +107,6 @@ export default function GroupsHome() {
     loadProfile();
   }, [user]);
 
-  // load groups (public + private if signed in)
   useEffect(() => {
     async function loadGroups() {
       setError(null);
@@ -113,14 +114,12 @@ export default function GroupsHome() {
       try {
         const col = collection(db, "groups");
 
-        // público
         const qPublic = query(col, where("visibility", "==", "public"));
         const publicSnap = await getDocs(qPublic);
 
         const list: Group[] = [];
         publicSnap.forEach((d) => list.push({ id: d.id, ...(d.data() as any) }));
 
-        // privados también visibles si hay sesión (tu regla permite list cuando private && signedIn)
         if (user) {
           const qPrivate = query(col, where("visibility", "==", "private"));
           const privateSnap = await getDocs(qPrivate);
@@ -138,7 +137,6 @@ export default function GroupsHome() {
     loadGroups();
   }, [user]);
 
-  // load memberships/joinRequests map
   useEffect(() => {
     async function loadMembershipsAndRequests() {
       if (!user || groups.length === 0) {
@@ -156,13 +154,16 @@ export default function GroupsHome() {
             const jref = doc(db, "groups", g.id, "joinRequests", user.uid);
             const jsnap = await getDoc(jref);
 
-            const pending = jsnap.exists() && (((jsnap.data() as any)?.status ?? "pending") === "pending");
+            const pending =
+              jsnap.exists() && (((jsnap.data() as any)?.status ?? "pending") === "pending");
+
             return { groupId: g.id, isMember: msnap.exists(), hasPendingReq: pending };
           })
         );
 
         const m: Record<string, boolean> = {};
         const r: Record<string, boolean> = {};
+
         for (const e of entries) {
           m[e.groupId] = e.isMember;
           r[e.groupId] = e.hasPendingReq;
@@ -187,7 +188,6 @@ export default function GroupsHome() {
   async function handleJoinPublic(groupId: string) {
     if (!user) return;
     try {
-      setError(null);
       const { joinGroup } = await import("../../lib/groups/membership");
       await joinGroup(groupId, user.uid);
       setMemberMap((m) => ({ ...m, [groupId]: true }));
@@ -199,7 +199,6 @@ export default function GroupsHome() {
   async function handleRequestPrivate(groupId: string) {
     if (!user) return;
     try {
-      setError(null);
       const { requestToJoin } = await import("../../lib/groups/joinRequests");
       await requestToJoin(groupId, user.uid);
       setReqMap((r) => ({ ...r, [groupId]: true }));
@@ -211,7 +210,6 @@ export default function GroupsHome() {
   async function handleCancelRequest(groupId: string) {
     if (!user) return;
     try {
-      setError(null);
       const { cancelJoinRequest } = await import("../../lib/groups/joinRequests");
       await cancelJoinRequest(groupId, user.uid);
       setReqMap((r) => ({ ...r, [groupId]: false }));
@@ -229,7 +227,6 @@ export default function GroupsHome() {
     }
 
     try {
-      setError(null);
       const { leaveGroup } = await import("../../lib/groups/membership");
       await leaveGroup(groupId, user.uid);
       setMemberMap((m) => ({ ...m, [groupId]: false }));
@@ -240,14 +237,17 @@ export default function GroupsHome() {
 
   function goToMyProfile() {
     if (!profile?.handle) {
-      setError("No se encontró tu perfil aún. Termina tu registro o revisa /users/{uid}.");
+      setError("No se encontró tu perfil aún.");
       return;
     }
     router.push(`/u/${profile.handle}`);
   }
 
   const myDisplayName =
-    profile?.displayName || `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim() || user?.email || "Mi perfil";
+    profile?.displayName ||
+    `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim() ||
+    user?.email ||
+    "Mi perfil";
 
   return (
     <main style={pageWrap}>
@@ -256,13 +256,12 @@ export default function GroupsHome() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
           <div style={{ minWidth: 0 }}>
             <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.2 }}>Explorar grupos</h1>
-            <p style={{ marginTop: 6, marginBottom: 0, color: "rgba(255,255,255,0.76)", fontSize: 14, fontWeight: 400 }}>
+            <p style={{ marginTop: 6, marginBottom: 0, color: "rgba(255,255,255,0.76)", fontSize: 14 }}>
               Busca grupos públicos/privados y administra tu membresía.
             </p>
           </div>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            {/* + Crear grupo (primary) */}
             <button
               onClick={() => router.push("/groups/new")}
               style={{
@@ -279,7 +278,6 @@ export default function GroupsHome() {
               + Crear grupo
             </button>
 
-            {/* Mi perfil */}
             <button
               onClick={goToMyProfile}
               disabled={!user || profileLoading}
@@ -297,7 +295,6 @@ export default function GroupsHome() {
                 gap: 10,
                 opacity: !user ? 0.55 : 1,
               }}
-              title={!user ? "Inicia sesión para ver tu perfil" : "Ir a mi perfil"}
             >
               <span
                 style={{
@@ -315,7 +312,6 @@ export default function GroupsHome() {
                 }}
               >
                 {profile?.photoURL ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={profile.photoURL} alt="me" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                 ) : (
                   initials(myDisplayName)
@@ -328,13 +324,13 @@ export default function GroupsHome() {
         </div>
 
         {/* Search */}
-        <div style={{ marginTop: 18, display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ marginTop: 18 }}>
           <input
             placeholder="Buscar grupo por nombre..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
-              flex: 1,
+              width: "100%",
               padding: "11px 12px",
               borderRadius: 12,
               border: fieldBorder,
@@ -346,28 +342,8 @@ export default function GroupsHome() {
           />
         </div>
 
-        {loading && <p style={{ marginTop: 16, color: "rgba(255,255,255,0.75)" }}>Cargando...</p>}
-
-        {error && (
-          <div
-            style={{
-              marginTop: 16,
-              padding: 12,
-              border: "1px solid rgba(255, 107, 107, 0.45)",
-              background: "rgba(255, 107, 107, 0.10)",
-              borderRadius: 12,
-              color: "rgba(255,255,255,0.92)",
-              fontSize: 13,
-            }}
-          >
-            {error}
-          </div>
-        )}
-
         {!loading && !error && (
           <div style={{ marginTop: 18, display: "grid", gap: 12 }}>
-            {filteredGroups.length === 0 && <p style={{ color: "rgba(255,255,255,0.75)" }}>No se encontraron grupos.</p>}
-
             {filteredGroups.map((g) => {
               const isOwner = !!user && !!g.ownerId && g.ownerId === user.uid;
               const isMember = isOwner || !!memberMap[g.id];
@@ -382,7 +358,11 @@ export default function GroupsHome() {
               const cur = g.monetization?.currency ?? null;
 
               const visLabel =
-                g.visibility === "public" ? "Grupo público" : g.visibility === "private" ? "Grupo privado" : "Grupo oculto";
+                g.visibility === "public"
+                  ? "Grupo público"
+                  : g.visibility === "private"
+                  ? "Grupo privado"
+                  : "Grupo oculto";
 
               return (
                 <div
@@ -396,17 +376,37 @@ export default function GroupsHome() {
                     background: surface,
                     boxShadow: "0 14px 40px rgba(0,0,0,0.35)",
                   }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.border = "1px solid rgba(255,255,255,0.26)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.border = cardBorder;
-                  }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: 12 }}>
+                    <div
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: "50%",
+                        overflow: "hidden",
+                        border: "1px solid rgba(255,255,255,0.22)",
+                        background: "rgba(0,0,0,0.35)",
+                        display: "grid",
+                        placeItems: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {g.avatarUrl && (
+                        <img
+                          src={g.avatarUrl}
+                          alt="avatar"
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      )}
+                    </div>
+
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 16, fontWeight: 600, color: "#fff" }}>{g.name ?? "(sin nombre)"}</span>
+                        <span style={{ fontSize: 16, fontWeight: 600 }}>{g.name ?? "(sin nombre)"}</span>
 
                         <span
                           style={{
@@ -415,14 +415,11 @@ export default function GroupsHome() {
                             borderRadius: 999,
                             border: "1px solid rgba(255,255,255,0.24)",
                             background: "rgba(255,255,255,0.06)",
-                            color: "rgba(255,255,255,0.85)",
-                            fontWeight: 500,
                           }}
                         >
                           {visLabel}
                         </span>
 
-                        {/* ✅ Badge suscripción (dark) */}
                         {paid && (
                           <span
                             style={{
@@ -431,7 +428,6 @@ export default function GroupsHome() {
                               borderRadius: 999,
                               border: "1px solid rgba(255, 225, 166, 0.40)",
                               background: "rgba(255, 225, 166, 0.10)",
-                              color: "rgba(255,255,255,0.88)",
                               fontWeight: 600,
                             }}
                           >
@@ -440,7 +436,9 @@ export default function GroupsHome() {
                         )}
 
                         {isOwner && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.62)" }}>(Eres owner)</span>}
-                        {!isOwner && isMember && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.62)" }}>(Ya estás unido)</span>}
+                        {!isOwner && isMember && (
+                          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.62)" }}>(Ya estás unido)</span>
+                        )}
                         {!isOwner && !isMember && isPrivate && hasPendingReq && (
                           <span style={{ fontSize: 12, color: "rgba(255,255,255,0.62)" }}>(Pendiente)</span>
                         )}
@@ -449,11 +447,8 @@ export default function GroupsHome() {
                       <div style={{ marginTop: 6, color: "rgba(255,255,255,0.76)", fontSize: 14 }}>
                         {g.description ?? ""}
                       </div>
-
-                      <div style={{ marginTop: 8, fontSize: 12, color: "rgba(255,255,255,0.45)" }}>id: {g.id}</div>
                     </div>
 
-                    {/* Actions */}
                     <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                       {!isOwner && !isMember && isPublic && (
                         <button
@@ -507,10 +502,8 @@ export default function GroupsHome() {
                                   border: "1px solid rgba(255,255,255,0.22)",
                                   background: "rgba(255,255,255,0.05)",
                                   color: "rgba(255,255,255,0.75)",
-                                  opacity: 0.9,
                                   fontWeight: 600,
                                   fontSize: 14,
-                                  cursor: "not-allowed",
                                 }}
                               >
                                 Solicitud enviada

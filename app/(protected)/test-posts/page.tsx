@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from "react";
 import {
   addDoc,
   collection,
@@ -11,11 +11,11 @@ import {
   serverTimestamp,
   updateDoc,
   where,
-} from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { db } from '@/lib/firebase';
+} from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { db } from "@/lib/firebase";
 
-const GROUP_ID = 'bFAbRGkZGysHBWO6U3BY';
+const GROUP_ID = "bFAbRGkZGysHBWO6U3BY";
 
 type Post = {
   id: string;
@@ -37,11 +37,9 @@ export default function TestPostsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Crear post
-  const [text, setText] = useState('');
+  const [text, setText] = useState("");
   const [creating, setCreating] = useState(false);
 
-  // Comentarios por post
   const [commentsByPost, setCommentsByPost] = useState<Record<string, Comment[]>>({});
   const [loadingComments, setLoadingComments] = useState<Record<string, boolean>>({});
   const [commentTextByPost, setCommentTextByPost] = useState<Record<string, string>>({});
@@ -52,10 +50,10 @@ export default function TestPostsPage() {
 
   const fetchPosts = async () => {
     const q = query(
-      collection(db, 'posts'),
-      where('groupId', '==', GROUP_ID),
-      where('isDeleted', '==', false),
-      orderBy('createdAt', 'desc')
+      collection(db, "posts"),
+      where("groupId", "==", GROUP_ID),
+      where("isDeleted", "==", false),
+      orderBy("createdAt", "desc")
     );
 
     const snap = await getDocs(q);
@@ -69,7 +67,7 @@ export default function TestPostsPage() {
         await fetchPosts();
       } catch (e: any) {
         console.error(e);
-        setError(e?.message ?? 'Error desconocido');
+        setError(e?.message ?? "Error desconocido");
       }
     };
 
@@ -82,12 +80,12 @@ export default function TestPostsPage() {
       setCreating(true);
 
       const uidNow = getAuth().currentUser?.uid;
-      if (!uidNow) throw new Error('Debes iniciar sesión para crear un post.');
+      if (!uidNow) throw new Error("Debes iniciar sesión para crear un post.");
 
       const cleanText = text.trim();
-      if (!cleanText) throw new Error('Escribe un texto antes de publicar.');
+      if (!cleanText) throw new Error("Escribe un texto antes de publicar.");
 
-      await addDoc(collection(db, 'posts'), {
+      await addDoc(collection(db, "posts"), {
         groupId: GROUP_ID,
         authorId: uidNow,
         text: cleanText,
@@ -95,11 +93,11 @@ export default function TestPostsPage() {
         isDeleted: false,
       });
 
-      setText('');
+      setText("");
       await fetchPosts();
     } catch (e: any) {
       console.error(e);
-      setError(e?.message ?? 'Error desconocido');
+      setError(e?.message ?? "Error desconocido");
     } finally {
       setCreating(false);
     }
@@ -108,7 +106,7 @@ export default function TestPostsPage() {
   const softDeletePost = async (postId: string) => {
     try {
       setError(null);
-      await updateDoc(doc(db, 'posts', postId), { isDeleted: true });
+      await updateDoc(doc(db, "posts", postId), { isDeleted: true });
 
       setCommentsByPost((prev) => {
         const copy = { ...prev };
@@ -125,7 +123,7 @@ export default function TestPostsPage() {
       await fetchPosts();
     } catch (e: any) {
       console.error(e);
-      setError(e?.message ?? 'Error desconocido');
+      setError(e?.message ?? "Error desconocido");
     }
   };
 
@@ -135,8 +133,8 @@ export default function TestPostsPage() {
       setLoadingComments((prev) => ({ ...prev, [postId]: true }));
 
       const q = query(
-        collection(db, 'posts', postId, 'comments'),
-        orderBy('createdAt', 'asc')
+        collection(db, "posts", postId, "comments"),
+        orderBy("createdAt", "asc")
       );
 
       const snap = await getDocs(q);
@@ -145,7 +143,7 @@ export default function TestPostsPage() {
       setCommentsByPost((prev) => ({ ...prev, [postId]: comments }));
     } catch (e: any) {
       console.error(e);
-      setError(e?.message ?? 'Error desconocido');
+      setError(e?.message ?? "Error desconocido");
     } finally {
       setLoadingComments((prev) => ({ ...prev, [postId]: false }));
     }
@@ -157,23 +155,23 @@ export default function TestPostsPage() {
       setCreatingComment((prev) => ({ ...prev, [postId]: true }));
 
       const uidNow = getAuth().currentUser?.uid;
-      if (!uidNow) throw new Error('Debes iniciar sesión para comentar.');
+      if (!uidNow) throw new Error("Debes iniciar sesión para comentar.");
 
-      const raw = commentTextByPost[postId] ?? '';
+      const raw = commentTextByPost[postId] ?? "";
       const clean = raw.trim();
-      if (!clean) throw new Error('Escribe un comentario antes de enviar.');
+      if (!clean) throw new Error("Escribe un comentario antes de enviar.");
 
-      await addDoc(collection(db, 'posts', postId, 'comments'), {
+      await addDoc(collection(db, "posts", postId, "comments"), {
         authorId: uidNow,
         text: clean,
         createdAt: serverTimestamp(),
       });
 
-      setCommentTextByPost((prev) => ({ ...prev, [postId]: '' }));
+      setCommentTextByPost((prev) => ({ ...prev, [postId]: "" }));
       await fetchComments(postId);
     } catch (e: any) {
       console.error(e);
-      setError(e?.message ?? 'Error desconocido');
+      setError(e?.message ?? "Error desconocido");
     } finally {
       setCreatingComment((prev) => ({ ...prev, [postId]: false }));
     }
@@ -182,93 +180,132 @@ export default function TestPostsPage() {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
+  const ui = {
+    pageMaxWidth: 860,
+    cardRadius: 14,
+    buttonRadius: 9,
+    buttonPadding: "8px 12px",
+    fontTitle: 18,
+    fontSubtitle: 16,
+    fontBody: 13,
+    fontMicro: 12,
+    borderSoft: "1px solid rgba(255,255,255,0.18)",
+    borderFaint: "1px solid rgba(255,255,255,0.12)",
+    shadow: "0 18px 48px rgba(0,0,0,0.55)",
+  };
+
   const pageWrap: React.CSSProperties = {
-    minHeight: '100vh',
-    background: '#000',
-    color: '#fff',
+    minHeight: "100vh",
+    background: "#000",
+    color: "#fff",
     fontFamily: fontStack,
-    padding: 24,
+    padding: "20px 14px 120px",
+    WebkitFontSmoothing: "antialiased",
+    MozOsxFontSmoothing: "grayscale",
+    textRendering: "optimizeLegibility",
   };
 
   const containerStyle: React.CSSProperties = {
-    width: '100%',
-    maxWidth: 860,
-    margin: '0 auto',
+    width: "100%",
+    maxWidth: ui.pageMaxWidth,
+    margin: "0 auto",
   };
 
   const cardStyle: React.CSSProperties = {
-    borderRadius: 16,
-    border: '1px solid rgba(255,255,255,0.22)',
-    background: 'rgba(12,12,12,0.9)',
-    boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+    borderRadius: ui.cardRadius,
+    border: ui.borderSoft,
+    background: "rgba(12,12,12,0.92)",
+    boxShadow: ui.shadow,
+    color: "#fff",
+    backdropFilter: "blur(10px)",
+    overflow: "hidden",
   };
 
   const sectionPadding: React.CSSProperties = {
-    padding: 24,
+    padding: 18,
   };
 
   const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '11px 12px',
+    width: "100%",
+    padding: "9px 11px",
     marginTop: 8,
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.30)',
-    background: 'rgba(0,0,0,0.32)',
-    color: '#fff',
-    outline: 'none',
-    fontSize: 14,
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#fff",
+    outline: "none",
+    fontSize: ui.fontBody,
+    fontFamily: fontStack,
+    boxSizing: "border-box",
   };
 
   const primaryButton: React.CSSProperties = {
     marginTop: 8,
-    padding: '11px 12px',
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.28)',
-    background: '#fff',
-    color: '#000',
-    cursor: 'pointer',
+    padding: ui.buttonPadding,
+    borderRadius: ui.buttonRadius,
+    border: "1px solid rgba(255,255,255,0.24)",
+    background: "#fff",
+    color: "#000",
+    cursor: "pointer",
     fontWeight: 600,
-    fontSize: 14,
+    fontSize: ui.fontBody,
+    fontFamily: fontStack,
+    lineHeight: 1.2,
   };
 
   const secondaryButton: React.CSSProperties = {
     marginTop: 8,
-    padding: '10px 12px',
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.24)',
-    background: 'rgba(255,255,255,0.08)',
-    color: '#fff',
-    cursor: 'pointer',
-    fontWeight: 500,
-    fontSize: 13,
+    padding: ui.buttonPadding,
+    borderRadius: ui.buttonRadius,
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: "rgba(255,255,255,0.07)",
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: ui.fontBody,
+    fontFamily: fontStack,
+    lineHeight: 1.2,
   };
 
   const dangerButton: React.CSSProperties = {
     marginTop: 8,
-    padding: '10px 12px',
-    borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.24)',
-    background: 'rgba(255,255,255,0.06)',
-    color: '#fff',
-    cursor: 'pointer',
-    fontWeight: 500,
-    fontSize: 13,
+    padding: ui.buttonPadding,
+    borderRadius: ui.buttonRadius,
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: "rgba(255,255,255,0.05)",
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: ui.fontBody,
+    fontFamily: fontStack,
+    lineHeight: 1.2,
   };
 
   const subtleText: React.CSSProperties = {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.78)',
+    fontSize: ui.fontBody,
+    color: "rgba(255,255,255,0.78)",
+  };
+
+  const microText: React.CSSProperties = {
+    fontSize: ui.fontMicro,
+    color: "rgba(255,255,255,0.72)",
+  };
+
+  const metaRow: React.CSSProperties = {
+    fontSize: ui.fontMicro,
+    color: "rgba(255,255,255,0.74)",
   };
 
   return (
     <main style={pageWrap}>
       <div style={containerStyle}>
-        <div style={{ marginBottom: 18 }}>
+        <div style={{ marginBottom: 16 }}>
           <h1
             style={{
               margin: 0,
-              fontSize: 22,
+              fontSize: ui.fontTitle,
               fontWeight: 600,
+              lineHeight: 1.15,
             }}
           >
             Test Posts
@@ -278,16 +315,16 @@ export default function TestPostsPage() {
             style={{
               marginTop: 6,
               marginBottom: 0,
-              fontSize: 14,
+              fontSize: ui.fontBody,
               fontWeight: 400,
-              color: 'rgba(255,255,255,0.78)',
+              color: "rgba(255,255,255,0.78)",
             }}
           >
             Vista de prueba para creación de posts y comentarios.
           </p>
 
-          <p style={{ ...subtleText, marginTop: 10, marginBottom: 0 }}>
-            UID actual: {uid ?? 'no hay sesión'}
+          <p style={{ ...microText, marginTop: 10, marginBottom: 0 }}>
+            UID actual: {uid ?? "no hay sesión"}
           </p>
         </div>
 
@@ -296,19 +333,24 @@ export default function TestPostsPage() {
             <h3
               style={{
                 marginTop: 0,
-                marginBottom: 14,
-                fontSize: 18,
+                marginBottom: 12,
+                fontSize: ui.fontSubtitle,
                 fontWeight: 600,
               }}
             >
               Crear post
             </h3>
 
-            <input
+            <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="Escribe algo..."
-              style={inputStyle}
+              rows={4}
+              style={{
+                ...inputStyle,
+                marginTop: 0,
+                resize: "vertical",
+              }}
             />
 
             <button
@@ -317,16 +359,15 @@ export default function TestPostsPage() {
               style={{
                 ...primaryButton,
                 background:
-                  creating || text.trim().length === 0 ? 'rgba(255,255,255,0.15)' : '#fff',
-                color: creating || text.trim().length === 0 ? '#fff' : '#000',
-                cursor:
-                  creating || text.trim().length === 0 ? 'not-allowed' : 'pointer',
+                  creating || text.trim().length === 0 ? "rgba(255,255,255,0.15)" : "#fff",
+                color: creating || text.trim().length === 0 ? "#fff" : "#000",
+                cursor: creating || text.trim().length === 0 ? "not-allowed" : "pointer",
               }}
             >
-              {creating ? 'Creando...' : 'Publicar'}
+              {creating ? "Creando..." : "Publicar"}
             </button>
 
-            <p style={{ ...subtleText, marginTop: 10, marginBottom: 0 }}>
+            <p style={{ ...microText, marginTop: 10, marginBottom: 0 }}>
               Tip: debes estar logueado en <code>/login</code> para poder publicar y comentar.
             </p>
           </div>
@@ -337,12 +378,13 @@ export default function TestPostsPage() {
             style={{
               marginTop: 16,
               borderRadius: 12,
-              border: '1px solid rgba(255,255,255,0.24)',
-              background: 'rgba(255,255,255,0.08)',
+              border: "1px solid rgba(255,255,255,0.18)",
+              background: "rgba(255,255,255,0.06)",
               padding: 12,
-              fontSize: 13,
-              color: 'rgba(255,255,255,0.92)',
-              whiteSpace: 'pre-wrap',
+              fontSize: ui.fontBody,
+              color: "rgba(255,255,255,0.92)",
+              whiteSpace: "pre-wrap",
+              boxShadow: ui.shadow,
             }}
           >
             ❌ {error}
@@ -360,8 +402,8 @@ export default function TestPostsPage() {
               <p
                 style={{
                   margin: 0,
-                  fontSize: 14,
-                  color: 'rgba(255,255,255,0.82)',
+                  fontSize: ui.fontBody,
+                  color: "rgba(255,255,255,0.82)",
                 }}
               >
                 No hay posts.
@@ -373,7 +415,7 @@ export default function TestPostsPage() {
         {posts.map((p) => {
           const comments = commentsByPost[p.id] ?? null;
           const isLoading = !!loadingComments[p.id];
-          const cText = commentTextByPost[p.id] ?? '';
+          const cText = commentTextByPost[p.id] ?? "";
           const isCreatingC = !!creatingComment[p.id];
 
           return (
@@ -385,39 +427,51 @@ export default function TestPostsPage() {
               }}
             >
               <div style={sectionPadding}>
-                <div style={{ display: 'grid', gap: 8 }}>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.78)' }}>
-                    <b style={{ color: '#fff' }}>ID:</b> {p.id}
+                <div style={{ display: "grid", gap: 8 }}>
+                  <div style={metaRow}>
+                    <b style={{ color: "#fff" }}>ID:</b> {p.id}
                   </div>
-                  <div style={{ fontSize: 14, color: '#fff' }}>
-                    <b>Texto:</b> {p.text}
+
+                  <div
+                    style={{
+                      fontSize: ui.fontBody,
+                      color: "#fff",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {p.text}
                   </div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.78)' }}>
-                    <b style={{ color: '#fff' }}>Group:</b> {p.groupId}
+
+                  <div style={metaRow}>
+                    <b style={{ color: "#fff" }}>Group:</b> {p.groupId}
                   </div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.78)' }}>
-                    <b style={{ color: '#fff' }}>Autor:</b> {p.authorId}
+
+                  <div style={metaRow}>
+                    <b style={{ color: "#fff" }}>Autor:</b> {p.authorId}
                   </div>
-                  <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.78)' }}>
-                    <b style={{ color: '#fff' }}>Deleted:</b> {String(p.isDeleted)}
+
+                  <div style={metaRow}>
+                    <b style={{ color: "#fff" }}>Deleted:</b> {String(p.isDeleted)}
                   </div>
                 </div>
 
-                <button onClick={() => softDeletePost(p.id)} style={dangerButton}>
-                  Eliminar (soft)
-                </button>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
+                  <button onClick={() => softDeletePost(p.id)} style={{ ...dangerButton, marginTop: 0 }}>
+                    Eliminar (soft)
+                  </button>
+                </div>
 
                 <div
                   style={{
-                    marginTop: 18,
-                    paddingTop: 18,
-                    borderTop: '1px solid rgba(255,255,255,0.14)',
+                    marginTop: 16,
+                    paddingTop: 16,
+                    borderTop: "1px solid rgba(255,255,255,0.10)",
                   }}
                 >
                   <h4
                     style={{
                       margin: 0,
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: 600,
                     }}
                   >
@@ -431,11 +485,13 @@ export default function TestPostsPage() {
                       style={{
                         ...secondaryButton,
                         marginTop: 0,
-                        background: isLoading ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.08)',
-                        cursor: isLoading ? 'not-allowed' : 'pointer',
+                        background: isLoading
+                          ? "rgba(255,255,255,0.12)"
+                          : "rgba(255,255,255,0.07)",
+                        cursor: isLoading ? "not-allowed" : "pointer",
                       }}
                     >
-                      {isLoading ? 'Cargando...' : 'Cargar comentarios'}
+                      {isLoading ? "Cargando..." : "Cargar comentarios"}
                     </button>
                   </div>
 
@@ -444,8 +500,8 @@ export default function TestPostsPage() {
                       style={{
                         marginTop: 10,
                         marginBottom: 0,
-                        fontSize: 13,
-                        color: 'rgba(255,255,255,0.78)',
+                        fontSize: ui.fontBody,
+                        color: "rgba(255,255,255,0.78)",
                       }}
                     >
                       Aún no hay comentarios.
@@ -453,30 +509,32 @@ export default function TestPostsPage() {
                   )}
 
                   {comments !== null && comments.length > 0 && (
-                    <div style={{ marginTop: 10, display: 'grid', gap: 10 }}>
+                    <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
                       {comments.map((c) => (
                         <div
                           key={c.id}
                           style={{
                             padding: 12,
                             borderRadius: 12,
-                            border: '1px solid rgba(255,255,255,0.14)',
-                            background: 'rgba(255,255,255,0.03)',
+                            border: "1px solid rgba(255,255,255,0.12)",
+                            background: "rgba(255,255,255,0.03)",
                           }}
                         >
                           <div
                             style={{
-                              fontSize: 12,
-                              color: 'rgba(255,255,255,0.72)',
+                              fontSize: ui.fontMicro,
+                              color: "rgba(255,255,255,0.72)",
                             }}
                           >
-                            <b style={{ color: '#fff' }}>Autor:</b> {c.authorId}
+                            <b style={{ color: "#fff" }}>Autor:</b> {c.authorId}
                           </div>
+
                           <div
                             style={{
                               marginTop: 6,
-                              fontSize: 14,
-                              color: '#fff',
+                              fontSize: ui.fontBody,
+                              color: "#fff",
+                              lineHeight: 1.45,
                             }}
                           >
                             {c.text}
@@ -489,23 +547,23 @@ export default function TestPostsPage() {
                   <div
                     style={{
                       marginTop: 14,
-                      padding: 14,
+                      padding: 12,
                       borderRadius: 12,
-                      border: '1px solid rgba(255,255,255,0.14)',
-                      background: 'rgba(255,255,255,0.03)',
+                      border: "1px solid rgba(255,255,255,0.12)",
+                      background: "rgba(255,255,255,0.03)",
                     }}
                   >
                     <div
                       style={{
-                        fontSize: 14,
+                        fontSize: ui.fontBody,
                         fontWeight: 600,
-                        color: '#fff',
+                        color: "#fff",
                       }}
                     >
                       Agregar comentario
                     </div>
 
-                    <input
+                    <textarea
                       value={cText}
                       onChange={(e) =>
                         setCommentTextByPost((prev) => ({
@@ -514,7 +572,11 @@ export default function TestPostsPage() {
                         }))
                       }
                       placeholder="Escribe un comentario..."
-                      style={inputStyle}
+                      rows={3}
+                      style={{
+                        ...inputStyle,
+                        resize: "vertical",
+                      }}
                     />
 
                     <button
@@ -524,17 +586,17 @@ export default function TestPostsPage() {
                         ...primaryButton,
                         background:
                           isCreatingC || cText.trim().length === 0
-                            ? 'rgba(255,255,255,0.15)'
-                            : '#fff',
+                            ? "rgba(255,255,255,0.15)"
+                            : "#fff",
                         color:
-                          isCreatingC || cText.trim().length === 0 ? '#fff' : '#000',
+                          isCreatingC || cText.trim().length === 0 ? "#fff" : "#000",
                         cursor:
                           isCreatingC || cText.trim().length === 0
-                            ? 'not-allowed'
-                            : 'pointer',
+                            ? "not-allowed"
+                            : "pointer",
                       }}
                     >
-                      {isCreatingC ? 'Comentando...' : 'Comentar'}
+                      {isCreatingC ? "Comentando..." : "Comentar"}
                     </button>
                   </div>
                 </div>

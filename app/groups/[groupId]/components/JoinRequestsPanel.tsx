@@ -13,8 +13,8 @@ type Props = {
 };
 
 type PendingReq = {
-  id: string; // doc id (uid)
-  userId: string; // uid
+  id: string;
+  userId: string;
 };
 
 function shortUid(uid: string) {
@@ -124,96 +124,99 @@ export default function JoinRequestsPanel({ groupId }: Props) {
   const card: React.CSSProperties = {
     marginTop: 18,
     maxWidth: 560,
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.22)",
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.18)",
     background: "rgba(12,12,12,0.92)",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
-    padding: 16,
+    boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
+    padding: 14,
     color: "#fff",
     fontFamily: fontStack,
   };
 
-  const subtle: React.CSSProperties = {
-    fontSize: 13,
-    color: "rgba(255,255,255,0.72)",
+  const innerPanel: React.CSSProperties = {
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.03)",
+    padding: 10,
   };
 
   const row: React.CSSProperties = {
-    border: "1px solid rgba(255,255,255,0.14)",
+    border: "1px solid rgba(255,255,255,0.12)",
     borderRadius: 12,
-    padding: 12,
+    padding: 10,
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
-    background: "rgba(0,0,0,0.22)",
+    background: "rgba(255,255,255,0.03)",
+  };
+
+  const subtle: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 400,
+    color: "rgba(255,255,255,0.68)",
+    lineHeight: 1.35,
   };
 
   const avatarBox: React.CSSProperties = {
-    width: 36,
-    height: 36,
+    width: 34,
+    height: 34,
     borderRadius: 10,
-    background: "rgba(255,255,255,0.06)",
-    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.12)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontWeight: 600,
+    fontSize: 13,
     color: "rgba(255,255,255,0.92)",
     flex: "0 0 auto",
   };
 
   const btnPrimary: React.CSSProperties = {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.28)",
+    padding: "8px 12px",
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.18)",
     background: "#fff",
     color: "#000",
     fontWeight: 600,
     cursor: "pointer",
-    opacity: 1,
-    minWidth: 92,
+    minWidth: 88,
     fontSize: 13,
+    lineHeight: 1.1,
   };
 
   const btnSecondary: React.CSSProperties = {
-    padding: "10px 12px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.20)",
-    background: "rgba(255,255,255,0.08)",
+    padding: "8px 12px",
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(255,255,255,0.06)",
     color: "#fff",
-    fontWeight: 500,
+    fontWeight: 600,
     cursor: "pointer",
-    opacity: 1,
-    minWidth: 92,
+    minWidth: 88,
     fontSize: 13,
+    lineHeight: 1.1,
   };
 
   return (
     <section style={card}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          justifyContent: "space-between",
-          gap: 10,
-        }}
-      >
-        <div>
-          <h3
-            style={{
-              margin: 0,
-              fontSize: 18,
-              fontWeight: 600,
-              color: "#fff",
-            }}
-          >
-            {headerText}
-          </h3>
-          <p style={{ margin: "6px 0 0", ...subtle }}>
-            Aprueba o rechaza solicitudes para permitir el acceso al grupo.
-          </p>
-        </div>
+      <div style={{ display: "grid", gap: 4 }}>
+        <h3
+          style={{
+            margin: 0,
+            fontSize: 18,
+            fontWeight: 600,
+            color: "#fff",
+            letterSpacing: -0.2,
+          }}
+        >
+          {headerText}
+        </h3>
+
+        <p style={{ margin: 0, ...subtle }}>
+          Aprueba o rechaza solicitudes para permitir el acceso al grupo.
+        </p>
       </div>
 
       {error && (
@@ -222,74 +225,98 @@ export default function JoinRequestsPanel({ groupId }: Props) {
             marginTop: 12,
             padding: "10px 12px",
             borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.16)",
-            background: "rgba(255,255,255,0.05)",
-            color: "rgba(255,255,255,0.92)",
-            fontSize: 13,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(255,255,255,0.04)",
+            color: "#fff",
+            fontSize: 12,
+            fontWeight: 400,
+            lineHeight: 1.35,
           }}
         >
-          ❌ {error}
+          {error}
         </div>
       )}
 
-      <div style={{ marginTop: 14, display: "grid", gap: 10 }}>
-        {requests.map((r) => {
-          const busy = busyUserId === r.userId;
-          const anyBusy = !!busyUserId;
+      <div style={{ marginTop: 12 }}>
+        <div style={innerPanel}>
+          <div style={{ display: "grid", gap: 8 }}>
+            {requests.map((r) => {
+              const busy = busyUserId === r.userId;
+              const anyBusy = !!busyUserId;
 
-          return (
-            <div key={r.id} style={row}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={avatarBox} title={r.userId}>
-                  {r.userId?.slice(0, 1)?.toUpperCase() ?? "U"}
-                </div>
-
-                <div>
+              return (
+                <div key={r.id} style={row}>
                   <div
                     style={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color: "rgba(255,255,255,0.92)",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      minWidth: 0,
+                      flex: 1,
                     }}
                   >
-                    Usuario: {shortUid(r.userId)}
+                    <div style={avatarBox} title={r.userId}>
+                      {r.userId?.slice(0, 1)?.toUpperCase() ?? "U"}
+                    </div>
+
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "rgba(255,255,255,0.92)",
+                          lineHeight: 1.3,
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        Usuario: {shortUid(r.userId)}
+                      </div>
+
+                      <div style={subtle}>Solicitud pendiente</div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.65)" }}>
-                    Solicitud pendiente
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      flexWrap: "wrap",
+                      justifyContent: "flex-end",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onApprove(r.userId)}
+                      disabled={anyBusy}
+                      style={{
+                        ...btnPrimary,
+                        background: anyBusy ? "rgba(255,255,255,0.18)" : "#fff",
+                        color: anyBusy ? "rgba(255,255,255,0.92)" : "#000",
+                        cursor: anyBusy ? "not-allowed" : "pointer",
+                        opacity: anyBusy ? 0.85 : 1,
+                      }}
+                    >
+                      {busy ? "Procesando..." : "Aprobar"}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => onReject(r.userId)}
+                      disabled={anyBusy}
+                      style={{
+                        ...btnSecondary,
+                        cursor: anyBusy ? "not-allowed" : "pointer",
+                        opacity: anyBusy ? 0.7 : 1,
+                      }}
+                    >
+                      {busy ? "Procesando..." : "Rechazar"}
+                    </button>
                   </div>
                 </div>
-              </div>
-
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => onApprove(r.userId)}
-                  disabled={anyBusy}
-                  style={{
-                    ...btnPrimary,
-                    background: anyBusy ? "rgba(255,255,255,0.15)" : "#fff",
-                    color: anyBusy ? "#fff" : "#000",
-                    cursor: anyBusy ? "not-allowed" : "pointer",
-                    opacity: anyBusy ? 0.85 : 1,
-                  }}
-                >
-                  {busy ? "..." : "Aprobar"}
-                </button>
-
-                <button
-                  onClick={() => onReject(r.userId)}
-                  disabled={anyBusy}
-                  style={{
-                    ...btnSecondary,
-                    cursor: anyBusy ? "not-allowed" : "pointer",
-                    opacity: anyBusy ? 0.7 : 1,
-                  }}
-                >
-                  {busy ? "..." : "Rechazar"}
-                </button>
-              </div>
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        </div>
       </div>
     </section>
   );

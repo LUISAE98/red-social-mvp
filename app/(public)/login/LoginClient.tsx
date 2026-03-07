@@ -38,7 +38,7 @@ export default function LoginClient() {
       const next = searchParams.get("next") || "/";
       router.replace(next);
     } catch (err: any) {
-      setMsg(`❌ ${friendlyAuthError(err)}`);
+      setMsg(friendlyAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -47,183 +47,223 @@ export default function LoginClient() {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "grid",
-        placeItems: "center",
-        padding: 24,
-        background: "#000",
-        color: "#fff",
-        fontFamily: fontStack,
-      }}
-    >
-      <div style={{ width: "100%", maxWidth: 400 }}>
-        <div
-          style={{
-            borderRadius: 16,
-            border: "1px solid rgba(255,255,255,0.22)", // línea más clara
-            background: "rgba(12,12,12,0.9)",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
-          }}
-        >
-          <div style={{ padding: 24 }}>
-            <h1
-              style={{
-                fontSize: 22,
-                fontWeight: 600,
-                margin: 0,
-              }}
-            >
-              Iniciar sesión
-            </h1>
+  const pageStyle: React.CSSProperties = {
+    minHeight: "100vh",
+    background:
+      "radial-gradient(circle at top, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 18%, #000 52%)",
+    color: "#fff",
+    fontFamily: fontStack,
+    padding: "20px 14px 120px",
+    display: "grid",
+    placeItems: "center",
+  };
 
-            <p
-              style={{
-                marginTop: 6,
-                marginBottom: 20,
-                color: "rgba(255,255,255,0.78)",
-                fontWeight: 400,
-                fontSize: 14,
-              }}
-            >
-              Accede con tu correo y contraseña
-            </p>
+  const shellStyle: React.CSSProperties = {
+    width: "100%",
+    maxWidth: 860,
+    display: "flex",
+    justifyContent: "center",
+  };
+
+  const cardStyle: React.CSSProperties = {
+    width: "100%",
+    maxWidth: 460,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: "rgba(12,12,12,0.92)",
+    boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
+    overflow: "hidden",
+    backdropFilter: "blur(10px)",
+  };
+
+  const innerPanelStyle: React.CSSProperties = {
+    marginTop: 16,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.03)",
+    padding: 14,
+  };
+
+  const labelTextStyle: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.92)",
+    lineHeight: 1.2,
+  };
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "9px 11px",
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#fff",
+    outline: "none",
+    fontSize: 13,
+    fontWeight: 400,
+    fontFamily: fontStack,
+    transition: "border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease",
+    boxSizing: "border-box",
+  };
+
+  const secondaryButtonStyle: React.CSSProperties = {
+    padding: "8px 12px",
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.05)",
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: 600,
+    fontFamily: fontStack,
+    cursor: "pointer",
+  };
+
+  const primaryButtonStyle: React.CSSProperties = {
+    padding: "8px 12px",
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "#fff",
+    color: "#000",
+    fontSize: 13,
+    fontWeight: 600,
+    fontFamily: fontStack,
+    cursor: "pointer",
+  };
+
+  const linkStyle: React.CSSProperties = {
+    color: "rgba(255,255,255,0.82)",
+    textDecoration: "none",
+    fontSize: 12,
+    fontWeight: 400,
+  };
+
+  return (
+    <main style={pageStyle}>
+      <div style={shellStyle}>
+        <div style={cardStyle}>
+          <div style={{ padding: 18 }}>
+            <div>
+              <h1
+                style={{
+                  margin: 0,
+                  fontSize: 18,
+                  fontWeight: 600,
+                  lineHeight: 1.2,
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Iniciar sesión
+              </h1>
+
+              <p
+                style={{
+                  margin: "6px 0 0 0",
+                  fontSize: 13,
+                  fontWeight: 400,
+                  color: "rgba(255,255,255,0.68)",
+                  lineHeight: 1.45,
+                }}
+              >
+                Accede con tu correo y contraseña.
+              </p>
+            </div>
 
             {registered && (
               <div
                 style={{
-                  background: "rgba(85,239,196,0.12)",
-                  border: "1px solid rgba(85,239,196,0.30)",
-                  padding: 10,
-                  borderRadius: 10,
-                  marginBottom: 16,
-                  fontSize: 13,
+                  marginTop: 14,
+                  borderRadius: 12,
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  background: "rgba(255,255,255,0.04)",
+                  padding: "10px 12px",
+                  fontSize: 12,
+                  fontWeight: 400,
+                  color: "rgba(255,255,255,0.86)",
+                  lineHeight: 1.45,
                 }}
               >
                 Cuenta creada. Revisa tu correo para verificarla.
               </div>
             )}
 
-            <form onSubmit={handleLogin} style={{ display: "grid", gap: 14 }}>
-              <label style={{ display: "grid", gap: 6 }}>
-                <span
+            <div style={innerPanelStyle}>
+              <form onSubmit={handleLogin} style={{ display: "grid", gap: 12 }}>
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={labelTextStyle}>Correo</span>
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    style={inputStyle}
+                    placeholder="tucorreo@ejemplo.com"
+                  />
+                </label>
+
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={labelTextStyle}>Contraseña</span>
+                  <input
+                    type="password"
+                    required
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    style={inputStyle}
+                    placeholder="Tu contraseña"
+                  />
+                </label>
+
+                <div
                   style={{
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "rgba(255,255,255,0.90)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    marginTop: 2,
+                    flexWrap: "wrap",
                   }}
                 >
-                  Correo
-                </span>
+                  <Link href="/register" style={linkStyle}>
+                    Crear cuenta
+                  </Link>
 
-                <input
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  style={{
-                    padding: "11px 12px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,0.30)", // líneas más visibles
-                    background: "rgba(0,0,0,0.32)",
-                    color: "#fff",
-                    outline: "none",
-                    fontSize: 14,
-                  }}
-                />
-              </label>
+                  <Link href="/reset-password" style={linkStyle}>
+                    Olvidé mi contraseña
+                  </Link>
+                </div>
 
-              <label style={{ display: "grid", gap: 6 }}>
-                <span
+                <button
+                  type="submit"
+                  disabled={loading}
                   style={{
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: "rgba(255,255,255,0.90)",
+                    ...(loading ? secondaryButtonStyle : primaryButtonStyle),
+                    marginTop: 4,
+                    opacity: loading ? 0.82 : 1,
+                    cursor: loading ? "not-allowed" : "pointer",
                   }}
                 >
-                  Contraseña
-                </span>
-
-                <input
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  style={{
-                    padding: "11px 12px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,0.30)", // líneas más visibles
-                    background: "rgba(0,0,0,0.32)",
-                    color: "#fff",
-                    outline: "none",
-                    fontSize: 14,
-                  }}
-                />
-              </label>
-
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  marginTop: 4,
-                  padding: "11px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.28)", // línea clara
-                  background: loading ? "rgba(255,255,255,0.15)" : "#fff",
-                  color: loading ? "#fff" : "#000",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  fontWeight: 600,
-                  fontSize: 14,
-                }}
-              >
-                {loading ? "Entrando..." : "Entrar"}
-              </button>
-            </form>
+                  {loading ? "Entrando..." : "Entrar"}
+                </button>
+              </form>
+            </div>
 
             {msg && (
               <div
                 style={{
-                  marginTop: 14,
-                  fontSize: 13,
-                  color: "rgba(255,255,255,0.92)",
+                  marginTop: 12,
+                  borderRadius: 12,
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  background: "rgba(255,255,255,0.03)",
+                  padding: "10px 12px",
+                  fontSize: 12,
+                  fontWeight: 400,
+                  color: "rgba(255,255,255,0.90)",
+                  lineHeight: 1.45,
                 }}
               >
                 {msg}
               </div>
             )}
-
-            <div
-              style={{
-                marginTop: 18,
-                display: "flex",
-                justifyContent: "space-between",
-                fontSize: 13,
-              }}
-            >
-              <Link
-                href="/register"
-                style={{
-                  color: "rgba(255,255,255,0.85)",
-                  textDecoration: "none",
-                }}
-              >
-                Crear cuenta
-              </Link>
-
-              <Link
-                href="/reset-password"
-                style={{
-                  color: "rgba(255,255,255,0.85)",
-                  textDecoration: "none",
-                }}
-              >
-                Olvidé mi contraseña
-              </Link>
-            </div>
           </div>
         </div>
       </div>
