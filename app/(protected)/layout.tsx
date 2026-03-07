@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "../providers";
 import { sendEmailVerification } from "firebase/auth";
 import GreetingRequestsWidget from "@/app/groups/[groupId]/components/GreetingRequestsWidget";
+import OwnerSidebar from "@/app/components/OwnerSidebar";
 
 const RESEND_COOLDOWN_SECONDS = 30;
 
@@ -22,14 +23,12 @@ export default function ProtectedLayout({
   const [sending, setSending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
-  // ✅ Guard: si no hay sesión, manda a login con next
   useEffect(() => {
     if (!loading && !user) {
       router.replace(`/login?next=${encodeURIComponent(pathname || "/")}`);
     }
   }, [loading, user, router, pathname]);
 
-  // ⏳ Countdown UI
   useEffect(() => {
     if (cooldown <= 0) return;
 
@@ -47,7 +46,6 @@ export default function ProtectedLayout({
     setVerifyMsg(null);
 
     try {
-      // refresca estado del user (por si ya verificó)
       await user.reload();
 
       if (user.emailVerified) {
@@ -84,21 +82,31 @@ export default function ProtectedLayout({
   const resendDisabled = sending || cooldown > 0;
 
   return (
-    <div style={{ position: "relative", minHeight: "100vh" }}>
+    <div
+      style={{
+        position: "relative",
+        minHeight: "100vh",
+        background: "#000",
+        color: "#fff",
+      }}
+    >
       <header
         style={{
           padding: "12px 24px",
-          borderBottom: "1px solid #ddd",
+          borderBottom: "1px solid rgba(255,255,255,0.12)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          background: "#000",
+          color: "#fff",
+          position: "relative",
+          zIndex: 20,
         }}
       >
         <strong>Red Social MVP</strong>
         <LogoutButton />
       </header>
 
-      {/* 🔔 Banner si correo no verificado */}
       {!user.emailVerified && (
         <div
           style={{
@@ -106,6 +114,9 @@ export default function ProtectedLayout({
             borderBottom: "1px solid #ffeeba",
             padding: "10px 24px",
             fontSize: 14,
+            color: "#000",
+            position: "relative",
+            zIndex: 20,
           }}
         >
           <span>Tu correo no está verificado. Revisa tu bandeja o </span>
@@ -134,9 +145,18 @@ export default function ProtectedLayout({
         </div>
       )}
 
-      <main style={{ padding: 24 }}>{children}</main>
+      <OwnerSidebar />
 
-      {/* ✅ Widget global bottom-right (solo dentro de la zona logueada) */}
+      <main
+        style={{
+          padding: 24,
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        {children}
+      </main>
+
       <GreetingRequestsWidget />
     </div>
   );

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
 import GreetingRequestsWidget from "@/app/groups/[groupId]/components/GreetingRequestsWidget";
+import OwnerSidebar from "@/app/components/OwnerSidebar";
 
 export default function GroupsLayout({
   children,
@@ -28,11 +29,20 @@ export default function GroupsLayout({
   if (!user) return null;
 
   return (
-    <div style={{ position: "relative", minHeight: "100vh", background: "#000" }}>
+    <div
+      style={{
+        position: "relative",
+        minHeight: "100vh",
+        background: "#000",
+        color: "#fff",
+      }}
+    >
       <header
         style={{
           borderBottom: "1px solid rgba(255,255,255,0.08)",
           background: "#000",
+          position: "relative",
+          zIndex: 20,
         }}
       >
         <div
@@ -49,7 +59,16 @@ export default function GroupsLayout({
         </div>
       </header>
 
-      <main>{children}</main>
+      <OwnerSidebar />
+
+      <main
+        style={{
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
+        {children}
+      </main>
 
       <GreetingRequestsWidget />
     </div>

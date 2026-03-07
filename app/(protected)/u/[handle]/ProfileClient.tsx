@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 
 import {
-  collection,
   doc,
   getDoc,
   getDocs,
@@ -12,6 +11,7 @@ import {
   query,
   updateDoc,
   where,
+  collection,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { onAuthStateChanged } from "firebase/auth";
@@ -19,7 +19,6 @@ import { onAuthStateChanged } from "firebase/auth";
 import Cropper from "react-easy-crop";
 
 import { auth, db, storage } from "@/lib/firebase";
-import { updateOfferings, type GroupOffering } from "@/lib/groups/updateOfferings";
 
 type UserDoc = {
   uid: string;
@@ -38,18 +37,8 @@ type UserDoc = {
   };
 };
 
-type GroupDocLite = {
-  id: string;
-  name?: string;
-  ownerId?: string;
-  visibility?: "public" | "private" | "hidden" | string;
-  offerings?: Array<{
-    type: "saludo" | "consejo" | "mensaje" | string;
-    enabled?: boolean;
-    price?: number | null;
-    currency?: "MXN" | "USD" | null;
-  }>;
-};
+type CropMode = "avatar" | "cover";
+type Area = { x: number; y: number; width: number; height: number };
 
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -57,18 +46,6 @@ function initials(name: string) {
   const b = parts[1]?.[0] ?? "";
   return (a + b).toUpperCase() || "?";
 }
-
-function pickSaludoOffering(offerings: GroupDocLite["offerings"]) {
-  const arr = Array.isArray(offerings) ? offerings : [];
-  const found = arr.find((o) => String(o?.type) === "saludo");
-  const enabled = found?.enabled === true;
-  const price = found?.price ?? null;
-  const currency = (found?.currency ?? "MXN") as "MXN" | "USD";
-  return { enabled, price, currency };
-}
-
-type CropMode = "avatar" | "cover";
-type Area = { x: number; y: number; width: number; height: number };
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -135,62 +112,7 @@ async function getCroppedBlob(
   });
 }
 
-function Switch({
-  checked,
-  onChange,
-  disabled = false,
-  label,
-}: {
-  checked: boolean;
-  onChange: (next: boolean) => void;
-  disabled?: boolean;
-  label?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => !disabled && onChange(!checked)}
-      disabled={disabled}
-      aria-pressed={checked}
-      title={label}
-      style={{
-        width: 42,
-        height: 24,
-        borderRadius: 999,
-        border: "1px solid rgba(255,255,255,0.16)",
-        background: checked ? "#ffffff" : "rgba(255,255,255,0.10)",
-        padding: 2,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: checked ? "flex-end" : "flex-start",
-        cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.6 : 1,
-        transition: "all 160ms ease",
-      }}
-    >
-      <span
-        style={{
-          width: 18,
-          height: 18,
-          borderRadius: "50%",
-          background: checked ? "#000" : "#fff",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
-          transition: "all 160ms ease",
-        }}
-      />
-    </button>
-  );
-}
-
-function visibilitySectionTitle(v: string) {
-  if (v === "public") return "Públicos";
-  if (v === "private") return "Privados";
-  if (v === "hidden") return "Ocultos";
-  return "Otros";
-}
-
 export default function ProfileClient() {
-  const router = useRouter();
   const params = useParams<{ handle: string }>();
   const handle = useMemo(
     () => String(params?.handle || "").toLowerCase(),
@@ -210,28 +132,6 @@ export default function ProfileClient() {
 
   const isOwner = !!viewer && !!userDoc && viewer.uid === userDoc.uid;
 
-  const [pgEnabled, setPgEnabled] = useState(false);
-  const [pgPrice, setPgPrice] = useState<string>("");
-  const [pgCurrency, setPgCurrency] = useState<"MXN" | "USD">("MXN");
-  const [savingProfileGreeting, setSavingProfileGreeting] = useState(false);
-
-  const [myGroups, setMyGroups] = useState<GroupDocLite[]>([]);
-  const [loadingGroups, setLoadingGroups] = useState(false);
-  const [groupsErr, setGroupsErr] = useState<string | null>(null);
-  const [savingGroupId, setSavingGroupId] = useState<string | null>(null);
-
-  const [groupDraft, setGroupDraft] = useState<
-    Record<string, { enabled: boolean; price: string; currency: "MXN" | "USD" }>
-  >({});
-
-  const profileDraft = useMemo(() => {
-    return {
-      enabled: pgEnabled,
-      price: pgPrice,
-      currency: pgCurrency,
-    };
-  }, [pgEnabled, pgPrice, pgCurrency]);
-
   const [cropOpen, setCropOpen] = useState(false);
   const [cropMode, setCropMode] = useState<CropMode>("avatar");
   const [cropImageSrc, setCropImageSrc] = useState<string>("");
@@ -247,7 +147,6 @@ export default function ProfileClient() {
 
   const ui = {
     pageMaxWidth: 860,
-    sidebarWidth: 290,
     coverHeight: 210,
     avatarSize: 210,
     avatarOffsetTop: -66,
@@ -256,11 +155,9 @@ export default function ProfileClient() {
     buttonRadius: 9,
     buttonPadding: "8px 12px",
     fontTitle: 18,
-    fontSubtitle: 16,
     fontBody: 13,
     fontMicro: 12,
     borderSoft: "1px solid rgba(255,255,255,0.18)",
-    borderFaint: "1px solid rgba(255,255,255,0.12)",
     shadow: "0 18px 48px rgba(0,0,0,0.55)",
   };
 
@@ -271,17 +168,6 @@ export default function ProfileClient() {
       background: "rgba(12,12,12,0.92)",
       boxShadow: ui.shadow,
       backdropFilter: "blur(10px)",
-    } as React.CSSProperties,
-    input: {
-      padding: "9px 11px",
-      borderRadius: 9,
-      border: "1px solid rgba(255,255,255,0.18)",
-      background: "rgba(255,255,255,0.06)",
-      color: "#fff",
-      outline: "none",
-      fontSize: ui.fontBody,
-      fontFamily: fontStack,
-      boxSizing: "border-box",
     } as React.CSSProperties,
     buttonPrimary: {
       padding: ui.buttonPadding,
@@ -319,11 +205,6 @@ export default function ProfileClient() {
       background: "rgba(255,255,255,0.05)",
       color: "#fff",
       fontSize: ui.fontMicro,
-    } as React.CSSProperties,
-    panel: {
-      borderRadius: 12,
-      border: ui.borderFaint,
-      background: "rgba(255,255,255,0.03)",
     } as React.CSSProperties,
   };
 
@@ -373,11 +254,6 @@ export default function ProfileClient() {
 
       const u = usnap.data() as UserDoc;
       setUserDoc(u);
-
-      const pg = u.profileGreeting;
-      setPgEnabled(pg?.enabled === true);
-      setPgPrice(pg?.price == null ? "" : String(pg.price));
-      setPgCurrency((pg?.currency ?? "MXN") as "MXN" | "USD");
     } catch (e: any) {
       setMsg(e?.message ?? "Error cargando perfil");
       setUserDoc(null);
@@ -391,59 +267,6 @@ export default function ProfileClient() {
     loadProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handle]);
-
-  useEffect(() => {
-    async function loadMyGroups() {
-      if (!isOwner || !viewer?.uid) {
-        setMyGroups([]);
-        setGroupDraft({});
-        return;
-      }
-
-      setLoadingGroups(true);
-      setGroupsErr(null);
-
-      try {
-        const gq = query(
-          collection(db, "groups"),
-          where("ownerId", "==", viewer.uid),
-          limit(50)
-        );
-        const gs = await getDocs(gq);
-
-        const rows: GroupDocLite[] = gs.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as any),
-        }));
-
-        setMyGroups(rows);
-
-        const draft: Record<
-          string,
-          { enabled: boolean; price: string; currency: "MXN" | "USD" }
-        > = {};
-
-        for (const g of rows) {
-          const s = pickSaludoOffering(g.offerings);
-          draft[g.id] = {
-            enabled: s.enabled,
-            price: s.price == null ? "" : String(s.price),
-            currency: s.currency ?? "MXN",
-          };
-        }
-
-        setGroupDraft(draft);
-      } catch (e: any) {
-        setGroupsErr(e?.message ?? "No se pudieron cargar tus grupos.");
-        setMyGroups([]);
-        setGroupDraft({});
-      } finally {
-        setLoadingGroups(false);
-      }
-    }
-
-    loadMyGroups();
-  }, [isOwner, viewer?.uid]);
 
   const openCropWithFile = useCallback(
     async (mode: CropMode, file: File) => {
@@ -533,141 +356,6 @@ export default function ProfileClient() {
     }
   }
 
-  async function saveProfileGreetingFromWidget() {
-    if (!userDoc || !isOwner) return;
-
-    setSavingProfileGreeting(true);
-    setMsg(null);
-
-    try {
-      const priceNum = pgPrice.trim() === "" ? null : Number(pgPrice);
-
-      if (
-        pgEnabled &&
-        (priceNum == null || Number.isNaN(priceNum) || priceNum < 0)
-      ) {
-        setMsg("❌ Precio inválido.");
-        return;
-      }
-
-      const uref = doc(db, "users", userDoc.uid);
-
-      await updateDoc(uref, {
-        profileGreeting: {
-          enabled: pgEnabled,
-          price: pgEnabled ? priceNum : null,
-          currency: pgEnabled ? pgCurrency : null,
-        },
-      });
-
-      setMsg("✅ Configuración de saludos en perfil guardada.");
-    } catch (e: any) {
-      setMsg(e?.message ?? "❌ No se pudo guardar configuración.");
-    } finally {
-      setSavingProfileGreeting(false);
-    }
-  }
-
-  async function saveGroupSaludo(groupId: string) {
-    if (!isOwner) return;
-
-    const g = myGroups.find((x) => x.id === groupId);
-    if (!g) return;
-
-    const d = groupDraft[groupId];
-    if (!d) return;
-
-    const priceNum = d.price.trim() === "" ? null : Number(d.price);
-
-    if (d.enabled && (priceNum == null || Number.isNaN(priceNum) || priceNum < 0)) {
-      setGroupsErr("❌ Precio inválido en un grupo.");
-      return;
-    }
-
-    const existing = Array.isArray(g.offerings) ? g.offerings : [];
-
-    const next: GroupOffering[] = [];
-
-    const hasType = (t: string) =>
-      existing.some((o: any) => String(o?.type) === t);
-
-    next.push({
-      type: "saludo",
-      enabled: d.enabled,
-      price: d.enabled ? priceNum : null,
-      currency: d.enabled ? d.currency : null,
-    });
-
-    if (hasType("consejo")) {
-      const o = existing.find((x: any) => String(x?.type) === "consejo") as any;
-      next.push({
-        type: "consejo",
-        enabled: o?.enabled === true,
-        price: o?.price ?? null,
-        currency: o?.currency ?? null,
-      });
-    }
-
-    if (hasType("mensaje")) {
-      const o = existing.find((x: any) => String(x?.type) === "mensaje") as any;
-      next.push({
-        type: "mensaje",
-        enabled: o?.enabled === true,
-        price: o?.price ?? null,
-        currency: o?.currency ?? null,
-      });
-    }
-
-    setSavingGroupId(groupId);
-    setGroupsErr(null);
-
-    try {
-      await updateOfferings(groupId, next);
-
-      setMyGroups((prev) =>
-        prev.map((gg) => {
-          if (gg.id !== groupId) return gg;
-
-          return {
-            ...gg,
-            offerings: [
-              ...existing.filter((o: any) => String(o?.type) !== "saludo"),
-              {
-                type: "saludo",
-                enabled: d.enabled,
-                price: d.enabled ? priceNum : null,
-                currency: d.enabled ? d.currency : null,
-              },
-            ],
-          };
-        })
-      );
-    } catch (e: any) {
-      setGroupsErr(e?.message ?? "❌ No se pudo actualizar el grupo.");
-    } finally {
-      setSavingGroupId(null);
-    }
-  }
-
-  const grouped = useMemo(() => {
-    const publics = myGroups.filter((g) => g.visibility === "public");
-    const privates = myGroups.filter((g) => g.visibility === "private");
-    const hiddens = myGroups.filter((g) => g.visibility === "hidden");
-    const others = myGroups.filter(
-      (g) =>
-        g.visibility !== "public" &&
-        g.visibility !== "private" &&
-        g.visibility !== "hidden"
-    );
-
-    return [
-      { key: "public", title: visibilitySectionTitle("public"), items: publics },
-      { key: "private", title: visibilitySectionTitle("private"), items: privates },
-      { key: "hidden", title: visibilitySectionTitle("hidden"), items: hiddens },
-      { key: "other", title: visibilitySectionTitle("other"), items: others },
-    ].filter((section) => section.items.length > 0);
-  }, [myGroups]);
-
   if (loading) {
     return (
       <main
@@ -735,7 +423,12 @@ export default function ProfileClient() {
           fontFamily: fontStack,
         }}
       >
-        <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto" }}>
+        <div
+          style={{
+            maxWidth: ui.pageMaxWidth,
+            margin: "0 auto",
+          }}
+        >
           <div
             style={{
               ...styles.card,
@@ -789,7 +482,9 @@ export default function ProfileClient() {
                   }}
                   title="Cambiar portada"
                 >
-                  {uploading && cropMode === "cover" ? "Subiendo..." : "Cambiar portada"}
+                  {uploading && cropMode === "cover"
+                    ? "Subiendo..."
+                    : "Cambiar portada"}
                 </button>
               )}
             </div>
@@ -892,7 +587,13 @@ export default function ProfileClient() {
                 </div>
               </div>
 
-              <div style={{ paddingTop: ui.contentTopPadding, position: "relative", zIndex: 1 }}>
+              <div
+                style={{
+                  paddingTop: ui.contentTopPadding,
+                  position: "relative",
+                  zIndex: 1,
+                }}
+              >
                 <div
                   style={{
                     display: "grid",
@@ -1048,7 +749,9 @@ export default function ProfileClient() {
               }}
             >
               <div style={{ fontWeight: 600, color: "#fff", fontSize: 16 }}>
-                {cropMode === "avatar" ? "Recortar foto de perfil" : "Recortar portada"}
+                {cropMode === "avatar"
+                  ? "Recortar foto de perfil"
+                  : "Recortar portada"}
               </div>
 
               <button
@@ -1139,292 +842,19 @@ export default function ProfileClient() {
                 </div>
               </div>
 
-              <div style={{ marginTop: 10, fontSize: ui.fontMicro, color: "rgba(255,255,255,0.55)" }}>
+              <div
+                style={{
+                  marginTop: 10,
+                  fontSize: ui.fontMicro,
+                  color: "rgba(255,255,255,0.55)",
+                }}
+              >
                 Tip: mueve la imagen para encuadrar.{" "}
                 {cropMode === "avatar" ? "Avatar 1:1" : "Portada 16:9"}.
               </div>
             </div>
           </div>
         </div>
-      )}
-
-      {isOwner && (
-        <aside
-          style={{
-            position: "fixed",
-            left: 16,
-            bottom: 16,
-            width: `min(${ui.sidebarWidth}px, calc(100vw - 32px))`,
-            zIndex: 9998,
-            fontFamily: fontStack,
-          }}
-        >
-          <div
-            style={{
-              ...styles.card,
-              borderRadius: 14,
-              overflow: "hidden",
-              color: "#fff",
-            }}
-          >
-            <div
-              style={{
-                padding: "10px 12px",
-                borderBottom: "1px solid rgba(255,255,255,0.10)",
-                background: "rgba(255,255,255,0.06)",
-                fontWeight: 600,
-                fontSize: ui.fontBody,
-              }}
-            >
-              Mis grupos — Saludos
-            </div>
-
-            <div
-              style={{
-                padding: 10,
-                display: "grid",
-                gap: 10,
-                maxHeight: "70vh",
-                overflowY: "auto",
-              }}
-            >
-              {groupsErr && <div style={styles.message}>{groupsErr}</div>}
-
-              <div
-                style={{
-                  ...styles.panel,
-                  padding: 10,
-                }}
-              >
-                <div
-                  style={{
-                    fontWeight: 600,
-                    fontSize: ui.fontBody,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 10,
-                  }}
-                >
-                  <span>Mi perfil</span>
-                  <Switch
-                    checked={profileDraft.enabled}
-                    disabled={savingProfileGreeting}
-                    onChange={(next) => setPgEnabled(next)}
-                    label="Vender saludos en mi perfil"
-                  />
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 8,
-                    fontSize: ui.fontMicro,
-                    color: "rgba(255,255,255,0.68)",
-                  }}
-                >
-                  Saludos en el perfil
-                </div>
-
-                {profileDraft.enabled && (
-                  <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <input
-                      type="number"
-                      value={profileDraft.price}
-                      onChange={(e) => setPgPrice(e.target.value)}
-                      placeholder="Precio"
-                      style={{
-                        ...styles.input,
-                        width: 110,
-                      }}
-                    />
-
-                    <select
-                      value={profileDraft.currency}
-                      onChange={(e) => setPgCurrency(e.target.value as "MXN" | "USD")}
-                      style={{
-                        ...styles.input,
-                        flex: 1,
-                        minWidth: 90,
-                      }}
-                    >
-                      <option value="MXN">MXN</option>
-                      <option value="USD">USD</option>
-                    </select>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={saveProfileGreetingFromWidget}
-                  disabled={savingProfileGreeting}
-                  style={{
-                    ...styles.buttonSecondary,
-                    marginTop: 10,
-                    opacity: savingProfileGreeting ? 0.7 : 1,
-                    width: "100%",
-                    cursor: savingProfileGreeting ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {savingProfileGreeting ? "Guardando..." : "Guardar Mi perfil"}
-                </button>
-              </div>
-
-              {!loadingGroups && myGroups.length === 0 && (
-                <div style={{ fontSize: ui.fontMicro, opacity: 0.75 }}>
-                  No tienes grupos como owner.
-                </div>
-              )}
-
-              {grouped.map((section) => (
-                <div key={section.key} style={{ display: "grid", gap: 8 }}>
-                  <div
-                    style={{
-                      fontSize: ui.fontMicro,
-                      fontWeight: 600,
-                      color: "rgba(255,255,255,0.72)",
-                      textTransform: "uppercase",
-                      letterSpacing: 0.5,
-                      paddingLeft: 2,
-                    }}
-                  >
-                    {section.title}
-                  </div>
-
-                  {section.items.map((g) => {
-                    const d = groupDraft[g.id];
-                    if (!d) return null;
-
-                    const saving = savingGroupId === g.id;
-
-                    return (
-                      <div
-                        key={g.id}
-                        style={{
-                          ...styles.panel,
-                          padding: 10,
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 10,
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => router.push(`/groups/${g.id}`)}
-                            style={{
-                              fontWeight: 600,
-                              fontSize: ui.fontBody,
-                              background: "transparent",
-                              border: "none",
-                              padding: 0,
-                              textAlign: "left",
-                              cursor: "pointer",
-                              textDecoration: "underline",
-                              color: "#fff",
-                              fontFamily: fontStack,
-                              flex: 1,
-                            }}
-                            title="Abrir grupo"
-                          >
-                            {g.name ?? "(Sin nombre)"}
-                          </button>
-
-                          <Switch
-                            checked={d.enabled}
-                            disabled={saving}
-                            onChange={(next) =>
-                              setGroupDraft((prev) => ({
-                                ...prev,
-                                [g.id]: { ...prev[g.id], enabled: next },
-                              }))
-                            }
-                            label="Saludos activos en este grupo"
-                          />
-                        </div>
-
-                        <div
-                          style={{
-                            marginTop: 8,
-                            fontSize: ui.fontMicro,
-                            color: "rgba(255,255,255,0.68)",
-                          }}
-                        >
-                          Saludos activos en este grupo
-                        </div>
-
-                        {d.enabled && (
-                          <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                            <input
-                              type="number"
-                              value={d.price}
-                              onChange={(e) =>
-                                setGroupDraft((prev) => ({
-                                  ...prev,
-                                  [g.id]: { ...prev[g.id], price: e.target.value },
-                                }))
-                              }
-                              placeholder="Precio"
-                              style={{
-                                ...styles.input,
-                                width: 110,
-                              }}
-                            />
-
-                            <select
-                              value={d.currency}
-                              onChange={(e) =>
-                                setGroupDraft((prev) => ({
-                                  ...prev,
-                                  [g.id]: {
-                                    ...prev[g.id],
-                                    currency: e.target.value as "MXN" | "USD",
-                                  },
-                                }))
-                              }
-                              style={{
-                                ...styles.input,
-                                flex: 1,
-                                minWidth: 90,
-                              }}
-                            >
-                              <option value="MXN">MXN</option>
-                              <option value="USD">USD</option>
-                            </select>
-                          </div>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => saveGroupSaludo(g.id)}
-                          disabled={saving}
-                          style={{
-                            ...styles.buttonSecondary,
-                            marginTop: 10,
-                            opacity: saving ? 0.7 : 1,
-                            width: "100%",
-                            cursor: saving ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          {saving ? "Guardando..." : "Guardar cambios"}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-
-              {loadingGroups && (
-                <div style={{ fontSize: ui.fontMicro, opacity: 0.75 }}>
-                  Cargando grupos...
-                </div>
-              )}
-            </div>
-          </div>
-        </aside>
       )}
     </>
   );

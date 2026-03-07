@@ -9,7 +9,10 @@ import { joinGroup, leaveGroup } from "@/lib/groups/membership";
 import { requestToJoin, cancelJoinRequest } from "@/lib/groups/joinRequests";
 import JoinRequestsPanel from "./components/JoinRequestsPanel";
 import OwnerAdminPanel from "./components/OwnerAdminPanel";
-import { createGreetingRequest, type GreetingType } from "@/lib/greetings/greetingRequests";
+import {
+  createGreetingRequest,
+  type GreetingType,
+} from "@/lib/greetings/greetingRequests";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Cropper from "react-easy-crop";
 
@@ -94,7 +97,17 @@ async function getCroppedBlob(
   canvas.width = Math.floor(safeW);
   canvas.height = Math.floor(safeH);
 
-  ctx.drawImage(image, safeX, safeY, safeW, safeH, 0, 0, canvas.width, canvas.height);
+  ctx.drawImage(
+    image,
+    safeX,
+    safeY,
+    safeW,
+    safeH,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(
@@ -123,7 +136,8 @@ export default function GroupPage() {
 
   const [group, setGroup] = useState<GroupDoc | null>(null);
   const [isMember, setIsMember] = useState<boolean>(false);
-  const [joinReqStatus, setJoinReqStatus] = useState<JoinRequestStatus | null>(null);
+  const [joinReqStatus, setJoinReqStatus] =
+    useState<JoinRequestStatus | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -485,7 +499,9 @@ export default function GroupPage() {
     }
 
     if (!toName.trim()) {
-      setGreetError("Escribe el nombre de la persona a quien va dirigido el saludo.");
+      setGreetError(
+        "Escribe el nombre de la persona a quien va dirigido el saludo."
+      );
       return;
     }
 
@@ -545,9 +561,12 @@ export default function GroupPage() {
     coverInputRef.current?.click();
   }
 
-  const onCropComplete = useCallback((_croppedArea: any, croppedAreaPixelsArg: any) => {
-    setCroppedAreaPixels(croppedAreaPixelsArg as Area);
-  }, []);
+  const onCropComplete = useCallback(
+    (_croppedArea: any, croppedAreaPixelsArg: any) => {
+      setCroppedAreaPixels(croppedAreaPixelsArg as Area);
+    },
+    []
+  );
 
   async function uploadCropped(mode: CropMode) {
     if (!group) return;
@@ -561,7 +580,11 @@ export default function GroupPage() {
     setError(null);
 
     try {
-      const blob = await getCroppedBlob(cropImageSrc, croppedAreaPixels, "image/jpeg");
+      const blob = await getCroppedBlob(
+        cropImageSrc,
+        croppedAreaPixels,
+        "image/jpeg"
+      );
 
       const path =
         mode === "avatar"
@@ -691,9 +714,13 @@ export default function GroupPage() {
             </div>
 
             <div style={{ padding: 16 }}>
-              <div style={{ ...titleStyle, marginBottom: 8 }}>{group.name ?? ""}</div>
+              <div style={{ ...titleStyle, marginBottom: 8 }}>
+                {group.name ?? ""}
+              </div>
 
-              {!!group.description && <p style={{ ...textStyle, margin: 0 }}>{group.description}</p>}
+              {!!group.description && (
+                <p style={{ ...textStyle, margin: 0 }}>{group.description}</p>
+              )}
 
               <div style={{ ...panelStyle, marginTop: 14 }}>
                 <div style={{ ...microText, color: "rgba(255,255,255,0.82)" }}>
@@ -777,11 +804,30 @@ export default function GroupPage() {
           onClick={() => setAdminOpen((v) => !v)}
         >
           <span>{adminOpen ? "Cerrar administración" : "Administrar"}</span>
-          <span aria-hidden="true" style={{ opacity: 0.85, fontSize: ui.micro }}>
+          <span
+            aria-hidden="true"
+            style={{ opacity: 0.85, fontSize: ui.micro }}
+          >
             ⚙
           </span>
         </button>
       )}
+
+      {isOwner && user && group.ownerId ? (
+        <OwnerAdminPanel
+          groupId={groupId}
+          ownerId={group.ownerId}
+          currentUserId={user.uid}
+          currentAvatarUrl={group.avatarUrl ?? null}
+          currentCoverUrl={group.coverUrl ?? null}
+          currentName={group.name ?? null}
+          currentDescription={group.description ?? null}
+          currentCategory={group.category ?? null}
+          currentTags={group.tags ?? null}
+          isOpen={adminOpen}
+          onClose={() => setAdminOpen(false)}
+        />
+      ) : null}
 
       <main style={pageWrap}>
         <div style={container}>
@@ -829,7 +875,9 @@ export default function GroupPage() {
                   }}
                   title="Elegir portada"
                 >
-                  {uploading && cropMode === "cover" ? "Subiendo..." : "Elegir portada"}
+                  {uploading && cropMode === "cover"
+                    ? "Subiendo..."
+                    : "Elegir portada"}
                 </button>
               )}
             </div>
@@ -935,7 +983,13 @@ export default function GroupPage() {
                 </div>
               </div>
 
-              <div style={{ paddingTop: ui.contentTopPadding, position: "relative", zIndex: 1 }}>
+              <div
+                style={{
+                  paddingTop: ui.contentTopPadding,
+                  position: "relative",
+                  zIndex: 1,
+                }}
+              >
                 <div
                   style={{
                     display: "grid",
@@ -943,7 +997,9 @@ export default function GroupPage() {
                     textAlign: "center",
                   }}
                 >
-                  <h1 style={{ ...titleStyle, margin: 0 }}>{group.name ?? ""}</h1>
+                  <h1 style={{ ...titleStyle, margin: 0 }}>
+                    {group.name ?? ""}
+                  </h1>
 
                   {!!group.description && (
                     <div
@@ -983,19 +1039,21 @@ export default function GroupPage() {
                 >
                   {isOwner && <JoinRequestsPanel groupId={groupId} />}
 
-                  {!isOwner && !effectiveIsMember && visibility === "public" && (
-                    <button
-                      onClick={handleJoinPublic}
-                      disabled={joining}
-                      style={{
-                        ...primaryButton,
-                        opacity: joining ? 0.75 : 1,
-                        cursor: joining ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {joining ? "Uniéndote..." : "Unirme"}
-                    </button>
-                  )}
+                  {!isOwner &&
+                    !effectiveIsMember &&
+                    visibility === "public" && (
+                      <button
+                        onClick={handleJoinPublic}
+                        disabled={joining}
+                        style={{
+                          ...primaryButton,
+                          opacity: joining ? 0.75 : 1,
+                          cursor: joining ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {joining ? "Uniéndote..." : "Unirme"}
+                      </button>
+                    )}
 
                   {!isOwner && effectiveIsMember && (
                     <button
@@ -1012,22 +1070,6 @@ export default function GroupPage() {
                   )}
                 </div>
 
-                {isOwner && user && group.ownerId ? (
-                  <OwnerAdminPanel
-                    groupId={groupId}
-                    ownerId={group.ownerId}
-                    currentUserId={user.uid}
-                    currentAvatarUrl={group.avatarUrl ?? null}
-                    currentCoverUrl={group.coverUrl ?? null}
-                    currentName={group.name ?? null}
-                    currentDescription={group.description ?? null}
-                    currentCategory={group.category ?? null}
-                    currentTags={group.tags ?? null}
-                    isOpen={adminOpen}
-                    onClose={() => setAdminOpen(false)}
-                  />
-                ) : null}
-
                 {error && (
                   <div
                     style={{
@@ -1039,152 +1081,195 @@ export default function GroupPage() {
                   </div>
                 )}
 
-                {!isOwner && effectiveIsMember && enabledOfferings.length > 0 && (
-                  <section
-                    style={{
-                      ...panelStyle,
-                      maxWidth: 560,
-                      width: "100%",
-                      marginLeft: "auto",
-                      marginRight: "auto",
-                      boxShadow: ui.shadow,
-                    }}
-                  >
-                    <div style={{ ...subtitleStyle, marginBottom: 6 }}>Comprar al creador</div>
+                {!isOwner &&
+                  effectiveIsMember &&
+                  enabledOfferings.length > 0 && (
+                    <section
+                      style={{
+                        ...panelStyle,
+                        maxWidth: 560,
+                        width: "100%",
+                        marginLeft: "auto",
+                        marginRight: "auto",
+                        boxShadow: ui.shadow,
+                      }}
+                    >
+                      <div style={{ ...subtitleStyle, marginBottom: 6 }}>
+                        Comprar al creador
+                      </div>
 
-                    <div style={{ ...microText, marginBottom: 12 }}>
-                      MVP sin pagos reales todavía. Envías una solicitud y el creador podrá
-                      aceptarla o rechazarla.
-                    </div>
+                      <div style={{ ...microText, marginBottom: 12 }}>
+                        MVP sin pagos reales todavía. Envías una solicitud y el
+                        creador podrá aceptarla o rechazarla.
+                      </div>
 
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {enabledOfferings.map((o: any) => {
-                        const t = String(o.type ?? "");
-                        const label = labelForOfferingType(t);
-                        const priceText =
-                          o.price != null && o.currency ? ` — ${o.currency} ${o.price}` : "";
-                        const disabled = !isGreetingType(t);
+                      <div style={{ display: "grid", gap: 10 }}>
+                        {enabledOfferings.map((o: any) => {
+                          const t = String(o.type ?? "");
+                          const label = labelForOfferingType(t);
+                          const priceText =
+                            o.price != null && o.currency
+                              ? ` — ${o.currency} ${o.price}`
+                              : "";
+                          const disabled = !isGreetingType(t);
 
-                        return (
-                          <button
-                            key={t}
-                            type="button"
-                            onClick={() => {
-                              if (!isGreetingType(t)) return;
-                              openGreetingForm(t);
-                            }}
-                            disabled={disabled}
-                            style={{
-                              ...secondaryButton,
-                              textAlign: "left",
-                              opacity: disabled ? 0.55 : 1,
-                              cursor: disabled ? "not-allowed" : "pointer",
-                            }}
-                            title={disabled ? "Tipo de servicio no soportado en MVP" : undefined}
-                          >
-                            Solicitar {label}
-                            {priceText}
-                          </button>
-                        );
-                      })}
-                    </div>
+                          return (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => {
+                                if (!isGreetingType(t)) return;
+                                openGreetingForm(t);
+                              }}
+                              disabled={disabled}
+                              style={{
+                                ...secondaryButton,
+                                textAlign: "left",
+                                opacity: disabled ? 0.55 : 1,
+                                cursor: disabled ? "not-allowed" : "pointer",
+                              }}
+                              title={
+                                disabled
+                                  ? "Tipo de servicio no soportado en MVP"
+                                  : undefined
+                              }
+                            >
+                              Solicitar {label}
+                              {priceText}
+                            </button>
+                          );
+                        })}
+                      </div>
 
-                    {greetOpen && (
-                      <div
-                        style={{
-                          marginTop: 14,
-                          ...panelStyle,
-                          background: "rgba(255,255,255,0.035)",
-                        }}
-                      >
+                      {greetOpen && (
                         <div
                           style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            gap: 12,
-                            alignItems: "center",
+                            marginTop: 14,
+                            ...panelStyle,
+                            background: "rgba(255,255,255,0.035)",
                           }}
                         >
-                          <div style={subtitleStyle}>Solicitar {labelForOfferingType(greetType)}</div>
-
-                          <button
-                            type="button"
-                            onClick={closeGreetingForm}
-                            disabled={greetSubmitting}
-                            style={secondaryButton}
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              gap: 12,
+                              alignItems: "center",
+                            }}
                           >
-                            Cerrar
-                          </button>
-                        </div>
-
-                        <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
-                          <label style={{ display: "grid", gap: 6 }}>
-                            <span style={labelStyle}>¿A quién va dirigido?</span>
-                            <input
-                              value={toName}
-                              onChange={(e) => setToName(e.target.value)}
-                              placeholder="Ej. Para Juan"
-                              disabled={greetSubmitting}
-                              style={inputStyle}
-                            />
-                          </label>
-
-                          <label style={{ display: "grid", gap: 6 }}>
-                            <span style={labelStyle}>Contexto / instrucciones</span>
-                            <textarea
-                              value={instructions}
-                              onChange={(e) => setInstructions(e.target.value)}
-                              placeholder="Ej. Cumpleaños, felicitación por logro, tono del mensaje, etc."
-                              disabled={greetSubmitting}
-                              rows={5}
-                              style={{
-                                ...inputStyle,
-                                resize: "vertical",
-                                minHeight: 110,
-                              }}
-                            />
-                          </label>
-
-                          {greetError && <div style={{ ...messageBox }}>{greetError}</div>}
-                          {greetSuccess && <div style={messageBox}>{greetSuccess}</div>}
-
-                          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                            <button
-                              type="button"
-                              onClick={submitGreetingRequest}
-                              disabled={greetSubmitting}
-                              style={{
-                                ...primaryButton,
-                                opacity: greetSubmitting ? 0.75 : 1,
-                                cursor: greetSubmitting ? "not-allowed" : "pointer",
-                              }}
-                            >
-                              {greetSubmitting ? "Enviando..." : "Enviar solicitud"}
-                            </button>
+                            <div style={subtitleStyle}>
+                              Solicitar {labelForOfferingType(greetType)}
+                            </div>
 
                             <button
                               type="button"
                               onClick={closeGreetingForm}
                               disabled={greetSubmitting}
-                              style={{
-                                ...secondaryButton,
-                                opacity: greetSubmitting ? 0.75 : 1,
-                                cursor: greetSubmitting ? "not-allowed" : "pointer",
-                              }}
+                              style={secondaryButton}
                             >
-                              Cancelar
+                              Cerrar
                             </button>
                           </div>
 
-                          <div style={microText}>
-                            Nota: el creador podrá aceptar o rechazar tu solicitud. Pagos y entrega
-                            de video se integran después.
+                          <div
+                            style={{
+                              marginTop: 10,
+                              display: "grid",
+                              gap: 10,
+                            }}
+                          >
+                            <label style={{ display: "grid", gap: 6 }}>
+                              <span style={labelStyle}>
+                                ¿A quién va dirigido?
+                              </span>
+                              <input
+                                value={toName}
+                                onChange={(e) => setToName(e.target.value)}
+                                placeholder="Ej. Para Juan"
+                                disabled={greetSubmitting}
+                                style={inputStyle}
+                              />
+                            </label>
+
+                            <label style={{ display: "grid", gap: 6 }}>
+                              <span style={labelStyle}>
+                                Contexto / instrucciones
+                              </span>
+                              <textarea
+                                value={instructions}
+                                onChange={(e) =>
+                                  setInstructions(e.target.value)
+                                }
+                                placeholder="Ej. Cumpleaños, felicitación por logro, tono del mensaje, etc."
+                                disabled={greetSubmitting}
+                                rows={5}
+                                style={{
+                                  ...inputStyle,
+                                  resize: "vertical",
+                                  minHeight: 110,
+                                }}
+                              />
+                            </label>
+
+                            {greetError && (
+                              <div style={{ ...messageBox }}>
+                                {greetError}
+                              </div>
+                            )}
+                            {greetSuccess && (
+                              <div style={messageBox}>{greetSuccess}</div>
+                            )}
+
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: 10,
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <button
+                                type="button"
+                                onClick={submitGreetingRequest}
+                                disabled={greetSubmitting}
+                                style={{
+                                  ...primaryButton,
+                                  opacity: greetSubmitting ? 0.75 : 1,
+                                  cursor: greetSubmitting
+                                    ? "not-allowed"
+                                    : "pointer",
+                                }}
+                              >
+                                {greetSubmitting
+                                  ? "Enviando..."
+                                  : "Enviar solicitud"}
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={closeGreetingForm}
+                                disabled={greetSubmitting}
+                                style={{
+                                  ...secondaryButton,
+                                  opacity: greetSubmitting ? 0.75 : 1,
+                                  cursor: greetSubmitting
+                                    ? "not-allowed"
+                                    : "pointer",
+                                }}
+                              >
+                                Cancelar
+                              </button>
+                            </div>
+
+                            <div style={microText}>
+                              Nota: el creador podrá aceptar o rechazar tu
+                              solicitud. Pagos y entrega de video se integran
+                              después.
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </section>
-                )}
+                      )}
+                    </section>
+                  )}
               </div>
             </div>
           </section>
@@ -1258,7 +1343,9 @@ export default function GroupPage() {
               }}
             >
               <div style={subtitleStyle}>
-                {cropMode === "avatar" ? "Recortar avatar del grupo" : "Recortar portada del grupo"}
+                {cropMode === "avatar"
+                  ? "Recortar avatar del grupo"
+                  : "Recortar portada del grupo"}
               </div>
 
               <button
@@ -1320,7 +1407,13 @@ export default function GroupPage() {
                   style={{ width: 200 }}
                 />
 
-                <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+                <div
+                  style={{
+                    marginLeft: "auto",
+                    display: "flex",
+                    gap: 10,
+                  }}
+                >
                   <button
                     type="button"
                     onClick={() => !uploading && setCropOpen(false)}
