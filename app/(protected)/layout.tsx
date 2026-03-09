@@ -5,8 +5,10 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "../providers";
 import { sendEmailVerification } from "firebase/auth";
+
 import GreetingRequestsWidget from "@/app/groups/[groupId]/components/GreetingRequestsWidget";
 import OwnerSidebar from "@/app/components/OwnerSidebar";
+import MobileBottomNav from "@/app/components/MobileBottomNav";
 
 const RESEND_COOLDOWN_SECONDS = 30;
 
@@ -61,7 +63,9 @@ export default function ProtectedLayout({
       const code = err?.code as string | undefined;
 
       if (code === "auth/too-many-requests") {
-        setVerifyMsg("❌ Demasiados intentos. Espera un momento y vuelve a intentar.");
+        setVerifyMsg(
+          "❌ Demasiados intentos. Espera un momento y vuelve a intentar."
+        );
         setCooldown(RESEND_COOLDOWN_SECONDS);
       } else {
         setVerifyMsg("❌ No se pudo reenviar el correo. Intenta más tarde.");
@@ -82,82 +86,101 @@ export default function ProtectedLayout({
   const resendDisabled = sending || cooldown > 0;
 
   return (
-    <div
-      style={{
-        position: "relative",
-        minHeight: "100vh",
-        background: "#000",
-        color: "#fff",
-      }}
-    >
-      <header
+    <>
+      <style jsx>{`
+        .sidebarDesktop {
+          display: none;
+        }
+
+        @media (min-width: 900px) {
+          .sidebarDesktop {
+            display: block;
+          }
+        }
+      `}</style>
+
+      <div
         style={{
-          padding: "12px 24px",
-          borderBottom: "1px solid rgba(255,255,255,0.12)",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
+          position: "relative",
+          minHeight: "100vh",
           background: "#000",
           color: "#fff",
-          position: "relative",
-          zIndex: 20,
         }}
       >
-        <strong>Red Social MVP</strong>
-        <LogoutButton />
-      </header>
-
-      {!user.emailVerified && (
-        <div
+        <header
           style={{
-            background: "#fff3cd",
-            borderBottom: "1px solid #ffeeba",
-            padding: "10px 24px",
-            fontSize: 14,
-            color: "#000",
+            padding: "12px 24px",
+            borderBottom: "1px solid rgba(255,255,255,0.12)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            background: "#000",
+            color: "#fff",
             position: "relative",
             zIndex: 20,
           }}
         >
-          <span>Tu correo no está verificado. Revisa tu bandeja o </span>
+          <strong>Red Social MVP</strong>
+          <LogoutButton />
+        </header>
 
-          <button
-            onClick={handleResendVerification}
-            disabled={resendDisabled}
+        {!user.emailVerified && (
+          <div
             style={{
-              background: "none",
-              border: "none",
-              color: resendDisabled ? "#999" : "#0070f3",
-              cursor: resendDisabled ? "not-allowed" : "pointer",
-              textDecoration: "underline",
-              padding: 0,
+              background: "#fff3cd",
+              borderBottom: "1px solid #ffeeba",
+              padding: "10px 24px",
               fontSize: 14,
+              color: "#000",
+              position: "relative",
+              zIndex: 20,
             }}
           >
-            {sending
-              ? "Enviando..."
-              : cooldown > 0
-              ? `Reenviar en ${cooldown}s`
-              : "reenviar verificación"}
-          </button>
+            <span>Tu correo no está verificado. Revisa tu bandeja o </span>
 
-          {verifyMsg && <span style={{ marginLeft: 12 }}>{verifyMsg}</span>}
+            <button
+              onClick={handleResendVerification}
+              disabled={resendDisabled}
+              style={{
+                background: "none",
+                border: "none",
+                color: resendDisabled ? "#999" : "#0070f3",
+                cursor: resendDisabled ? "not-allowed" : "pointer",
+                textDecoration: "underline",
+                padding: 0,
+                fontSize: 14,
+              }}
+            >
+              {sending
+                ? "Enviando..."
+                : cooldown > 0
+                ? `Reenviar en ${cooldown}s`
+                : "reenviar verificación"}
+            </button>
+
+            {verifyMsg && <span style={{ marginLeft: 12 }}>{verifyMsg}</span>}
+          </div>
+        )}
+
+        {/* Sidebar SOLO en desktop */}
+        <div className="sidebarDesktop">
+          <OwnerSidebar />
         </div>
-      )}
 
-      <OwnerSidebar />
+        <main
+          style={{
+            padding: "24px 24px 90px",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
+          {children}
+        </main>
 
-      <main
-        style={{
-          padding: 24,
-          position: "relative",
-          zIndex: 1,
-        }}
-      >
-        {children}
-      </main>
+        <GreetingRequestsWidget />
 
-      <GreetingRequestsWidget />
-    </div>
+        <MobileBottomNav />
+      </div>
+    </>
   );
 }

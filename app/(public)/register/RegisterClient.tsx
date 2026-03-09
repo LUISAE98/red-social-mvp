@@ -9,6 +9,21 @@ import Link from "next/link";
 
 type Sex = "male" | "female" | "other" | "prefer_not_say";
 
+const MONTHS = [
+  { value: 1, label: "Enero" },
+  { value: 2, label: "Febrero" },
+  { value: 3, label: "Marzo" },
+  { value: 4, label: "Abril" },
+  { value: 5, label: "Mayo" },
+  { value: 6, label: "Junio" },
+  { value: 7, label: "Julio" },
+  { value: 8, label: "Agosto" },
+  { value: 9, label: "Septiembre" },
+  { value: 10, label: "Octubre" },
+  { value: 11, label: "Noviembre" },
+  { value: 12, label: "Diciembre" },
+];
+
 function normalizeHandle(raw: string) {
   return raw.trim().toLowerCase();
 }
@@ -49,12 +64,76 @@ function friendlyProfileError(err: any) {
   return "No se pudo completar el registro. Intenta nuevamente.";
 }
 
+function isLeapYear(year: number) {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+function getDaysInMonth(year: number, month: number) {
+  if (!year || !month) return 31;
+
+  if ([1, 3, 5, 7, 8, 10, 12].includes(month)) return 31;
+  if ([4, 6, 9, 11].includes(month)) return 30;
+  return isLeapYear(year) ? 29 : 28;
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, "0");
+}
+
+function buildBirthDate(year: string, month: string, day: string) {
+  if (!year || !month || !day) return "";
+
+  const y = Number(year);
+  const m = Number(month);
+  const d = Number(day);
+
+  if (!Number.isInteger(y) || !Number.isInteger(m) || !Number.isInteger(d)) return "";
+
+  const maxDay = getDaysInMonth(y, m);
+  if (d < 1 || d > maxDay) return "";
+
+  return `${y}-${pad2(m)}-${pad2(d)}`;
+}
+
+function calculateAgeFromBirthDate(birthDate: string) {
+  if (!birthDate) return NaN;
+
+  const [y, m, d] = birthDate.split("-").map(Number);
+  if (!y || !m || !d) return NaN;
+
+  const today = new Date();
+  let age = today.getFullYear() - y;
+  const monthDiff = today.getMonth() + 1 - m;
+  const dayDiff = today.getDate() - d;
+
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age -= 1;
+  }
+
+  return age;
+}
+
+function getYearOptions() {
+  const currentYear = new Date().getFullYear();
+  const maxYear = currentYear - 18;
+  const minYear = currentYear - 120;
+  const years: number[] = [];
+
+  for (let y = maxYear; y >= minYear; y -= 1) {
+    years.push(y);
+  }
+
+  return years;
+}
+
 export default function RegisterClient() {
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [handleRaw, setHandleRaw] = useState("");
-  const [ageRaw, setAgeRaw] = useState("");
+  const [birthDay, setBirthDay] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [sex, setSex] = useState<Sex>("prefer_not_say");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -69,10 +148,25 @@ export default function RegisterClient() {
     return password === password2;
   }, [password, password2]);
 
-  const age = useMemo(() => {
-    const n = Number(ageRaw);
-    return Number.isFinite(n) ? n : NaN;
-  }, [ageRaw]);
+  const years = useMemo(() => getYearOptions(), []);
+  const days = useMemo(() => {
+    const y = Number(birthYear);
+    const m = Number(birthMonth);
+    const total = getDaysInMonth(y, m);
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }, [birthYear, birthMonth]);
+
+  const birthDate = useMemo(
+    () => buildBirthDate(birthYear, birthMonth, birthDay),
+    [birthYear, birthMonth, birthDay]
+  );
+
+  const calculatedAge = useMemo(() => calculateAgeFromBirthDate(birthDate), [birthDate]);
+
+  const isUnder18 = useMemo(() => {
+    if (!birthDate) return false;
+    return Number.isFinite(calculatedAge) && calculatedAge < 18;
+  }, [birthDate, calculatedAge]);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -96,8 +190,13 @@ export default function RegisterClient() {
       return;
     }
 
-    if (!Number.isFinite(age) || age < 13 || age > 120) {
-      setMsg("Edad inválida. Debe estar entre 13 y 120.");
+    if (!birthYear || !birthMonth || !birthDay || !birthDate) {
+      setMsg("Completa tu fecha de nacimiento.");
+      return;
+    }
+
+    if (!Number.isFinite(calculatedAge) || calculatedAge < 18) {
+      setMsg("Debes tener al menos 18 años para crear una cuenta.");
       return;
     }
 
@@ -114,10 +213,11 @@ export default function RegisterClient() {
 
       if (handleSnap.exists()) {
         setMsg("Ese username ya está ocupado.");
+        setLoading(false);
         return;
       }
 
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const uid = cred.user.uid;
 
       const userRef = doc(db, "users", uid);
@@ -138,7 +238,7 @@ export default function RegisterClient() {
           displayName,
           firstName: fn,
           lastName: ln,
-          age,
+          birthDate,
           sex,
           photoURL: null,
           createdAt: serverTimestamp(),
@@ -146,8 +246,6 @@ export default function RegisterClient() {
       });
 
       await sendEmailVerification(cred.user);
-
-      setMsg("Cuenta creada. Revisa tu correo para verificar tu cuenta.");
       router.replace("/login?registered=1");
     } catch (err: any) {
       if (err?.code?.startsWith?.("auth/")) {
@@ -164,12 +262,12 @@ export default function RegisterClient() {
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
   const pageStyle: React.CSSProperties = {
-    minHeight: "100vh",
+    minHeight: "100dvh",
     background:
       "radial-gradient(circle at top, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 18%, #000 52%)",
     color: "#fff",
     fontFamily: fontStack,
-    padding: "20px 14px 120px",
+    padding: "clamp(16px, 3vw, 24px) 14px 96px",
     display: "grid",
     placeItems: "center",
   };
@@ -209,7 +307,7 @@ export default function RegisterClient() {
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    padding: "9px 11px",
+    padding: "10px 11px",
     borderRadius: 9,
     border: "1px solid rgba(255,255,255,0.14)",
     background: "rgba(255,255,255,0.04)",
@@ -223,7 +321,7 @@ export default function RegisterClient() {
 
   const selectStyle: React.CSSProperties = {
     width: "100%",
-    padding: "9px 11px",
+    padding: "10px 11px",
     borderRadius: 9,
     border: "1px solid rgba(255,255,255,0.14)",
     background: "rgba(255,255,255,0.04)",
@@ -245,6 +343,13 @@ export default function RegisterClient() {
     lineHeight: 1.4,
   };
 
+  const errorTextStyle: React.CSSProperties = {
+    fontSize: 12,
+    fontWeight: 400,
+    color: "rgba(255,120,120,0.95)",
+    lineHeight: 1.4,
+  };
+
   const linkStyle: React.CSSProperties = {
     color: "rgba(255,255,255,0.82)",
     textDecoration: "none",
@@ -253,7 +358,9 @@ export default function RegisterClient() {
   };
 
   const secondaryButtonStyle: React.CSSProperties = {
-    padding: "8px 12px",
+    width: "100%",
+    minHeight: 42,
+    padding: "10px 12px",
     borderRadius: 9,
     border: "1px solid rgba(255,255,255,0.12)",
     background: "rgba(255,255,255,0.05)",
@@ -265,7 +372,9 @@ export default function RegisterClient() {
   };
 
   const primaryButtonStyle: React.CSSProperties = {
-    padding: "8px 12px",
+    width: "100%",
+    minHeight: 42,
+    padding: "10px 12px",
     borderRadius: 9,
     border: "1px solid rgba(255,255,255,0.12)",
     background: "#fff",
@@ -279,12 +388,18 @@ export default function RegisterClient() {
   const messageStyle: React.CSSProperties = {
     marginTop: 12,
     borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.03)",
+    border: msg?.includes("18 años")
+      ? "1px solid rgba(255,110,110,0.40)"
+      : "1px solid rgba(255,255,255,0.10)",
+    background: msg?.includes("18 años")
+      ? "rgba(255,80,80,0.08)"
+      : "rgba(255,255,255,0.03)",
     padding: "10px 12px",
     fontSize: 12,
     fontWeight: 400,
-    color: "rgba(255,255,255,0.90)",
+    color: msg?.includes("18 años")
+      ? "rgba(255,155,155,0.96)"
+      : "rgba(255,255,255,0.90)",
     lineHeight: 1.45,
   };
 
@@ -292,22 +407,33 @@ export default function RegisterClient() {
     <main style={pageStyle}>
       <div style={shellStyle}>
         <div style={cardStyle}>
-          <div style={{ padding: 18 }}>
+          <div style={{ padding: "clamp(16px, 3vw, 20px)" }}>
             <style jsx>{`
-              input[type="number"]::-webkit-outer-spin-button,
-              input[type="number"]::-webkit-inner-spin-button {
-                -webkit-appearance: none;
-                margin: 0;
-              }
-
-              input[type="number"] {
-                -moz-appearance: textfield;
-                appearance: textfield;
-              }
-
               select option {
                 background: #111;
                 color: #fff;
+              }
+
+              .register-two-col {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+              }
+
+              .birthdate-grid {
+                display: grid;
+                grid-template-columns: 1fr 1.2fr 1fr;
+                gap: 10px;
+              }
+
+              @media (max-width: 640px) {
+                .register-two-col {
+                  grid-template-columns: 1fr;
+                }
+
+                .birthdate-grid {
+                  grid-template-columns: 1fr;
+                }
               }
             `}</style>
 
@@ -315,7 +441,7 @@ export default function RegisterClient() {
               <h1
                 style={{
                   margin: 0,
-                  fontSize: 18,
+                  fontSize: "clamp(18px, 2.4vw, 22px)",
                   fontWeight: 600,
                   lineHeight: 1.2,
                   letterSpacing: "-0.01em",
@@ -327,7 +453,7 @@ export default function RegisterClient() {
               <p
                 style={{
                   margin: "6px 0 0 0",
-                  fontSize: 13,
+                  fontSize: "clamp(13px, 2vw, 14px)",
                   fontWeight: 400,
                   color: "rgba(255,255,255,0.68)",
                   lineHeight: 1.45,
@@ -352,13 +478,7 @@ export default function RegisterClient() {
                   />
                 </label>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 10,
-                  }}
-                >
+                <div className="register-two-col">
                   <label style={{ display: "grid", gap: 6 }}>
                     <span style={labelTextStyle}>Nombre</span>
                     <input
@@ -404,41 +524,113 @@ export default function RegisterClient() {
                   </span>
                 </label>
 
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 10,
-                  }}
-                >
-                  <label style={{ display: "grid", gap: 6 }}>
-                    <span style={labelTextStyle}>Edad</span>
-                    <input
-                      type="number"
-                      required
-                      value={ageRaw}
-                      onChange={(e) => setAgeRaw(e.target.value)}
-                      min={13}
-                      max={120}
-                      style={inputStyle}
-                      placeholder="18"
-                    />
-                  </label>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <span style={labelTextStyle}>Fecha de nacimiento</span>
 
-                  <label style={{ display: "grid", gap: 6 }}>
-                    <span style={labelTextStyle}>Sexo</span>
+                  <div className="birthdate-grid">
                     <select
-                      value={sex}
-                      onChange={(e) => setSex(e.target.value as Sex)}
-                      style={selectStyle}
+                      value={birthDay}
+                      onChange={(e) => setBirthDay(e.target.value)}
+                      style={{
+                        ...selectStyle,
+                        border: isUnder18
+                          ? "1px solid rgba(255,107,107,0.72)"
+                          : "1px solid rgba(255,255,255,0.14)",
+                      }}
                     >
-                      <option value="prefer_not_say">Prefiero no decir</option>
-                      <option value="male">Hombre</option>
-                      <option value="female">Mujer</option>
-                      <option value="other">Otro</option>
+                      <option value="">Día</option>
+                      {days.map((day) => (
+                        <option key={day} value={String(day)}>
+                          {day}
+                        </option>
+                      ))}
                     </select>
-                  </label>
+
+                    <select
+                      value={birthMonth}
+                      onChange={(e) => {
+                        const nextMonth = e.target.value;
+                        setBirthMonth(nextMonth);
+
+                        const y = Number(birthYear);
+                        const m = Number(nextMonth);
+                        const d = Number(birthDay);
+
+                        if (d && y && m) {
+                          const maxDay = getDaysInMonth(y, m);
+                          if (d > maxDay) {
+                            setBirthDay("");
+                          }
+                        }
+                      }}
+                      style={{
+                        ...selectStyle,
+                        border: isUnder18
+                          ? "1px solid rgba(255,107,107,0.72)"
+                          : "1px solid rgba(255,255,255,0.14)",
+                      }}
+                    >
+                      <option value="">Mes</option>
+                      {MONTHS.map((month) => (
+                        <option key={month.value} value={String(month.value)}>
+                          {month.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={birthYear}
+                      onChange={(e) => {
+                        const nextYear = e.target.value;
+                        setBirthYear(nextYear);
+
+                        const y = Number(nextYear);
+                        const m = Number(birthMonth);
+                        const d = Number(birthDay);
+
+                        if (d && y && m) {
+                          const maxDay = getDaysInMonth(y, m);
+                          if (d > maxDay) {
+                            setBirthDay("");
+                          }
+                        }
+                      }}
+                      style={{
+                        ...selectStyle,
+                        border: isUnder18
+                          ? "1px solid rgba(255,107,107,0.72)"
+                          : "1px solid rgba(255,255,255,0.14)",
+                      }}
+                    >
+                      <option value="">Año</option>
+                      {years.map((year) => (
+                        <option key={year} value={String(year)}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {isUnder18 ? (
+                    <span style={errorTextStyle}>
+                      Debes tener al menos 18 años para crear una cuenta.
+                    </span>
+                  ) : null}
                 </div>
+
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={labelTextStyle}>Sexo</span>
+                  <select
+                    value={sex}
+                    onChange={(e) => setSex(e.target.value as Sex)}
+                    style={selectStyle}
+                  >
+                    <option value="prefer_not_say">Prefiero no decir</option>
+                    <option value="male">Hombre</option>
+                    <option value="female">Mujer</option>
+                    <option value="other">Otro</option>
+                  </select>
+                </label>
 
                 <label style={{ display: "grid", gap: 6 }}>
                   <span style={labelTextStyle}>Contraseña</span>
@@ -470,14 +662,7 @@ export default function RegisterClient() {
                     placeholder="Repite tu contraseña"
                   />
                   {!passwordsMatch && password2 ? (
-                    <span
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 400,
-                        color: "rgba(255,140,140,0.92)",
-                        lineHeight: 1.4,
-                      }}
-                    >
+                    <span style={errorTextStyle}>
                       Las contraseñas no coinciden.
                     </span>
                   ) : null}
@@ -499,12 +684,12 @@ export default function RegisterClient() {
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || isUnder18}
                   style={{
                     ...(loading ? secondaryButtonStyle : primaryButtonStyle),
                     marginTop: 4,
-                    opacity: loading ? 0.82 : 1,
-                    cursor: loading ? "not-allowed" : "pointer",
+                    opacity: loading || isUnder18 ? 0.82 : 1,
+                    cursor: loading || isUnder18 ? "not-allowed" : "pointer",
                   }}
                 >
                   {loading ? "Creando..." : "Crear cuenta"}

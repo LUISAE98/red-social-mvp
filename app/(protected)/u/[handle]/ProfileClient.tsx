@@ -26,7 +26,8 @@ type UserDoc = {
   displayName: string;
   firstName: string;
   lastName: string;
-  age: number;
+  age?: number;
+  birthDate?: string;
   sex: string;
   photoURL: string | null;
   coverUrl?: string | null;
@@ -112,6 +113,32 @@ async function getCroppedBlob(
   });
 }
 
+function calculateAgeFromBirthDate(birthDate?: string) {
+  if (!birthDate) return null;
+
+  const [y, m, d] = birthDate.split("-").map(Number);
+  if (!y || !m || !d) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - y;
+  const monthDiff = today.getMonth() + 1 - m;
+  const dayDiff = today.getDate() - d;
+
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+    age -= 1;
+  }
+
+  return age >= 0 ? age : null;
+}
+
+function sexLabel(sex: string) {
+  if (sex === "male") return "Hombre";
+  if (sex === "female") return "Mujer";
+  if (sex === "other") return "Otro";
+  if (sex === "prefer_not_say") return "Prefiero no decir";
+  return sex || "No disponible";
+}
+
 export default function ProfileClient() {
   const params = useParams<{ handle: string }>();
   const handle = useMemo(
@@ -145,19 +172,22 @@ export default function ProfileClient() {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
+  const ageToShow = useMemo(() => {
+    if (!userDoc) return null;
+    if (typeof userDoc.age === "number") return userDoc.age;
+    return calculateAgeFromBirthDate(userDoc.birthDate);
+  }, [userDoc]);
+
   const ui = {
-    pageMaxWidth: 860,
-    coverHeight: 210,
-    avatarSize: 210,
-    avatarOffsetTop: -66,
-    contentTopPadding: 160,
-    cardRadius: 14,
-    buttonRadius: 9,
-    buttonPadding: "8px 12px",
-    fontTitle: 18,
-    fontBody: 13,
-    fontMicro: 12,
-    borderSoft: "1px solid rgba(255,255,255,0.18)",
+    pageMaxWidth: 980,
+    coverHeight: "clamp(180px, 34vw, 280px)",
+    avatarSize: "clamp(110px, 22vw, 210px)",
+    avatarOffsetTop: "clamp(-56px, -9vw, -78px)",
+    contentTopPadding: "clamp(78px, 14vw, 170px)",
+    cardRadius: 16,
+    buttonRadius: 10,
+    buttonPadding: "10px 14px",
+    borderSoft: "1px solid rgba(255,255,255,0.14)",
     shadow: "0 18px 48px rgba(0,0,0,0.55)",
   };
 
@@ -177,9 +207,10 @@ export default function ProfileClient() {
       color: "#000",
       cursor: "pointer",
       fontWeight: 600,
-      fontSize: ui.fontBody,
+      fontSize: 14,
       fontFamily: fontStack,
       lineHeight: 1.2,
+      minHeight: 42,
     } as React.CSSProperties,
     buttonSecondary: {
       padding: ui.buttonPadding,
@@ -189,12 +220,13 @@ export default function ProfileClient() {
       color: "#fff",
       cursor: "pointer",
       fontWeight: 600,
-      fontSize: ui.fontBody,
+      fontSize: 14,
       fontFamily: fontStack,
       lineHeight: 1.2,
+      minHeight: 42,
     } as React.CSSProperties,
     label: {
-      fontSize: ui.fontMicro,
+      fontSize: 12,
       fontWeight: 500,
       color: "rgba(255,255,255,0.90)",
     } as React.CSSProperties,
@@ -204,7 +236,8 @@ export default function ProfileClient() {
       border: "1px solid rgba(255,255,255,0.14)",
       background: "rgba(255,255,255,0.05)",
       color: "#fff",
-      fontSize: ui.fontMicro,
+      fontSize: 12,
+      lineHeight: 1.45,
     } as React.CSSProperties,
   };
 
@@ -303,8 +336,7 @@ export default function ProfileClient() {
   );
 
   async function uploadCropped(mode: CropMode) {
-    if (!userDoc) return;
-    if (!isOwner) return;
+    if (!userDoc || !isOwner) return;
 
     if (!cropImageSrc || !croppedAreaPixels) {
       setMsg("❌ No se pudo recortar la imagen.");
@@ -360,10 +392,10 @@ export default function ProfileClient() {
     return (
       <main
         style={{
-          minHeight: "100vh",
+          minHeight: "100dvh",
           background: "#000",
           color: "#fff",
-          padding: "20px 14px 120px",
+          padding: "clamp(16px, 3vw, 24px) 14px 96px",
           fontFamily: fontStack,
         }}
       >
@@ -378,10 +410,10 @@ export default function ProfileClient() {
     return (
       <main
         style={{
-          minHeight: "100vh",
+          minHeight: "100dvh",
           background: "#000",
           color: "#fff",
-          padding: "20px 14px 120px",
+          padding: "clamp(16px, 3vw, 24px) 14px 96px",
           fontFamily: fontStack,
         }}
       >
@@ -393,8 +425,7 @@ export default function ProfileClient() {
   }
 
   const fullName =
-    userDoc.displayName ||
-    `${userDoc.firstName} ${userDoc.lastName}`.trim();
+    userDoc.displayName || `${userDoc.firstName} ${userDoc.lastName}`.trim();
 
   const coverSvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="600">
@@ -416,19 +447,98 @@ export default function ProfileClient() {
     <>
       <main
         style={{
-          minHeight: "calc(100vh - 70px)",
-          padding: "20px 14px 140px",
+          minHeight: "calc(100dvh - 70px)",
+          padding: "clamp(16px, 3vw, 24px) 14px 120px",
           background: "#000",
           color: "#fff",
           fontFamily: fontStack,
         }}
       >
-        <div
-          style={{
-            maxWidth: ui.pageMaxWidth,
-            margin: "0 auto",
-          }}
-        >
+        <style jsx>{`
+          .profile-shell {
+            max-width: ${ui.pageMaxWidth}px;
+            margin: 0 auto;
+          }
+
+          .profile-content {
+            position: relative;
+            padding: 0 clamp(14px, 3vw, 22px) clamp(18px, 3vw, 24px);
+          }
+
+          .profile-meta {
+            display: grid;
+            place-items: center;
+            text-align: center;
+          }
+
+          .profile-stats {
+            margin-top: 18px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 14px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+          }
+
+          .profile-stat-card {
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 12px;
+            min-width: 0;
+          }
+
+          .profile-stat-label {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            line-height: 1.2;
+          }
+
+          .profile-stat-value {
+            margin-top: 6px;
+            color: #fff;
+            font-size: clamp(14px, 2vw, 16px);
+            font-weight: 600;
+            line-height: 1.2;
+            word-break: break-word;
+          }
+
+          .crop-actions {
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+          }
+
+          .crop-buttons {
+            margin-left: auto;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+          }
+
+          @media (max-width: 640px) {
+            .profile-stats {
+              grid-template-columns: 1fr;
+            }
+
+            .crop-actions {
+              align-items: stretch;
+            }
+
+            .crop-buttons {
+              margin-left: 0;
+              width: 100%;
+            }
+
+            .crop-buttons :global(button) {
+              flex: 1 1 0;
+            }
+          }
+        `}</style>
+
+        <div className="profile-shell">
           <div
             style={{
               ...styles.card,
@@ -459,7 +569,7 @@ export default function ProfileClient() {
                   position: "absolute",
                   inset: 0,
                   background:
-                    "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.70) 82%, rgba(0,0,0,0.90) 100%)",
+                    "linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.48) 58%, rgba(0,0,0,0.88) 100%)",
                 }}
               />
 
@@ -470,8 +580,8 @@ export default function ProfileClient() {
                   type="button"
                   style={{
                     position: "absolute",
-                    right: 14,
-                    top: 14,
+                    right: 12,
+                    top: 12,
                     ...styles.buttonSecondary,
                     background: uploading
                       ? "rgba(255,255,255,0.12)"
@@ -479,6 +589,9 @@ export default function ProfileClient() {
                     cursor: uploading ? "not-allowed" : "pointer",
                     zIndex: 3,
                     backdropFilter: "blur(8px)",
+                    padding: "8px 12px",
+                    minHeight: 38,
+                    fontSize: 13,
                   }}
                   title="Cambiar portada"
                 >
@@ -489,7 +602,7 @@ export default function ProfileClient() {
               )}
             </div>
 
-            <div style={{ position: "relative", padding: "0 18px 18px" }}>
+            <div className="profile-content">
               <div
                 style={{
                   position: "absolute",
@@ -513,7 +626,7 @@ export default function ProfileClient() {
                       height: ui.avatarSize,
                       borderRadius: "50%",
                       overflow: "hidden",
-                      border: "4px solid rgba(0,0,0,0.9)",
+                      border: "4px solid rgba(0,0,0,0.94)",
                       boxShadow: ui.shadow,
                       display: "grid",
                       placeItems: "center",
@@ -531,12 +644,16 @@ export default function ProfileClient() {
                       <img
                         src={userDoc.photoURL}
                         alt="avatar"
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          objectFit: "cover",
+                        }}
                       />
                     ) : (
                       <span
                         style={{
-                          fontSize: 28,
+                          fontSize: "clamp(24px, 5vw, 34px)",
                           fontWeight: 600,
                           color: "rgba(255,255,255,0.9)",
                         }}
@@ -557,10 +674,10 @@ export default function ProfileClient() {
                       disabled={uploading}
                       style={{
                         position: "absolute",
-                        right: 10,
-                        bottom: 10,
-                        width: 44,
-                        height: 44,
+                        right: 8,
+                        bottom: 8,
+                        width: "clamp(38px, 8vw, 46px)",
+                        height: "clamp(38px, 8vw, 46px)",
                         borderRadius: 999,
                         border: "1px solid rgba(255,255,255,0.18)",
                         background: uploading
@@ -594,20 +711,14 @@ export default function ProfileClient() {
                   zIndex: 1,
                 }}
               >
-                <div
-                  style={{
-                    display: "grid",
-                    placeItems: "center",
-                    textAlign: "center",
-                    pointerEvents: "none",
-                  }}
-                >
+                <div className="profile-meta">
                   <div
                     style={{
-                      fontSize: ui.fontTitle,
-                      fontWeight: 600,
-                      lineHeight: 1.15,
-                      letterSpacing: 0,
+                      fontSize: "clamp(20px, 3vw, 28px)",
+                      fontWeight: 700,
+                      lineHeight: 1.1,
+                      letterSpacing: "-0.02em",
+                      maxWidth: 620,
                     }}
                   >
                     {fullName}
@@ -615,10 +726,10 @@ export default function ProfileClient() {
 
                   <div
                     style={{
-                      marginTop: 6,
-                      color: "rgba(255,255,255,0.72)",
+                      marginTop: 8,
+                      color: "rgba(255,255,255,0.74)",
                       fontWeight: 500,
-                      fontSize: ui.fontBody,
+                      fontSize: "clamp(14px, 2vw, 16px)",
                     }}
                   >
                     @{userDoc.handle}
@@ -626,8 +737,8 @@ export default function ProfileClient() {
 
                   <div
                     style={{
-                      marginTop: 8,
-                      fontSize: ui.fontMicro,
+                      marginTop: 10,
+                      fontSize: 12,
                       color: "rgba(255,255,255,0.55)",
                     }}
                   >
@@ -636,53 +747,46 @@ export default function ProfileClient() {
                 </div>
               </div>
 
-              <div
-                style={{
-                  marginTop: 16,
-                  borderTop: "1px solid rgba(255,255,255,0.10)",
-                  paddingTop: 14,
-                  display: "grid",
-                  gap: 10,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <span style={{ color: "rgba(255,255,255,0.65)", fontSize: ui.fontBody }}>
-                    Edad
-                  </span>
-                  <b style={{ color: "#fff", fontSize: ui.fontBody }}>{userDoc.age}</b>
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                  <span style={{ color: "rgba(255,255,255,0.65)", fontSize: ui.fontBody }}>
-                    Sexo
-                  </span>
-                  <b style={{ color: "#fff", fontSize: ui.fontBody }}>{userDoc.sex}</b>
-                </div>
-
-                {msg && (
-                  <div
-                    style={{
-                      ...styles.message,
-                      marginTop: 6,
-                    }}
-                  >
-                    {msg}
+              <div className="profile-stats">
+                <div className="profile-stat-card">
+                  <div className="profile-stat-label">Edad</div>
+                  <div className="profile-stat-value">
+                    {ageToShow ?? "No disponible"}
                   </div>
-                )}
+                </div>
 
-                {authReady && viewer && (
-                  <p
-                    style={{
-                      marginTop: 8,
-                      marginBottom: 0,
-                      opacity: 0.6,
-                      fontSize: ui.fontMicro,
-                    }}
-                  >
-                    Sesión activa: {viewer.email}
-                  </p>
-                )}
+                <div className="profile-stat-card">
+                  <div className="profile-stat-label">Sexo</div>
+                  <div className="profile-stat-value">
+                    {sexLabel(userDoc.sex)}
+                  </div>
+                </div>
               </div>
+
+              {msg && (
+                <div
+                  style={{
+                    ...styles.message,
+                    marginTop: 12,
+                  }}
+                >
+                  {msg}
+                </div>
+              )}
+
+              {authReady && viewer && (
+                <p
+                  style={{
+                    marginTop: 12,
+                    marginBottom: 0,
+                    opacity: 0.6,
+                    fontSize: 12,
+                    textAlign: "center",
+                  }}
+                >
+                  Sesión activa: {viewer.email}
+                </p>
+              )}
             </div>
           </div>
 
@@ -746,6 +850,7 @@ export default function ProfileClient() {
                 justifyContent: "space-between",
                 gap: 12,
                 borderBottom: "1px solid rgba(255,255,255,0.10)",
+                flexWrap: "wrap",
               }}
             >
               <div style={{ fontWeight: 600, color: "#fff", fontSize: 16 }}>
@@ -792,15 +897,7 @@ export default function ProfileClient() {
                 />
               </div>
 
-              <div
-                style={{
-                  marginTop: 12,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  flexWrap: "wrap",
-                }}
-              >
+              <div className="crop-actions">
                 <label style={{ ...styles.label }}>Zoom</label>
 
                 <input
@@ -810,10 +907,10 @@ export default function ProfileClient() {
                   step={0.05}
                   value={zoom}
                   onChange={(e) => setZoom(Number(e.target.value))}
-                  style={{ width: 200 }}
+                  style={{ width: 200, maxWidth: "100%" }}
                 />
 
-                <div style={{ marginLeft: "auto", display: "flex", gap: 10 }}>
+                <div className="crop-buttons">
                   <button
                     type="button"
                     onClick={() => !uploading && setCropOpen(false)}
@@ -845,8 +942,9 @@ export default function ProfileClient() {
               <div
                 style={{
                   marginTop: 10,
-                  fontSize: ui.fontMicro,
+                  fontSize: 12,
                   color: "rgba(255,255,255,0.55)",
+                  lineHeight: 1.45,
                 }}
               >
                 Tip: mueve la imagen para encuadrar.{" "}
