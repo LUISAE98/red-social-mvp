@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   collection,
@@ -8,9 +14,11 @@ import {
   getDoc,
   getDocs,
   limit,
+  onSnapshot,
   query,
   updateDoc,
   where,
+  Timestamp,
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 
@@ -19,6 +27,13 @@ import {
   updateOfferings,
   type GroupOffering,
 } from "@/lib/groups/updateOfferings";
+import {
+  approveJoinRequest,
+  rejectJoinRequest,
+} from "@/lib/groups/joinRequests.admin";
+import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
+
+type Currency = "MXN" | "USD";
 
 type UserDoc = {
   uid: string;
@@ -26,10 +41,11 @@ type UserDoc = {
   displayName?: string;
   firstName?: string;
   lastName?: string;
+  photoURL?: string | null;
   profileGreeting?: {
     enabled: boolean;
     price: number | null;
-    currency: "MXN" | "USD" | null;
+    currency: Currency | null;
   };
 };
 
@@ -38,19 +54,61 @@ type GroupDocLite = {
   name?: string;
   ownerId?: string;
   visibility?: "public" | "private" | "hidden" | string;
+  avatarUrl?: string | null;
+  monetization?: {
+    isPaid?: boolean;
+    priceMonthly?: number | null;
+    currency?: Currency | null;
+  };
   offerings?: Array<{
     type: "saludo" | "consejo" | "mensaje" | string;
     enabled?: boolean;
     price?: number | null;
-    currency?: "MXN" | "USD" | null;
+    currency?: Currency | null;
   }>;
 };
 
+type GreetingStatus =
+  | "pending"
+  | "accepted"
+  | "rejected"
+  | "delivered"
+  | string;
+
+type GreetingType = "saludo" | "consejo" | "mensaje" | string;
+
+type GreetingRequestDoc = {
+  buyerId: string;
+  creatorId: string;
+  groupId: string;
+  type: GreetingType;
+  toName: string;
+  instructions: string;
+  source: "group" | "profile" | string;
+  status: GreetingStatus;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+};
+
+type JoinRequestRow = {
+  id: string;
+  userId: string;
+};
+
+type GroupDraft = {
+  subscriptionEnabled: boolean;
+  subscriptionPrice: string;
+  subscriptionCurrency: Currency;
+  saludoEnabled: boolean;
+  saludoPrice: string;
+  saludoCurrency: Currency;
+};
+
 function visibilitySectionTitle(v: string) {
-  if (v === "public") return "Públicos";
-  if (v === "private") return "Privados";
-  if (v === "hidden") return "Ocultos";
-  return "Otros";
+  if (v === "public") return "Comunidades públicas";
+  if (v === "private") return "Comunidades privadas";
+  if (v === "hidden") return "Comunidades ocultas";
+  return "Otras comunidades";
 }
 
 function pickSaludoOffering(offerings: GroupDocLite["offerings"]) {
@@ -58,8 +116,76 @@ function pickSaludoOffering(offerings: GroupDocLite["offerings"]) {
   const found = arr.find((o) => String(o?.type) === "saludo");
   const enabled = found?.enabled === true;
   const price = found?.price ?? null;
-  const currency = (found?.currency ?? "MXN") as "MXN" | "USD";
+  const currency = (found?.currency ?? "MXN") as Currency;
   return { enabled, price, currency };
+}
+
+function pickSubscription(monetization: GroupDocLite["monetization"]) {
+  return {
+    enabled: monetization?.isPaid === true,
+    price: monetization?.priceMonthly ?? null,
+    currency: (monetization?.currency ?? "MXN") as Currency,
+  };
+}
+
+function typeLabel(t: string) {
+  if (t === "saludo") return "Saludo";
+  if (t === "consejo") return "Consejo";
+  if (t === "mensaje") return "Mensaje";
+  return t;
+}
+
+function fmtDate(ts?: Timestamp) {
+  if (!ts) return "";
+  return ts.toDate().toLocaleString();
+}
+
+function shortUid(uid: string) {
+  if (!uid) return "";
+  return uid.length <= 10 ? uid : `${uid.slice(0, 6)}…${uid.slice(-4)}`;
+}
+
+function getInitials(name?: string | null) {
+  const raw = (name ?? "").trim();
+  if (!raw) return "G";
+  const parts = raw.split(/\s+/).filter(Boolean);
+  const first = parts[0]?.[0] ?? "";
+  const second = parts[1]?.[0] ?? "";
+  return `${first}${second}`.toUpperCase() || "G";
+}
+
+function friendlyJoinErrorMessage(err: any) {
+  const msg = (err?.message ?? "").toString().toLowerCase();
+
+  if (
+    msg.includes("solicitud no existe") ||
+    msg.includes("not-found") ||
+    msg.includes("does not exist")
+  ) {
+    return null;
+  }
+
+  return err?.message ?? "Ocurrió un error.";
+}
+
+function formatMoney(value: number, currency: Currency) {
+  try {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${currency} ${value.toFixed(2)}`;
+  }
+}
+
+function calcNetAmount(raw: string) {
+  const n = Number(raw);
+  if (raw.trim() === "" || Number.isNaN(n) || n <= 0) return null;
+  const net = n * 0.77;
+  const fee = n * 0.23;
+  return { gross: n, net, fee };
 }
 
 function Switch({
@@ -81,24 +207,25 @@ function Switch({
       aria-pressed={checked}
       title={label}
       style={{
-        width: 42,
-        height: 24,
+        width: 40,
+        height: 22,
         borderRadius: 999,
-        border: "1px solid rgba(255,255,255,0.16)",
-        background: checked ? "#ffffff" : "rgba(255,255,255,0.10)",
+        border: "1px solid rgba(255,255,255,0.14)",
+        background: checked ? "#ffffff" : "rgba(255,255,255,0.08)",
         padding: 2,
         display: "inline-flex",
         alignItems: "center",
         justifyContent: checked ? "flex-end" : "flex-start",
         cursor: disabled ? "not-allowed" : "pointer",
-        opacity: disabled ? 0.6 : 1,
+        opacity: disabled ? 0.55 : 1,
         transition: "all 160ms ease",
+        flexShrink: 0,
       }}
     >
       <span
         style={{
-          width: 18,
-          height: 18,
+          width: 16,
+          height: 16,
           borderRadius: "50%",
           background: checked ? "#000" : "#fff",
           boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
@@ -106,6 +233,72 @@ function Switch({
         }}
       />
     </button>
+  );
+}
+
+function Chevron({
+  open,
+  muted = false,
+}: {
+  open: boolean;
+  muted?: boolean;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-block",
+        width: 9,
+        height: 9,
+        borderRight: `1.7px solid ${
+          muted ? "rgba(255,255,255,0.34)" : "rgba(255,255,255,0.72)"
+        }`,
+        borderBottom: `1.7px solid ${
+          muted ? "rgba(255,255,255,0.34)" : "rgba(255,255,255,0.72)"
+        }`,
+        transform: open ? "rotate(225deg)" : "rotate(45deg)",
+        transition: "transform 180ms ease",
+        marginTop: open ? 3 : -1,
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
+function CountBadge({
+  count,
+  tone,
+}: {
+  count: number;
+  tone: "blue" | "green";
+}) {
+  const bg =
+    tone === "blue"
+      ? "linear-gradient(180deg, #2f8cff 0%, #1f6fe5 100%)"
+      : "linear-gradient(180deg, #22c55e 0%, #16a34a 100%)";
+
+  return (
+    <span
+      style={{
+        width: 22,
+        height: 22,
+        minWidth: 22,
+        borderRadius: "50%",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: bg,
+        color: "#fff",
+        fontSize: 11,
+        fontWeight: 700,
+        lineHeight: 1,
+        boxShadow: "0 6px 18px rgba(0,0,0,0.22)",
+        border: "1px solid rgba(255,255,255,0.18)",
+        flexShrink: 0,
+      }}
+    >
+      {count}
+    </span>
   );
 }
 
@@ -125,15 +318,37 @@ export default function OwnerSidebar() {
 
   const [savingProfileGreeting, setSavingProfileGreeting] = useState(false);
   const [savingGroupId, setSavingGroupId] = useState<string | null>(null);
+  const [joinBusyKey, setJoinBusyKey] = useState<string | null>(null);
+  const [greetingBusyId, setGreetingBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   const [pgEnabled, setPgEnabled] = useState(false);
   const [pgPrice, setPgPrice] = useState<string>("");
-  const [pgCurrency, setPgCurrency] = useState<"MXN" | "USD">("MXN");
+  const [pgCurrency, setPgCurrency] = useState<Currency>("MXN");
 
-  const [groupDraft, setGroupDraft] = useState<
-    Record<string, { enabled: boolean; price: string; currency: "MXN" | "USD" }>
+  const [groupDraft, setGroupDraft] = useState<Record<string, GroupDraft>>({});
+  const [savedGroupDraft, setSavedGroupDraft] = useState<Record<string, GroupDraft>>(
+    {}
+  );
+  const [openCommunities, setOpenCommunities] = useState<Record<string, boolean>>(
+    {}
+  );
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const [joinRequestsByGroup, setJoinRequestsByGroup] = useState<
+    Record<string, JoinRequestRow[]>
   >({});
+  const [greetingsByGroup, setGreetingsByGroup] = useState<
+    Record<string, Array<{ id: string; data: GreetingRequestDoc }>>
+  >({});
+  const [greetingSectionOpen, setGreetingSectionOpen] = useState<
+    Record<string, boolean>
+  >({});
+  const [seenCountsByGroup, setSeenCountsByGroup] = useState<
+    Record<string, { join: number; greeting: number }>
+  >({});
+
+  const joinUnsubsRef = useRef<Array<() => void>>([]);
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -143,15 +358,16 @@ export default function OwnerSidebar() {
     sidebarTop: 84,
     sidebarBottom: 16,
     fontBody: 13,
-    fontMicro: 12,
-    buttonRadius: 9,
+    fontSmall: 12,
+    fontMicro: 11,
+    buttonRadius: 10,
     buttonPadding: "8px 12px",
   };
 
-  const styles = {
+  const styles: Record<string, CSSProperties> = {
     input: {
       padding: "9px 11px",
-      borderRadius: 9,
+      borderRadius: 10,
       border: "1px solid rgba(255,255,255,0.10)",
       background: "rgba(255,255,255,0.04)",
       color: "#fff",
@@ -162,7 +378,7 @@ export default function OwnerSidebar() {
       appearance: "none",
       WebkitAppearance: "none",
       MozAppearance: "none",
-    } as React.CSSProperties,
+    },
     buttonSecondary: {
       padding: ui.buttonPadding,
       borderRadius: ui.buttonRadius,
@@ -174,16 +390,65 @@ export default function OwnerSidebar() {
       fontSize: ui.fontBody,
       fontFamily: fontStack,
       lineHeight: 1.2,
-    } as React.CSSProperties,
+    },
+    buttonPrimary: {
+      padding: "8px 12px",
+      borderRadius: 9,
+      border: "1px solid rgba(255,255,255,0.18)",
+      background: "#fff",
+      color: "#000",
+      fontSize: 13,
+      fontWeight: 600,
+      lineHeight: 1.1,
+      cursor: "pointer",
+      fontFamily: fontStack,
+    },
     message: {
       padding: "10px 12px",
-      borderRadius: 10,
+      borderRadius: 12,
       border: "1px solid rgba(255,255,255,0.08)",
       background: "rgba(255,255,255,0.03)",
       color: "#fff",
-      fontSize: ui.fontMicro,
+      fontSize: ui.fontSmall,
       lineHeight: 1.4,
-    } as React.CSSProperties,
+    },
+    sectionTitle: {
+      fontSize: 11,
+      fontWeight: 700,
+      color: "rgba(255,255,255,0.36)",
+      textTransform: "uppercase",
+      letterSpacing: 0.65,
+      padding: "6px 2px 2px",
+    },
+    card: {
+      padding: "10px",
+      borderRadius: 14,
+      background: "rgba(255,255,255,0.02)",
+      border: "1px solid rgba(255,255,255,0.06)",
+      backdropFilter: "blur(12px)",
+      WebkitBackdropFilter: "blur(12px)",
+    },
+    subtle: {
+      fontSize: ui.fontMicro,
+      color: "rgba(255,255,255,0.56)",
+      lineHeight: 1.35,
+    },
+    sectionPanel: {
+      padding: "10px",
+      borderRadius: 12,
+      border: "1px solid rgba(255,255,255,0.08)",
+      background: "rgba(255,255,255,0.02)",
+      display: "grid",
+      gap: 8,
+    },
+    miniItem: {
+      borderRadius: 12,
+      border: "1px solid rgba(255,255,255,0.08)",
+      background: "rgba(255,255,255,0.025)",
+      padding: 10,
+      display: "grid",
+      gap: 8,
+    },
   };
 
   useEffect(() => {
@@ -220,7 +485,7 @@ export default function OwnerSidebar() {
         const pg = u.profileGreeting;
         setPgEnabled(pg?.enabled === true);
         setPgPrice(pg?.price == null ? "" : String(pg.price));
-        setPgCurrency((pg?.currency ?? "MXN") as "MXN" | "USD");
+        setPgCurrency((pg?.currency ?? "MXN") as Currency);
       } catch (e: any) {
         setMsg(e?.message ?? "No se pudo cargar tu perfil.");
         setUserDoc(null);
@@ -237,6 +502,8 @@ export default function OwnerSidebar() {
       if (!viewer?.uid) {
         setMyGroups([]);
         setGroupDraft({});
+        setSavedGroupDraft({});
+        setOpenCommunities({});
         return;
       }
 
@@ -259,25 +526,36 @@ export default function OwnerSidebar() {
 
         setMyGroups(rows);
 
-        const draft: Record<
-          string,
-          { enabled: boolean; price: string; currency: "MXN" | "USD" }
-        > = {};
+        const draft: Record<string, GroupDraft> = {};
+        const initialOpen: Record<string, boolean> = {};
+        const initialGreetingOpen: Record<string, boolean> = {};
 
         for (const g of rows) {
-          const s = pickSaludoOffering(g.offerings);
+          const saludo = pickSaludoOffering(g.offerings);
+          const sub = pickSubscription(g.monetization);
+
           draft[g.id] = {
-            enabled: s.enabled,
-            price: s.price == null ? "" : String(s.price),
-            currency: s.currency ?? "MXN",
+            subscriptionEnabled: sub.enabled,
+            subscriptionPrice: sub.price == null ? "" : String(sub.price),
+            subscriptionCurrency: sub.currency ?? "MXN",
+            saludoEnabled: saludo.enabled,
+            saludoPrice: saludo.price == null ? "" : String(saludo.price),
+            saludoCurrency: saludo.currency ?? "MXN",
           };
+          initialOpen[g.id] = false;
+          initialGreetingOpen[g.id] = false;
         }
 
         setGroupDraft(draft);
+        setSavedGroupDraft(draft);
+        setOpenCommunities((prev) => ({ ...initialOpen, ...prev }));
+        setGreetingSectionOpen((prev) => ({ ...initialGreetingOpen, ...prev }));
       } catch (e: any) {
-        setGroupsErr(e?.message ?? "No se pudieron cargar tus grupos.");
+        setGroupsErr(e?.message ?? "No se pudieron cargar tus comunidades.");
         setMyGroups([]);
         setGroupDraft({});
+        setSavedGroupDraft({});
+        setOpenCommunities({});
       } finally {
         setLoadingGroups(false);
       }
@@ -285,6 +563,118 @@ export default function OwnerSidebar() {
 
     loadMyGroups();
   }, [viewer?.uid]);
+
+  useEffect(() => {
+    joinUnsubsRef.current.forEach((fn) => fn());
+    joinUnsubsRef.current = [];
+
+    if (!viewer?.uid || myGroups.length === 0) {
+      setJoinRequestsByGroup({});
+      return;
+    }
+
+    const unsubs: Array<() => void> = [];
+
+    for (const g of myGroups) {
+      if (g.visibility === "public") continue;
+
+      const qy = query(
+        collection(db, "groups", g.id, "joinRequests"),
+        where("status", "==", "pending")
+      );
+
+      const unsub = onSnapshot(
+        qy,
+        (snap) => {
+          const list: JoinRequestRow[] = [];
+          snap.forEach((d) => {
+            const data = d.data() as any;
+            list.push({
+              id: d.id,
+              userId: data.userId ?? d.id,
+            });
+          });
+
+          setJoinRequestsByGroup((prev) => ({
+            ...prev,
+            [g.id]: list,
+          }));
+        },
+        (e) => {
+          setGroupsErr(e?.message ?? "No se pudieron cargar solicitudes.");
+          setJoinRequestsByGroup((prev) => ({
+            ...prev,
+            [g.id]: [],
+          }));
+        }
+      );
+
+      unsubs.push(unsub);
+    }
+
+    joinUnsubsRef.current = unsubs;
+
+    return () => {
+      unsubs.forEach((fn) => fn());
+      joinUnsubsRef.current = [];
+    };
+  }, [viewer?.uid, myGroups]);
+
+  useEffect(() => {
+    if (!viewer?.uid) {
+      setGreetingsByGroup({});
+      return;
+    }
+
+    const qy = query(
+      collection(db, "greetingRequests"),
+      where("creatorId", "==", viewer.uid),
+      where("status", "==", "pending"),
+      limit(50)
+    );
+
+    const unsub = onSnapshot(
+      qy,
+      (snap) => {
+        const grouped: Record<string, Array<{ id: string; data: GreetingRequestDoc }>> =
+          {};
+
+        snap.docs.forEach((d) => {
+          const data = d.data() as GreetingRequestDoc;
+          const gid = data.groupId;
+          if (!gid) return;
+          if (!grouped[gid]) grouped[gid] = [];
+          grouped[gid].push({ id: d.id, data });
+        });
+
+        setGreetingsByGroup(grouped);
+      },
+      (e) => {
+        setGroupsErr(e?.message ?? "No se pudieron cargar solicitudes de saludo.");
+        setGreetingsByGroup({});
+      }
+    );
+
+    return () => unsub();
+  }, [viewer?.uid]);
+
+  useEffect(() => {
+    const allGroupIds = myGroups.map((g) => g.id);
+    if (allGroupIds.length === 0) return;
+
+    setSeenCountsByGroup((prev) => {
+      const next = { ...prev };
+      for (const groupId of allGroupIds) {
+        const joinCount = (joinRequestsByGroup[groupId] ?? []).length;
+        const greetingCount = (greetingsByGroup[groupId] ?? []).length;
+
+        if (!next[groupId]) {
+          next[groupId] = { join: joinCount, greeting: greetingCount };
+        }
+      }
+      return next;
+    });
+  }, [myGroups, joinRequestsByGroup, greetingsByGroup]);
 
   async function saveProfileGreeting() {
     if (!viewer?.uid || !userDoc) return;
@@ -334,39 +724,64 @@ export default function OwnerSidebar() {
     }
   }
 
-  async function saveGroupSaludo(groupId: string) {
+  async function saveGroupSettings(groupId: string) {
     const g = myGroups.find((x) => x.id === groupId);
     if (!g) return;
 
     const d = groupDraft[groupId];
     if (!d) return;
 
-    const priceNum = d.price.trim() === "" ? null : Number(d.price);
+    const isPublic = g.visibility === "public";
+
+    const subscriptionPriceNum =
+      d.subscriptionPrice.trim() === "" ? null : Number(d.subscriptionPrice);
+
+    const saludoPriceNum =
+      d.saludoPrice.trim() === "" ? null : Number(d.saludoPrice);
 
     if (
-      d.enabled &&
-      (priceNum == null || Number.isNaN(priceNum) || priceNum < 0)
+      d.subscriptionEnabled &&
+      (subscriptionPriceNum == null ||
+        Number.isNaN(subscriptionPriceNum) ||
+        subscriptionPriceNum <= 0)
     ) {
-      setGroupsErr("❌ Precio inválido en un grupo.");
+      setGroupsErr("❌ Precio inválido para la suscripción mensual.");
+      return;
+    }
+
+    if (
+      d.saludoEnabled &&
+      (saludoPriceNum == null ||
+        Number.isNaN(saludoPriceNum) ||
+        saludoPriceNum < 0)
+    ) {
+      setGroupsErr("❌ Precio inválido para saludos.");
+      return;
+    }
+
+    if (isPublic && d.subscriptionEnabled) {
+      setGroupsErr(
+        "❌ Las comunidades públicas no pueden activar suscripción mensual."
+      );
       return;
     }
 
     const existing = Array.isArray(g.offerings) ? g.offerings : [];
-    const next: GroupOffering[] = [];
+    const nextOfferings: GroupOffering[] = [];
 
     const hasType = (t: string) =>
       existing.some((o: any) => String(o?.type) === t);
 
-    next.push({
+    nextOfferings.push({
       type: "saludo",
-      enabled: d.enabled,
-      price: d.enabled ? priceNum : null,
-      currency: d.enabled ? d.currency : null,
+      enabled: d.saludoEnabled,
+      price: d.saludoEnabled ? saludoPriceNum : null,
+      currency: d.saludoEnabled ? d.saludoCurrency : null,
     });
 
     if (hasType("consejo")) {
       const o = existing.find((x: any) => String(x?.type) === "consejo") as any;
-      next.push({
+      nextOfferings.push({
         type: "consejo",
         enabled: o?.enabled === true,
         price: o?.price ?? null,
@@ -376,7 +791,7 @@ export default function OwnerSidebar() {
 
     if (hasType("mensaje")) {
       const o = existing.find((x: any) => String(x?.type) === "mensaje") as any;
-      next.push({
+      nextOfferings.push({
         type: "mensaje",
         enabled: o?.enabled === true,
         price: o?.price ?? null,
@@ -386,32 +801,167 @@ export default function OwnerSidebar() {
 
     setSavingGroupId(groupId);
     setGroupsErr(null);
+    setMsg(null);
 
     try {
-      await updateOfferings(groupId, next);
+      await updateDoc(doc(db, "groups", groupId), {
+        monetization: {
+          isPaid: isPublic ? false : d.subscriptionEnabled,
+          priceMonthly:
+            isPublic || !d.subscriptionEnabled ? null : subscriptionPriceNum,
+          currency:
+            isPublic || !d.subscriptionEnabled ? null : d.subscriptionCurrency,
+        },
+      });
+
+      await updateOfferings(groupId, nextOfferings);
 
       setMyGroups((prev) =>
         prev.map((gg) => {
           if (gg.id !== groupId) return gg;
 
+          const filtered = (gg.offerings ?? []).filter(
+            (o: any) => String(o?.type) !== "saludo"
+          );
+
           return {
             ...gg,
+            monetization: {
+              isPaid: isPublic ? false : d.subscriptionEnabled,
+              priceMonthly:
+                isPublic || !d.subscriptionEnabled ? null : subscriptionPriceNum,
+              currency:
+                isPublic || !d.subscriptionEnabled ? null : d.subscriptionCurrency,
+            },
             offerings: [
-              ...existing.filter((o: any) => String(o?.type) !== "saludo"),
+              ...filtered,
               {
                 type: "saludo",
-                enabled: d.enabled,
-                price: d.enabled ? priceNum : null,
-                currency: d.enabled ? d.currency : null,
+                enabled: d.saludoEnabled,
+                price: d.saludoEnabled ? saludoPriceNum : null,
+                currency: d.saludoEnabled ? d.saludoCurrency : null,
               },
             ],
           };
         })
       );
+
+      setSavedGroupDraft((prev) => ({
+        ...prev,
+        [groupId]: {
+          ...d,
+          subscriptionEnabled: isPublic ? false : d.subscriptionEnabled,
+          subscriptionPrice:
+            isPublic || !d.subscriptionEnabled ? "" : d.subscriptionPrice,
+          subscriptionCurrency: d.subscriptionCurrency,
+          saludoEnabled: d.saludoEnabled,
+          saludoPrice: d.saludoEnabled ? d.saludoPrice : "",
+          saludoCurrency: d.saludoCurrency,
+        },
+      }));
+
+      setGroupDraft((prev) => ({
+        ...prev,
+        [groupId]: {
+          ...prev[groupId],
+          subscriptionEnabled: isPublic ? false : prev[groupId].subscriptionEnabled,
+          subscriptionPrice:
+            isPublic || !prev[groupId].subscriptionEnabled
+              ? ""
+              : prev[groupId].subscriptionPrice,
+          saludoPrice:
+            prev[groupId].saludoEnabled ? prev[groupId].saludoPrice : "",
+        },
+      }));
+
+      setMsg("✅ Configuración de comunidad guardada.");
     } catch (e: any) {
-      setGroupsErr(e?.message ?? "❌ No se pudo actualizar el grupo.");
+      setGroupsErr(e?.message ?? "❌ No se pudo actualizar la comunidad.");
     } finally {
       setSavingGroupId(null);
+    }
+  }
+
+  async function handleApproveJoin(groupId: string, userId: string) {
+    try {
+      setGroupsErr(null);
+      const busyKey = `${groupId}:${userId}:approve`;
+      setJoinBusyKey(busyKey);
+
+      setJoinRequestsByGroup((prev) => ({
+        ...prev,
+        [groupId]: (prev[groupId] ?? []).filter((r) => r.userId !== userId),
+      }));
+
+      await approveJoinRequest(groupId, userId);
+      setMsg("✅ Solicitud de ingreso aprobada.");
+    } catch (e: any) {
+      const friendly = friendlyJoinErrorMessage(e);
+      if (friendly) setGroupsErr(friendly);
+
+      setJoinRequestsByGroup((prev) => {
+        const exists = (prev[groupId] ?? []).some((r) => r.userId === userId);
+        if (exists) return prev;
+        return {
+          ...prev,
+          [groupId]: [{ id: userId, userId }, ...(prev[groupId] ?? [])],
+        };
+      });
+    } finally {
+      setJoinBusyKey(null);
+    }
+  }
+
+  async function handleRejectJoin(groupId: string, userId: string) {
+    try {
+      setGroupsErr(null);
+      const busyKey = `${groupId}:${userId}:reject`;
+      setJoinBusyKey(busyKey);
+
+      setJoinRequestsByGroup((prev) => ({
+        ...prev,
+        [groupId]: (prev[groupId] ?? []).filter((r) => r.userId !== userId),
+      }));
+
+      await rejectJoinRequest(groupId, userId);
+      setMsg("✅ Solicitud de ingreso rechazada.");
+    } catch (e: any) {
+      const friendly = friendlyJoinErrorMessage(e);
+      if (friendly) setGroupsErr(friendly);
+
+      setJoinRequestsByGroup((prev) => {
+        const exists = (prev[groupId] ?? []).some((r) => r.userId === userId);
+        if (exists) return prev;
+        return {
+          ...prev,
+          [groupId]: [{ id: userId, userId }, ...(prev[groupId] ?? [])],
+        };
+      });
+    } finally {
+      setJoinBusyKey(null);
+    }
+  }
+
+  async function handleGreetingAction(
+    requestId: string,
+    action: "accept" | "reject"
+  ) {
+    if (!viewer?.uid) return;
+
+    setGroupsErr(null);
+    setGreetingBusyId(requestId);
+
+    try {
+      await respondGreetingRequest({ requestId, action });
+      setMsg(
+        action === "accept"
+          ? "✅ Solicitud de saludo aceptada."
+          : "✅ Solicitud de saludo rechazada."
+      );
+    } catch (e: any) {
+      setGroupsErr(e?.message ?? "❌ No se pudo actualizar la solicitud.");
+    } finally {
+      setGreetingBusyId(null);
     }
   }
 
@@ -441,7 +991,8 @@ export default function OwnerSidebar() {
   const profileHref = userDoc?.handle ? `/u/${userDoc.handle}` : null;
 
   const isProfileRoute =
-    !!profileHref && (pathname === profileHref || pathname?.startsWith(`${profileHref}/`));
+    !!profileHref &&
+    (pathname === profileHref || pathname?.startsWith(`${profileHref}/`));
 
   if (!authReady) return null;
   if (!viewer) return null;
@@ -472,6 +1023,56 @@ export default function OwnerSidebar() {
 
         .profile-owner-sidebar-scroll::-webkit-scrollbar-thumb:hover {
           background: rgba(255, 255, 255, 0.16);
+        }
+
+        .greeting-mini-scroll {
+          max-height: 240px;
+          overflow-y: auto;
+          overflow-x: hidden;
+          padding-right: 4px;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+        }
+
+        .greeting-mini-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .greeting-mini-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .greeting-mini-scroll::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.12);
+          border-radius: 999px;
+        }
+
+        .greeting-mini-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.18);
+        }
+
+        @keyframes ownerSidebarBuzz {
+          0% {
+            transform: translateX(0);
+          }
+          2% {
+            transform: translateX(-1.4px);
+          }
+          4% {
+            transform: translateX(1.4px);
+          }
+          6% {
+            transform: translateX(-1.1px);
+          }
+          8% {
+            transform: translateX(1.1px);
+          }
+          10% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(0);
+          }
         }
 
         @media (max-width: 1220px) {
@@ -530,166 +1131,245 @@ export default function OwnerSidebar() {
           {msg && <div style={styles.message}>{msg}</div>}
           {groupsErr && <div style={styles.message}>{groupsErr}</div>}
 
-          <div
-            style={{
-              padding: "10px 10px 12px",
-              borderRadius: 12,
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              display: "grid",
-              gap: 10,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                if (profileHref) router.push(profileHref);
-              }}
-              disabled={!profileHref || isProfileRoute}
-              style={{
-                background: isProfileRoute
-                  ? "rgba(255,255,255,0.08)"
-                  : "transparent",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "#fff",
-                textAlign: "left",
-                cursor:
-                  !profileHref || isProfileRoute ? "default" : "pointer",
-                fontSize: ui.fontBody,
-                fontWeight: 600,
-                padding: "10px 12px",
-                borderRadius: 10,
-                fontFamily: fontStack,
-                opacity: !profileHref ? 0.55 : 1,
-              }}
-              title="Ir a mi perfil"
-            >
-              Mi perfil
-            </button>
-
+          <div style={{ ...styles.card, display: "grid", gap: 10 }}>
             <div
               style={{
-                fontWeight: 600,
-                fontSize: ui.fontBody,
                 display: "flex",
-                justifyContent: "space-between",
                 alignItems: "center",
+                justifyContent: "space-between",
                 gap: 10,
               }}
             >
-              <span>Saludos en perfil</span>
-              <Switch
-                checked={pgEnabled}
-                disabled={savingProfileGreeting || loadingUser}
-                onChange={(next) => setPgEnabled(next)}
-                label="Vender saludos en mi perfil"
-              />
-            </div>
-
-            <div
-              style={{
-                fontSize: ui.fontMicro,
-                color: "rgba(255,255,255,0.56)",
-              }}
-            >
-              Configura si quieres vender saludos directamente desde tu perfil.
-            </div>
-
-            {pgEnabled && (
-              <div
+              <button
+                type="button"
+                onClick={() => {
+                  if (profileHref) router.push(profileHref);
+                }}
+                disabled={!profileHref || isProfileRoute}
                 style={{
-                  display: "flex",
-                  gap: 10,
-                  flexWrap: "wrap",
+                  background: "transparent",
+                  border: "none",
+                  padding: 0,
+                  color: "#fff",
+                  textAlign: "left",
+                  cursor: !profileHref || isProfileRoute ? "default" : "pointer",
+                  fontSize: ui.fontBody,
+                  fontWeight: 600,
+                  fontFamily: fontStack,
+                  opacity: !profileHref ? 0.55 : 1,
+                  flex: 1,
+                }}
+                title="Ir a mi perfil"
+              >
+                Mi perfil
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setProfileOpen((prev) => !prev)}
+                aria-label={
+                  profileOpen ? "Cerrar opciones de perfil" : "Abrir opciones de perfil"
+                }
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  background: "rgba(255,255,255,0.02)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  flexShrink: 0,
                 }}
               >
-                <input
-                  type="number"
-                  value={pgPrice}
-                  onChange={(e) => setPgPrice(e.target.value)}
-                  placeholder="Precio"
-                  style={{
-                    ...styles.input,
-                    width: 110,
-                  }}
-                />
+                <Chevron open={profileOpen} />
+              </button>
+            </div>
 
-                <select
-                  value={pgCurrency}
-                  onChange={(e) =>
-                    setPgCurrency(e.target.value as "MXN" | "USD")
-                  }
+            {profileOpen && (
+              <div
+                style={{
+                  paddingTop: 10,
+                  marginTop: 2,
+                  borderTop: "1px solid rgba(255,255,255,0.06)",
+                  display: "grid",
+                  gap: 10,
+                }}
+              >
+                <div
                   style={{
-                    ...styles.input,
-                    flex: 1,
-                    minWidth: 90,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
                   }}
                 >
-                  <option value="MXN">MXN</option>
-                  <option value="USD">USD</option>
-                </select>
+                  <div style={{ display: "grid", gap: 3 }}>
+                    <span style={{ fontWeight: 600, fontSize: ui.fontBody }}>
+                      Saludos en perfil
+                    </span>
+                    <span
+                      style={{
+                        fontSize: ui.fontMicro,
+                        color: "rgba(255,255,255,0.56)",
+                      }}
+                    >
+                      Venta directa desde tu perfil
+                    </span>
+                  </div>
+
+                  <Switch
+                    checked={pgEnabled}
+                    disabled={savingProfileGreeting || loadingUser}
+                    onChange={(next) => setPgEnabled(next)}
+                    label="Vender saludos en mi perfil"
+                  />
+                </div>
+
+                {pgEnabled && (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <input
+                      type="number"
+                      value={pgPrice}
+                      onChange={(e) => setPgPrice(e.target.value)}
+                      placeholder="Precio"
+                      style={{
+                        ...styles.input,
+                        width: 110,
+                      }}
+                    />
+
+                    <select
+                      value={pgCurrency}
+                      onChange={(e) => setPgCurrency(e.target.value as Currency)}
+                      style={{
+                        ...styles.input,
+                        flex: 1,
+                        minWidth: 90,
+                      }}
+                    >
+                      <option value="MXN">MXN</option>
+                      <option value="USD">USD</option>
+                    </select>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={saveProfileGreeting}
+                  disabled={savingProfileGreeting || loadingUser}
+                  style={{
+                    ...styles.buttonSecondary,
+                    width: "100%",
+                    opacity: savingProfileGreeting || loadingUser ? 0.7 : 1,
+                    cursor:
+                      savingProfileGreeting || loadingUser
+                        ? "not-allowed"
+                        : "pointer",
+                  }}
+                >
+                  {savingProfileGreeting ? "Guardando..." : "Guardar perfil"}
+                </button>
               </div>
             )}
-
-            <button
-              type="button"
-              onClick={saveProfileGreeting}
-              disabled={savingProfileGreeting || loadingUser}
-              style={{
-                ...styles.buttonSecondary,
-                width: "100%",
-                opacity: savingProfileGreeting || loadingUser ? 0.7 : 1,
-                cursor:
-                  savingProfileGreeting || loadingUser
-                    ? "not-allowed"
-                    : "pointer",
-              }}
-            >
-              {savingProfileGreeting ? "Guardando..." : "Guardar Mi perfil"}
-            </button>
           </div>
 
           {!loadingGroups && myGroups.length === 0 && (
             <div
               style={{
-                fontSize: ui.fontMicro,
+                fontSize: ui.fontSmall,
                 color: "rgba(255,255,255,0.58)",
                 padding: "2px 2px 0",
               }}
             >
-              No tienes grupos como owner.
+              No tienes comunidades como owner.
             </div>
           )}
 
           {grouped.map((section) => (
             <div key={section.key} style={{ display: "grid", gap: 8 }}>
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: "rgba(255,255,255,0.38)",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.55,
-                  padding: "6px 2px 2px",
-                }}
-              >
-                {section.title}
-              </div>
+              <div style={styles.sectionTitle}>{section.title}</div>
 
               {section.items.map((g) => {
                 const d = groupDraft[g.id];
-                if (!d) return null;
+                const saved = savedGroupDraft[g.id];
 
+                if (!d || !saved) return null;
+
+                const isOpen = openCommunities[g.id] === true;
                 const saving = savingGroupId === g.id;
+                const isPublic = g.visibility === "public";
+                const joinRequests = joinRequestsByGroup[g.id] ?? [];
+                const greetings = greetingsByGroup[g.id] ?? [];
+                const groupName = g.name ?? "(Sin nombre)";
+                const avatarFallback = getInitials(groupName);
+                const saludoEnabled = d.saludoEnabled;
+                const showJoinSection = !isPublic && joinRequests.length > 0;
+                const showGreetingsSection = saludoEnabled && greetings.length > 0;
+                const greetingListOpen = greetingSectionOpen[g.id] === true;
+
+                const currentJoinCount = showJoinSection ? joinRequests.length : 0;
+                const currentGreetingCount = showGreetingsSection ? greetings.length : 0;
+                const seen = seenCountsByGroup[g.id] ?? { join: 0, greeting: 0 };
+
+                const hasNewJoin = currentJoinCount > seen.join;
+                const hasNewGreeting = currentGreetingCount > seen.greeting;
+                const hasAlert = !isOpen && (hasNewJoin || hasNewGreeting);
+
+                const subChanged =
+                  d.subscriptionEnabled !== saved.subscriptionEnabled ||
+                  d.subscriptionPrice !== saved.subscriptionPrice ||
+                  d.subscriptionCurrency !== saved.subscriptionCurrency;
+
+                const saludoChanged =
+                  d.saludoEnabled !== saved.saludoEnabled ||
+                  d.saludoPrice !== saved.saludoPrice ||
+                  d.saludoCurrency !== saved.saludoCurrency;
+
+                const subscriptionCalc =
+                  d.subscriptionEnabled && subChanged
+                    ? calcNetAmount(d.subscriptionPrice)
+                    : null;
+
+                const saludoCalc =
+                  d.saludoEnabled && saludoChanged
+                    ? calcNetAmount(d.saludoPrice)
+                    : null;
+
+                let alertBorder = "1px solid rgba(255,255,255,0.06)";
+                if (hasAlert && hasNewJoin && hasNewGreeting) {
+                  alertBorder = "1px solid transparent";
+                } else if (hasAlert && hasNewJoin) {
+                  alertBorder = "1px solid rgba(47,140,255,0.9)";
+                } else if (hasAlert && hasNewGreeting) {
+                  alertBorder = "1px solid rgba(34,197,94,0.9)";
+                }
 
                 return (
                   <div
                     key={g.id}
                     style={{
-                      padding: "10px 10px 12px",
-                      borderRadius: 12,
-                      background: "rgba(255,255,255,0.02)",
-                      border: "1px solid rgba(255,255,255,0.06)",
+                      ...styles.card,
+                      border: alertBorder,
+                      borderImage:
+                        hasAlert && hasNewJoin && hasNewGreeting
+                          ? "linear-gradient(90deg, rgba(47,140,255,0.95) 0%, rgba(47,140,255,0.95) 50%, rgba(34,197,94,0.95) 50%, rgba(34,197,94,0.95) 100%) 1"
+                          : undefined,
+                      boxShadow: hasAlert
+                        ? hasNewJoin && hasNewGreeting
+                          ? "0 0 0 1px rgba(255,255,255,0.03), 0 10px 28px rgba(0,0,0,0.18)"
+                          : hasNewJoin
+                          ? "0 0 0 1px rgba(47,140,255,0.14), 0 10px 28px rgba(0,0,0,0.18)"
+                          : "0 0 0 1px rgba(34,197,94,0.14), 0 10px 28px rgba(0,0,0,0.18)"
+                        : undefined,
+                      animation: hasAlert ? "ownerSidebarBuzz 4.8s infinite" : undefined,
                     }}
                   >
                     <div
@@ -704,107 +1384,670 @@ export default function OwnerSidebar() {
                         type="button"
                         onClick={() => router.push(`/groups/${g.id}`)}
                         style={{
-                          fontWeight: 600,
-                          fontSize: ui.fontBody,
                           background: "transparent",
                           border: "none",
                           padding: 0,
+                          color: "#fff",
                           textAlign: "left",
                           cursor: "pointer",
-                          color: "#fff",
-                          fontFamily: fontStack,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          minWidth: 0,
                           flex: 1,
                         }}
-                        title="Abrir grupo"
+                        title="Ir a la comunidad"
                       >
-                        {g.name ?? "(Sin nombre)"}
+                        {g.avatarUrl ? (
+                          <img
+                            src={g.avatarUrl}
+                            alt={groupName}
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: "50%",
+                              objectFit: "cover",
+                              border: "1px solid rgba(255,255,255,0.10)",
+                              flexShrink: 0,
+                            }}
+                          />
+                        ) : (
+                          <div
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: "50%",
+                              background: "rgba(255,255,255,0.06)",
+                              border: "1px solid rgba(255,255,255,0.10)",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              color: "#fff",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {avatarFallback}
+                          </div>
+                        )}
+
+                        <div
+                          style={{
+                            minWidth: 0,
+                            display: "grid",
+                            gap: 2,
+                            flex: 1,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: ui.fontBody,
+                              fontWeight: 600,
+                              color: "#fff",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {groupName}
+                          </span>
+                        </div>
                       </button>
 
-                      <Switch
-                        checked={d.enabled}
-                        disabled={saving}
-                        onChange={(next) =>
-                          setGroupDraft((prev) => ({
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextOpen = !openCommunities[g.id];
+
+                          setOpenCommunities((prev) => ({
                             ...prev,
-                            [g.id]: { ...prev[g.id], enabled: next },
-                          }))
+                            [g.id]: nextOpen,
+                          }));
+
+                          if (nextOpen) {
+                            setSeenCountsByGroup((prev) => ({
+                              ...prev,
+                              [g.id]: {
+                                join: currentJoinCount,
+                                greeting: currentGreetingCount,
+                              },
+                            }));
+                          }
+                        }}
+                        aria-label={
+                          isOpen
+                            ? "Cerrar opciones de comunidad"
+                            : "Abrir opciones de comunidad"
                         }
-                        label="Saludos activos en este grupo"
-                      />
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 999,
+                          border: "1px solid rgba(255,255,255,0.08)",
+                          background: "rgba(255,255,255,0.02)",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          cursor: "pointer",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Chevron open={isOpen} />
+                      </button>
                     </div>
 
-                    <div
-                      style={{
-                        marginTop: 8,
-                        fontSize: ui.fontMicro,
-                        color: "rgba(255,255,255,0.56)",
-                      }}
-                    >
-                      Saludos activos en este grupo
-                    </div>
-
-                    {d.enabled && (
+                    {isOpen && (
                       <div
                         style={{
                           marginTop: 10,
-                          display: "flex",
+                          paddingTop: 10,
+                          borderTop: "1px solid rgba(255,255,255,0.06)",
+                          display: "grid",
                           gap: 10,
-                          flexWrap: "wrap",
                         }}
                       >
-                        <input
-                          type="number"
-                          value={d.price}
-                          onChange={(e) =>
-                            setGroupDraft((prev) => ({
-                              ...prev,
-                              [g.id]: { ...prev[g.id], price: e.target.value },
-                            }))
-                          }
-                          placeholder="Precio"
-                          style={{
-                            ...styles.input,
-                            width: 110,
-                          }}
-                        />
+                        {showJoinSection && (
+                          <div style={styles.sectionPanel}>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 10,
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span
+                                  style={{
+                                    fontSize: ui.fontSmall,
+                                    color: "#fff",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Solicitudes de ingreso
+                                </span>
+                                <CountBadge count={joinRequests.length} tone="blue" />
+                              </div>
+                            </div>
 
-                        <select
-                          value={d.currency}
-                          onChange={(e) =>
-                            setGroupDraft((prev) => ({
-                              ...prev,
-                              [g.id]: {
-                                ...prev[g.id],
-                                currency: e.target.value as "MXN" | "USD",
-                              },
-                            }))
-                          }
+                            <div style={{ display: "grid", gap: 8 }}>
+                              {joinRequests.map((r) => {
+                                const approveKey = `${g.id}:${r.userId}:approve`;
+                                const rejectKey = `${g.id}:${r.userId}:reject`;
+                                const busy =
+                                  joinBusyKey === approveKey ||
+                                  joinBusyKey === rejectKey;
+                                const letter =
+                                  r.userId?.slice(0, 1)?.toUpperCase() ?? "U";
+
+                                return (
+                                  <div key={r.id} style={styles.miniItem}>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 10,
+                                        minWidth: 0,
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          width: 30,
+                                          height: 30,
+                                          borderRadius: 10,
+                                          background: "rgba(255,255,255,0.05)",
+                                          border: "1px solid rgba(255,255,255,0.12)",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          fontWeight: 700,
+                                          fontSize: 12,
+                                          color: "#fff",
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        {letter}
+                                      </div>
+
+                                      <div style={{ minWidth: 0 }}>
+                                        <div
+                                          style={{
+                                            fontSize: ui.fontSmall,
+                                            fontWeight: 600,
+                                            color: "#fff",
+                                            lineHeight: 1.3,
+                                            wordBreak: "break-word",
+                                          }}
+                                        >
+                                          Usuario: {shortUid(r.userId)}
+                                        </div>
+                                        <div style={styles.subtle}>
+                                          Solicitud pendiente
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        gap: 8,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleApproveJoin(g.id, r.userId)
+                                        }
+                                        disabled={busy}
+                                        style={{
+                                          ...styles.buttonPrimary,
+                                          opacity: busy ? 0.8 : 1,
+                                          cursor: busy ? "not-allowed" : "pointer",
+                                        }}
+                                      >
+                                        {busy ? "Procesando..." : "Aprobar"}
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleRejectJoin(g.id, r.userId)
+                                        }
+                                        disabled={busy}
+                                        style={{
+                                          ...styles.buttonSecondary,
+                                          padding: "8px 12px",
+                                          fontSize: ui.fontSmall,
+                                          opacity: busy ? 0.7 : 1,
+                                          cursor: busy ? "not-allowed" : "pointer",
+                                        }}
+                                      >
+                                        {busy ? "Procesando..." : "Rechazar"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {showGreetingsSection && (
+                          <div style={styles.sectionPanel}>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setGreetingSectionOpen((prev) => ({
+                                  ...prev,
+                                  [g.id]: !prev[g.id],
+                                }))
+                              }
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                padding: 0,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 10,
+                                width: "100%",
+                                color: "#fff",
+                                cursor: "pointer",
+                                textAlign: "left",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span
+                                  style={{
+                                    fontSize: ui.fontSmall,
+                                    color: "#fff",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Solicitudes de saludo
+                                </span>
+                                <CountBadge count={greetings.length} tone="green" />
+                              </div>
+
+                              <Chevron open={greetingListOpen} />
+                            </button>
+
+                            {greetingListOpen && (
+                              <div className="greeting-mini-scroll">
+                                <div style={{ display: "grid", gap: 8 }}>
+                                  {greetings.map((r) => {
+                                    const req = r.data;
+                                    const busy = greetingBusyId === r.id;
+
+                                    return (
+                                      <div key={r.id} style={styles.miniItem}>
+                                        <div style={{ display: "grid", gap: 4 }}>
+                                          <div
+                                            style={{
+                                              fontSize: ui.fontSmall,
+                                              fontWeight: 600,
+                                              color: "#fff",
+                                              lineHeight: 1.3,
+                                            }}
+                                          >
+                                            {typeLabel(req.type)} para{" "}
+                                            <span
+                                              style={{
+                                                color: "rgba(255,255,255,0.88)",
+                                              }}
+                                            >
+                                              {req.toName}
+                                            </span>
+                                          </div>
+
+                                          <div style={styles.subtle}>
+                                            Comprador: {shortUid(req.buyerId)}
+                                          </div>
+
+                                          {req.createdAt ? (
+                                            <div style={styles.subtle}>
+                                              {fmtDate(req.createdAt)}
+                                            </div>
+                                          ) : null}
+                                        </div>
+
+                                        {req.instructions ? (
+                                          <div
+                                            style={{
+                                              borderRadius: 10,
+                                              border:
+                                                "1px solid rgba(255,255,255,0.10)",
+                                              background: "rgba(0,0,0,0.18)",
+                                              padding: "8px 9px",
+                                              whiteSpace: "pre-wrap",
+                                              fontSize: ui.fontSmall,
+                                              lineHeight: 1.4,
+                                              color: "rgba(255,255,255,0.92)",
+                                            }}
+                                          >
+                                            {req.instructions}
+                                          </div>
+                                        ) : null}
+
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            gap: 8,
+                                            flexWrap: "wrap",
+                                          }}
+                                        >
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleGreetingAction(r.id, "accept")
+                                            }
+                                            disabled={busy}
+                                            style={{
+                                              ...styles.buttonPrimary,
+                                              opacity: busy ? 0.8 : 1,
+                                              cursor: busy
+                                                ? "not-allowed"
+                                                : "pointer",
+                                            }}
+                                          >
+                                            {busy ? "Procesando..." : "Aceptar"}
+                                          </button>
+
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleGreetingAction(r.id, "reject")
+                                            }
+                                            disabled={busy}
+                                            style={{
+                                              ...styles.buttonSecondary,
+                                              padding: "8px 12px",
+                                              fontSize: ui.fontSmall,
+                                              opacity: busy ? 0.7 : 1,
+                                              cursor: busy
+                                                ? "not-allowed"
+                                                : "pointer",
+                                            }}
+                                          >
+                                            {busy ? "Procesando..." : "Rechazar"}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {!isPublic && (
+                          <div style={styles.sectionPanel}>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 10,
+                              }}
+                            >
+                              <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
+                                <span
+                                  style={{
+                                    fontSize: ui.fontSmall,
+                                    color: "#fff",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Suscripción mensual
+                                </span>
+                              </div>
+
+                              <Switch
+                                checked={d.subscriptionEnabled}
+                                disabled={saving}
+                                onChange={(next) =>
+                                  setGroupDraft((prev) => ({
+                                    ...prev,
+                                    [g.id]: {
+                                      ...prev[g.id],
+                                      subscriptionEnabled: next,
+                                      subscriptionPrice: next
+                                        ? prev[g.id].subscriptionPrice
+                                        : "",
+                                    },
+                                  }))
+                                }
+                                label="Activar suscripción mensual"
+                              />
+                            </div>
+
+                            {d.subscriptionEnabled && (
+                              <>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: 8,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <input
+                                    type="number"
+                                    value={d.subscriptionPrice}
+                                    onChange={(e) =>
+                                      setGroupDraft((prev) => ({
+                                        ...prev,
+                                        [g.id]: {
+                                          ...prev[g.id],
+                                          subscriptionPrice: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                    placeholder="Precio mensual"
+                                    style={{
+                                      ...styles.input,
+                                      width: 115,
+                                      fontSize: ui.fontSmall,
+                                    }}
+                                  />
+
+                                  <select
+                                    value={d.subscriptionCurrency}
+                                    onChange={(e) =>
+                                      setGroupDraft((prev) => ({
+                                        ...prev,
+                                        [g.id]: {
+                                          ...prev[g.id],
+                                          subscriptionCurrency: e.target
+                                            .value as Currency,
+                                        },
+                                      }))
+                                    }
+                                    style={{
+                                      ...styles.input,
+                                      flex: 1,
+                                      minWidth: 82,
+                                      fontSize: ui.fontSmall,
+                                    }}
+                                  >
+                                    <option value="MXN">MXN</option>
+                                    <option value="USD">USD</option>
+                                  </select>
+                                </div>
+
+                                {subscriptionCalc && (
+                                  <div
+                                    style={{
+                                      fontSize: 10,
+                                      lineHeight: 1.35,
+                                      color: "rgba(255,255,255,0.42)",
+                                      paddingTop: 1,
+                                    }}
+                                  >
+                                    Por una suscripción de{" "}
+                                    {formatMoney(
+                                      subscriptionCalc.gross,
+                                      d.subscriptionCurrency
+                                    )}
+                                    , tú cobras{" "}
+                                    {formatMoney(
+                                      subscriptionCalc.net,
+                                      d.subscriptionCurrency
+                                    )}{" "}
+                                    y se descontará el 23%.
+                                  </div>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
+
+                        <div style={styles.sectionPanel}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 10,
+                            }}
+                          >
+                            <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
+                              <span
+                                style={{
+                                  fontSize: ui.fontSmall,
+                                  color: "#fff",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                Saludos en comunidad
+                              </span>
+                            </div>
+
+                            <Switch
+                              checked={d.saludoEnabled}
+                              disabled={saving}
+                              onChange={(next) =>
+                                setGroupDraft((prev) => ({
+                                  ...prev,
+                                  [g.id]: {
+                                    ...prev[g.id],
+                                    saludoEnabled: next,
+                                    saludoPrice: next ? prev[g.id].saludoPrice : "",
+                                  },
+                                }))
+                              }
+                              label="Saludos activos en esta comunidad"
+                            />
+                          </div>
+
+                          {d.saludoEnabled && (
+                            <>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: 8,
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <input
+                                  type="number"
+                                  value={d.saludoPrice}
+                                  onChange={(e) =>
+                                    setGroupDraft((prev) => ({
+                                      ...prev,
+                                      [g.id]: {
+                                        ...prev[g.id],
+                                        saludoPrice: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  placeholder="Precio"
+                                  style={{
+                                    ...styles.input,
+                                    width: 100,
+                                    fontSize: ui.fontSmall,
+                                  }}
+                                />
+
+                                <select
+                                  value={d.saludoCurrency}
+                                  onChange={(e) =>
+                                    setGroupDraft((prev) => ({
+                                      ...prev,
+                                      [g.id]: {
+                                        ...prev[g.id],
+                                        saludoCurrency: e.target.value as Currency,
+                                      },
+                                    }))
+                                  }
+                                  style={{
+                                    ...styles.input,
+                                    flex: 1,
+                                    minWidth: 82,
+                                    fontSize: ui.fontSmall,
+                                  }}
+                                >
+                                  <option value="MXN">MXN</option>
+                                  <option value="USD">USD</option>
+                                </select>
+                              </div>
+
+                              {saludoCalc && (
+                                <div
+                                  style={{
+                                    fontSize: 10,
+                                    lineHeight: 1.35,
+                                    color: "rgba(255,255,255,0.42)",
+                                    paddingTop: 1,
+                                  }}
+                                >
+                                  Por un saludo de{" "}
+                                  {formatMoney(
+                                    saludoCalc.gross,
+                                    d.saludoCurrency
+                                  )}
+                                  , tú cobras{" "}
+                                  {formatMoney(
+                                    saludoCalc.net,
+                                    d.saludoCurrency
+                                  )}{" "}
+                                  y se descontará el 23%.
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => saveGroupSettings(g.id)}
+                          disabled={saving}
                           style={{
-                            ...styles.input,
-                            flex: 1,
-                            minWidth: 90,
+                            ...styles.buttonSecondary,
+                            width: "100%",
+                            opacity: saving ? 0.7 : 1,
+                            cursor: saving ? "not-allowed" : "pointer",
                           }}
                         >
-                          <option value="MXN">MXN</option>
-                          <option value="USD">USD</option>
-                        </select>
+                          {saving ? "Guardando..." : "Guardar cambios"}
+                        </button>
+
+                        {isPublic && (
+                          <div
+                            style={{
+                              fontSize: 10,
+                              lineHeight: 1.35,
+                              color: "rgba(255,255,255,0.36)",
+                              padding: "0 2px 2px",
+                            }}
+                          >
+                            Para activar suscripción mensual tu grupo debe ser privado u oculto.
+                          </div>
+                        )}
                       </div>
                     )}
-
-                    <button
-                      type="button"
-                      onClick={() => saveGroupSaludo(g.id)}
-                      disabled={saving}
-                      style={{
-                        ...styles.buttonSecondary,
-                        marginTop: 10,
-                        opacity: saving ? 0.7 : 1,
-                        width: "100%",
-                        cursor: saving ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {saving ? "Guardando..." : "Guardar cambios"}
-                    </button>
                   </div>
                 );
               })}
@@ -814,12 +2057,12 @@ export default function OwnerSidebar() {
           {loadingGroups && (
             <div
               style={{
-                fontSize: ui.fontMicro,
+                fontSize: ui.fontSmall,
                 color: "rgba(255,255,255,0.58)",
                 padding: "2px 2px 0",
               }}
             >
-              Cargando grupos...
+              Cargando comunidades...
             </div>
           )}
         </div>

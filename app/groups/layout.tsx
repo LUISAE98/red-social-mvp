@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
-import GreetingRequestsWidget from "@/app/groups/[groupId]/components/GreetingRequestsWidget";
 import OwnerSidebar from "@/app/components/OwnerSidebar";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 
@@ -32,63 +31,83 @@ export default function GroupsLayout({
   return (
     <>
       <style jsx>{`
-        .groupsSidebarDesktop {
-          display: none;
+        .layout {
+          min-height: 100vh;
+          background: #000;
+          color: #fff;
+          display: flex;
+          flex-direction: column;
         }
 
-        @media (min-width: 900px) {
-          .groupsSidebarDesktop {
-            display: block;
+        .contentArea {
+          display: grid;
+          grid-template-columns: 300px 1fr;
+          gap: 24px;
+          width: min(1280px, calc(100% - 48px));
+          margin: 0 auto;
+          flex: 1;
+          padding-top: 24px;
+        }
+
+        .sidebarCol {
+          position: relative;
+        }
+
+        .mainCol {
+          min-width: 0;
+        }
+
+        @media (max-width: 1100px) {
+          .contentArea {
+            grid-template-columns: 260px 1fr;
+            gap: 18px;
+          }
+        }
+
+        @media (max-width: 900px) {
+          .contentArea {
+            grid-template-columns: 1fr;
+          }
+
+          .sidebarCol {
+            display: none;
           }
         }
       `}</style>
 
-      <div
-        style={{
-          position: "relative",
-          minHeight: "100vh",
-          background: "#000",
-          color: "#fff",
-        }}
-      >
+      <div className="layout">
         <header
           style={{
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            padding: "12px 24px",
+            borderBottom: "1px solid rgba(255,255,255,0.12)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
             background: "#000",
             position: "relative",
             zIndex: 20,
           }}
         >
-          <div
-            style={{
-              width: "100%",
-              padding: "12px 18px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <strong style={{ color: "#fff" }}>Red Social MVP</strong>
-            <LogoutButton />
-          </div>
+          <strong>Red Social MVP</strong>
+          <LogoutButton />
         </header>
 
-        <div className="groupsSidebarDesktop">
-          <OwnerSidebar />
+        <div className="contentArea">
+          <div className="sidebarCol">
+            <OwnerSidebar />
+          </div>
+
+          <main
+            className="mainCol"
+            style={{
+              position: "relative",
+              zIndex: 1,
+              paddingBottom: "90px",
+            }}
+          >
+            {children}
+          </main>
         </div>
-
-        <main
-          style={{
-            position: "relative",
-            zIndex: 1,
-            paddingBottom: "90px",
-          }}
-        >
-          {children}
-        </main>
-
-        <GreetingRequestsWidget />
-
         <MobileBottomNav />
       </div>
     </>

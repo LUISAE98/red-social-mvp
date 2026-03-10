@@ -122,10 +122,10 @@ async function getCroppedBlob(
 }
 
 function visibilityLabel(v: string) {
-  if (v === "public") return "Grupo público";
-  if (v === "private") return "Grupo privado";
-  if (v === "hidden") return "Grupo oculto";
-  return v ? `Grupo ${v}` : "";
+  if (v === "public") return "Comunidad pública";
+  if (v === "private") return "Comunidad privada";
+  if (v === "hidden") return "Comunidad oculta";
+  return v ? `Comunidad ${v}` : "";
 }
 
 export default function GroupPage() {
@@ -351,7 +351,7 @@ export default function GroupPage() {
       (gsnap) => {
         if (!gsnap.exists()) {
           setGroup(null);
-          setError("Grupo no encontrado.");
+          setError("Comunidad no encontrada.");
           setLoading(false);
           return;
         }
@@ -456,7 +456,7 @@ export default function GroupPage() {
     if (!user) return;
 
     if (isOwner) {
-      setError("El owner no puede salir de su propio grupo.");
+      setError("El owner no puede salir de su propia comunidad.");
       return;
     }
 
@@ -494,7 +494,7 @@ export default function GroupPage() {
     if (!user) return;
 
     if (isOwner) {
-      setGreetError("No puedes solicitar/comprar saludos en tu propio grupo.");
+      setGreetError("No puedes solicitar/comprar saludos en tu propia comunidad.");
       return;
     }
 
@@ -620,7 +620,7 @@ export default function GroupPage() {
       <main style={pageWrap}>
         <div style={container}>
           <div style={{ ...cardStyle, padding: 18 }}>
-            <div style={textStyle}>Cargando grupo...</div>
+            <div style={textStyle}>Cargando comunidad...</div>
           </div>
         </div>
       </main>
@@ -726,7 +726,7 @@ export default function GroupPage() {
                 <div style={{ ...microText, color: "rgba(255,255,255,0.82)" }}>
                   {approved && "✅ Aprobado. Entrando…"}
                   {pending && "✅ Solicitud enviada. Está pendiente de revisión."}
-                  {!pending && !approved && !rejected && "Este grupo es privado."}
+                  {!pending && !approved && !rejected && "Esta comunidad es privada."}
                   {rejected && "❌ Tu solicitud fue rechazada."}
                 </div>
 
@@ -917,8 +917,8 @@ export default function GroupPage() {
                       cursor: !isOwner || uploading ? "default" : "pointer",
                       pointerEvents: isOwner ? "auto" : "none",
                     }}
-                    aria-label="Cambiar avatar del grupo"
-                    title={isOwner ? "Cambiar avatar del grupo" : undefined}
+                    aria-label="Cambiar avatar de la comunidad"
+                    title={isOwner ? "Cambiar avatar de la comunidad" : undefined}
                   >
                     {group.avatarUrl ? (
                       <img
@@ -974,8 +974,8 @@ export default function GroupPage() {
                         pointerEvents: "auto",
                         fontFamily: fontStack,
                       }}
-                      title="Cambiar avatar del grupo"
-                      aria-label="Cambiar avatar del grupo"
+                      title="Cambiar avatar de la comunidad"
+                      aria-label="Cambiar avatar de la comunidad"
                     >
                       {uploading && cropMode === "avatar" ? "..." : "✎"}
                     </button>
@@ -1344,8 +1344,8 @@ export default function GroupPage() {
             >
               <div style={subtitleStyle}>
                 {cropMode === "avatar"
-                  ? "Recortar avatar del grupo"
-                  : "Recortar portada del grupo"}
+                  ? "Recortar avatar de la comunidad"
+                  : "Recortar portada de la comunidad"}
               </div>
 
               <button

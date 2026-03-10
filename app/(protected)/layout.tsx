@@ -5,8 +5,6 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "../providers";
 import { sendEmailVerification } from "firebase/auth";
-
-import GreetingRequestsWidget from "@/app/groups/[groupId]/components/GreetingRequestsWidget";
 import OwnerSidebar from "@/app/components/OwnerSidebar";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 
@@ -88,25 +86,51 @@ export default function ProtectedLayout({
   return (
     <>
       <style jsx>{`
-        .sidebarDesktop {
-          display: none;
+        .layout {
+          min-height: 100vh;
+          background: #000;
+          color: #fff;
+          display: flex;
+          flex-direction: column;
         }
 
-        @media (min-width: 900px) {
-          .sidebarDesktop {
-            display: block;
+        .contentArea {
+          display: grid;
+          grid-template-columns: 300px 1fr;
+          gap: 24px;
+          width: min(1280px, calc(100% - 48px));
+          margin: 0 auto;
+          flex: 1;
+          padding-top: 24px;
+        }
+
+        .sidebarCol {
+          position: relative;
+        }
+
+        .mainCol {
+          min-width: 0;
+        }
+
+        @media (max-width: 1100px) {
+          .contentArea {
+            grid-template-columns: 260px 1fr;
+            gap: 18px;
+          }
+        }
+
+        @media (max-width: 900px) {
+          .contentArea {
+            grid-template-columns: 1fr;
+          }
+
+          .sidebarCol {
+            display: none;
           }
         }
       `}</style>
 
-      <div
-        style={{
-          position: "relative",
-          minHeight: "100vh",
-          background: "#000",
-          color: "#fff",
-        }}
-      >
+      <div className="layout">
         <header
           style={{
             padding: "12px 24px",
@@ -115,7 +139,6 @@ export default function ProtectedLayout({
             justifyContent: "space-between",
             alignItems: "center",
             background: "#000",
-            color: "#fff",
             position: "relative",
             zIndex: 20,
           }}
@@ -162,23 +185,13 @@ export default function ProtectedLayout({
           </div>
         )}
 
-        {/* Sidebar SOLO en desktop */}
-        <div className="sidebarDesktop">
-          <OwnerSidebar />
+        <div className="contentArea">
+          <div className="sidebarCol">
+            <OwnerSidebar />
+          </div>
+
+          <main className="mainCol">{children}</main>
         </div>
-
-        <main
-          style={{
-            padding: "24px 24px 90px",
-            position: "relative",
-            zIndex: 1,
-          }}
-        >
-          {children}
-        </main>
-
-        <GreetingRequestsWidget />
-
         <MobileBottomNav />
       </div>
     </>

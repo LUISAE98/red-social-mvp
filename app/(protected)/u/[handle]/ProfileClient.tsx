@@ -157,6 +157,9 @@ export default function ProfileClient() {
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
+  const [avatarRenderUrl, setAvatarRenderUrl] = useState<string | null>(null);
+  const [coverRenderUrl, setCoverRenderUrl] = useState<string | null>(null);
+
   const isOwner = !!viewer && !!userDoc && viewer.uid === userDoc.uid;
 
   const [cropOpen, setCropOpen] = useState(false);
@@ -185,19 +188,36 @@ export default function ProfileClient() {
     avatarOffsetTop: "clamp(-56px, -9vw, -78px)",
     contentTopPadding: "clamp(78px, 14vw, 170px)",
     cardRadius: 16,
+    panelRadius: 12,
     buttonRadius: 10,
     buttonPadding: "10px 14px",
-    borderSoft: "1px solid rgba(255,255,255,0.14)",
+    inputPadding: "10px 12px",
+    modalMaxWidth: 680,
+    title: 18,
+    subtitle: 16,
+    body: 14,
+    micro: 12,
+    label: 12,
     shadow: "0 18px 48px rgba(0,0,0,0.55)",
+    borderSoft: "1px solid rgba(255,255,255,0.18)",
+    borderFaint: "1px solid rgba(255,255,255,0.12)",
+    cardBg: "rgba(12,12,12,0.92)",
+    panelBg: "rgba(255,255,255,0.03)",
   };
 
   const styles = {
     card: {
       borderRadius: ui.cardRadius,
       border: ui.borderSoft,
-      background: "rgba(12,12,12,0.92)",
+      background: ui.cardBg,
       boxShadow: ui.shadow,
       backdropFilter: "blur(10px)",
+    } as React.CSSProperties,
+    panel: {
+      borderRadius: ui.panelRadius,
+      border: ui.borderFaint,
+      background: ui.panelBg,
+      padding: 12,
     } as React.CSSProperties,
     buttonPrimary: {
       padding: ui.buttonPadding,
@@ -207,10 +227,9 @@ export default function ProfileClient() {
       color: "#000",
       cursor: "pointer",
       fontWeight: 600,
-      fontSize: 14,
+      fontSize: ui.body,
       fontFamily: fontStack,
       lineHeight: 1.2,
-      minHeight: 42,
     } as React.CSSProperties,
     buttonSecondary: {
       padding: ui.buttonPadding,
@@ -220,15 +239,30 @@ export default function ProfileClient() {
       color: "#fff",
       cursor: "pointer",
       fontWeight: 600,
-      fontSize: 14,
+      fontSize: ui.body,
       fontFamily: fontStack,
       lineHeight: 1.2,
-      minHeight: 42,
+      backdropFilter: "blur(8px)",
+    } as React.CSSProperties,
+    tinyGhostButton: {
+      padding: "7px 10px",
+      borderRadius: ui.buttonRadius,
+      border: "1px solid rgba(255,255,255,0.16)",
+      background: "rgba(12,12,12,0.88)",
+      color: "#fff",
+      fontWeight: 600,
+      fontSize: ui.micro,
+      lineHeight: 1.2,
+      cursor: "pointer",
+      fontFamily: fontStack,
+      backdropFilter: "blur(10px)",
+      boxShadow: ui.shadow,
     } as React.CSSProperties,
     label: {
-      fontSize: 12,
+      fontSize: ui.label,
       fontWeight: 500,
-      color: "rgba(255,255,255,0.90)",
+      lineHeight: 1.3,
+      color: "#fff",
     } as React.CSSProperties,
     message: {
       padding: "10px 12px",
@@ -236,8 +270,28 @@ export default function ProfileClient() {
       border: "1px solid rgba(255,255,255,0.14)",
       background: "rgba(255,255,255,0.05)",
       color: "#fff",
-      fontSize: 12,
+      fontSize: ui.micro,
       lineHeight: 1.45,
+    } as React.CSSProperties,
+    title: {
+      fontSize: ui.title,
+      fontWeight: 600,
+      lineHeight: 1.16,
+      color: "#fff",
+      letterSpacing: 0,
+    } as React.CSSProperties,
+    subtitle: {
+      fontSize: ui.subtitle,
+      fontWeight: 600,
+      lineHeight: 1.2,
+      color: "#fff",
+      letterSpacing: 0,
+    } as React.CSSProperties,
+    microText: {
+      fontSize: ui.micro,
+      fontWeight: 400,
+      lineHeight: 1.4,
+      color: "rgba(255,255,255,0.70)",
     } as React.CSSProperties,
   };
 
@@ -249,7 +303,7 @@ export default function ProfileClient() {
     return () => unsub();
   }, []);
 
-  async function loadProfile() {
+  const loadProfile = useCallback(async () => {
     setLoading(true);
     setMsg(null);
 
@@ -285,21 +339,27 @@ export default function ProfileClient() {
         return;
       }
 
-      const u = usnap.data() as UserDoc;
-      setUserDoc(u);
+      setUserDoc({
+        uid,
+        ...(usnap.data() as Omit<UserDoc, "uid">),
+      });
     } catch (e: any) {
       setMsg(e?.message ?? "Error cargando perfil");
       setUserDoc(null);
     } finally {
       setLoading(false);
     }
-  }
+  }, [handle]);
 
   useEffect(() => {
     if (!handle) return;
     loadProfile();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handle]);
+  }, [handle, loadProfile]);
+
+  useEffect(() => {
+    setAvatarRenderUrl(userDoc?.photoURL ?? null);
+    setCoverRenderUrl(userDoc?.coverUrl ?? null);
+  }, [userDoc?.photoURL, userDoc?.coverUrl]);
 
   const openCropWithFile = useCallback(
     async (mode: CropMode, file: File) => {
@@ -363,20 +423,30 @@ export default function ProfileClient() {
       const fileRef = ref(storage, path);
       await uploadBytes(fileRef, blob, { contentType: "image/jpeg" });
 
-      const url = await getDownloadURL(fileRef);
+      const rawUrl = await getDownloadURL(fileRef);
+      const freshUrl = `${rawUrl}${rawUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
+
       const uref = doc(db, "users", uid);
 
       if (mode === "avatar") {
-        await updateDoc(uref, { photoURL: url });
-        setUserDoc((prev) => (prev ? { ...prev, photoURL: url } : prev));
+        setAvatarRenderUrl(freshUrl);
+        setUserDoc((prev) => (prev ? { ...prev, photoURL: freshUrl } : prev));
+        await updateDoc(uref, { photoURL: freshUrl });
         setMsg("✅ Foto de perfil actualizada.");
       } else {
-        await updateDoc(uref, { coverUrl: url });
-        setUserDoc((prev) => (prev ? { ...prev, coverUrl: url } : prev));
+        setCoverRenderUrl(freshUrl);
+        setUserDoc((prev) => (prev ? { ...prev, coverUrl: freshUrl } : prev));
+        await updateDoc(uref, { coverUrl: freshUrl });
         setMsg("✅ Foto de portada actualizada.");
       }
 
       setCropOpen(false);
+      setCropImageSrc("");
+      setCroppedAreaPixels(null);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+
+      await loadProfile();
     } catch (e: any) {
       setMsg(
         e?.code === "permission-denied"
@@ -440,8 +510,9 @@ export default function ProfileClient() {
   <circle cx="1350" cy="250" r="210" fill="#101010"/>
 </svg>`.trim();
 
-  const coverBg =
-    userDoc.coverUrl || `data:image/svg+xml;base64,${btoa(coverSvg)}`;
+  const fallbackCoverBg = `data:image/svg+xml;base64,${btoa(coverSvg)}`;
+  const coverSrc = coverRenderUrl || userDoc.coverUrl || fallbackCoverBg;
+  const avatarSrc = avatarRenderUrl || userDoc.photoURL || "";
 
   return (
     <>
@@ -503,37 +574,9 @@ export default function ProfileClient() {
             word-break: break-word;
           }
 
-          .crop-actions {
-            margin-top: 12px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-          }
-
-          .crop-buttons {
-            margin-left: auto;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-          }
-
           @media (max-width: 640px) {
             .profile-stats {
               grid-template-columns: 1fr;
-            }
-
-            .crop-actions {
-              align-items: stretch;
-            }
-
-            .crop-buttons {
-              margin-left: 0;
-              width: 100%;
-            }
-
-            .crop-buttons :global(button) {
-              flex: 1 1 0;
             }
           }
         `}</style>
@@ -553,14 +596,14 @@ export default function ProfileClient() {
               }}
             >
               <img
-                src={coverBg}
+                key={coverSrc}
+                src={coverSrc}
                 alt="cover"
                 style={{
                   width: "100%",
                   height: "100%",
                   objectFit: "cover",
-                  filter: "contrast(1.05) saturate(1.05)",
-                  opacity: 0.95,
+                  opacity: 0.96,
                 }}
               />
 
@@ -569,7 +612,7 @@ export default function ProfileClient() {
                   position: "absolute",
                   inset: 0,
                   background:
-                    "linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.48) 58%, rgba(0,0,0,0.88) 100%)",
+                    "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.52) 58%, rgba(0,0,0,0.88) 100%)",
                 }}
               />
 
@@ -579,25 +622,19 @@ export default function ProfileClient() {
                   disabled={uploading}
                   type="button"
                   style={{
+                    ...styles.tinyGhostButton,
                     position: "absolute",
                     right: 12,
                     top: 12,
-                    ...styles.buttonSecondary,
-                    background: uploading
-                      ? "rgba(255,255,255,0.12)"
-                      : "rgba(12,12,12,0.72)",
+                    opacity: uploading ? 0.7 : 1,
                     cursor: uploading ? "not-allowed" : "pointer",
                     zIndex: 3,
-                    backdropFilter: "blur(8px)",
-                    padding: "8px 12px",
-                    minHeight: 38,
-                    fontSize: 13,
                   }}
-                  title="Cambiar portada"
+                  title="Elegir portada"
                 >
                   {uploading && cropMode === "cover"
                     ? "Subiendo..."
-                    : "Cambiar portada"}
+                    : "Elegir portada"}
                 </button>
               )}
             </div>
@@ -609,7 +646,7 @@ export default function ProfileClient() {
                   left: "50%",
                   top: ui.avatarOffsetTop,
                   transform: "translateX(-50%)",
-                  zIndex: 50,
+                  zIndex: 20,
                 }}
               >
                 <div style={{ position: "relative" }}>
@@ -626,7 +663,7 @@ export default function ProfileClient() {
                       height: ui.avatarSize,
                       borderRadius: "50%",
                       overflow: "hidden",
-                      border: "4px solid rgba(0,0,0,0.94)",
+                      border: "4px solid rgba(0,0,0,0.96)",
                       boxShadow: ui.shadow,
                       display: "grid",
                       placeItems: "center",
@@ -640,9 +677,10 @@ export default function ProfileClient() {
                     aria-label="Cambiar foto de perfil"
                     title={isOwner ? "Cambiar foto de perfil" : undefined}
                   >
-                    {userDoc.photoURL ? (
+                    {avatarSrc ? (
                       <img
-                        src={userDoc.photoURL}
+                        key={avatarSrc}
+                        src={avatarSrc}
                         alt="avatar"
                         style={{
                           width: "100%",
@@ -655,7 +693,8 @@ export default function ProfileClient() {
                         style={{
                           fontSize: "clamp(24px, 5vw, 34px)",
                           fontWeight: 600,
-                          color: "rgba(255,255,255,0.9)",
+                          color: "rgba(255,255,255,0.88)",
+                          fontFamily: fontStack,
                         }}
                       >
                         {initials(fullName)}
@@ -674,18 +713,16 @@ export default function ProfileClient() {
                       disabled={uploading}
                       style={{
                         position: "absolute",
-                        right: 8,
-                        bottom: 8,
-                        width: "clamp(38px, 8vw, 46px)",
-                        height: "clamp(38px, 8vw, 46px)",
+                        right: 10,
+                        bottom: 10,
+                        width: 34,
+                        height: 34,
                         borderRadius: 999,
-                        border: "1px solid rgba(255,255,255,0.18)",
-                        background: uploading
-                          ? "rgba(255,255,255,0.14)"
-                          : "rgba(12,12,12,0.9)",
+                        border: "1px solid rgba(255,255,255,0.16)",
+                        background: "rgba(12,12,12,0.92)",
                         color: "#fff",
                         cursor: uploading ? "not-allowed" : "pointer",
-                        fontSize: 16,
+                        fontSize: 13,
                         fontWeight: 600,
                         display: "grid",
                         placeItems: "center",
@@ -712,24 +749,14 @@ export default function ProfileClient() {
                 }}
               >
                 <div className="profile-meta">
-                  <div
-                    style={{
-                      fontSize: "clamp(20px, 3vw, 28px)",
-                      fontWeight: 700,
-                      lineHeight: 1.1,
-                      letterSpacing: "-0.02em",
-                      maxWidth: 620,
-                    }}
-                  >
-                    {fullName}
-                  </div>
+                  <h1 style={{ ...styles.title, margin: 0 }}>{fullName}</h1>
 
                   <div
                     style={{
                       marginTop: 8,
                       color: "rgba(255,255,255,0.74)",
                       fontWeight: 500,
-                      fontSize: "clamp(14px, 2vw, 16px)",
+                      fontSize: 15,
                     }}
                   >
                     @{userDoc.handle}
@@ -836,9 +863,14 @@ export default function ProfileClient() {
         >
           <div
             style={{
-              width: "min(680px, 92vw)",
-              ...styles.card,
+              width: `min(${ui.modalMaxWidth}px, 92vw)`,
+              background: ui.cardBg,
+              border: ui.borderSoft,
+              borderRadius: 14,
               overflow: "hidden",
+              boxShadow: ui.shadow,
+              color: "#fff",
+              backdropFilter: "blur(10px)",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -850,10 +882,10 @@ export default function ProfileClient() {
                 justifyContent: "space-between",
                 gap: 12,
                 borderBottom: "1px solid rgba(255,255,255,0.10)",
-                flexWrap: "wrap",
+                background: "rgba(255,255,255,0.06)",
               }}
             >
-              <div style={{ fontWeight: 600, color: "#fff", fontSize: 16 }}>
+              <div style={styles.subtitle}>
                 {cropMode === "avatar"
                   ? "Recortar foto de perfil"
                   : "Recortar portada"}
@@ -864,8 +896,8 @@ export default function ProfileClient() {
                 onClick={() => !uploading && setCropOpen(false)}
                 style={{
                   ...styles.buttonSecondary,
-                  cursor: uploading ? "not-allowed" : "pointer",
                   opacity: uploading ? 0.6 : 1,
+                  cursor: uploading ? "not-allowed" : "pointer",
                 }}
               >
                 Cerrar
@@ -897,8 +929,16 @@ export default function ProfileClient() {
                 />
               </div>
 
-              <div className="crop-actions">
-                <label style={{ ...styles.label }}>Zoom</label>
+              <div
+                style={{
+                  marginTop: 12,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <label style={styles.label}>Zoom</label>
 
                 <input
                   type="range"
@@ -907,17 +947,23 @@ export default function ProfileClient() {
                   step={0.05}
                   value={zoom}
                   onChange={(e) => setZoom(Number(e.target.value))}
-                  style={{ width: 200, maxWidth: "100%" }}
+                  style={{ width: 200 }}
                 />
 
-                <div className="crop-buttons">
+                <div
+                  style={{
+                    marginLeft: "auto",
+                    display: "flex",
+                    gap: 10,
+                  }}
+                >
                   <button
                     type="button"
                     onClick={() => !uploading && setCropOpen(false)}
                     style={{
                       ...styles.buttonSecondary,
-                      cursor: uploading ? "not-allowed" : "pointer",
                       opacity: uploading ? 0.6 : 1,
+                      cursor: uploading ? "not-allowed" : "pointer",
                     }}
                   >
                     Cancelar
@@ -929,8 +975,9 @@ export default function ProfileClient() {
                     disabled={uploading}
                     style={{
                       ...styles.buttonPrimary,
-                      background: uploading ? "rgba(255,255,255,0.15)" : "#ffffff",
+                      background: uploading ? "rgba(255,255,255,0.15)" : "#fff",
                       color: uploading ? "#fff" : "#000",
+                      opacity: uploading ? 0.8 : 1,
                       cursor: uploading ? "not-allowed" : "pointer",
                     }}
                   >
@@ -939,16 +986,9 @@ export default function ProfileClient() {
                 </div>
               </div>
 
-              <div
-                style={{
-                  marginTop: 10,
-                  fontSize: 12,
-                  color: "rgba(255,255,255,0.55)",
-                  lineHeight: 1.45,
-                }}
-              >
+              <div style={{ marginTop: 10, ...styles.microText }}>
                 Tip: mueve la imagen para encuadrar.{" "}
-                {cropMode === "avatar" ? "Avatar 1:1" : "Portada 16:9"}.
+                {cropMode === "avatar" ? "Avatar 1:1." : "Portada 16:9."}
               </div>
             </div>
           </div>
