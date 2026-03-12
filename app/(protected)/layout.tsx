@@ -9,6 +9,7 @@ import OwnerSidebar from "@/app/components/OwnerSidebar";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 
 const RESEND_COOLDOWN_SECONDS = 30;
+const SHOW_EMAIL_VERIFICATION_BANNER = false;
 
 export default function ProtectedLayout({
   children,
@@ -94,71 +95,104 @@ export default function ProtectedLayout({
           flex-direction: column;
         }
 
+        .header {
+          padding: 12px 24px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          background: #000;
+          position: relative;
+          z-index: 20;
+        }
+
+        .brand {
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          line-height: 1.1;
+        }
+
         .contentArea {
           display: grid;
-          grid-template-columns: 300px 1fr;
+          grid-template-columns: 300px minmax(0, 1fr);
           gap: 24px;
-          width: min(1280px, calc(100% - 48px));
+          width: min(1280px, calc(100% - 40px));
           margin: 0 auto;
           flex: 1;
           padding-top: 24px;
+          padding-bottom: 0;
+          box-sizing: border-box;
         }
 
         .sidebarCol {
           position: relative;
+          min-width: 0;
         }
 
         .mainCol {
           min-width: 0;
+          width: 100%;
+        }
+
+        .verifyBanner {
+          background: #fff3cd;
+          border-bottom: 1px solid #ffeeba;
+          padding: 10px 24px;
+          font-size: 14px;
+          color: #000;
+          position: relative;
+          z-index: 20;
         }
 
         @media (max-width: 1100px) {
           .contentArea {
-            grid-template-columns: 260px 1fr;
+            grid-template-columns: 260px minmax(0, 1fr);
             gap: 18px;
+            width: min(1280px, calc(100% - 28px));
           }
         }
 
         @media (max-width: 900px) {
+          .header {
+            padding: 12px 14px;
+          }
+
+          .brand {
+            font-size: 18px;
+          }
+
           .contentArea {
             grid-template-columns: 1fr;
+            width: 100%;
+            gap: 0;
+            padding-top: 10px;
           }
 
           .sidebarCol {
             display: none;
           }
+
+          .mainCol {
+            width: 100%;
+            min-width: 0;
+          }
+
+          .verifyBanner {
+            padding: 10px 14px;
+            font-size: 13px;
+          }
         }
       `}</style>
 
       <div className="layout">
-        <header
-          style={{
-            padding: "12px 24px",
-            borderBottom: "1px solid rgba(255,255,255,0.12)",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            background: "#000",
-            position: "relative",
-            zIndex: 20,
-          }}
-        >
-          <strong>Red Social MVP</strong>
+        <header className="header">
+          <strong className="brand">Red Social MVP</strong>
           <LogoutButton />
         </header>
 
-        {!user.emailVerified && (
-          <div
-            style={{
-              background: "#fff3cd",
-              borderBottom: "1px solid #ffeeba",
-              padding: "10px 24px",
-              fontSize: 14,
-              color: "#000",
-              position: "relative",
-              zIndex: 20,
-            }}
-          >
+        {SHOW_EMAIL_VERIFICATION_BANNER && !user.emailVerified && (
+          <div className="verifyBanner">
             <span>Tu correo no está verificado. Revisa tu bandeja o </span>
 
             <button
@@ -192,6 +226,7 @@ export default function ProtectedLayout({
 
           <main className="mainCol">{children}</main>
         </div>
+
         <MobileBottomNav />
       </div>
     </>

@@ -182,16 +182,15 @@ export default function ProfileClient() {
   }, [userDoc]);
 
   const ui = {
-    pageMaxWidth: 980,
-    coverHeight: "clamp(180px, 34vw, 280px)",
-    avatarSize: "clamp(110px, 22vw, 210px)",
-    avatarOffsetTop: "clamp(-56px, -9vw, -78px)",
-    contentTopPadding: "clamp(78px, 14vw, 170px)",
-    cardRadius: 16,
-    panelRadius: 12,
+    pageMaxWidth: 1080,
+    coverHeight: "clamp(190px, 35vw, 300px)",
+    avatarSize: "clamp(112px, 24vw, 220px)",
+    avatarOffsetTop: "clamp(-58px, -9vw, -82px)",
+    contentTopPadding: "clamp(82px, 14vw, 176px)",
+    cardRadius: 18,
+    panelRadius: 14,
     buttonRadius: 10,
     buttonPadding: "10px 14px",
-    inputPadding: "10px 12px",
     modalMaxWidth: 680,
     title: 18,
     subtitle: 16,
@@ -199,8 +198,8 @@ export default function ProfileClient() {
     micro: 12,
     label: 12,
     shadow: "0 18px 48px rgba(0,0,0,0.55)",
-    borderSoft: "1px solid rgba(255,255,255,0.18)",
-    borderFaint: "1px solid rgba(255,255,255,0.12)",
+    borderSoft: "1px solid rgba(255,255,255,0.16)",
+    borderFaint: "1px solid rgba(255,255,255,0.10)",
     cardBg: "rgba(12,12,12,0.92)",
     panelBg: "rgba(255,255,255,0.03)",
   };
@@ -212,12 +211,6 @@ export default function ProfileClient() {
       background: ui.cardBg,
       boxShadow: ui.shadow,
       backdropFilter: "blur(10px)",
-    } as React.CSSProperties,
-    panel: {
-      borderRadius: ui.panelRadius,
-      border: ui.borderFaint,
-      background: ui.panelBg,
-      padding: 12,
     } as React.CSSProperties,
     buttonPrimary: {
       padding: ui.buttonPadding,
@@ -465,11 +458,11 @@ export default function ProfileClient() {
           minHeight: "100dvh",
           background: "#000",
           color: "#fff",
-          padding: "clamp(16px, 3vw, 24px) 14px 96px",
+          padding: "12px 0 calc(108px + env(safe-area-inset-bottom))",
           fontFamily: fontStack,
         }}
       >
-        <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto" }}>
+        <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto", padding: "0 12px" }}>
           Cargando perfil...
         </div>
       </main>
@@ -483,11 +476,11 @@ export default function ProfileClient() {
           minHeight: "100dvh",
           background: "#000",
           color: "#fff",
-          padding: "clamp(16px, 3vw, 24px) 14px 96px",
+          padding: "12px 0 calc(108px + env(safe-area-inset-bottom))",
           fontFamily: fontStack,
         }}
       >
-        <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto" }}>
+        <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto", padding: "0 12px" }}>
           {msg ?? "Perfil no disponible"}
         </div>
       </main>
@@ -519,7 +512,7 @@ export default function ProfileClient() {
       <main
         style={{
           minHeight: "calc(100dvh - 70px)",
-          padding: "clamp(16px, 3vw, 24px) 14px 120px",
+          padding: "12px 0 calc(120px + env(safe-area-inset-bottom))",
           background: "#000",
           color: "#fff",
           fontFamily: fontStack,
@@ -527,13 +520,20 @@ export default function ProfileClient() {
       >
         <style jsx>{`
           .profile-shell {
+            width: 100%;
             max-width: ${ui.pageMaxWidth}px;
             margin: 0 auto;
+            padding: 0 12px;
+            box-sizing: border-box;
+          }
+
+          .profile-card {
+            overflow: hidden;
           }
 
           .profile-content {
             position: relative;
-            padding: 0 clamp(14px, 3vw, 22px) clamp(18px, 3vw, 24px);
+            padding: 0 18px 20px;
           }
 
           .profile-meta {
@@ -542,20 +542,36 @@ export default function ProfileClient() {
             text-align: center;
           }
 
+          .profile-handle {
+            margin-top: 8px;
+            color: rgba(255, 255, 255, 0.74);
+            font-weight: 500;
+            font-size: 15px;
+            line-height: 1.2;
+            word-break: break-word;
+          }
+
+          .profile-visibility {
+            margin-top: 10px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.55);
+            line-height: 1.3;
+          }
+
           .profile-stats {
             margin-top: 18px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
             padding-top: 14px;
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px;
+            gap: 12px;
           }
 
           .profile-stat-card {
             border: 1px solid rgba(255, 255, 255, 0.1);
             background: rgba(255, 255, 255, 0.03);
-            border-radius: 12px;
-            padding: 12px;
+            border-radius: 14px;
+            padding: 14px;
             min-width: 0;
           }
 
@@ -568,24 +584,52 @@ export default function ProfileClient() {
           .profile-stat-value {
             margin-top: 6px;
             color: #fff;
-            font-size: clamp(14px, 2vw, 16px);
+            font-size: clamp(15px, 2vw, 16px);
             font-weight: 600;
-            line-height: 1.2;
+            line-height: 1.25;
             word-break: break-word;
           }
 
+          @media (max-width: 900px) {
+            .profile-shell {
+              max-width: none;
+              padding: 0 8px;
+            }
+          }
+
           @media (max-width: 640px) {
+            .profile-shell {
+              padding: 0 6px;
+            }
+
+            .profile-card {
+              border-radius: 18px !important;
+            }
+
+            .profile-content {
+              padding: 0 12px 18px;
+            }
+
             .profile-stats {
               grid-template-columns: 1fr;
+              gap: 10px;
+            }
+
+            .profile-stat-card {
+              padding: 13px;
+            }
+
+            .profile-handle {
+              font-size: 14px;
             }
           }
         `}</style>
 
         <div className="profile-shell">
           <div
+            className="profile-card"
             style={{
               ...styles.card,
-              overflow: "hidden",
             }}
           >
             <div
@@ -713,8 +757,8 @@ export default function ProfileClient() {
                       disabled={uploading}
                       style={{
                         position: "absolute",
-                        right: 10,
-                        bottom: 10,
+                        right: 8,
+                        bottom: 8,
                         width: 34,
                         height: 34,
                         borderRadius: 999,
@@ -751,26 +795,9 @@ export default function ProfileClient() {
                 <div className="profile-meta">
                   <h1 style={{ ...styles.title, margin: 0 }}>{fullName}</h1>
 
-                  <div
-                    style={{
-                      marginTop: 8,
-                      color: "rgba(255,255,255,0.74)",
-                      fontWeight: 500,
-                      fontSize: 15,
-                    }}
-                  >
-                    @{userDoc.handle}
-                  </div>
+                  <div className="profile-handle">@{userDoc.handle}</div>
 
-                  <div
-                    style={{
-                      marginTop: 10,
-                      fontSize: 12,
-                      color: "rgba(255,255,255,0.55)",
-                    }}
-                  >
-                    Perfil público
-                  </div>
+                  <div className="profile-visibility">Perfil público</div>
                 </div>
               </div>
 
@@ -809,6 +836,7 @@ export default function ProfileClient() {
                     opacity: 0.6,
                     fontSize: 12,
                     textAlign: "center",
+                    wordBreak: "break-word",
                   }}
                 >
                   Sesión activa: {viewer.email}
@@ -955,6 +983,7 @@ export default function ProfileClient() {
                     marginLeft: "auto",
                     display: "flex",
                     gap: 10,
+                    flexWrap: "wrap",
                   }}
                 >
                   <button

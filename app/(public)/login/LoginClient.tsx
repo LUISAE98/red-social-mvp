@@ -62,10 +62,10 @@ export default function LoginClient() {
   const pageStyle: React.CSSProperties = {
     minHeight: "100dvh",
     background:
-      "radial-gradient(circle at top, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 18%, #000 52%)",
+      "radial-gradient(circle at top, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.018) 18%, #000 52%)",
     color: "#fff",
     fontFamily: fontStack,
-    padding: "clamp(16px, 3vw, 28px) clamp(14px, 3vw, 22px) clamp(72px, 10vw, 120px)",
+    padding: "clamp(12px, 2.2vw, 18px) clamp(12px, 2.2vw, 18px) clamp(44px, 6vw, 72px)",
     display: "grid",
     placeItems: "center",
     boxSizing: "border-box",
@@ -73,88 +73,72 @@ export default function LoginClient() {
 
   const shellStyle: React.CSSProperties = {
     width: "100%",
-    maxWidth: 920,
-    display: "flex",
-    justifyContent: "center",
+    maxWidth: 332,
   };
 
-  const cardStyle: React.CSSProperties = {
-    width: "100%",
-    maxWidth: 460,
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.18)",
-    background: "rgba(12,12,12,0.92)",
-    boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
-    overflow: "hidden",
-    backdropFilter: "blur(10px)",
+  const titleStyle: React.CSSProperties = {
+    margin: 0,
+    fontSize: "clamp(18px, 2vw, 20px)",
+    fontWeight: 600,
+    letterSpacing: "-0.02em",
+    lineHeight: 1.08,
   };
 
-  const contentStyle: React.CSSProperties = {
-    padding: "clamp(16px, 3vw, 24px)",
-  };
-
-  const innerPanelStyle: React.CSSProperties = {
-    marginTop: 16,
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.03)",
-    padding: "clamp(14px, 2.5vw, 18px)",
+  const subtitleStyle: React.CSSProperties = {
+    margin: "5px 0 12px 0",
+    fontSize: 12,
+    color: "rgba(255,255,255,0.66)",
+    lineHeight: 1.35,
   };
 
   const labelTextStyle: React.CSSProperties = {
-    fontSize: 12,
+    fontSize: 10.5,
     fontWeight: 500,
-    color: "rgba(255,255,255,0.92)",
-    lineHeight: 1.2,
+    color: "rgba(255,255,255,0.88)",
+    lineHeight: 1.15,
   };
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    padding: "11px 12px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.04)",
+    height: 40,
+    padding: "0 11px",
+    borderRadius: 8,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.035)",
     color: "#fff",
     outline: "none",
-    fontSize: 14,
+    fontSize: 12.5,
     fontWeight: 400,
     fontFamily: fontStack,
-    transition: "border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease",
     boxSizing: "border-box",
-  };
-
-  const secondaryButtonStyle: React.CSSProperties = {
-    width: "100%",
-    minHeight: 42,
-    padding: "10px 14px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.05)",
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: 600,
-    fontFamily: fontStack,
-    cursor: "pointer",
+    transition: "border-color 0.18s ease, background 0.18s ease",
+    WebkitAppearance: "none",
   };
 
   const primaryButtonStyle: React.CSSProperties = {
     width: "100%",
-    minHeight: 42,
-    padding: "10px 14px",
-    borderRadius: 10,
+    minHeight: 36,
+    padding: "8px 12px",
+    borderRadius: 8,
     border: "1px solid rgba(255,255,255,0.12)",
     background: "#fff",
     color: "#000",
-    fontSize: 14,
+    fontSize: 12.5,
     fontWeight: 600,
     fontFamily: fontStack,
     cursor: "pointer",
   };
 
+  const secondaryButtonStyle: React.CSSProperties = {
+    ...primaryButtonStyle,
+    background: "rgba(255,255,255,0.08)",
+    color: "#fff",
+  };
+
   const linkStyle: React.CSSProperties = {
-    color: "rgba(255,255,255,0.82)",
+    color: "rgba(255,255,255,0.8)",
     textDecoration: "none",
-    fontSize: 12,
+    fontSize: 10.5,
     fontWeight: 400,
   };
 
@@ -162,202 +146,163 @@ export default function LoginClient() {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    marginTop: 2,
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.025)",
+    gap: 10,
+    padding: "8px 10px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.022)",
   };
 
   const switchButtonStyle: React.CSSProperties = {
     position: "relative",
-    width: 48,
-    height: 28,
+    width: 36,
+    height: 20,
     borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: keepSession ? "#ffffff" : "rgba(255,255,255,0.12)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: keepSession ? "#ffffff" : "rgba(255,255,255,0.10)",
     transition: "all 0.2s ease",
     cursor: "pointer",
     flexShrink: 0,
+    padding: 0,
   };
 
   const switchThumbStyle: React.CSSProperties = {
     position: "absolute",
-    top: 3,
-    left: keepSession ? 23 : 3,
-    width: 20,
-    height: 20,
+    top: 2,
+    left: keepSession ? 18 : 2,
+    width: 14,
+    height: 14,
     borderRadius: "50%",
     background: keepSession ? "#000" : "#fff",
     transition: "all 0.2s ease",
   };
 
+  const noticeStyle: React.CSSProperties = {
+    marginBottom: 10,
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.035)",
+    padding: "7px 9px",
+    fontSize: 10.5,
+    lineHeight: 1.35,
+    color: "rgba(255,255,255,0.84)",
+  };
+
   return (
     <main style={pageStyle}>
       <div style={shellStyle}>
-        <div style={cardStyle}>
-          <div style={contentStyle}>
-            <div>
-              <h1
+        <div>
+          <h1 style={titleStyle}>Iniciar sesión</h1>
+          <p style={subtitleStyle}>Accede con tu correo y contraseña.</p>
+        </div>
+
+        {registered && (
+          <div style={noticeStyle}>
+            Cuenta creada. Revisa tu correo para verificarla.
+          </div>
+        )}
+
+        <form
+          onSubmit={handleLogin}
+          style={{
+            display: "grid",
+            gap: 8,
+          }}
+        >
+          <label style={{ display: "grid", gap: 4 }}>
+            <span style={labelTextStyle}>Correo</span>
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={inputStyle}
+              placeholder="tucorreo@ejemplo.com"
+            />
+          </label>
+
+          <label style={{ display: "grid", gap: 4 }}>
+            <span style={labelTextStyle}>Contraseña</span>
+            <input
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={inputStyle}
+              placeholder="Tu contraseña"
+            />
+          </label>
+
+          <div style={switchRowStyle}>
+            <div style={{ minWidth: 0 }}>
+              <div
                 style={{
-                  margin: 0,
-                  fontSize: "clamp(20px, 3vw, 24px)",
+                  fontSize: 11.5,
                   fontWeight: 600,
                   lineHeight: 1.15,
-                  letterSpacing: "-0.01em",
+                  color: "rgba(255,255,255,0.93)",
                 }}
               >
-                Iniciar sesión
-              </h1>
-
-              <p
-                style={{
-                  margin: "8px 0 0 0",
-                  fontSize: "clamp(13px, 2vw, 14px)",
-                  fontWeight: 400,
-                  color: "rgba(255,255,255,0.68)",
-                  lineHeight: 1.45,
-                }}
-              >
-                Accede con tu correo y contraseña.
-              </p>
-            </div>
-
-            {registered && (
+                Mantener sesión
+              </div>
               <div
                 style={{
-                  marginTop: 14,
-                  borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.04)",
-                  padding: "10px 12px",
-                  fontSize: 12,
-                  fontWeight: 400,
-                  color: "rgba(255,255,255,0.86)",
-                  lineHeight: 1.45,
+                  marginTop: 2,
+                  fontSize: 10,
+                  lineHeight: 1.25,
+                  color: "rgba(255,255,255,0.6)",
                 }}
               >
-                Cuenta creada. Revisa tu correo para verificarla.
+                Dispositivos personales
               </div>
-            )}
-
-            <div style={innerPanelStyle}>
-              <form onSubmit={handleLogin} style={{ display: "grid", gap: 12 }}>
-                <label style={{ display: "grid", gap: 6 }}>
-                  <span style={labelTextStyle}>Correo</span>
-                  <input
-                    type="email"
-                    required
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    style={inputStyle}
-                    placeholder="tucorreo@ejemplo.com"
-                  />
-                </label>
-
-                <label style={{ display: "grid", gap: 6 }}>
-                  <span style={labelTextStyle}>Contraseña</span>
-                  <input
-                    type="password"
-                    required
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    style={inputStyle}
-                    placeholder="Tu contraseña"
-                  />
-                </label>
-
-                <div style={switchRowStyle}>
-                  <div style={{ minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "rgba(255,255,255,0.94)",
-                        lineHeight: 1.2,
-                      }}
-                    >
-                      Mantener sesión iniciada
-                    </div>
-                    <div
-                      style={{
-                        marginTop: 3,
-                        fontSize: 12,
-                        fontWeight: 400,
-                        color: "rgba(255,255,255,0.62)",
-                        lineHeight: 1.35,
-                      }}
-                    >
-                      Recomendado en dispositivos personales.
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    aria-pressed={keepSession}
-                    aria-label="Mantener sesión iniciada"
-                    onClick={() => setKeepSession((prev) => !prev)}
-                    style={switchButtonStyle}
-                  >
-                    <span style={switchThumbStyle} />
-                  </button>
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    marginTop: 2,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <Link href="/register" style={linkStyle}>
-                    Crear cuenta
-                  </Link>
-
-                  <Link href="/reset-password" style={linkStyle}>
-                    Olvidé mi contraseña
-                  </Link>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  style={{
-                    ...(loading ? secondaryButtonStyle : primaryButtonStyle),
-                    marginTop: 4,
-                    opacity: loading ? 0.82 : 1,
-                    cursor: loading ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {loading ? "Entrando..." : "Entrar"}
-                </button>
-              </form>
             </div>
 
-            {msg && (
-              <div
-                style={{
-                  marginTop: 12,
-                  borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.03)",
-                  padding: "10px 12px",
-                  fontSize: 12,
-                  fontWeight: 400,
-                  color: "rgba(255,255,255,0.90)",
-                  lineHeight: 1.45,
-                }}
-              >
-                {msg}
-              </div>
-            )}
+            <button
+              type="button"
+              aria-pressed={keepSession}
+              aria-label="Mantener sesión iniciada"
+              onClick={() => setKeepSession((prev) => !prev)}
+              style={switchButtonStyle}
+            >
+              <span style={switchThumbStyle} />
+            </button>
           </div>
-        </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 8,
+              marginTop: 1,
+              flexWrap: "wrap",
+            }}
+          >
+            <Link href="/register" style={linkStyle}>
+              Crear cuenta
+            </Link>
+
+            <Link href="/reset-password" style={linkStyle}>
+              Olvidé mi contraseña
+            </Link>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              ...(loading ? secondaryButtonStyle : primaryButtonStyle),
+              marginTop: 2,
+              opacity: loading ? 0.84 : 1,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+          >
+            {loading ? "Entrando..." : "Entrar"}
+          </button>
+        </form>
+
+        {msg && <div style={{ ...noticeStyle, marginTop: 10, marginBottom: 0 }}>{msg}</div>}
       </div>
     </main>
   );

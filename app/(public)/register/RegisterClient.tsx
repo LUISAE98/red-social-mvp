@@ -264,70 +264,61 @@ export default function RegisterClient() {
   const pageStyle: React.CSSProperties = {
     minHeight: "100dvh",
     background:
-      "radial-gradient(circle at top, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 18%, #000 52%)",
+      "radial-gradient(circle at top, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.018) 18%, #000 52%)",
     color: "#fff",
     fontFamily: fontStack,
-    padding: "clamp(16px, 3vw, 24px) 14px 96px",
+    padding: "clamp(12px, 2.2vw, 18px) clamp(12px, 2.2vw, 18px) clamp(44px, 6vw, 72px)",
     display: "grid",
     placeItems: "center",
+    boxSizing: "border-box",
   };
 
   const shellStyle: React.CSSProperties = {
     width: "100%",
-    maxWidth: 860,
-    display: "flex",
-    justifyContent: "center",
-  };
-
-  const cardStyle: React.CSSProperties = {
-    width: "100%",
-    maxWidth: 520,
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.18)",
-    background: "rgba(12,12,12,0.92)",
-    boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
-    overflow: "hidden",
-    backdropFilter: "blur(10px)",
+    maxWidth: 332,
   };
 
   const innerPanelStyle: React.CSSProperties = {
-    marginTop: 16,
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.03)",
-    padding: 14,
+    marginTop: 12,
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.022)",
+    padding: 10,
   };
 
   const labelTextStyle: React.CSSProperties = {
-    fontSize: 12,
+    fontSize: 10.5,
     fontWeight: 500,
-    color: "rgba(255,255,255,0.92)",
-    lineHeight: 1.2,
+    color: "rgba(255,255,255,0.88)",
+    lineHeight: 1.15,
   };
 
   const inputStyle: React.CSSProperties = {
     width: "100%",
-    padding: "10px 11px",
-    borderRadius: 9,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.04)",
+    height: 40,
+    padding: "0 11px",
+    borderRadius: 8,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.035)",
     color: "#fff",
     outline: "none",
     fontSize: 13,
     fontWeight: 400,
     fontFamily: fontStack,
     boxSizing: "border-box",
+    WebkitAppearance: "none",
   };
 
   const selectStyle: React.CSSProperties = {
     width: "100%",
-    padding: "10px 11px",
-    borderRadius: 9,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.04)",
+    height: 40,
+    padding: "0 11px",
+    borderRadius: 8,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.035)",
     color: "#fff",
     outline: "none",
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: 400,
     fontFamily: fontStack,
     boxSizing: "border-box",
@@ -337,35 +328,36 @@ export default function RegisterClient() {
   };
 
   const helperTextStyle: React.CSSProperties = {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 400,
     color: "rgba(255,255,255,0.60)",
-    lineHeight: 1.4,
+    lineHeight: 1.35,
   };
 
   const errorTextStyle: React.CSSProperties = {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 400,
     color: "rgba(255,120,120,0.95)",
-    lineHeight: 1.4,
+    lineHeight: 1.35,
   };
 
   const linkStyle: React.CSSProperties = {
     color: "rgba(255,255,255,0.82)",
-    textDecoration: "none",
-    fontSize: 12,
+    textDecoration: "underline",
+    textUnderlineOffset: "2px",
+    fontSize: 10.5,
     fontWeight: 400,
   };
 
   const secondaryButtonStyle: React.CSSProperties = {
     width: "100%",
-    minHeight: 42,
-    padding: "10px 12px",
-    borderRadius: 9,
+    minHeight: 36,
+    padding: "8px 12px",
+    borderRadius: 8,
     border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.05)",
+    background: "rgba(255,255,255,0.08)",
     color: "#fff",
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: 600,
     fontFamily: fontStack,
     cursor: "pointer",
@@ -373,333 +365,329 @@ export default function RegisterClient() {
 
   const primaryButtonStyle: React.CSSProperties = {
     width: "100%",
-    minHeight: 42,
-    padding: "10px 12px",
-    borderRadius: 9,
+    minHeight: 36,
+    padding: "8px 12px",
+    borderRadius: 8,
     border: "1px solid rgba(255,255,255,0.12)",
     background: "#fff",
     color: "#000",
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: 600,
     fontFamily: fontStack,
     cursor: "pointer",
   };
 
   const messageStyle: React.CSSProperties = {
-    marginTop: 12,
-    borderRadius: 12,
+    marginTop: 10,
+    borderRadius: 9,
     border: msg?.includes("18 años")
       ? "1px solid rgba(255,110,110,0.40)"
-      : "1px solid rgba(255,255,255,0.10)",
+      : "1px solid rgba(255,255,255,0.08)",
     background: msg?.includes("18 años")
       ? "rgba(255,80,80,0.08)"
-      : "rgba(255,255,255,0.03)",
-    padding: "10px 12px",
-    fontSize: 12,
+      : "rgba(255,255,255,0.035)",
+    padding: "7px 9px",
+    fontSize: 10.5,
     fontWeight: 400,
     color: msg?.includes("18 años")
       ? "rgba(255,155,155,0.96)"
       : "rgba(255,255,255,0.90)",
-    lineHeight: 1.45,
+    lineHeight: 1.35,
   };
 
   return (
     <main style={pageStyle}>
       <div style={shellStyle}>
-        <div style={cardStyle}>
-          <div style={{ padding: "clamp(16px, 3vw, 20px)" }}>
-            <style jsx>{`
-              select option {
-                background: #111;
-                color: #fff;
-              }
+        <style jsx>{`
+          select option {
+            background: #111;
+            color: #fff;
+          }
 
-              .register-two-col {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 10px;
-              }
+          .register-two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+          }
 
-              .birthdate-grid {
-                display: grid;
-                grid-template-columns: 1fr 1.2fr 1fr;
-                gap: 10px;
-              }
+          .birthdate-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr 1fr;
+            gap: 8px;
+          }
 
-              @media (max-width: 640px) {
-                .register-two-col {
-                  grid-template-columns: 1fr;
-                }
+          @media (max-width: 640px) {
+            .register-two-col {
+              grid-template-columns: 1fr;
+            }
 
-                .birthdate-grid {
-                  grid-template-columns: 1fr;
-                }
-              }
-            `}</style>
+            .birthdate-grid {
+              grid-template-columns: 1fr;
+            }
+          }
+        `}</style>
 
-            <div>
-              <h1
-                style={{
-                  margin: 0,
-                  fontSize: "clamp(18px, 2.4vw, 22px)",
-                  fontWeight: 600,
-                  lineHeight: 1.2,
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                Crear cuenta
-              </h1>
+        <div>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: "clamp(18px, 2vw, 20px)",
+              fontWeight: 600,
+              lineHeight: 1.08,
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Crear cuenta
+          </h1>
 
-              <p
-                style={{
-                  margin: "6px 0 0 0",
-                  fontSize: "clamp(13px, 2vw, 14px)",
-                  fontWeight: 400,
-                  color: "rgba(255,255,255,0.68)",
-                  lineHeight: 1.45,
-                }}
-              >
-                Elige tu username y completa tu perfil básico.
-              </p>
-            </div>
-
-            <div style={innerPanelStyle}>
-              <form onSubmit={handleRegister} style={{ display: "grid", gap: 12 }}>
-                <label style={{ display: "grid", gap: 6 }}>
-                  <span style={labelTextStyle}>Correo</span>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    autoComplete="email"
-                    onChange={(e) => setEmail(e.target.value)}
-                    style={inputStyle}
-                    placeholder="tucorreo@ejemplo.com"
-                  />
-                </label>
-
-                <div className="register-two-col">
-                  <label style={{ display: "grid", gap: 6 }}>
-                    <span style={labelTextStyle}>Nombre</span>
-                    <input
-                      type="text"
-                      required
-                      value={firstName}
-                      autoComplete="given-name"
-                      onChange={(e) => setFirstName(e.target.value)}
-                      style={inputStyle}
-                      placeholder="Tu nombre"
-                    />
-                  </label>
-
-                  <label style={{ display: "grid", gap: 6 }}>
-                    <span style={labelTextStyle}>Apellido</span>
-                    <input
-                      type="text"
-                      required
-                      value={lastName}
-                      autoComplete="family-name"
-                      onChange={(e) => setLastName(e.target.value)}
-                      style={inputStyle}
-                      placeholder="Tu apellido"
-                    />
-                  </label>
-                </div>
-
-                <label style={{ display: "grid", gap: 6 }}>
-                  <span style={labelTextStyle}>Username</span>
-                  <input
-                    type="text"
-                    required
-                    value={handleRaw}
-                    onChange={(e) => setHandleRaw(e.target.value)}
-                    style={inputStyle}
-                    placeholder="ej: luisae98"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
-                  />
-                  <span style={helperTextStyle}>
-                    3–20 caracteres, solo letras, números o guion bajo.
-                  </span>
-                </label>
-
-                <div style={{ display: "grid", gap: 6 }}>
-                  <span style={labelTextStyle}>Fecha de nacimiento</span>
-
-                  <div className="birthdate-grid">
-                    <select
-                      value={birthDay}
-                      onChange={(e) => setBirthDay(e.target.value)}
-                      style={{
-                        ...selectStyle,
-                        border: isUnder18
-                          ? "1px solid rgba(255,107,107,0.72)"
-                          : "1px solid rgba(255,255,255,0.14)",
-                      }}
-                    >
-                      <option value="">Día</option>
-                      {days.map((day) => (
-                        <option key={day} value={String(day)}>
-                          {day}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={birthMonth}
-                      onChange={(e) => {
-                        const nextMonth = e.target.value;
-                        setBirthMonth(nextMonth);
-
-                        const y = Number(birthYear);
-                        const m = Number(nextMonth);
-                        const d = Number(birthDay);
-
-                        if (d && y && m) {
-                          const maxDay = getDaysInMonth(y, m);
-                          if (d > maxDay) {
-                            setBirthDay("");
-                          }
-                        }
-                      }}
-                      style={{
-                        ...selectStyle,
-                        border: isUnder18
-                          ? "1px solid rgba(255,107,107,0.72)"
-                          : "1px solid rgba(255,255,255,0.14)",
-                      }}
-                    >
-                      <option value="">Mes</option>
-                      {MONTHS.map((month) => (
-                        <option key={month.value} value={String(month.value)}>
-                          {month.label}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={birthYear}
-                      onChange={(e) => {
-                        const nextYear = e.target.value;
-                        setBirthYear(nextYear);
-
-                        const y = Number(nextYear);
-                        const m = Number(birthMonth);
-                        const d = Number(birthDay);
-
-                        if (d && y && m) {
-                          const maxDay = getDaysInMonth(y, m);
-                          if (d > maxDay) {
-                            setBirthDay("");
-                          }
-                        }
-                      }}
-                      style={{
-                        ...selectStyle,
-                        border: isUnder18
-                          ? "1px solid rgba(255,107,107,0.72)"
-                          : "1px solid rgba(255,255,255,0.14)",
-                      }}
-                    >
-                      <option value="">Año</option>
-                      {years.map((year) => (
-                        <option key={year} value={String(year)}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {isUnder18 ? (
-                    <span style={errorTextStyle}>
-                      Debes tener al menos 18 años para crear una cuenta.
-                    </span>
-                  ) : null}
-                </div>
-
-                <label style={{ display: "grid", gap: 6 }}>
-                  <span style={labelTextStyle}>Sexo</span>
-                  <select
-                    value={sex}
-                    onChange={(e) => setSex(e.target.value as Sex)}
-                    style={selectStyle}
-                  >
-                    <option value="prefer_not_say">Prefiero no decir</option>
-                    <option value="male">Hombre</option>
-                    <option value="female">Mujer</option>
-                    <option value="other">Otro</option>
-                  </select>
-                </label>
-
-                <label style={{ display: "grid", gap: 6 }}>
-                  <span style={labelTextStyle}>Contraseña</span>
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    autoComplete="new-password"
-                    onChange={(e) => setPassword(e.target.value)}
-                    style={inputStyle}
-                    placeholder="Mínimo 6 caracteres"
-                  />
-                </label>
-
-                <label style={{ display: "grid", gap: 6 }}>
-                  <span style={labelTextStyle}>Confirmar contraseña</span>
-                  <input
-                    type="password"
-                    required
-                    value={password2}
-                    autoComplete="new-password"
-                    onChange={(e) => setPassword2(e.target.value)}
-                    style={{
-                      ...inputStyle,
-                      border: passwordsMatch
-                        ? "1px solid rgba(255,255,255,0.14)"
-                        : "1px solid rgba(255,107,107,0.72)",
-                    }}
-                    placeholder="Repite tu contraseña"
-                  />
-                  {!passwordsMatch && password2 ? (
-                    <span style={errorTextStyle}>
-                      Las contraseñas no coinciden.
-                    </span>
-                  ) : null}
-                </label>
-
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 10,
-                    marginTop: 2,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <Link href="/login" style={linkStyle}>
-                    Ya tengo cuenta
-                  </Link>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || isUnder18}
-                  style={{
-                    ...(loading ? secondaryButtonStyle : primaryButtonStyle),
-                    marginTop: 4,
-                    opacity: loading || isUnder18 ? 0.82 : 1,
-                    cursor: loading || isUnder18 ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {loading ? "Creando..." : "Crear cuenta"}
-                </button>
-              </form>
-            </div>
-
-            {msg ? <div style={messageStyle}>{msg}</div> : null}
-          </div>
+          <p
+            style={{
+              margin: "5px 0 0 0",
+              fontSize: 12,
+              fontWeight: 400,
+              color: "rgba(255,255,255,0.66)",
+              lineHeight: 1.35,
+            }}
+          >
+            Elige tu username y completa tu perfil básico.
+          </p>
         </div>
+
+        <div style={innerPanelStyle}>
+          <form onSubmit={handleRegister} style={{ display: "grid", gap: 8 }}>
+            <label style={{ display: "grid", gap: 4 }}>
+              <span style={labelTextStyle}>Correo</span>
+              <input
+                type="email"
+                required
+                value={email}
+                autoComplete="email"
+                onChange={(e) => setEmail(e.target.value)}
+                style={inputStyle}
+                placeholder="tucorreo@ejemplo.com"
+              />
+            </label>
+
+            <div className="register-two-col">
+              <label style={{ display: "grid", gap: 4 }}>
+                <span style={labelTextStyle}>Nombre</span>
+                <input
+                  type="text"
+                  required
+                  value={firstName}
+                  autoComplete="given-name"
+                  onChange={(e) => setFirstName(e.target.value)}
+                  style={inputStyle}
+                  placeholder="Tu nombre"
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 4 }}>
+                <span style={labelTextStyle}>Apellido</span>
+                <input
+                  type="text"
+                  required
+                  value={lastName}
+                  autoComplete="family-name"
+                  onChange={(e) => setLastName(e.target.value)}
+                  style={inputStyle}
+                  placeholder="Tu apellido"
+                />
+              </label>
+            </div>
+
+            <label style={{ display: "grid", gap: 4 }}>
+              <span style={labelTextStyle}>Username</span>
+              <input
+                type="text"
+                required
+                value={handleRaw}
+                onChange={(e) => setHandleRaw(e.target.value)}
+                style={inputStyle}
+                placeholder="ej: luisae98"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+              />
+              <span style={helperTextStyle}>
+                3–20 caracteres, solo letras, números o guion bajo.
+              </span>
+            </label>
+
+            <div style={{ display: "grid", gap: 4 }}>
+              <span style={labelTextStyle}>Fecha de nacimiento</span>
+
+              <div className="birthdate-grid">
+                <select
+                  value={birthDay}
+                  onChange={(e) => setBirthDay(e.target.value)}
+                  style={{
+                    ...selectStyle,
+                    border: isUnder18
+                      ? "1px solid rgba(255,107,107,0.72)"
+                      : "1px solid rgba(255,255,255,0.12)",
+                  }}
+                >
+                  <option value="">Día</option>
+                  {days.map((day) => (
+                    <option key={day} value={String(day)}>
+                      {day}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={birthMonth}
+                  onChange={(e) => {
+                    const nextMonth = e.target.value;
+                    setBirthMonth(nextMonth);
+
+                    const y = Number(birthYear);
+                    const m = Number(nextMonth);
+                    const d = Number(birthDay);
+
+                    if (d && y && m) {
+                      const maxDay = getDaysInMonth(y, m);
+                      if (d > maxDay) {
+                        setBirthDay("");
+                      }
+                    }
+                  }}
+                  style={{
+                    ...selectStyle,
+                    border: isUnder18
+                      ? "1px solid rgba(255,107,107,0.72)"
+                      : "1px solid rgba(255,255,255,0.12)",
+                  }}
+                >
+                  <option value="">Mes</option>
+                  {MONTHS.map((month) => (
+                    <option key={month.value} value={String(month.value)}>
+                      {month.label}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={birthYear}
+                  onChange={(e) => {
+                    const nextYear = e.target.value;
+                    setBirthYear(nextYear);
+
+                    const y = Number(nextYear);
+                    const m = Number(birthMonth);
+                    const d = Number(birthDay);
+
+                    if (d && y && m) {
+                      const maxDay = getDaysInMonth(y, m);
+                      if (d > maxDay) {
+                        setBirthDay("");
+                      }
+                    }
+                  }}
+                  style={{
+                    ...selectStyle,
+                    border: isUnder18
+                      ? "1px solid rgba(255,107,107,0.72)"
+                      : "1px solid rgba(255,255,255,0.12)",
+                  }}
+                >
+                  <option value="">Año</option>
+                  {years.map((year) => (
+                    <option key={year} value={String(year)}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {isUnder18 ? (
+                <span style={errorTextStyle}>
+                  Debes tener al menos 18 años para crear una cuenta.
+                </span>
+              ) : null}
+            </div>
+
+            <label style={{ display: "grid", gap: 4 }}>
+              <span style={labelTextStyle}>Sexo</span>
+              <select
+                value={sex}
+                onChange={(e) => setSex(e.target.value as Sex)}
+                style={selectStyle}
+              >
+                <option value="prefer_not_say">Prefiero no decir</option>
+                <option value="male">Hombre</option>
+                <option value="female">Mujer</option>
+                <option value="other">Otro</option>
+              </select>
+            </label>
+
+            <label style={{ display: "grid", gap: 4 }}>
+              <span style={labelTextStyle}>Contraseña</span>
+              <input
+                type="password"
+                required
+                value={password}
+                autoComplete="new-password"
+                onChange={(e) => setPassword(e.target.value)}
+                style={inputStyle}
+                placeholder="Mínimo 6 caracteres"
+              />
+            </label>
+
+            <label style={{ display: "grid", gap: 4 }}>
+              <span style={labelTextStyle}>Confirmar contraseña</span>
+              <input
+                type="password"
+                required
+                value={password2}
+                autoComplete="new-password"
+                onChange={(e) => setPassword2(e.target.value)}
+                style={{
+                  ...inputStyle,
+                  border: passwordsMatch
+                    ? "1px solid rgba(255,255,255,0.12)"
+                    : "1px solid rgba(255,107,107,0.72)",
+                }}
+                placeholder="Repite tu contraseña"
+              />
+              {!passwordsMatch && password2 ? (
+                <span style={errorTextStyle}>
+                  Las contraseñas no coinciden.
+                </span>
+              ) : null}
+            </label>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 8,
+                marginTop: 1,
+                flexWrap: "wrap",
+              }}
+            >
+              <Link href="/login" style={linkStyle}>
+                Ya tengo cuenta
+              </Link>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || isUnder18}
+              style={{
+                ...(loading ? secondaryButtonStyle : primaryButtonStyle),
+                marginTop: 2,
+                opacity: loading || isUnder18 ? 0.82 : 1,
+                cursor: loading || isUnder18 ? "not-allowed" : "pointer",
+              }}
+            >
+              {loading ? "Creando..." : "Crear cuenta"}
+            </button>
+          </form>
+        </div>
+
+        {msg ? <div style={messageStyle}>{msg}</div> : null}
       </div>
     </main>
   );
