@@ -7,8 +7,10 @@ import { db, storage } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import { joinGroup, leaveGroup } from "@/lib/groups/membership";
 import { requestToJoin, cancelJoinRequest } from "@/lib/groups/joinRequests";
-import JoinRequestsPanel from "./components/JoinRequestsPanel";
 import OwnerAdminPanel from "./components/OwnerAdminPanel";
+import GroupSubnav from "./components/GroupSubnav";
+import GroupFeedTab from "./components/GroupFeedTab";
+import GroupMembersTab from "./components/GroupMembersTab";
 import {
   createGreetingRequest,
   type GreetingType,
@@ -33,6 +35,9 @@ type GroupDoc = {
     isPaid?: boolean;
     priceMonthly?: number | null;
     currency?: string | null;
+  };
+  settings?: {
+    membersListVisibility?: "owner_only" | "members" | string;
   };
   offerings?: Array<{
     type: "saludo" | "consejo" | "mensaje" | string;
@@ -159,6 +164,7 @@ export default function GroupPage() {
   const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
 
   const [adminOpen, setAdminOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"feed" | "members">("feed");
 
   const [uploading, setUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
@@ -171,6 +177,9 @@ export default function GroupPage() {
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const cropAspect = cropMode === "avatar" ? 1 / 1 : 16 / 9;
+
+  const canMembersViewList =
+    (group?.settings?.membersListVisibility ?? "owner_only") === "members";
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -1037,8 +1046,6 @@ export default function GroupPage() {
                     flexWrap: "wrap",
                   }}
                 >
-                  {isOwner && <JoinRequestsPanel groupId={groupId} />}
-
                   {!isOwner &&
                     !effectiveIsMember &&
                     visibility === "public" && (
@@ -1079,6 +1086,25 @@ export default function GroupPage() {
                   >
                     {error}
                   </div>
+                )}
+
+                {effectiveIsMember && (
+                  <>
+                    <GroupSubnav
+                      activeTab={activeTab}
+                      onChange={setActiveTab}
+                    />
+
+                    {activeTab === "feed" ? (
+                      <GroupFeedTab />
+                    ) : (
+                      <GroupMembersTab
+                        groupId={groupId}
+                        isOwner={isOwner}
+                        canMembersViewList={canMembersViewList}
+                      />
+                    )}
+                  </>
                 )}
 
                 {!isOwner &&

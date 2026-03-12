@@ -11,17 +11,17 @@ import { db } from "@/lib/firebase";
 function IconHome({ active }: { active: boolean }) {
   return (
     <svg
-      width="27"
-      height="27"
+      width="22"
+      height="22"
       viewBox="0 0 24 24"
       fill={active ? "currentColor" : "none"}
       xmlns="http://www.w3.org/2000/svg"
       style={{ display: "block" }}
     >
       <path
-        d="M3 10.5L12 3L21 10.5V20C21 20.5523 20.5523 21 20 21H15V14H9V21H4C3.44772 21 3 20.5523 3 20V10.5Z"
+        d="M12 3.2L20 9.3V20.2C20 20.64 19.64 21 19.2 21H14.8C14.36 21 14 20.64 14 20.2V15.4C14 14.96 13.64 14.6 13.2 14.6H10.8C10.36 14.6 10 14.96 10 15.4V20.2C10 20.64 9.64 21 9.2 21H4.8C4.36 21 4 20.64 4 20.2V9.3L12 3.2Z"
         stroke="currentColor"
-        strokeWidth="2.1"
+        strokeWidth={active ? "1.65" : "1.9"}
         strokeLinejoin="round"
       />
     </svg>
@@ -31,18 +31,33 @@ function IconHome({ active }: { active: boolean }) {
 function IconGroups({ active }: { active: boolean }) {
   return (
     <svg
-      width="27"
-      height="27"
+      width="22"
+      height="22"
       viewBox="0 0 24 24"
-      fill={active ? "currentColor" : "none"}
+      fill="none"
       xmlns="http://www.w3.org/2000/svg"
       style={{ display: "block" }}
     >
-      <circle cx="10" cy="8" r="4" stroke="currentColor" strokeWidth="2.1" />
       <path
-        d="M4 20C4.8 16.8 7.4 15 12 15C16.6 15 19.2 16.8 20 20"
+        d="M8 12C9.65685 12 11 10.6569 11 9C11 7.34315 9.65685 6 8 6C6.34315 6 5 7.34315 5 9C5 10.6569 6.34315 12 8 12Z"
         stroke="currentColor"
-        strokeWidth="2.1"
+        strokeWidth={active ? "2.05" : "1.85"}
+      />
+      <path
+        d="M16 11C17.3807 11 18.5 9.88071 18.5 8.5C18.5 7.11929 17.3807 6 16 6C14.6193 6 13.5 7.11929 13.5 8.5C13.5 9.88071 14.6193 11 16 11Z"
+        stroke="currentColor"
+        strokeWidth={active ? "2.05" : "1.85"}
+      />
+      <path
+        d="M3.8 17.8C4.65 15.85 6.23 14.8 8 14.8C9.77 14.8 11.35 15.85 12.2 17.8"
+        stroke="currentColor"
+        strokeWidth={active ? "2.05" : "1.85"}
+        strokeLinecap="round"
+      />
+      <path
+        d="M12.8 17.2C13.45 15.7 14.72 14.9 16.15 14.9C17.58 14.9 18.85 15.7 19.5 17.2"
+        stroke="currentColor"
+        strokeWidth={active ? "2.05" : "1.85"}
         strokeLinecap="round"
       />
     </svg>
@@ -52,18 +67,24 @@ function IconGroups({ active }: { active: boolean }) {
 function IconProfile({ active }: { active: boolean }) {
   return (
     <svg
-      width="27"
-      height="27"
+      width="22"
+      height="22"
       viewBox="0 0 24 24"
       fill={active ? "currentColor" : "none"}
       xmlns="http://www.w3.org/2000/svg"
       style={{ display: "block" }}
     >
-      <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="2.1" />
+      <circle
+        cx="12"
+        cy="8"
+        r="4"
+        stroke="currentColor"
+        strokeWidth={active ? "1.65" : "1.9"}
+      />
       <path
         d="M4 20C4.8 16.8 7.4 15 12 15C16.6 15 19.2 16.8 20 20"
         stroke="currentColor"
-        strokeWidth="2.1"
+        strokeWidth={active ? "1.65" : "1.9"}
         strokeLinecap="round"
       />
     </svg>
@@ -106,11 +127,14 @@ export default function MobileBottomNav() {
 
   const nav = [
     {
-      key: "profile",
-      href: profileHref,
-      active: pathname.startsWith("/u/") || pathname.startsWith("/profile"),
-      icon: IconProfile,
-      label: "Perfil",
+      key: "home",
+      href: "/",
+      active:
+        pathname === "/" ||
+        pathname === "/home" ||
+        pathname.startsWith("/feed"),
+      icon: IconHome,
+      label: "Home",
     },
     {
       key: "groups",
@@ -120,11 +144,11 @@ export default function MobileBottomNav() {
       label: "Grupos",
     },
     {
-      key: "home",
-      href: "/",
-      active: pathname === "/" || pathname === "/home" || pathname.startsWith("/feed"),
-      icon: IconHome,
-      label: "Home",
+      key: "profile",
+      href: profileHref,
+      active: pathname.startsWith("/u/") || pathname.startsWith("/profile"),
+      icon: IconProfile,
+      label: "Perfil",
     },
   ];
 
@@ -140,84 +164,70 @@ export default function MobileBottomNav() {
           display: none;
           justify-content: center;
           pointer-events: none;
+          padding: 0 10px calc(10px + env(safe-area-inset-bottom));
+        }
+
+        .navShell {
+          width: min(100%, 680px);
+          pointer-events: auto;
         }
 
         .nav {
-          width: min(100%, 680px);
-          margin: 0 auto;
-          pointer-events: auto;
-          background: rgba(8, 8, 8, 0.97);
+          width: 100%;
+          background: rgba(8, 8, 8, 0.96);
           backdrop-filter: blur(16px);
-          border-top: 1px solid rgba(255, 255, 255, 0.12);
-          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3);
-          padding: 12px 22px calc(18px + env(safe-area-inset-bottom));
+          -webkit-backdrop-filter: blur(16px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.28);
+          border-radius: 24px;
+          padding: 6px 8px;
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
           align-items: center;
+          gap: 6px;
         }
 
         .item {
-          position: relative;
           min-width: 0;
-          min-height: 58px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          height: 48px;
+          display: grid;
+          place-items: center;
           text-decoration: none;
-          color: rgba(255, 255, 255, 0.58);
+          color: rgba(255, 255, 255, 0.46);
+          border-radius: 14px;
           transition:
-            color 0.22s ease,
-            transform 0.22s ease,
-            opacity 0.22s ease;
+            color 0.18s ease,
+            transform 0.18s ease,
+            opacity 0.18s ease;
           -webkit-tap-highlight-color: transparent;
         }
 
         .item:active {
-          transform: scale(0.96);
-        }
-
-        .itemInner {
-          position: relative;
-          width: 52px;
-          height: 52px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 999px;
-          transition:
-            transform 0.22s ease,
-            background 0.22s ease,
-            box-shadow 0.22s ease;
+          transform: scale(0.97);
         }
 
         .itemActive {
           color: #fff;
         }
 
-        .itemActive .itemInner {
-          transform: translateY(-3px);
-          background: rgba(255, 255, 255, 0.06);
-          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+        .itemInner {
+          display: grid;
+          justify-items: center;
+          gap: 6px;
         }
 
         .indicator {
-          position: absolute;
-          top: -7px;
-          left: 50%;
-          transform: translateX(-50%);
           width: 18px;
           height: 3px;
           border-radius: 999px;
-          background: #fff;
+          background: transparent;
+          transition: background 0.18s ease, opacity 0.18s ease;
           opacity: 0;
-          transition:
-            opacity 0.22s ease,
-            transform 0.22s ease;
         }
 
         .itemActive .indicator {
+          background: #fff;
           opacity: 1;
-          transform: translateX(-50%) translateY(0);
         }
 
         @media (max-width: 768px) {
@@ -228,25 +238,27 @@ export default function MobileBottomNav() {
       `}</style>
 
       <nav className="wrap" aria-label="Navegación móvil inferior">
-        <div className="nav">
-          {nav.map((item) => {
-            const Icon = item.icon;
+        <div className="navShell">
+          <div className="nav">
+            {nav.map((item) => {
+              const Icon = item.icon;
 
-            return (
-              <Link
-                key={item.key}
-                href={item.href}
-                className={`item ${item.active ? "itemActive" : ""}`}
-                aria-label={item.label}
-                title={item.label}
-              >
-                <div className="itemInner">
-                  <span className="indicator" />
-                  <Icon active={item.active} />
-                </div>
-              </Link>
-            );
-          })}
+              return (
+                <Link
+                  key={item.key}
+                  href={item.href}
+                  className={`item ${item.active ? "itemActive" : ""}`}
+                  aria-label={item.label}
+                  title={item.label}
+                >
+                  <div className="itemInner">
+                    <Icon active={item.active} />
+                    <span className="indicator" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </nav>
     </>
