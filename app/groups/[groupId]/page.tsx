@@ -163,8 +163,9 @@ export default function GroupPage() {
   const [greetError, setGreetError] = useState<string | null>(null);
   const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
 
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"feed" | "members">("feed");
+  const [activeTab, setActiveTab] = useState<"feed" | "members" | "settings">(
+    "feed"
+  );
 
   const [uploading, setUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
@@ -679,248 +680,174 @@ export default function GroupPage() {
       </svg>
     `);
 
-  const ownerAdminButton = isOwner ? (
-    <button
-      type="button"
-      style={{
-        position: "fixed",
-        right: 14,
-        top: 84,
-        height: 38,
-        padding: "0 12px",
-        borderRadius: 10,
-        border: "1px solid rgba(255,255,255,0.18)",
-        background: "rgba(12,12,12,0.92)",
-        color: "#fff",
-        fontWeight: 600,
-        fontSize: ui.body,
-        lineHeight: 1,
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        zIndex: 20000,
-        backdropFilter: "blur(10px)",
-        boxShadow: ui.shadow,
-        fontFamily: fontStack,
-      }}
-      title={adminOpen ? "Cerrar administración" : "Administrar"}
-      onClick={() => setAdminOpen((v) => !v)}
-    >
-      <span>{adminOpen ? "Cerrar administración" : "Administrar"}</span>
-      <span aria-hidden="true" style={{ opacity: 0.85, fontSize: ui.micro }}>
-        ⚙
-      </span>
-    </button>
-  ) : null;
-
   if (visibility === "private" && !effectiveIsMember) {
     const pending = joinReqStatus === "pending";
     const rejected = joinReqStatus === "rejected";
     const approved = joinReqStatus === "approved";
 
     return (
-      <>
-        {ownerAdminButton}
+      <main style={pageWrap}>
+        <style jsx>{`
+          .group-shell {
+            width: 100%;
+          }
 
-        {isOwner && user && group.ownerId ? (
-          <OwnerAdminPanel
-            groupId={groupId}
-            ownerId={group.ownerId}
-            currentUserId={user.uid}
-            currentAvatarUrl={group.avatarUrl ?? null}
-            currentCoverUrl={group.coverUrl ?? null}
-            currentName={group.name ?? null}
-            currentDescription={group.description ?? null}
-            currentCategory={group.category ?? null}
-            currentTags={group.tags ?? null}
-            isOpen={adminOpen}
-            onClose={() => setAdminOpen(false)}
-          />
-        ) : null}
+          .group-card {
+            overflow: hidden;
+          }
 
-        <main style={pageWrap}>
-          <style jsx>{`
+          .group-content {
+            position: relative;
+            padding: 0 18px 20px;
+          }
+
+          .group-meta {
+            display: grid;
+            place-items: center;
+            text-align: center;
+          }
+
+          .group-description {
+            margin-top: 8px;
+            max-width: 660px;
+          }
+
+          .group-actions-wrap {
+            margin-top: 18px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 14px;
+            display: grid;
+            gap: 12px;
+          }
+
+          .group-actions-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+          }
+
+          @media (max-width: 900px) {
             .group-shell {
+              max-width: none;
+            }
+          }
+
+          @media (max-width: 640px) {
+            .group-content {
+              padding: 0 12px 18px;
+            }
+
+            .group-actions-row > button {
               width: 100%;
             }
+          }
+        `}</style>
 
-            .group-card {
-              overflow: hidden;
-            }
+        <div style={container} className="group-shell">
+          <section className="group-card" style={cardStyle}>
+            <div
+              style={{
+                position: "relative",
+                height: ui.coverHeight,
+                background: "#0b0b0b",
+              }}
+            >
+              <img
+                src={coverBg}
+                alt="Cover"
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  opacity: 0.96,
+                }}
+              />
 
-            .group-content {
-              position: relative;
-              padding: 0 18px 20px;
-            }
-
-            .group-meta {
-              display: grid;
-              place-items: center;
-              text-align: center;
-            }
-
-            .group-description {
-              margin-top: 8px;
-              max-width: 660px;
-            }
-
-            .group-actions-wrap {
-              margin-top: 18px;
-              border-top: 1px solid rgba(255, 255, 255, 0.1);
-              padding-top: 14px;
-              display: grid;
-              gap: 12px;
-            }
-
-            .group-actions-row {
-              display: flex;
-              justify-content: center;
-              gap: 10px;
-              align-items: center;
-              flex-wrap: wrap;
-            }
-
-            @media (max-width: 900px) {
-              .group-shell {
-                max-width: none;
-              }
-            }
-
-            @media (max-width: 640px) {
-              .group-content {
-                padding: 0 12px 18px;
-              }
-
-              .group-actions-row > button {
-                width: 100%;
-              }
-            }
-          `}</style>
-
-          <div style={container} className="group-shell">
-            <section className="group-card" style={cardStyle}>
               <div
                 style={{
+                  position: "absolute",
+                  inset: 0,
+                  background:
+                    "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.52) 58%, rgba(0,0,0,0.88) 100%)",
+                }}
+              />
+            </div>
+
+            <div className="group-content">
+              <div
+                style={{
+                  paddingTop: 18,
                   position: "relative",
-                  height: ui.coverHeight,
-                  background: "#0b0b0b",
+                  zIndex: 1,
                 }}
               >
-                <img
-                  src={coverBg}
-                  alt="Cover"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    opacity: 0.96,
-                  }}
-                />
+                <div className="group-meta">
+                  <h1 style={{ ...titleStyle, margin: 0 }}>{group.name ?? ""}</h1>
 
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background:
-                      "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.52) 58%, rgba(0,0,0,0.88) 100%)",
-                  }}
-                />
+                  {!!group.description && (
+                    <div className="group-description" style={textStyle}>
+                      {group.description}
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: 8, ...microText }}>
+                    {visibilityLabel(String(group.visibility ?? ""))}
+                  </div>
+                </div>
               </div>
 
-              <div className="group-content">
-                <div
-                  style={{
-                    paddingTop: 18,
-                    position: "relative",
-                    zIndex: 1,
-                  }}
-                >
-                  <div className="group-meta">
-                    <h1 style={{ ...titleStyle, margin: 0 }}>{group.name ?? ""}</h1>
+              <div className="group-actions-wrap">
+                <div style={panelStyle}>
+                  <div style={{ ...microText, color: "rgba(255,255,255,0.82)" }}>
+                    {approved && "✅ Aprobado. Entrando…"}
+                    {pending && "✅ Solicitud enviada. Está pendiente de revisión."}
+                    {!pending &&
+                      !approved &&
+                      !rejected &&
+                      "Esta comunidad es privada."}
+                    {rejected && "❌ Tu solicitud fue rechazada."}
+                  </div>
 
-                    {!!group.description && (
-                      <div className="group-description" style={textStyle}>
-                        {group.description}
-                      </div>
+                  <div className="group-actions-row" style={{ marginTop: 12 }}>
+                    {!pending && !rejected ? (
+                      <button
+                        onClick={handleRequestPrivate}
+                        disabled={joining}
+                        style={{
+                          ...primaryButton,
+                          opacity: joining ? 0.75 : 1,
+                          cursor: joining ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {joining ? "Enviando..." : "Solicitar acceso"}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleCancelPrivate}
+                        disabled={joining}
+                        style={{
+                          ...secondaryButton,
+                          opacity: joining ? 0.75 : 1,
+                          cursor: joining ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {joining ? "Cancelando..." : "Cancelar solicitud"}
+                      </button>
                     )}
-
-                    <div style={{ marginTop: 8, ...microText }}>
-                      {visibilityLabel(String(group.visibility ?? ""))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="group-actions-wrap">
-                  <div style={panelStyle}>
-                    <div style={{ ...microText, color: "rgba(255,255,255,0.82)" }}>
-                      {approved && "✅ Aprobado. Entrando…"}
-                      {pending && "✅ Solicitud enviada. Está pendiente de revisión."}
-                      {!pending &&
-                        !approved &&
-                        !rejected &&
-                        "Esta comunidad es privada."}
-                      {rejected && "❌ Tu solicitud fue rechazada."}
-                    </div>
-
-                    <div className="group-actions-row" style={{ marginTop: 12 }}>
-                      {!pending && !rejected ? (
-                        <button
-                          onClick={handleRequestPrivate}
-                          disabled={joining}
-                          style={{
-                            ...primaryButton,
-                            opacity: joining ? 0.75 : 1,
-                            cursor: joining ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          {joining ? "Enviando..." : "Solicitar acceso"}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={handleCancelPrivate}
-                          disabled={joining}
-                          style={{
-                            ...secondaryButton,
-                            opacity: joining ? 0.75 : 1,
-                            cursor: joining ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          {joining ? "Cancelando..." : "Cancelar solicitud"}
-                        </button>
-                      )}
-                    </div>
                   </div>
                 </div>
               </div>
-            </section>
-          </div>
-        </main>
-      </>
+            </div>
+          </section>
+        </div>
+      </main>
     );
   }
 
   return (
     <>
-      {ownerAdminButton}
-
-      {isOwner && user && group.ownerId ? (
-        <OwnerAdminPanel
-          groupId={groupId}
-          ownerId={group.ownerId}
-          currentUserId={user.uid}
-          currentAvatarUrl={group.avatarUrl ?? null}
-          currentCoverUrl={group.coverUrl ?? null}
-          currentName={group.name ?? null}
-          currentDescription={group.description ?? null}
-          currentCategory={group.category ?? null}
-          currentTags={group.tags ?? null}
-          isOpen={adminOpen}
-          onClose={() => setAdminOpen(false)}
-        />
-      ) : null}
-
       <main style={pageWrap}>
         <style jsx>{`
           .group-shell {
@@ -1217,15 +1144,33 @@ export default function GroupPage() {
 
                 {effectiveIsMember && (
                   <>
-                    <GroupSubnav activeTab={activeTab} onChange={setActiveTab} />
+                    <GroupSubnav
+                      activeTab={activeTab}
+                      onChange={setActiveTab}
+                      canManage={isOwner}
+                    />
 
-                    {activeTab === "feed" ? (
-                      <GroupFeedTab />
-                    ) : (
+                    {activeTab === "feed" && <GroupFeedTab />}
+
+                    {activeTab === "members" && (
                       <GroupMembersTab
                         groupId={groupId}
                         isOwner={isOwner}
                         canMembersViewList={canMembersViewList}
+                      />
+                    )}
+
+                    {activeTab === "settings" && isOwner && user && group.ownerId && (
+                      <OwnerAdminPanel
+                        groupId={groupId}
+                        ownerId={group.ownerId}
+                        currentUserId={user.uid}
+                        currentAvatarUrl={group.avatarUrl ?? null}
+                        currentCoverUrl={group.coverUrl ?? null}
+                        currentName={group.name ?? null}
+                        currentDescription={group.description ?? null}
+                        currentCategory={group.category ?? null}
+                        currentTags={group.tags ?? null}
                       />
                     )}
                   </>

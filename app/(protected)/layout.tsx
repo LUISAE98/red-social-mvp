@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "../providers";
 import { sendEmailVerification } from "firebase/auth";
-import OwnerSidebar from "@/app/components/OwnerSidebar";
+import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 
 const RESEND_COOLDOWN_SECONDS = 30;

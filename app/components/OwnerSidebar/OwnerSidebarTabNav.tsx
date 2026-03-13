@@ -1,52 +1,33 @@
 "use client";
 
 import { CSSProperties } from "react";
+import type { TopView, TabIconProps } from "./OwnerSidebar";
 
-export type TabKey = "feed" | "members" | "settings";
-
-type GroupSubnavProps = {
-  activeTab: TabKey;
-  onChange: (tab: TabKey) => void;
-  canManage?: boolean;
-};
-
-function IconFeed({ active }: { active: boolean }) {
+function IconMyCommunities({ active }: TabIconProps) {
   return (
     <svg
-      width="22"
-      height="22"
+      width="20"
+      height="20"
       viewBox="0 0 24 24"
-      fill="none"
+      fill={active ? "currentColor" : "none"}
       xmlns="http://www.w3.org/2000/svg"
       style={{ display: "block" }}
     >
       <path
-        d="M5 7H19"
+        d="M12 3.2L20 9.3V20.2C20 20.64 19.64 21 19.2 21H14.8C14.36 21 14 20.64 14 20.2V15.4C14 14.96 13.64 14.6 13.2 14.6H10.8C10.36 14.6 10 14.96 10 15.4V20.2C10 20.64 9.64 21 9.2 21H4.8C4.36 21 4 20.64 4 20.2V9.3L12 3.2Z"
         stroke="currentColor"
-        strokeWidth={active ? "2.2" : "1.9"}
-        strokeLinecap="round"
-      />
-      <path
-        d="M5 12H19"
-        stroke="currentColor"
-        strokeWidth={active ? "2.2" : "1.9"}
-        strokeLinecap="round"
-      />
-      <path
-        d="M5 17H19"
-        stroke="currentColor"
-        strokeWidth={active ? "2.2" : "1.9"}
-        strokeLinecap="round"
+        strokeWidth={active ? "1.6" : "1.8"}
+        strokeLinejoin="round"
       />
     </svg>
   );
 }
 
-function IconMembers({ active }: { active: boolean }) {
+function IconOtherCommunities({ active }: TabIconProps) {
   return (
     <svg
-      width="22"
-      height="22"
+      width="20"
+      height="20"
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -78,58 +59,57 @@ function IconMembers({ active }: { active: boolean }) {
   );
 }
 
-function IconSettings({ active }: { active: boolean }) {
+function IconGreetings({ active }: TabIconProps) {
   return (
     <svg
-      width="22"
-      height="22"
+      width="20"
+      height="20"
       viewBox="0 0 24 24"
-      fill="none"
+      fill={active ? "currentColor" : "none"}
       xmlns="http://www.w3.org/2000/svg"
       style={{ display: "block" }}
     >
       <path
-        d="M12 8.9C10.2889 8.9 8.9 10.2889 8.9 12C8.9 13.7111 10.2889 15.1 12 15.1C13.7111 15.1 15.1 13.7111 15.1 12C15.1 10.2889 13.7111 8.9 12 8.9Z"
+        d="M6.2 18.8L7 14.8C5.7 13.7 5 12.2 5 10.5C5 6.91 8.13 4 12 4C15.87 4 19 6.91 19 10.5C19 14.09 15.87 17 12 17C10.94 17 9.94 16.78 9.05 16.37L6.2 18.8Z"
         stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
-      />
-      <path
-        d="M19 12C19 11.53 18.95 11.08 18.84 10.64L20.45 9.39L18.61 6.19L16.67 6.97C15.98 6.38 15.17 5.92 14.28 5.66L14 3.6H10L9.72 5.66C8.83 5.92 8.02 6.38 7.33 6.97L5.39 6.19L3.55 9.39L5.16 10.64C5.05 11.08 5 11.53 5 12C5 12.47 5.05 12.92 5.16 13.36L3.55 14.61L5.39 17.81L7.33 17.03C8.02 17.62 8.83 18.08 9.72 18.34L10 20.4H14L14.28 18.34C15.17 18.08 15.98 17.62 16.67 17.03L18.61 17.81L20.45 14.61L18.84 13.36C18.95 12.92 19 12.47 19 12Z"
-        stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
+        strokeWidth={active ? "1.6" : "1.8"}
         strokeLinejoin="round"
       />
     </svg>
   );
 }
 
-export default function GroupSubnav({
-  activeTab,
+type Props = {
+  activeView: TopView;
+  onChange: (view: TopView) => void;
+};
+
+export default function OwnerSidebarTabNav({
+  activeView,
   onChange,
-  canManage = false,
-}: GroupSubnavProps) {
+}: Props) {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
   const wrapStyle: CSSProperties = {
     width: "100%",
-    borderTop: "1px solid rgba(255,255,255,0.12)",
     background: "rgba(20,20,22,0.95)",
     backdropFilter: "blur(20px)",
     WebkitBackdropFilter: "blur(20px)",
     boxShadow: "0 -8px 24px rgba(0,0,0,0.12)",
     padding: "10px 10px",
     display: "grid",
-    gridTemplateColumns: canManage
-      ? "repeat(3, minmax(0, 1fr))"
-      : "repeat(2, minmax(0, 1fr))",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
     alignItems: "center",
     gap: 0,
     fontFamily: fontStack,
+    boxSizing: "border-box",
+    borderRadius: 20,
   };
 
   const itemBase: CSSProperties = {
     position: "relative",
+    minWidth: 0,
     height: 52,
     display: "grid",
     placeItems: "center",
@@ -140,6 +120,7 @@ export default function GroupSubnav({
     cursor: "pointer",
     transition: "color 0.2s ease, transform 0.15s ease, background 0.2s ease",
     WebkitTapHighlightColor: "transparent",
+    padding: 0,
   };
 
   const activeStyle: CSSProperties = {
@@ -151,6 +132,8 @@ export default function GroupSubnav({
     display: "grid",
     justifyItems: "center",
     gap: 4,
+    width: "100%",
+    minWidth: 0,
   };
 
   const indicatorBase: CSSProperties = {
@@ -164,42 +147,52 @@ export default function GroupSubnav({
     transition: "background 0.2s ease, opacity 0.2s ease",
   };
 
+  const iconWrap: CSSProperties = {
+    display: "grid",
+    placeItems: "center",
+    width: 22,
+    height: 22,
+    lineHeight: 0,
+    flexShrink: 0,
+  };
+
   const labelStyle: CSSProperties = {
     fontSize: 12,
     fontWeight: 600,
     lineHeight: 1,
     letterSpacing: -0.1,
+    width: "100%",
+    textAlign: "center",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   };
 
   const tabs = [
     {
-      key: "feed" as const,
-      label: "Posts",
-      title: "Publicaciones",
-      icon: IconFeed,
+      key: "owned" as const,
+      label: "Inicio",
+      title: "Mis comunidades",
+      icon: IconMyCommunities,
     },
     {
-      key: "members" as const,
-      label: "Integrantes",
-      title: "Integrantes",
-      icon: IconMembers,
+      key: "communities" as const,
+      label: "Explorar",
+      title: "Otras comunidades",
+      icon: IconOtherCommunities,
     },
-    ...(canManage
-      ? [
-          {
-            key: "settings" as const,
-            label: "Config",
-            title: "Configuración",
-            icon: IconSettings,
-          },
-        ]
-      : []),
+    {
+      key: "greetings" as const,
+      label: "Saludos",
+      title: "Saludos",
+      icon: IconGreetings,
+    },
   ];
 
   return (
     <div style={wrapStyle}>
       {tabs.map((tab) => {
-        const active = activeTab === tab.key;
+        const active = activeView === tab.key;
         const Icon = tab.icon;
 
         return (
@@ -208,6 +201,7 @@ export default function GroupSubnav({
             type="button"
             onClick={() => onChange(tab.key)}
             aria-pressed={active}
+            aria-label={tab.title}
             title={tab.title}
             style={{
               ...itemBase,
@@ -225,8 +219,11 @@ export default function GroupSubnav({
                   : null),
               }}
             />
+
             <span style={itemInner}>
-              <Icon active={active} />
+              <span style={iconWrap}>
+                <Icon active={active} />
+              </span>
               <span style={labelStyle}>{tab.label}</span>
             </span>
           </button>

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
-import OwnerSidebar from "@/app/components/OwnerSidebar";
+import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 
 export default function GroupsLayout({

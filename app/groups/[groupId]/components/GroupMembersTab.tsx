@@ -1,4 +1,4 @@
-  "use client";
+"use client";
 
 import Link from "next/link";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
@@ -99,14 +99,22 @@ export default function GroupMembersTab({
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterValue>("all");
   const [savingVisibility, setSavingVisibility] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
 
   const safeCanMembersViewList = canMembersViewList === true;
   const canUseFilters = isOwner;
   const canSeeStatus = isOwner;
   const canViewList = isOwner || safeCanMembersViewList;
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 640);
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   useEffect(() => {
     if (!canViewList) {
@@ -277,105 +285,158 @@ export default function GroupMembersTab({
   };
 
   const cardStyle: CSSProperties = {
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.03)",
-    padding: 16,
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.028)",
+    padding: isMobile ? 12 : 14,
     color: "#fff",
-    boxShadow: "0 18px 48px rgba(0,0,0,0.35)",
-    backdropFilter: "blur(10px)",
-  };
-
-  const titleStyle: CSSProperties = {
-    margin: 0,
-    fontSize: 16,
-    fontWeight: 600,
-    lineHeight: 1.2,
-    color: "#fff",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
+    boxSizing: "border-box",
   };
 
   const topRow: CSSProperties = {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
-    gap: 12,
+    alignItems: isMobile ? "flex-start" : "center",
+    gap: 10,
     flexWrap: "wrap",
   };
 
-  const switchWrap: CSSProperties = {
-    display: "inline-flex",
+  const titleBlock: CSSProperties = {
+    minWidth: 0,
+  };
+
+  const titleStyle: CSSProperties = {
+    margin: 0,
+    fontSize: isMobile ? 14 : 16,
+    fontWeight: 600,
+    lineHeight: 1.1,
+    letterSpacing: "-0.02em",
+    color: "#fff",
+  };
+
+  const subtitleStyle: CSSProperties = {
+    margin: "4px 0 0 0",
+    fontSize: isMobile ? 10.5 : 12,
+    lineHeight: 1.35,
+    color: "rgba(255,255,255,0.62)",
+  };
+
+  const visibilityRow: CSSProperties = {
+    display: "flex",
     alignItems: "center",
     gap: 10,
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 12,
+    minWidth: 0,
+    marginTop: isMobile ? 2 : 0,
+  };
+
+  const switchTextWrap: CSSProperties = {
+    minWidth: 0,
+    display: "grid",
+    gap: 1,
+  };
+
+  const switchTitleStyle: CSSProperties = {
+    fontSize: isMobile ? 10.5 : 11.5,
+    fontWeight: 600,
+    lineHeight: 1.15,
+    color: "rgba(255,255,255,0.93)",
+  };
+
+  const switchSubtitleStyle: CSSProperties = {
+    fontSize: isMobile ? 9.5 : 10,
+    lineHeight: 1.2,
+    color: "rgba(255,255,255,0.58)",
+  };
+
+  const switchButtonStyle: CSSProperties = {
+    position: "relative",
+    width: 36,
+    height: 20,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: safeCanMembersViewList ? "#ffffff" : "rgba(255,255,255,0.10)",
+    transition: "all 0.2s ease",
+    cursor: savingVisibility ? "not-allowed" : "pointer",
+    flexShrink: 0,
+    padding: 0,
+    opacity: savingVisibility ? 0.7 : 1,
+  };
+
+  const switchThumbStyle: CSSProperties = {
+    position: "absolute",
+    top: 2,
+    left: safeCanMembersViewList ? 18 : 2,
+    width: 14,
+    height: 14,
+    borderRadius: "50%",
+    background: safeCanMembersViewList ? "#000" : "#fff",
+    transition: "all 0.2s ease",
   };
 
   const controlsRow: CSSProperties = {
     display: "grid",
-    gridTemplateColumns: canUseFilters ? "minmax(0, 1fr) 180px" : "minmax(0, 1fr)",
-    gap: 10,
-    marginTop: 14,
+    gridTemplateColumns: canUseFilters
+      ? isMobile
+        ? "minmax(0, 1fr) 118px"
+        : "minmax(0, 1fr) 180px"
+      : "minmax(0, 1fr)",
+    gap: 8,
+    marginTop: 12,
   };
 
   const inputStyle: CSSProperties = {
     width: "100%",
-    height: 42,
-    borderRadius: 12,
+    height: isMobile ? 36 : 40,
+    borderRadius: 8,
     border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.04)",
+    background: "rgba(255,255,255,0.035)",
     color: "#fff",
-    padding: "0 12px",
+    padding: isMobile ? "0 10px" : "0 11px",
     outline: "none",
-    fontSize: 13,
+    fontSize: isMobile ? 11.5 : 12.5,
+    fontWeight: 400,
     fontFamily: fontStack,
     boxSizing: "border-box",
+    WebkitAppearance: "none",
+    appearance: "none",
   };
 
   const selectStyle: CSSProperties = {
-    width: "100%",
-    height: 42,
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "#141414",
-    color: "#fff",
-    padding: "0 12px",
-    outline: "none",
-    fontSize: 13,
-    fontFamily: fontStack,
-    boxSizing: "border-box",
-    appearance: "none",
-    WebkitAppearance: "none",
-    MozAppearance: "none",
+    ...inputStyle,
+    cursor: "pointer",
+    background: isMobile ? "#111" : "rgba(255,255,255,0.035)",
   };
 
   const helperText: CSSProperties = {
-    marginTop: 10,
+    marginTop: 9,
     marginBottom: 0,
-    fontSize: 12,
-    lineHeight: 1.45,
-    color: "rgba(255,255,255,0.62)",
+    fontSize: isMobile ? 10 : 10.5,
+    lineHeight: 1.35,
+    color: "rgba(255,255,255,0.60)",
   };
 
   const listStyle: CSSProperties = {
     display: "grid",
-    gap: 10,
-    marginTop: 16,
+    gap: 8,
+    marginTop: 14,
   };
 
   const rowStyle: CSSProperties = {
     display: "grid",
-    gridTemplateColumns: "auto minmax(0, 1fr) auto",
-    gap: 12,
+    gridTemplateColumns: isMobile ? "34px minmax(0, 1fr) auto" : "42px minmax(0, 1fr) auto",
+    gap: isMobile ? 8 : 12,
     alignItems: "center",
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.02)",
-    padding: 14,
+    padding: isMobile ? "8px 9px" : "10px 12px",
   };
 
   const avatarStyle: CSSProperties = {
-    width: 48,
-    height: 48,
+    width: isMobile ? 34 : 42,
+    height: isMobile ? 34 : 42,
     borderRadius: "50%",
     overflow: "hidden",
     display: "grid",
@@ -383,82 +444,93 @@ export default function GroupMembersTab({
     background: "rgba(255,255,255,0.06)",
     border: "1px solid rgba(255,255,255,0.10)",
     color: "#fff",
-    fontSize: 13,
+    fontSize: isMobile ? 10.5 : 12,
     fontWeight: 700,
     flexShrink: 0,
   };
 
   const centerColStyle: CSSProperties = {
     minWidth: 0,
+    display: "grid",
+    gap: isMobile ? 3 : 4,
   };
 
   const nameLinkStyle: CSSProperties = {
-    fontSize: 13,
+    fontSize: isMobile ? 11.5 : 13,
     fontWeight: 600,
     color: "#fff",
     textDecoration: "none",
-    lineHeight: 1.3,
+    lineHeight: 1.2,
     display: "inline-block",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    maxWidth: "100%",
   };
 
   const namePlainStyle: CSSProperties = {
-    fontSize: 13,
+    fontSize: isMobile ? 11.5 : 13,
     fontWeight: 600,
     color: "#fff",
-    lineHeight: 1.3,
+    lineHeight: 1.2,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   };
 
-  const rightMetaWrap: CSSProperties = {
+  const mobileMetaRowStyle: CSSProperties = {
     display: "flex",
     alignItems: "center",
-    gap: 14,
-    justifySelf: "end",
-  };
-
-  const dividerStyle: CSSProperties = {
-    width: 1,
-    height: 28,
-    background: "rgba(255,255,255,0.12)",
+    gap: 8,
+    minWidth: 0,
   };
 
   const statusWrap: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
-    gap: 7,
-    minWidth: 78,
-    justifyContent: "flex-start",
-    fontSize: 12,
-    color: "rgba(255,255,255,0.72)",
+    gap: isMobile ? 5 : 7,
+    fontSize: isMobile ? 9.5 : 11.5,
+    color: "rgba(255,255,255,0.68)",
+    lineHeight: 1,
     whiteSpace: "nowrap",
+    minWidth: 0,
   };
 
-  const roleWrap: CSSProperties = {
+  const desktopRightMetaWrap: CSSProperties = {
     display: "flex",
     alignItems: "center",
-    justifyContent: "center",
-    minWidth: 104,
-    marginRight: 10,
+    gap: 10,
+    justifySelf: "end",
+  };
+
+  const dividerStyle: CSSProperties = {
+    width: 1,
+    height: isMobile ? 16 : 22,
+    background: "rgba(255,255,255,0.10)",
   };
 
   const roleBadge: CSSProperties = {
-    minWidth: 92,
+    minWidth: isMobile ? 72 : 92,
     textAlign: "center",
     borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.12)",
+    border: "1px solid rgba(255,255,255,0.10)",
     background: "rgba(255,255,255,0.05)",
-    padding: "10px 14px",
-    fontSize: 12,
+    padding: isMobile ? "6px 8px" : "8px 11px",
+    fontSize: isMobile ? 9.5 : 11.5,
+    fontWeight: 500,
     color: "#fff",
     whiteSpace: "nowrap",
+    lineHeight: 1.1,
   };
 
   const emptyStyle: CSSProperties = {
-    marginTop: 16,
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.10)",
+    marginTop: 14,
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.03)",
-    padding: 14,
-    fontSize: 12,
+    padding: isMobile ? "10px 11px" : "11px 12px",
+    fontSize: isMobile ? 10.5 : 11.5,
+    lineHeight: 1.35,
     color: "rgba(255,255,255,0.72)",
   };
 
@@ -466,18 +538,29 @@ export default function GroupMembersTab({
     <div style={wrapStyle}>
       <section style={cardStyle}>
         <div style={topRow}>
-          <h2 style={titleStyle}>Integrantes del grupo</h2>
+          <div style={titleBlock}>
+            <h2 style={titleStyle}>Integrantes del grupo</h2>
+            <p style={subtitleStyle}>Busca, filtra y consulta los miembros del grupo.</p>
+          </div>
 
           {isOwner && (
-            <label style={switchWrap}>
-              <input
-                type="checkbox"
-                checked={safeCanMembersViewList}
+            <div style={visibilityRow}>
+              <div style={switchTextWrap}>
+                <div style={switchTitleStyle}>Permitir lista visible</div>
+                <div style={switchSubtitleStyle}>Acceso para miembros</div>
+              </div>
+
+              <button
+                type="button"
+                aria-pressed={safeCanMembersViewList}
+                aria-label="Permitir que los miembros vean esta lista"
+                onClick={() => handleToggleMembersVisibility(!safeCanMembersViewList)}
                 disabled={savingVisibility}
-                onChange={(e) => handleToggleMembersVisibility(e.target.checked)}
-              />
-              <span>Permitir que los miembros vean esta lista</span>
-            </label>
+                style={switchButtonStyle}
+              >
+                <span style={switchThumbStyle} />
+              </button>
+            </div>
           )}
         </div>
 
@@ -579,10 +662,29 @@ export default function GroupMembersTab({
                     ) : (
                       <div style={namePlainStyle}>{displayName}</div>
                     )}
+
+                    {canSeeStatus && isMobile && (
+                      <div style={mobileMetaRowStyle}>
+                        <div style={statusWrap}>
+                          <span
+                            aria-hidden="true"
+                            style={{
+                              width: 7,
+                              height: 7,
+                              borderRadius: "50%",
+                              background: dotColor,
+                              display: "inline-block",
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span>{statusText}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  <div style={rightMetaWrap}>
-                    {canSeeStatus && (
+                  <div style={desktopRightMetaWrap}>
+                    {canSeeStatus && !isMobile && (
                       <>
                         <div style={dividerStyle} />
 
@@ -603,9 +705,7 @@ export default function GroupMembersTab({
                       </>
                     )}
 
-                    <div style={roleWrap}>
-                      <div style={roleBadge}>{roleText}</div>
-                    </div>
+                    <div style={roleBadge}>{roleText}</div>
                   </div>
                 </div>
               );

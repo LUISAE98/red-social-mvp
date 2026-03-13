@@ -174,12 +174,9 @@ export default function MobileBottomNav() {
           grid-template-columns: repeat(3, minmax(0, 1fr));
           align-items: center;
           padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
-
           background: rgba(20, 20, 22, 0.95);
-
           backdrop-filter: blur(20px);
           -webkit-backdrop-filter: blur(20px);
-
           border-top: 1px solid rgba(255, 255, 255, 0.12);
         }
 
@@ -190,8 +187,9 @@ export default function MobileBottomNav() {
           place-items: center;
           text-decoration: none;
           color: rgba(255, 255, 255, 0.5);
-
-          transition: color 0.2s ease, transform 0.15s ease;
+          transition: color 0.2s ease, transform 0.15s ease,
+            background 0.2s ease;
+          border-radius: 16px;
         }
 
         .item:active {
@@ -200,11 +198,12 @@ export default function MobileBottomNav() {
 
         .itemActive {
           color: #ffffff;
+          background: rgba(255, 255, 255, 0.04);
         }
 
         .indicator {
           position: absolute;
-          top: -10px;
+          top: 4px;
           width: 24px;
           height: 3px;
           border-radius: 999px;

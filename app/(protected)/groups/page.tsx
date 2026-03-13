@@ -1,6 +1,6 @@
 "use client";
 
-import OwnerSidebar from "@/app/components/OwnerSidebar";
+import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
 
 export default function GroupsMobilePage() {
   return (
