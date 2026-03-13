@@ -185,32 +185,32 @@ export default function GroupPage() {
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
   const ui = {
-    pageMaxWidth: 860,
-    coverHeight: 210,
-    avatarSize: 210,
-    avatarOffsetTop: -105,
-    contentTopPadding: 128,
-    cardRadius: 14,
-    panelRadius: 12,
-    buttonRadius: 9,
-    buttonPadding: "8px 12px",
-    inputPadding: "9px 11px",
+    pageMaxWidth: 1080,
+    coverHeight: "clamp(190px, 35vw, 300px)",
+    avatarSize: "clamp(112px, 24vw, 220px)",
+    avatarOffsetTop: "clamp(-58px, -9vw, -82px)",
+    contentTopPadding: "clamp(82px, 14vw, 176px)",
+    cardRadius: 18,
+    panelRadius: 14,
+    buttonRadius: 10,
+    buttonPadding: "10px 14px",
+    inputPadding: "10px 12px",
     modalMaxWidth: 680,
     title: 18,
     subtitle: 16,
-    body: 13,
+    body: 14,
     micro: 12,
     label: 12,
     shadow: "0 18px 48px rgba(0,0,0,0.55)",
-    borderSoft: "1px solid rgba(255,255,255,0.18)",
-    borderFaint: "1px solid rgba(255,255,255,0.12)",
+    borderSoft: "1px solid rgba(255,255,255,0.16)",
+    borderFaint: "1px solid rgba(255,255,255,0.10)",
     cardBg: "rgba(12,12,12,0.92)",
     panelBg: "rgba(255,255,255,0.03)",
   };
 
   const pageWrap: React.CSSProperties = {
-    minHeight: "calc(100vh - 70px)",
-    padding: "20px 14px 120px",
+    minHeight: "calc(100dvh - 70px)",
+    padding: "12px 0 calc(120px + env(safe-area-inset-bottom))",
     background: "#000",
     color: "#fff",
     fontFamily: fontStack,
@@ -223,6 +223,8 @@ export default function GroupPage() {
     maxWidth: ui.pageMaxWidth,
     margin: "0 auto",
     width: "100%",
+    padding: "0 12px",
+    boxSizing: "border-box",
   };
 
   const cardStyle: React.CSSProperties = {
@@ -239,7 +241,7 @@ export default function GroupPage() {
     borderRadius: ui.panelRadius,
     border: ui.borderFaint,
     background: ui.panelBg,
-    padding: 12,
+    padding: 14,
   };
 
   const titleStyle: React.CSSProperties = {
@@ -261,14 +263,14 @@ export default function GroupPage() {
   const textStyle: React.CSSProperties = {
     fontSize: ui.body,
     fontWeight: 400,
-    lineHeight: 1.45,
+    lineHeight: 1.5,
     color: "rgba(255,255,255,0.82)",
   };
 
   const microText: React.CSSProperties = {
     fontSize: ui.micro,
     fontWeight: 400,
-    lineHeight: 1.4,
+    lineHeight: 1.45,
     color: "rgba(255,255,255,0.70)",
   };
 
@@ -324,7 +326,7 @@ export default function GroupPage() {
   const inputStyle: React.CSSProperties = {
     width: "100%",
     padding: ui.inputPadding,
-    borderRadius: 9,
+    borderRadius: 10,
     border: "1px solid rgba(255,255,255,0.18)",
     background: "rgba(255,255,255,0.06)",
     color: "#fff",
@@ -346,7 +348,7 @@ export default function GroupPage() {
     fontSize: ui.micro,
     fontWeight: 400,
     color: "rgba(255,255,255,0.92)",
-    lineHeight: 1.4,
+    lineHeight: 1.45,
   };
 
   useEffect(() => {
@@ -603,7 +605,8 @@ export default function GroupPage() {
       const fileRef = ref(storage, path);
 
       await uploadBytes(fileRef, blob, { contentType: "image/jpeg" });
-      const url = await getDownloadURL(fileRef);
+      const rawUrl = await getDownloadURL(fileRef);
+      const url = `${rawUrl}${rawUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
 
       const gref = doc(db, "groups", groupId);
       if (mode === "avatar") {
@@ -613,6 +616,10 @@ export default function GroupPage() {
       }
 
       setCropOpen(false);
+      setCropImageSrc("");
+      setCroppedAreaPixels(null);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
     } catch (e: any) {
       setError(
         e?.code === "permission-denied"
@@ -672,34 +679,135 @@ export default function GroupPage() {
       </svg>
     `);
 
+  const ownerAdminButton = isOwner ? (
+    <button
+      type="button"
+      style={{
+        position: "fixed",
+        right: 14,
+        top: 84,
+        height: 38,
+        padding: "0 12px",
+        borderRadius: 10,
+        border: "1px solid rgba(255,255,255,0.18)",
+        background: "rgba(12,12,12,0.92)",
+        color: "#fff",
+        fontWeight: 600,
+        fontSize: ui.body,
+        lineHeight: 1,
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        zIndex: 20000,
+        backdropFilter: "blur(10px)",
+        boxShadow: ui.shadow,
+        fontFamily: fontStack,
+      }}
+      title={adminOpen ? "Cerrar administración" : "Administrar"}
+      onClick={() => setAdminOpen((v) => !v)}
+    >
+      <span>{adminOpen ? "Cerrar administración" : "Administrar"}</span>
+      <span aria-hidden="true" style={{ opacity: 0.85, fontSize: ui.micro }}>
+        ⚙
+      </span>
+    </button>
+  ) : null;
+
   if (visibility === "private" && !effectiveIsMember) {
     const pending = joinReqStatus === "pending";
     const rejected = joinReqStatus === "rejected";
     const approved = joinReqStatus === "approved";
 
     return (
-      <main style={pageWrap}>
-        <div style={container}>
-          <section style={cardStyle}>
-            <div
-              style={{
-                position: "relative",
-                height: ui.coverHeight,
-                background: "#0b0b0b",
-              }}
-            >
-              {group.coverUrl ? (
-                <img
-                  src={group.coverUrl}
-                  alt="Cover"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    opacity: 0.96,
-                  }}
-                />
-              ) : (
+      <>
+        {ownerAdminButton}
+
+        {isOwner && user && group.ownerId ? (
+          <OwnerAdminPanel
+            groupId={groupId}
+            ownerId={group.ownerId}
+            currentUserId={user.uid}
+            currentAvatarUrl={group.avatarUrl ?? null}
+            currentCoverUrl={group.coverUrl ?? null}
+            currentName={group.name ?? null}
+            currentDescription={group.description ?? null}
+            currentCategory={group.category ?? null}
+            currentTags={group.tags ?? null}
+            isOpen={adminOpen}
+            onClose={() => setAdminOpen(false)}
+          />
+        ) : null}
+
+        <main style={pageWrap}>
+          <style jsx>{`
+            .group-shell {
+              width: 100%;
+            }
+
+            .group-card {
+              overflow: hidden;
+            }
+
+            .group-content {
+              position: relative;
+              padding: 0 18px 20px;
+            }
+
+            .group-meta {
+              display: grid;
+              place-items: center;
+              text-align: center;
+            }
+
+            .group-description {
+              margin-top: 8px;
+              max-width: 660px;
+            }
+
+            .group-actions-wrap {
+              margin-top: 18px;
+              border-top: 1px solid rgba(255, 255, 255, 0.1);
+              padding-top: 14px;
+              display: grid;
+              gap: 12px;
+            }
+
+            .group-actions-row {
+              display: flex;
+              justify-content: center;
+              gap: 10px;
+              align-items: center;
+              flex-wrap: wrap;
+            }
+
+            @media (max-width: 900px) {
+              .group-shell {
+                max-width: none;
+              }
+            }
+
+            @media (max-width: 640px) {
+              .group-content {
+                padding: 0 12px 18px;
+              }
+
+              .group-actions-row > button {
+                width: 100%;
+              }
+            }
+          `}</style>
+
+          <div style={container} className="group-shell">
+            <section className="group-card" style={cardStyle}>
+              <div
+                style={{
+                  position: "relative",
+                  height: ui.coverHeight,
+                  background: "#0b0b0b",
+                }}
+              >
                 <img
                   src={coverBg}
                   alt="Cover"
@@ -710,117 +818,92 @@ export default function GroupPage() {
                     opacity: 0.96,
                   }}
                 />
-              )}
-
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.52) 58%, rgba(0,0,0,0.88) 100%)",
-                }}
-              />
-            </div>
-
-            <div style={{ padding: 16 }}>
-              <div style={{ ...titleStyle, marginBottom: 8 }}>
-                {group.name ?? ""}
-              </div>
-
-              {!!group.description && (
-                <p style={{ ...textStyle, margin: 0 }}>{group.description}</p>
-              )}
-
-              <div style={{ ...panelStyle, marginTop: 14 }}>
-                <div style={{ ...microText, color: "rgba(255,255,255,0.82)" }}>
-                  {approved && "✅ Aprobado. Entrando…"}
-                  {pending && "✅ Solicitud enviada. Está pendiente de revisión."}
-                  {!pending && !approved && !rejected && "Esta comunidad es privada."}
-                  {rejected && "❌ Tu solicitud fue rechazada."}
-                </div>
 
                 <div
                   style={{
-                    marginTop: 12,
-                    display: "flex",
-                    gap: 10,
-                    flexWrap: "wrap",
+                    position: "absolute",
+                    inset: 0,
+                    background:
+                      "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.52) 58%, rgba(0,0,0,0.88) 100%)",
+                  }}
+                />
+              </div>
+
+              <div className="group-content">
+                <div
+                  style={{
+                    paddingTop: 18,
+                    position: "relative",
+                    zIndex: 1,
                   }}
                 >
-                  {!pending && !rejected ? (
-                    <button
-                      onClick={handleRequestPrivate}
-                      disabled={joining}
-                      style={{
-                        ...primaryButton,
-                        opacity: joining ? 0.75 : 1,
-                        cursor: joining ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {joining ? "Enviando..." : "Solicitar acceso"}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={handleCancelPrivate}
-                      disabled={joining}
-                      style={{
-                        ...secondaryButton,
-                        opacity: joining ? 0.75 : 1,
-                        cursor: joining ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {joining ? "Cancelando..." : "Cancelar solicitud"}
-                    </button>
-                  )}
+                  <div className="group-meta">
+                    <h1 style={{ ...titleStyle, margin: 0 }}>{group.name ?? ""}</h1>
+
+                    {!!group.description && (
+                      <div className="group-description" style={textStyle}>
+                        {group.description}
+                      </div>
+                    )}
+
+                    <div style={{ marginTop: 8, ...microText }}>
+                      {visibilityLabel(String(group.visibility ?? ""))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="group-actions-wrap">
+                  <div style={panelStyle}>
+                    <div style={{ ...microText, color: "rgba(255,255,255,0.82)" }}>
+                      {approved && "✅ Aprobado. Entrando…"}
+                      {pending && "✅ Solicitud enviada. Está pendiente de revisión."}
+                      {!pending &&
+                        !approved &&
+                        !rejected &&
+                        "Esta comunidad es privada."}
+                      {rejected && "❌ Tu solicitud fue rechazada."}
+                    </div>
+
+                    <div className="group-actions-row" style={{ marginTop: 12 }}>
+                      {!pending && !rejected ? (
+                        <button
+                          onClick={handleRequestPrivate}
+                          disabled={joining}
+                          style={{
+                            ...primaryButton,
+                            opacity: joining ? 0.75 : 1,
+                            cursor: joining ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {joining ? "Enviando..." : "Solicitar acceso"}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleCancelPrivate}
+                          disabled={joining}
+                          style={{
+                            ...secondaryButton,
+                            opacity: joining ? 0.75 : 1,
+                            cursor: joining ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {joining ? "Cancelando..." : "Cancelar solicitud"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
-        </div>
-      </main>
+            </section>
+          </div>
+        </main>
+      </>
     );
   }
 
   return (
     <>
-      {isOwner && (
-        <button
-          type="button"
-          style={{
-            position: "fixed",
-            right: 14,
-            top: 84,
-            height: 36,
-            padding: "0 12px",
-            borderRadius: 9,
-            border: "1px solid rgba(255,255,255,0.18)",
-            background: "rgba(12,12,12,0.92)",
-            color: "#fff",
-            fontWeight: 600,
-            fontSize: ui.body,
-            lineHeight: 1,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            zIndex: 20000,
-            backdropFilter: "blur(10px)",
-            boxShadow: ui.shadow,
-            fontFamily: fontStack,
-          }}
-          title={adminOpen ? "Cerrar administración" : "Administrar"}
-          onClick={() => setAdminOpen((v) => !v)}
-        >
-          <span>{adminOpen ? "Cerrar administración" : "Administrar"}</span>
-          <span
-            aria-hidden="true"
-            style={{ opacity: 0.85, fontSize: ui.micro }}
-          >
-            ⚙
-          </span>
-        </button>
-      )}
+      {ownerAdminButton}
 
       {isOwner && user && group.ownerId ? (
         <OwnerAdminPanel
@@ -839,8 +922,82 @@ export default function GroupPage() {
       ) : null}
 
       <main style={pageWrap}>
-        <div style={container}>
-          <section style={cardStyle}>
+        <style jsx>{`
+          .group-shell {
+            width: 100%;
+          }
+
+          .group-card {
+            overflow: hidden;
+          }
+
+          .group-content {
+            position: relative;
+            padding: 0 18px 20px;
+          }
+
+          .group-meta {
+            display: grid;
+            place-items: center;
+            text-align: center;
+          }
+
+          .group-description {
+            margin-top: 8px;
+            max-width: 660px;
+          }
+
+          .group-visibility {
+            margin-top: 10px;
+          }
+
+          .group-actions-wrap {
+            margin-top: 18px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 14px;
+            display: grid;
+            gap: 12px;
+          }
+
+          .group-actions-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+          }
+
+          .group-offerings-card {
+            max-width: 620px;
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: ${ui.shadow};
+          }
+
+          @media (max-width: 900px) {
+            .group-shell {
+              max-width: none;
+            }
+          }
+
+          @media (max-width: 640px) {
+            .group-content {
+              padding: 0 12px 18px;
+            }
+
+            .group-actions-row > button {
+              width: 100%;
+            }
+
+            .group-offerings-card {
+              max-width: none;
+            }
+          }
+        `}</style>
+
+        <div style={container} className="group-shell">
+          <section className="group-card" style={cardStyle}>
             <div
               style={{
                 position: "relative",
@@ -891,7 +1048,7 @@ export default function GroupPage() {
               )}
             </div>
 
-            <div style={{ position: "relative", padding: "0 18px 18px" }}>
+            <div className="group-content">
               <div
                 style={{
                   position: "absolute",
@@ -942,7 +1099,7 @@ export default function GroupPage() {
                     ) : (
                       <span
                         style={{
-                          fontSize: 34,
+                          fontSize: "clamp(24px, 5vw, 34px)",
                           fontWeight: 600,
                           color: "rgba(255,255,255,0.88)",
                           fontFamily: fontStack,
@@ -964,8 +1121,8 @@ export default function GroupPage() {
                       disabled={uploading}
                       style={{
                         position: "absolute",
-                        right: 10,
-                        bottom: 10,
+                        right: 8,
+                        bottom: 8,
                         width: 34,
                         height: 34,
                         borderRadius: 999,
@@ -999,53 +1156,23 @@ export default function GroupPage() {
                   zIndex: 1,
                 }}
               >
-                <div
-                  style={{
-                    display: "grid",
-                    justifyItems: "center",
-                    textAlign: "center",
-                  }}
-                >
-                  <h1 style={{ ...titleStyle, margin: 0 }}>
-                    {group.name ?? ""}
-                  </h1>
+                <div className="group-meta">
+                  <h1 style={{ ...titleStyle, margin: 0 }}>{group.name ?? ""}</h1>
 
                   {!!group.description && (
-                    <div
-                      style={{
-                        marginTop: 8,
-                        maxWidth: 600,
-                        ...textStyle,
-                      }}
-                    >
+                    <div className="group-description" style={textStyle}>
                       {group.description}
                     </div>
                   )}
 
-                  <div style={{ marginTop: 8, ...microText }}>
+                  <div className="group-visibility" style={microText}>
                     {visibilityLabel(String(group.visibility ?? ""))}
                   </div>
                 </div>
               </div>
 
-              <div
-                style={{
-                  marginTop: 16,
-                  borderTop: "1px solid rgba(255,255,255,0.10)",
-                  paddingTop: 14,
-                  display: "grid",
-                  gap: 12,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    gap: 10,
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                  }}
-                >
+              <div className="group-actions-wrap">
+                <div className="group-actions-row">
                   {!isOwner &&
                     !effectiveIsMember &&
                     visibility === "public" && (
@@ -1090,10 +1217,7 @@ export default function GroupPage() {
 
                 {effectiveIsMember && (
                   <>
-                    <GroupSubnav
-                      activeTab={activeTab}
-                      onChange={setActiveTab}
-                    />
+                    <GroupSubnav activeTab={activeTab} onChange={setActiveTab} />
 
                     {activeTab === "feed" ? (
                       <GroupFeedTab />
@@ -1107,195 +1231,166 @@ export default function GroupPage() {
                   </>
                 )}
 
-                {!isOwner &&
-                  effectiveIsMember &&
-                  enabledOfferings.length > 0 && (
-                    <section
-                      style={{
-                        ...panelStyle,
-                        maxWidth: 560,
-                        width: "100%",
-                        marginLeft: "auto",
-                        marginRight: "auto",
-                        boxShadow: ui.shadow,
-                      }}
-                    >
-                      <div style={{ ...subtitleStyle, marginBottom: 6 }}>
-                        Comprar al creador
-                      </div>
+                {!isOwner && effectiveIsMember && enabledOfferings.length > 0 && (
+                  <section style={{ ...panelStyle }} className="group-offerings-card">
+                    <div style={{ ...subtitleStyle, marginBottom: 6 }}>
+                      Comprar al creador
+                    </div>
 
-                      <div style={{ ...microText, marginBottom: 12 }}>
-                        MVP sin pagos reales todavía. Envías una solicitud y el
-                        creador podrá aceptarla o rechazarla.
-                      </div>
+                    <div style={{ ...microText, marginBottom: 12 }}>
+                      MVP sin pagos reales todavía. Envías una solicitud y el
+                      creador podrá aceptarla o rechazarla.
+                    </div>
 
-                      <div style={{ display: "grid", gap: 10 }}>
-                        {enabledOfferings.map((o: any) => {
-                          const t = String(o.type ?? "");
-                          const label = labelForOfferingType(t);
-                          const priceText =
-                            o.price != null && o.currency
-                              ? ` — ${o.currency} ${o.price}`
-                              : "";
-                          const disabled = !isGreetingType(t);
+                    <div style={{ display: "grid", gap: 10 }}>
+                      {enabledOfferings.map((o: any) => {
+                        const t = String(o.type ?? "");
+                        const label = labelForOfferingType(t);
+                        const priceText =
+                          o.price != null && o.currency
+                            ? ` — ${o.currency} ${o.price}`
+                            : "";
+                        const disabled = !isGreetingType(t);
 
-                          return (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={() => {
-                                if (!isGreetingType(t)) return;
-                                openGreetingForm(t);
-                              }}
-                              disabled={disabled}
-                              style={{
-                                ...secondaryButton,
-                                textAlign: "left",
-                                opacity: disabled ? 0.55 : 1,
-                                cursor: disabled ? "not-allowed" : "pointer",
-                              }}
-                              title={
-                                disabled
-                                  ? "Tipo de servicio no soportado en MVP"
-                                  : undefined
-                              }
-                            >
-                              Solicitar {label}
-                              {priceText}
-                            </button>
-                          );
-                        })}
-                      </div>
+                        return (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => {
+                              if (!isGreetingType(t)) return;
+                              openGreetingForm(t);
+                            }}
+                            disabled={disabled}
+                            style={{
+                              ...secondaryButton,
+                              textAlign: "left",
+                              opacity: disabled ? 0.55 : 1,
+                              cursor: disabled ? "not-allowed" : "pointer",
+                            }}
+                            title={
+                              disabled
+                                ? "Tipo de servicio no soportado en MVP"
+                                : undefined
+                            }
+                          >
+                            Solicitar {label}
+                            {priceText}
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                      {greetOpen && (
+                    {greetOpen && (
+                      <div
+                        style={{
+                          marginTop: 14,
+                          ...panelStyle,
+                          background: "rgba(255,255,255,0.035)",
+                        }}
+                      >
                         <div
                           style={{
-                            marginTop: 14,
-                            ...panelStyle,
-                            background: "rgba(255,255,255,0.035)",
+                            display: "flex",
+                            justifyContent: "space-between",
+                            gap: 12,
+                            alignItems: "center",
+                            flexWrap: "wrap",
                           }}
                         >
+                          <div style={subtitleStyle}>
+                            Solicitar {labelForOfferingType(greetType)}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={closeGreetingForm}
+                            disabled={greetSubmitting}
+                            style={secondaryButton}
+                          >
+                            Cerrar
+                          </button>
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 10,
+                            display: "grid",
+                            gap: 10,
+                          }}
+                        >
+                          <label style={{ display: "grid", gap: 6 }}>
+                            <span style={labelStyle}>¿A quién va dirigido?</span>
+                            <input
+                              value={toName}
+                              onChange={(e) => setToName(e.target.value)}
+                              placeholder="Ej. Para Juan"
+                              disabled={greetSubmitting}
+                              style={inputStyle}
+                            />
+                          </label>
+
+                          <label style={{ display: "grid", gap: 6 }}>
+                            <span style={labelStyle}>Contexto / instrucciones</span>
+                            <textarea
+                              value={instructions}
+                              onChange={(e) => setInstructions(e.target.value)}
+                              placeholder="Ej. Cumpleaños, felicitación por logro, tono del mensaje, etc."
+                              disabled={greetSubmitting}
+                              rows={5}
+                              style={{
+                                ...inputStyle,
+                                resize: "vertical",
+                                minHeight: 110,
+                              }}
+                            />
+                          </label>
+
+                          {greetError && <div style={messageBox}>{greetError}</div>}
+                          {greetSuccess && <div style={messageBox}>{greetSuccess}</div>}
+
                           <div
                             style={{
                               display: "flex",
-                              justifyContent: "space-between",
-                              gap: 12,
-                              alignItems: "center",
+                              gap: 10,
+                              flexWrap: "wrap",
                             }}
                           >
-                            <div style={subtitleStyle}>
-                              Solicitar {labelForOfferingType(greetType)}
-                            </div>
+                            <button
+                              type="button"
+                              onClick={submitGreetingRequest}
+                              disabled={greetSubmitting}
+                              style={{
+                                ...primaryButton,
+                                opacity: greetSubmitting ? 0.75 : 1,
+                                cursor: greetSubmitting ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              {greetSubmitting ? "Enviando..." : "Enviar solicitud"}
+                            </button>
 
                             <button
                               type="button"
                               onClick={closeGreetingForm}
                               disabled={greetSubmitting}
-                              style={secondaryButton}
+                              style={{
+                                ...secondaryButton,
+                                opacity: greetSubmitting ? 0.75 : 1,
+                                cursor: greetSubmitting ? "not-allowed" : "pointer",
+                              }}
                             >
-                              Cerrar
+                              Cancelar
                             </button>
                           </div>
 
-                          <div
-                            style={{
-                              marginTop: 10,
-                              display: "grid",
-                              gap: 10,
-                            }}
-                          >
-                            <label style={{ display: "grid", gap: 6 }}>
-                              <span style={labelStyle}>
-                                ¿A quién va dirigido?
-                              </span>
-                              <input
-                                value={toName}
-                                onChange={(e) => setToName(e.target.value)}
-                                placeholder="Ej. Para Juan"
-                                disabled={greetSubmitting}
-                                style={inputStyle}
-                              />
-                            </label>
-
-                            <label style={{ display: "grid", gap: 6 }}>
-                              <span style={labelStyle}>
-                                Contexto / instrucciones
-                              </span>
-                              <textarea
-                                value={instructions}
-                                onChange={(e) =>
-                                  setInstructions(e.target.value)
-                                }
-                                placeholder="Ej. Cumpleaños, felicitación por logro, tono del mensaje, etc."
-                                disabled={greetSubmitting}
-                                rows={5}
-                                style={{
-                                  ...inputStyle,
-                                  resize: "vertical",
-                                  minHeight: 110,
-                                }}
-                              />
-                            </label>
-
-                            {greetError && (
-                              <div style={{ ...messageBox }}>
-                                {greetError}
-                              </div>
-                            )}
-                            {greetSuccess && (
-                              <div style={messageBox}>{greetSuccess}</div>
-                            )}
-
-                            <div
-                              style={{
-                                display: "flex",
-                                gap: 10,
-                                flexWrap: "wrap",
-                              }}
-                            >
-                              <button
-                                type="button"
-                                onClick={submitGreetingRequest}
-                                disabled={greetSubmitting}
-                                style={{
-                                  ...primaryButton,
-                                  opacity: greetSubmitting ? 0.75 : 1,
-                                  cursor: greetSubmitting
-                                    ? "not-allowed"
-                                    : "pointer",
-                                }}
-                              >
-                                {greetSubmitting
-                                  ? "Enviando..."
-                                  : "Enviar solicitud"}
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={closeGreetingForm}
-                                disabled={greetSubmitting}
-                                style={{
-                                  ...secondaryButton,
-                                  opacity: greetSubmitting ? 0.75 : 1,
-                                  cursor: greetSubmitting
-                                    ? "not-allowed"
-                                    : "pointer",
-                                }}
-                              >
-                                Cancelar
-                              </button>
-                            </div>
-
-                            <div style={microText}>
-                              Nota: el creador podrá aceptar o rechazar tu
-                              solicitud. Pagos y entrega de video se integran
-                              después.
-                            </div>
+                          <div style={microText}>
+                            Nota: el creador podrá aceptar o rechazar tu
+                            solicitud. Pagos y entrega de video se integran después.
                           </div>
                         </div>
-                      )}
-                    </section>
-                  )}
+                      </div>
+                    )}
+                  </section>
+                )}
               </div>
             </div>
           </section>
@@ -1366,6 +1461,7 @@ export default function GroupPage() {
                 gap: 12,
                 borderBottom: "1px solid rgba(255,255,255,0.10)",
                 background: "rgba(255,255,255,0.06)",
+                flexWrap: "wrap",
               }}
             >
               <div style={subtitleStyle}>
@@ -1438,6 +1534,7 @@ export default function GroupPage() {
                     marginLeft: "auto",
                     display: "flex",
                     gap: 10,
+                    flexWrap: "wrap",
                   }}
                 >
                   <button

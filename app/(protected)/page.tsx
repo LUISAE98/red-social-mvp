@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  query,
+  where,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 import { db, auth } from "../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -29,18 +36,12 @@ type PublicUser = {
   photoURL?: string | null;
 };
 
-function initials(name: string) {
-  const parts = (name || "").trim().split(/\s+/).filter(Boolean);
-  const a = parts[0]?.[0] ?? "";
-  const b = parts[1]?.[0] ?? "";
-  return (a + b).toUpperCase();
-}
-
 export default function GroupsHome() {
   const router = useRouter();
 
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [groupsLoading, setGroupsLoading] = useState(true);
 
   const [profile, setProfile] = useState<PublicUser | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
@@ -56,7 +57,7 @@ export default function GroupsHome() {
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
   const pageWrap: React.CSSProperties = {
-    padding: 24,
+    padding: "12px 0 calc(118px + env(safe-area-inset-bottom))",
     background: "#000",
     minHeight: "100vh",
     color: "#fff",
@@ -64,21 +65,25 @@ export default function GroupsHome() {
   };
 
   const container: React.CSSProperties = {
-    maxWidth: 860,
+    maxWidth: 1080,
     margin: "0 auto",
     width: "100%",
+    padding: "0 12px",
+    boxSizing: "border-box",
   };
 
-  const cardBorder = "1px solid rgba(255,255,255,0.18)";
-  const softBorder = "1px solid rgba(255,255,255,0.22)";
-  const fieldBorder = "1px solid rgba(255,255,255,0.30)";
+  const cardBorder = "1px solid rgba(255,255,255,0.14)";
+  const softBorder = "1px solid rgba(255,255,255,0.18)";
+  const fieldBorder = "1px solid rgba(255,255,255,0.18)";
   const surface = "rgba(12,12,12,0.90)";
-  const fieldBg = "rgba(0,0,0,0.32)";
+  const fieldBg = "rgba(255,255,255,0.045)";
+  const fieldBgFocus = "rgba(255,255,255,0.065)";
+  const shadow = "0 18px 46px rgba(0,0,0,0.42)";
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      setLoading(false);
+      setAuthLoading(false);
     });
     return () => unsub();
   }, []);
@@ -89,14 +94,18 @@ export default function GroupsHome() {
         setProfile(null);
         return;
       }
+
       setProfileLoading(true);
+
       try {
         const ref = doc(db, "users", user.uid);
         const snap = await getDoc(ref);
+
         if (!snap.exists()) {
           setProfile(null);
           return;
         }
+
         setProfile(snap.data() as any);
       } catch (e: any) {
         setError(e?.message ?? "Error leyendo perfil");
@@ -104,13 +113,15 @@ export default function GroupsHome() {
         setProfileLoading(false);
       }
     }
+
     loadProfile();
   }, [user]);
 
   useEffect(() => {
     async function loadGroups() {
       setError(null);
-      setLoading(true);
+      setGroupsLoading(true);
+
       try {
         const col = collection(db, "groups");
 
@@ -123,14 +134,20 @@ export default function GroupsHome() {
         if (user) {
           const qPrivate = query(col, where("visibility", "==", "private"));
           const privateSnap = await getDocs(qPrivate);
-          privateSnap.forEach((d) => list.push({ id: d.id, ...(d.data() as any) }));
+          privateSnap.forEach((d) =>
+            list.push({ id: d.id, ...(d.data() as any) })
+          );
         }
 
-        setGroups(list);
+        const deduped = Array.from(
+          new Map(list.map((g) => [g.id, g])).values()
+        );
+
+        setGroups(deduped);
       } catch (e: any) {
         setError(e?.message ?? "Error cargando grupos");
       } finally {
-        setLoading(false);
+        setGroupsLoading(false);
       }
     }
 
@@ -155,9 +172,14 @@ export default function GroupsHome() {
             const jsnap = await getDoc(jref);
 
             const pending =
-              jsnap.exists() && (((jsnap.data() as any)?.status ?? "pending") === "pending");
+              jsnap.exists() &&
+              (((jsnap.data() as any)?.status ?? "pending") === "pending");
 
-            return { groupId: g.id, isMember: msnap.exists(), hasPendingReq: pending };
+            return {
+              groupId: g.id,
+              isMember: msnap.exists(),
+              hasPendingReq: pending,
+            };
           })
         );
 
@@ -179,14 +201,19 @@ export default function GroupsHome() {
     loadMembershipsAndRequests();
   }, [user, groups]);
 
+  const normalizedSearch = search.trim().toLowerCase();
+
   const filteredGroups = useMemo(() => {
-    if (!search.trim()) return groups;
-    const s = search.toLowerCase();
-    return groups.filter((g) => (g.name ?? "").toLowerCase().includes(s));
-  }, [groups, search]);
+    if (!normalizedSearch) return [];
+
+    return groups.filter((g) =>
+      (g.name ?? "").toLowerCase().includes(normalizedSearch)
+    );
+  }, [groups, normalizedSearch]);
 
   async function handleJoinPublic(groupId: string) {
     if (!user) return;
+
     try {
       const { joinGroup } = await import("../../lib/groups/membership");
       await joinGroup(groupId, user.uid);
@@ -198,6 +225,7 @@ export default function GroupsHome() {
 
   async function handleRequestPrivate(groupId: string) {
     if (!user) return;
+
     try {
       const { requestToJoin } = await import("../../lib/groups/joinRequests");
       await requestToJoin(groupId, user.uid);
@@ -209,6 +237,7 @@ export default function GroupsHome() {
 
   async function handleCancelRequest(groupId: string) {
     if (!user) return;
+
     try {
       const { cancelJoinRequest } = await import("../../lib/groups/joinRequests");
       await cancelJoinRequest(groupId, user.uid);
@@ -235,122 +264,323 @@ export default function GroupsHome() {
     }
   }
 
-  function goToMyProfile() {
-    if (!profile?.handle) {
-      setError("No se encontró tu perfil aún.");
-      return;
-    }
-    router.push(`/u/${profile.handle}`);
-  }
-
-  const myDisplayName =
-    profile?.displayName ||
-    `${profile?.firstName ?? ""} ${profile?.lastName ?? ""}`.trim() ||
-    user?.email ||
-    "Mi perfil";
+  const isLoading = authLoading || groupsLoading;
 
   return (
     <main style={pageWrap}>
-      <div style={container}>
-        {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ minWidth: 0 }}>
-            <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.2 }}>Explorar grupos</h1>
-            <p style={{ marginTop: 6, marginBottom: 0, color: "rgba(255,255,255,0.76)", fontSize: 14 }}>
-              Busca grupos públicos/privados y administra tu membresía.
-            </p>
-          </div>
+      <style jsx>{`
+        .home-shell {
+          width: 100%;
+        }
 
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-            <button
-              onClick={() => router.push("/groups/new")}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 12,
-                border: "1px solid rgba(255,255,255,0.28)",
-                background: "#fff",
-                color: "#000",
-                cursor: "pointer",
-                fontWeight: 600,
-                fontSize: 14,
-              }}
-            >
-              + Crear grupo
-            </button>
+        .search-toolbar {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 10px;
+          align-items: center;
+        }
 
-            <button
-              onClick={goToMyProfile}
-              disabled={!user || profileLoading}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 12,
-                border: softBorder,
-                background: "rgba(255,255,255,0.06)",
-                color: "#fff",
-                cursor: !user || profileLoading ? "not-allowed" : "pointer",
-                fontWeight: 600,
-                fontSize: 14,
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                opacity: !user ? 0.55 : 1,
-              }}
-            >
-              <span
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  border: "1px solid rgba(255,255,255,0.26)",
-                  display: "grid",
-                  placeItems: "center",
-                  overflow: "hidden",
-                  background: "rgba(0,0,0,0.35)",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "rgba(255,255,255,0.86)",
-                }}
-              >
-                {profile?.photoURL ? (
-                  <img src={profile.photoURL} alt="me" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  initials(myDisplayName)
-                )}
-              </span>
+        .search-input {
+          width: 100%;
+          height: 46px;
+          padding: 0 14px;
+          border-radius: 14px;
+          border: ${fieldBorder};
+          background: ${fieldBg};
+          color: #fff;
+          outline: none;
+          font-size: 14px;
+          box-sizing: border-box;
+          transition: border-color 0.18s ease, background 0.18s ease;
+        }
 
-              <span>Mi perfil</span>
-            </button>
-          </div>
-        </div>
+        .search-input:focus {
+          border-color: rgba(255, 255, 255, 0.28);
+          background: ${fieldBgFocus};
+        }
 
-        {/* Search */}
-        <div style={{ marginTop: 18 }}>
+        .create-btn {
+          height: 46px;
+          padding: 0 16px;
+          border-radius: 14px;
+          border: 1px solid rgba(255, 255, 255, 0.22);
+          background: #fff;
+          color: #000;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+          font-family: ${fontStack};
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+
+        .create-btn-mobile-text {
+          display: none;
+        }
+
+        .helper-card {
+          margin-top: 16px;
+          padding: 16px;
+          border-radius: 18px;
+          border: ${cardBorder};
+          background: rgba(255, 255, 255, 0.03);
+          color: rgba(255, 255, 255, 0.76);
+          font-size: 14px;
+          line-height: 1.45;
+        }
+
+        .error-card {
+          margin-top: 14px;
+          padding: 12px 14px;
+          border-radius: 14px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(255, 255, 255, 0.05);
+          color: #fff;
+          font-size: 13px;
+          line-height: 1.45;
+        }
+
+        .results-wrap {
+          margin-top: 16px;
+          display: grid;
+          gap: 12px;
+        }
+
+        .group-card {
+          padding: 15px;
+          border: ${cardBorder};
+          border-radius: 18px;
+          cursor: pointer;
+          background: ${surface};
+          box-shadow: ${shadow};
+          transition: transform 0.16s ease, border-color 0.16s ease,
+            background 0.16s ease;
+        }
+
+        .group-card:hover {
+          transform: translateY(-1px);
+          border-color: rgba(255, 255, 255, 0.22);
+        }
+
+        .group-row {
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
+          gap: 12px;
+          align-items: center;
+        }
+
+        .group-avatar {
+          width: 46px;
+          height: 46px;
+          border-radius: 50%;
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          background: rgba(255, 255, 255, 0.04);
+          display: grid;
+          place-items: center;
+          flex-shrink: 0;
+        }
+
+        .group-main {
+          min-width: 0;
+        }
+
+        .group-main-wrap {
+          display: contents;
+        }
+
+        .group-name-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          min-width: 0;
+        }
+
+        .group-name {
+          font-size: 16px;
+          font-weight: 600;
+          line-height: 1.2;
+          color: #fff;
+          word-break: break-word;
+        }
+
+        .group-meta {
+          margin-top: 7px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .pill {
+          font-size: 12px;
+          padding: 4px 9px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          background: rgba(255, 255, 255, 0.05);
+          line-height: 1.2;
+          white-space: nowrap;
+        }
+
+        .pill-paid {
+          border: 1px solid rgba(255, 225, 166, 0.28);
+          background: rgba(255, 225, 166, 0.1);
+          font-weight: 600;
+        }
+
+        .status-inline {
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.58);
+          line-height: 1.3;
+        }
+
+        .group-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .secondary-btn {
+          min-height: 38px;
+          padding: 8px 12px;
+          border-radius: 12px;
+          border: ${softBorder};
+          background: rgba(255, 255, 255, 0.06);
+          color: #fff;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 13px;
+          font-family: ${fontStack};
+        }
+
+        .disabled-btn {
+          min-height: 38px;
+          padding: 8px 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(255, 255, 255, 0.05);
+          color: rgba(255, 255, 255, 0.72);
+          font-weight: 600;
+          font-size: 13px;
+          font-family: ${fontStack};
+          cursor: default;
+        }
+
+        @media (max-width: 640px) {
+          .search-toolbar {
+            grid-template-columns: minmax(0, 1fr) 46px;
+            gap: 8px;
+          }
+
+          .create-btn {
+            width: 46px;
+            min-width: 46px;
+            padding: 0;
+            border-radius: 14px;
+            font-size: 20px;
+            line-height: 1;
+          }
+
+          .create-btn-desktop-text {
+            display: none;
+          }
+
+          .create-btn-mobile-text {
+            display: inline;
+          }
+
+          .group-card {
+            padding: 14px 12px;
+            border-radius: 18px;
+          }
+
+          .group-row {
+            grid-template-columns: 1fr;
+            align-items: stretch;
+            gap: 12px;
+          }
+
+          .group-main-wrap {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            min-width: 0;
+          }
+
+          .group-avatar {
+            width: 44px;
+            height: 44px;
+          }
+
+          .group-actions {
+            width: 100%;
+            justify-content: stretch;
+          }
+
+          .group-actions > button {
+            flex: 1 1 auto;
+          }
+
+          .secondary-btn,
+          .disabled-btn {
+            min-height: 40px;
+          }
+        }
+      `}</style>
+
+      <div style={container} className="home-shell">
+        <div className="search-toolbar">
           <input
-            placeholder="Buscar grupo por nombre..."
+            placeholder="Buscar grupo o perfil por nombre..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "11px 12px",
-              borderRadius: 12,
-              border: fieldBorder,
-              background: fieldBg,
-              color: "#fff",
-              outline: "none",
-              fontSize: 14,
-            }}
+            className="search-input"
           />
+
+          <button
+            onClick={() => router.push("/groups/new")}
+            className="create-btn"
+            aria-label="Crear grupo"
+            title="Crear grupo"
+          >
+            <span className="create-btn-mobile-text">+</span>
+            <span className="create-btn-desktop-text">+ Crear grupo</span>
+          </button>
         </div>
 
-        {!loading && !error && (
-          <div style={{ marginTop: 18, display: "grid", gap: 12 }}>
+        {error && <div className="error-card">{error}</div>}
+
+        {!error && !normalizedSearch && (
+          <div className="helper-card">
+            Escribe el nombre de un grupo para ver resultados.
+          </div>
+        )}
+
+        {!error && normalizedSearch && isLoading && (
+          <div className="helper-card">Buscando grupos...</div>
+        )}
+
+        {!error && normalizedSearch && !isLoading && filteredGroups.length === 0 && (
+          <div className="helper-card">
+            No se encontraron grupos con ese nombre.
+          </div>
+        )}
+
+        {!isLoading && !error && filteredGroups.length > 0 && (
+          <div className="results-wrap">
             {filteredGroups.map((g) => {
               const isOwner = !!user && !!g.ownerId && g.ownerId === user.uid;
               const isMember = isOwner || !!memberMap[g.id];
 
               const isPrivate = g.visibility === "private";
               const isPublic = g.visibility === "public";
-
               const hasPendingReq = !!reqMap[g.id];
 
               const paid = !!g.monetization?.isPaid;
@@ -368,104 +598,67 @@ export default function GroupsHome() {
                 <div
                   key={g.id}
                   onClick={() => router.push(`/groups/${g.id}`)}
-                  style={{
-                    padding: 16,
-                    border: cardBorder,
-                    borderRadius: 16,
-                    cursor: "pointer",
-                    background: surface,
-                    boxShadow: "0 14px 40px rgba(0,0,0,0.35)",
-                  }}
+                  className="group-card"
                 >
-                  <div style={{ display: "flex", gap: 12 }}>
-                    <div
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: "50%",
-                        overflow: "hidden",
-                        border: "1px solid rgba(255,255,255,0.22)",
-                        background: "rgba(0,0,0,0.35)",
-                        display: "grid",
-                        placeItems: "center",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {g.avatarUrl && (
-                        <img
-                          src={g.avatarUrl}
-                          alt="avatar"
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
-                        />
-                      )}
-                    </div>
-
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                        <span style={{ fontSize: 16, fontWeight: 600 }}>{g.name ?? "(sin nombre)"}</span>
-
-                        <span
-                          style={{
-                            fontSize: 12,
-                            padding: "3px 8px",
-                            borderRadius: 999,
-                            border: "1px solid rgba(255,255,255,0.24)",
-                            background: "rgba(255,255,255,0.06)",
-                          }}
-                        >
-                          {visLabel}
-                        </span>
-
-                        {paid && (
-                          <span
+                  <div className="group-row">
+                    <div className="group-main-wrap">
+                      <div className="group-avatar">
+                        {g.avatarUrl ? (
+                          <img
+                            src={g.avatarUrl}
+                            alt="avatar"
                             style={{
-                              fontSize: 12,
-                              padding: "3px 8px",
-                              borderRadius: 999,
-                              border: "1px solid rgba(255, 225, 166, 0.40)",
-                              background: "rgba(255, 225, 166, 0.10)",
-                              fontWeight: 600,
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
                             }}
-                          >
-                            Con suscripción{price != null ? ` · ${price} ${cur ?? ""}` : ""}
-                          </span>
-                        )}
-
-                        {isOwner && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.62)" }}>(Eres owner)</span>}
-                        {!isOwner && isMember && (
-                          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.62)" }}>(Ya estás unido)</span>
-                        )}
-                        {!isOwner && !isMember && isPrivate && hasPendingReq && (
-                          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.62)" }}>(Pendiente)</span>
-                        )}
+                          />
+                        ) : null}
                       </div>
 
-                      <div style={{ marginTop: 6, color: "rgba(255,255,255,0.76)", fontSize: 14 }}>
-                        {g.description ?? ""}
+                      <div className="group-main">
+                        <div className="group-name-row">
+                          <span className="group-name">
+                            {g.name ?? "(sin nombre)"}
+                          </span>
+                        </div>
+
+                        <div className="group-meta">
+                          <span className="pill">{visLabel}</span>
+
+                          {paid && (
+                            <span className="pill pill-paid">
+                              Con suscripción
+                              {price != null ? ` · ${price} ${cur ?? ""}` : ""}
+                            </span>
+                          )}
+
+                          {isOwner && (
+                            <span className="status-inline">(Eres owner)</span>
+                          )}
+
+                          {!isOwner && isMember && (
+                            <span className="status-inline">
+                              (Ya estás unido)
+                            </span>
+                          )}
+
+                          {!isOwner && !isMember && isPrivate && hasPendingReq && (
+                            <span className="status-inline">(Pendiente)</span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <div
+                      className="group-actions"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       {!isOwner && !isMember && isPublic && (
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleJoinPublic(g.id);
-                          }}
-                          style={{
-                            padding: "8px 12px",
-                            borderRadius: 12,
-                            border: "1px solid rgba(255,255,255,0.28)",
-                            background: "#fff",
-                            color: "#000",
-                            cursor: "pointer",
-                            fontWeight: 600,
-                            fontSize: 14,
-                          }}
+                          onClick={() => handleJoinPublic(g.id)}
+                          className="create-btn"
+                          style={{ height: 38, padding: "0 12px", fontSize: 13 }}
                         >
                           Unirme
                         </button>
@@ -475,55 +668,20 @@ export default function GroupsHome() {
                         <>
                           {!hasPendingReq ? (
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRequestPrivate(g.id);
-                              }}
-                              style={{
-                                padding: "8px 12px",
-                                borderRadius: 12,
-                                border: "1px solid rgba(255,255,255,0.26)",
-                                background: "rgba(255,255,255,0.06)",
-                                color: "#fff",
-                                cursor: "pointer",
-                                fontWeight: 600,
-                                fontSize: 14,
-                              }}
+                              onClick={() => handleRequestPrivate(g.id)}
+                              className="secondary-btn"
                             >
                               Solicitar acceso
                             </button>
                           ) : (
                             <>
-                              <button
-                                disabled
-                                style={{
-                                  padding: "8px 12px",
-                                  borderRadius: 12,
-                                  border: "1px solid rgba(255,255,255,0.22)",
-                                  background: "rgba(255,255,255,0.05)",
-                                  color: "rgba(255,255,255,0.75)",
-                                  fontWeight: 600,
-                                  fontSize: 14,
-                                }}
-                              >
+                              <button disabled className="disabled-btn">
                                 Solicitud enviada
                               </button>
 
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleCancelRequest(g.id);
-                                }}
-                                style={{
-                                  padding: "8px 12px",
-                                  borderRadius: 12,
-                                  border: "1px solid rgba(255,255,255,0.26)",
-                                  background: "rgba(255,255,255,0.06)",
-                                  color: "#fff",
-                                  cursor: "pointer",
-                                  fontWeight: 600,
-                                  fontSize: 14,
-                                }}
+                                onClick={() => handleCancelRequest(g.id)}
+                                className="secondary-btn"
                               >
                                 Cancelar
                               </button>
@@ -534,20 +692,8 @@ export default function GroupsHome() {
 
                       {isMember && !isOwner && (
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleLeave(g.id, g.ownerId);
-                          }}
-                          style={{
-                            padding: "8px 12px",
-                            borderRadius: 12,
-                            border: "1px solid rgba(255,255,255,0.26)",
-                            background: "rgba(255,255,255,0.06)",
-                            color: "#fff",
-                            cursor: "pointer",
-                            fontWeight: 600,
-                            fontSize: 14,
-                          }}
+                          onClick={() => handleLeave(g.id, g.ownerId)}
+                          className="secondary-btn"
                         >
                           Salir
                         </button>

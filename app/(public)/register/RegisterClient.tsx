@@ -302,7 +302,7 @@ export default function RegisterClient() {
     background: "rgba(255,255,255,0.035)",
     color: "#fff",
     outline: "none",
-    fontSize: 13,
+    fontSize: 12.5,
     fontWeight: 400,
     fontFamily: fontStack,
     boxSizing: "border-box",

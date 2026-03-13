@@ -162,77 +162,71 @@ export default function MobileBottomNav() {
           bottom: 0;
           z-index: 9999;
           display: none;
-          justify-content: center;
-          pointer-events: none;
-          padding: 0 10px calc(10px + env(safe-area-inset-bottom));
         }
 
         .navShell {
-          width: min(100%, 680px);
-          pointer-events: auto;
+          width: 100%;
         }
 
         .nav {
           width: 100%;
-          background: rgba(8, 8, 8, 0.96);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.28);
-          border-radius: 24px;
-          padding: 6px 8px;
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
           align-items: center;
-          gap: 6px;
+          padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+
+          background: rgba(20, 20, 22, 0.95);
+
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+
+          border-top: 1px solid rgba(255, 255, 255, 0.12);
         }
 
         .item {
-          min-width: 0;
-          height: 48px;
+          position: relative;
+          height: 52px;
           display: grid;
           place-items: center;
           text-decoration: none;
-          color: rgba(255, 255, 255, 0.46);
-          border-radius: 14px;
-          transition:
-            color 0.18s ease,
-            transform 0.18s ease,
-            opacity 0.18s ease;
-          -webkit-tap-highlight-color: transparent;
+          color: rgba(255, 255, 255, 0.5);
+
+          transition: color 0.2s ease, transform 0.15s ease;
         }
 
         .item:active {
-          transform: scale(0.97);
+          transform: scale(0.95);
         }
 
         .itemActive {
-          color: #fff;
+          color: #ffffff;
+        }
+
+        .indicator {
+          position: absolute;
+          top: -10px;
+          width: 24px;
+          height: 3px;
+          border-radius: 999px;
+          background: transparent;
+          transition: background 0.2s ease, opacity 0.2s ease;
+          opacity: 0;
+        }
+
+        .itemActive .indicator {
+          background: #ffffff;
+          opacity: 1;
         }
 
         .itemInner {
           display: grid;
           justify-items: center;
-          gap: 6px;
-        }
-
-        .indicator {
-          width: 18px;
-          height: 3px;
-          border-radius: 999px;
-          background: transparent;
-          transition: background 0.18s ease, opacity 0.18s ease;
-          opacity: 0;
-        }
-
-        .itemActive .indicator {
-          background: #fff;
-          opacity: 1;
+          gap: 4px;
         }
 
         @media (max-width: 768px) {
           .wrap {
-            display: flex;
+            display: block;
           }
         }
       `}</style>
@@ -251,9 +245,9 @@ export default function MobileBottomNav() {
                   aria-label={item.label}
                   title={item.label}
                 >
+                  <span className="indicator" />
                   <div className="itemInner">
                     <Icon active={item.active} />
-                    <span className="indicator" />
                   </div>
                 </Link>
               );
