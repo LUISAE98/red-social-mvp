@@ -1,5 +1,12 @@
 import { initializeApp, getApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import {
+  initializeAuth,
+  getAuth,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
+  type Auth,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
@@ -13,14 +20,30 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
 
-const app = !getApps().length
-  ? initializeApp(firebaseConfig)
-  : getApp();
+export const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// ✅ Core services
-export const auth = getAuth(app);
+function createAuth(): Auth {
+  // En server nunca intentamos initializeAuth con persistencias de navegador.
+  if (typeof window === "undefined") {
+    return getAuth(app);
+  }
+
+  try {
+    return initializeAuth(app, {
+      persistence: [
+        indexedDBLocalPersistence,
+        browserLocalPersistence,
+        browserSessionPersistence,
+      ],
+    });
+  } catch {
+    // Si Auth ya fue inicializado o el entorno no permite initializeAuth,
+    // regresamos la instancia existente.
+    return getAuth(app);
+  }
+}
+
+export const auth = createAuth();
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-
-// ✅ Cloud Functions (callable)
 export const functions = getFunctions(app);

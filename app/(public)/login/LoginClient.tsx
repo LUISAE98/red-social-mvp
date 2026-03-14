@@ -6,6 +6,7 @@ import {
   setPersistence,
   browserLocalPersistence,
   browserSessionPersistence,
+  signOut,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -54,12 +55,47 @@ export default function LoginClient() {
 
     try {
       await applyAuthPersistence(keepSession);
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        email.trim(),
+        password
+      );
+
+      const idToken = await credential.user.getIdToken(true);
+
+      const response = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          idToken,
+          keepSession,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        await signOut(auth);
+        throw new Error(data?.error || "No se pudo crear la sesión");
+      }
 
       router.replace("/");
       router.refresh();
-    } catch (err: any) {
-      setMsg(friendlyAuthError(err));
+        } catch (err: unknown) {
+      if (err instanceof Error) {
+        const maybeFirebaseError = err as Error & { code?: string };
+
+        if (!maybeFirebaseError.code) {
+          setMsg(err.message);
+        } else {
+          setMsg(friendlyAuthError(maybeFirebaseError));
+        }
+      } else {
+        setMsg("Error inesperado. Intenta nuevamente.");
+      }
     } finally {
       setLoading(false);
     }

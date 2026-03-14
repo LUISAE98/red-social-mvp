@@ -14,6 +14,11 @@ export default function LogoutButton() {
 
     try {
       await signOut(auth);
+
+      await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+
       router.replace("/login");
       router.refresh();
     } finally {
