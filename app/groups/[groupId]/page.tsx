@@ -9,8 +9,8 @@ import { joinGroup, leaveGroup } from "@/lib/groups/membership";
 import { requestToJoin, cancelJoinRequest } from "@/lib/groups/joinRequests";
 import OwnerAdminPanel from "./components/OwnerAdminPanel";
 import GroupSubnav from "./components/GroupSubnav";
-import GroupFeedTab from "./components/GroupFeedTab";
 import GroupMembersTab from "./components/GroupMembersTab";
+import GroupPostsFeed from "./components/posts/GroupPostsFeed";
 import {
   createGreetingRequest,
   type GreetingType,
@@ -902,6 +902,12 @@ export default function GroupPage() {
             box-shadow: ${ui.shadow};
           }
 
+          .group-feed-wrap {
+            width: 100%;
+            max-width: 720px;
+            margin: 0 auto;
+          }
+
           @media (max-width: 900px) {
             .group-shell {
               max-width: none;
@@ -918,6 +924,10 @@ export default function GroupPage() {
             }
 
             .group-offerings-card {
+              max-width: none;
+            }
+
+            .group-feed-wrap {
               max-width: none;
             }
           }
@@ -1150,7 +1160,11 @@ export default function GroupPage() {
                       canManage={isOwner}
                     />
 
-                    {activeTab === "feed" && <GroupFeedTab />}
+                    {activeTab === "feed" && (
+                      <section className="group-feed-wrap">
+                        <GroupPostsFeed groupId={groupId} isOwner={isOwner} />
+                      </section>
+                    )}
 
                     {activeTab === "members" && (
                       <GroupMembersTab
