@@ -2,7 +2,7 @@
 
 import LogoutButton from "../LogoutButton";
 import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../providers";
 import { sendEmailVerification } from "firebase/auth";
 import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
@@ -18,17 +18,18 @@ export default function ProtectedLayout({
 }) {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
 
   const [verifyMsg, setVerifyMsg] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace(`/login?next=${encodeURIComponent(pathname || "/")}`);
+    if (loading) return;
+
+    if (!user) {
+      router.replace("/login");
     }
-  }, [loading, user, router, pathname]);
+  }, [loading, user, router]);
 
   useEffect(() => {
     if (cooldown <= 0) return;

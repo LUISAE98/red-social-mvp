@@ -11,9 +11,11 @@ export default function LogoutButton() {
 
   async function handleLogout() {
     setLoading(true);
+
     try {
       await signOut(auth);
       router.replace("/login");
+      router.refresh();
     } finally {
       setLoading(false);
     }
@@ -36,7 +38,7 @@ export default function LogoutButton() {
         justifyContent: "center",
         backdropFilter: "blur(8px)",
         fontSize: 13,
-        fontWeight: 600, // 👈 más elegante (no exagerado)
+        fontWeight: 600,
         letterSpacing: 0.2,
         fontFamily:
           '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',

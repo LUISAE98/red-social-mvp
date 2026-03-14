@@ -23,6 +23,19 @@ function friendlyAuthError(err: any) {
   return "Error inesperado. Intenta nuevamente.";
 }
 
+async function applyAuthPersistence(keepSession: boolean) {
+  if (!keepSession) {
+    await setPersistence(auth, browserSessionPersistence);
+    return;
+  }
+
+  try {
+    await setPersistence(auth, browserLocalPersistence);
+  } catch {
+    await setPersistence(auth, browserSessionPersistence);
+  }
+}
+
 export default function LoginClient() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,15 +53,11 @@ export default function LoginClient() {
     setLoading(true);
 
     try {
-      await setPersistence(
-        auth,
-        keepSession ? browserLocalPersistence : browserSessionPersistence
-      );
-
+      await applyAuthPersistence(keepSession);
       await signInWithEmailAndPassword(auth, email.trim(), password);
 
-      const next = searchParams.get("next") || "/";
-      router.replace(next);
+      router.replace("/");
+      router.refresh();
     } catch (err: any) {
       setMsg(friendlyAuthError(err));
     } finally {
@@ -302,7 +311,11 @@ export default function LoginClient() {
           </button>
         </form>
 
-        {msg && <div style={{ ...noticeStyle, marginTop: 10, marginBottom: 0 }}>{msg}</div>}
+        {msg && (
+          <div style={{ ...noticeStyle, marginTop: 10, marginBottom: 0 }}>
+            {msg}
+          </div>
+        )}
       </div>
     </main>
   );
