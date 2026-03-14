@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth } from "@/lib/firebase-admin";
+import { getAdminAuth } from "@/lib/firebase-admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,11 +20,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const adminAuth = getAdminAuth();
+
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     const authTimeMs = decodedToken.auth_time * 1000;
     const now = Date.now();
 
-    // Requiere inicio de sesión reciente para emitir cookie.
     if (now - authTimeMs > 5 * 60 * 1000) {
       return NextResponse.json(
         {
