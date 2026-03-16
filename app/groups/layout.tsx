@@ -1,33 +1,103 @@
 "use client";
 
-import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
 import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 
-export default function GroupsLayout({
+function PublicGroupsShell({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-  const pathname = usePathname();
+  return (
+    <>
+      <style jsx>{`
+        .layout {
+          min-height: 100vh;
+          background: #000;
+          color: #fff;
+          display: flex;
+          flex-direction: column;
+        }
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace(`/login?next=${encodeURIComponent(pathname || "/")}`);
-    }
-  }, [loading, user, router, pathname]);
+        .header {
+          padding: 12px 24px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+          display: flex;
+          justify-content: flex-start;
+          align-items: center;
+          gap: 12px;
+          background: #000;
+          position: relative;
+          z-index: 20;
+        }
 
-  if (loading) {
-    return <div style={{ padding: 24 }}>Cargando sesión...</div>;
-  }
+        .brand {
+          color: #fff;
+          text-decoration: none;
+          font-weight: 700;
+          letter-spacing: -0.02em;
+          line-height: 1.1;
+        }
 
-  if (!user) return null;
+        .contentArea {
+          width: min(820px, calc(100% - 28px));
+          margin: 0 auto;
+          flex: 1;
+          padding-top: 24px;
+          padding-bottom: 24px;
+          box-sizing: border-box;
+        }
 
+        @media (max-width: 900px) {
+          .header {
+            padding: 10px 12px;
+          }
+
+          .brand {
+            font-size: 15px;
+          }
+
+          .contentArea {
+            width: min(720px, calc(100% - 20px));
+            padding-top: 10px;
+            padding-bottom: 18px;
+          }
+        }
+
+        @media (max-width: 520px) {
+          .header {
+            gap: 10px;
+          }
+
+          .brand {
+            max-width: 132px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+        }
+      `}</style>
+
+      <div className="layout">
+        <header className="header">
+          <Link href="/" className="brand">
+            Red Social MVP
+          </Link>
+        </header>
+
+        <div className="contentArea">{children}</div>
+      </div>
+    </>
+  );
+}
+
+function AuthenticatedGroupsShell({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <>
       <style jsx>{`
@@ -135,4 +205,35 @@ export default function GroupsLayout({
       </div>
     </>
   );
+}
+
+export default function GroupsLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#000",
+          color: "#fff",
+          display: "grid",
+          placeItems: "center",
+          padding: 24,
+        }}
+      >
+        Cargando sesión...
+      </div>
+    );
+  }
+
+  if (user) {
+    return <AuthenticatedGroupsShell>{children}</AuthenticatedGroupsShell>;
+  }
+
+  return <PublicGroupsShell>{children}</PublicGroupsShell>;
 }

@@ -12,6 +12,7 @@ import {
 import { db, auth } from "../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
+import HomePostsFeed from "./HomePostsFeed";
 
 type Group = {
   id: string;
@@ -536,6 +537,8 @@ export default function GroupsHome() {
       `}</style>
 
       <div style={container} className="home-shell">
+        <HomePostsFeed currentUserId={user?.uid ?? null} />
+
         <div className="search-toolbar">
           <input
             placeholder="Buscar grupo o perfil por nombre..."

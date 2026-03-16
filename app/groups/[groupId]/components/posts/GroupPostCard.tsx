@@ -21,6 +21,7 @@ type GroupPostCardProps = {
   onDeleteComment: (postId: string, commentId: string) => Promise<Comment[]>;
   currentUserId?: string | null;
   isOwner?: boolean;
+  showGroupContext?: boolean;
 };
 
 const fontStack =
@@ -75,7 +76,7 @@ function getAuthorInfo(
         ? entity.username.trim()
         : null;
 
-  const profileHref = username ? `/perfil/${username}` : `/perfil/${authorId}`;
+  const profileHref = username ? `/u/${username}` : `/u/${authorId}`;
 
   return {
     authorId,
@@ -84,6 +85,57 @@ function getAuthorInfo(
     profileHref,
     initials: getInitials(authorName),
   };
+}
+
+function getGroupInfo(entity: Record<string, unknown>) {
+  const groupId =
+    typeof entity.groupId === "string" && entity.groupId.trim().length > 0
+      ? entity.groupId.trim()
+      : null;
+
+  const groupName =
+    typeof entity.groupName === "string" && entity.groupName.trim().length > 0
+      ? entity.groupName.trim()
+      : null;
+
+  const groupAvatarUrl =
+    typeof entity.groupAvatarUrl === "string" && entity.groupAvatarUrl.trim().length > 0
+      ? entity.groupAvatarUrl.trim()
+      : null;
+
+  const rawVisibility =
+    typeof entity.groupVisibility === "string"
+      ? entity.groupVisibility.trim().toLowerCase()
+      : "";
+
+  const visibility =
+    rawVisibility === "public" || rawVisibility === "private" || rawVisibility === "hidden"
+      ? rawVisibility
+      : null;
+
+  const href = groupId ? `/groups/${groupId}` : null;
+
+  return {
+    groupId,
+    groupName,
+    groupAvatarUrl,
+    visibility,
+    href,
+    initials: getInitials(groupName || "Comunidad"),
+  };
+}
+
+function getCommunityVisibilityLabel(visibility: string | null) {
+  switch (visibility) {
+    case "public":
+      return "Comunidad pública";
+    case "private":
+      return "Comunidad privada";
+    case "hidden":
+      return "Comunidad oculta";
+    default:
+      return "Comunidad";
+  }
 }
 
 function AutoGrowTextarea({
@@ -197,6 +249,7 @@ export default function GroupPostCard({
   onDeleteComment,
   currentUserId = null,
   isOwner = false,
+  showGroupContext = false,
 }: GroupPostCardProps) {
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -204,11 +257,65 @@ export default function GroupPostCard({
   const [creatingComment, setCreatingComment] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const media = window.matchMedia("(max-width: 640px)");
+    const update = () => setIsMobile(media.matches);
+
+    update();
+
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", update);
+      return () => media.removeEventListener("change", update);
+    }
+
+    media.addListener(update);
+    return () => media.removeListener(update);
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      const target = event.target as Node | null;
+      if (!menuRef.current || !target) return;
+      if (!menuRef.current.contains(target)) {
+        setMenuOpen(false);
+      }
+    }
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [menuOpen]);
 
   const postAuthor = useMemo(
     () => getAuthorInfo(post as unknown as { authorId?: string | null } & Record<string, unknown>),
     [post],
   );
+
+  const groupInfo = useMemo(
+    () => getGroupInfo(post as unknown as Record<string, unknown>),
+    [post],
+  );
+
+  const shouldShowGroupContext =
+    showGroupContext && (!!groupInfo.groupId || !!groupInfo.groupName);
 
   async function handleLoadComments() {
     try {
@@ -239,6 +346,7 @@ export default function GroupPostCard({
     try {
       setDeleting(true);
       await onDelete(post.id);
+      setMenuOpen(false);
     } finally {
       setDeleting(false);
     }
@@ -281,6 +389,51 @@ export default function GroupPostCard({
     fontWeight: 500,
     lineHeight: 1.15,
     letterSpacing: "-0.02em",
+    maxWidth: "100%",
+    wordBreak: "break-word",
+    flexShrink: 0,
+  };
+
+  const communityWrapStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: isMobile ? 5 : 6,
+    minWidth: 0,
+    maxWidth: "100%",
+    flex: "0 1 auto",
+    color: "rgba(255,255,255,0.52)",
+    fontSize: 10.5,
+    fontWeight: 400,
+    lineHeight: 1.2,
+    letterSpacing: "-0.01em",
+    verticalAlign: "middle",
+    overflow: "hidden",
+    whiteSpace: "nowrap",
+  };
+
+  const communityNameBaseStyle: CSSProperties = {
+    color: "rgba(255,255,255,0.64)",
+    textDecoration: "none",
+    fontSize: 10.5,
+    fontWeight: 500,
+    lineHeight: 1.2,
+    letterSpacing: "-0.01em",
+    minWidth: 0,
+    flex: "1 1 auto",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    display: "block",
+  };
+
+  const communityMetaTextStyle: CSSProperties = {
+    color: "rgba(255,255,255,0.46)",
+    fontSize: 10.25,
+    fontWeight: 400,
+    lineHeight: 1.2,
+    letterSpacing: "-0.01em",
+    whiteSpace: "nowrap",
+    flexShrink: 0,
   };
 
   const bodyStyle: CSSProperties = {
@@ -319,6 +472,51 @@ export default function GroupPostCard({
     background: "rgba(255,255,255,0.08)",
     color: "rgba(255,255,255,0.44)",
     cursor: "not-allowed",
+  };
+
+  const menuButtonStyle: CSSProperties = {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: menuOpen ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
+    color: "rgba(255,255,255,0.84)",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+    flexShrink: 0,
+    fontSize: 16,
+    lineHeight: 1,
+    padding: 0,
+  };
+
+  const menuPanelStyle: CSSProperties = {
+    position: "absolute",
+    top: 38,
+    right: 0,
+    minWidth: 132,
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(12,12,12,0.96)",
+    boxShadow: "0 14px 34px rgba(0,0,0,0.34)",
+    backdropFilter: "blur(12px)",
+    padding: 6,
+    zIndex: 30,
+  };
+
+  const menuItemStyle: CSSProperties = {
+    width: "100%",
+    minHeight: 34,
+    padding: "8px 10px",
+    borderRadius: 8,
+    border: "none",
+    background: "transparent",
+    color: "#ff8a8a",
+    fontSize: 12,
+    fontWeight: 500,
+    fontFamily: fontStack,
+    textAlign: "left",
+    cursor: "pointer",
   };
 
   const inputStyle: CSSProperties = {
@@ -375,25 +573,132 @@ export default function GroupPostCard({
           </Link>
 
           <div style={{ minWidth: 0, flex: 1 }}>
-            <Link href={postAuthor.profileHref} style={authorLinkStyle}>
-              {postAuthor.authorName}
-            </Link>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "nowrap",
+                minWidth: 0,
+                overflow: "hidden",
+              }}
+            >
+              <Link href={postAuthor.profileHref} style={authorLinkStyle}>
+                {postAuthor.authorName}
+              </Link>
 
-            <div style={{ ...metaStyle, marginTop: 3 }}>
+              {shouldShowGroupContext && (
+                <div style={communityWrapStyle}>
+                  {!isMobile && (
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        width: 1,
+                        height: 12,
+                        background: "rgba(255,255,255,0.12)",
+                        flexShrink: 0,
+                        marginRight: 2,
+                      }}
+                    />
+                  )}
+
+                  {groupInfo.href ? (
+                    <Link
+                      href={groupInfo.href}
+                      style={{
+                        display: "inline-flex",
+                        textDecoration: "none",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Avatar
+                        name={groupInfo.groupName || "Comunidad"}
+                        avatarUrl={groupInfo.groupAvatarUrl}
+                        size={isMobile ? 15 : 16}
+                      />
+                    </Link>
+                  ) : (
+                    <Avatar
+                      name={groupInfo.groupName || "Comunidad"}
+                      avatarUrl={groupInfo.groupAvatarUrl}
+                      size={isMobile ? 15 : 16}
+                    />
+                  )}
+
+                  {groupInfo.href ? (
+                    <Link href={groupInfo.href} style={communityNameBaseStyle}>
+                      {groupInfo.groupName || "Comunidad"}
+                    </Link>
+                  ) : (
+                    <span style={communityNameBaseStyle}>
+                      {groupInfo.groupName || "Comunidad"}
+                    </span>
+                  )}
+
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      color: "rgba(255,255,255,0.26)",
+                      flexShrink: 0,
+                    }}
+                  >
+                    •
+                  </span>
+
+                  <span style={communityMetaTextStyle}>
+                    {getCommunityVisibilityLabel(groupInfo.visibility)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div style={{ ...metaStyle, marginTop: 4 }}>
               {formatDate(post.createdAt)}
             </div>
           </div>
         </div>
 
         {canDelete && onDelete && (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={deleting}
-            style={deleting ? disabledButtonStyle : subtleButtonStyle}
+          <div
+            ref={menuRef}
+            style={{
+              position: "relative",
+              flexShrink: 0,
+            }}
           >
-            {deleting ? "Eliminando..." : "Eliminar"}
-          </button>
+            <button
+              type="button"
+              onClick={() => setMenuOpen((prev) => !prev)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label="Abrir acciones de la publicación"
+              style={menuButtonStyle}
+            >
+              ⋮
+            </button>
+
+            {menuOpen && (
+              <div style={menuPanelStyle} role="menu">
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  role="menuitem"
+                  style={
+                    deleting
+                      ? {
+                          ...menuItemStyle,
+                          color: "rgba(255,138,138,0.55)",
+                          cursor: "not-allowed",
+                        }
+                      : menuItemStyle
+                  }
+                >
+                  {deleting ? "Eliminando..." : "Eliminar"}
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

@@ -2,45 +2,37 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
-import { auth } from "@/lib/firebase";
+
 import type { Comment, Post } from "@/lib/posts/types";
 import {
   createPostComment,
-  createTextPost,
   deletePostComment,
-  fetchGroupPosts,
   fetchPostComments,
+  fetchUserProfilePosts,
   softDeletePost,
 } from "@/lib/posts/post-service";
-import GroupPostCard from "./GroupPostCard";
-import GroupPostComposer from "./GroupPostComposer";
 
-type GroupPostsFeedProps = {
-  groupId: string;
-  isOwner?: boolean;
+import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+
+type ProfilePostsFeedProps = {
+  profileUid: string;
+  viewerUid: string | null;
+  isOwner: boolean;
+  showPosts?: boolean;
 };
 
-export default function GroupPostsFeed({
-  groupId,
-  isOwner = false,
-}: GroupPostsFeedProps) {
+export default function ProfilePostsFeed({
+  profileUid,
+  viewerUid,
+  isOwner,
+  showPosts = true,
+}: ProfilePostsFeedProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
-  const [currentUid, setCurrentUid] = useState<string | null>(
-    auth.currentUser?.uid ?? null
-  );
-
-  useEffect(() => {
-    const unsub = auth.onAuthStateChanged((user) => {
-      setCurrentUid(user?.uid ?? null);
-    });
-
-    return () => unsub();
-  }, []);
 
   async function loadPosts() {
-    const nextPosts = await fetchGroupPosts(groupId);
+    const nextPosts = await fetchUserProfilePosts(profileUid, viewerUid);
     setPosts(nextPosts);
   }
 
@@ -48,10 +40,27 @@ export default function GroupPostsFeed({
     let active = true;
 
     async function run() {
+      if (!profileUid) {
+        if (active) {
+          setPosts([]);
+          setLoadingInitial(false);
+        }
+        return;
+      }
+
+      if (!showPosts && !isOwner) {
+        if (active) {
+          setPosts([]);
+          setLoadingInitial(false);
+        }
+        return;
+      }
+
       try {
         setLoadingInitial(true);
         setError(null);
-        const nextPosts = await fetchGroupPosts(groupId);
+        const nextPosts = await fetchUserProfilePosts(profileUid, viewerUid);
+
         if (!active) return;
         setPosts(nextPosts);
       } catch (e: any) {
@@ -67,18 +76,7 @@ export default function GroupPostsFeed({
     return () => {
       active = false;
     };
-  }, [groupId]);
-
-  async function handleCreatePost(text: string) {
-    try {
-      setError(null);
-      await createTextPost({ groupId, text });
-      await loadPosts();
-    } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
-      throw e;
-    }
-  }
+  }, [profileUid, viewerUid, showPosts, isOwner]);
 
   async function handleDeletePost(postId: string) {
     try {
@@ -131,80 +129,113 @@ export default function GroupPostsFeed({
 
   const shellStyle: CSSProperties = {
     width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
     display: "grid",
     gap: 12,
+    marginTop: 16,
+    overflowX: "hidden",
   };
 
   const headerStyle: CSSProperties = {
     display: "grid",
-    gap: 3,
+    gap: 4,
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+  };
+
+  const noticeStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+    padding: "12px 14px",
+    fontSize: 13,
+    fontWeight: 300,
+    lineHeight: 1.45,
+    color: "rgba(255,255,255,0.82)",
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   };
 
   const titleStyle: CSSProperties = {
     margin: 0,
+    maxWidth: "100%",
+    minWidth: 0,
     fontSize: "clamp(16px, 2vw, 18px)",
-    fontWeight: 500,
-    lineHeight: 1.08,
-    letterSpacing: "-0.02em",
+    fontWeight: 600,
+    lineHeight: 1.1,
     color: "#fff",
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   };
 
   const subtitleStyle: CSSProperties = {
     margin: 0,
-    fontSize: 11.5,
-    fontWeight: 300,
-    color: "rgba(255,255,255,0.58)",
-    lineHeight: 1.35,
+    maxWidth: "100%",
+    minWidth: 0,
+    fontSize: 12,
+    color: "rgba(255,255,255,0.60)",
+    lineHeight: 1.4,
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
   };
 
-  const noticeStyle: CSSProperties = {
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.03)",
-    padding: "9px 10px",
-    fontSize: 12,
-    fontWeight: 300,
-    lineHeight: 1.4,
-    color: "rgba(255,255,255,0.82)",
+  const postItemStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflowX: "hidden",
   };
+
+  if (!showPosts && !isOwner) {
+    return (
+      <section style={shellStyle}>
+        <div style={noticeStyle}>Este usuario restringió sus publicaciones.</div>
+      </section>
+    );
+  }
 
   return (
     <section style={shellStyle}>
       <div style={headerStyle}>
         <h2 style={titleStyle}>Publicaciones</h2>
-        <p style={subtitleStyle}>Feed del grupo.</p>
+        <p style={subtitleStyle}>
+          Feed del perfil ordenado por antigüedad inversa.
+        </p>
       </div>
-
-      <GroupPostComposer onSubmit={handleCreatePost} />
 
       {error && <div style={noticeStyle}>{error}</div>}
 
-      {loadingInitial && (
-        <div style={noticeStyle}>Cargando publicaciones...</div>
-      )}
+      {loadingInitial && <div style={noticeStyle}>Cargando publicaciones...</div>}
 
       {!loadingInitial && posts.length === 0 && (
         <div style={noticeStyle}>
-          Todavía no hay publicaciones en este grupo.
+          Todavía no hay publicaciones visibles en este perfil.
         </div>
       )}
 
       {posts.map((post) => {
-        const canDeletePost = isOwner || currentUid === post.authorId;
+        const canDeletePost = isOwner && viewerUid === post.authorId;
 
         return (
-          <GroupPostCard
-            key={post.id}
-            post={post}
-            canDelete={canDeletePost}
-            onDelete={canDeletePost ? handleDeletePost : undefined}
-            onLoadComments={handleLoadComments}
-            onCreateComment={handleCreateComment}
-            onDeleteComment={handleDeleteComment}
-            currentUserId={currentUid}
-            isOwner={isOwner}
-            showGroupContext={false}
-          />
+          <div key={post.id} style={postItemStyle}>
+            <GroupPostCard
+              post={post}
+              canDelete={canDeletePost}
+              onDelete={canDeletePost ? handleDeletePost : undefined}
+              onLoadComments={handleLoadComments}
+              onCreateComment={handleCreateComment}
+              onDeleteComment={handleDeleteComment}
+              currentUserId={viewerUid}
+              isOwner={false}
+              showGroupContext={true}
+            />
+          </div>
         );
       })}
     </section>

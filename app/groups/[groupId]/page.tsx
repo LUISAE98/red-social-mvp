@@ -2,7 +2,7 @@
 
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { db, storage } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import { joinGroup, leaveGroup } from "@/lib/groups/membership";
@@ -47,6 +47,9 @@ type GroupDoc = {
   }>;
 };
 
+type CropMode = "avatar" | "cover";
+type Area = { x: number; y: number; width: number; height: number };
+
 function labelForOfferingType(t: string) {
   if (t === "saludo") return "Saludo";
   if (t === "consejo") return "Consejo";
@@ -60,9 +63,6 @@ function isGreetingType(t: string): t is GreetingType {
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
-
-type CropMode = "avatar" | "cover";
-type Area = { x: number; y: number; width: number; height: number };
 
 function dataUrlFromFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -138,6 +138,8 @@ export default function GroupPage() {
   const groupId = params.groupId;
 
   const { user } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const [group, setGroup] = useState<GroupDoc | null>(null);
   const [isMember, setIsMember] = useState<boolean>(false);
@@ -182,19 +184,24 @@ export default function GroupPage() {
   const canMembersViewList =
     (group?.settings?.membersListVisibility ?? "owner_only") === "members";
 
+  function redirectToLogin() {
+    router.push(
+      `/login?next=${encodeURIComponent(pathname || `/groups/${groupId}`)}`
+    );
+  }
+
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
   const ui = {
     pageMaxWidth: 1080,
     coverHeight: "clamp(190px, 35vw, 300px)",
-    avatarSize: "clamp(112px, 24vw, 220px)",
-    avatarOffsetTop: "clamp(-58px, -9vw, -82px)",
-    contentTopPadding: "clamp(82px, 14vw, 176px)",
+    avatarSize: "clamp(112px, 22vw, 200px)",
+    avatarOffsetTop: "clamp(-56px, -7vw, -72px)",
     cardRadius: 18,
     panelRadius: 14,
-    buttonRadius: 10,
-    buttonPadding: "10px 14px",
+    buttonRadius: 12,
+    buttonPadding: "11px 16px",
     inputPadding: "10px 12px",
     modalMaxWidth: 680,
     title: 18,
@@ -248,9 +255,15 @@ export default function GroupPage() {
   const titleStyle: React.CSSProperties = {
     fontSize: ui.title,
     fontWeight: 600,
-    lineHeight: 1.16,
+    lineHeight: 1.2,
     color: "#fff",
     letterSpacing: 0,
+    maxWidth: 620,
+    textAlign: "center",
+    wordBreak: "break-word",
+    overflowWrap: "anywhere",
+    padding: "0 16px",
+    textShadow: "0 2px 14px rgba(0,0,0,0.45)",
   };
 
   const subtitleStyle: React.CSSProperties = {
@@ -285,14 +298,21 @@ export default function GroupPage() {
   const primaryButton: React.CSSProperties = {
     padding: ui.buttonPadding,
     borderRadius: ui.buttonRadius,
-    border: "1px solid rgba(255,255,255,0.24)",
+    border: "1px solid rgba(255,255,255,0.92)",
     background: "#fff",
     color: "#000",
-    fontWeight: 600,
+    fontWeight: 700,
     fontSize: ui.body,
     lineHeight: 1.2,
     cursor: "pointer",
     fontFamily: fontStack,
+    boxShadow: "0 10px 30px rgba(255,255,255,0.10)",
+    minHeight: 42,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    transition: "all 160ms ease",
   };
 
   const secondaryButton: React.CSSProperties = {
@@ -301,12 +321,19 @@ export default function GroupPage() {
     border: "1px solid rgba(255,255,255,0.18)",
     background: "rgba(255,255,255,0.07)",
     color: "#fff",
-    fontWeight: 600,
+    fontWeight: 700,
     fontSize: ui.body,
     lineHeight: 1.2,
     cursor: "pointer",
     fontFamily: fontStack,
     backdropFilter: "blur(8px)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+    minHeight: 42,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textAlign: "center",
+    transition: "all 160ms ease",
   };
 
   const tinyGhostButton: React.CSSProperties = {
@@ -420,7 +447,10 @@ export default function GroupPage() {
   }, [groupId, user]);
 
   async function handleJoinPublic() {
-    if (!user) return;
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
 
     setJoining(true);
     setError(null);
@@ -435,7 +465,10 @@ export default function GroupPage() {
   }
 
   async function handleRequestPrivate() {
-    if (!user) return;
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
 
     setJoining(true);
     setError(null);
@@ -450,7 +483,10 @@ export default function GroupPage() {
   }
 
   async function handleCancelPrivate() {
-    if (!user) return;
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
 
     setJoining(true);
     setError(null);
@@ -680,6 +716,108 @@ export default function GroupPage() {
       </svg>
     `);
 
+  const avatarNode = (
+    <div
+      style={{
+        position: "absolute",
+        left: "50%",
+        top: ui.avatarOffsetTop,
+        transform: "translateX(-50%)",
+        zIndex: 20,
+      }}
+    >
+      <div style={{ position: "relative" }}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handlePickAvatar();
+          }}
+          disabled={!isOwner || uploading}
+          style={{
+            width: ui.avatarSize,
+            height: ui.avatarSize,
+            borderRadius: "50%",
+            overflow: "hidden",
+            border: "4px solid rgba(0,0,0,0.96)",
+            boxShadow: ui.shadow,
+            display: "grid",
+            placeItems: "center",
+            background: "#0c0c0c",
+            userSelect: "none",
+            padding: 0,
+            margin: 0,
+            cursor: !isOwner || uploading ? "default" : "pointer",
+            pointerEvents: isOwner ? "auto" : "none",
+          }}
+          aria-label="Avatar de la comunidad"
+          title={isOwner ? "Cambiar avatar de la comunidad" : undefined}
+        >
+          {group.avatarUrl ? (
+            <img
+              src={group.avatarUrl}
+              alt="avatar"
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+              }}
+            />
+          ) : (
+            <span
+              style={{
+                fontSize: "clamp(24px, 5vw, 34px)",
+                fontWeight: 600,
+                color: "rgba(255,255,255,0.88)",
+                fontFamily: fontStack,
+              }}
+            >
+              {(group.name ?? "G").trim().slice(0, 2).toUpperCase()}
+            </span>
+          )}
+        </button>
+
+        {isOwner && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handlePickAvatar();
+            }}
+            disabled={uploading}
+            style={{
+              position: "absolute",
+              right: 8,
+              bottom: 8,
+              width: 34,
+              height: 34,
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.16)",
+              background: "rgba(12,12,12,0.92)",
+              color: "#fff",
+              cursor: uploading ? "not-allowed" : "pointer",
+              fontSize: 13,
+              fontWeight: 600,
+              display: "grid",
+              placeItems: "center",
+              boxShadow: ui.shadow,
+              backdropFilter: "blur(10px)",
+              zIndex: 200,
+              pointerEvents: "auto",
+              fontFamily: fontStack,
+            }}
+            title="Cambiar avatar de la comunidad"
+            aria-label="Cambiar avatar de la comunidad"
+          >
+            {uploading && cropMode === "avatar" ? "..." : "✎"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   if (visibility === "private" && !effectiveIsMember) {
     const pending = joinReqStatus === "pending";
     const rejected = joinReqStatus === "rejected";
@@ -701,6 +839,13 @@ export default function GroupPage() {
             padding: 0 18px 20px;
           }
 
+          .group-header-copy {
+            padding-top: 92px;
+            position: relative;
+            z-index: 1;
+            min-height: 110px;
+          }
+
           .group-meta {
             display: grid;
             place-items: center;
@@ -709,7 +854,10 @@ export default function GroupPage() {
 
           .group-description {
             margin-top: 8px;
-            max-width: 660px;
+            max-width: 620px;
+            padding: 0 14px;
+            word-break: break-word;
+            overflow-wrap: anywhere;
           }
 
           .group-actions-wrap {
@@ -726,6 +874,23 @@ export default function GroupPage() {
             gap: 10px;
             align-items: center;
             flex-wrap: wrap;
+          }
+
+          .cta-card {
+            max-width: 640px;
+            margin: 0 auto;
+          }
+
+          @media (min-width: 700px) {
+            .group-header-copy {
+              padding-top: 126px;
+            }
+          }
+
+          @media (min-width: 1024px) {
+            .group-header-copy {
+              padding-top: 150px;
+            }
           }
 
           @media (max-width: 900px) {
@@ -776,13 +941,9 @@ export default function GroupPage() {
             </div>
 
             <div className="group-content">
-              <div
-                style={{
-                  paddingTop: 18,
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
+              {avatarNode}
+
+              <div className="group-header-copy">
                 <div className="group-meta">
                   <h1 style={{ ...titleStyle, margin: 0 }}>{group.name ?? ""}</h1>
 
@@ -799,18 +960,24 @@ export default function GroupPage() {
               </div>
 
               <div className="group-actions-wrap">
-                <div style={panelStyle}>
-                  <div style={{ ...microText, color: "rgba(255,255,255,0.82)" }}>
+                <div style={{ ...panelStyle }} className="cta-card">
+                  <div
+                    style={{
+                      ...microText,
+                      color: "rgba(255,255,255,0.82)",
+                      textAlign: "center",
+                    }}
+                  >
                     {approved && "✅ Aprobado. Entrando…"}
                     {pending && "✅ Solicitud enviada. Está pendiente de revisión."}
                     {!pending &&
                       !approved &&
                       !rejected &&
-                      "Esta comunidad es privada."}
+                      "Esta comunidad es privada. Puedes verla, pero necesitas aprobación para entrar."}
                     {rejected && "❌ Tu solicitud fue rechazada."}
                   </div>
 
-                  <div className="group-actions-row" style={{ marginTop: 12 }}>
+                  <div className="group-actions-row" style={{ marginTop: 14 }}>
                     {!pending && !rejected ? (
                       <button
                         onClick={handleRequestPrivate}
@@ -821,7 +988,11 @@ export default function GroupPage() {
                           cursor: joining ? "not-allowed" : "pointer",
                         }}
                       >
-                        {joining ? "Enviando..." : "Solicitar acceso"}
+                        {joining
+                          ? "Enviando..."
+                          : user
+                          ? "Solicitar acceso"
+                          : "Iniciar sesión para solicitar acceso"}
                       </button>
                     ) : (
                       <button
@@ -863,6 +1034,13 @@ export default function GroupPage() {
             padding: 0 18px 20px;
           }
 
+          .group-header-copy {
+            padding-top: 92px;
+            position: relative;
+            z-index: 1;
+            min-height: 110px;
+          }
+
           .group-meta {
             display: grid;
             place-items: center;
@@ -871,7 +1049,10 @@ export default function GroupPage() {
 
           .group-description {
             margin-top: 8px;
-            max-width: 660px;
+            max-width: 620px;
+            padding: 0 14px;
+            word-break: break-word;
+            overflow-wrap: anywhere;
           }
 
           .group-visibility {
@@ -906,6 +1087,18 @@ export default function GroupPage() {
             width: 100%;
             max-width: 720px;
             margin: 0 auto;
+          }
+
+          @media (min-width: 700px) {
+            .group-header-copy {
+              padding-top: 126px;
+            }
+          }
+
+          @media (min-width: 1024px) {
+            .group-header-copy {
+              padding-top: 150px;
+            }
           }
 
           @media (max-width: 900px) {
@@ -986,113 +1179,9 @@ export default function GroupPage() {
             </div>
 
             <div className="group-content">
-              <div
-                style={{
-                  position: "absolute",
-                  left: "50%",
-                  top: ui.avatarOffsetTop,
-                  transform: "translateX(-50%)",
-                  zIndex: 20,
-                }}
-              >
-                <div style={{ position: "relative" }}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handlePickAvatar();
-                    }}
-                    disabled={!isOwner || uploading}
-                    style={{
-                      width: ui.avatarSize,
-                      height: ui.avatarSize,
-                      borderRadius: "50%",
-                      overflow: "hidden",
-                      border: "4px solid rgba(0,0,0,0.96)",
-                      boxShadow: ui.shadow,
-                      display: "grid",
-                      placeItems: "center",
-                      background: "#0c0c0c",
-                      userSelect: "none",
-                      padding: 0,
-                      margin: 0,
-                      cursor: !isOwner || uploading ? "default" : "pointer",
-                      pointerEvents: isOwner ? "auto" : "none",
-                    }}
-                    aria-label="Cambiar avatar de la comunidad"
-                    title={isOwner ? "Cambiar avatar de la comunidad" : undefined}
-                  >
-                    {group.avatarUrl ? (
-                      <img
-                        src={group.avatarUrl}
-                        alt="avatar"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
-                      />
-                    ) : (
-                      <span
-                        style={{
-                          fontSize: "clamp(24px, 5vw, 34px)",
-                          fontWeight: 600,
-                          color: "rgba(255,255,255,0.88)",
-                          fontFamily: fontStack,
-                        }}
-                      >
-                        {(group.name ?? "G").trim().slice(0, 2).toUpperCase()}
-                      </span>
-                    )}
-                  </button>
+              {avatarNode}
 
-                  {isOwner && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handlePickAvatar();
-                      }}
-                      disabled={uploading}
-                      style={{
-                        position: "absolute",
-                        right: 8,
-                        bottom: 8,
-                        width: 34,
-                        height: 34,
-                        borderRadius: 999,
-                        border: "1px solid rgba(255,255,255,0.16)",
-                        background: "rgba(12,12,12,0.92)",
-                        color: "#fff",
-                        cursor: uploading ? "not-allowed" : "pointer",
-                        fontSize: 13,
-                        fontWeight: 600,
-                        display: "grid",
-                        placeItems: "center",
-                        boxShadow: ui.shadow,
-                        backdropFilter: "blur(10px)",
-                        zIndex: 200,
-                        pointerEvents: "auto",
-                        fontFamily: fontStack,
-                      }}
-                      title="Cambiar avatar de la comunidad"
-                      aria-label="Cambiar avatar de la comunidad"
-                    >
-                      {uploading && cropMode === "avatar" ? "..." : "✎"}
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div
-                style={{
-                  paddingTop: ui.contentTopPadding,
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
+              <div className="group-header-copy">
                 <div className="group-meta">
                   <h1 style={{ ...titleStyle, margin: 0 }}>{group.name ?? ""}</h1>
 
@@ -1122,7 +1211,11 @@ export default function GroupPage() {
                           cursor: joining ? "not-allowed" : "pointer",
                         }}
                       >
-                        {joining ? "Uniéndote..." : "Unirme"}
+                        {joining
+                          ? "Uniéndote..."
+                          : user
+                          ? "Unirme"
+                          : "Iniciar sesión para unirme"}
                       </button>
                     )}
 

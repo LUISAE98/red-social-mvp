@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import {
   useCallback,
   useEffect,
@@ -8,8 +9,8 @@ import {
   type CSSProperties,
   type TextareaHTMLAttributes,
 } from "react";
-import Link from "next/link";
-import { auth } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 type GroupPostComposerProps = {
   onSubmit: (text: string) => Promise<void>;
@@ -131,12 +132,55 @@ export default function GroupPostComposer({
 }: GroupPostComposerProps) {
   const [text, setText] = useState("");
   const [creating, setCreating] = useState(false);
+  const [currentUserHandle, setCurrentUserHandle] = useState<string | null>(null);
 
   const currentUser = auth.currentUser;
-  const currentUserName =
-    currentUser?.displayName?.trim() || "Tú";
+  const currentUserName = currentUser?.displayName?.trim() || "Tú";
   const currentUserAvatar = currentUser?.photoURL || null;
-  const currentUserHref = currentUser?.uid ? `/perfil/${currentUser.uid}` : "#";
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCurrentUserHandle() {
+      const uid = auth.currentUser?.uid;
+      if (!uid) {
+        setCurrentUserHandle(null);
+        return;
+      }
+
+      try {
+        const userRef = doc(db, "users", uid);
+        const snap = await getDoc(userRef);
+
+        if (!snap.exists()) {
+          if (!cancelled) setCurrentUserHandle(null);
+          return;
+        }
+
+        const data = snap.data();
+        const handle =
+          typeof data.handle === "string" && data.handle.trim().length > 0
+            ? data.handle.trim()
+            : null;
+
+        if (!cancelled) {
+          setCurrentUserHandle(handle);
+        }
+      } catch {
+        if (!cancelled) {
+          setCurrentUserHandle(null);
+        }
+      }
+    }
+
+    loadCurrentUserHandle();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const currentUserHref = currentUserHandle ? `/u/${currentUserHandle}` : "#";
 
   async function handleSubmit() {
     if (creating || text.trim().length === 0) return;

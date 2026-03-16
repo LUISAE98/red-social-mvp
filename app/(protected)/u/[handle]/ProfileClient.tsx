@@ -19,6 +19,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import Cropper from "react-easy-crop";
 
 import { auth, db, storage } from "@/lib/firebase";
+import ProfilePostsFeed from "./components/ProfilePostsFeed";
 
 type UserDoc = {
   uid: string;
@@ -31,6 +32,7 @@ type UserDoc = {
   sex: string;
   photoURL: string | null;
   coverUrl?: string | null;
+  showPosts?: boolean;
   profileGreeting?: {
     enabled: boolean;
     price: number | null;
@@ -844,6 +846,13 @@ export default function ProfileClient() {
               )}
             </div>
           </div>
+
+          <ProfilePostsFeed
+            profileUid={userDoc.uid}
+            viewerUid={viewer?.uid ?? null}
+            isOwner={isOwner}
+            showPosts={userDoc.showPosts ?? true}
+          />
 
           <input
             ref={avatarInputRef}
