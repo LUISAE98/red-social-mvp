@@ -22,24 +22,36 @@ type HomePostsFeedProps = {
 
 type MemberStatus = "active" | "muted" | "banned" | null;
 
+type PostWithFlags = Post & {
+  canModerateGroupAuthor?: boolean;
+  authorMemberStatus?: MemberStatus;
+  authorMutedUntil?: any;
+};
+
 async function getMembershipStatusForGroup(
   groupId: string,
   userId: string
-): Promise<MemberStatus> {
+): Promise<{ status: MemberStatus; mutedUntil: any | null }> {
   try {
     const memberRef = doc(db, "groups", groupId, "members", userId);
     const memberSnap = await getDoc(memberRef);
 
-    if (!memberSnap.exists()) return null;
+    if (!memberSnap.exists()) return { status: null, mutedUntil: null };
 
     const data = memberSnap.data() as any;
     const rawStatus = data?.status;
 
-    if (rawStatus === "banned") return "banned";
-    if (rawStatus === "muted") return "muted";
-    return "active";
+    return {
+      status:
+        rawStatus === "banned"
+          ? "banned"
+          : rawStatus === "muted"
+          ? "muted"
+          : "active",
+      mutedUntil: data?.mutedUntil ?? null,
+    };
   } catch {
-    return null;
+    return { status: null, mutedUntil: null };
   }
 }
 
@@ -59,8 +71,8 @@ async function filterOutHiddenHomePosts(
 
   const viewerMembershipEntries = await Promise.all(
     uniqueViewerGroupIds.map(async (groupId) => {
-      const status = await getMembershipStatusForGroup(groupId, currentUserId);
-      return [groupId, status] as const;
+      const meta = await getMembershipStatusForGroup(groupId, currentUserId);
+      return [groupId, meta.status] as const;
     })
   );
 
@@ -87,8 +99,8 @@ async function filterOutHiddenHomePosts(
       const groupId = pairKey.slice(0, separatorIndex);
       const authorId = pairKey.slice(separatorIndex + 2);
 
-      const status = await getMembershipStatusForGroup(groupId, authorId);
-      return [pairKey, status] as const;
+      const meta = await getMembershipStatusForGroup(groupId, authorId);
+      return [pairKey, meta.status] as const;
     })
   );
 
@@ -120,8 +132,93 @@ async function filterOutHiddenHomePosts(
   });
 }
 
+async function attachModerationFlags(
+  posts: Post[],
+  currentUserId: string
+): Promise<PostWithFlags[]> {
+  if (!posts.length) return posts as PostWithFlags[];
+
+  const uniqueGroupIds = Array.from(
+    new Set(
+      posts
+        .map((post) => post.groupId)
+        .filter(
+          (groupId): groupId is string =>
+            typeof groupId === "string" && groupId.trim().length > 0
+        )
+    )
+  );
+
+  const ownershipEntries = await Promise.all(
+    uniqueGroupIds.map(async (groupId) => {
+      try {
+        const groupSnap = await getDoc(doc(db, "groups", groupId));
+        if (!groupSnap.exists()) return [groupId, false] as const;
+
+        const data = groupSnap.data() as any;
+        return [groupId, data?.ownerId === currentUserId] as const;
+      } catch {
+        return [groupId, false] as const;
+      }
+    })
+  );
+
+  const ownershipMap = new Map<string, boolean>(ownershipEntries);
+
+  const authorPairs = Array.from(
+    new Set(
+      posts
+        .filter(
+          (post) =>
+            typeof post.groupId === "string" &&
+            post.groupId.trim().length > 0 &&
+            typeof post.authorId === "string" &&
+            post.authorId.trim().length > 0
+        )
+        .map((post) => `${post.groupId}__${post.authorId}`)
+    )
+  );
+
+  const authorEntries = await Promise.all(
+    authorPairs.map(async (pairKey) => {
+      const separatorIndex = pairKey.indexOf("__");
+      const groupId = pairKey.slice(0, separatorIndex);
+      const authorId = pairKey.slice(separatorIndex + 2);
+      const meta = await getMembershipStatusForGroup(groupId, authorId);
+      return [pairKey, meta] as const;
+    })
+  );
+
+  const authorMap = new Map<
+    string,
+    { status: MemberStatus; mutedUntil: any | null }
+  >(authorEntries);
+
+  return posts.map((post) => {
+    const groupId =
+      typeof post.groupId === "string" && post.groupId.trim().length > 0
+        ? post.groupId
+        : null;
+
+    const authorId =
+      typeof post.authorId === "string" && post.authorId.trim().length > 0
+        ? post.authorId
+        : null;
+
+    const authorMeta =
+      groupId && authorId ? authorMap.get(`${groupId}__${authorId}`) : null;
+
+    return {
+      ...post,
+      canModerateGroupAuthor: !!groupId && ownershipMap.get(groupId) === true,
+      authorMemberStatus: authorMeta?.status ?? null,
+      authorMutedUntil: authorMeta?.mutedUntil ?? null,
+    };
+  });
+}
+
 export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostWithFlags[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
 
@@ -136,8 +233,12 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
       nextPosts,
       currentUserId
     );
+    const hydratedPosts = await attachModerationFlags(
+      visiblePosts,
+      currentUserId
+    );
 
-    setPosts(visiblePosts);
+    setPosts(hydratedPosts);
   }
 
   useEffect(() => {
@@ -161,9 +262,13 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
           nextPosts,
           currentUserId
         );
+        const hydratedPosts = await attachModerationFlags(
+          visiblePosts,
+          currentUserId
+        );
 
         if (!active) return;
-        setPosts(visiblePosts);
+        setPosts(hydratedPosts);
       } catch (e: any) {
         if (!active) return;
         setError(e?.message ?? "Error desconocido");
@@ -327,7 +432,9 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
       )}
 
       {posts.map((post) => {
-        const canDeletePost = currentUserId === post.authorId;
+        const canDeletePost =
+          currentUserId === post.authorId ||
+          post.canModerateGroupAuthor === true;
 
         return (
           <div key={post.id} style={postItemStyle}>
@@ -341,6 +448,8 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
               currentUserId={currentUserId}
               isOwner={false}
               showGroupContext={true}
+              canModerateGroupAuthor={post.canModerateGroupAuthor === true}
+              onModerationComplete={loadPosts}
             />
           </div>
         );

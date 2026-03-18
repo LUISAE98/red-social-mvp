@@ -1,277 +1,314 @@
+import { getApps, initializeApp } from "firebase-admin/app";
+import {
+  FieldValue,
+  Timestamp,
+  getFirestore,
+} from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import * as admin from "firebase-admin";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import * as logger from "firebase-functions/logger";
 
-if (!admin.apps.length) {
-  admin.initializeApp();
+if (!getApps().length) {
+  initializeApp();
 }
 
 const db = getFirestore();
 
-type MemberStatus = "active" | "muted" | "banned";
-type GroupRole = "owner" | "mod" | "member";
-
-function assertString(value: unknown, label: string): string {
-  if (typeof value !== "string" || !value.trim()) {
-    throw new HttpsError("invalid-argument", `${label} es requerido.`);
+function requireAuth(request: any) {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
   }
-
-  return value.trim();
+  return uid as string;
 }
 
-async function getValidatedContext(
-  callerUid: string,
-  groupId: string,
-  targetUserId: string
-) {
-  const groupRef = db.collection("groups").doc(groupId);
-  const memberRef = groupRef.collection("members").doc(targetUserId);
-  const joinRequestRef = groupRef.collection("joinRequests").doc(targetUserId);
+function normalizeString(value: unknown, fieldName: string) {
+  const v = typeof value === "string" ? value.trim() : "";
+  if (!v) {
+    throw new HttpsError("invalid-argument", `${fieldName} es requerido.`);
+  }
+  return v;
+}
 
-  const [groupSnap, memberSnap, joinReqSnap] = await Promise.all([
-    groupRef.get(),
-    memberRef.get(),
-    joinRequestRef.get(),
-  ]);
+function normalizeDurationDays(value: unknown) {
+  const days = Number(value);
+  if (!Number.isInteger(days) || days < 1 || days > 365) {
+    throw new HttpsError(
+      "invalid-argument",
+      "durationDays debe ser un entero entre 1 y 365."
+    );
+  }
+  return days;
+}
+
+async function getOwnedGroupOrThrow(groupId: string, ownerUid: string) {
+  const groupRef = db.collection("groups").doc(groupId);
+  const groupSnap = await groupRef.get();
 
   if (!groupSnap.exists) {
-    throw new HttpsError("not-found", "Grupo no existe.");
+    throw new HttpsError("not-found", "El grupo no existe.");
   }
 
-  const groupData = groupSnap.data() ?? {};
-
-  if (groupData.ownerId !== callerUid) {
+  const data = groupSnap.data() as any;
+  if (data?.ownerId !== ownerUid) {
     throw new HttpsError(
       "permission-denied",
-      "Solo el owner puede realizar esta acción."
+      "Solo el owner del grupo puede realizar esta acción."
     );
   }
 
-  if (callerUid === targetUserId) {
-    throw new HttpsError(
-      "failed-precondition",
-      "No puedes aplicarte esta acción a ti mismo."
-    );
-  }
-
-  if (groupData.ownerId === targetUserId) {
-    throw new HttpsError(
-      "failed-precondition",
-      "No puedes aplicar esta acción al owner."
-    );
-  }
-
-  return {
-    groupRef,
-    memberRef,
-    joinRequestRef,
-    memberSnap,
-    joinReqSnap,
-  };
+  return groupRef;
 }
 
-function normalizeRole(value: unknown): GroupRole {
-  if (value === "owner") return "owner";
-  if (value === "mod") return "mod";
-  if (value === "moderator") return "mod";
-  return "member";
+async function getMemberRefOrThrow(groupId: string, targetUserId: string) {
+  const memberRef = db
+    .collection("groups")
+    .doc(groupId)
+    .collection("members")
+    .doc(targetUserId);
+
+  const memberSnap = await memberRef.get();
+
+  if (!memberSnap.exists) {
+    throw new HttpsError("not-found", "La membresía no existe.");
+  }
+
+  const memberData = memberSnap.data() as any;
+  const role = String(memberData?.roleInGroup ?? memberData?.role ?? "member");
+
+  if (role === "owner") {
+    throw new HttpsError(
+      "failed-precondition",
+      "No se puede moderar al owner del grupo."
+    );
+  }
+
+  return memberRef;
 }
 
-function normalizeStatus(value: unknown): MemberStatus {
-  if (value === "muted") return "muted";
-  if (value === "banned") return "banned";
-  return "active";
+function getJoinRequestRef(groupId: string, targetUserId: string) {
+  return db
+    .collection("groups")
+    .doc(groupId)
+    .collection("joinRequests")
+    .doc(targetUserId);
 }
 
 export const muteGroupMember = onCall(async (request) => {
-  const callerUid = request.auth?.uid;
-  if (!callerUid) {
-    throw new HttpsError("unauthenticated", "Debes estar autenticado.");
-  }
+  const ownerUid = requireAuth(request);
+  const groupId = normalizeString(request.data?.groupId, "groupId");
+  const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
+  const durationDays = normalizeDurationDays(request.data?.durationDays);
 
-  const groupId = assertString(request.data?.groupId, "groupId");
-  const targetUserId = assertString(request.data?.targetUserId, "targetUserId");
-
-  const { memberRef, memberSnap } = await getValidatedContext(
-    callerUid,
-    groupId,
-    targetUserId
-  );
-
-  if (!memberSnap.exists) {
-    throw new HttpsError("not-found", "El integrante no existe en el grupo.");
-  }
-
-  const memberData = memberSnap.data() ?? {};
-  const currentStatus = normalizeStatus(memberData.status);
-
-  if (currentStatus === "banned") {
+  if (ownerUid === targetUserId) {
     throw new HttpsError(
       "failed-precondition",
-      "No puedes mutear a un usuario baneado."
+      "No puedes aplicarte mute a ti mismo."
     );
   }
 
-  if (currentStatus === "muted") {
-    return { success: true, status: "muted", alreadyApplied: true };
-  }
+  await getOwnedGroupOrThrow(groupId, ownerUid);
+  const memberRef = await getMemberRefOrThrow(groupId, targetUserId);
+
+  const mutedUntilDate = new Date(
+    Date.now() + durationDays * 24 * 60 * 60 * 1000
+  );
 
   await memberRef.set(
     {
       status: "muted",
+      mutedUntil: Timestamp.fromDate(mutedUntilDate),
       updatedAt: FieldValue.serverTimestamp(),
+      moderatedBy: ownerUid,
     },
     { merge: true }
   );
 
-  return { success: true, status: "muted" };
+  return {
+    ok: true,
+    mutedUntil: mutedUntilDate.toISOString(),
+  };
 });
 
 export const unmuteGroupMember = onCall(async (request) => {
-  const callerUid = request.auth?.uid;
-  if (!callerUid) {
-    throw new HttpsError("unauthenticated", "Debes estar autenticado.");
-  }
+  const ownerUid = requireAuth(request);
+  const groupId = normalizeString(request.data?.groupId, "groupId");
+  const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
 
-  const groupId = assertString(request.data?.groupId, "groupId");
-  const targetUserId = assertString(request.data?.targetUserId, "targetUserId");
-
-  const { memberRef, memberSnap } = await getValidatedContext(
-    callerUid,
-    groupId,
-    targetUserId
-  );
-
-  if (!memberSnap.exists) {
-    throw new HttpsError("not-found", "El integrante no existe en el grupo.");
-  }
-
-  const memberData = memberSnap.data() ?? {};
-  const currentStatus = normalizeStatus(memberData.status);
-
-  if (currentStatus === "banned") {
-    throw new HttpsError(
-      "failed-precondition",
-      "No puedes desmutear a un usuario baneado."
-    );
-  }
-
-  if (currentStatus === "active") {
-    return { success: true, status: "active", alreadyApplied: true };
-  }
+  await getOwnedGroupOrThrow(groupId, ownerUid);
+  const memberRef = await getMemberRefOrThrow(groupId, targetUserId);
 
   await memberRef.set(
     {
       status: "active",
+      mutedUntil: null,
       updatedAt: FieldValue.serverTimestamp(),
+      moderatedBy: ownerUid,
     },
     { merge: true }
   );
 
-  return { success: true, status: "active" };
+  return { ok: true };
 });
 
 export const banGroupMember = onCall(async (request) => {
-  const callerUid = request.auth?.uid;
-  if (!callerUid) {
-    throw new HttpsError("unauthenticated", "Debes estar autenticado.");
-  }
+  const ownerUid = requireAuth(request);
+  const groupId = normalizeString(request.data?.groupId, "groupId");
+  const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
 
-  const groupId = assertString(request.data?.groupId, "groupId");
-  const targetUserId = assertString(request.data?.targetUserId, "targetUserId");
-
-  const { memberRef, joinRequestRef, memberSnap, joinReqSnap } =
-    await getValidatedContext(callerUid, groupId, targetUserId);
-
-  const memberData = memberSnap.exists ? memberSnap.data() ?? {} : {};
-  const currentStatus = normalizeStatus(memberData.status);
-
-  if (currentStatus === "banned") {
-    return { success: true, status: "banned", alreadyApplied: true };
-  }
-
-  const nextRole = normalizeRole(memberData.roleInGroup);
-  const nextJoinedAt = memberSnap.exists ? memberData.joinedAt ?? null : null;
-
-  await memberRef.set(
-    {
-      userId: targetUserId,
-      roleInGroup: nextRole,
-      status: "banned",
-      joinedAt: nextJoinedAt ?? FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    },
-    { merge: true }
-  );
-
-  if (joinReqSnap.exists) {
-    await joinRequestRef.delete();
-  }
-
-  return { success: true, status: "banned" };
-});
-
-export const unbanGroupMember = onCall(async (request) => {
-  const callerUid = request.auth?.uid;
-  if (!callerUid) {
-    throw new HttpsError("unauthenticated", "Debes estar autenticado.");
-  }
-
-  const groupId = assertString(request.data?.groupId, "groupId");
-  const targetUserId = assertString(request.data?.targetUserId, "targetUserId");
-
-  const { memberRef, memberSnap } = await getValidatedContext(
-    callerUid,
-    groupId,
-    targetUserId
-  );
-
-  if (!memberSnap.exists) {
+  if (ownerUid === targetUserId) {
     throw new HttpsError(
-      "not-found",
-      "No existe registro de ban para este usuario."
+      "failed-precondition",
+      "No puedes banearte a ti mismo."
     );
   }
 
-  const memberData = memberSnap.data() ?? {};
-  const currentStatus = normalizeStatus(memberData.status);
+  await getOwnedGroupOrThrow(groupId, ownerUid);
+  const memberRef = await getMemberRefOrThrow(groupId, targetUserId);
+  const joinRequestRef = getJoinRequestRef(groupId, targetUserId);
 
-  if (currentStatus !== "banned") {
-    return { success: true, status: currentStatus, alreadyApplied: true };
-  }
+  const batch = db.batch();
 
-  await memberRef.set(
+  batch.set(
+    memberRef,
     {
-      status: "active",
+      status: "banned",
+      mutedUntil: null,
+      bannedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
+      moderatedBy: ownerUid,
     },
     { merge: true }
   );
 
-  return { success: true, status: "active" };
+  batch.delete(joinRequestRef);
+
+  await batch.commit();
+
+  return { ok: true };
+});
+
+export const unbanGroupMember = onCall(async (request) => {
+  const ownerUid = requireAuth(request);
+  const groupId = normalizeString(request.data?.groupId, "groupId");
+  const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
+
+  await getOwnedGroupOrThrow(groupId, ownerUid);
+  const memberRef = await getMemberRefOrThrow(groupId, targetUserId);
+  const joinRequestRef = getJoinRequestRef(groupId, targetUserId);
+
+  const batch = db.batch();
+
+  batch.set(
+    memberRef,
+    {
+      status: "active",
+      mutedUntil: null,
+      updatedAt: FieldValue.serverTimestamp(),
+      unbannedAt: FieldValue.serverTimestamp(),
+      moderatedBy: ownerUid,
+    },
+    { merge: true }
+  );
+
+  batch.delete(joinRequestRef);
+
+  await batch.commit();
+
+  return { ok: true };
 });
 
 export const removeGroupMember = onCall(async (request) => {
-  const callerUid = request.auth?.uid;
-  if (!callerUid) {
-    throw new HttpsError("unauthenticated", "Debes estar autenticado.");
+  const ownerUid = requireAuth(request);
+  const groupId = normalizeString(request.data?.groupId, "groupId");
+  const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
+
+  if (ownerUid === targetUserId) {
+    throw new HttpsError(
+      "failed-precondition",
+      "No puedes expulsarte a ti mismo."
+    );
   }
 
-  const groupId = assertString(request.data?.groupId, "groupId");
-  const targetUserId = assertString(request.data?.targetUserId, "targetUserId");
+  await getOwnedGroupOrThrow(groupId, ownerUid);
+  const memberRef = await getMemberRefOrThrow(groupId, targetUserId);
+  const joinRequestRef = getJoinRequestRef(groupId, targetUserId);
 
-  const { memberRef, joinRequestRef, memberSnap, joinReqSnap } =
-    await getValidatedContext(callerUid, groupId, targetUserId);
+  const batch = db.batch();
 
-  if (!memberSnap.exists) {
-    throw new HttpsError("not-found", "El integrante no existe en el grupo.");
-  }
+  batch.set(
+    memberRef,
+    {
+      status: "removed",
+      mutedUntil: null,
+      removedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      moderatedBy: ownerUid,
+    },
+    { merge: true }
+  );
 
-  await memberRef.delete();
+  batch.delete(joinRequestRef);
 
-  if (joinReqSnap.exists) {
-    await joinRequestRef.delete();
-  }
+  await batch.commit();
 
-  return { success: true, removed: true };
+  return { ok: true };
 });
+
+export const cleanupExpiredGroupMutes = onSchedule(
+  {
+    schedule: "every 15 minutes",
+    timeZone: "UTC",
+  },
+  async () => {
+    const now = Timestamp.now();
+    let totalUpdated = 0;
+    let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+
+    while (true) {
+      let q = db
+        .collectionGroup("members")
+        .where("status", "==", "muted")
+        .where("mutedUntil", "<=", now)
+        .orderBy("mutedUntil")
+        .limit(200);
+
+      if (lastDoc) {
+        q = q.startAfter(lastDoc);
+      }
+
+      const snap = await q.get();
+
+      if (snap.empty) {
+        break;
+      }
+
+      const batch = db.batch();
+
+      snap.docs.forEach((docSnap) => {
+        batch.set(
+          docSnap.ref,
+          {
+            status: "active",
+            mutedUntil: null,
+            updatedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      });
+
+      await batch.commit();
+
+      totalUpdated += snap.size;
+      lastDoc = snap.docs[snap.docs.length - 1];
+
+      if (snap.size < 200) {
+        break;
+      }
+    }
+
+    logger.info("cleanupExpiredGroupMutes completed", {
+      totalUpdated,
+    });
+  }
+);

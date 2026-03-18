@@ -19,7 +19,14 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Cropper from "react-easy-crop";
 
 type JoinRequestStatus = "pending" | "approved" | "rejected" | string;
-type MemberStatus = "active" | "muted" | "banned" | null;
+type MemberStatus =
+  | "active"
+  | "muted"
+  | "banned"
+  | "removed"
+  | "kicked"
+  | "expelled"
+  | null;
 
 type GroupDoc = {
   id: string;
@@ -63,6 +70,29 @@ function isGreetingType(t: string): t is GreetingType {
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
+}
+
+function normalizeMemberStatus(raw: unknown): MemberStatus {
+  if (raw === "active") return "active";
+  if (raw === "muted") return "muted";
+  if (raw === "banned") return "banned";
+  if (raw === "removed") return "removed";
+  if (raw === "kicked") return "kicked";
+  if (raw === "expelled") return "expelled";
+  return null;
+}
+
+function isJoinedStatus(status: MemberStatus) {
+  return status === "active" || status === "muted";
+}
+
+function isRestrictedStatus(status: MemberStatus) {
+  return (
+    status === "banned" ||
+    status === "removed" ||
+    status === "kicked" ||
+    status === "expelled"
+  );
 }
 
 function dataUrlFromFile(file: File): Promise<string> {
@@ -157,7 +187,7 @@ export default function GroupPage() {
     () => !!user && !!group?.ownerId && group.ownerId === user.uid,
     [user, group]
   );
-  const effectiveIsMember = isOwner || (isMember && memberStatus !== "banned");
+  const effectiveIsMember = isOwner || (isMember && isJoinedStatus(memberStatus));
 
   const [greetOpen, setGreetOpen] = useState(false);
   const [greetType, setGreetType] = useState<GreetingType>("saludo");
@@ -424,14 +454,14 @@ export default function GroupPage() {
           }
 
           const data = msnap.data() as any;
-          const status = data?.status ?? "active";
+          const status = normalizeMemberStatus(data?.status ?? "active");
 
           setMemberStatus(status);
 
-          if (status === "banned") {
-            setIsMember(false);
-          } else {
+          if (isJoinedStatus(status)) {
             setIsMember(true);
+          } else {
+            setIsMember(false);
           }
         },
         () => {

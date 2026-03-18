@@ -1,65 +1,88 @@
 import { httpsCallable } from "firebase/functions";
-import { functions } from "../firebase";
+import { functions } from "@/lib/firebase";
 
-type ModerationPayload = {
+type BasePayload = {
   groupId: string;
   targetUserId: string;
 };
 
-type ModerationResponse = {
-  success: boolean;
-  status?: "active" | "muted" | "banned";
-  removed?: boolean;
-  alreadyApplied?: boolean;
+type MutePayload = BasePayload & {
+  durationDays: number;
 };
 
-function normalizeError(error: any): Error {
-  const message =
-    error?.message ||
-    error?.details ||
-    "No se pudo completar la acción de moderación.";
-
-  return new Error(String(message));
-}
-
-async function callModerationFunction(
-  functionName:
-    | "muteGroupMember"
-    | "unmuteGroupMember"
-    | "banGroupMember"
-    | "unbanGroupMember"
-    | "removeGroupMember",
-  payload: ModerationPayload
-): Promise<ModerationResponse> {
-  try {
-    const callable = httpsCallable<ModerationPayload, ModerationResponse>(
-      functions,
-      functionName
-    );
-
-    const result = await callable(payload);
-    return result.data;
-  } catch (error: any) {
-    throw normalizeError(error);
+function assertIds(groupId: string, targetUserId: string) {
+  if (!groupId?.trim()) {
+    throw new Error("groupId es requerido.");
+  }
+  if (!targetUserId?.trim()) {
+    throw new Error("targetUserId es requerido.");
   }
 }
 
-export async function muteGroupMember(groupId: string, targetUserId: string) {
-  return callModerationFunction("muteGroupMember", { groupId, targetUserId });
+export async function muteGroupMember(
+  groupId: string,
+  targetUserId: string,
+  durationDays: number
+) {
+  assertIds(groupId, targetUserId);
+
+  if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 365) {
+    throw new Error("durationDays debe ser un entero entre 1 y 365.");
+  }
+
+  const callable = httpsCallable<MutePayload, { ok: true; mutedUntil: string }>(
+    functions,
+    "muteGroupMember"
+  );
+
+  const res = await callable({ groupId, targetUserId, durationDays });
+  return res.data;
 }
 
 export async function unmuteGroupMember(groupId: string, targetUserId: string) {
-  return callModerationFunction("unmuteGroupMember", { groupId, targetUserId });
+  assertIds(groupId, targetUserId);
+
+  const callable = httpsCallable<BasePayload, { ok: true }>(
+    functions,
+    "unmuteGroupMember"
+  );
+
+  const res = await callable({ groupId, targetUserId });
+  return res.data;
 }
 
 export async function banGroupMember(groupId: string, targetUserId: string) {
-  return callModerationFunction("banGroupMember", { groupId, targetUserId });
+  assertIds(groupId, targetUserId);
+
+  const callable = httpsCallable<BasePayload, { ok: true }>(
+    functions,
+    "banGroupMember"
+  );
+
+  const res = await callable({ groupId, targetUserId });
+  return res.data;
 }
 
 export async function unbanGroupMember(groupId: string, targetUserId: string) {
-  return callModerationFunction("unbanGroupMember", { groupId, targetUserId });
+  assertIds(groupId, targetUserId);
+
+  const callable = httpsCallable<BasePayload, { ok: true }>(
+    functions,
+    "unbanGroupMember"
+  );
+
+  const res = await callable({ groupId, targetUserId });
+  return res.data;
 }
 
 export async function removeGroupMember(groupId: string, targetUserId: string) {
-  return callModerationFunction("removeGroupMember", { groupId, targetUserId });
+  assertIds(groupId, targetUserId);
+
+  const callable = httpsCallable<BasePayload, { ok: true }>(
+    functions,
+    "removeGroupMember"
+  );
+
+  const res = await callable({ groupId, targetUserId });
+  return res.data;
 }

@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   collection,
   doc,
@@ -37,6 +38,7 @@ type MemberDoc = {
   role?: string;
   roleInGroup?: string;
   status?: string;
+  mutedUntil?: any;
   createdAt?: any;
   joinedAt?: any;
   updatedAt?: any;
@@ -64,6 +66,11 @@ type ModerationAction =
   | "unban"
   | "remove";
 
+type MenuPosition = {
+  top: number;
+  left: number;
+};
+
 function normalizeRole(role?: string) {
   if (role === "owner") return "owner";
   if (role === "mod") return "mod";
@@ -71,10 +78,49 @@ function normalizeRole(role?: string) {
   return "member";
 }
 
-function normalizeStatus(status?: string) {
-  if (status === "muted") return "muted";
+function getMutedUntilDate(mutedUntil?: any): Date | null {
+  if (!mutedUntil) return null;
+
+  if (mutedUntil?.toDate instanceof Function) {
+    const d = mutedUntil.toDate();
+    return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
+  }
+
+  if (mutedUntil instanceof Date && !Number.isNaN(mutedUntil.getTime())) {
+    return mutedUntil;
+  }
+
+  if (typeof mutedUntil === "string" || typeof mutedUntil === "number") {
+    const d = new Date(mutedUntil);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  return null;
+}
+
+function resolveEffectiveStatus(status?: string, mutedUntil?: any) {
   if (status === "banned") return "banned";
+
+  if (status === "muted") {
+    const until = getMutedUntilDate(mutedUntil);
+    if (until && until.getTime() <= Date.now()) {
+      return "active";
+    }
+    return "muted";
+  }
+
   return "active";
+}
+
+function getRemainingMutedDaysLabel(mutedUntil?: any) {
+  const until = getMutedUntilDate(mutedUntil);
+  if (!until) return null;
+
+  const diffMs = until.getTime() - Date.now();
+  if (diffMs <= 0) return null;
+
+  const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  return days === 1 ? "resta 1 día" : `restan ${days} días`;
 }
 
 function friendlyRole(role?: string) {
@@ -83,15 +129,20 @@ function friendlyRole(role?: string) {
   return "Miembro";
 }
 
-function friendlyStatus(status?: string) {
-  const normalized = normalizeStatus(status);
-  if (normalized === "muted") return "Muteado";
+function friendlyStatus(status?: string, mutedUntil?: any) {
+  const normalized = resolveEffectiveStatus(status, mutedUntil);
+
+  if (normalized === "muted") {
+    const remaining = getRemainingMutedDaysLabel(mutedUntil);
+    return remaining ? `Muteado, ${remaining}` : "Muteado";
+  }
+
   if (normalized === "banned") return "Baneado";
   return "Activo";
 }
 
-function statusDotColor(status?: string) {
-  const normalized = normalizeStatus(status);
+function statusDotColor(status?: string, mutedUntil?: any) {
+  const normalized = resolveEffectiveStatus(status, mutedUntil);
   if (normalized === "banned") return "#ff4d4f";
   if (normalized === "muted") return "#f5a623";
   return "#22c55e";
@@ -144,8 +195,14 @@ export default function GroupMembersTab({
     null
   );
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
 
-  const menuHostRef = useRef<HTMLDivElement | null>(null);
+  const [muteModalOpen, setMuteModalOpen] = useState(false);
+  const [muteTarget, setMuteTarget] = useState<EnrichedMember | null>(null);
+  const [muteDays, setMuteDays] = useState("7");
+
+  const menuPanelRef = useRef<HTMLDivElement | null>(null);
+  const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
@@ -164,11 +221,62 @@ export default function GroupMembersTab({
 
   useEffect(() => {
     if (!openMenuForUid) return;
+    const openUid = openMenuForUid;
+
+    function updateMenuPosition() {
+      const button = menuButtonRefs.current[openUid];
+      if (!button) {
+        setMenuPosition(null);
+        return;
+      }
+
+      const rect = button.getBoundingClientRect();
+      const panelWidth = isMobile ? 170 : 190;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const estimatedPanelHeight = 180;
+      const gap = 8;
+
+      let left = rect.right - panelWidth;
+      if (left < 8) left = 8;
+      if (left + panelWidth > viewportWidth - 8) {
+        left = viewportWidth - panelWidth - 8;
+      }
+
+      let top = rect.bottom + gap;
+      if (top + estimatedPanelHeight > viewportHeight - 8) {
+        top = Math.max(8, rect.top - estimatedPanelHeight - gap);
+      }
+
+      setMenuPosition({ top, left });
+    }
+
+    updateMenuPosition();
+
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition, true);
+    };
+  }, [openMenuForUid, isMobile]);
+
+  useEffect(() => {
+    if (!openMenuForUid && !muteModalOpen) return;
+    const openUid = openMenuForUid;
 
     function handlePointerDown(event: MouseEvent) {
       const target = event.target as Node | null;
-      if (!menuHostRef.current || !target) return;
-      if (!menuHostRef.current.contains(target)) {
+      if (!target) return;
+
+      const panelEl = menuPanelRef.current;
+      const buttonEl = openUid ? menuButtonRefs.current[openUid] ?? null : null;
+
+      const clickedInsidePanel = !!panelEl && panelEl.contains(target);
+      const clickedButton = !!buttonEl && buttonEl.contains(target);
+
+      if (!clickedInsidePanel && !clickedButton && !muteModalOpen) {
         setOpenMenuForUid(null);
       }
     }
@@ -176,6 +284,9 @@ export default function GroupMembersTab({
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setOpenMenuForUid(null);
+        setMuteModalOpen(false);
+        setMuteTarget(null);
+        setMuteDays("7");
       }
     }
 
@@ -186,7 +297,7 @@ export default function GroupMembersTab({
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [openMenuForUid]);
+  }, [openMenuForUid, muteModalOpen]);
 
   useEffect(() => {
     if (!canViewList) {
@@ -288,12 +399,12 @@ export default function GroupMembersTab({
   const filteredMembers = useMemo(() => {
     const term = search.trim().toLowerCase();
 
-    const list = members
+    return members
       .filter((member) => {
         const role = normalizeRole(member.roleInGroup || member.role);
         if (role === "owner") return false;
 
-        const status = normalizeStatus(member.status);
+        const status = resolveEffectiveStatus(member.status, member.mutedUntil);
         const name = memberPrimaryName(member).toLowerCase();
         const handle = (member.handle || "").toLowerCase();
 
@@ -328,8 +439,6 @@ export default function GroupMembersTab({
 
         return an.localeCompare(bn);
       });
-
-    return list;
   }, [members, search, filter, canUseFilters]);
 
   async function handleToggleMembersVisibility(nextValue: boolean) {
@@ -366,7 +475,7 @@ export default function GroupMembersTab({
   }
 
   function getAvailableActions(member: EnrichedMember): ModerationAction[] {
-    const status = normalizeStatus(member.status);
+    const status = resolveEffectiveStatus(member.status, member.mutedUntil);
 
     if (status === "banned") {
       return ["unban"];
@@ -379,9 +488,9 @@ export default function GroupMembersTab({
     return ["mute", "ban", "remove"];
   }
 
-  async function handleModerationAction(
+  async function runAction(
     member: EnrichedMember,
-    action: ModerationAction
+    action: Exclude<ModerationAction, "mute">
   ) {
     const targetUserId = member.resolvedUid;
     if (!targetUserId) return;
@@ -391,9 +500,7 @@ export default function GroupMembersTab({
     setActionLoadingForUid(targetUserId);
 
     try {
-      if (action === "mute") {
-        await muteGroupMember(groupId, targetUserId);
-      } else if (action === "unmute") {
+      if (action === "unmute") {
         await unmuteGroupMember(groupId, targetUserId);
       } else if (action === "ban") {
         await banGroupMember(groupId, targetUserId);
@@ -406,6 +513,59 @@ export default function GroupMembersTab({
       const displayName = memberPrimaryName(member);
       setActionMessage(`${buildActionLabel(action)} aplicado a ${displayName}.`);
       setOpenMenuForUid(null);
+      setMenuPosition(null);
+    } catch (e: any) {
+      console.error(e);
+      setError(e?.message ?? "No se pudo completar la acción.");
+    } finally {
+      setActionLoadingForUid(null);
+    }
+  }
+
+  function handleModerationAction(
+    member: EnrichedMember,
+    action: ModerationAction
+  ) {
+    if (action === "mute") {
+      setError(null);
+      setActionMessage(null);
+      setMuteTarget(member);
+      setMuteDays("7");
+      setMuteModalOpen(true);
+      setOpenMenuForUid(null);
+      setMenuPosition(null);
+      return;
+    }
+
+    void runAction(member, action);
+  }
+
+  function closeMuteModal() {
+    if (muteTarget && actionLoadingForUid === muteTarget.resolvedUid) return;
+    setMuteModalOpen(false);
+    setMuteTarget(null);
+    setMuteDays("7");
+  }
+
+  async function handleConfirmMute() {
+    if (!muteTarget?.resolvedUid) return;
+
+    const durationDays = Number(muteDays);
+    if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 365) {
+      setError("durationDays debe ser un entero entre 1 y 365.");
+      return;
+    }
+
+    setError(null);
+    setActionMessage(null);
+    setActionLoadingForUid(muteTarget.resolvedUid);
+
+    try {
+      await muteGroupMember(groupId, muteTarget.resolvedUid, durationDays);
+      setActionMessage(
+        `Mutear aplicado a ${memberPrimaryName(muteTarget)} durante ${durationDays} día(s).`
+      );
+      closeMuteModal();
     } catch (e: any) {
       console.error(e);
       setError(e?.message ?? "No se pudo completar la acción.");
@@ -683,9 +843,7 @@ export default function GroupMembersTab({
   };
 
   const menuPanelStyle: CSSProperties = {
-    position: "absolute",
-    top: isMobile ? 36 : 38,
-    right: 0,
+    position: "fixed",
     minWidth: isMobile ? 170 : 190,
     borderRadius: 12,
     border: "1px solid rgba(255,255,255,0.10)",
@@ -745,6 +903,77 @@ export default function GroupMembersTab({
     fontSize: isMobile ? 10.5 : 11.5,
     lineHeight: 1.35,
     color: "rgba(255,255,255,0.82)",
+  };
+
+  const modalBackdropStyle: CSSProperties = {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.62)",
+    display: "grid",
+    placeItems: "center",
+    padding: 16,
+    zIndex: 100000,
+  };
+
+  const modalCardStyle: CSSProperties = {
+    width: "min(420px, 92vw)",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(12,12,12,0.98)",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
+    padding: 16,
+    display: "grid",
+    gap: 12,
+    color: "#fff",
+  };
+
+  const modalTitleStyle: CSSProperties = {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 700,
+    lineHeight: 1.15,
+  };
+
+  const modalTextStyle: CSSProperties = {
+    margin: 0,
+    fontSize: 12.5,
+    lineHeight: 1.5,
+    color: "rgba(255,255,255,0.76)",
+  };
+
+  const modalInputStyle: CSSProperties = {
+    width: "100%",
+    height: 42,
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.05)",
+    color: "#fff",
+    padding: "0 12px",
+    outline: "none",
+    fontSize: 13,
+    fontFamily: fontStack,
+    boxSizing: "border-box",
+  };
+
+  const secondaryButtonStyle: CSSProperties = {
+    minHeight: 30,
+    padding: "6px 10px",
+    borderRadius: 8,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.04)",
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 11.5,
+    fontWeight: 500,
+    fontFamily: fontStack,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+
+  const primaryButtonStyle: CSSProperties = {
+    ...secondaryButtonStyle,
+    background: "#fff",
+    color: "#000",
+    border: "1px solid rgba(255,255,255,0.12)",
   };
 
   return (
@@ -844,9 +1073,9 @@ export default function GroupMembersTab({
           <div style={listStyle}>
             {filteredMembers.map((member) => {
               const displayName = memberPrimaryName(member);
-              const statusText = friendlyStatus(member.status);
+              const statusText = friendlyStatus(member.status, member.mutedUntil);
               const roleText = friendlyRole(member.roleInGroup || member.role);
-              const dotColor = statusDotColor(member.status);
+              const dotColor = statusDotColor(member.status, member.mutedUntil);
               const canModerate = canModerateMember(member);
               const menuOpen = openMenuForUid === member.resolvedUid;
               const isProcessing = actionLoadingForUid === member.resolvedUid;
@@ -903,10 +1132,7 @@ export default function GroupMembersTab({
                     )}
                   </div>
 
-                  <div
-                    ref={menuOpen ? menuHostRef : null}
-                    style={desktopRightMetaWrap}
-                  >
+                  <div style={desktopRightMetaWrap}>
                     {canSeeStatus && !isMobile && (
                       <>
                         <div style={dividerStyle} />
@@ -933,6 +1159,9 @@ export default function GroupMembersTab({
                     {canModerate && (
                       <div style={{ position: "relative", overflow: "visible" }}>
                         <button
+                          ref={(el) => {
+                            menuButtonRefs.current[member.resolvedUid] = el;
+                          }}
                           type="button"
                           onClick={() =>
                             setOpenMenuForUid((prev) =>
@@ -953,38 +1182,6 @@ export default function GroupMembersTab({
                         >
                           ⋮
                         </button>
-
-                        {menuOpen && (
-                          <div style={menuPanelStyle} role="menu">
-                            {actions.map((action) => {
-                              const isDanger =
-                                action === "ban" || action === "remove";
-
-                              return (
-                                <button
-                                  key={action}
-                                  type="button"
-                                  role="menuitem"
-                                  disabled={isProcessing}
-                                  onClick={() =>
-                                    handleModerationAction(member, action)
-                                  }
-                                  style={
-                                    isProcessing
-                                      ? disabledMenuItemStyle
-                                      : isDanger
-                                      ? dangerMenuItemStyle
-                                      : menuItemStyle
-                                  }
-                                >
-                                  {isProcessing
-                                    ? "Procesando..."
-                                    : buildActionLabel(action)}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
@@ -994,6 +1191,129 @@ export default function GroupMembersTab({
           </div>
         )}
       </section>
+
+      {openMenuForUid &&
+        menuPosition &&
+        typeof document !== "undefined" &&
+        (() => {
+          const member = filteredMembers.find(
+            (item) => item.resolvedUid === openMenuForUid
+          );
+          if (!member) return null;
+
+          const isProcessing = actionLoadingForUid === member.resolvedUid;
+          const actions = getAvailableActions(member);
+
+          return createPortal(
+            <div
+              ref={menuPanelRef}
+              style={{
+                ...menuPanelStyle,
+                top: menuPosition.top,
+                left: menuPosition.left,
+              }}
+              role="menu"
+            >
+              {actions.map((action) => {
+                const isDanger = action === "ban" || action === "remove";
+
+                return (
+                  <button
+                    key={action}
+                    type="button"
+                    role="menuitem"
+                    disabled={isProcessing}
+                    onClick={() => handleModerationAction(member, action)}
+                    style={
+                      isProcessing
+                        ? disabledMenuItemStyle
+                        : isDanger
+                        ? dangerMenuItemStyle
+                        : menuItemStyle
+                    }
+                  >
+                    {isProcessing
+                      ? "Procesando..."
+                      : buildActionLabel(action)}
+                  </button>
+                );
+              })}
+            </div>,
+            document.body
+          );
+        })()}
+
+      {muteModalOpen &&
+        muteTarget &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div style={modalBackdropStyle} onClick={closeMuteModal}>
+            <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+              <h3 style={modalTitleStyle}>Mutear integrante</h3>
+              <p style={modalTextStyle}>
+                Elige durante cuántos días quieres mutear a{" "}
+                <strong>{memberPrimaryName(muteTarget)}</strong>.
+              </p>
+
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={muteDays}
+                onChange={(e) => setMuteDays(e.target.value)}
+                style={modalInputStyle}
+                placeholder="Ej. 7"
+                disabled={actionLoadingForUid === muteTarget.resolvedUid}
+              />
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  justifyContent: "flex-end",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={closeMuteModal}
+                  disabled={actionLoadingForUid === muteTarget.resolvedUid}
+                  style={
+                    actionLoadingForUid === muteTarget.resolvedUid
+                      ? disabledMenuItemStyle
+                      : secondaryButtonStyle
+                  }
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleConfirmMute}
+                  disabled={
+                    actionLoadingForUid === muteTarget.resolvedUid ||
+                    !Number.isInteger(Number(muteDays)) ||
+                    Number(muteDays) < 1 ||
+                    Number(muteDays) > 365
+                  }
+                  style={
+                    actionLoadingForUid === muteTarget.resolvedUid ||
+                    !Number.isInteger(Number(muteDays)) ||
+                    Number(muteDays) < 1 ||
+                    Number(muteDays) > 365
+                      ? disabledMenuItemStyle
+                      : primaryButtonStyle
+                  }
+                >
+                  {actionLoadingForUid === muteTarget.resolvedUid
+                    ? "Aplicando..."
+                    : "Aplicar mute"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

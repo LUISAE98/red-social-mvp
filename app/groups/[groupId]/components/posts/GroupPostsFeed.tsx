@@ -22,36 +22,47 @@ type GroupPostsFeedProps = {
 };
 
 type MemberStatus = "active" | "muted" | "banned" | null;
-type PostWithAuthorMemberStatus = Post & {
+
+type PostWithAuthorState = Post & {
   authorMemberStatus?: MemberStatus;
+  authorMutedUntil?: any;
+  forcedGroupId?: string | null;
 };
 
-async function getGroupMemberStatus(
+async function getGroupMemberMeta(
   groupId: string,
   userId: string
-): Promise<MemberStatus> {
+): Promise<{ status: MemberStatus; mutedUntil: any | null }> {
   try {
     const memberRef = doc(db, "groups", groupId, "members", userId);
     const memberSnap = await getDoc(memberRef);
 
-    if (!memberSnap.exists()) return null;
+    if (!memberSnap.exists()) {
+      return { status: null, mutedUntil: null };
+    }
 
     const data = memberSnap.data() as any;
     const rawStatus = data?.status;
 
-    if (rawStatus === "banned") return "banned";
-    if (rawStatus === "muted") return "muted";
-    return "active";
+    return {
+      status:
+        rawStatus === "banned"
+          ? "banned"
+          : rawStatus === "muted"
+          ? "muted"
+          : "active",
+      mutedUntil: data?.mutedUntil ?? null,
+    };
   } catch {
-    return null;
+    return { status: null, mutedUntil: null };
   }
 }
 
-async function attachAuthorMemberStatus(
+async function attachAuthorMemberState(
   groupId: string,
   posts: Post[]
-): Promise<PostWithAuthorMemberStatus[]> {
-  if (!posts.length) return posts as PostWithAuthorMemberStatus[];
+): Promise<PostWithAuthorState[]> {
+  if (!posts.length) return posts as PostWithAuthorState[];
 
   const uniqueAuthorIds = Array.from(
     new Set(
@@ -66,25 +77,38 @@ async function attachAuthorMemberStatus(
 
   const authorStatusEntries = await Promise.all(
     uniqueAuthorIds.map(async (authorId) => {
-      const status = await getGroupMemberStatus(groupId, authorId);
-      return [authorId, status] as const;
+      const meta = await getGroupMemberMeta(groupId, authorId);
+      return [authorId, meta] as const;
     })
   );
 
-  const authorStatusMap = new Map<string, MemberStatus>(authorStatusEntries);
+  const authorStatusMap = new Map<
+    string,
+    { status: MemberStatus; mutedUntil: any | null }
+  >(authorStatusEntries);
 
-  return posts.map((post) => ({
-    ...post,
-    authorMemberStatus: authorStatusMap.get(post.authorId) ?? null,
-  }));
+  return posts.map((post) => {
+    const authorMeta = authorStatusMap.get(post.authorId) ?? {
+      status: null,
+      mutedUntil: null,
+    };
+
+    return {
+      ...post,
+      forcedGroupId: groupId,
+      authorMemberStatus: authorMeta.status,
+      authorMutedUntil: authorMeta.mutedUntil,
+    };
+  });
 }
 
 export default function GroupPostsFeed({
   groupId,
   isOwner = false,
 }: GroupPostsFeedProps) {
-  const [posts, setPosts] = useState<PostWithAuthorMemberStatus[]>([]);
+  const [posts, setPosts] = useState<PostWithAuthorState[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [composerError, setComposerError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [currentUid, setCurrentUid] = useState<string | null>(
     auth.currentUser?.uid ?? null
@@ -98,9 +122,19 @@ export default function GroupPostsFeed({
     return () => unsub();
   }, []);
 
+  useEffect(() => {
+    if (!composerError) return;
+
+    const timer = window.setTimeout(() => {
+      setComposerError(null);
+    }, 4500);
+
+    return () => window.clearTimeout(timer);
+  }, [composerError]);
+
   async function loadPosts() {
     const nextPosts = await fetchGroupPosts(groupId);
-    const hydratedPosts = await attachAuthorMemberStatus(groupId, nextPosts);
+    const hydratedPosts = await attachAuthorMemberState(groupId, nextPosts);
     setPosts(hydratedPosts);
   }
 
@@ -113,7 +147,7 @@ export default function GroupPostsFeed({
         setError(null);
 
         const nextPosts = await fetchGroupPosts(groupId);
-        const hydratedPosts = await attachAuthorMemberStatus(groupId, nextPosts);
+        const hydratedPosts = await attachAuthorMemberState(groupId, nextPosts);
 
         if (!active) return;
         setPosts(hydratedPosts);
@@ -135,11 +169,12 @@ export default function GroupPostsFeed({
   async function handleCreatePost(text: string) {
     try {
       setError(null);
+      setComposerError(null);
       await createTextPost({ groupId, text });
       await loadPosts();
     } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
-      throw e;
+      setComposerError(e?.message ?? "No se pudo publicar.");
+      return;
     }
   }
 
@@ -149,7 +184,7 @@ export default function GroupPostsFeed({
       await softDeletePost(postId);
       await loadPosts();
     } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+      setError(e?.message ?? "No se pudo eliminar la publicación.");
       throw e;
     }
   }
@@ -159,7 +194,7 @@ export default function GroupPostsFeed({
       setError(null);
       return await fetchPostComments(postId);
     } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+      setError(e?.message ?? "No se pudieron cargar los comentarios.");
       throw e;
     }
   }
@@ -173,7 +208,6 @@ export default function GroupPostsFeed({
       await createPostComment({ postId, text });
       return await fetchPostComments(postId);
     } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
       throw e;
     }
   }
@@ -187,7 +221,7 @@ export default function GroupPostsFeed({
       await deletePostComment({ postId, commentId });
       return await fetchPostComments(postId);
     } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+      setError(e?.message ?? "No se pudo eliminar el comentario.");
       throw e;
     }
   }
@@ -231,6 +265,16 @@ export default function GroupPostsFeed({
     color: "rgba(255,255,255,0.82)",
   };
 
+  const composerErrorStyle: CSSProperties = {
+    borderRadius: 12,
+    border: "1px solid rgba(255,90,90,0.24)",
+    background: "rgba(120,18,18,0.28)",
+    color: "#ffdada",
+    padding: "10px 12px",
+    fontSize: 12,
+    lineHeight: 1.4,
+  };
+
   return (
     <section style={shellStyle}>
       <div style={headerStyle}>
@@ -239,6 +283,8 @@ export default function GroupPostsFeed({
       </div>
 
       <GroupPostComposer onSubmit={handleCreatePost} />
+
+      {composerError && <div style={composerErrorStyle}>{composerError}</div>}
 
       {error && <div style={noticeStyle}>{error}</div>}
 
@@ -267,6 +313,8 @@ export default function GroupPostsFeed({
             currentUserId={currentUid}
             isOwner={isOwner}
             showGroupContext={false}
+            canModerateGroupAuthor={isOwner}
+            onModerationComplete={loadPosts}
           />
         );
       })}

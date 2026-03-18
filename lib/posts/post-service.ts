@@ -42,6 +42,8 @@ type GroupLookup = {
   visibility: GroupVisibility | null;
 };
 
+type GroupMemberStatus = "active" | "muted" | "banned" | null;
+
 function pickString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
@@ -90,6 +92,47 @@ function readGroupAvatarUrl(data: Record<string, unknown>): string | null {
     pickString(data.groupAvatarUrl) ||
     null
   );
+}
+
+function getTimestampDate(value: any): Date | null {
+  if (!value) return null;
+
+  if (value?.toDate instanceof Function) {
+    const d = value.toDate();
+    return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
+  }
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value;
+  }
+
+  if (typeof value === "string" || typeof value === "number") {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  return null;
+}
+
+function resolveEffectiveMembershipStatus(
+  rawStatus: unknown,
+  mutedUntil: any
+): GroupMemberStatus {
+  const status =
+    typeof rawStatus === "string" ? rawStatus.trim().toLowerCase() : "";
+
+  if (status === "banned") return "banned";
+
+  if (status === "muted") {
+    const until = getTimestampDate(mutedUntil);
+    if (until && until.getTime() <= Date.now()) {
+      return "active";
+    }
+    return "muted";
+  }
+
+  if (status === "active") return "active";
+  return "active";
 }
 
 async function getCurrentAuthorSnapshot(): Promise<AuthorSnapshot> {
@@ -358,6 +401,43 @@ async function fetchPostsByAccessibleGroups(groupIds: string[]): Promise<Post[]>
   return deduped;
 }
 
+async function ensureUserCanWriteInGroup(groupId: string, userUid: string) {
+  const groupRef = doc(db, "groups", groupId);
+  const groupSnap = await getDoc(groupRef);
+
+  if (!groupSnap.exists()) {
+    throw new Error("El grupo no existe.");
+  }
+
+  const groupData = groupSnap.data() as Record<string, unknown>;
+  const ownerId = pickString(groupData.ownerId);
+
+  if (ownerId === userUid) {
+    return;
+  }
+
+  const memberRef = doc(db, "groups", groupId, "members", userUid);
+  const memberSnap = await getDoc(memberRef);
+
+  if (!memberSnap.exists()) {
+    throw new Error("Debes pertenecer al grupo para realizar esta acción.");
+  }
+
+  const memberData = memberSnap.data() as Record<string, unknown>;
+  const status = resolveEffectiveMembershipStatus(
+    memberData.status,
+    memberData.mutedUntil
+  );
+
+  if (status === "banned") {
+    throw new Error("No puedes realizar esta acción porque estás baneado de este grupo.");
+  }
+
+  if (status === "muted") {
+    throw new Error("No puedes realizar esta acción porque estás muteado en este grupo.");
+  }
+}
+
 export async function fetchGroupPosts(groupId: string): Promise<Post[]> {
   assertValidId(groupId, "groupId");
 
@@ -450,6 +530,7 @@ export async function createTextPost(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
+  await ensureUserCanWriteInGroup(params.groupId, author.uid);
 
   await addDoc(collection(db, "posts"), {
     groupId: params.groupId,
@@ -517,6 +598,21 @@ export async function createPostComment(params: {
 
   const author = await getCurrentAuthorSnapshot();
   const postRef = doc(db, "posts", params.postId);
+  const postSnap = await getDoc(postRef);
+
+  if (!postSnap.exists()) {
+    throw new Error("La publicación no existe.");
+  }
+
+  const postData = postSnap.data() as Record<string, unknown>;
+  const groupId = pickString(postData.groupId);
+
+  if (!groupId) {
+    throw new Error("La publicación no pertenece a un grupo válido.");
+  }
+
+  await ensureUserCanWriteInGroup(groupId, author.uid);
+
   const commentRef = doc(collection(db, "posts", params.postId, "comments"));
 
   const batch = writeBatch(db);
@@ -571,4 +667,3 @@ export async function deletePostComment(params: {
 
   await batch.commit();
 }
-

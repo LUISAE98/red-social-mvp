@@ -39,7 +39,14 @@ import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
 import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
 
 export type Currency = "MXN" | "USD";
-export type SidebarMemberStatus = "active" | "muted" | "banned" | null;
+export type SidebarMemberStatus =
+  | "active"
+  | "muted"
+  | "banned"
+  | "removed"
+  | "kicked"
+  | "expelled"
+  | null;
 
 export type UserDoc = {
   uid: string;
@@ -225,7 +232,22 @@ function normalizeSidebarMemberStatus(raw: unknown): SidebarMemberStatus {
   if (raw === "banned") return "banned";
   if (raw === "muted") return "muted";
   if (raw === "active") return "active";
+  if (raw === "removed") return "removed";
+  if (raw === "kicked") return "kicked";
+  if (raw === "expelled") return "expelled";
   return null;
+}
+
+function isJoinedSidebarStatus(status: SidebarMemberStatus) {
+  return status === "active" || status === "muted" || status === "banned";
+}
+
+function isExcludedSidebarStatus(status: SidebarMemberStatus) {
+  return (
+    status === "removed" ||
+    status === "kicked" ||
+    status === "expelled"
+  );
 }
 
 export function Switch({
@@ -695,17 +717,22 @@ export default function OwnerSidebar() {
                   memberStatus,
                 };
 
+                const isJoined = isJoinedSidebarStatus(memberStatus);
+                const isExcluded = isExcludedSidebarStatus(memberStatus);
+
                 return {
                   group: hydratedGroup,
-                  isJoined:
-                    memberSnap.exists() && memberStatus !== "banned",
-                  isBanned: memberStatus === "banned",
+                  isJoined,
+                  isExcluded,
                   hasPendingJoin:
-                    !memberSnap.exists() &&
+                    !isJoined &&
+                    !isExcluded &&
                     joinReqSnap.exists() &&
                     (joinReqSnap.data() as any)?.status === "pending",
                   joinCreatedAt:
-                    !memberSnap.exists() && joinReqSnap.exists()
+                    !isJoined &&
+                    !isExcluded &&
+                    joinReqSnap.exists()
                       ? ((joinReqSnap.data() as any)?.createdAt as
                           | Timestamp
                           | undefined)
@@ -718,7 +745,7 @@ export default function OwnerSidebar() {
                     memberStatus: null,
                   } satisfies GroupDocLite,
                   isJoined: false,
-                  isBanned: false,
+                  isExcluded: false,
                   hasPendingJoin: false,
                   joinCreatedAt: undefined,
                 };
@@ -731,7 +758,7 @@ export default function OwnerSidebar() {
             .map((x) => x.group);
 
           const pending = membershipChecks
-            .filter((x) => x.hasPendingJoin && !x.isBanned)
+            .filter((x) => x.hasPendingJoin && !x.isExcluded)
             .map((x) => ({
               id: viewer.uid,
               groupId: x.group.id,
@@ -740,7 +767,7 @@ export default function OwnerSidebar() {
             }));
 
           const explorable = membershipChecks
-            .filter((x) => !x.isJoined && !x.isBanned)
+            .filter((x) => !x.isJoined && !x.isExcluded && !x.hasPendingJoin)
             .map((x) => x.group);
 
           setJoinedGroups(joined);
@@ -748,8 +775,8 @@ export default function OwnerSidebar() {
           setBrowseGroups(explorable);
 
           const meta: Record<string, GroupDocLite> = {};
-          membershipChecks.forEach(({ group, isBanned }) => {
-            if (!isBanned) {
+          membershipChecks.forEach(({ group, isExcluded }) => {
+            if (!isExcluded) {
               meta[group.id] = group;
             }
           });

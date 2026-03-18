@@ -10,10 +10,22 @@ import {
   type CSSProperties,
   type TextareaHTMLAttributes,
 } from "react";
+import { createPortal } from "react-dom";
 import type { Comment, Post } from "@/lib/posts/types";
+import {
+  banGroupMember,
+  muteGroupMember,
+  removeGroupMember,
+  unbanGroupMember,
+  unmuteGroupMember,
+} from "@/lib/groups/groupModeration";
 
 type GroupPostCardProps = {
-  post: Post;
+  post: Post & {
+    authorMemberStatus?: "active" | "muted" | "banned" | null;
+    authorMutedUntil?: any;
+    forcedGroupId?: string | null;
+  };
   canDelete?: boolean;
   onDelete?: (postId: string) => Promise<void>;
   onLoadComments: (postId: string) => Promise<Comment[]>;
@@ -22,6 +34,21 @@ type GroupPostCardProps = {
   currentUserId?: string | null;
   isOwner?: boolean;
   showGroupContext?: boolean;
+  canModerateGroupAuthor?: boolean;
+  onModerationComplete?: () => Promise<void> | void;
+};
+
+type ModerationAction =
+  | "mute"
+  | "unmute"
+  | "ban"
+  | "unban"
+  | "remove"
+  | "delete_post";
+
+type MenuPosition = {
+  top: number;
+  left: number;
 };
 
 const fontStack =
@@ -91,10 +118,17 @@ function getAuthorInfo(
 }
 
 function getGroupInfo(entity: Record<string, unknown>) {
-  const groupId =
+  const forcedGroupId =
+    typeof entity.forcedGroupId === "string" && entity.forcedGroupId.trim().length > 0
+      ? entity.forcedGroupId.trim()
+      : null;
+
+  const rawGroupId =
     typeof entity.groupId === "string" && entity.groupId.trim().length > 0
       ? entity.groupId.trim()
       : null;
+
+  const groupId = forcedGroupId || rawGroupId;
 
   const groupName =
     typeof entity.groupName === "string" && entity.groupName.trim().length > 0
@@ -140,6 +174,25 @@ function getCommunityVisibilityLabel(visibility: string | null) {
     default:
       return "Comunidad";
   }
+}
+
+function resolveEffectiveMemberStatus(rawStatus: unknown, mutedUntil: any) {
+  const status =
+    typeof rawStatus === "string" ? rawStatus.trim().toLowerCase() : "";
+
+  if (status === "banned") return "banned";
+
+  if (status === "muted") {
+    if (mutedUntil?.toDate instanceof Function) {
+      const until = mutedUntil.toDate();
+      if (until instanceof Date && until.getTime() <= Date.now()) {
+        return "active";
+      }
+    }
+    return "muted";
+  }
+
+  return "active";
 }
 
 function AutoGrowTextarea({
@@ -244,6 +297,15 @@ function Avatar({
   );
 }
 
+function buildActionLabel(action: ModerationAction) {
+  if (action === "mute") return "Mutear";
+  if (action === "unmute") return "Quitar mute";
+  if (action === "ban") return "Banear";
+  if (action === "unban") return "Quitar ban";
+  if (action === "remove") return "Expulsar del grupo";
+  return "Eliminar publicación";
+}
+
 export default function GroupPostCard({
   post,
   canDelete = false,
@@ -254,6 +316,8 @@ export default function GroupPostCard({
   currentUserId = null,
   isOwner = false,
   showGroupContext = false,
+  canModerateGroupAuthor = false,
+  onModerationComplete,
 }: GroupPostCardProps) {
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -263,7 +327,14 @@ export default function GroupPostCard({
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
+  const [moderationBusy, setModerationBusy] = useState(false);
+  const [muteModalOpen, setMuteModalOpen] = useState(false);
+  const [muteDays, setMuteDays] = useState("7");
+  const [inlineActionError, setInlineActionError] = useState<string | null>(null);
+
+  const menuPanelRef = useRef<HTMLDivElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -283,12 +354,70 @@ export default function GroupPostCard({
   }, []);
 
   useEffect(() => {
+    if (!inlineActionError) return;
+
+    const timer = window.setTimeout(() => {
+      setInlineActionError(null);
+    }, 4000);
+
+    return () => window.clearTimeout(timer);
+  }, [inlineActionError]);
+
+  useEffect(() => {
     if (!menuOpen) return;
+
+    function updateMenuPosition() {
+      const button = menuButtonRef.current;
+      if (!button) {
+        setMenuPosition(null);
+        return;
+      }
+
+      const rect = button.getBoundingClientRect();
+      const panelWidth = isMobile ? 180 : 200;
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const estimatedPanelHeight = 230;
+      const gap = 8;
+
+      let left = rect.right - panelWidth;
+      if (left < 8) left = 8;
+      if (left + panelWidth > viewportWidth - 8) {
+        left = viewportWidth - panelWidth - 8;
+      }
+
+      let top = rect.bottom + gap;
+      if (top + estimatedPanelHeight > viewportHeight - 8) {
+        top = Math.max(8, rect.top - estimatedPanelHeight - gap);
+      }
+
+      setMenuPosition({ top, left });
+    }
+
+    updateMenuPosition();
+
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition, true);
+    };
+  }, [menuOpen, isMobile]);
+
+  useEffect(() => {
+    if (!menuOpen && !muteModalOpen) return;
 
     function handlePointerDown(event: MouseEvent) {
       const target = event.target as Node | null;
-      if (!menuRef.current || !target) return;
-      if (!menuRef.current.contains(target)) {
+      if (!target) return;
+
+      const clickedInsidePanel =
+        !!menuPanelRef.current && menuPanelRef.current.contains(target);
+      const clickedButton =
+        !!menuButtonRef.current && menuButtonRef.current.contains(target);
+
+      if (!clickedInsidePanel && !clickedButton && !muteModalOpen) {
         setMenuOpen(false);
       }
     }
@@ -296,6 +425,8 @@ export default function GroupPostCard({
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
         setMenuOpen(false);
+        setMuteModalOpen(false);
+        setMuteDays("7");
       }
     }
 
@@ -306,10 +437,13 @@ export default function GroupPostCard({
       document.removeEventListener("mousedown", handlePointerDown);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [menuOpen]);
+  }, [menuOpen, muteModalOpen]);
 
   const postAuthor = useMemo(
-    () => getAuthorInfo(post as unknown as { authorId?: string | null } & Record<string, unknown>),
+    () =>
+      getAuthorInfo(
+        post as unknown as { authorId?: string | null } & Record<string, unknown>
+      ),
     [post]
   );
 
@@ -318,25 +452,52 @@ export default function GroupPostCard({
     [post]
   );
 
-  const authorMemberStatus = useMemo(() => {
-    const raw =
-      typeof (post as any)?.authorMemberStatus === "string"
-        ? String((post as any).authorMemberStatus).trim().toLowerCase()
-        : typeof (post as any)?.memberStatus === "string"
-          ? String((post as any).memberStatus).trim().toLowerCase()
-          : "";
-
-    return raw === "banned" ? "banned" : null;
+  const effectiveAuthorStatus = useMemo(() => {
+    return resolveEffectiveMemberStatus(
+      (post as any)?.authorMemberStatus ?? (post as any)?.memberStatus ?? null,
+      (post as any)?.authorMutedUntil ?? null
+    );
   }, [post]);
 
-  const shouldShowAuthorBannedBadge = authorMemberStatus === "banned";
-
+  const shouldShowAuthorBannedBadge = effectiveAuthorStatus === "banned";
   const shouldShowGroupContext =
     showGroupContext && (!!groupInfo.groupId || !!groupInfo.groupName);
+
+  const canModerateAuthor =
+    canModerateGroupAuthor &&
+    !!groupInfo.groupId &&
+    !!postAuthor.authorId &&
+    !!currentUserId &&
+    postAuthor.authorId !== currentUserId;
+
+  const availableActions = useMemo(() => {
+    const actions: ModerationAction[] = [];
+
+    if (canModerateAuthor) {
+      if (effectiveAuthorStatus === "banned") {
+        actions.push("unban");
+      } else if (effectiveAuthorStatus === "muted") {
+        actions.push("unmute", "ban", "remove");
+      } else {
+        actions.push("mute", "ban", "remove");
+      }
+    }
+
+    if (canDelete && onDelete) {
+      actions.push("delete_post");
+    }
+
+    return actions;
+  }, [canModerateAuthor, effectiveAuthorStatus, canDelete, onDelete]);
+
+  async function refreshAfterModeration() {
+    await onModerationComplete?.();
+  }
 
   async function handleLoadComments() {
     try {
       setLoadingComments(true);
+      setInlineActionError(null);
       const nextComments = await onLoadComments(post.id);
       setComments(nextComments);
     } finally {
@@ -349,9 +510,13 @@ export default function GroupPostCard({
 
     try {
       setCreatingComment(true);
+      setInlineActionError(null);
       const nextComments = await onCreateComment(post.id, commentText.trim());
       setComments(nextComments);
       setCommentText("");
+    } catch (e: any) {
+      const message = e?.message ?? "No se pudo comentar.";
+      setInlineActionError(message);
     } finally {
       setCreatingComment(false);
     }
@@ -367,6 +532,65 @@ export default function GroupPostCard({
     } finally {
       setDeleting(false);
     }
+  }
+
+  async function runModerationAction(action: Exclude<ModerationAction, "mute" | "delete_post">) {
+    if (!groupInfo.groupId || !postAuthor.authorId || moderationBusy) return;
+
+    try {
+      setModerationBusy(true);
+
+      if (action === "unmute") {
+        await unmuteGroupMember(groupInfo.groupId, postAuthor.authorId);
+      } else if (action === "ban") {
+        await banGroupMember(groupInfo.groupId, postAuthor.authorId);
+      } else if (action === "unban") {
+        await unbanGroupMember(groupInfo.groupId, postAuthor.authorId);
+      } else if (action === "remove") {
+        await removeGroupMember(groupInfo.groupId, postAuthor.authorId);
+      }
+
+      setMenuOpen(false);
+      await refreshAfterModeration();
+    } finally {
+      setModerationBusy(false);
+    }
+  }
+
+  async function handleConfirmMute() {
+    if (!groupInfo.groupId || !postAuthor.authorId || moderationBusy) return;
+
+    const durationDays = Number(muteDays);
+    if (!Number.isInteger(durationDays) || durationDays < 1 || durationDays > 365) {
+      return;
+    }
+
+    try {
+      setModerationBusy(true);
+      await muteGroupMember(groupInfo.groupId, postAuthor.authorId, durationDays);
+      setMuteModalOpen(false);
+      setMenuOpen(false);
+      setMuteDays("7");
+      await refreshAfterModeration();
+    } finally {
+      setModerationBusy(false);
+    }
+  }
+
+  async function handleModerationAction(action: ModerationAction) {
+    if (action === "delete_post") {
+      await handleDelete();
+      return;
+    }
+
+    if (action === "mute") {
+      setMuteDays("7");
+      setMuteModalOpen(true);
+      setMenuOpen(false);
+      return;
+    }
+
+    await runModerationAction(action);
   }
 
   async function handleDeleteComment(commentId: string) {
@@ -526,17 +750,17 @@ export default function GroupPostCard({
   };
 
   const menuPanelStyle: CSSProperties = {
-    position: "absolute",
-    top: 38,
-    right: 0,
-    minWidth: 132,
+    position: "fixed",
+    minWidth: isMobile ? 180 : 200,
     borderRadius: 10,
     border: "1px solid rgba(255,255,255,0.10)",
     background: "rgba(12,12,12,0.96)",
     boxShadow: "0 14px 34px rgba(0,0,0,0.34)",
     backdropFilter: "blur(12px)",
     padding: 6,
-    zIndex: 30,
+    zIndex: 99999,
+    display: "grid",
+    gap: 4,
   };
 
   const menuItemStyle: CSSProperties = {
@@ -546,12 +770,17 @@ export default function GroupPostCard({
     borderRadius: 8,
     border: "none",
     background: "transparent",
-    color: "#ff8a8a",
+    color: "#fff",
     fontSize: 12,
     fontWeight: 500,
     fontFamily: fontStack,
     textAlign: "left",
     cursor: "pointer",
+  };
+
+  const dangerMenuItemStyle: CSSProperties = {
+    ...menuItemStyle,
+    color: "#ff8a8a",
   };
 
   const inputStyle: CSSProperties = {
@@ -573,6 +802,69 @@ export default function GroupPostCard({
     boxSizing: "border-box",
     WebkitAppearance: "none",
   };
+
+  const modalBackdropStyle: CSSProperties = {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.62)",
+    display: "grid",
+    placeItems: "center",
+    padding: 16,
+    zIndex: 100000,
+  };
+
+  const modalCardStyle: CSSProperties = {
+    width: "min(420px, 92vw)",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(12,12,12,0.98)",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
+    padding: 16,
+    display: "grid",
+    gap: 12,
+    color: "#fff",
+  };
+
+  const modalTitleStyle: CSSProperties = {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 700,
+    lineHeight: 1.15,
+  };
+
+  const modalTextStyle: CSSProperties = {
+    margin: 0,
+    fontSize: 12.5,
+    lineHeight: 1.5,
+    color: "rgba(255,255,255,0.76)",
+  };
+
+  const modalInputStyle: CSSProperties = {
+    width: "100%",
+    height: 42,
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.05)",
+    color: "#fff",
+    padding: "0 12px",
+    outline: "none",
+    fontSize: 13,
+    fontFamily: fontStack,
+    boxSizing: "border-box",
+  };
+
+  const inlineErrorStyle: CSSProperties = {
+    marginTop: 8,
+    borderRadius: 10,
+    border: "1px solid rgba(255,90,90,0.24)",
+    background: "rgba(120,18,18,0.28)",
+    color: "#ffdada",
+    padding: "10px 12px",
+    fontSize: 12,
+    lineHeight: 1.4,
+  };
+
+  const shouldShowActionsMenu = availableActions.length > 0;
 
   return (
     <article style={cardStyle}>
@@ -697,46 +989,25 @@ export default function GroupPostCard({
           </div>
         </div>
 
-        {canDelete && onDelete && (
+        {shouldShowActionsMenu && (
           <div
-            ref={menuRef}
             style={{
               position: "relative",
               flexShrink: 0,
             }}
           >
             <button
+              ref={menuButtonRef}
               type="button"
               onClick={() => setMenuOpen((prev) => !prev)}
               aria-haspopup="menu"
               aria-expanded={menuOpen}
               aria-label="Abrir acciones de la publicación"
               style={menuButtonStyle}
+              disabled={deleting || moderationBusy}
             >
               ⋮
             </button>
-
-            {menuOpen && (
-              <div style={menuPanelStyle} role="menu">
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  role="menuitem"
-                  style={
-                    deleting
-                      ? {
-                          ...menuItemStyle,
-                          color: "rgba(255,138,138,0.55)",
-                          cursor: "not-allowed",
-                        }
-                      : menuItemStyle
-                  }
-                >
-                  {deleting ? "Eliminando..." : "Eliminar"}
-                </button>
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -893,6 +1164,10 @@ export default function GroupPostCard({
           </div>
         )}
 
+        {inlineActionError && (
+          <div style={inlineErrorStyle}>{inlineActionError}</div>
+        )}
+
         <div
           style={{
             display: "flex",
@@ -924,6 +1199,122 @@ export default function GroupPostCard({
           </button>
         </div>
       </div>
+
+      {menuOpen &&
+        menuPosition &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={menuPanelRef}
+            style={{
+              ...menuPanelStyle,
+              top: menuPosition.top,
+              left: menuPosition.left,
+            }}
+            role="menu"
+          >
+            {availableActions.map((action) => {
+              const isDanger =
+                action === "ban" ||
+                action === "remove" ||
+                action === "delete_post";
+
+              const isBusy = moderationBusy || deleting;
+
+              return (
+                <button
+                  key={action}
+                  type="button"
+                  role="menuitem"
+                  disabled={isBusy}
+                  onClick={() => handleModerationAction(action)}
+                  style={
+                    isBusy
+                      ? {
+                          ...menuItemStyle,
+                          color: "rgba(255,255,255,0.40)",
+                          cursor: "not-allowed",
+                        }
+                      : isDanger
+                        ? dangerMenuItemStyle
+                        : menuItemStyle
+                  }
+                >
+                  {isBusy ? "Procesando..." : buildActionLabel(action)}
+                </button>
+              );
+            })}
+          </div>,
+          document.body
+        )}
+
+      {muteModalOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            style={modalBackdropStyle}
+            onClick={() => !moderationBusy && setMuteModalOpen(false)}
+          >
+            <div style={modalCardStyle} onClick={(e) => e.stopPropagation()}>
+              <h3 style={modalTitleStyle}>Mutear integrante</h3>
+              <p style={modalTextStyle}>
+                Elige durante cuántos días quieres mutear a{" "}
+                <strong>{postAuthor.authorName}</strong>.
+              </p>
+
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={muteDays}
+                onChange={(e) => setMuteDays(e.target.value)}
+                style={modalInputStyle}
+                placeholder="Ej. 7"
+                disabled={moderationBusy}
+              />
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  justifyContent: "flex-end",
+                  flexWrap: "wrap",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setMuteModalOpen(false)}
+                  disabled={moderationBusy}
+                  style={disabledButtonStyle}
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleConfirmMute}
+                  disabled={
+                    moderationBusy ||
+                    !Number.isInteger(Number(muteDays)) ||
+                    Number(muteDays) < 1 ||
+                    Number(muteDays) > 365
+                  }
+                  style={
+                    moderationBusy ||
+                    !Number.isInteger(Number(muteDays)) ||
+                    Number(muteDays) < 1 ||
+                    Number(muteDays) > 365
+                      ? disabledButtonStyle
+                      : primaryButtonStyle
+                  }
+                >
+                  {moderationBusy ? "Aplicando..." : "Aplicar mute"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </article>
   );
 }

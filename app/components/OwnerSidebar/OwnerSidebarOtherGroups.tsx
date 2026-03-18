@@ -21,25 +21,45 @@ type Props = {
   ) => React.ReactNode;
 };
 
-type SidebarMemberStatus = "active" | "muted" | "banned" | null;
+type SidebarMemberStatus =
+  | "active"
+  | "muted"
+  | "banned"
+  | "removed"
+  | "kicked"
+  | "expelled"
+  | null;
 
 function normalizeMemberStatus(group: GroupDocLite): SidebarMemberStatus {
   const raw = (group as any)?.memberStatus ?? (group as any)?.status ?? null;
 
-  if (raw === "banned") return "banned";
-  if (raw === "muted") return "muted";
   if (raw === "active") return "active";
+  if (raw === "muted") return "muted";
+  if (raw === "banned") return "banned";
+  if (raw === "removed") return "removed";
+  if (raw === "kicked") return "kicked";
+  if (raw === "expelled") return "expelled";
   return null;
 }
 
+function isVisibleJoinedStatus(status: SidebarMemberStatus) {
+  return status === "active" || status === "muted" || status === "banned";
+}
+
+function isActuallyJoinedStatus(status: SidebarMemberStatus) {
+  return status === "active" || status === "muted";
+}
+
 function statusDotColor(status?: SidebarMemberStatus) {
-  if (status === "banned") return "#ff4d4f";
   if (status === "muted") return "#f5a623";
+  if (status === "banned") return "#ef4444";
   return "#22c55e";
 }
 
-function isBannedGroup(group: GroupDocLite): boolean {
-  return normalizeMemberStatus(group) === "banned";
+function statusLabel(status?: SidebarMemberStatus) {
+  if (status === "muted") return "Muteado";
+  if (status === "banned") return "Baneado";
+  return "Activo";
 }
 
 function buildJoinedSubtitle(
@@ -47,7 +67,7 @@ function buildJoinedSubtitle(
   isMobile: boolean
 ): React.ReactNode {
   const status = normalizeMemberStatus(group);
-  const statusText = status === "muted" ? "Muteado" : "Activo";
+  const statusText = statusLabel(status);
   const dotColor = statusDotColor(status);
 
   return (
@@ -81,11 +101,8 @@ function buildJoinedSubtitle(
 
 export default function OwnerSidebarOtherGroups({
   loadingCommunities,
-  joinedGroups,
   pendingJoinRequestsSent,
-  browseGroups,
   joinedGrouped,
-  browseGrouped,
   groupMetaMap,
   styles,
   fmtDate,
@@ -97,25 +114,29 @@ export default function OwnerSidebarOtherGroups({
   const visibleJoinedGrouped = joinedGrouped
     .map((section) => ({
       ...section,
-      items: section.items.filter((g) => !isBannedGroup(g)),
-    }))
-    .filter((section) => section.items.length > 0);
-
-  const visibleBrowseGrouped = browseGrouped
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((g) => !isBannedGroup(g)),
+      items: section.items.filter((g) =>
+        isVisibleJoinedStatus(normalizeMemberStatus(g))
+      ),
     }))
     .filter((section) => section.items.length > 0);
 
   const visiblePendingJoinRequestsSent = pendingJoinRequestsSent.filter((row) => {
     const community = groupMetaMap[row.groupId] ?? null;
-    if (!community) return false;
-    return !isBannedGroup(community);
+
+    if (!community) {
+      return true;
+    }
+
+    const status = normalizeMemberStatus(community);
+
+    // Mantener la lógica de solicitudes como antes:
+    // solo ocultar si ya es miembro real (active o muted).
+    // Banned NO debe comerse esta sección.
+    return !isActuallyJoinedStatus(status);
   });
 
-  const visibleJoinedGroups = joinedGroups.filter((g) => !isBannedGroup(g));
-  const visibleBrowseGroups = browseGroups.filter((g) => !isBannedGroup(g));
+  const hasAnyJoined = visibleJoinedGrouped.length > 0;
+  const hasAnyPending = visiblePendingJoinRequestsSent.length > 0;
 
   return (
     <>
@@ -132,25 +153,14 @@ export default function OwnerSidebarOtherGroups({
         </div>
       ))}
 
-      <div style={{ display: "grid", gap: 8 }}>
-        <div style={styles.sectionTitle}>Solicitudes de acceso enviadas</div>
+      {hasAnyPending && (
+        <div style={{ display: "grid", gap: 8 }}>
+          <div style={styles.sectionTitle}>Solicitudes de acceso enviadas</div>
 
-        {visiblePendingJoinRequestsSent.length === 0 ? (
-          <div
-            style={{
-              fontSize: 12,
-              color: "rgba(255,255,255,0.58)",
-              padding: "2px 2px 0",
-            }}
-          >
-            No tienes solicitudes pendientes.
-          </div>
-        ) : (
           <div style={{ display: "grid", gap: 8 }}>
             {visiblePendingJoinRequestsSent.map((row) => {
               const community = groupMetaMap[row.groupId] ?? null;
               if (!community) return null;
-              if (isBannedGroup(community)) return null;
 
               return renderCommunityCard(community, {
                 subtitle: row.createdAt
@@ -159,39 +169,20 @@ export default function OwnerSidebarOtherGroups({
               });
             })}
           </div>
-        )}
-      </div>
-
-      {visibleBrowseGrouped.map((section) => (
-        <div key={`browse-${section.key}`} style={{ display: "grid", gap: 8 }}>
-          <div style={styles.sectionTitle}>{section.title}</div>
-          <div style={{ display: "grid", gap: 8 }}>
-            {section.items.map((g) =>
-              renderCommunityCard(g, {
-                subtitle:
-                  g.visibility === "private"
-                    ? "Acceso con solicitud"
-                    : "Acceso abierto",
-              })
-            )}
-          </div>
         </div>
-      ))}
+      )}
 
-      {!loadingCommunities &&
-        visibleJoinedGroups.length === 0 &&
-        visiblePendingJoinRequestsSent.length === 0 &&
-        visibleBrowseGroups.length === 0 && (
-          <div
-            style={{
-              fontSize: 12,
-              color: "rgba(255,255,255,0.58)",
-              padding: "2px 2px 0",
-            }}
-          >
-            No hay comunidades disponibles.
-          </div>
-        )}
+      {!loadingCommunities && !hasAnyJoined && !hasAnyPending && (
+        <div
+          style={{
+            fontSize: 12,
+            color: "rgba(255,255,255,0.58)",
+            padding: "2px 2px 0",
+          }}
+        >
+          No tienes otros grupos ni solicitudes pendientes.
+        </div>
+      )}
     </>
   );
 }

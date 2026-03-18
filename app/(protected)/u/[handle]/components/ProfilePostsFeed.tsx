@@ -23,71 +23,201 @@ type ProfilePostsFeedProps = {
   showPosts?: boolean;
 };
 
+type MemberStatus = "active" | "muted" | "banned" | null;
+
+type PostWithFlags = Post & {
+  canModerateGroupAuthor?: boolean;
+  authorMemberStatus?: MemberStatus;
+  authorMutedUntil?: any;
+};
+
+async function getMembershipStatusForGroup(
+  groupId: string,
+  userId: string
+): Promise<{ status: MemberStatus; mutedUntil: any | null }> {
+  try {
+    const memberRef = doc(db, "groups", groupId, "members", userId);
+    const memberSnap = await getDoc(memberRef);
+
+    if (!memberSnap.exists()) return { status: null, mutedUntil: null };
+
+    const data = memberSnap.data() as any;
+    const rawStatus = data?.status;
+
+    return {
+      status:
+        rawStatus === "banned"
+          ? "banned"
+          : rawStatus === "muted"
+          ? "muted"
+          : "active",
+      mutedUntil: data?.mutedUntil ?? null,
+    };
+  } catch {
+    return { status: null, mutedUntil: null };
+  }
+}
+
+async function filterBannedGroupPosts(
+  inputPosts: Post[],
+  currentViewerUid: string | null
+): Promise<Post[]> {
+  if (!currentViewerUid || inputPosts.length === 0) {
+    return inputPosts;
+  }
+
+  const uniqueGroupIds = Array.from(
+    new Set(
+      inputPosts
+        .map((post) => post.groupId)
+        .filter(
+          (groupId): groupId is string =>
+            typeof groupId === "string" && groupId.trim().length > 0
+        )
+    )
+  );
+
+  if (uniqueGroupIds.length === 0) {
+    return inputPosts;
+  }
+
+  const membershipChecks = await Promise.all(
+    uniqueGroupIds.map(async (groupId) => {
+      try {
+        const membershipRef = doc(db, "groups", groupId, "members", currentViewerUid);
+        const membershipSnap = await getDoc(membershipRef);
+
+        if (!membershipSnap.exists()) {
+          return [groupId, false] as const;
+        }
+
+        const data = membershipSnap.data() as { status?: string } | undefined;
+        return [groupId, data?.status === "banned"] as const;
+      } catch {
+        return [groupId, false] as const;
+      }
+    })
+  );
+
+  const bannedByGroupId = new Map<string, boolean>(membershipChecks);
+
+  return inputPosts.filter((post) => {
+    const groupId =
+      typeof post.groupId === "string" && post.groupId.trim().length > 0
+        ? post.groupId
+        : null;
+
+    if (!groupId) return true;
+    return bannedByGroupId.get(groupId) !== true;
+  });
+}
+
+async function attachModerationFlags(
+  posts: Post[],
+  currentViewerUid: string | null
+): Promise<PostWithFlags[]> {
+  if (!currentViewerUid || posts.length === 0) {
+    return posts as PostWithFlags[];
+  }
+
+  const uniqueGroupIds = Array.from(
+    new Set(
+      posts
+        .map((post) => post.groupId)
+        .filter(
+          (groupId): groupId is string =>
+            typeof groupId === "string" && groupId.trim().length > 0
+        )
+    )
+  );
+
+  if (uniqueGroupIds.length === 0) {
+    return posts as PostWithFlags[];
+  }
+
+  const ownershipEntries = await Promise.all(
+    uniqueGroupIds.map(async (groupId) => {
+      try {
+        const groupSnap = await getDoc(doc(db, "groups", groupId));
+        if (!groupSnap.exists()) return [groupId, false] as const;
+
+        const data = groupSnap.data() as any;
+        return [groupId, data?.ownerId === currentViewerUid] as const;
+      } catch {
+        return [groupId, false] as const;
+      }
+    })
+  );
+
+  const ownershipMap = new Map<string, boolean>(ownershipEntries);
+
+  const authorPairs = Array.from(
+    new Set(
+      posts
+        .filter(
+          (post) =>
+            typeof post.groupId === "string" &&
+            post.groupId.trim().length > 0 &&
+            typeof post.authorId === "string" &&
+            post.authorId.trim().length > 0
+        )
+        .map((post) => `${post.groupId}__${post.authorId}`)
+    )
+  );
+
+  const authorEntries = await Promise.all(
+    authorPairs.map(async (pairKey) => {
+      const separatorIndex = pairKey.indexOf("__");
+      const groupId = pairKey.slice(0, separatorIndex);
+      const authorId = pairKey.slice(separatorIndex + 2);
+      const meta = await getMembershipStatusForGroup(groupId, authorId);
+      return [pairKey, meta] as const;
+    })
+  );
+
+  const authorMap = new Map<
+    string,
+    { status: MemberStatus; mutedUntil: any | null }
+  >(authorEntries);
+
+  return posts.map((post) => {
+    const groupId =
+      typeof post.groupId === "string" && post.groupId.trim().length > 0
+        ? post.groupId
+        : null;
+
+    const authorId =
+      typeof post.authorId === "string" && post.authorId.trim().length > 0
+        ? post.authorId
+        : null;
+
+    const authorMeta =
+      groupId && authorId ? authorMap.get(`${groupId}__${authorId}`) : null;
+
+    return {
+      ...post,
+      canModerateGroupAuthor: !!groupId && ownershipMap.get(groupId) === true,
+      authorMemberStatus: authorMeta?.status ?? null,
+      authorMutedUntil: authorMeta?.mutedUntil ?? null,
+    };
+  });
+}
+
 export default function ProfilePostsFeed({
   profileUid,
   viewerUid,
   isOwner,
   showPosts = true,
 }: ProfilePostsFeedProps) {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostWithFlags[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
-
-  async function filterBannedGroupPosts(
-    inputPosts: Post[],
-    currentViewerUid: string | null
-  ): Promise<Post[]> {
-    if (!currentViewerUid || inputPosts.length === 0) {
-      return inputPosts;
-    }
-
-    const uniqueGroupIds = Array.from(
-      new Set(
-        inputPosts
-          .map((post) => post.groupId)
-          .filter((groupId): groupId is string => typeof groupId === "string" && groupId.trim().length > 0)
-      )
-    );
-
-    if (uniqueGroupIds.length === 0) {
-      return inputPosts;
-    }
-
-    const membershipChecks = await Promise.all(
-      uniqueGroupIds.map(async (groupId) => {
-        try {
-          const membershipRef = doc(db, "groups", groupId, "members", currentViewerUid);
-          const membershipSnap = await getDoc(membershipRef);
-
-          if (!membershipSnap.exists()) {
-            return [groupId, false] as const;
-          }
-
-          const data = membershipSnap.data() as { status?: string } | undefined;
-          return [groupId, data?.status === "banned"] as const;
-        } catch {
-          return [groupId, false] as const;
-        }
-      })
-    );
-
-    const bannedByGroupId = new Map<string, boolean>(membershipChecks);
-
-    return inputPosts.filter((post) => {
-      const groupId =
-        typeof post.groupId === "string" && post.groupId.trim().length > 0
-          ? post.groupId
-          : null;
-
-      if (!groupId) return true;
-      return bannedByGroupId.get(groupId) !== true;
-    });
-  }
 
   async function loadPosts() {
     const nextPosts = await fetchUserProfilePosts(profileUid, viewerUid);
     const visiblePosts = await filterBannedGroupPosts(nextPosts, viewerUid);
-    setPosts(visiblePosts);
+    const hydratedPosts = await attachModerationFlags(visiblePosts, viewerUid);
+    setPosts(hydratedPosts);
   }
 
   useEffect(() => {
@@ -116,9 +246,10 @@ export default function ProfilePostsFeed({
 
         const nextPosts = await fetchUserProfilePosts(profileUid, viewerUid);
         const visiblePosts = await filterBannedGroupPosts(nextPosts, viewerUid);
+        const hydratedPosts = await attachModerationFlags(visiblePosts, viewerUid);
 
         if (!active) return;
-        setPosts(visiblePosts);
+        setPosts(hydratedPosts);
       } catch (e: any) {
         if (!active) return;
         setError(e?.message ?? "Error desconocido");
@@ -276,7 +407,8 @@ export default function ProfilePostsFeed({
       )}
 
       {posts.map((post) => {
-        const canDeletePost = isOwner && viewerUid === post.authorId;
+        const canDeletePost =
+          viewerUid === post.authorId || post.canModerateGroupAuthor === true;
 
         return (
           <div key={post.id} style={postItemStyle}>
@@ -290,6 +422,8 @@ export default function ProfilePostsFeed({
               currentUserId={viewerUid}
               isOwner={false}
               showGroupContext={true}
+              canModerateGroupAuthor={post.canModerateGroupAuthor === true}
+              onModerationComplete={loadPosts}
             />
           </div>
         );

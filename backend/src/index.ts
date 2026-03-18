@@ -34,4 +34,5 @@ export {
   banGroupMember,
   unbanGroupMember,
   removeGroupMember,
+  cleanupExpiredGroupMutes,
 } from "./groupModeration";
