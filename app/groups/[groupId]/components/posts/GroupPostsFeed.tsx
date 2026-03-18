@@ -2,7 +2,8 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
-import { auth } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import type { Comment, Post } from "@/lib/posts/types";
 import {
   createPostComment,
@@ -20,11 +21,69 @@ type GroupPostsFeedProps = {
   isOwner?: boolean;
 };
 
+type MemberStatus = "active" | "muted" | "banned" | null;
+type PostWithAuthorMemberStatus = Post & {
+  authorMemberStatus?: MemberStatus;
+};
+
+async function getGroupMemberStatus(
+  groupId: string,
+  userId: string
+): Promise<MemberStatus> {
+  try {
+    const memberRef = doc(db, "groups", groupId, "members", userId);
+    const memberSnap = await getDoc(memberRef);
+
+    if (!memberSnap.exists()) return null;
+
+    const data = memberSnap.data() as any;
+    const rawStatus = data?.status;
+
+    if (rawStatus === "banned") return "banned";
+    if (rawStatus === "muted") return "muted";
+    return "active";
+  } catch {
+    return null;
+  }
+}
+
+async function attachAuthorMemberStatus(
+  groupId: string,
+  posts: Post[]
+): Promise<PostWithAuthorMemberStatus[]> {
+  if (!posts.length) return posts as PostWithAuthorMemberStatus[];
+
+  const uniqueAuthorIds = Array.from(
+    new Set(
+      posts
+        .map((post) => post.authorId)
+        .filter(
+          (authorId): authorId is string =>
+            typeof authorId === "string" && authorId.trim().length > 0
+        )
+    )
+  );
+
+  const authorStatusEntries = await Promise.all(
+    uniqueAuthorIds.map(async (authorId) => {
+      const status = await getGroupMemberStatus(groupId, authorId);
+      return [authorId, status] as const;
+    })
+  );
+
+  const authorStatusMap = new Map<string, MemberStatus>(authorStatusEntries);
+
+  return posts.map((post) => ({
+    ...post,
+    authorMemberStatus: authorStatusMap.get(post.authorId) ?? null,
+  }));
+}
+
 export default function GroupPostsFeed({
   groupId,
   isOwner = false,
 }: GroupPostsFeedProps) {
-  const [posts, setPosts] = useState<Post[]>([]);
+  const [posts, setPosts] = useState<PostWithAuthorMemberStatus[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [currentUid, setCurrentUid] = useState<string | null>(
@@ -41,7 +100,8 @@ export default function GroupPostsFeed({
 
   async function loadPosts() {
     const nextPosts = await fetchGroupPosts(groupId);
-    setPosts(nextPosts);
+    const hydratedPosts = await attachAuthorMemberStatus(groupId, nextPosts);
+    setPosts(hydratedPosts);
   }
 
   useEffect(() => {
@@ -51,9 +111,12 @@ export default function GroupPostsFeed({
       try {
         setLoadingInitial(true);
         setError(null);
+
         const nextPosts = await fetchGroupPosts(groupId);
+        const hydratedPosts = await attachAuthorMemberStatus(groupId, nextPosts);
+
         if (!active) return;
-        setPosts(nextPosts);
+        setPosts(hydratedPosts);
       } catch (e: any) {
         if (!active) return;
         setError(e?.message ?? "Error desconocido");

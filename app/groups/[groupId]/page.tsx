@@ -19,6 +19,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Cropper from "react-easy-crop";
 
 type JoinRequestStatus = "pending" | "approved" | "rejected" | string;
+type MemberStatus = "active" | "muted" | "banned" | null;
 
 type GroupDoc = {
   id: string;
@@ -143,6 +144,7 @@ export default function GroupPage() {
 
   const [group, setGroup] = useState<GroupDoc | null>(null);
   const [isMember, setIsMember] = useState<boolean>(false);
+  const [memberStatus, setMemberStatus] = useState<MemberStatus>(null);
   const [joinReqStatus, setJoinReqStatus] =
     useState<JoinRequestStatus | null>(null);
 
@@ -155,7 +157,7 @@ export default function GroupPage() {
     () => !!user && !!group?.ownerId && group.ownerId === user.uid,
     [user, group]
   );
-  const effectiveIsMember = isOwner || isMember;
+  const effectiveIsMember = isOwner || (isMember && memberStatus !== "banned");
 
   const [greetOpen, setGreetOpen] = useState(false);
   const [greetType, setGreetType] = useState<GreetingType>("saludo");
@@ -411,13 +413,35 @@ export default function GroupPage() {
     let unsubMember = () => {};
     if (user) {
       const mref = doc(db, "groups", groupId, "members", user.uid);
+
       unsubMember = onSnapshot(
         mref,
-        (msnap) => setIsMember(msnap.exists()),
-        () => setIsMember(false)
+        (msnap) => {
+          if (!msnap.exists()) {
+            setIsMember(false);
+            setMemberStatus(null);
+            return;
+          }
+
+          const data = msnap.data() as any;
+          const status = data?.status ?? "active";
+
+          setMemberStatus(status);
+
+          if (status === "banned") {
+            setIsMember(false);
+          } else {
+            setIsMember(true);
+          }
+        },
+        () => {
+          setIsMember(false);
+          setMemberStatus(null);
+        }
       );
     } else {
       setIsMember(false);
+      setMemberStatus(null);
     }
 
     let unsubJoinReq = () => {};
@@ -818,10 +842,18 @@ export default function GroupPage() {
     </div>
   );
 
-  if (visibility === "private" && !effectiveIsMember) {
+  const shouldShowRestrictedLanding =
+    !isOwner &&
+    !effectiveIsMember &&
+    (visibility === "private" || visibility === "hidden");
+
+  if (shouldShowRestrictedLanding) {
     const pending = joinReqStatus === "pending";
     const rejected = joinReqStatus === "rejected";
     const approved = joinReqStatus === "approved";
+    const isBanned = memberStatus === "banned";
+    const isPrivate = visibility === "private";
+    const isHidden = visibility === "hidden";
 
     return (
       <main style={pageWrap}>
@@ -968,46 +1000,60 @@ export default function GroupPage() {
                       textAlign: "center",
                     }}
                   >
-                    {approved && "✅ Aprobado. Entrando…"}
-                    {pending && "✅ Solicitud enviada. Está pendiente de revisión."}
-                    {!pending &&
+                    {isBanned && "🚫 Estás baneado de esta comunidad. No puedes ingresar."}
+                    {!isBanned && approved && "✅ Aprobado. Entrando…"}
+                    {!isBanned &&
+                      isPrivate &&
+                      pending &&
+                      "✅ Solicitud enviada. Está pendiente de revisión."}
+                    {!isBanned &&
+                      isPrivate &&
+                      !pending &&
                       !approved &&
                       !rejected &&
                       "Esta comunidad es privada. Puedes verla, pero necesitas aprobación para entrar."}
-                    {rejected && "❌ Tu solicitud fue rechazada."}
+                    {!isBanned &&
+                      isPrivate &&
+                      rejected &&
+                      "❌ Tu solicitud fue rechazada."}
+                    {!isBanned &&
+                      isHidden &&
+                      "Esta comunidad es oculta. No tienes acceso en este momento."}
                   </div>
 
-                  <div className="group-actions-row" style={{ marginTop: 14 }}>
-                    {!pending && !rejected ? (
-                      <button
-                        onClick={handleRequestPrivate}
-                        disabled={joining}
-                        style={{
-                          ...primaryButton,
-                          opacity: joining ? 0.75 : 1,
-                          cursor: joining ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        {joining
-                          ? "Enviando..."
-                          : user
-                          ? "Solicitar acceso"
-                          : "Iniciar sesión para solicitar acceso"}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={handleCancelPrivate}
-                        disabled={joining}
-                        style={{
-                          ...secondaryButton,
-                          opacity: joining ? 0.75 : 1,
-                          cursor: joining ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        {joining ? "Cancelando..." : "Cancelar solicitud"}
-                      </button>
-                    )}
-                  </div>
+                  {!isBanned && isPrivate && (
+                    <div className="group-actions-row" style={{ marginTop: 14 }}>
+                      {!pending && !rejected ? (
+                        <button
+                          onClick={handleRequestPrivate}
+                          disabled={joining}
+                          style={{
+                            ...primaryButton,
+                            opacity: joining ? 0.75 : 1,
+                            cursor: joining ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {joining
+                            ? "Enviando..."
+                            : user
+                            ? "Solicitar acceso"
+                            : "Iniciar sesión para solicitar acceso"}
+                        </button>
+                      ) : (
+                        <button
+                          onClick={handleCancelPrivate}
+                          disabled={joining}
+                          style={{
+                            ...secondaryButton,
+                            opacity: joining ? 0.75 : 1,
+                            cursor: joining ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {joining ? "Cancelando..." : "Cancelar solicitud"}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -1199,25 +1245,40 @@ export default function GroupPage() {
 
               <div className="group-actions-wrap">
                 <div className="group-actions-row">
-                  {!isOwner &&
-                    !effectiveIsMember &&
-                    visibility === "public" && (
-                      <button
-                        onClick={handleJoinPublic}
-                        disabled={joining}
-                        style={{
-                          ...primaryButton,
-                          opacity: joining ? 0.75 : 1,
-                          cursor: joining ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        {joining
-                          ? "Uniéndote..."
-                          : user
-                          ? "Unirme"
-                          : "Iniciar sesión para unirme"}
-                      </button>
-                    )}
+                  {!isOwner && !effectiveIsMember && visibility === "public" && (
+                    <>
+                      {memberStatus === "banned" ? (
+                        <div
+                          style={{
+                            ...messageBox,
+                            textAlign: "center",
+                            border: "1px solid rgba(255,80,80,0.4)",
+                            background: "rgba(255,80,80,0.08)",
+                            color: "#ffb3b3",
+                            fontWeight: 500,
+                          }}
+                        >
+                          🚫 Estás baneado de esta comunidad
+                        </div>
+                      ) : (
+                        <button
+                          onClick={handleJoinPublic}
+                          disabled={joining}
+                          style={{
+                            ...primaryButton,
+                            opacity: joining ? 0.75 : 1,
+                            cursor: joining ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {joining
+                            ? "Uniéndote..."
+                            : user
+                            ? "Unirme"
+                            : "Iniciar sesión para unirme"}
+                        </button>
+                      )}
+                    </>
+                  )}
 
                   {!isOwner && effectiveIsMember && (
                     <button

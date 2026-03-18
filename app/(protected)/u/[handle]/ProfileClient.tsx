@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 
 import {
   doc,
@@ -143,6 +143,9 @@ function sexLabel(sex: string) {
 
 export default function ProfileClient() {
   const params = useParams<{ handle: string }>();
+  const pathname = usePathname();
+  const router = useRouter();
+
   const handle = useMemo(
     () => String(params?.handle || "").toLowerCase(),
     [params]
@@ -182,6 +185,10 @@ export default function ProfileClient() {
     if (typeof userDoc.age === "number") return userDoc.age;
     return calculateAgeFromBirthDate(userDoc.birthDate);
   }, [userDoc]);
+
+  function redirectToLogin() {
+    router.push(`/login?next=${encodeURIComponent(pathname || `/u/${handle}`)}`);
+  }
 
   const ui = {
     pageMaxWidth: 1080,
@@ -287,6 +294,14 @@ export default function ProfileClient() {
       fontWeight: 400,
       lineHeight: 1.4,
       color: "rgba(255,255,255,0.70)",
+    } as React.CSSProperties,
+    ctaCard: {
+      maxWidth: 640,
+      margin: "18px auto 0",
+      borderRadius: ui.panelRadius,
+      border: ui.borderFaint,
+      background: ui.panelBg,
+      padding: 14,
     } as React.CSSProperties,
   };
 
@@ -592,6 +607,22 @@ export default function ProfileClient() {
             word-break: break-word;
           }
 
+          .profile-actions-wrap {
+            margin-top: 18px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 14px;
+            display: grid;
+            gap: 12px;
+          }
+
+          .profile-actions-row {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+          }
+
           @media (max-width: 900px) {
             .profile-shell {
               max-width: none;
@@ -623,6 +654,10 @@ export default function ProfileClient() {
 
             .profile-handle {
               font-size: 14px;
+            }
+
+            .profile-actions-row > button {
+              width: 100%;
             }
           }
         `}</style>
@@ -819,6 +854,32 @@ export default function ProfileClient() {
                 </div>
               </div>
 
+              {authReady && !viewer && (
+                <div className="profile-actions-wrap">
+                  <div style={styles.ctaCard}>
+                    <div
+                      style={{
+                        ...styles.microText,
+                        color: "rgba(255,255,255,0.82)",
+                        textAlign: "center",
+                      }}
+                    >
+                      Puedes ver este perfil públicamente. Inicia sesión para interactuar, seguir explorando y usar funciones completas.
+                    </div>
+
+                    <div className="profile-actions-row" style={{ marginTop: 14 }}>
+                      <button
+                        type="button"
+                        onClick={redirectToLogin}
+                        style={styles.buttonPrimary}
+                      >
+                        Iniciar sesión
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {msg && (
                 <div
                   style={{
@@ -828,21 +889,6 @@ export default function ProfileClient() {
                 >
                   {msg}
                 </div>
-              )}
-
-              {authReady && viewer && (
-                <p
-                  style={{
-                    marginTop: 12,
-                    marginBottom: 0,
-                    opacity: 0.6,
-                    fontSize: 12,
-                    textAlign: "center",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  Sesión activa: {viewer.email}
-                </p>
               )}
             </div>
           </div>

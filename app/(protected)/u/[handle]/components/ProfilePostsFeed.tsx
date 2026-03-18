@@ -2,6 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
 
 import type { Comment, Post } from "@/lib/posts/types";
 import {
@@ -12,6 +13,7 @@ import {
   softDeletePost,
 } from "@/lib/posts/post-service";
 
+import { db } from "@/lib/firebase";
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
 
 type ProfilePostsFeedProps = {
@@ -31,9 +33,61 @@ export default function ProfilePostsFeed({
   const [error, setError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
 
+  async function filterBannedGroupPosts(
+    inputPosts: Post[],
+    currentViewerUid: string | null
+  ): Promise<Post[]> {
+    if (!currentViewerUid || inputPosts.length === 0) {
+      return inputPosts;
+    }
+
+    const uniqueGroupIds = Array.from(
+      new Set(
+        inputPosts
+          .map((post) => post.groupId)
+          .filter((groupId): groupId is string => typeof groupId === "string" && groupId.trim().length > 0)
+      )
+    );
+
+    if (uniqueGroupIds.length === 0) {
+      return inputPosts;
+    }
+
+    const membershipChecks = await Promise.all(
+      uniqueGroupIds.map(async (groupId) => {
+        try {
+          const membershipRef = doc(db, "groups", groupId, "members", currentViewerUid);
+          const membershipSnap = await getDoc(membershipRef);
+
+          if (!membershipSnap.exists()) {
+            return [groupId, false] as const;
+          }
+
+          const data = membershipSnap.data() as { status?: string } | undefined;
+          return [groupId, data?.status === "banned"] as const;
+        } catch {
+          return [groupId, false] as const;
+        }
+      })
+    );
+
+    const bannedByGroupId = new Map<string, boolean>(membershipChecks);
+
+    return inputPosts.filter((post) => {
+      const groupId =
+        typeof post.groupId === "string" && post.groupId.trim().length > 0
+          ? post.groupId
+          : null;
+
+      if (!groupId) return true;
+      return bannedByGroupId.get(groupId) !== true;
+    });
+  }
+
   async function loadPosts() {
     const nextPosts = await fetchUserProfilePosts(profileUid, viewerUid);
-    setPosts(nextPosts);
+    const visiblePosts = await filterBannedGroupPosts(nextPosts, viewerUid);
+    setPosts(visiblePosts);
   }
 
   useEffect(() => {
@@ -59,10 +113,12 @@ export default function ProfilePostsFeed({
       try {
         setLoadingInitial(true);
         setError(null);
+
         const nextPosts = await fetchUserProfilePosts(profileUid, viewerUid);
+        const visiblePosts = await filterBannedGroupPosts(nextPosts, viewerUid);
 
         if (!active) return;
-        setPosts(nextPosts);
+        setPosts(visiblePosts);
       } catch (e: any) {
         if (!active) return;
         setError(e?.message ?? "Error desconocido");

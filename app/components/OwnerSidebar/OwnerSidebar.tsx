@@ -39,6 +39,7 @@ import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
 import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
 
 export type Currency = "MXN" | "USD";
+export type SidebarMemberStatus = "active" | "muted" | "banned" | null;
 
 export type UserDoc = {
   uid: string;
@@ -60,6 +61,7 @@ export type GroupDocLite = {
   ownerId?: string;
   visibility?: "public" | "private" | "hidden" | string;
   avatarUrl?: string | null;
+  memberStatus?: SidebarMemberStatus;
   monetization?: {
     isPaid?: boolean;
     priceMonthly?: number | null;
@@ -217,6 +219,13 @@ export function buildDisplayName(user?: Partial<UserDoc> | null, uid?: string) {
   if (full) return full;
   if (uid) return `Usuario ${uid.slice(0, 6)}`;
   return "Usuario";
+}
+
+function normalizeSidebarMemberStatus(raw: unknown): SidebarMemberStatus {
+  if (raw === "banned") return "banned";
+  if (raw === "muted") return "muted";
+  if (raw === "active") return "active";
+  return null;
 }
 
 export function Switch({
@@ -657,17 +666,15 @@ export default function OwnerSidebar() {
       communitiesQ,
       async (snap) => {
         try {
-          const allVisible: GroupDocLite[] = snap.docs
+          const allVisibleBase: GroupDocLite[] = snap.docs
             .map((d) => ({
               ...(d.data() as Omit<GroupDocLite, "id">),
               id: d.id,
             }))
             .filter((g) => g?.ownerId !== viewer.uid);
 
-          setBrowseGroups(allVisible);
-
           const membershipChecks = await Promise.all(
-            allVisible.map(async (g) => {
+            allVisibleBase.map(async (g) => {
               try {
                 const memberSnap = await getDoc(
                   doc(db, "groups", g.id, "members", viewer.uid)
@@ -677,22 +684,41 @@ export default function OwnerSidebar() {
                   doc(db, "groups", g.id, "joinRequests", viewer.uid)
                 );
 
+                const memberStatus = memberSnap.exists()
+                  ? normalizeSidebarMemberStatus(
+                      (memberSnap.data() as any)?.status ?? "active"
+                    )
+                  : null;
+
+                const hydratedGroup: GroupDocLite = {
+                  ...g,
+                  memberStatus,
+                };
+
                 return {
-                  group: g,
-                  isJoined: memberSnap.exists(),
+                  group: hydratedGroup,
+                  isJoined:
+                    memberSnap.exists() && memberStatus !== "banned",
+                  isBanned: memberStatus === "banned",
                   hasPendingJoin:
+                    !memberSnap.exists() &&
                     joinReqSnap.exists() &&
                     (joinReqSnap.data() as any)?.status === "pending",
-                  joinCreatedAt: joinReqSnap.exists()
-                    ? ((joinReqSnap.data() as any)?.createdAt as
-                        | Timestamp
-                        | undefined)
-                    : undefined,
+                  joinCreatedAt:
+                    !memberSnap.exists() && joinReqSnap.exists()
+                      ? ((joinReqSnap.data() as any)?.createdAt as
+                          | Timestamp
+                          | undefined)
+                      : undefined,
                 };
               } catch {
                 return {
-                  group: g,
+                  group: {
+                    ...g,
+                    memberStatus: null,
+                  } satisfies GroupDocLite,
                   isJoined: false,
+                  isBanned: false,
                   hasPendingJoin: false,
                   joinCreatedAt: undefined,
                 };
@@ -705,7 +731,7 @@ export default function OwnerSidebar() {
             .map((x) => x.group);
 
           const pending = membershipChecks
-            .filter((x) => x.hasPendingJoin)
+            .filter((x) => x.hasPendingJoin && !x.isBanned)
             .map((x) => ({
               id: viewer.uid,
               groupId: x.group.id,
@@ -713,13 +739,21 @@ export default function OwnerSidebar() {
               createdAt: x.joinCreatedAt,
             }));
 
+          const explorable = membershipChecks
+            .filter((x) => !x.isJoined && !x.isBanned)
+            .map((x) => x.group);
+
           setJoinedGroups(joined);
           setPendingJoinRequestsSent(pending);
+          setBrowseGroups(explorable);
 
           const meta: Record<string, GroupDocLite> = {};
-          [...allVisible, ...joined].forEach((g) => {
-            meta[g.id] = g;
+          membershipChecks.forEach(({ group, isBanned }) => {
+            if (!isBanned) {
+              meta[group.id] = group;
+            }
           });
+
           setGroupMetaMap((prev) => ({ ...prev, ...meta }));
         } catch (e: any) {
           setGroupsErr(
@@ -1331,7 +1365,7 @@ export default function OwnerSidebar() {
 
   function renderCommunityCard(
     g: GroupDocLite,
-    opts?: { compact?: boolean; subtitle?: string }
+    opts?: { compact?: boolean; subtitle?: React.ReactNode }
   ) {
     const communityName = g.name ?? "(Sin nombre)";
     const avatarFallback = getInitials(communityName);

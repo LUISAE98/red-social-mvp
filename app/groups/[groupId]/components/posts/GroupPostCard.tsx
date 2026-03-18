@@ -47,21 +47,23 @@ function getInitials(name: string) {
 }
 
 function getAuthorInfo(
-  entity: { authorId?: string | null } & Record<string, unknown>,
+  entity: { authorId?: string | null } & Record<string, unknown>
 ) {
   const authorId = typeof entity.authorId === "string" ? entity.authorId : "";
 
   const authorName =
     typeof entity.authorName === "string" && entity.authorName.trim().length > 0
       ? entity.authorName.trim()
-      : typeof entity.displayName === "string" && entity.displayName.trim().length > 0
+      : typeof entity.displayName === "string" &&
+          entity.displayName.trim().length > 0
         ? entity.displayName.trim()
         : typeof entity.name === "string" && entity.name.trim().length > 0
           ? entity.name.trim()
           : authorId || "Usuario";
 
   const avatarUrl =
-    typeof entity.authorAvatarUrl === "string" && entity.authorAvatarUrl.trim().length > 0
+    typeof entity.authorAvatarUrl === "string" &&
+    entity.authorAvatarUrl.trim().length > 0
       ? entity.authorAvatarUrl.trim()
       : typeof entity.avatarUrl === "string" && entity.avatarUrl.trim().length > 0
         ? entity.avatarUrl.trim()
@@ -70,7 +72,8 @@ function getAuthorInfo(
           : null;
 
   const username =
-    typeof entity.authorUsername === "string" && entity.authorUsername.trim().length > 0
+    typeof entity.authorUsername === "string" &&
+    entity.authorUsername.trim().length > 0
       ? entity.authorUsername.trim()
       : typeof entity.username === "string" && entity.username.trim().length > 0
         ? entity.username.trim()
@@ -99,7 +102,8 @@ function getGroupInfo(entity: Record<string, unknown>) {
       : null;
 
   const groupAvatarUrl =
-    typeof entity.groupAvatarUrl === "string" && entity.groupAvatarUrl.trim().length > 0
+    typeof entity.groupAvatarUrl === "string" &&
+    entity.groupAvatarUrl.trim().length > 0
       ? entity.groupAvatarUrl.trim()
       : null;
 
@@ -306,13 +310,26 @@ export default function GroupPostCard({
 
   const postAuthor = useMemo(
     () => getAuthorInfo(post as unknown as { authorId?: string | null } & Record<string, unknown>),
-    [post],
+    [post]
   );
 
   const groupInfo = useMemo(
     () => getGroupInfo(post as unknown as Record<string, unknown>),
-    [post],
+    [post]
   );
+
+  const authorMemberStatus = useMemo(() => {
+    const raw =
+      typeof (post as any)?.authorMemberStatus === "string"
+        ? String((post as any).authorMemberStatus).trim().toLowerCase()
+        : typeof (post as any)?.memberStatus === "string"
+          ? String((post as any).memberStatus).trim().toLowerCase()
+          : "";
+
+    return raw === "banned" ? "banned" : null;
+  }, [post]);
+
+  const shouldShowAuthorBannedBadge = authorMemberStatus === "banned";
 
   const shouldShowGroupContext =
     showGroupContext && (!!groupInfo.groupId || !!groupInfo.groupName);
@@ -391,6 +408,24 @@ export default function GroupPostCard({
     letterSpacing: "-0.02em",
     maxWidth: "100%",
     wordBreak: "break-word",
+    flexShrink: 0,
+  };
+
+  const bannedBadgeStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 20,
+    padding: "2px 8px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,70,70,0.34)",
+    background: "rgba(255,70,70,0.14)",
+    color: "#ff8a8a",
+    fontSize: 10.5,
+    fontWeight: 700,
+    lineHeight: 1,
+    letterSpacing: "-0.01em",
+    whiteSpace: "nowrap",
     flexShrink: 0,
   };
 
@@ -587,6 +622,10 @@ export default function GroupPostCard({
                 {postAuthor.authorName}
               </Link>
 
+              {shouldShowAuthorBannedBadge && (
+                <span style={bannedBadgeStyle}>Baneado</span>
+              )}
+
               {shouldShowGroupContext && (
                 <div style={communityWrapStyle}>
                   {!isMobile && (
@@ -764,7 +803,7 @@ export default function GroupPostCard({
                 isOwner || currentUserId === comment.authorId;
 
               const commentAuthor = getAuthorInfo(
-                comment as unknown as { authorId?: string | null } & Record<string, unknown>,
+                comment as unknown as { authorId?: string | null } & Record<string, unknown>
               );
 
               return (

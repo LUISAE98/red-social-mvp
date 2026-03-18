@@ -24,5 +24,14 @@ export const healthcheck = onRequest(
 // Join requests
 export { approveJoinRequest, rejectJoinRequest } from "./joinRequests";
 
-// Greeting requests (saludos/consejos/mensajes)
+// Greeting requests
 export { createGreetingRequest, respondGreetingRequest } from "./greetingRequests";
+
+// Group moderation
+export {
+  muteGroupMember,
+  unmuteGroupMember,
+  banGroupMember,
+  unbanGroupMember,
+  removeGroupMember,
+} from "./groupModeration";

@@ -2,6 +2,8 @@
 
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 import type { Comment, Post } from "@/lib/posts/types";
 import {
@@ -18,6 +20,106 @@ type HomePostsFeedProps = {
   currentUserId: string | null;
 };
 
+type MemberStatus = "active" | "muted" | "banned" | null;
+
+async function getMembershipStatusForGroup(
+  groupId: string,
+  userId: string
+): Promise<MemberStatus> {
+  try {
+    const memberRef = doc(db, "groups", groupId, "members", userId);
+    const memberSnap = await getDoc(memberRef);
+
+    if (!memberSnap.exists()) return null;
+
+    const data = memberSnap.data() as any;
+    const rawStatus = data?.status;
+
+    if (rawStatus === "banned") return "banned";
+    if (rawStatus === "muted") return "muted";
+    return "active";
+  } catch {
+    return null;
+  }
+}
+
+async function filterOutHiddenHomePosts(
+  posts: Post[],
+  currentUserId: string
+): Promise<Post[]> {
+  if (!posts.length) return posts;
+
+  const uniqueViewerGroupIds = Array.from(
+    new Set(
+      posts
+        .map((post) => post.groupId)
+        .filter((groupId): groupId is string => !!groupId)
+    )
+  );
+
+  const viewerMembershipEntries = await Promise.all(
+    uniqueViewerGroupIds.map(async (groupId) => {
+      const status = await getMembershipStatusForGroup(groupId, currentUserId);
+      return [groupId, status] as const;
+    })
+  );
+
+  const viewerMembershipMap = new Map<string, MemberStatus>(
+    viewerMembershipEntries
+  );
+
+  const authorGroupPairs = Array.from(
+    new Set(
+      posts
+        .filter(
+          (post) =>
+            !!post.groupId &&
+            typeof post.authorId === "string" &&
+            post.authorId.trim().length > 0
+        )
+        .map((post) => `${post.groupId}__${post.authorId}`)
+    )
+  );
+
+  const authorMembershipEntries = await Promise.all(
+    authorGroupPairs.map(async (pairKey) => {
+      const separatorIndex = pairKey.indexOf("__");
+      const groupId = pairKey.slice(0, separatorIndex);
+      const authorId = pairKey.slice(separatorIndex + 2);
+
+      const status = await getMembershipStatusForGroup(groupId, authorId);
+      return [pairKey, status] as const;
+    })
+  );
+
+  const authorMembershipMap = new Map<string, MemberStatus>(
+    authorMembershipEntries
+  );
+
+  return posts.filter((post) => {
+    const groupId = post.groupId;
+    if (!groupId) return true;
+
+    const viewerStatus = viewerMembershipMap.get(groupId) ?? null;
+    if (viewerStatus === "banned") {
+      return false;
+    }
+
+    const authorId =
+      typeof post.authorId === "string" ? post.authorId.trim() : "";
+    if (!authorId) return true;
+
+    const authorStatus =
+      authorMembershipMap.get(`${groupId}__${authorId}`) ?? null;
+
+    if (authorStatus === "banned") {
+      return false;
+    }
+
+    return true;
+  });
+}
+
 export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +132,12 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
     }
 
     const nextPosts = await fetchHomePosts(currentUserId);
-    setPosts(nextPosts);
+    const visiblePosts = await filterOutHiddenHomePosts(
+      nextPosts,
+      currentUserId
+    );
+
+    setPosts(visiblePosts);
   }
 
   useEffect(() => {
@@ -50,9 +157,13 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
         setError(null);
 
         const nextPosts = await fetchHomePosts(currentUserId);
+        const visiblePosts = await filterOutHiddenHomePosts(
+          nextPosts,
+          currentUserId
+        );
 
         if (!active) return;
-        setPosts(nextPosts);
+        setPosts(visiblePosts);
       } catch (e: any) {
         if (!active) return;
         setError(e?.message ?? "Error desconocido");
