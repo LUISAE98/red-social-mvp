@@ -42,7 +42,14 @@ type GroupLookup = {
   visibility: GroupVisibility | null;
 };
 
-type GroupMemberStatus = "active" | "muted" | "banned" | null;
+type GroupMemberStatus =
+  | "active"
+  | "muted"
+  | "banned"
+  | "removed"
+  | "kicked"
+  | "expelled"
+  | null;
 
 function pickString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0
@@ -58,11 +65,9 @@ function assertValidId(value: string, label: string) {
 
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
-
   for (let i = 0; i < items.length; i += size) {
     chunks.push(items.slice(i, i + size));
   }
-
   return chunks;
 }
 
@@ -70,7 +75,6 @@ function normalizeGroupVisibility(value: unknown): GroupVisibility | null {
   if (value === "public" || value === "private" || value === "hidden") {
     return value;
   }
-
   return null;
 }
 
@@ -96,21 +100,17 @@ function readGroupAvatarUrl(data: Record<string, unknown>): string | null {
 
 function getTimestampDate(value: any): Date | null {
   if (!value) return null;
-
   if (value?.toDate instanceof Function) {
     const d = value.toDate();
     return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
   }
-
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
     return value;
   }
-
   if (typeof value === "string" || typeof value === "number") {
     const d = new Date(value);
     return Number.isNaN(d.getTime()) ? null : d;
   }
-
   return null;
 }
 
@@ -122,6 +122,9 @@ function resolveEffectiveMembershipStatus(
     typeof rawStatus === "string" ? rawStatus.trim().toLowerCase() : "";
 
   if (status === "banned") return "banned";
+  if (status === "removed") return "removed";
+  if (status === "kicked") return "kicked";
+  if (status === "expelled") return "expelled";
 
   if (status === "muted") {
     const until = getTimestampDate(mutedUntil);
@@ -132,12 +135,16 @@ function resolveEffectiveMembershipStatus(
   }
 
   if (status === "active") return "active";
+
   return "active";
+}
+
+function isReadableMembershipStatus(status: GroupMemberStatus) {
+  return status === "active" || status === "muted";
 }
 
 async function getCurrentAuthorSnapshot(): Promise<AuthorSnapshot> {
   const user = auth.currentUser;
-
   if (!user?.uid) {
     throw new Error("Debes iniciar sesión para realizar esta acción.");
   }
@@ -148,7 +155,6 @@ async function getCurrentAuthorSnapshot(): Promise<AuthorSnapshot> {
   try {
     const userRef = doc(db, "users", uid);
     const userSnap = await getDoc(userRef);
-
     if (userSnap.exists()) {
       userDocData = userSnap.data() as Record<string, unknown>;
     }
@@ -198,7 +204,6 @@ async function fetchUsersByIds(
     uniqueIds.map(async (uid) => {
       try {
         const snap = await getDoc(doc(db, "users", uid));
-
         if (!snap.exists()) {
           return [
             uid,
@@ -207,7 +212,6 @@ async function fetchUsersByIds(
         }
 
         const data = snap.data() as Record<string, unknown>;
-
         return [
           uid,
           {
@@ -246,7 +250,6 @@ async function fetchGroupsByIds(
     uniqueIds.map(async (groupId) => {
       try {
         const snap = await getDoc(doc(db, "groups", groupId));
-
         if (!snap.exists()) {
           return [
             groupId,
@@ -255,7 +258,6 @@ async function fetchGroupsByIds(
         }
 
         const data = snap.data() as Record<string, unknown>;
-
         return [
           groupId,
           {
@@ -301,7 +303,6 @@ function hydrateComment(
   userMap: Record<string, UserProfileLookup>
 ): Comment {
   const profile = userMap[raw.authorId];
-
   return {
     ...raw,
     authorName:
@@ -341,7 +342,18 @@ async function fetchMemberGroupIds(userUid: string): Promise<string[]> {
       try {
         const memberRef = doc(db, "groups", group.id, "members", userUid);
         const memberSnap = await getDoc(memberRef);
-        return memberSnap.exists() ? group.id : null;
+
+        if (!memberSnap.exists()) {
+          return null;
+        }
+
+        const memberData = memberSnap.data() as Record<string, unknown>;
+        const status = resolveEffectiveMembershipStatus(
+          memberData.status,
+          memberData.mutedUntil
+        );
+
+        return isReadableMembershipStatus(status) ? group.id : null;
       } catch {
         return null;
       }
@@ -430,11 +442,25 @@ async function ensureUserCanWriteInGroup(groupId: string, userUid: string) {
   );
 
   if (status === "banned") {
-    throw new Error("No puedes realizar esta acción porque estás baneado de este grupo.");
+    throw new Error(
+      "No puedes realizar esta acción porque estás baneado de este grupo."
+    );
   }
 
   if (status === "muted") {
-    throw new Error("No puedes realizar esta acción porque estás muteado en este grupo.");
+    throw new Error(
+      "No puedes realizar esta acción porque estás muteado en este grupo."
+    );
+  }
+
+  if (
+    status === "removed" ||
+    status === "kicked" ||
+    status === "expelled"
+  ) {
+    throw new Error(
+      "Ya no perteneces a este grupo y no puedes realizar esta acción."
+    );
   }
 }
 
@@ -484,7 +510,6 @@ export async function fetchUserProfilePosts(
   assertValidId(profileUid, "profileUid");
 
   const profileSnap = await getDoc(doc(db, "users", profileUid));
-
   if (!profileSnap.exists()) {
     return [];
   }
@@ -524,7 +549,6 @@ export async function createTextPost(params: {
   assertValidId(params.groupId, "groupId");
 
   const cleanText = params.text.trim();
-
   if (!cleanText) {
     throw new Error("Escribe un texto antes de publicar.");
   }
@@ -591,12 +615,12 @@ export async function createPostComment(params: {
   assertValidId(params.postId, "postId");
 
   const cleanText = params.text.trim();
-
   if (!cleanText) {
     throw new Error("Escribe un comentario antes de enviar.");
   }
 
   const author = await getCurrentAuthorSnapshot();
+
   const postRef = doc(db, "posts", params.postId);
   const postSnap = await getDoc(postRef);
 
@@ -614,7 +638,6 @@ export async function createPostComment(params: {
   await ensureUserCanWriteInGroup(groupId, author.uid);
 
   const commentRef = doc(collection(db, "posts", params.postId, "comments"));
-
   const batch = writeBatch(db);
 
   batch.set(commentRef, {
@@ -652,7 +675,6 @@ export async function deletePostComment(params: {
   );
 
   const commentSnap = await getDoc(commentRef);
-
   if (!commentSnap.exists()) {
     return;
   }

@@ -71,6 +71,14 @@ type MenuPosition = {
   left: number;
 };
 
+type EffectiveMemberStatus =
+  | "active"
+  | "muted"
+  | "banned"
+  | "removed"
+  | "kicked"
+  | "expelled";
+
 function normalizeRole(role?: string) {
   if (role === "owner") return "owner";
   if (role === "mod") return "mod";
@@ -98,8 +106,14 @@ function getMutedUntilDate(mutedUntil?: any): Date | null {
   return null;
 }
 
-function resolveEffectiveStatus(status?: string, mutedUntil?: any) {
+function resolveEffectiveStatus(
+  status?: string,
+  mutedUntil?: any
+): EffectiveMemberStatus {
   if (status === "banned") return "banned";
+  if (status === "removed") return "removed";
+  if (status === "kicked") return "kicked";
+  if (status === "expelled") return "expelled";
 
   if (status === "muted") {
     const until = getMutedUntilDate(mutedUntil);
@@ -110,6 +124,14 @@ function resolveEffectiveStatus(status?: string, mutedUntil?: any) {
   }
 
   return "active";
+}
+
+function isExcludedMemberStatus(status: EffectiveMemberStatus) {
+  return (
+    status === "removed" ||
+    status === "kicked" ||
+    status === "expelled"
+  );
 }
 
 function getRemainingMutedDaysLabel(mutedUntil?: any) {
@@ -138,6 +160,10 @@ function friendlyStatus(status?: string, mutedUntil?: any) {
   }
 
   if (normalized === "banned") return "Baneado";
+  if (normalized === "removed") return "Expulsado";
+  if (normalized === "kicked") return "Expulsado";
+  if (normalized === "expelled") return "Expulsado";
+
   return "Activo";
 }
 
@@ -145,6 +171,9 @@ function statusDotColor(status?: string, mutedUntil?: any) {
   const normalized = resolveEffectiveStatus(status, mutedUntil);
   if (normalized === "banned") return "#ff4d4f";
   if (normalized === "muted") return "#f5a623";
+  if (normalized === "removed") return "#9ca3af";
+  if (normalized === "kicked") return "#9ca3af";
+  if (normalized === "expelled") return "#9ca3af";
   return "#22c55e";
 }
 
@@ -154,7 +183,6 @@ function memberInitials(member: EnrichedMember) {
     member.handle?.trim() ||
     member.resolvedUid ||
     "U";
-
   return raw.slice(0, 2).toUpperCase();
 }
 
@@ -180,23 +208,19 @@ export default function GroupMembersTab({
   canMembersViewList,
 }: GroupMembersTabProps) {
   const currentUid = auth.currentUser?.uid ?? null;
-
   const [members, setMembers] = useState<EnrichedMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterValue>("all");
   const [savingVisibility, setSavingVisibility] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-
   const [openMenuForUid, setOpenMenuForUid] = useState<string | null>(null);
   const [actionLoadingForUid, setActionLoadingForUid] = useState<string | null>(
     null
   );
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
-
   const [muteModalOpen, setMuteModalOpen] = useState(false);
   const [muteTarget, setMuteTarget] = useState<EnrichedMember | null>(null);
   const [muteDays, setMuteDays] = useState("7");
@@ -221,6 +245,7 @@ export default function GroupMembersTab({
 
   useEffect(() => {
     if (!openMenuForUid) return;
+
     const openUid = openMenuForUid;
 
     function updateMenuPosition() {
@@ -252,7 +277,6 @@ export default function GroupMembersTab({
     }
 
     updateMenuPosition();
-
     window.addEventListener("resize", updateMenuPosition);
     window.addEventListener("scroll", updateMenuPosition, true);
 
@@ -264,6 +288,7 @@ export default function GroupMembersTab({
 
   useEffect(() => {
     if (!openMenuForUid && !muteModalOpen) return;
+
     const openUid = openMenuForUid;
 
     function handlePointerDown(event: MouseEvent) {
@@ -272,7 +297,6 @@ export default function GroupMembersTab({
 
       const panelEl = menuPanelRef.current;
       const buttonEl = openUid ? menuButtonRefs.current[openUid] ?? null : null;
-
       const clickedInsidePanel = !!panelEl && panelEl.contains(target);
       const clickedButton = !!buttonEl && buttonEl.contains(target);
 
@@ -336,7 +360,6 @@ export default function GroupMembersTab({
                 const userSnap = await getDoc(doc(db, "users", resolvedUid));
                 if (userSnap.exists()) {
                   const userData = userSnap.data() as any;
-
                   const firstName =
                     typeof userData.firstName === "string"
                       ? userData.firstName.trim()
@@ -345,7 +368,6 @@ export default function GroupMembersTab({
                     typeof userData.lastName === "string"
                       ? userData.lastName.trim()
                       : "";
-
                   const fullName = `${firstName} ${lastName}`.trim();
 
                   displayName =
@@ -405,6 +427,11 @@ export default function GroupMembersTab({
         if (role === "owner") return false;
 
         const status = resolveEffectiveStatus(member.status, member.mutedUntil);
+
+        if (isExcludedMemberStatus(status)) {
+          return false;
+        }
+
         const name = memberPrimaryName(member).toLowerCase();
         const handle = (member.handle || "").toLowerCase();
 
@@ -431,12 +458,10 @@ export default function GroupMembersTab({
 
         const aw = roleWeight(a.roleInGroup || a.role);
         const bw = roleWeight(b.roleInGroup || b.role);
-
         if (aw !== bw) return aw - bw;
 
         const an = memberPrimaryName(a).toLowerCase();
         const bn = memberPrimaryName(b).toLowerCase();
-
         return an.localeCompare(bn);
       });
   }, [members, search, filter, canUseFilters]);
@@ -470,6 +495,9 @@ export default function GroupMembersTab({
 
     const role = normalizeRole(member.roleInGroup || member.role);
     if (role === "owner") return false;
+
+    const status = resolveEffectiveStatus(member.status, member.mutedUntil);
+    if (isExcludedMemberStatus(status)) return false;
 
     return true;
   }
@@ -563,7 +591,9 @@ export default function GroupMembersTab({
     try {
       await muteGroupMember(groupId, muteTarget.resolvedUid, durationDays);
       setActionMessage(
-        `Mutear aplicado a ${memberPrimaryName(muteTarget)} durante ${durationDays} día(s).`
+        `Mutear aplicado a ${memberPrimaryName(
+          muteTarget
+        )} durante ${durationDays} día(s).`
       );
       closeMuteModal();
     } catch (e: any) {
@@ -1062,7 +1092,6 @@ export default function GroupMembersTab({
         )}
 
         {canViewList && loading && <div style={emptyStyle}>Cargando integrantes...</div>}
-
         {canViewList && !loading && error && <div style={emptyStyle}>{error}</div>}
 
         {canViewList && !loading && !error && filteredMembers.length === 0 && (
@@ -1079,7 +1108,6 @@ export default function GroupMembersTab({
               const canModerate = canModerateMember(member);
               const menuOpen = openMenuForUid === member.resolvedUid;
               const isProcessing = actionLoadingForUid === member.resolvedUid;
-              const actions = getAvailableActions(member);
 
               return (
                 <div key={member.id} style={rowStyle}>
@@ -1136,7 +1164,6 @@ export default function GroupMembersTab({
                     {canSeeStatus && !isMobile && (
                       <>
                         <div style={dividerStyle} />
-
                         <div style={statusWrap}>
                           <span
                             aria-hidden="true"
@@ -1165,9 +1192,7 @@ export default function GroupMembersTab({
                           type="button"
                           onClick={() =>
                             setOpenMenuForUid((prev) =>
-                              prev === member.resolvedUid
-                                ? null
-                                : member.resolvedUid
+                              prev === member.resolvedUid ? null : member.resolvedUid
                             )
                           }
                           aria-haspopup="menu"
@@ -1232,9 +1257,7 @@ export default function GroupMembersTab({
                         : menuItemStyle
                     }
                   >
-                    {isProcessing
-                      ? "Procesando..."
-                      : buildActionLabel(action)}
+                    {isProcessing ? "Procesando..." : buildActionLabel(action)}
                   </button>
                 );
               })}
