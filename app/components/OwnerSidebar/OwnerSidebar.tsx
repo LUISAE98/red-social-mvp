@@ -44,8 +44,6 @@ export type SidebarMemberStatus =
   | "muted"
   | "banned"
   | "removed"
-  | "kicked"
-  | "expelled"
   | null;
 
 export type UserDoc = {
@@ -233,8 +231,11 @@ function normalizeSidebarMemberStatus(raw: unknown): SidebarMemberStatus {
   if (raw === "muted") return "muted";
   if (raw === "active") return "active";
   if (raw === "removed") return "removed";
-  if (raw === "kicked") return "kicked";
-  if (raw === "expelled") return "expelled";
+
+  // Compatibilidad legacy temporal
+  if (raw === "kicked") return "removed";
+  if (raw === "expelled") return "removed";
+
   return null;
 }
 
@@ -243,11 +244,7 @@ function isJoinedSidebarStatus(status: SidebarMemberStatus) {
 }
 
 function isExcludedSidebarStatus(status: SidebarMemberStatus) {
-  return (
-    status === "removed" ||
-    status === "kicked" ||
-    status === "expelled"
-  );
+  return status === "removed";
 }
 
 export function Switch({

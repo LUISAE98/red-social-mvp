@@ -26,8 +26,6 @@ type SidebarMemberStatus =
   | "muted"
   | "banned"
   | "removed"
-  | "kicked"
-  | "expelled"
   | null;
 
 function normalizeMemberStatus(group: GroupDocLite): SidebarMemberStatus {
@@ -37,8 +35,11 @@ function normalizeMemberStatus(group: GroupDocLite): SidebarMemberStatus {
   if (raw === "muted") return "muted";
   if (raw === "banned") return "banned";
   if (raw === "removed") return "removed";
-  if (raw === "kicked") return "kicked";
-  if (raw === "expelled") return "expelled";
+
+  // Compatibilidad legacy temporal
+  if (raw === "kicked") return "removed";
+  if (raw === "expelled") return "removed";
+
   return null;
 }
 
@@ -53,12 +54,14 @@ function isActuallyJoinedStatus(status: SidebarMemberStatus) {
 function statusDotColor(status?: SidebarMemberStatus) {
   if (status === "muted") return "#f5a623";
   if (status === "banned") return "#ef4444";
+  if (status === "removed") return "#b91c1c";
   return "#22c55e";
 }
 
 function statusLabel(status?: SidebarMemberStatus) {
   if (status === "muted") return "Muteado";
   if (status === "banned") return "Baneado";
+  if (status === "removed") return "Expulsado";
   return "Activo";
 }
 
@@ -122,16 +125,12 @@ export default function OwnerSidebarOtherGroups({
 
   const visiblePendingJoinRequestsSent = pendingJoinRequestsSent.filter((row) => {
     const community = groupMetaMap[row.groupId] ?? null;
-
     if (!community) {
       return true;
     }
 
     const status = normalizeMemberStatus(community);
 
-    // Mantener la lógica de solicitudes como antes:
-    // solo ocultar si ya es miembro real (active o muted).
-    // Banned NO debe comerse esta sección.
     return !isActuallyJoinedStatus(status);
   });
 
@@ -156,7 +155,6 @@ export default function OwnerSidebarOtherGroups({
       {hasAnyPending && (
         <div style={{ display: "grid", gap: 8 }}>
           <div style={styles.sectionTitle}>Solicitudes de acceso enviadas</div>
-
           <div style={{ display: "grid", gap: 8 }}>
             {visiblePendingJoinRequestsSent.map((row) => {
               const community = groupMetaMap[row.groupId] ?? null;

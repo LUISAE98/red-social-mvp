@@ -13,8 +13,9 @@ import { db, auth } from "../../lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import HomePostsFeed from "./HomePostsFeed";
+import GroupsSearchToolbar from "@/app/components/SearchToolbar/GroupsSearchToolbar";
 
-type Group = {
+type Community = {
   id: string;
   name?: string;
   description?: string;
@@ -37,20 +38,69 @@ type PublicUser = {
   photoURL?: string | null;
 };
 
+type CanonicalMemberStatus = "active" | "muted" | "banned" | "removed" | null;
+
+function normalizeMemberStatus(raw: unknown): CanonicalMemberStatus {
+  if (raw === "active") return "active";
+  if (raw === "muted") return "muted";
+  if (raw === "banned") return "banned";
+  if (raw === "removed") return "removed";
+  if (raw === "kicked") return "removed";
+  if (raw === "expelled") return "removed";
+  return null;
+}
+
+function isJoinedStatus(status: CanonicalMemberStatus) {
+  return status === "active" || status === "muted";
+}
+
+function isBlockedStatus(status: CanonicalMemberStatus) {
+  return status === "banned" || status === "removed";
+}
+
+function membershipStatusLabel(status: CanonicalMemberStatus) {
+  if (status === "active") return "Ya estás unido";
+  if (status === "muted") return "Ya estás unido (muteado)";
+  if (status === "banned") return "Baneado";
+  if (status === "removed") return "Expulsado";
+  return "";
+}
+
+function buildUserSearchText(user: PublicUser) {
+  return [
+    user.handle,
+    user.displayName,
+    user.firstName,
+    user.lastName,
+    `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+function initialsFromName(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const a = parts[0]?.[0] ?? "";
+  const b = parts[1]?.[0] ?? "";
+  return (a + b).toUpperCase() || "U";
+}
+
 export default function GroupsHome() {
   const router = useRouter();
 
   const [user, setUser] = useState<any>(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [groupsLoading, setGroupsLoading] = useState(true);
+  const [communitiesLoading, setCommunitiesLoading] = useState(true);
+  const [profilesLoading, setProfilesLoading] = useState(true);
 
-  const [profile, setProfile] = useState<PublicUser | null>(null);
-  const [profileLoading, setProfileLoading] = useState(false);
-
-  const [groups, setGroups] = useState<Group[]>([]);
+  const [communities, setCommunities] = useState<Community[]>([]);
+  const [profiles, setProfiles] = useState<PublicUser[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const [memberMap, setMemberMap] = useState<Record<string, boolean>>({});
+  const [memberMap, setMemberMap] = useState<
+    Record<string, CanonicalMemberStatus>
+  >({});
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
 
@@ -75,10 +125,6 @@ export default function GroupsHome() {
 
   const cardBorder = "1px solid rgba(255,255,255,0.14)";
   const softBorder = "1px solid rgba(255,255,255,0.18)";
-  const fieldBorder = "1px solid rgba(255,255,255,0.18)";
-  const surface = "rgba(12,12,12,0.90)";
-  const fieldBg = "rgba(255,255,255,0.045)";
-  const fieldBgFocus = "rgba(255,255,255,0.065)";
   const shadow = "0 18px 46px rgba(0,0,0,0.42)";
 
   useEffect(() => {
@@ -90,38 +136,9 @@ export default function GroupsHome() {
   }, []);
 
   useEffect(() => {
-    async function loadProfile() {
-      if (!user) {
-        setProfile(null);
-        return;
-      }
-
-      setProfileLoading(true);
-
-      try {
-        const ref = doc(db, "users", user.uid);
-        const snap = await getDoc(ref);
-
-        if (!snap.exists()) {
-          setProfile(null);
-          return;
-        }
-
-        setProfile(snap.data() as any);
-      } catch (e: any) {
-        setError(e?.message ?? "Error leyendo perfil");
-      } finally {
-        setProfileLoading(false);
-      }
-    }
-
-    loadProfile();
-  }, [user]);
-
-  useEffect(() => {
-    async function loadGroups() {
+    async function loadCommunities() {
       setError(null);
-      setGroupsLoading(true);
+      setCommunitiesLoading(true);
 
       try {
         const col = collection(db, "groups");
@@ -129,8 +146,10 @@ export default function GroupsHome() {
         const qPublic = query(col, where("visibility", "==", "public"));
         const publicSnap = await getDocs(qPublic);
 
-        const list: Group[] = [];
-        publicSnap.forEach((d) => list.push({ id: d.id, ...(d.data() as any) }));
+        const list: Community[] = [];
+        publicSnap.forEach((d) =>
+          list.push({ id: d.id, ...(d.data() as any) })
+        );
 
         if (user) {
           const qPrivate = query(col, where("visibility", "==", "private"));
@@ -144,20 +163,49 @@ export default function GroupsHome() {
           new Map(list.map((g) => [g.id, g])).values()
         );
 
-        setGroups(deduped);
+        setCommunities(deduped);
       } catch (e: any) {
-        setError(e?.message ?? "Error cargando grupos");
+        setError(e?.message ?? "Error cargando comunidades");
       } finally {
-        setGroupsLoading(false);
+        setCommunitiesLoading(false);
       }
     }
 
-    loadGroups();
+    loadCommunities();
   }, [user]);
 
   useEffect(() => {
+    async function loadProfiles() {
+      setProfilesLoading(true);
+
+      try {
+        const snap = await getDocs(collection(db, "users"));
+        const rows: PublicUser[] = snap.docs.map((d) => {
+          const data = d.data() as any;
+          return {
+            uid: data.uid ?? d.id,
+            handle: data.handle ?? "",
+            displayName: data.displayName ?? "",
+            firstName: data.firstName ?? "",
+            lastName: data.lastName ?? "",
+            photoURL: data.photoURL ?? null,
+          };
+        });
+
+        setProfiles(rows);
+      } catch (e: any) {
+        setError(e?.message ?? "Error cargando perfiles");
+      } finally {
+        setProfilesLoading(false);
+      }
+    }
+
+    loadProfiles();
+  }, []);
+
+  useEffect(() => {
     async function loadMembershipsAndRequests() {
-      if (!user || groups.length === 0) {
+      if (!user || communities.length === 0) {
         setMemberMap({});
         setReqMap({});
         return;
@@ -165,52 +213,71 @@ export default function GroupsHome() {
 
       try {
         const entries = await Promise.all(
-          groups.map(async (g) => {
+          communities.map(async (g) => {
             const mref = doc(db, "groups", g.id, "members", user.uid);
             const msnap = await getDoc(mref);
+
+            const membershipStatus = msnap.exists()
+              ? normalizeMemberStatus((msnap.data() as any)?.status ?? "active")
+              : null;
 
             const jref = doc(db, "groups", g.id, "joinRequests", user.uid);
             const jsnap = await getDoc(jref);
 
             const pending =
+              !isJoinedStatus(membershipStatus) &&
+              !isBlockedStatus(membershipStatus) &&
               jsnap.exists() &&
               (((jsnap.data() as any)?.status ?? "pending") === "pending");
 
             return {
               groupId: g.id,
-              isMember: msnap.exists(),
+              status: membershipStatus,
               hasPendingReq: pending,
             };
           })
         );
 
-        const m: Record<string, boolean> = {};
-        const r: Record<string, boolean> = {};
+        const nextMemberMap: Record<string, CanonicalMemberStatus> = {};
+        const nextReqMap: Record<string, boolean> = {};
 
-        for (const e of entries) {
-          m[e.groupId] = e.isMember;
-          r[e.groupId] = e.hasPendingReq;
+        for (const entry of entries) {
+          nextMemberMap[entry.groupId] = entry.status;
+          nextReqMap[entry.groupId] = entry.hasPendingReq;
         }
 
-        setMemberMap(m);
-        setReqMap(r);
+        setMemberMap(nextMemberMap);
+        setReqMap(nextReqMap);
       } catch (e: any) {
         setError(e?.message ?? "Error leyendo members/joinRequests");
       }
     }
 
     loadMembershipsAndRequests();
-  }, [user, groups]);
+  }, [user, communities]);
 
   const normalizedSearch = search.trim().toLowerCase();
 
-  const filteredGroups = useMemo(() => {
+  const filteredCommunities = useMemo(() => {
     if (!normalizedSearch) return [];
 
-    return groups.filter((g) =>
-      (g.name ?? "").toLowerCase().includes(normalizedSearch)
-    );
-  }, [groups, normalizedSearch]);
+    return communities.filter((g) => {
+      const haystack = [g.name ?? "", g.visibility ?? ""].join(" ").toLowerCase();
+      return haystack.includes(normalizedSearch);
+    });
+  }, [communities, normalizedSearch]);
+
+  const filteredProfiles = useMemo(() => {
+    if (!normalizedSearch) return [];
+
+    return profiles
+      .filter((p) => {
+        if (!p.handle) return false;
+        if (user?.uid && p.uid === user.uid) return false;
+        return buildUserSearchText(p).includes(normalizedSearch);
+      })
+      .slice(0, 12);
+  }, [profiles, normalizedSearch, user?.uid]);
 
   async function handleJoinPublic(groupId: string) {
     if (!user) return;
@@ -218,9 +285,13 @@ export default function GroupsHome() {
     try {
       const { joinGroup } = await import("../../lib/groups/membership");
       await joinGroup(groupId, user.uid);
-      setMemberMap((m) => ({ ...m, [groupId]: true }));
+
+      setMemberMap((prev) => ({
+        ...prev,
+        [groupId]: "active",
+      }));
     } catch (e: any) {
-      setError(e?.message ?? "No se pudo unir al grupo");
+      setError(e?.message ?? "No se pudo unir a la comunidad");
     }
   }
 
@@ -230,7 +301,11 @@ export default function GroupsHome() {
     try {
       const { requestToJoin } = await import("../../lib/groups/joinRequests");
       await requestToJoin(groupId, user.uid);
-      setReqMap((r) => ({ ...r, [groupId]: true }));
+
+      setReqMap((prev) => ({
+        ...prev,
+        [groupId]: true,
+      }));
     } catch (e: any) {
       setError(e?.message ?? "No se pudo enviar solicitud");
     }
@@ -242,7 +317,11 @@ export default function GroupsHome() {
     try {
       const { cancelJoinRequest } = await import("../../lib/groups/joinRequests");
       await cancelJoinRequest(groupId, user.uid);
-      setReqMap((r) => ({ ...r, [groupId]: false }));
+
+      setReqMap((prev) => ({
+        ...prev,
+        [groupId]: false,
+      }));
     } catch (e: any) {
       setError(e?.message ?? "No se pudo cancelar solicitud");
     }
@@ -252,20 +331,27 @@ export default function GroupsHome() {
     if (!user) return;
 
     if (ownerId && ownerId === user.uid) {
-      setError("El owner no puede salir de su propio grupo.");
+      setError("El owner no puede salir de su propia comunidad.");
       return;
     }
 
     try {
       const { leaveGroup } = await import("../../lib/groups/membership");
       await leaveGroup(groupId, user.uid);
-      setMemberMap((m) => ({ ...m, [groupId]: false }));
+
+      setMemberMap((prev) => ({
+        ...prev,
+        [groupId]: null,
+      }));
     } catch (e: any) {
-      setError(e?.message ?? "No se pudo salir del grupo");
+      setError(e?.message ?? "No se pudo salir de la comunidad");
     }
   }
 
-  const isLoading = authLoading || groupsLoading;
+  const isLoading = authLoading || communitiesLoading || profilesLoading;
+  const hasSearch = normalizedSearch.length > 0;
+  const hasAnyResults =
+    filteredCommunities.length > 0 || filteredProfiles.length > 0;
 
   return (
     <main style={pageWrap}>
@@ -274,61 +360,48 @@ export default function GroupsHome() {
           width: 100%;
         }
 
-        .search-toolbar {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          gap: 10px;
-          align-items: center;
+        .search-area {
+          position: relative;
+          z-index: 20;
         }
 
-        .search-input {
-          width: 100%;
-          height: 46px;
-          padding: 0 14px;
-          border-radius: 14px;
-          border: ${fieldBorder};
-          background: ${fieldBg};
-          color: #fff;
-          outline: none;
-          font-size: 14px;
-          box-sizing: border-box;
-          transition: border-color 0.18s ease, background 0.18s ease;
-        }
-
-        .search-input:focus {
-          border-color: rgba(255, 255, 255, 0.28);
-          background: ${fieldBgFocus};
-        }
-
-        .create-btn {
-          height: 46px;
-          padding: 0 16px;
-          border-radius: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.22);
-          background: #fff;
-          color: #000;
-          cursor: pointer;
-          font-weight: 600;
-          font-size: 14px;
-          font-family: ${fontStack};
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          white-space: nowrap;
-          flex-shrink: 0;
-        }
-
-        .create-btn-mobile-text {
-          display: none;
-        }
-
-        .helper-card {
-          margin-top: 16px;
-          padding: 16px;
-          border-radius: 18px;
+        .search-dropdown {
+          margin-top: 10px;
           border: ${cardBorder};
-          background: rgba(255, 255, 255, 0.03);
+          border-radius: 20px;
+          background: rgba(12, 12, 12, 0.97);
+          box-shadow: ${shadow};
+          overflow: hidden;
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+        }
+
+        .search-dropdown-inner {
+          max-height: min(62vh, 560px);
+          overflow-y: auto;
+        }
+
+        .dropdown-section {
+          display: grid;
+        }
+
+        .dropdown-section + .dropdown-section {
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .dropdown-title {
+          margin: 0;
+          padding: 14px 16px 10px;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          color: rgba(255, 255, 255, 0.58);
+          background: rgba(255, 255, 255, 0.02);
+        }
+
+        .dropdown-helper {
+          padding: 16px;
           color: rgba(255, 255, 255, 0.76);
           font-size: 14px;
           line-height: 1.45;
@@ -345,73 +418,65 @@ export default function GroupsHome() {
           line-height: 1.45;
         }
 
-        .results-wrap {
+        .feed-wrap {
           margin-top: 16px;
-          display: grid;
-          gap: 12px;
         }
 
-        .group-card {
-          padding: 15px;
-          border: ${cardBorder};
-          border-radius: 18px;
-          cursor: pointer;
-          background: ${surface};
-          box-shadow: ${shadow};
-          transition: transform 0.16s ease, border-color 0.16s ease,
-            background 0.16s ease;
+        .result-item {
+          padding: 14px 16px;
+          transition: background 0.16s ease;
         }
 
-        .group-card:hover {
-          transform: translateY(-1px);
-          border-color: rgba(255, 255, 255, 0.22);
+        .result-item:hover {
+          background: rgba(255, 255, 255, 0.035);
         }
 
-        .group-row {
+        .result-grid {
           display: grid;
           grid-template-columns: auto minmax(0, 1fr) auto;
           gap: 12px;
           align-items: center;
         }
 
-        .group-avatar {
-          width: 46px;
-          height: 46px;
+        .result-main-mobile {
+          display: contents;
+        }
+
+        .result-avatar {
+          width: 48px;
+          height: 48px;
           border-radius: 50%;
           overflow: hidden;
-          border: 1px solid rgba(255, 255, 255, 0.16);
+          border: 1px solid rgba(255, 255, 255, 0.14);
           background: rgba(255, 255, 255, 0.04);
           display: grid;
           place-items: center;
           flex-shrink: 0;
         }
 
-        .group-main {
+        .result-avatar-fallback {
+          font-size: 13px;
+          font-weight: 700;
+          color: #fff;
+        }
+
+        .result-content {
           min-width: 0;
+          display: grid;
+          gap: 7px;
         }
 
-        .group-main-wrap {
-          display: contents;
-        }
-
-        .group-name-row {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          flex-wrap: wrap;
-          min-width: 0;
-        }
-
-        .group-name {
-          font-size: 16px;
+        .result-name {
+          margin: 0;
+          font-size: 15px;
           font-weight: 600;
           line-height: 1.2;
           color: #fff;
+          overflow-wrap: anywhere;
           word-break: break-word;
         }
 
-        .group-meta {
-          margin-top: 7px;
+        .result-meta {
           display: flex;
           align-items: center;
           gap: 8px;
@@ -422,30 +487,52 @@ export default function GroupsHome() {
           font-size: 12px;
           padding: 4px 9px;
           border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.16);
+          border: 1px solid rgba(255, 255, 255, 0.14);
           background: rgba(255, 255, 255, 0.05);
+          color: rgba(255, 255, 255, 0.88);
           line-height: 1.2;
           white-space: nowrap;
         }
 
         .pill-paid {
-          border: 1px solid rgba(255, 225, 166, 0.28);
+          border: 1px solid rgba(255, 225, 166, 0.26);
           background: rgba(255, 225, 166, 0.1);
           font-weight: 600;
         }
 
-        .status-inline {
+        .meta-inline {
           font-size: 12px;
-          color: rgba(255, 255, 255, 0.58);
+          color: rgba(255, 255, 255, 0.56);
           line-height: 1.3;
         }
 
-        .group-actions {
+        .meta-danger {
+          color: rgba(255, 176, 176, 0.9);
+        }
+
+        .actions-wrap {
           display: flex;
           align-items: center;
           justify-content: flex-end;
           gap: 8px;
           flex-wrap: wrap;
+        }
+
+        .primary-btn {
+          min-height: 38px;
+          padding: 8px 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.22);
+          background: #fff;
+          color: #000;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 13px;
+          font-family: ${fontStack};
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          white-space: nowrap;
         }
 
         .secondary-btn {
@@ -459,6 +546,7 @@ export default function GroupsHome() {
           font-weight: 600;
           font-size: 13px;
           font-family: ${fontStack};
+          white-space: nowrap;
         }
 
         .disabled-btn {
@@ -467,247 +555,334 @@ export default function GroupsHome() {
           border-radius: 12px;
           border: 1px solid rgba(255, 255, 255, 0.14);
           background: rgba(255, 255, 255, 0.05);
-          color: rgba(255, 255, 255, 0.72);
+          color: rgba(255, 255, 255, 0.68);
           font-weight: 600;
           font-size: 13px;
           font-family: ${fontStack};
           cursor: default;
+          white-space: nowrap;
+        }
+
+        .profile-cta {
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.52);
+          white-space: nowrap;
         }
 
         @media (max-width: 640px) {
-          .search-toolbar {
-            grid-template-columns: minmax(0, 1fr) 46px;
-            gap: 8px;
-          }
-
-          .create-btn {
-            width: 46px;
-            min-width: 46px;
-            padding: 0;
-            border-radius: 14px;
-            font-size: 20px;
-            line-height: 1;
-          }
-
-          .create-btn-desktop-text {
-            display: none;
-          }
-
-          .create-btn-mobile-text {
-            display: inline;
-          }
-
-          .group-card {
-            padding: 14px 12px;
+          .search-dropdown {
+            margin-top: 8px;
             border-radius: 18px;
           }
 
-          .group-row {
-            grid-template-columns: 1fr;
-            align-items: stretch;
-            gap: 12px;
+          .search-dropdown-inner {
+            max-height: min(58vh, 460px);
           }
 
-          .group-main-wrap {
+          .dropdown-title {
+            padding: 12px 14px 9px;
+            font-size: 11px;
+          }
+
+          .result-item {
+            padding: 13px 14px;
+          }
+
+          .result-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+            align-items: stretch;
+          }
+
+          .result-main-mobile {
             display: flex;
             gap: 12px;
             align-items: flex-start;
             min-width: 0;
           }
 
-          .group-avatar {
+          .result-avatar {
             width: 44px;
             height: 44px;
           }
 
-          .group-actions {
+          .result-content {
+            min-width: 0;
+            flex: 1;
+          }
+
+          .result-name {
+            font-size: 14px;
+          }
+
+          .actions-wrap {
             width: 100%;
             justify-content: stretch;
           }
 
-          .group-actions > button {
+          .actions-wrap > button {
             flex: 1 1 auto;
           }
 
+          .primary-btn,
           .secondary-btn,
           .disabled-btn {
             min-height: 40px;
+          }
+
+          .profile-cta {
+            display: none;
           }
         }
       `}</style>
 
       <div style={container} className="home-shell">
-        <HomePostsFeed currentUserId={user?.uid ?? null} />
-
-        <div className="search-toolbar">
-          <input
-            placeholder="Buscar grupo o perfil por nombre..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="search-input"
+        <div className="search-area">
+          <GroupsSearchToolbar
+            search={search}
+            onSearchChange={setSearch}
+            onCreateGroup={() => router.push("/groups/new")}
+            fontStack={fontStack}
           />
 
-          <button
-            onClick={() => router.push("/groups/new")}
-            className="create-btn"
-            aria-label="Crear grupo"
-            title="Crear grupo"
-          >
-            <span className="create-btn-mobile-text">+</span>
-            <span className="create-btn-desktop-text">+ Crear grupo</span>
-          </button>
+          {hasSearch && (
+            <div className="search-dropdown">
+              <div className="search-dropdown-inner">
+                {isLoading && (
+                  <div className="dropdown-helper">
+                    Buscando comunidades y perfiles...
+                  </div>
+                )}
+
+                {!isLoading && !hasAnyResults && (
+                  <div className="dropdown-helper">
+                    No se encontraron comunidades ni perfiles con ese nombre.
+                  </div>
+                )}
+
+                {!isLoading && filteredCommunities.length > 0 && (
+                  <section className="dropdown-section">
+                    <h2 className="dropdown-title">Comunidades</h2>
+
+                    {filteredCommunities.map((g) => {
+                      const isOwner = !!user && !!g.ownerId && g.ownerId === user.uid;
+                      const membershipStatus = isOwner
+                        ? "active"
+                        : memberMap[g.id] ?? null;
+
+                      const isMember = isOwner || isJoinedStatus(membershipStatus);
+                      const isBlocked = !isOwner && isBlockedStatus(membershipStatus);
+
+                      const isPrivate = g.visibility === "private";
+                      const isPublic = g.visibility === "public";
+                      const hasPendingReq = !!reqMap[g.id];
+
+                      const visLabel =
+                        g.visibility === "public"
+                          ? "Comunidad pública"
+                          : g.visibility === "private"
+                          ? "Comunidad privada"
+                          : "Comunidad oculta";
+
+                      const paid = !!g.monetization?.isPaid;
+                      const price = g.monetization?.priceMonthly ?? null;
+                      const cur = g.monetization?.currency ?? null;
+
+                      return (
+                        <div
+                          key={g.id}
+                          className="result-item"
+                          onClick={() => router.push(`/groups/${g.id}`)}
+                        >
+                          <div className="result-grid">
+                            <div className="result-main-mobile">
+                              <div className="result-avatar">
+                                {g.avatarUrl ? (
+                                  <img
+                                    src={g.avatarUrl}
+                                    alt={g.name ?? "Comunidad"}
+                                    style={{
+                                      width: "100%",
+                                      height: "100%",
+                                      objectFit: "cover",
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="result-avatar-fallback">
+                                    {initialsFromName(g.name ?? "Comunidad")}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="result-content">
+                                <h3 className="result-name">
+                                  {g.name ?? "(sin nombre)"}
+                                </h3>
+
+                                <div className="result-meta">
+                                  <span className="pill">{visLabel}</span>
+
+                                  {paid && (
+                                    <span className="pill pill-paid">
+                                      Con suscripción
+                                      {price != null ? ` · ${price} ${cur ?? ""}` : ""}
+                                    </span>
+                                  )}
+
+                                  {isOwner && (
+                                    <span className="meta-inline">(Eres owner)</span>
+                                  )}
+
+                                  {!isOwner && isMember && (
+                                    <span className="meta-inline">
+                                      ({membershipStatusLabel(membershipStatus)})
+                                    </span>
+                                  )}
+
+                                  {!isOwner && isBlocked && (
+                                    <span className="meta-inline meta-danger">
+                                      ({membershipStatusLabel(membershipStatus)})
+                                    </span>
+                                  )}
+
+                                  {!isOwner &&
+                                    !isMember &&
+                                    !isBlocked &&
+                                    isPrivate &&
+                                    hasPendingReq && (
+                                      <span className="meta-inline">(Pendiente)</span>
+                                    )}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div
+                              className="actions-wrap"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {!isOwner && !isMember && !isBlocked && isPublic && (
+                                <button
+                                  onClick={() => handleJoinPublic(g.id)}
+                                  className="primary-btn"
+                                  type="button"
+                                >
+                                  Unirme
+                                </button>
+                              )}
+
+                              {!isOwner && !isMember && !isBlocked && isPrivate && (
+                                <>
+                                  {!hasPendingReq ? (
+                                    <button
+                                      onClick={() => handleRequestPrivate(g.id)}
+                                      className="secondary-btn"
+                                      type="button"
+                                    >
+                                      Solicitar acceso
+                                    </button>
+                                  ) : (
+                                    <>
+                                      <button
+                                        disabled
+                                        className="disabled-btn"
+                                        type="button"
+                                      >
+                                        Solicitud enviada
+                                      </button>
+
+                                      <button
+                                        onClick={() => handleCancelRequest(g.id)}
+                                        className="secondary-btn"
+                                        type="button"
+                                      >
+                                        Cancelar
+                                      </button>
+                                    </>
+                                  )}
+                                </>
+                              )}
+
+                              {isMember && !isOwner && (
+                                <button
+                                  onClick={() => handleLeave(g.id, g.ownerId)}
+                                  className="secondary-btn"
+                                  type="button"
+                                >
+                                  Salir
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </section>
+                )}
+
+                {!isLoading && filteredProfiles.length > 0 && (
+                  <section className="dropdown-section">
+                    <h2 className="dropdown-title">Perfiles</h2>
+
+                    {filteredProfiles.map((p) => {
+                      const fullName =
+                        p.displayName?.trim() ||
+                        `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() ||
+                        p.handle ||
+                        "Usuario";
+
+                      return (
+                        <div
+                          key={p.uid}
+                          className="result-item"
+                          onClick={() => router.push(`/u/${p.handle}`)}
+                        >
+                          <div className="result-grid">
+                            <div className="result-main-mobile">
+                              <div className="result-avatar">
+                                {p.photoURL ? (
+                                  <img
+                                    src={p.photoURL}
+                                    alt={fullName}
+                                    style={{
+                                      width: "100%",
+                                      height: "100%",
+                                      objectFit: "cover",
+                                    }}
+                                  />
+                                ) : (
+                                  <span className="result-avatar-fallback">
+                                    {initialsFromName(fullName)}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="result-content">
+                                <h3 className="result-name">{fullName}</h3>
+
+                                <div className="result-meta">
+                                  <span className="pill">@{p.handle}</span>
+                                  <span className="meta-inline">Ver perfil público</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="profile-cta">Abrir</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </section>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {error && <div className="error-card">{error}</div>}
 
-        {!error && !normalizedSearch && (
-          <div className="helper-card">
-            Escribe el nombre de un grupo para ver resultados.
-          </div>
-        )}
-
-        {!error && normalizedSearch && isLoading && (
-          <div className="helper-card">Buscando grupos...</div>
-        )}
-
-        {!error && normalizedSearch && !isLoading && filteredGroups.length === 0 && (
-          <div className="helper-card">
-            No se encontraron grupos con ese nombre.
-          </div>
-        )}
-
-        {!isLoading && !error && filteredGroups.length > 0 && (
-          <div className="results-wrap">
-            {filteredGroups.map((g) => {
-              const isOwner = !!user && !!g.ownerId && g.ownerId === user.uid;
-              const isMember = isOwner || !!memberMap[g.id];
-
-              const isPrivate = g.visibility === "private";
-              const isPublic = g.visibility === "public";
-              const hasPendingReq = !!reqMap[g.id];
-
-              const paid = !!g.monetization?.isPaid;
-              const price = g.monetization?.priceMonthly ?? null;
-              const cur = g.monetization?.currency ?? null;
-
-              const visLabel =
-                g.visibility === "public"
-                  ? "Grupo público"
-                  : g.visibility === "private"
-                  ? "Grupo privado"
-                  : "Grupo oculto";
-
-              return (
-                <div
-                  key={g.id}
-                  onClick={() => router.push(`/groups/${g.id}`)}
-                  className="group-card"
-                >
-                  <div className="group-row">
-                    <div className="group-main-wrap">
-                      <div className="group-avatar">
-                        {g.avatarUrl ? (
-                          <img
-                            src={g.avatarUrl}
-                            alt="avatar"
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover",
-                            }}
-                          />
-                        ) : null}
-                      </div>
-
-                      <div className="group-main">
-                        <div className="group-name-row">
-                          <span className="group-name">
-                            {g.name ?? "(sin nombre)"}
-                          </span>
-                        </div>
-
-                        <div className="group-meta">
-                          <span className="pill">{visLabel}</span>
-
-                          {paid && (
-                            <span className="pill pill-paid">
-                              Con suscripción
-                              {price != null ? ` · ${price} ${cur ?? ""}` : ""}
-                            </span>
-                          )}
-
-                          {isOwner && (
-                            <span className="status-inline">(Eres owner)</span>
-                          )}
-
-                          {!isOwner && isMember && (
-                            <span className="status-inline">
-                              (Ya estás unido)
-                            </span>
-                          )}
-
-                          {!isOwner && !isMember && isPrivate && hasPendingReq && (
-                            <span className="status-inline">(Pendiente)</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div
-                      className="group-actions"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {!isOwner && !isMember && isPublic && (
-                        <button
-                          onClick={() => handleJoinPublic(g.id)}
-                          className="create-btn"
-                          style={{ height: 38, padding: "0 12px", fontSize: 13 }}
-                        >
-                          Unirme
-                        </button>
-                      )}
-
-                      {!isOwner && !isMember && isPrivate && (
-                        <>
-                          {!hasPendingReq ? (
-                            <button
-                              onClick={() => handleRequestPrivate(g.id)}
-                              className="secondary-btn"
-                            >
-                              Solicitar acceso
-                            </button>
-                          ) : (
-                            <>
-                              <button disabled className="disabled-btn">
-                                Solicitud enviada
-                              </button>
-
-                              <button
-                                onClick={() => handleCancelRequest(g.id)}
-                                className="secondary-btn"
-                              >
-                                Cancelar
-                              </button>
-                            </>
-                          )}
-                        </>
-                      )}
-
-                      {isMember && !isOwner && (
-                        <button
-                          onClick={() => handleLeave(g.id, g.ownerId)}
-                          className="secondary-btn"
-                        >
-                          Salir
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <div className="feed-wrap">
+          <HomePostsFeed currentUserId={user?.uid ?? null} />
+        </div>
       </div>
     </main>
   );

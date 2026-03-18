@@ -42,14 +42,7 @@ type GroupLookup = {
   visibility: GroupVisibility | null;
 };
 
-type GroupMemberStatus =
-  | "active"
-  | "muted"
-  | "banned"
-  | "removed"
-  | "kicked"
-  | "expelled"
-  | null;
+type GroupMemberStatus = "active" | "muted" | "banned" | "removed" | null;
 
 function pickString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0
@@ -123,8 +116,10 @@ function resolveEffectiveMembershipStatus(
 
   if (status === "banned") return "banned";
   if (status === "removed") return "removed";
-  if (status === "kicked") return "kicked";
-  if (status === "expelled") return "expelled";
+
+  // Compatibilidad legacy temporal
+  if (status === "kicked") return "removed";
+  if (status === "expelled") return "removed";
 
   if (status === "muted") {
     const until = getTimestampDate(mutedUntil);
@@ -137,10 +132,6 @@ function resolveEffectiveMembershipStatus(
   if (status === "active") return "active";
 
   return "active";
-}
-
-function isReadableMembershipStatus(status: GroupMemberStatus) {
-  return status === "active" || status === "muted";
 }
 
 async function getCurrentAuthorSnapshot(): Promise<AuthorSnapshot> {
@@ -212,6 +203,7 @@ async function fetchUsersByIds(
         }
 
         const data = snap.data() as Record<string, unknown>;
+
         return [
           uid,
           {
@@ -258,6 +250,7 @@ async function fetchGroupsByIds(
         }
 
         const data = snap.data() as Record<string, unknown>;
+
         return [
           groupId,
           {
@@ -303,6 +296,7 @@ function hydrateComment(
   userMap: Record<string, UserProfileLookup>
 ): Comment {
   const profile = userMap[raw.authorId];
+
   return {
     ...raw,
     authorName:
@@ -343,9 +337,7 @@ async function fetchMemberGroupIds(userUid: string): Promise<string[]> {
         const memberRef = doc(db, "groups", group.id, "members", userUid);
         const memberSnap = await getDoc(memberRef);
 
-        if (!memberSnap.exists()) {
-          return null;
-        }
+        if (!memberSnap.exists()) return null;
 
         const memberData = memberSnap.data() as Record<string, unknown>;
         const status = resolveEffectiveMembershipStatus(
@@ -353,7 +345,7 @@ async function fetchMemberGroupIds(userUid: string): Promise<string[]> {
           memberData.mutedUntil
         );
 
-        return isReadableMembershipStatus(status) ? group.id : null;
+        return status === "active" || status === "muted" ? group.id : null;
       } catch {
         return null;
       }
@@ -447,19 +439,15 @@ async function ensureUserCanWriteInGroup(groupId: string, userUid: string) {
     );
   }
 
-  if (status === "muted") {
+  if (status === "removed") {
     throw new Error(
-      "No puedes realizar esta acción porque estás muteado en este grupo."
+      "No puedes realizar esta acción porque ya no perteneces a este grupo."
     );
   }
 
-  if (
-    status === "removed" ||
-    status === "kicked" ||
-    status === "expelled"
-  ) {
+  if (status === "muted") {
     throw new Error(
-      "Ya no perteneces a este grupo y no puedes realizar esta acción."
+      "No puedes realizar esta acción porque estás muteado en este grupo."
     );
   }
 }
@@ -620,7 +608,6 @@ export async function createPostComment(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
-
   const postRef = doc(db, "posts", params.postId);
   const postSnap = await getDoc(postRef);
 
@@ -666,15 +653,9 @@ export async function deletePostComment(params: {
   assertValidId(params.commentId, "commentId");
 
   const postRef = doc(db, "posts", params.postId);
-  const commentRef = doc(
-    db,
-    "posts",
-    params.postId,
-    "comments",
-    params.commentId
-  );
-
+  const commentRef = doc(db, "posts", params.postId, "comments", params.commentId);
   const commentSnap = await getDoc(commentRef);
+
   if (!commentSnap.exists()) {
     return;
   }

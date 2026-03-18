@@ -50,6 +50,7 @@ async function getOwnedGroupOrThrow(groupId: string, ownerUid: string) {
   }
 
   const data = groupSnap.data() as any;
+
   if (data?.ownerId !== ownerUid) {
     throw new HttpsError(
       "permission-denied",
@@ -298,7 +299,6 @@ export const cleanupExpiredGroupMutes = onSchedule(
       });
 
       await batch.commit();
-
       totalUpdated += snap.size;
       lastDoc = snap.docs[snap.docs.length - 1];
 

@@ -56,6 +56,7 @@ type FilterValue =
   | "active"
   | "muted"
   | "banned"
+  | "removed"
   | "mod"
   | "member";
 
@@ -71,13 +72,7 @@ type MenuPosition = {
   left: number;
 };
 
-type EffectiveMemberStatus =
-  | "active"
-  | "muted"
-  | "banned"
-  | "removed"
-  | "kicked"
-  | "expelled";
+type CanonicalMemberStatus = "active" | "muted" | "banned" | "removed";
 
 function normalizeRole(role?: string) {
   if (role === "owner") return "owner";
@@ -109,11 +104,13 @@ function getMutedUntilDate(mutedUntil?: any): Date | null {
 function resolveEffectiveStatus(
   status?: string,
   mutedUntil?: any
-): EffectiveMemberStatus {
+): CanonicalMemberStatus {
   if (status === "banned") return "banned";
   if (status === "removed") return "removed";
-  if (status === "kicked") return "kicked";
-  if (status === "expelled") return "expelled";
+
+  // Compatibilidad legacy temporal
+  if (status === "kicked") return "removed";
+  if (status === "expelled") return "removed";
 
   if (status === "muted") {
     const until = getMutedUntilDate(mutedUntil);
@@ -124,14 +121,6 @@ function resolveEffectiveStatus(
   }
 
   return "active";
-}
-
-function isExcludedMemberStatus(status: EffectiveMemberStatus) {
-  return (
-    status === "removed" ||
-    status === "kicked" ||
-    status === "expelled"
-  );
 }
 
 function getRemainingMutedDaysLabel(mutedUntil?: any) {
@@ -161,19 +150,14 @@ function friendlyStatus(status?: string, mutedUntil?: any) {
 
   if (normalized === "banned") return "Baneado";
   if (normalized === "removed") return "Expulsado";
-  if (normalized === "kicked") return "Expulsado";
-  if (normalized === "expelled") return "Expulsado";
-
   return "Activo";
 }
 
 function statusDotColor(status?: string, mutedUntil?: any) {
   const normalized = resolveEffectiveStatus(status, mutedUntil);
   if (normalized === "banned") return "#ff4d4f";
+  if (normalized === "removed") return "#b91c1c";
   if (normalized === "muted") return "#f5a623";
-  if (normalized === "removed") return "#9ca3af";
-  if (normalized === "kicked") return "#9ca3af";
-  if (normalized === "expelled") return "#9ca3af";
   return "#22c55e";
 }
 
@@ -351,7 +335,6 @@ export default function GroupMembersTab({
           const enriched = await Promise.all(
             rawMembers.map(async (member) => {
               const resolvedUid = member.uid || member.userId || member.id;
-
               let displayName: string | null = null;
               let handle: string | null = null;
               let photoURL: string | null = null;
@@ -427,11 +410,6 @@ export default function GroupMembersTab({
         if (role === "owner") return false;
 
         const status = resolveEffectiveStatus(member.status, member.mutedUntil);
-
-        if (isExcludedMemberStatus(status)) {
-          return false;
-        }
-
         const name = memberPrimaryName(member).toLowerCase();
         const handle = (member.handle || "").toLowerCase();
 
@@ -443,7 +421,8 @@ export default function GroupMembersTab({
             ? true
             : filter === "active" ||
               filter === "muted" ||
-              filter === "banned"
+              filter === "banned" ||
+              filter === "removed"
             ? status === filter
             : role === filter;
 
@@ -458,6 +437,7 @@ export default function GroupMembersTab({
 
         const aw = roleWeight(a.roleInGroup || a.role);
         const bw = roleWeight(b.roleInGroup || b.role);
+
         if (aw !== bw) return aw - bw;
 
         const an = memberPrimaryName(a).toLowerCase();
@@ -496,9 +476,6 @@ export default function GroupMembersTab({
     const role = normalizeRole(member.roleInGroup || member.role);
     if (role === "owner") return false;
 
-    const status = resolveEffectiveStatus(member.status, member.mutedUntil);
-    if (isExcludedMemberStatus(status)) return false;
-
     return true;
   }
 
@@ -507,6 +484,10 @@ export default function GroupMembersTab({
 
     if (status === "banned") {
       return ["unban"];
+    }
+
+    if (status === "removed") {
+      return [];
     }
 
     if (status === "muted") {
@@ -591,9 +572,7 @@ export default function GroupMembersTab({
     try {
       await muteGroupMember(groupId, muteTarget.resolvedUid, durationDays);
       setActionMessage(
-        `Mutear aplicado a ${memberPrimaryName(
-          muteTarget
-        )} durante ${durationDays} día(s).`
+        `Mutear aplicado a ${memberPrimaryName(muteTarget)} durante ${durationDays} día(s).`
       );
       closeMuteModal();
     } catch (e: any) {
@@ -1067,6 +1046,9 @@ export default function GroupMembersTab({
               <option value="banned" style={{ background: "#141414", color: "#fff" }}>
                 Baneados
               </option>
+              <option value="removed" style={{ background: "#141414", color: "#fff" }}>
+                Expulsados
+              </option>
               <option value="mod" style={{ background: "#141414", color: "#fff" }}>
                 Moderadores
               </option>
@@ -1108,6 +1090,7 @@ export default function GroupMembersTab({
               const canModerate = canModerateMember(member);
               const menuOpen = openMenuForUid === member.resolvedUid;
               const isProcessing = actionLoadingForUid === member.resolvedUid;
+              const actions = getAvailableActions(member);
 
               return (
                 <div key={member.id} style={rowStyle}>
@@ -1183,7 +1166,7 @@ export default function GroupMembersTab({
 
                     <div style={roleBadge}>{roleText}</div>
 
-                    {canModerate && (
+                    {canModerate && actions.length > 0 && (
                       <div style={{ position: "relative", overflow: "visible" }}>
                         <button
                           ref={(el) => {
