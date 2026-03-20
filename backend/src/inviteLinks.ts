@@ -111,15 +111,15 @@ export const createInviteLink = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "groupId es requerido.");
   }
 
-  if (
+    if (
     Number.isNaN(expiresInHoursRaw) ||
     !Number.isFinite(expiresInHoursRaw) ||
-    expiresInHoursRaw < 1 ||
+    expiresInHoursRaw < 1 / 60 ||
     expiresInHoursRaw > 24 * 30
   ) {
     throw new HttpsError(
       "invalid-argument",
-      "expiresInHours debe estar entre 1 y 720."
+      "expiresInHours debe estar entre 1 minuto y 720 horas."
     );
   }
 
