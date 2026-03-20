@@ -15,6 +15,7 @@ import {
   type DocumentData,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
 import type { Comment, GroupVisibility, Post } from "./types";
 
 type AuthorSnapshot = {
@@ -54,14 +55,6 @@ function assertValidId(value: string, label: string) {
   if (!value || !value.trim()) {
     throw new Error(`Falta ${label}.`);
   }
-}
-
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-  return chunks;
 }
 
 function normalizeGroupVisibility(value: unknown): GroupVisibility | null {
@@ -117,7 +110,6 @@ function resolveEffectiveMembershipStatus(
   if (status === "banned") return "banned";
   if (status === "removed") return "removed";
 
-  // Compatibilidad legacy temporal
   if (status === "kicked") return "removed";
   if (status === "expelled") return "removed";
 
@@ -355,13 +347,30 @@ async function fetchMemberGroupIds(userUid: string): Promise<string[]> {
   return checks.filter((id): id is string => !!id);
 }
 
+async function fetchHiddenMemberGroupIds(userUid: string): Promise<string[]> {
+  try {
+    if (!userUid.trim()) return [];
+
+    const rows = await getMyHiddenJoinedGroups();
+
+    return rows
+      .map((row) => (typeof row.id === "string" ? row.id.trim() : ""))
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 async function fetchAccessibleGroupIds(userUid: string): Promise<string[]> {
-  const [ownedIds, memberIds] = await Promise.all([
+  const [ownedIds, memberIds, hiddenMemberIds] = await Promise.all([
     fetchOwnedGroupIds(userUid),
     fetchMemberGroupIds(userUid),
+    fetchHiddenMemberGroupIds(userUid),
   ]);
 
-  return Array.from(new Set([...ownedIds, ...memberIds]));
+  return Array.from(
+    new Set([...ownedIds, ...memberIds, ...hiddenMemberIds])
+  );
 }
 
 async function fetchPostsByAccessibleGroups(groupIds: string[]): Promise<Post[]> {
@@ -369,28 +378,30 @@ async function fetchPostsByAccessibleGroups(groupIds: string[]): Promise<Post[]>
     return [];
   }
 
-  const chunks = chunkArray(groupIds, 10);
+  const perGroupResults = await Promise.all(
+    groupIds.map(async (groupId) => {
+      try {
+        const snap = await getDocs(
+          query(
+            collection(db, "posts"),
+            where("groupId", "==", groupId),
+            where("isDeleted", "==", false),
+            orderBy("createdAt", "desc"),
+            limit(50)
+          )
+        );
 
-  const snaps = await Promise.all(
-    chunks.map((ids) =>
-      getDocs(
-        query(
-          collection(db, "posts"),
-          where("groupId", "in", ids),
-          where("isDeleted", "==", false),
-          orderBy("createdAt", "desc"),
-          limit(50)
-        )
-      )
-    )
+        return snap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<Post, "id">),
+        })) as Post[];
+      } catch {
+        return [] as Post[];
+      }
+    })
   );
 
-  const rawPosts: Post[] = snaps.flatMap((snap) =>
-    snap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<Post, "id">),
-    }))
-  );
+  const rawPosts = perGroupResults.flat();
 
   const deduped = Array.from(
     new Map(rawPosts.map((post) => [post.id, post])).values()

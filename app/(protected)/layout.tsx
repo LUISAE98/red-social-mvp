@@ -195,7 +195,7 @@ function AuthenticatedProfileShell({
 
         <div className="contentArea">
           <div className="sidebarCol">
-            <OwnerSidebar />
+             <OwnerSidebar /> 
           </div>
 
           <main className="mainCol">{children}</main>

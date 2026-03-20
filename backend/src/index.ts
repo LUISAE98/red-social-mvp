@@ -24,8 +24,20 @@ export const healthcheck = onRequest(
 // Join requests
 export { approveJoinRequest, rejectJoinRequest } from "./joinRequests";
 
+// Invite links
+export {
+  createInviteLink,
+  getInviteLinkPreview,
+  consumeInviteLink,
+} from "./inviteLinks";
+// Sidebar groups
+export { getMyHiddenJoinedGroups } from "./sidebarGroups";
+
 // Greeting requests
-export { createGreetingRequest, respondGreetingRequest } from "./greetingRequests";
+export {
+  createGreetingRequest,
+  respondGreetingRequest,
+} from "./greetingRequests";
 
 // Group moderation
 export {

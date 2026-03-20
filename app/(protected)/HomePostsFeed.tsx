@@ -228,15 +228,28 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
       return;
     }
 
+    console.log("[HomePostsFeed] loadPosts start", { currentUserId });
+
     const nextPosts = await fetchHomePosts(currentUserId);
+    console.log("[HomePostsFeed] fetchHomePosts ok", {
+      count: nextPosts.length,
+    });
+
     const visiblePosts = await filterOutHiddenHomePosts(
       nextPosts,
       currentUserId
     );
+    console.log("[HomePostsFeed] filterOutHiddenHomePosts ok", {
+      count: visiblePosts.length,
+    });
+
     const hydratedPosts = await attachModerationFlags(
       visiblePosts,
       currentUserId
     );
+    console.log("[HomePostsFeed] attachModerationFlags ok", {
+      count: hydratedPosts.length,
+    });
 
     setPosts(hydratedPosts);
   }
@@ -257,19 +270,33 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
         setLoadingInitial(true);
         setError(null);
 
+        console.log("[HomePostsFeed] initial run start", { currentUserId });
+
         const nextPosts = await fetchHomePosts(currentUserId);
+        console.log("[HomePostsFeed] fetchHomePosts ok", {
+          count: nextPosts.length,
+        });
+
         const visiblePosts = await filterOutHiddenHomePosts(
           nextPosts,
           currentUserId
         );
+        console.log("[HomePostsFeed] filterOutHiddenHomePosts ok", {
+          count: visiblePosts.length,
+        });
+
         const hydratedPosts = await attachModerationFlags(
           visiblePosts,
           currentUserId
         );
+        console.log("[HomePostsFeed] attachModerationFlags ok", {
+          count: hydratedPosts.length,
+        });
 
         if (!active) return;
         setPosts(hydratedPosts);
       } catch (e: any) {
+        console.error("[HomePostsFeed] load error", e);
         if (!active) return;
         setError(e?.message ?? "Error desconocido");
       } finally {

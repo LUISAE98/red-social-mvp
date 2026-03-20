@@ -204,7 +204,7 @@ export default function ProtectedShell({
 
         <div className="contentArea">
           <div className="sidebarCol">
-            <OwnerSidebar />
+            <OwnerSidebar /> 
           </div>
 
           <main className="mainCol">{children}</main>

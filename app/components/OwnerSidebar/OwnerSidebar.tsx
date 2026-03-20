@@ -31,6 +31,7 @@ import {
   approveJoinRequest,
   rejectJoinRequest,
 } from "@/lib/groups/joinRequests.admin";
+import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 
 import OwnerSidebarTabNav from "./OwnerSidebarTabNav";
@@ -232,7 +233,6 @@ function normalizeSidebarMemberStatus(raw: unknown): SidebarMemberStatus {
   if (raw === "active") return "active";
   if (raw === "removed") return "removed";
 
-  // Compatibilidad legacy temporal
   if (raw === "kicked") return "removed";
   if (raw === "expelled") return "removed";
 
@@ -373,6 +373,9 @@ export default function OwnerSidebar() {
 
   const [myGroups, setMyGroups] = useState<GroupDocLite[]>([]);
   const [joinedGroups, setJoinedGroups] = useState<GroupDocLite[]>([]);
+  const [hiddenJoinedGroups, setHiddenJoinedGroups] = useState<GroupDocLite[]>(
+    []
+  );
   const [browseGroups, setBrowseGroups] = useState<GroupDocLite[]>([]);
   const [pendingJoinRequestsSent, setPendingJoinRequestsSent] = useState<
     OutgoingJoinRequestRow[]
@@ -588,7 +591,7 @@ export default function OwnerSidebar() {
     }
 
     loadCurrentUser();
-  }, [viewer?.uid]);
+  }, [viewer?.uid, pathname]);
 
   useEffect(() => {
     async function loadMyCommunities() {
@@ -764,7 +767,14 @@ export default function OwnerSidebar() {
             }));
 
           const explorable = membershipChecks
-            .filter((x) => !x.isJoined && !x.isExcluded && !x.hasPendingJoin)
+            .filter(
+              (x) =>
+                !x.isJoined &&
+                !x.isExcluded &&
+                !x.hasPendingJoin &&
+                (x.group.visibility === "public" ||
+                  x.group.visibility === "private")
+            )
             .map((x) => x.group);
 
           setJoinedGroups(joined);
@@ -804,6 +814,53 @@ export default function OwnerSidebar() {
     );
 
     return () => unsub();
+  }, [viewer?.uid]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadHiddenJoinedGroups() {
+      if (!viewer?.uid) {
+        setHiddenJoinedGroups([]);
+        return;
+      }
+
+      try {
+        const rows = await getMyHiddenJoinedGroups();
+        if (cancelled) return;
+
+        const groups = rows.map((g) => ({
+          id: g.id,
+          name: g.name ?? undefined,
+          ownerId: g.ownerId ?? undefined,
+          visibility: g.visibility ?? undefined,
+          avatarUrl: g.avatarUrl ?? null,
+          memberStatus: (g.memberStatus ?? null) as SidebarMemberStatus,
+          monetization: g.monetization ?? undefined,
+          offerings: g.offerings ?? [],
+        })) as GroupDocLite[];
+
+        setHiddenJoinedGroups(groups);
+
+        const meta: Record<string, GroupDocLite> = {};
+        groups.forEach((g) => {
+          meta[g.id] = g;
+        });
+
+        setGroupMetaMap((prev) => ({ ...prev, ...meta }));
+      } catch (e: any) {
+  console.error("getMyHiddenJoinedGroups error", e);
+  if (!cancelled) {
+    setHiddenJoinedGroups([]);
+  }
+}
+    }
+
+    loadHiddenJoinedGroups();
+
+    return () => {
+      cancelled = true;
+    };
   }, [viewer?.uid]);
 
   useEffect(() => {
@@ -886,8 +943,10 @@ export default function OwnerSidebar() {
     const unsubIncoming = onSnapshot(
       incomingQ,
       (snap) => {
-        const grouped: Record<string, Array<{ id: string; data: GreetingRequestDoc }>> =
-          {};
+        const grouped: Record<
+          string,
+          Array<{ id: string; data: GreetingRequestDoc }>
+        > = {};
 
         snap.docs.forEach((d) => {
           const data = d.data() as GreetingRequestDoc;
@@ -900,7 +959,9 @@ export default function OwnerSidebar() {
         setGreetingsByGroup(grouped);
       },
       (e: any) => {
-        setGroupsErr(e?.message ?? "No se pudieron cargar solicitudes de saludo.");
+        setGroupsErr(
+          e?.message ?? "No se pudieron cargar solicitudes de saludo."
+        );
         setGreetingsByGroup({});
       }
     );
@@ -1131,7 +1192,9 @@ export default function OwnerSidebar() {
 
     if (
       d.saludoEnabled &&
-      (saludoPriceNum == null || Number.isNaN(saludoPriceNum) || saludoPriceNum < 0)
+      (saludoPriceNum == null ||
+        Number.isNaN(saludoPriceNum) ||
+        saludoPriceNum < 0)
     ) {
       setGroupsErr("❌ Precio inválido para saludos.");
       return;
@@ -1184,8 +1247,10 @@ export default function OwnerSidebar() {
       await updateDoc(doc(db, "groups", groupId), {
         monetization: {
           isPaid: isPublic ? false : d.subscriptionEnabled,
-          priceMonthly: isPublic || !d.subscriptionEnabled ? null : subscriptionPriceNum,
-          currency: isPublic || !d.subscriptionEnabled ? null : d.subscriptionCurrency,
+          priceMonthly:
+            isPublic || !d.subscriptionEnabled ? null : subscriptionPriceNum,
+          currency:
+            isPublic || !d.subscriptionEnabled ? null : d.subscriptionCurrency,
         },
       });
 
@@ -1494,10 +1559,18 @@ export default function OwnerSidebar() {
   }, [myGroups]);
 
   const joinedGrouped = useMemo(() => {
-    const publics = joinedGroups.filter((g) => g.visibility === "public");
-    const privates = joinedGroups.filter((g) => g.visibility === "private");
-    const hiddens = joinedGroups.filter((g) => g.visibility === "hidden");
-    const others = joinedGroups.filter(
+    const mergedMap = new Map<string, GroupDocLite>();
+
+    [...joinedGroups, ...hiddenJoinedGroups].forEach((g) => {
+      mergedMap.set(g.id, g);
+    });
+
+    const allJoined = Array.from(mergedMap.values());
+
+    const publics = allJoined.filter((g) => g.visibility === "public");
+    const privates = allJoined.filter((g) => g.visibility === "private");
+    const hiddens = allJoined.filter((g) => g.visibility === "hidden");
+    const others = allJoined.filter(
       (g) =>
         g.visibility !== "public" &&
         g.visibility !== "private" &&
@@ -1510,7 +1583,7 @@ export default function OwnerSidebar() {
       { key: "hidden", title: visibilitySectionTitle("hidden"), items: hiddens },
       { key: "other", title: visibilitySectionTitle("other"), items: others },
     ].filter((section) => section.items.length > 0);
-  }, [joinedGroups]);
+  }, [joinedGroups, hiddenJoinedGroups]);
 
   const browseGrouped = useMemo(() => {
     const withoutJoined = browseGroups.filter(

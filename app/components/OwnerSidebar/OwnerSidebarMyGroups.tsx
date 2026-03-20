@@ -1,6 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import {
+  buildInviteAbsoluteUrl,
+  createInviteLink,
+} from "@/lib/groups/inviteLinks";
 import type {
   GroupDocLite,
   GroupDraft,
@@ -86,6 +90,89 @@ export default function OwnerSidebarMyGroups({
   joinBusyKey,
   greetingBusyId,
 }: Props) {
+  async function handleCreateInvite(groupId: string) {
+    try {
+      const daysRaw = window.prompt(
+        "¿Cuántos días quieres que dure el link? (0 a 30)",
+        "7"
+      );
+      if (daysRaw === null) return;
+
+      const hoursRaw = window.prompt(
+        "¿Cuántas horas extra? (0 a 23)",
+        "0"
+      );
+      if (hoursRaw === null) return;
+
+      const maxUsesRaw = window.prompt(
+        "Límite de usos (deja vacío para ilimitado)",
+        ""
+      );
+      if (maxUsesRaw === null) return;
+
+      const days = Number(daysRaw);
+      const hours = Number(hoursRaw);
+
+      if (
+        Number.isNaN(days) ||
+        Number.isNaN(hours) ||
+        days < 0 ||
+        days > 30 ||
+        hours < 0 ||
+        hours > 23
+      ) {
+        alert("❌ Vigencia inválida.");
+        return;
+      }
+
+      const totalHours = days * 24 + hours;
+
+      if (totalHours < 1 || totalHours > 720) {
+        alert("❌ La vigencia total debe estar entre 1 y 720 horas.");
+        return;
+      }
+
+      let maxUses: number | null = null;
+
+      if (maxUsesRaw.trim() !== "") {
+        const parsedMaxUses = Number(maxUsesRaw);
+
+        if (
+          Number.isNaN(parsedMaxUses) ||
+          parsedMaxUses < 1 ||
+          parsedMaxUses > 1000
+        ) {
+          alert("❌ El límite de usos debe estar entre 1 y 1000.");
+          return;
+        }
+
+        maxUses = parsedMaxUses;
+      }
+
+      const res = await createInviteLink({
+        groupId,
+        expiresInHours: totalHours,
+        maxUses,
+      });
+
+      const url = buildInviteAbsoluteUrl(res.token);
+
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+        alert(
+          `✅ Link copiado al portapapeles:\n\n${url}\n\nVigencia: ${days} día(s) y ${hours} hora(s)${
+            maxUses ? `\nUsos máximos: ${maxUses}` : "\nUsos máximos: ilimitado"
+          }`
+        );
+        return;
+      }
+
+      alert(`✅ Link generado:\n\n${url}`);
+    } catch (e: any) {
+      alert(e?.message ?? "No se pudo generar el link de invitación.");
+    }
+  }
+
   return (
     <>
       {!loadingGroups && myGroups.length === 0 && (
@@ -112,6 +199,8 @@ export default function OwnerSidebarMyGroups({
             const isOpen = openCommunities[g.id] === true;
             const saving = savingGroupId === g.id;
             const isPublic = g.visibility === "public";
+            const isInviteEligible =
+              g.visibility === "private" || g.visibility === "hidden";
             const joinRequests = joinRequestsByGroup[g.id] ?? [];
             const greetings = greetingsByGroup[g.id] ?? [];
             const communityName = g.name ?? "(Sin nombre)";
@@ -322,6 +411,39 @@ export default function OwnerSidebarMyGroups({
                         gap: 8,
                       }}
                     >
+                      {isInviteEligible && (
+                        <div style={styles.sectionPanel}>
+                          <div style={{ display: "grid", gap: 8 }}>
+                            <div style={{ display: "grid", gap: 2 }}>
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  color: "#fff",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Link de invitación
+                              </span>
+                              <span style={styles.subtle}>
+                                Genera un link con vigencia personalizada y copia
+                                automática al portapapeles.
+                              </span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleCreateInvite(g.id)}
+                              style={{
+                                ...styles.buttonSecondary,
+                                width: "100%",
+                              }}
+                            >
+                              Generar link de invitación
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       {showJoinSection && (
                         <div style={styles.sectionPanel}>
                           <button

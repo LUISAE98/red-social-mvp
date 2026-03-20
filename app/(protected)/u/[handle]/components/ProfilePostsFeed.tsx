@@ -214,9 +214,28 @@ export default function ProfilePostsFeed({
   const [loadingInitial, setLoadingInitial] = useState(true);
 
   async function loadPosts() {
+    console.log("[ProfilePostsFeed] loadPosts start", {
+      profileUid,
+      viewerUid,
+      isOwner,
+      showPosts,
+    });
+
     const nextPosts = await fetchUserProfilePosts(profileUid, viewerUid);
+    console.log("[ProfilePostsFeed] fetchUserProfilePosts ok", {
+      count: nextPosts.length,
+    });
+
     const visiblePosts = await filterBannedGroupPosts(nextPosts, viewerUid);
+    console.log("[ProfilePostsFeed] filterBannedGroupPosts ok", {
+      count: visiblePosts.length,
+    });
+
     const hydratedPosts = await attachModerationFlags(visiblePosts, viewerUid);
+    console.log("[ProfilePostsFeed] attachModerationFlags ok", {
+      count: hydratedPosts.length,
+    });
+
     setPosts(hydratedPosts);
   }
 
@@ -244,13 +263,32 @@ export default function ProfilePostsFeed({
         setLoadingInitial(true);
         setError(null);
 
+        console.log("[ProfilePostsFeed] initial run start", {
+          profileUid,
+          viewerUid,
+          isOwner,
+          showPosts,
+        });
+
         const nextPosts = await fetchUserProfilePosts(profileUid, viewerUid);
+        console.log("[ProfilePostsFeed] fetchUserProfilePosts ok", {
+          count: nextPosts.length,
+        });
+
         const visiblePosts = await filterBannedGroupPosts(nextPosts, viewerUid);
+        console.log("[ProfilePostsFeed] filterBannedGroupPosts ok", {
+          count: visiblePosts.length,
+        });
+
         const hydratedPosts = await attachModerationFlags(visiblePosts, viewerUid);
+        console.log("[ProfilePostsFeed] attachModerationFlags ok", {
+          count: hydratedPosts.length,
+        });
 
         if (!active) return;
         setPosts(hydratedPosts);
       } catch (e: any) {
+        console.error("[ProfilePostsFeed] load error", e);
         if (!active) return;
         setError(e?.message ?? "Error desconocido");
       } finally {
