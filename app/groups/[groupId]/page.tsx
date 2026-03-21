@@ -28,6 +28,8 @@ type MemberStatus =
   | "expelled"
   | null;
 
+type MemberRole = "owner" | "mod" | "member" | null;
+
 type GroupDoc = {
   id: string;
   name?: string;
@@ -82,17 +84,16 @@ function normalizeMemberStatus(raw: unknown): MemberStatus {
   return null;
 }
 
-function isJoinedStatus(status: MemberStatus) {
-  return status === "active" || status === "muted";
+function normalizeMemberRole(raw: unknown): MemberRole {
+  if (raw === "owner") return "owner";
+  if (raw === "mod") return "mod";
+  if (raw === "moderator") return "mod";
+  if (raw === "member") return "member";
+  return null;
 }
 
-function isRestrictedStatus(status: MemberStatus) {
-  return (
-    status === "banned" ||
-    status === "removed" ||
-    status === "kicked" ||
-    status === "expelled"
-  );
+function isJoinedStatus(status: MemberStatus) {
+  return status === "active" || status === "muted";
 }
 
 function dataUrlFromFile(file: File): Promise<string> {
@@ -175,6 +176,7 @@ export default function GroupPage() {
   const [group, setGroup] = useState<GroupDoc | null>(null);
   const [isMember, setIsMember] = useState<boolean>(false);
   const [memberStatus, setMemberStatus] = useState<MemberStatus>(null);
+  const [memberRole, setMemberRole] = useState<MemberRole>(null);
   const [joinReqStatus, setJoinReqStatus] =
     useState<JoinRequestStatus | null>(null);
 
@@ -187,7 +189,14 @@ export default function GroupPage() {
     () => !!user && !!group?.ownerId && group.ownerId === user.uid,
     [user, group]
   );
-  const effectiveIsMember = isOwner || (isMember && isJoinedStatus(memberStatus));
+
+  const isModerator = useMemo(() => {
+    if (isOwner) return false;
+    return memberRole === "mod" && isJoinedStatus(memberStatus);
+  }, [isOwner, memberRole, memberStatus]);
+
+  const effectiveIsMember =
+    isOwner || (isMember && isJoinedStatus(memberStatus));
 
   const [greetOpen, setGreetOpen] = useState(false);
   const [greetType, setGreetType] = useState<GreetingType>("saludo");
@@ -450,13 +459,18 @@ export default function GroupPage() {
           if (!msnap.exists()) {
             setIsMember(false);
             setMemberStatus(null);
+            setMemberRole(null);
             return;
           }
 
           const data = msnap.data() as any;
           const status = normalizeMemberStatus(data?.status ?? "active");
+          const role = normalizeMemberRole(
+            data?.roleInGroup ?? data?.role ?? "member"
+          );
 
           setMemberStatus(status);
+          setMemberRole(role);
 
           if (isJoinedStatus(status)) {
             setIsMember(true);
@@ -467,11 +481,13 @@ export default function GroupPage() {
         () => {
           setIsMember(false);
           setMemberStatus(null);
+          setMemberRole(null);
         }
       );
     } else {
       setIsMember(false);
       setMemberStatus(null);
+      setMemberRole(null);
     }
 
     let unsubJoinReq = () => {};
@@ -1346,7 +1362,11 @@ export default function GroupPage() {
 
                     {activeTab === "feed" && (
                       <section className="group-feed-wrap">
-                        <GroupPostsFeed groupId={groupId} isOwner={isOwner} />
+                        <GroupPostsFeed
+                          groupId={groupId}
+                          isOwner={isOwner}
+                          isModerator={isModerator}
+                        />
                       </section>
                     )}
 
@@ -1354,6 +1374,7 @@ export default function GroupPage() {
                       <GroupMembersTab
                         groupId={groupId}
                         isOwner={isOwner}
+                        isModerator={isModerator}
                         canMembersViewList={canMembersViewList}
                       />
                     )}

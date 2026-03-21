@@ -20,7 +20,8 @@ type HomePostsFeedProps = {
   currentUserId: string | null;
 };
 
-type MemberStatus = "active" | "muted" | "banned" | null;
+type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
+type GroupRole = "owner" | "mod" | "member" | null;
 
 type PostWithFlags = Post & {
   canModerateGroupAuthor?: boolean;
@@ -28,30 +29,69 @@ type PostWithFlags = Post & {
   authorMutedUntil?: any;
 };
 
-async function getMembershipStatusForGroup(
+function normalizeRole(raw: unknown): GroupRole {
+  if (raw === "owner") return "owner";
+  if (raw === "mod") return "mod";
+  if (raw === "moderator") return "mod";
+  if (raw === "member") return "member";
+  return null;
+}
+
+function normalizeStatus(raw: unknown): MemberStatus {
+  if (raw === "banned") return "banned";
+  if (raw === "muted") return "muted";
+  if (raw === "removed" || raw === "kicked" || raw === "expelled") {
+    return "removed";
+  }
+  if (raw === "active") return "active";
+  return "active";
+}
+
+async function getMembershipMetaForGroup(
   groupId: string,
   userId: string
-): Promise<{ status: MemberStatus; mutedUntil: any | null }> {
+): Promise<{
+  status: MemberStatus;
+  mutedUntil: any | null;
+  role: GroupRole;
+}> {
   try {
     const memberRef = doc(db, "groups", groupId, "members", userId);
     const memberSnap = await getDoc(memberRef);
 
-    if (!memberSnap.exists()) return { status: null, mutedUntil: null };
+    if (!memberSnap.exists()) {
+      return { status: null, mutedUntil: null, role: null };
+    }
 
     const data = memberSnap.data() as any;
-    const rawStatus = data?.status;
 
     return {
-      status:
-        rawStatus === "banned"
-          ? "banned"
-          : rawStatus === "muted"
-          ? "muted"
-          : "active",
+      status: normalizeStatus(data?.status),
       mutedUntil: data?.mutedUntil ?? null,
+      role: normalizeRole(data?.roleInGroup ?? data?.role),
     };
   } catch {
-    return { status: null, mutedUntil: null };
+    return { status: null, mutedUntil: null, role: null };
+  }
+}
+
+async function getViewerCanModerateGroup(
+  groupId: string,
+  currentUserId: string
+): Promise<boolean> {
+  try {
+    const groupSnap = await getDoc(doc(db, "groups", groupId));
+    if (!groupSnap.exists()) return false;
+
+    const groupData = groupSnap.data() as any;
+    if (groupData?.ownerId === currentUserId) {
+      return true;
+    }
+
+    const viewerMeta = await getMembershipMetaForGroup(groupId, currentUserId);
+    return viewerMeta.role === "mod" && viewerMeta.status !== "banned" && viewerMeta.status !== "removed";
+  } catch {
+    return false;
   }
 }
 
@@ -71,7 +111,7 @@ async function filterOutHiddenHomePosts(
 
   const viewerMembershipEntries = await Promise.all(
     uniqueViewerGroupIds.map(async (groupId) => {
-      const meta = await getMembershipStatusForGroup(groupId, currentUserId);
+      const meta = await getMembershipMetaForGroup(groupId, currentUserId);
       return [groupId, meta.status] as const;
     })
   );
@@ -80,51 +120,12 @@ async function filterOutHiddenHomePosts(
     viewerMembershipEntries
   );
 
-  const authorGroupPairs = Array.from(
-    new Set(
-      posts
-        .filter(
-          (post) =>
-            !!post.groupId &&
-            typeof post.authorId === "string" &&
-            post.authorId.trim().length > 0
-        )
-        .map((post) => `${post.groupId}__${post.authorId}`)
-    )
-  );
-
-  const authorMembershipEntries = await Promise.all(
-    authorGroupPairs.map(async (pairKey) => {
-      const separatorIndex = pairKey.indexOf("__");
-      const groupId = pairKey.slice(0, separatorIndex);
-      const authorId = pairKey.slice(separatorIndex + 2);
-
-      const meta = await getMembershipStatusForGroup(groupId, authorId);
-      return [pairKey, meta.status] as const;
-    })
-  );
-
-  const authorMembershipMap = new Map<string, MemberStatus>(
-    authorMembershipEntries
-  );
-
   return posts.filter((post) => {
     const groupId = post.groupId;
     if (!groupId) return true;
 
     const viewerStatus = viewerMembershipMap.get(groupId) ?? null;
     if (viewerStatus === "banned") {
-      return false;
-    }
-
-    const authorId =
-      typeof post.authorId === "string" ? post.authorId.trim() : "";
-    if (!authorId) return true;
-
-    const authorStatus =
-      authorMembershipMap.get(`${groupId}__${authorId}`) ?? null;
-
-    if (authorStatus === "banned") {
       return false;
     }
 
@@ -149,21 +150,14 @@ async function attachModerationFlags(
     )
   );
 
-  const ownershipEntries = await Promise.all(
+  const moderationEntries = await Promise.all(
     uniqueGroupIds.map(async (groupId) => {
-      try {
-        const groupSnap = await getDoc(doc(db, "groups", groupId));
-        if (!groupSnap.exists()) return [groupId, false] as const;
-
-        const data = groupSnap.data() as any;
-        return [groupId, data?.ownerId === currentUserId] as const;
-      } catch {
-        return [groupId, false] as const;
-      }
+      const canModerate = await getViewerCanModerateGroup(groupId, currentUserId);
+      return [groupId, canModerate] as const;
     })
   );
 
-  const ownershipMap = new Map<string, boolean>(ownershipEntries);
+  const moderationMap = new Map<string, boolean>(moderationEntries);
 
   const authorPairs = Array.from(
     new Set(
@@ -184,14 +178,14 @@ async function attachModerationFlags(
       const separatorIndex = pairKey.indexOf("__");
       const groupId = pairKey.slice(0, separatorIndex);
       const authorId = pairKey.slice(separatorIndex + 2);
-      const meta = await getMembershipStatusForGroup(groupId, authorId);
+      const meta = await getMembershipMetaForGroup(groupId, authorId);
       return [pairKey, meta] as const;
     })
   );
 
   const authorMap = new Map<
     string,
-    { status: MemberStatus; mutedUntil: any | null }
+    { status: MemberStatus; mutedUntil: any | null; role: GroupRole }
   >(authorEntries);
 
   return posts.map((post) => {
@@ -210,7 +204,7 @@ async function attachModerationFlags(
 
     return {
       ...post,
-      canModerateGroupAuthor: !!groupId && ownershipMap.get(groupId) === true,
+      canModerateGroupAuthor: !!groupId && moderationMap.get(groupId) === true,
       authorMemberStatus: authorMeta?.status ?? null,
       authorMutedUntil: authorMeta?.mutedUntil ?? null,
     };
@@ -228,28 +222,9 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
       return;
     }
 
-    console.log("[HomePostsFeed] loadPosts start", { currentUserId });
-
     const nextPosts = await fetchHomePosts(currentUserId);
-    console.log("[HomePostsFeed] fetchHomePosts ok", {
-      count: nextPosts.length,
-    });
-
-    const visiblePosts = await filterOutHiddenHomePosts(
-      nextPosts,
-      currentUserId
-    );
-    console.log("[HomePostsFeed] filterOutHiddenHomePosts ok", {
-      count: visiblePosts.length,
-    });
-
-    const hydratedPosts = await attachModerationFlags(
-      visiblePosts,
-      currentUserId
-    );
-    console.log("[HomePostsFeed] attachModerationFlags ok", {
-      count: hydratedPosts.length,
-    });
+    const visiblePosts = await filterOutHiddenHomePosts(nextPosts, currentUserId);
+    const hydratedPosts = await attachModerationFlags(visiblePosts, currentUserId);
 
     setPosts(hydratedPosts);
   }
@@ -270,33 +245,19 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
         setLoadingInitial(true);
         setError(null);
 
-        console.log("[HomePostsFeed] initial run start", { currentUserId });
-
         const nextPosts = await fetchHomePosts(currentUserId);
-        console.log("[HomePostsFeed] fetchHomePosts ok", {
-          count: nextPosts.length,
-        });
-
         const visiblePosts = await filterOutHiddenHomePosts(
           nextPosts,
           currentUserId
         );
-        console.log("[HomePostsFeed] filterOutHiddenHomePosts ok", {
-          count: visiblePosts.length,
-        });
-
         const hydratedPosts = await attachModerationFlags(
           visiblePosts,
           currentUserId
         );
-        console.log("[HomePostsFeed] attachModerationFlags ok", {
-          count: hydratedPosts.length,
-        });
 
         if (!active) return;
         setPosts(hydratedPosts);
       } catch (e: any) {
-        console.error("[HomePostsFeed] load error", e);
         if (!active) return;
         setError(e?.message ?? "Error desconocido");
       } finally {

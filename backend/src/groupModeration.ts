@@ -14,6 +14,9 @@ if (!getApps().length) {
 
 const db = getFirestore();
 
+type CanonicalGroupRole = "owner" | "mod" | "member";
+type CanonicalMemberStatus = "active" | "muted" | "banned" | "removed";
+
 function requireAuth(request: any) {
   const uid = request.auth?.uid;
   if (!uid) {
@@ -41,7 +44,26 @@ function normalizeDurationDays(value: unknown) {
   return days;
 }
 
-async function getOwnedGroupOrThrow(groupId: string, ownerUid: string) {
+function normalizeRole(raw: unknown): CanonicalGroupRole {
+  const value = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+
+  if (value === "owner") return "owner";
+  if (value === "mod" || value === "moderator") return "mod";
+  return "member";
+}
+
+function normalizeStatus(raw: unknown): CanonicalMemberStatus {
+  const value = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+
+  if (value === "muted") return "muted";
+  if (value === "banned") return "banned";
+  if (value === "removed" || value === "kicked" || value === "expelled") {
+    return "removed";
+  }
+  return "active";
+}
+
+async function getGroupOrThrow(groupId: string) {
   const groupRef = db.collection("groups").doc(groupId);
   const groupSnap = await groupRef.get();
 
@@ -51,14 +73,11 @@ async function getOwnedGroupOrThrow(groupId: string, ownerUid: string) {
 
   const data = groupSnap.data() as any;
 
-  if (data?.ownerId !== ownerUid) {
-    throw new HttpsError(
-      "permission-denied",
-      "Solo el owner del grupo puede realizar esta acción."
-    );
-  }
-
-  return groupRef;
+  return {
+    groupRef,
+    data,
+    ownerId: typeof data?.ownerId === "string" ? data.ownerId : "",
+  };
 }
 
 async function getMemberRefOrThrow(groupId: string, targetUserId: string) {
@@ -75,7 +94,7 @@ async function getMemberRefOrThrow(groupId: string, targetUserId: string) {
   }
 
   const memberData = memberSnap.data() as any;
-  const role = String(memberData?.roleInGroup ?? memberData?.role ?? "member");
+  const role = normalizeRole(memberData?.roleInGroup ?? memberData?.role);
 
   if (role === "owner") {
     throw new HttpsError(
@@ -84,7 +103,101 @@ async function getMemberRefOrThrow(groupId: string, targetUserId: string) {
     );
   }
 
-  return memberRef;
+  return {
+    memberRef,
+    memberSnap,
+    memberData,
+    role,
+    status: normalizeStatus(memberData?.status),
+  };
+}
+
+async function getActorContextOrThrow(groupId: string, actorUid: string) {
+  const { ownerId } = await getGroupOrThrow(groupId);
+
+  if (ownerId === actorUid) {
+    return {
+      actorUid,
+      actorRole: "owner" as CanonicalGroupRole,
+      ownerId,
+    };
+  }
+
+  const actorMemberRef = db
+    .collection("groups")
+    .doc(groupId)
+    .collection("members")
+    .doc(actorUid);
+
+  const actorMemberSnap = await actorMemberRef.get();
+
+  if (!actorMemberSnap.exists) {
+    throw new HttpsError(
+      "permission-denied",
+      "No perteneces a este grupo."
+    );
+  }
+
+  const actorData = actorMemberSnap.data() as any;
+  const actorRole = normalizeRole(actorData?.roleInGroup ?? actorData?.role);
+  const actorStatus = normalizeStatus(actorData?.status);
+
+  if (actorStatus === "banned" || actorStatus === "removed") {
+    throw new HttpsError(
+      "permission-denied",
+      "No tienes permisos para realizar esta acción."
+    );
+  }
+
+  if (actorRole !== "mod") {
+    throw new HttpsError(
+      "permission-denied",
+      "Solo el owner o un moderador pueden realizar esta acción."
+    );
+  }
+
+  return {
+    actorUid,
+    actorRole,
+    ownerId,
+  };
+}
+
+function ensureActorCanModerateTarget(
+  actorRole: CanonicalGroupRole,
+  actorUid: string,
+  targetUserId: string,
+  targetRole: CanonicalGroupRole
+) {
+  if (actorUid === targetUserId) {
+    throw new HttpsError(
+      "failed-precondition",
+      "No puedes aplicarte esta acción a ti mismo."
+    );
+  }
+
+  if (targetRole === "owner") {
+    throw new HttpsError(
+      "failed-precondition",
+      "No se puede moderar al owner del grupo."
+    );
+  }
+
+  if (actorRole === "mod" && targetRole === "mod") {
+    throw new HttpsError(
+      "permission-denied",
+      "Un moderador no puede administrar a otro moderador."
+    );
+  }
+}
+
+function ensureOwnerOnly(actorRole: CanonicalGroupRole) {
+  if (actorRole !== "owner") {
+    throw new HttpsError(
+      "permission-denied",
+      "Solo el owner del grupo puede realizar esta acción."
+    );
+  }
 }
 
 function getJoinRequestRef(groupId: string, targetUserId: string) {
@@ -95,21 +208,88 @@ function getJoinRequestRef(groupId: string, targetUserId: string) {
     .doc(targetUserId);
 }
 
+function buildRoleDowngradePatch(actorUid: string) {
+  return {
+    roleInGroup: "member",
+    role: "member",
+    roleUpdatedAt: FieldValue.serverTimestamp(),
+    roleUpdatedBy: actorUid,
+  };
+}
+
+export const promoteGroupMemberToAdmin = onCall(async (request) => {
+  const actorUid = requireAuth(request);
+  const groupId = normalizeString(request.data?.groupId, "groupId");
+  const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
+
+  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
+  ensureOwnerOnly(actorRole);
+
+  const { memberRef, role, status } = await getMemberRefOrThrow(groupId, targetUserId);
+
+  if (role === "mod") {
+    return { ok: true, roleInGroup: "mod" };
+  }
+
+  if (status !== "active") {
+    throw new HttpsError(
+      "failed-precondition",
+      "Solo puedes promover miembros activos."
+    );
+  }
+
+  await memberRef.set(
+    {
+      roleInGroup: "mod",
+      role: "mod",
+      updatedAt: FieldValue.serverTimestamp(),
+      roleUpdatedAt: FieldValue.serverTimestamp(),
+      roleUpdatedBy: actorUid,
+    },
+    { merge: true }
+  );
+
+  return { ok: true, roleInGroup: "mod" };
+});
+
+export const demoteGroupAdminToMember = onCall(async (request) => {
+  const actorUid = requireAuth(request);
+  const groupId = normalizeString(request.data?.groupId, "groupId");
+  const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
+
+  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
+  ensureOwnerOnly(actorRole);
+
+  const { memberRef, role } = await getMemberRefOrThrow(groupId, targetUserId);
+
+  if (role !== "mod") {
+    return { ok: true, roleInGroup: "member" };
+  }
+
+  await memberRef.set(
+    {
+      roleInGroup: "member",
+      role: "member",
+      updatedAt: FieldValue.serverTimestamp(),
+      roleUpdatedAt: FieldValue.serverTimestamp(),
+      roleUpdatedBy: actorUid,
+    },
+    { merge: true }
+  );
+
+  return { ok: true, roleInGroup: "member" };
+});
+
 export const muteGroupMember = onCall(async (request) => {
-  const ownerUid = requireAuth(request);
+  const actorUid = requireAuth(request);
   const groupId = normalizeString(request.data?.groupId, "groupId");
   const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
   const durationDays = normalizeDurationDays(request.data?.durationDays);
 
-  if (ownerUid === targetUserId) {
-    throw new HttpsError(
-      "failed-precondition",
-      "No puedes aplicarte mute a ti mismo."
-    );
-  }
+  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
+  const { memberRef, role: targetRole } = await getMemberRefOrThrow(groupId, targetUserId);
 
-  await getOwnedGroupOrThrow(groupId, ownerUid);
-  const memberRef = await getMemberRefOrThrow(groupId, targetUserId);
+  ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
 
   const mutedUntilDate = new Date(
     Date.now() + durationDays * 24 * 60 * 60 * 1000
@@ -120,7 +300,8 @@ export const muteGroupMember = onCall(async (request) => {
       status: "muted",
       mutedUntil: Timestamp.fromDate(mutedUntilDate),
       updatedAt: FieldValue.serverTimestamp(),
-      moderatedBy: ownerUid,
+      moderatedBy: actorUid,
+      ...buildRoleDowngradePatch(actorUid),
     },
     { merge: true }
   );
@@ -132,19 +313,21 @@ export const muteGroupMember = onCall(async (request) => {
 });
 
 export const unmuteGroupMember = onCall(async (request) => {
-  const ownerUid = requireAuth(request);
+  const actorUid = requireAuth(request);
   const groupId = normalizeString(request.data?.groupId, "groupId");
   const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
 
-  await getOwnedGroupOrThrow(groupId, ownerUid);
-  const memberRef = await getMemberRefOrThrow(groupId, targetUserId);
+  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
+  const { memberRef, role: targetRole } = await getMemberRefOrThrow(groupId, targetUserId);
+
+  ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
 
   await memberRef.set(
     {
       status: "active",
       mutedUntil: null,
       updatedAt: FieldValue.serverTimestamp(),
-      moderatedBy: ownerUid,
+      moderatedBy: actorUid,
     },
     { merge: true }
   );
@@ -153,21 +336,16 @@ export const unmuteGroupMember = onCall(async (request) => {
 });
 
 export const banGroupMember = onCall(async (request) => {
-  const ownerUid = requireAuth(request);
+  const actorUid = requireAuth(request);
   const groupId = normalizeString(request.data?.groupId, "groupId");
   const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
 
-  if (ownerUid === targetUserId) {
-    throw new HttpsError(
-      "failed-precondition",
-      "No puedes banearte a ti mismo."
-    );
-  }
+  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
+  const { memberRef, role: targetRole } = await getMemberRefOrThrow(groupId, targetUserId);
 
-  await getOwnedGroupOrThrow(groupId, ownerUid);
-  const memberRef = await getMemberRefOrThrow(groupId, targetUserId);
+  ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
+
   const joinRequestRef = getJoinRequestRef(groupId, targetUserId);
-
   const batch = db.batch();
 
   batch.set(
@@ -177,7 +355,8 @@ export const banGroupMember = onCall(async (request) => {
       mutedUntil: null,
       bannedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-      moderatedBy: ownerUid,
+      moderatedBy: actorUid,
+      ...buildRoleDowngradePatch(actorUid),
     },
     { merge: true }
   );
@@ -190,14 +369,16 @@ export const banGroupMember = onCall(async (request) => {
 });
 
 export const unbanGroupMember = onCall(async (request) => {
-  const ownerUid = requireAuth(request);
+  const actorUid = requireAuth(request);
   const groupId = normalizeString(request.data?.groupId, "groupId");
   const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
 
-  await getOwnedGroupOrThrow(groupId, ownerUid);
-  const memberRef = await getMemberRefOrThrow(groupId, targetUserId);
-  const joinRequestRef = getJoinRequestRef(groupId, targetUserId);
+  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
+  const { memberRef, role: targetRole } = await getMemberRefOrThrow(groupId, targetUserId);
 
+  ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
+
+  const joinRequestRef = getJoinRequestRef(groupId, targetUserId);
   const batch = db.batch();
 
   batch.set(
@@ -207,7 +388,7 @@ export const unbanGroupMember = onCall(async (request) => {
       mutedUntil: null,
       updatedAt: FieldValue.serverTimestamp(),
       unbannedAt: FieldValue.serverTimestamp(),
-      moderatedBy: ownerUid,
+      moderatedBy: actorUid,
     },
     { merge: true }
   );
@@ -220,21 +401,16 @@ export const unbanGroupMember = onCall(async (request) => {
 });
 
 export const removeGroupMember = onCall(async (request) => {
-  const ownerUid = requireAuth(request);
+  const actorUid = requireAuth(request);
   const groupId = normalizeString(request.data?.groupId, "groupId");
   const targetUserId = normalizeString(request.data?.targetUserId, "targetUserId");
 
-  if (ownerUid === targetUserId) {
-    throw new HttpsError(
-      "failed-precondition",
-      "No puedes expulsarte a ti mismo."
-    );
-  }
+  const { actorRole } = await getActorContextOrThrow(groupId, actorUid);
+  const { memberRef, role: targetRole } = await getMemberRefOrThrow(groupId, targetUserId);
 
-  await getOwnedGroupOrThrow(groupId, ownerUid);
-  const memberRef = await getMemberRefOrThrow(groupId, targetUserId);
+  ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
+
   const joinRequestRef = getJoinRequestRef(groupId, targetUserId);
-
   const batch = db.batch();
 
   batch.set(
@@ -244,7 +420,8 @@ export const removeGroupMember = onCall(async (request) => {
       mutedUntil: null,
       removedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-      moderatedBy: ownerUid,
+      moderatedBy: actorUid,
+      ...buildRoleDowngradePatch(actorUid),
     },
     { merge: true }
   );

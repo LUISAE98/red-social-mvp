@@ -19,7 +19,9 @@ import {
 import { auth, db } from "@/lib/firebase";
 import {
   banGroupMember,
+  demoteGroupAdminToMember,
   muteGroupMember,
+  promoteGroupMemberToAdmin,
   removeGroupMember,
   unbanGroupMember,
   unmuteGroupMember,
@@ -28,6 +30,7 @@ import {
 type GroupMembersTabProps = {
   groupId: string;
   isOwner: boolean;
+  isModerator?: boolean;
   canMembersViewList: boolean;
 };
 
@@ -67,14 +70,19 @@ type ModerationAction =
   | "unban"
   | "remove";
 
+type RoleAction = "promote_to_mod" | "demote_to_member";
+
+type MemberAction = ModerationAction | RoleAction;
+
 type MenuPosition = {
   top: number;
   left: number;
 };
 
 type CanonicalMemberStatus = "active" | "muted" | "banned" | "removed";
+type CanonicalRole = "owner" | "mod" | "member";
 
-function normalizeRole(role?: string) {
+function normalizeRole(role?: string): CanonicalRole {
   if (role === "owner") return "owner";
   if (role === "mod") return "mod";
   if (role === "moderator") return "mod";
@@ -107,8 +115,6 @@ function resolveEffectiveStatus(
 ): CanonicalMemberStatus {
   if (status === "banned") return "banned";
   if (status === "removed") return "removed";
-
-  // Compatibilidad legacy temporal
   if (status === "kicked") return "removed";
   if (status === "expelled") return "removed";
 
@@ -136,6 +142,7 @@ function getRemainingMutedDaysLabel(mutedUntil?: any) {
 
 function friendlyRole(role?: string) {
   const normalized = normalizeRole(role);
+  if (normalized === "owner") return "Owner";
   if (normalized === "mod") return "Moderador";
   return "Miembro";
 }
@@ -178,7 +185,9 @@ function memberPrimaryName(member: EnrichedMember) {
   );
 }
 
-function buildActionLabel(action: ModerationAction) {
+function buildActionLabel(action: MemberAction) {
+  if (action === "promote_to_mod") return "Convertir en moderador";
+  if (action === "demote_to_member") return "Quitar moderador";
   if (action === "mute") return "Mutear";
   if (action === "unmute") return "Quitar mute";
   if (action === "ban") return "Banear";
@@ -186,12 +195,43 @@ function buildActionLabel(action: ModerationAction) {
   return "Expulsar del grupo";
 }
 
+function Chevron({
+  open,
+  muted = false,
+}: {
+  open: boolean;
+  muted?: boolean;
+}) {
+  const color = muted
+    ? "rgba(255,255,255,0.34)"
+    : "rgba(255,255,255,0.78)";
+
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-block",
+        width: 9,
+        height: 9,
+        borderRight: `1.7px solid ${color}`,
+        borderBottom: `1.7px solid ${color}`,
+        transform: open ? "rotate(225deg)" : "rotate(45deg)",
+        transition: "transform 180ms ease",
+        marginTop: open ? 3 : -1,
+        flexShrink: 0,
+      }}
+    />
+  );
+}
+
 export default function GroupMembersTab({
   groupId,
   isOwner,
+  isModerator = false,
   canMembersViewList,
 }: GroupMembersTabProps) {
   const currentUid = auth.currentUser?.uid ?? null;
+
   const [members, setMembers] = useState<EnrichedMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -216,9 +256,9 @@ export default function GroupMembersTab({
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
 
   const safeCanMembersViewList = canMembersViewList === true;
-  const canUseFilters = isOwner;
-  const canSeeStatus = isOwner;
-  const canViewList = isOwner || safeCanMembersViewList;
+  const canUseFilters = isOwner || isModerator;
+  const canSeeStatus = true;
+  const canViewList = isOwner || isModerator || safeCanMembersViewList;
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 640);
@@ -240,13 +280,13 @@ export default function GroupMembersTab({
       }
 
       const rect = button.getBoundingClientRect();
-      const panelWidth = isMobile ? 170 : 190;
+      const panelWidth = isMobile ? 210 : 230;
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      const estimatedPanelHeight = 180;
+      const estimatedPanelHeight = 260;
       const gap = 8;
 
-      let left = rect.right - panelWidth;
+      let left = rect.left;
       if (left < 8) left = 8;
       if (left + panelWidth > viewportWidth - 8) {
         left = viewportWidth - panelWidth - 8;
@@ -431,14 +471,26 @@ export default function GroupMembersTab({
       .sort((a, b) => {
         const roleWeight = (role?: string) => {
           const normalized = normalizeRole(role);
-          if (normalized === "mod") return 0;
-          return 1;
+          return normalized === "mod" ? 0 : 1;
         };
 
-        const aw = roleWeight(a.roleInGroup || a.role);
-        const bw = roleWeight(b.roleInGroup || b.role);
+        const statusWeight = (status?: string, mutedUntil?: any) => {
+          const normalized = resolveEffectiveStatus(status, mutedUntil);
+          if (normalized === "active") return 0;
+          if (normalized === "muted") return 1;
+          if (normalized === "banned") return 2;
+          return 3;
+        };
 
-        if (aw !== bw) return aw - bw;
+        const awRole = roleWeight(a.roleInGroup || a.role);
+        const bwRole = roleWeight(b.roleInGroup || b.role);
+
+        if (awRole !== bwRole) return awRole - bwRole;
+
+        const awStatus = statusWeight(a.status, a.mutedUntil);
+        const bwStatus = statusWeight(b.status, b.mutedUntil);
+
+        if (awStatus !== bwStatus) return awStatus - bwStatus;
 
         const an = memberPrimaryName(a).toLowerCase();
         const bn = memberPrimaryName(b).toLowerCase();
@@ -468,38 +520,61 @@ export default function GroupMembersTab({
     }
   }
 
-  function canModerateMember(member: EnrichedMember) {
-    if (!isOwner) return false;
+  function canManageMember(member: EnrichedMember) {
     if (!member.resolvedUid) return false;
     if (member.resolvedUid === currentUid) return false;
 
     const role = normalizeRole(member.roleInGroup || member.role);
+
     if (role === "owner") return false;
 
-    return true;
+    if (isOwner) {
+      return true;
+    }
+
+    if (isModerator) {
+      return role === "member";
+    }
+
+    return false;
   }
 
-  function getAvailableActions(member: EnrichedMember): ModerationAction[] {
+  function getAvailableActions(member: EnrichedMember): MemberAction[] {
+    const actions: MemberAction[] = [];
     const status = resolveEffectiveStatus(member.status, member.mutedUntil);
+    const role = normalizeRole(member.roleInGroup || member.role);
+
+    if (isOwner) {
+      if (role === "member" && status === "active") {
+        actions.push("promote_to_mod");
+      }
+
+      if (role === "mod") {
+        actions.push("demote_to_member");
+      }
+    }
 
     if (status === "banned") {
-      return ["unban"];
+      actions.push("unban");
+      return actions;
     }
 
     if (status === "removed") {
-      return [];
+      return actions;
     }
 
     if (status === "muted") {
-      return ["unmute", "ban", "remove"];
+      actions.push("unmute", "ban", "remove");
+      return actions;
     }
 
-    return ["mute", "ban", "remove"];
+    actions.push("mute", "ban", "remove");
+    return actions;
   }
 
   async function runAction(
     member: EnrichedMember,
-    action: Exclude<ModerationAction, "mute">
+    action: Exclude<MemberAction, "mute">
   ) {
     const targetUserId = member.resolvedUid;
     if (!targetUserId) return;
@@ -509,7 +584,11 @@ export default function GroupMembersTab({
     setActionLoadingForUid(targetUserId);
 
     try {
-      if (action === "unmute") {
+      if (action === "promote_to_mod") {
+        await promoteGroupMemberToAdmin(groupId, targetUserId);
+      } else if (action === "demote_to_member") {
+        await demoteGroupAdminToMember(groupId, targetUserId);
+      } else if (action === "unmute") {
         await unmuteGroupMember(groupId, targetUserId);
       } else if (action === "ban") {
         await banGroupMember(groupId, targetUserId);
@@ -531,10 +610,7 @@ export default function GroupMembersTab({
     }
   }
 
-  function handleModerationAction(
-    member: EnrichedMember,
-    action: ModerationAction
-  ) {
+  function handleMemberAction(member: EnrichedMember, action: MemberAction) {
     if (action === "mute") {
       setError(null);
       setActionMessage(null);
@@ -730,18 +806,17 @@ export default function GroupMembersTab({
     overflow: "visible",
   };
 
-  const rowStyle: CSSProperties = {
+  const leftMenuButtonStyle: CSSProperties = {
+    width: isMobile ? 26 : 28,
+    height: isMobile ? 26 : 28,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
     display: "grid",
-    gridTemplateColumns: isMobile
-      ? "34px minmax(0, 1fr) auto"
-      : "42px minmax(0, 1fr) auto",
-    gap: isMobile ? 8 : 12,
-    alignItems: "center",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.02)",
-    padding: isMobile ? "8px 9px" : "10px 12px",
-    overflow: "visible",
+    placeItems: "center",
+    padding: 0,
+    cursor: "pointer",
+    flexShrink: 0,
   };
 
   const avatarStyle: CSSProperties = {
@@ -793,6 +868,7 @@ export default function GroupMembersTab({
     alignItems: "center",
     gap: 8,
     minWidth: 0,
+    flexWrap: "wrap",
   };
 
   const statusWrap: CSSProperties = {
@@ -822,7 +898,7 @@ export default function GroupMembersTab({
   };
 
   const roleBadge: CSSProperties = {
-    minWidth: isMobile ? 72 : 92,
+    minWidth: isMobile ? 86 : 104,
     textAlign: "center",
     borderRadius: 999,
     border: "1px solid rgba(255,255,255,0.10)",
@@ -835,25 +911,9 @@ export default function GroupMembersTab({
     lineHeight: 1.1,
   };
 
-  const menuButtonStyle: CSSProperties = {
-    width: isMobile ? 32 : 34,
-    height: isMobile ? 32 : 34,
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.05)",
-    color: "#fff",
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-    padding: 0,
-    lineHeight: 1,
-    fontSize: 18,
-    flexShrink: 0,
-  };
-
   const menuPanelStyle: CSSProperties = {
     position: "fixed",
-    minWidth: isMobile ? 170 : 190,
+    minWidth: isMobile ? 210 : 230,
     borderRadius: 12,
     border: "1px solid rgba(255,255,255,0.10)",
     background: "rgba(12,12,12,0.98)",
@@ -992,7 +1052,7 @@ export default function GroupMembersTab({
           <div style={titleBlock}>
             <h2 style={titleStyle}>Integrantes del grupo</h2>
             <p style={subtitleStyle}>
-              Busca, filtra y consulta los miembros del grupo.
+              Busca, filtra y administra los miembros del grupo.
             </p>
           </div>
 
@@ -1059,15 +1119,17 @@ export default function GroupMembersTab({
           )}
         </div>
 
-        {isOwner && (
+        {(isOwner || isModerator) && (
           <p style={helperText}>
-            Cuando esta opción está desactivada, solo tú podrás ver la lista de integrantes.
+            {isOwner
+              ? "Los moderadores se muestran primero. Desde la flecha de cada integrante puedes asignar o quitar el rol, además de moderar."
+              : "Desde la flecha de cada integrante puedes mutear, banear o expulsar miembros normales del grupo."}
           </p>
         )}
 
         {actionMessage && <div style={actionNoticeStyle}>{actionMessage}</div>}
 
-        {!canViewList && !isOwner && (
+        {!canViewList && !isOwner && !isModerator && (
           <div style={emptyStyle}>
             El owner de esta comunidad no permite que otros miembros vean la lista de integrantes.
           </div>
@@ -1087,13 +1149,56 @@ export default function GroupMembersTab({
               const statusText = friendlyStatus(member.status, member.mutedUntil);
               const roleText = friendlyRole(member.roleInGroup || member.role);
               const dotColor = statusDotColor(member.status, member.mutedUntil);
-              const canModerate = canModerateMember(member);
+              const canManage = canManageMember(member);
               const menuOpen = openMenuForUid === member.resolvedUid;
               const isProcessing = actionLoadingForUid === member.resolvedUid;
               const actions = getAvailableActions(member);
 
+              const rowStyle: CSSProperties = {
+                display: "grid",
+                gridTemplateColumns: canManage && actions.length > 0
+                  ? isMobile
+                    ? "auto 34px minmax(0, 1fr) auto"
+                    : "auto 42px minmax(0, 1fr) auto"
+                  : isMobile
+                    ? "34px minmax(0, 1fr) auto"
+                    : "42px minmax(0, 1fr) auto",
+                gap: isMobile ? 8 : 12,
+                alignItems: "center",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.08)",
+                background: "rgba(255,255,255,0.02)",
+                padding: isMobile ? "8px 9px" : "10px 12px",
+                overflow: "visible",
+              };
+
               return (
                 <div key={member.id} style={rowStyle}>
+                  {canManage && actions.length > 0 && (
+                    <button
+                      ref={(el) => {
+                        menuButtonRefs.current[member.resolvedUid] = el;
+                      }}
+                      type="button"
+                      onClick={() =>
+                        setOpenMenuForUid((prev) =>
+                          prev === member.resolvedUid ? null : member.resolvedUid
+                        )
+                      }
+                      aria-haspopup="menu"
+                      aria-expanded={menuOpen}
+                      aria-label={`Abrir acciones para ${displayName}`}
+                      disabled={isProcessing}
+                      style={{
+                        ...leftMenuButtonStyle,
+                        opacity: isProcessing ? 0.65 : 1,
+                        cursor: isProcessing ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      <Chevron open={menuOpen} muted={isProcessing} />
+                    </button>
+                  )}
+
                   <div style={avatarStyle}>
                     {member.photoURL ? (
                       <img
@@ -1139,6 +1244,8 @@ export default function GroupMembersTab({
                           />
                           <span>{statusText}</span>
                         </div>
+
+                        <div style={roleBadge}>{roleText}</div>
                       </div>
                     )}
                   </div>
@@ -1164,34 +1271,7 @@ export default function GroupMembersTab({
                       </>
                     )}
 
-                    <div style={roleBadge}>{roleText}</div>
-
-                    {canModerate && actions.length > 0 && (
-                      <div style={{ position: "relative", overflow: "visible" }}>
-                        <button
-                          ref={(el) => {
-                            menuButtonRefs.current[member.resolvedUid] = el;
-                          }}
-                          type="button"
-                          onClick={() =>
-                            setOpenMenuForUid((prev) =>
-                              prev === member.resolvedUid ? null : member.resolvedUid
-                            )
-                          }
-                          aria-haspopup="menu"
-                          aria-expanded={menuOpen}
-                          aria-label={`Abrir acciones para ${displayName}`}
-                          disabled={isProcessing}
-                          style={{
-                            ...menuButtonStyle,
-                            opacity: isProcessing ? 0.65 : 1,
-                            cursor: isProcessing ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          ⋮
-                        </button>
-                      </div>
-                    )}
+                    {!isMobile && <div style={roleBadge}>{roleText}</div>}
                   </div>
                 </div>
               );
@@ -1223,7 +1303,10 @@ export default function GroupMembersTab({
               role="menu"
             >
               {actions.map((action) => {
-                const isDanger = action === "ban" || action === "remove";
+                const isDanger =
+                  action === "ban" ||
+                  action === "remove" ||
+                  action === "demote_to_member";
 
                 return (
                   <button
@@ -1231,13 +1314,13 @@ export default function GroupMembersTab({
                     type="button"
                     role="menuitem"
                     disabled={isProcessing}
-                    onClick={() => handleModerationAction(member, action)}
+                    onClick={() => handleMemberAction(member, action)}
                     style={
                       isProcessing
                         ? disabledMenuItemStyle
                         : isDanger
-                        ? dangerMenuItemStyle
-                        : menuItemStyle
+                          ? dangerMenuItemStyle
+                          : menuItemStyle
                     }
                   >
                     {isProcessing ? "Procesando..." : buildActionLabel(action)}

@@ -22,7 +22,7 @@ import {
 
 type GroupPostCardProps = {
   post: Post & {
-    authorMemberStatus?: "active" | "muted" | "banned" | null;
+    authorMemberStatus?: "active" | "muted" | "banned" | "removed" | null;
     authorMutedUntil?: any;
     forcedGroupId?: string | null;
   };
@@ -181,6 +181,9 @@ function resolveEffectiveMemberStatus(rawStatus: unknown, mutedUntil: any) {
     typeof rawStatus === "string" ? rawStatus.trim().toLowerCase() : "";
 
   if (status === "banned") return "banned";
+  if (status === "removed" || status === "kicked" || status === "expelled") {
+    return "removed";
+  }
 
   if (status === "muted") {
     if (mutedUntil?.toDate instanceof Function) {
@@ -459,7 +462,37 @@ export default function GroupPostCard({
     );
   }, [post]);
 
-  const shouldShowAuthorBannedBadge = effectiveAuthorStatus === "banned";
+  const authorStatusBadge = useMemo(() => {
+    if (effectiveAuthorStatus === "banned") {
+      return {
+        text: "Baneado",
+        border: "1px solid rgba(255,70,70,0.34)",
+        background: "rgba(255,70,70,0.14)",
+        color: "#ff8a8a",
+      };
+    }
+
+    if (effectiveAuthorStatus === "muted") {
+      return {
+        text: "Muteado",
+        border: "1px solid rgba(245,166,35,0.34)",
+        background: "rgba(245,166,35,0.14)",
+        color: "#ffd48a",
+      };
+    }
+
+    if (effectiveAuthorStatus === "removed") {
+      return {
+        text: "Expulsado",
+        border: "1px solid rgba(255,70,70,0.34)",
+        background: "rgba(255,70,70,0.14)",
+        color: "#ff8a8a",
+      };
+    }
+
+    return null;
+  }, [effectiveAuthorStatus]);
+
   const shouldShowGroupContext =
     showGroupContext && (!!groupInfo.groupId || !!groupInfo.groupName);
 
@@ -478,6 +511,7 @@ export default function GroupPostCard({
         actions.push("unban");
       } else if (effectiveAuthorStatus === "muted") {
         actions.push("unmute", "ban", "remove");
+      } else if (effectiveAuthorStatus === "removed") {
       } else {
         actions.push("mute", "ban", "remove");
       }
@@ -635,16 +669,13 @@ export default function GroupPostCard({
     flexShrink: 0,
   };
 
-  const bannedBadgeStyle: CSSProperties = {
+  const statusBadgeStyle: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     minHeight: 20,
     padding: "2px 8px",
     borderRadius: 999,
-    border: "1px solid rgba(255,70,70,0.34)",
-    background: "rgba(255,70,70,0.14)",
-    color: "#ff8a8a",
     fontSize: 10.5,
     fontWeight: 700,
     lineHeight: 1,
@@ -914,8 +945,17 @@ export default function GroupPostCard({
                 {postAuthor.authorName}
               </Link>
 
-              {shouldShowAuthorBannedBadge && (
-                <span style={bannedBadgeStyle}>Baneado</span>
+              {authorStatusBadge && (
+                <span
+                  style={{
+                    ...statusBadgeStyle,
+                    border: authorStatusBadge.border,
+                    background: authorStatusBadge.background,
+                    color: authorStatusBadge.color,
+                  }}
+                >
+                  {authorStatusBadge.text}
+                </span>
               )}
 
               {shouldShowGroupContext && (

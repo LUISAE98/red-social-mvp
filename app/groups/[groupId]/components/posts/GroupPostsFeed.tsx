@@ -19,9 +19,10 @@ import GroupPostComposer from "./GroupPostComposer";
 type GroupPostsFeedProps = {
   groupId: string;
   isOwner?: boolean;
+  isModerator?: boolean;
 };
 
-type MemberStatus = "active" | "muted" | "banned" | null;
+type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
 
 type PostWithAuthorState = Post & {
   authorMemberStatus?: MemberStatus;
@@ -44,13 +45,22 @@ async function getGroupMemberMeta(
     const data = memberSnap.data() as any;
     const rawStatus = data?.status;
 
+    let status: MemberStatus = "active";
+
+    if (rawStatus === "banned") {
+      status = "banned";
+    } else if (rawStatus === "muted") {
+      status = "muted";
+    } else if (
+      rawStatus === "removed" ||
+      rawStatus === "kicked" ||
+      rawStatus === "expelled"
+    ) {
+      status = "removed";
+    }
+
     return {
-      status:
-        rawStatus === "banned"
-          ? "banned"
-          : rawStatus === "muted"
-          ? "muted"
-          : "active",
+      status,
       mutedUntil: data?.mutedUntil ?? null,
     };
   } catch {
@@ -105,6 +115,7 @@ async function attachAuthorMemberState(
 export default function GroupPostsFeed({
   groupId,
   isOwner = false,
+  isModerator = false,
 }: GroupPostsFeedProps) {
   const [posts, setPosts] = useState<PostWithAuthorState[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -299,7 +310,8 @@ export default function GroupPostsFeed({
       )}
 
       {posts.map((post) => {
-        const canDeletePost = isOwner || currentUid === post.authorId;
+        const canDeletePost =
+          isOwner || isModerator || currentUid === post.authorId;
 
         return (
           <GroupPostCard
@@ -313,7 +325,7 @@ export default function GroupPostsFeed({
             currentUserId={currentUid}
             isOwner={isOwner}
             showGroupContext={false}
-            canModerateGroupAuthor={isOwner}
+            canModerateGroupAuthor={isOwner || isModerator}
             onModerationComplete={loadPosts}
           />
         );

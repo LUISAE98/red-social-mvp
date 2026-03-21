@@ -28,6 +28,8 @@ type SidebarMemberStatus =
   | "removed"
   | null;
 
+type SidebarMemberRole = "owner" | "mod" | "member" | null;
+
 function normalizeMemberStatus(group: GroupDocLite): SidebarMemberStatus {
   const raw = (group as any)?.memberStatus ?? (group as any)?.status ?? null;
 
@@ -36,10 +38,18 @@ function normalizeMemberStatus(group: GroupDocLite): SidebarMemberStatus {
   if (raw === "banned") return "banned";
   if (raw === "removed") return "removed";
 
-  // Compatibilidad legacy temporal
   if (raw === "kicked") return "removed";
   if (raw === "expelled") return "removed";
 
+  return null;
+}
+
+function normalizeMemberRole(group: GroupDocLite): SidebarMemberRole {
+  const raw = (group as any)?.memberRole ?? (group as any)?.roleInGroup ?? null;
+
+  if (raw === "owner") return "owner";
+  if (raw === "mod" || raw === "moderator") return "mod";
+  if (raw === "member") return "member";
   return null;
 }
 
@@ -65,11 +75,18 @@ function statusLabel(status?: SidebarMemberStatus) {
   return "Activo";
 }
 
+function roleLabel(role?: SidebarMemberRole) {
+  if (role === "mod") return "Moderador";
+  if (role === "owner") return "Owner";
+  return "Miembro";
+}
+
 function buildJoinedSubtitle(
   group: GroupDocLite,
   isMobile: boolean
 ): React.ReactNode {
   const status = normalizeMemberStatus(group);
+  const role = normalizeMemberRole(group);
   const statusText = statusLabel(status);
   const dotColor = statusDotColor(status);
 
@@ -84,6 +101,7 @@ function buildJoinedSubtitle(
         lineHeight: 1,
         whiteSpace: "nowrap",
         minWidth: 0,
+        flexWrap: "wrap",
       }}
     >
       <span
@@ -98,6 +116,21 @@ function buildJoinedSubtitle(
         }}
       />
       <span>{statusText}</span>
+
+      {role === "mod" && (
+        <>
+          <span
+            aria-hidden="true"
+            style={{
+              color: "rgba(255,255,255,0.34)",
+              flexShrink: 0,
+            }}
+          >
+            •
+          </span>
+          <span>{roleLabel(role)}</span>
+        </>
+      )}
     </span>
   );
 }

@@ -19,6 +19,36 @@ function assertIds(groupId: string, targetUserId: string) {
   }
 }
 
+export async function promoteGroupMemberToAdmin(
+  groupId: string,
+  targetUserId: string
+) {
+  assertIds(groupId, targetUserId);
+
+  const callable = httpsCallable<
+    BasePayload,
+    { ok: true; roleInGroup: "mod" }
+  >(functions, "promoteGroupMemberToAdmin");
+
+  const res = await callable({ groupId, targetUserId });
+  return res.data;
+}
+
+export async function demoteGroupAdminToMember(
+  groupId: string,
+  targetUserId: string
+) {
+  assertIds(groupId, targetUserId);
+
+  const callable = httpsCallable<
+    BasePayload,
+    { ok: true; roleInGroup: "member" }
+  >(functions, "demoteGroupAdminToMember");
+
+  const res = await callable({ groupId, targetUserId });
+  return res.data;
+}
+
 export async function muteGroupMember(
   groupId: string,
   targetUserId: string,

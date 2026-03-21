@@ -47,6 +47,8 @@ export type SidebarMemberStatus =
   | "removed"
   | null;
 
+export type GroupRoleLite = "owner" | "mod" | "member" | null;
+
 export type UserDoc = {
   uid: string;
   handle: string;
@@ -68,6 +70,7 @@ export type GroupDocLite = {
   visibility?: "public" | "private" | "hidden" | string;
   avatarUrl?: string | null;
   memberStatus?: SidebarMemberStatus;
+  memberRole?: GroupRoleLite;
   monetization?: {
     isPaid?: boolean;
     priceMonthly?: number | null;
@@ -236,6 +239,13 @@ function normalizeSidebarMemberStatus(raw: unknown): SidebarMemberStatus {
   if (raw === "kicked") return "removed";
   if (raw === "expelled") return "removed";
 
+  return null;
+}
+
+function normalizeSidebarGroupRole(raw: unknown): GroupRoleLite {
+  if (raw === "owner") return "owner";
+  if (raw === "mod" || raw === "moderator") return "mod";
+  if (raw === "member") return "member";
   return null;
 }
 
@@ -644,7 +654,10 @@ export default function OwnerSidebar() {
           initialOpen[g.id] = false;
           initialGreetingOpen[g.id] = false;
           initialJoinOpen[g.id] = false;
-          initialGroupMeta[g.id] = g;
+          initialGroupMeta[g.id] = {
+            ...g,
+            memberRole: "owner",
+          };
         }
 
         setGroupDraft(draft);
@@ -712,9 +725,18 @@ export default function OwnerSidebar() {
                     )
                   : null;
 
+                const memberRole = memberSnap.exists()
+                  ? normalizeSidebarGroupRole(
+                      (memberSnap.data() as any)?.roleInGroup ??
+                        (memberSnap.data() as any)?.role ??
+                        "member"
+                    )
+                  : null;
+
                 const hydratedGroup: GroupDocLite = {
                   ...g,
                   memberStatus,
+                  memberRole,
                 };
 
                 const isJoined = isJoinedSidebarStatus(memberStatus);
@@ -743,6 +765,7 @@ export default function OwnerSidebar() {
                   group: {
                     ...g,
                     memberStatus: null,
+                    memberRole: null,
                   } satisfies GroupDocLite,
                   isJoined: false,
                   isExcluded: false,
@@ -829,16 +852,39 @@ export default function OwnerSidebar() {
         const rows = await getMyHiddenJoinedGroups();
         if (cancelled) return;
 
-        const groups = rows.map((g) => ({
-          id: g.id,
-          name: g.name ?? undefined,
-          ownerId: g.ownerId ?? undefined,
-          visibility: g.visibility ?? undefined,
-          avatarUrl: g.avatarUrl ?? null,
-          memberStatus: (g.memberStatus ?? null) as SidebarMemberStatus,
-          monetization: g.monetization ?? undefined,
-          offerings: g.offerings ?? [],
-        })) as GroupDocLite[];
+        const groups = (
+          await Promise.all(
+            rows.map(async (g) => {
+              let memberRole: GroupRoleLite = null;
+
+              try {
+                const memberSnap = await getDoc(
+                  doc(db, "groups", g.id, "members", viewer.uid)
+                );
+                if (memberSnap.exists()) {
+                  const memberData = memberSnap.data() as any;
+                  memberRole = normalizeSidebarGroupRole(
+                    memberData?.roleInGroup ?? memberData?.role ?? "member"
+                  );
+                }
+              } catch {
+                memberRole = null;
+              }
+
+              return {
+                id: g.id,
+                name: g.name ?? undefined,
+                ownerId: g.ownerId ?? undefined,
+                visibility: g.visibility ?? undefined,
+                avatarUrl: g.avatarUrl ?? null,
+                memberStatus: (g.memberStatus ?? null) as SidebarMemberStatus,
+                memberRole,
+                monetization: g.monetization ?? undefined,
+                offerings: g.offerings ?? [],
+              } as GroupDocLite;
+            })
+          )
+        ) as GroupDocLite[];
 
         setHiddenJoinedGroups(groups);
 
@@ -849,11 +895,11 @@ export default function OwnerSidebar() {
 
         setGroupMetaMap((prev) => ({ ...prev, ...meta }));
       } catch (e: any) {
-  console.error("getMyHiddenJoinedGroups error", e);
-  if (!cancelled) {
-    setHiddenJoinedGroups([]);
-  }
-}
+        console.error("getMyHiddenJoinedGroups error", e);
+        if (!cancelled) {
+          setHiddenJoinedGroups([]);
+        }
+      }
     }
 
     loadHiddenJoinedGroups();

@@ -30,6 +30,7 @@ export {
   getInviteLinkPreview,
   consumeInviteLink,
 } from "./inviteLinks";
+
 // Sidebar groups
 export { getMyHiddenJoinedGroups } from "./sidebarGroups";
 
@@ -41,6 +42,8 @@ export {
 
 // Group moderation
 export {
+  promoteGroupMemberToAdmin,
+  demoteGroupAdminToMember,
   muteGroupMember,
   unmuteGroupMember,
   banGroupMember,
