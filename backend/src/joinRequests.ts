@@ -8,50 +8,129 @@ if (!admin.apps.length) {
 
 const db = getFirestore();
 
+type CanonicalGroupRole = "owner" | "mod" | "member";
+type CanonicalMemberStatus = "active" | "muted" | "banned" | "removed";
+
+function normalizeRole(raw: unknown): CanonicalGroupRole {
+  const value = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+
+  if (value === "owner") return "owner";
+  if (value === "mod" || value === "moderator") return "mod";
+  return "member";
+}
+
+function normalizeStatus(raw: unknown): CanonicalMemberStatus {
+  const value = typeof raw === "string" ? raw.trim().toLowerCase() : "";
+
+  if (value === "muted") return "muted";
+  if (value === "banned") return "banned";
+  if (value === "removed" || value === "kicked" || value === "expelled") {
+    return "removed";
+  }
+  return "active";
+}
+
+async function getActorContextOrThrow(groupId: string, actorUid: string) {
+  const groupRef = db.collection("groups").doc(groupId);
+  const groupSnap = await groupRef.get();
+
+  if (!groupSnap.exists) {
+    throw new HttpsError("not-found", "Grupo no existe.");
+  }
+
+  const groupData = groupSnap.data() as any;
+  const ownerId = typeof groupData?.ownerId === "string" ? groupData.ownerId : "";
+
+  if (ownerId === actorUid) {
+    return {
+      actorUid,
+      actorRole: "owner" as CanonicalGroupRole,
+      ownerId,
+      groupRef,
+    };
+  }
+
+  const actorMemberRef = groupRef.collection("members").doc(actorUid);
+  const actorMemberSnap = await actorMemberRef.get();
+
+  if (!actorMemberSnap.exists) {
+    throw new HttpsError("permission-denied", "No perteneces a este grupo.");
+  }
+
+  const actorData = actorMemberSnap.data() as any;
+  const actorRole = normalizeRole(actorData?.roleInGroup ?? actorData?.role);
+  const actorStatus = normalizeStatus(actorData?.status);
+
+  if (actorStatus === "banned" || actorStatus === "removed") {
+    throw new HttpsError(
+      "permission-denied",
+      "No tienes permisos para realizar esta acción."
+    );
+  }
+
+  if (actorRole !== "mod") {
+    throw new HttpsError(
+      "permission-denied",
+      "Solo el owner o un moderador pueden gestionar solicitudes."
+    );
+  }
+
+  return {
+    actorUid,
+    actorRole,
+    ownerId,
+    groupRef,
+  };
+}
+
 /**
  * APPROVE JOIN REQUEST
- * - Solo owner
+ * - Owner o moderador
  * - Crea member
- * - BORRA joinRequest (para que el usuario pueda re-solicitar si luego se sale)
+ * - Borra joinRequest
  */
 export const approveJoinRequest = onCall(async (request) => {
   const callerUid = request.auth?.uid;
-  if (!callerUid) throw new HttpsError("unauthenticated", "Debes estar autenticado.");
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Debes estar autenticado.");
+  }
 
   const { groupId, userId } = request.data ?? {};
-  if (!groupId || !userId) throw new HttpsError("invalid-argument", "groupId y userId son requeridos.");
+  if (!groupId || !userId) {
+    throw new HttpsError("invalid-argument", "groupId y userId son requeridos.");
+  }
 
-  const groupRef = db.collection("groups").doc(groupId);
+  const { groupRef } = await getActorContextOrThrow(groupId, callerUid);
   const joinRequestRef = groupRef.collection("joinRequests").doc(userId);
   const memberRef = groupRef.collection("members").doc(userId);
 
   await db.runTransaction(async (tx) => {
-    const groupSnap = await tx.get(groupRef);
-    if (!groupSnap.exists) throw new HttpsError("not-found", "Grupo no existe.");
-
-    const groupData = groupSnap.data();
-    if (groupData?.ownerId !== callerUid) {
-      throw new HttpsError("permission-denied", "Solo el owner puede aprobar.");
+    const joinSnap = await tx.get(joinRequestRef);
+    if (!joinSnap.exists) {
+      throw new HttpsError("not-found", "Solicitud no existe.");
     }
 
-    const joinSnap = await tx.get(joinRequestRef);
-    if (!joinSnap.exists) throw new HttpsError("not-found", "Solicitud no existe.");
-
-    const joinData = joinSnap.data();
+    const joinData = joinSnap.data() as any;
     if (joinData?.status !== "pending") {
       throw new HttpsError("failed-precondition", "Solicitud ya procesada.");
     }
 
-    // Crear membership
-    tx.set(memberRef, {
-      userId,
-      roleInGroup: "member",
-      status: "active",
-      joinedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    tx.set(
+      memberRef,
+      {
+        userId,
+        roleInGroup: "member",
+        role: "member",
+        status: "active",
+        mutedUntil: null,
+        joinedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+        approvedAt: FieldValue.serverTimestamp(),
+        approvedBy: callerUid,
+      },
+      { merge: true }
+    );
 
-    // ✅ BORRAR joinRequest (MVP limpio: permite re-solicitar si luego se sale)
     tx.delete(joinRequestRef);
   });
 
@@ -60,38 +139,34 @@ export const approveJoinRequest = onCall(async (request) => {
 
 /**
  * REJECT JOIN REQUEST
- * - Solo owner
- * - BORRA joinRequest (para permitir reintentos)
- *   (si quieres historial, luego lo mandamos a auditLogs en H3)
+ * - Owner o moderador
+ * - Borra joinRequest
  */
 export const rejectJoinRequest = onCall(async (request) => {
   const callerUid = request.auth?.uid;
-  if (!callerUid) throw new HttpsError("unauthenticated", "Debes estar autenticado.");
+  if (!callerUid) {
+    throw new HttpsError("unauthenticated", "Debes estar autenticado.");
+  }
 
   const { groupId, userId } = request.data ?? {};
-  if (!groupId || !userId) throw new HttpsError("invalid-argument", "groupId y userId son requeridos.");
+  if (!groupId || !userId) {
+    throw new HttpsError("invalid-argument", "groupId y userId son requeridos.");
+  }
 
-  const groupRef = db.collection("groups").doc(groupId);
+  const { groupRef } = await getActorContextOrThrow(groupId, callerUid);
   const joinRequestRef = groupRef.collection("joinRequests").doc(userId);
 
   await db.runTransaction(async (tx) => {
-    const groupSnap = await tx.get(groupRef);
-    if (!groupSnap.exists) throw new HttpsError("not-found", "Grupo no existe.");
-
-    const groupData = groupSnap.data();
-    if (groupData?.ownerId !== callerUid) {
-      throw new HttpsError("permission-denied", "Solo el owner puede rechazar.");
+    const joinSnap = await tx.get(joinRequestRef);
+    if (!joinSnap.exists) {
+      throw new HttpsError("not-found", "Solicitud no existe.");
     }
 
-    const joinSnap = await tx.get(joinRequestRef);
-    if (!joinSnap.exists) throw new HttpsError("not-found", "Solicitud no existe.");
-
-    const joinData = joinSnap.data();
+    const joinData = joinSnap.data() as any;
     if (joinData?.status !== "pending") {
       throw new HttpsError("failed-precondition", "Solicitud ya procesada.");
     }
 
-    // ✅ BORRAR joinRequest (permite volver a solicitar)
     tx.delete(joinRequestRef);
   });
 
