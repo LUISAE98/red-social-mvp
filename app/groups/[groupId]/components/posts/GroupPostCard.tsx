@@ -33,6 +33,7 @@ type GroupPostCardProps = {
   onDeleteComment: (postId: string, commentId: string) => Promise<Comment[]>;
   currentUserId?: string | null;
   isOwner?: boolean;
+  isModerator?: boolean;
   showGroupContext?: boolean;
   canModerateGroupAuthor?: boolean;
   onModerationComplete?: () => Promise<void> | void;
@@ -318,6 +319,7 @@ export default function GroupPostCard({
   onDeleteComment,
   currentUserId = null,
   isOwner = false,
+  isModerator = false,
   showGroupContext = false,
   canModerateGroupAuthor = false,
   onModerationComplete,
@@ -1111,7 +1113,7 @@ export default function GroupPostCard({
           <div style={{ display: "grid", gap: 12 }}>
             {comments.map((comment) => {
               const canDeleteComment =
-                isOwner || currentUserId === comment.authorId;
+                isOwner || isModerator || currentUserId === comment.authorId;
 
               const commentAuthor = getAuthorInfo(
                 comment as unknown as { authorId?: string | null } & Record<string, unknown>

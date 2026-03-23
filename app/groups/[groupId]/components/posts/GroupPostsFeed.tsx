@@ -324,6 +324,7 @@ export default function GroupPostsFeed({
             onDeleteComment={handleDeleteComment}
             currentUserId={currentUid}
             isOwner={isOwner}
+            isModerator={isModerator}
             showGroupContext={false}
             canModerateGroupAuthor={isOwner || isModerator}
             onModerationComplete={loadPosts}

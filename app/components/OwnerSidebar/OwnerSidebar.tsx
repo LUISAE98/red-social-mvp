@@ -257,6 +257,19 @@ function isExcludedSidebarStatus(status: SidebarMemberStatus) {
   return status === "removed";
 }
 
+function sortGroupsWithModsFirst(items: GroupDocLite[]) {
+  return [...items].sort((a, b) => {
+    const aIsMod = a.memberRole === "mod" ? 0 : 1;
+    const bIsMod = b.memberRole === "mod" ? 0 : 1;
+
+    if (aIsMod !== bIsMod) return aIsMod - bIsMod;
+
+    const aName = (a.name ?? "").trim().toLocaleLowerCase("es-MX");
+    const bName = (b.name ?? "").trim().toLocaleLowerCase("es-MX");
+    return aName.localeCompare(bName, "es-MX");
+  });
+}
+
 export function Switch({
   checked,
   onChange,
@@ -909,20 +922,51 @@ export default function OwnerSidebar() {
     };
   }, [viewer?.uid]);
 
+  const moderatedGroups = useMemo(() => {
+    const mergedMap = new Map<string, GroupDocLite>();
+
+    [...joinedGroups, ...hiddenJoinedGroups].forEach((g) => {
+      if (g.memberRole === "mod") {
+        mergedMap.set(g.id, g);
+      }
+    });
+
+    return Array.from(mergedMap.values());
+  }, [joinedGroups, hiddenJoinedGroups]);
+
   useEffect(() => {
     joinUnsubsRef.current.forEach((fn) => fn());
     joinUnsubsRef.current = [];
 
-    if (!viewer?.uid || myGroups.length === 0) {
+    if (!viewer?.uid) {
+      setJoinRequestsByGroup({});
+      return;
+    }
+
+    const targetGroupsMap = new Map<string, GroupDocLite>();
+
+    for (const g of myGroups) {
+      if (g.visibility !== "public") {
+        targetGroupsMap.set(g.id, g);
+      }
+    }
+
+    for (const g of moderatedGroups) {
+      if (g.visibility !== "public") {
+        targetGroupsMap.set(g.id, g);
+      }
+    }
+
+    const targetGroups = Array.from(targetGroupsMap.values());
+
+    if (targetGroups.length === 0) {
       setJoinRequestsByGroup({});
       return;
     }
 
     const unsubs: Array<() => void> = [];
 
-    for (const g of myGroups) {
-      if (g.visibility === "public") continue;
-
+    for (const g of targetGroups) {
       const qy = query(
         collection(db, "groups", g.id, "joinRequests"),
         where("status", "==", "pending")
@@ -963,7 +1007,7 @@ export default function OwnerSidebar() {
       unsubs.forEach((fn) => fn());
       joinUnsubsRef.current = [];
     };
-  }, [viewer?.uid, myGroups]);
+  }, [viewer?.uid, myGroups, moderatedGroups]);
 
   useEffect(() => {
     if (!viewer?.uid) {
@@ -1066,13 +1110,17 @@ export default function OwnerSidebar() {
   }, [viewer?.uid, groupMetaMap]);
 
   useEffect(() => {
-    const allGroupIds = myGroups.map((g) => g.id);
-    if (allGroupIds.length === 0) return;
+    const groupsForSeen = [
+      ...myGroups,
+      ...moderatedGroups,
+    ].map((g) => g.id);
+
+    if (groupsForSeen.length === 0) return;
 
     setSeenCountsByGroup((prev) => {
       const next = { ...prev };
 
-      for (const groupId of allGroupIds) {
+      for (const groupId of groupsForSeen) {
         const joinCount = (joinRequestsByGroup[groupId] ?? []).length;
         const greetingCount = (greetingsByGroup[groupId] ?? []).length;
 
@@ -1083,7 +1131,7 @@ export default function OwnerSidebar() {
 
       return next;
     });
-  }, [myGroups, joinRequestsByGroup, greetingsByGroup]);
+  }, [myGroups, moderatedGroups, joinRequestsByGroup, greetingsByGroup]);
 
   const relevantUserIds = useMemo(() => {
     const ids = new Set<string>();
@@ -1613,14 +1661,22 @@ export default function OwnerSidebar() {
 
     const allJoined = Array.from(mergedMap.values());
 
-    const publics = allJoined.filter((g) => g.visibility === "public");
-    const privates = allJoined.filter((g) => g.visibility === "private");
-    const hiddens = allJoined.filter((g) => g.visibility === "hidden");
-    const others = allJoined.filter(
-      (g) =>
-        g.visibility !== "public" &&
-        g.visibility !== "private" &&
-        g.visibility !== "hidden"
+    const publics = sortGroupsWithModsFirst(
+      allJoined.filter((g) => g.visibility === "public")
+    );
+    const privates = sortGroupsWithModsFirst(
+      allJoined.filter((g) => g.visibility === "private")
+    );
+    const hiddens = sortGroupsWithModsFirst(
+      allJoined.filter((g) => g.visibility === "hidden")
+    );
+    const others = sortGroupsWithModsFirst(
+      allJoined.filter(
+        (g) =>
+          g.visibility !== "public" &&
+          g.visibility !== "private" &&
+          g.visibility !== "hidden"
+      )
     );
 
     return [
@@ -2014,6 +2070,15 @@ export default function OwnerSidebar() {
               styles={styles}
               fmtDate={fmtDate}
               renderCommunityCard={renderCommunityCard}
+              joinRequestsByGroup={joinRequestsByGroup}
+              joinSectionOpen={joinSectionOpen}
+              setJoinSectionOpen={setJoinSectionOpen}
+              handleApproveJoin={handleApproveJoin}
+              handleRejectJoin={handleRejectJoin}
+              joinBusyKey={joinBusyKey}
+              userMiniMap={userMiniMap}
+              getInitials={getInitials}
+              renderUserLink={renderUserLink}
             />
           )}
 

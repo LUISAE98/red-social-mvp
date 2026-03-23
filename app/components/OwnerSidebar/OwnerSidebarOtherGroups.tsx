@@ -2,8 +2,11 @@
 
 import type {
   GroupDocLite,
+  JoinRequestRow,
   OutgoingJoinRequestRow,
+  UserMini,
 } from "./OwnerSidebar";
+import { Chevron, CountBadge } from "./OwnerSidebar";
 
 type Props = {
   loadingCommunities: boolean;
@@ -19,6 +22,17 @@ type Props = {
     g: GroupDocLite,
     opts?: { compact?: boolean; subtitle?: React.ReactNode }
   ) => React.ReactNode;
+  joinRequestsByGroup: Record<string, JoinRequestRow[]>;
+  joinSectionOpen: Record<string, boolean>;
+  setJoinSectionOpen: React.Dispatch<
+    React.SetStateAction<Record<string, boolean>>
+  >;
+  handleApproveJoin: (groupId: string, userId: string) => Promise<void>;
+  handleRejectJoin: (groupId: string, userId: string) => Promise<void>;
+  joinBusyKey: string | null;
+  userMiniMap: Record<string, UserMini>;
+  getInitials: (name?: string | null) => string;
+  renderUserLink: (uid: string) => React.ReactNode;
 };
 
 type SidebarMemberStatus =
@@ -143,6 +157,15 @@ export default function OwnerSidebarOtherGroups({
   styles,
   fmtDate,
   renderCommunityCard,
+  joinRequestsByGroup,
+  joinSectionOpen,
+  setJoinSectionOpen,
+  handleApproveJoin,
+  handleRejectJoin,
+  joinBusyKey,
+  userMiniMap,
+  getInitials,
+  renderUserLink,
 }: Props) {
   const isMobile =
     typeof window !== "undefined" ? window.innerWidth <= 640 : false;
@@ -175,12 +198,290 @@ export default function OwnerSidebarOtherGroups({
       {visibleJoinedGrouped.map((section) => (
         <div key={`joined-${section.key}`} style={{ display: "grid", gap: 8 }}>
           <div style={styles.sectionTitle}>{section.title}</div>
+
           <div style={{ display: "grid", gap: 8 }}>
-            {section.items.map((g) =>
-              renderCommunityCard(g, {
-                subtitle: buildJoinedSubtitle(g, isMobile),
-              })
-            )}
+            {section.items.map((g) => {
+              const role = normalizeMemberRole(g);
+              const isMod = role === "mod";
+              const joinRequests = joinRequestsByGroup[g.id] ?? [];
+              const showJoinSection =
+                isMod &&
+                g.visibility !== "public" &&
+                joinRequests.length > 0;
+              const joinListOpen = joinSectionOpen[g.id] === true;
+              const communityName = g.name ?? "(Sin nombre)";
+              const avatarFallback = getInitials(communityName);
+
+              if (!showJoinSection) {
+                return renderCommunityCard(g, {
+                  subtitle: buildJoinedSubtitle(g, isMobile),
+                });
+              }
+
+              return (
+                <div
+                  key={g.id}
+                  style={{
+                    ...styles.card,
+                    display: "grid",
+                    gap: 9,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {}}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        padding: 0,
+                        color: "#fff",
+                        textAlign: "left",
+                        cursor: "default",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        minWidth: 0,
+                        flex: 1,
+                      }}
+                    >
+                      {g.avatarUrl ? (
+                        <img
+                          src={g.avatarUrl}
+                          alt={communityName}
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: "50%",
+                            objectFit: "cover",
+                            border: "1px solid rgba(255,255,255,0.10)",
+                            flexShrink: 0,
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: "50%",
+                            background: "rgba(255,255,255,0.06)",
+                            border: "1px solid rgba(255,255,255,0.10)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            color: "#fff",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {avatarFallback}
+                        </div>
+                      )}
+
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "#fff",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {communityName}
+                        </div>
+
+                        <div style={styles.subtle}>
+                          {buildJoinedSubtitle(g, isMobile)}
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setJoinSectionOpen((prev) => ({
+                          ...prev,
+                          [g.id]: !prev[g.id],
+                        }))
+                      }
+                      aria-label={
+                        joinListOpen
+                          ? "Cerrar solicitudes de acceso"
+                          : "Abrir solicitudes de acceso"
+                      }
+                      style={{
+                        minWidth: 52,
+                        height: 28,
+                        borderRadius: 999,
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        background: "rgba(255,255,255,0.02)",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 6,
+                        cursor: "pointer",
+                        flexShrink: 0,
+                        padding: "0 8px",
+                      }}
+                    >
+                      <CountBadge count={joinRequests.length} tone="blue" />
+                      <Chevron open={joinListOpen} />
+                    </button>
+                  </div>
+
+                  {joinListOpen && (
+                    <div style={styles.sectionPanel}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 12,
+                            color: "#fff",
+                            fontWeight: 700,
+                          }}
+                        >
+                          Solicitudes de acceso
+                        </span>
+                        <CountBadge count={joinRequests.length} tone="blue" />
+                      </div>
+
+                      <div className="mini-vertical-scroll">
+                        <div style={{ display: "grid", gap: 7 }}>
+                          {joinRequests.map((r) => {
+                            const approveKey = `${g.id}:${r.userId}:approve`;
+                            const rejectKey = `${g.id}:${r.userId}:reject`;
+                            const busy =
+                              joinBusyKey === approveKey ||
+                              joinBusyKey === rejectKey;
+                            const requester = userMiniMap[r.userId] ?? null;
+                            const letter = getInitials(requester?.displayName);
+
+                            return (
+                              <div key={r.id} style={styles.miniItem}>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    minWidth: 0,
+                                  }}
+                                >
+                                  {requester?.photoURL ? (
+                                    <img
+                                      src={requester.photoURL}
+                                      alt={requester.displayName}
+                                      style={{
+                                        width: 28,
+                                        height: 28,
+                                        borderRadius: 10,
+                                        objectFit: "cover",
+                                        border:
+                                          "1px solid rgba(255,255,255,0.12)",
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                  ) : (
+                                    <div
+                                      style={{
+                                        width: 28,
+                                        height: 28,
+                                        borderRadius: 10,
+                                        background: "rgba(255,255,255,0.05)",
+                                        border:
+                                          "1px solid rgba(255,255,255,0.12)",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        fontWeight: 700,
+                                        fontSize: 11,
+                                        color: "#fff",
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {letter}
+                                    </div>
+                                  )}
+
+                                  <div style={{ minWidth: 0 }}>
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        minWidth: 0,
+                                        flexWrap: "wrap",
+                                      }}
+                                    >
+                                      {renderUserLink(r.userId)}
+                                    </div>
+                                    <div style={styles.subtle}>
+                                      Solicitud pendiente
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: 8,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleApproveJoin(g.id, r.userId)
+                                    }
+                                    disabled={busy}
+                                    style={{
+                                      ...styles.buttonPrimary,
+                                      opacity: busy ? 0.8 : 1,
+                                      cursor: busy ? "not-allowed" : "pointer",
+                                    }}
+                                  >
+                                    {busy ? "Procesando..." : "Aprobar"}
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleRejectJoin(g.id, r.userId)
+                                    }
+                                    disabled={busy}
+                                    style={{
+                                      ...styles.buttonSecondary,
+                                      opacity: busy ? 0.7 : 1,
+                                      cursor: busy ? "not-allowed" : "pointer",
+                                    }}
+                                  >
+                                    {busy ? "Procesando..." : "Rechazar"}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       ))}

@@ -89,7 +89,11 @@ async function getViewerCanModerateGroup(
     }
 
     const viewerMeta = await getMembershipMetaForGroup(groupId, currentUserId);
-    return viewerMeta.role === "mod" && viewerMeta.status !== "banned" && viewerMeta.status !== "removed";
+    return (
+      viewerMeta.role === "mod" &&
+      viewerMeta.status !== "banned" &&
+      viewerMeta.status !== "removed"
+    );
   } catch {
     return false;
   }
@@ -435,6 +439,7 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
               onDeleteComment={handleDeleteComment}
               currentUserId={currentUserId}
               isOwner={false}
+              isModerator={post.canModerateGroupAuthor === true}
               showGroupContext={true}
               canModerateGroupAuthor={post.canModerateGroupAuthor === true}
               onModerationComplete={loadPosts}
