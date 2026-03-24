@@ -192,7 +192,7 @@ function buildActionLabel(action: MemberAction) {
   if (action === "unmute") return "Quitar mute";
   if (action === "ban") return "Banear";
   if (action === "unban") return "Quitar ban";
-  return "Expulsar del grupo";
+  return "Expulsar de la comunidad";
 }
 
 function Chevron({
@@ -1050,9 +1050,9 @@ export default function GroupMembersTab({
       <section style={cardStyle}>
         <div style={topRow}>
           <div style={titleBlock}>
-            <h2 style={titleStyle}>Integrantes del grupo</h2>
+            <h2 style={titleStyle}>Integrantes de la comunidad</h2>
             <p style={subtitleStyle}>
-              Busca, filtra y administra los miembros del grupo.
+              Busca, filtra y administra los miembros del comunidad.
             </p>
           </div>
 
@@ -1123,7 +1123,7 @@ export default function GroupMembersTab({
           <p style={helperText}>
             {isOwner
               ? "Los moderadores se muestran primero. Desde la flecha de cada integrante puedes asignar o quitar el rol, además de moderar."
-              : "Desde la flecha de cada integrante puedes mutear, banear o expulsar miembros normales del grupo."}
+              : "Desde la flecha de cada integrante puedes mutear, banear o expulsar miembros normales del comunidad."}
           </p>
         )}
 

@@ -12,7 +12,7 @@ export default function GroupsMobilePage() {
         color: "#fff",
       }}
     >
-      <h2 style={{ marginBottom: 16 }}>Mis grupos</h2>
+      <h2 style={{ marginBottom: 16 }}>Mis comunidades</h2>
 
       <OwnerSidebar />
     </div>

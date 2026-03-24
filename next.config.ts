@@ -2,10 +2,8 @@ import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Mueve el indicador rojo de Next (N) arriba a la derecha
-  devIndicators: {
-    position: "top-right",
-  },
+  // Desactiva el indicador visual de Next en desarrollo
+  devIndicators: false,
 
   // Evita que Next observe la carpeta functions durante el build del frontend
   webpack: (config) => {
@@ -22,18 +20,12 @@ const nextConfig: NextConfig = {
 
 export default withSentryConfig(nextConfig, {
   org: "programin-social",
-
   project: "javascript-nextjs",
-
   silent: !process.env.CI,
-
   widenClientFileUpload: true,
-
   tunnelRoute: "/monitoring",
-
   webpack: {
     automaticVercelMonitors: true,
-
     treeshake: {
       removeDebugLogging: true,
     },

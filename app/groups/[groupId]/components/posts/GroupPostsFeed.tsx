@@ -290,7 +290,7 @@ export default function GroupPostsFeed({
     <section style={shellStyle}>
       <div style={headerStyle}>
         <h2 style={titleStyle}>Publicaciones</h2>
-        <p style={subtitleStyle}>Feed del grupo.</p>
+        <p style={subtitleStyle}>Feed de la comunidad.</p>
       </div>
 
       <GroupPostComposer onSubmit={handleCreatePost} />
@@ -305,7 +305,7 @@ export default function GroupPostsFeed({
 
       {!loadingInitial && posts.length === 0 && (
         <div style={noticeStyle}>
-          Todavía no hay publicaciones en este grupo.
+          Todavía no hay publicaciones en esta comunidad.
         </div>
       )}
 

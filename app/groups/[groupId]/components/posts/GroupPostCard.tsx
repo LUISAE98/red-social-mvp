@@ -306,7 +306,7 @@ function buildActionLabel(action: ModerationAction) {
   if (action === "unmute") return "Quitar mute";
   if (action === "ban") return "Banear";
   if (action === "unban") return "Quitar ban";
-  if (action === "remove") return "Expulsar del grupo";
+  if (action === "remove") return "Expulsar de la comunidad";
   return "Eliminar publicación";
 }
 

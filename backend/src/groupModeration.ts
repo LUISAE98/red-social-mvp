@@ -68,7 +68,7 @@ async function getGroupOrThrow(groupId: string) {
   const groupSnap = await groupRef.get();
 
   if (!groupSnap.exists) {
-    throw new HttpsError("not-found", "El grupo no existe.");
+    throw new HttpsError("not-found", "La comunidad no existe.");
   }
 
   const data = groupSnap.data() as any;
@@ -99,7 +99,7 @@ async function getMemberRefOrThrow(groupId: string, targetUserId: string) {
   if (role === "owner") {
     throw new HttpsError(
       "failed-precondition",
-      "No se puede moderar al owner del grupo."
+      "No se puede moderar al owner de la comunidad."
     );
   }
 
@@ -134,7 +134,7 @@ async function getActorContextOrThrow(groupId: string, actorUid: string) {
   if (!actorMemberSnap.exists) {
     throw new HttpsError(
       "permission-denied",
-      "No perteneces a este grupo."
+      "No perteneces a esta comunidad."
     );
   }
 

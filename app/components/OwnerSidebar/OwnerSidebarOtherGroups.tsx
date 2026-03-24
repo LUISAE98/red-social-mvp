@@ -512,7 +512,7 @@ export default function OwnerSidebarOtherGroups({
             padding: "2px 2px 0",
           }}
         >
-          No tienes otros grupos ni solicitudes pendientes.
+          No tienes otras comunidades ni solicitudes pendientes.
         </div>
       )}
     </>

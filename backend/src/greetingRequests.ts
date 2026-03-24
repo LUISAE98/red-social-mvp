@@ -82,7 +82,7 @@ export const createGreetingRequest = onCall(
         throw new HttpsError("permission-denied", "You must be a member of the group to request a greeting.");
       }
 
-      // Validar que el offering esté habilitado en el grupo
+      // Validar que el offering esté habilitado en la comunidad
       const offerings = Array.isArray(group?.offerings) ? group.offerings : [];
       const offering = offerings.find((o: any) => o?.type === type);
       if (!offering || offering.enabled !== true) {

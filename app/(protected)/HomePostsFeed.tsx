@@ -370,7 +370,7 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
     return (
       <section style={shellStyle}>
         <div style={noticeStyle}>
-          Inicia sesión para ver publicaciones de tus grupos.
+          Inicia sesión para ver publicaciones de tus comunidades.
         </div>
       </section>
     );
@@ -407,19 +407,19 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
             wordBreak: "break-word",
           }}
         >
-          Publicaciones recientes de grupos donde ya estás dentro o eres owner.
+          Publicaciones recientes de comunidades donde ya estás dentro o eres owner.
         </p>
       </div>
 
       {error && <div style={noticeStyle}>{error}</div>}
 
       {loadingInitial && (
-        <div style={noticeStyle}>Cargando publicaciones de tus grupos...</div>
+        <div style={noticeStyle}>Cargando publicaciones de tus comunidades...</div>
       )}
 
       {!loadingInitial && posts.length === 0 && (
         <div style={noticeStyle}>
-          Aún no hay publicaciones en tus grupos.
+          Aún no hay publicaciones en tus comunidades.
         </div>
       )}
 

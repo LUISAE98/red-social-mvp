@@ -35,10 +35,10 @@ export default function GroupFeedTab() {
 
   return (
     <section style={cardStyle}>
-      <h2 style={titleStyle}>Publicaciones del grupo</h2>
+      <h2 style={titleStyle}>Publicaciones de la comunidad</h2>
 
       <p style={textStyle}>
-        Aquí irá el feed del grupo. Por ahora esta sección queda como placeholder
+        Aquí irá el feed del comunidad. Por ahora esta sección queda como placeholder
         para mantener la estructura limpia del Hito 1, sin mezclar todavía la
         implementación real de posts del Hito 2.
       </p>

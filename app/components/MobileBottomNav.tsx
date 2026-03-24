@@ -141,7 +141,7 @@ export default function MobileBottomNav() {
       href: "/groups",
       active: pathname.startsWith("/groups"),
       icon: IconGroups,
-      label: "Grupos",
+      label: "Comunidades",
     },
     {
       key: "profile",

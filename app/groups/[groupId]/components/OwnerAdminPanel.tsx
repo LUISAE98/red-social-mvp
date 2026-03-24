@@ -149,7 +149,7 @@ export default function OwnerAdminPanel(props: Props) {
         updatedAt: Date.now(),
       });
 
-      setStatusMsg(isActive ? "Grupo reactivado." : "Grupo pausado.");
+      setStatusMsg(isActive ? "Comunidad reactivado." : "Comunidad pausado.");
     } catch (e: any) {
       setStatusErr(e?.message ?? "No se pudo actualizar el estado.");
     } finally {
@@ -327,7 +327,7 @@ export default function OwnerAdminPanel(props: Props) {
     <div style={shellStyle}>
       <div style={cardStyle}>
         <div style={headerStyle}>
-          <h3 style={titleStyle}>Administración del grupo</h3>
+          <h3 style={titleStyle}>Administración de la comunidad</h3>
           <p style={subtitleStyle}>Configura nombre, descripción, categoría y estado.</p>
         </div>
 
@@ -364,7 +364,7 @@ export default function OwnerAdminPanel(props: Props) {
                   style={inputStyle}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Nombre del grupo"
+                  placeholder="Nombre de la comunidad"
                 />
               </div>
 
@@ -374,7 +374,7 @@ export default function OwnerAdminPanel(props: Props) {
                   style={textareaStyle}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe el propósito del grupo"
+                  placeholder="Describe el propósito de la comunidad"
                 />
               </div>
 
@@ -477,7 +477,7 @@ export default function OwnerAdminPanel(props: Props) {
           {tab === "status" && (
             <div style={contentStyle}>
               <div style={subtleTextStyle}>
-                Pausar un grupo lo marca como inactivo. No elimina contenido.
+                Pausar una comunidad la marca como inactiva. No elimina contenido.
               </div>
 
               <div style={statusActionsStyle}>

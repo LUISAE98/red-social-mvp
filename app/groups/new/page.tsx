@@ -617,7 +617,7 @@ export default function NewGroupPage() {
 
       router.push(`/groups/${groupId}`);
     } catch (err: any) {
-      setError(err?.message ?? "Error creando grupo.");
+      setError(err?.message ?? "Error creando comunidad.");
     } finally {
       setLoading(false);
     }
@@ -698,7 +698,7 @@ export default function NewGroupPage() {
                 lineHeight: 1.2,
               }}
             >
-              Crear grupo
+              Crear comunidad
             </h1>
             <p
               style={{
@@ -709,7 +709,7 @@ export default function NewGroupPage() {
                 lineHeight: 1.45,
               }}
             >
-              Configura lo esencial de tu grupo con estilo dark premium del MVP.
+              Configura lo esencial de tu comunidad con estilo dark premium del MVP.
             </p>
           </div>
 
@@ -799,7 +799,7 @@ export default function NewGroupPage() {
                   }}
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe tu grupo..."
+                  placeholder="Describe tu comunidad..."
                   rows={4}
                 />
               </div>
@@ -849,7 +849,7 @@ export default function NewGroupPage() {
               >
                 <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Imágenes</h2>
                 <span style={{ fontSize: 12, color: "rgba(255,255,255,0.50)" }}>
-                  Preview de cómo se verá tu grupo
+                  Preview de cómo se verá tu comunidad
                 </span>
               </div>
 
@@ -892,7 +892,7 @@ export default function NewGroupPage() {
                           "linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02))",
                       }}
                     >
-                      Portada del grupo
+                      Portada de la comunidad
                     </div>
                   )}
 
@@ -995,7 +995,7 @@ export default function NewGroupPage() {
                       lineHeight: 1.2,
                     }}
                   >
-                    {name.trim() || "Nombre del grupo"}
+                    {name.trim() || "Nombre de la comunidad"}
                   </p>
 
                   <p
@@ -1008,7 +1008,7 @@ export default function NewGroupPage() {
                   >
                     {description.trim()
                       ? description.trim()
-                      : "Aquí verás una vista previa de cómo lucirá tu grupo al crearlo."}
+                      : "Aquí verás una vista previa de cómo lucirá tu comunidad al crearla."}
                   </p>
 
                   <p
@@ -1019,7 +1019,7 @@ export default function NewGroupPage() {
                       lineHeight: 1.4,
                     }}
                   >
-                    Vista previa de tu grupo
+                    Vista previa de tu comunidad
                   </p>
                 </div>
               </div>
@@ -1125,7 +1125,7 @@ export default function NewGroupPage() {
                   textAlign: "center",
                 }}
               >
-                Aquí ya puedes ver el avatar centrado sobre la portada antes de crear el grupo.
+                Aquí ya puedes ver el avatar centrado sobre la portada antes de crear la comunidad.
               </p>
             </section>
 
@@ -1237,7 +1237,7 @@ export default function NewGroupPage() {
                       color: "rgba(255,255,255,0.55)",
                     }}
                   >
-                    Envía un texto inicial cuando entren al grupo.
+                    Envía un texto inicial cuando entren a la comunidad.
                   </p>
                 </div>
                 <ToggleSwitch checked={greetingsEnabled} onChange={setGreetingsEnabled} />
@@ -1272,7 +1272,7 @@ export default function NewGroupPage() {
                     }}
                     value={welcomeMessage}
                     onChange={(e) => setWelcomeMessage(e.target.value)}
-                    placeholder="Ej: Bienvenido al grupo..."
+                    placeholder="Ej: Bienvenido a la comunidad..."
                     rows={3}
                   />
                 </div>
@@ -1398,7 +1398,7 @@ export default function NewGroupPage() {
                       color: "rgba(255,255,255,0.55)",
                     }}
                   >
-                    Activa respuestas dentro de publicaciones del grupo.
+                    Activa respuestas dentro de publicaciones de la comunidad.
                   </p>
                 </div>
                 <ToggleSwitch checked={commentsEnabled} onChange={setCommentsEnabled} />
@@ -1420,7 +1420,7 @@ export default function NewGroupPage() {
 
               {!subscriptionAllowed && (
                 <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.50)" }}>
-                  Nota: los grupos públicos no pueden tener suscripción en este MVP.
+                  Nota: las comunidades públicas no pueden tener suscripción en este MVP.
                 </p>
               )}
 
@@ -1566,7 +1566,7 @@ export default function NewGroupPage() {
                         color: "rgba(255,255,255,0.55)",
                       }}
                     >
-                      Activa esta opción para ofrecer saludos pagados dentro del grupo.
+                      Activa esta opción para ofrecer saludos pagados dentro de la comunidad.
                     </p>
                   </div>
 
@@ -1653,7 +1653,7 @@ export default function NewGroupPage() {
                 fontFamily: fontStack,
               }}
             >
-              {loading ? "Creando..." : "Crear grupo"}
+              {loading ? "Creando..." : "Crear comunidad"}
             </button>
           </form>
         </div>
@@ -1696,7 +1696,7 @@ export default function NewGroupPage() {
               }}
             >
               <div style={{ fontWeight: 600, color: "#fff", fontSize: 16 }}>
-                {cropMode === "avatar" ? "Recortar avatar del grupo" : "Recortar portada"}
+                {cropMode === "avatar" ? "Recortar avatar de la comunidad" : "Recortar portada"}
               </div>
 
               <button
