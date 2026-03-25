@@ -134,6 +134,7 @@ export default function ProtectedShell({
           --shell-gutter: 24px;
           --sidebar-width: 300px;
           --main-max-width: 1120px;
+          --shell-column-gap: 24px;
 
           min-height: 100vh;
           min-height: 100dvh;
@@ -155,13 +156,12 @@ export default function ProtectedShell({
         }
 
         .headerInner {
-  width: 100%;
-  display: grid;
-  grid-template-columns: var(--sidebar-width) minmax(0, 780px) auto;
-  gap: 14px;
-  align-items: center;
-  min-height: 72px;
-
+          width: 100%;
+          display: grid;
+          grid-template-columns: var(--sidebar-width) minmax(0, 780px) auto;
+          gap: var(--shell-column-gap);
+          align-items: center;
+          min-height: 72px;
           padding-top: 12px;
           padding-bottom: 12px;
           padding-left: max(var(--shell-gutter), env(safe-area-inset-left));
@@ -225,7 +225,7 @@ export default function ProtectedShell({
           width: 100%;
           display: grid;
           grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-          gap: 24px;
+          gap: var(--shell-column-gap);
           flex: 1;
           padding-top: 24px;
           padding-bottom: calc(24px + env(safe-area-inset-bottom));
@@ -263,14 +263,7 @@ export default function ProtectedShell({
           .layout {
             --shell-gutter: 14px;
             --sidebar-width: 260px;
-          }
-
-          .headerInner {
-            gap: 12px;
-          }
-
-          .contentArea {
-            gap: 18px;
+            --shell-column-gap: 18px;
           }
         }
 

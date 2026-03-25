@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import {
   collection,
@@ -102,6 +102,7 @@ export default function GroupsSearchPanel({
   onCloseSearch,
 }: GroupsSearchPanelProps) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -117,6 +118,8 @@ export default function GroupsSearchPanel({
   >({});
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
+
+  const previousPathnameRef = useRef<string | null>(null);
 
   const cardBorder = "1px solid rgba(255,255,255,0.14)";
   const softBorder = "1px solid rgba(255,255,255,0.18)";
@@ -272,6 +275,19 @@ export default function GroupsSearchPanel({
     void loadMembershipsAndRequests();
   }, [user, communities]);
 
+  useEffect(() => {
+    if (previousPathnameRef.current === null) {
+      previousPathnameRef.current = pathname;
+      return;
+    }
+
+    if (pathname !== previousPathnameRef.current) {
+      setSearch("");
+      onCloseSearch?.();
+      previousPathnameRef.current = pathname;
+    }
+  }, [pathname, onCloseSearch]);
+
   const normalizedSearch = search.trim().toLowerCase();
 
   const filteredCommunities = useMemo(() => {
@@ -375,6 +391,12 @@ export default function GroupsSearchPanel({
   function handleCloseSearch() {
     setSearch("");
     onCloseSearch?.();
+  }
+
+  function handleNavigateAndClose(href: string) {
+    setSearch("");
+    onCloseSearch?.();
+    router.push(href);
   }
 
   const isLoading = authLoading || communitiesLoading || profilesLoading;
@@ -604,6 +626,7 @@ export default function GroupsSearchPanel({
 
           .search-dropdown-inner {
             max-height: min(58vh, 460px);
+            overflow-y: auto;
           }
 
           .dropdown-title {
@@ -723,7 +746,7 @@ export default function GroupsSearchPanel({
                       <div
                         key={g.id}
                         className="result-item"
-                        onClick={() => router.push(`/groups/${g.id}`)}
+                        onClick={() => handleNavigateAndClose(`/groups/${g.id}`)}
                       >
                         <div className="result-grid">
                           <div className="result-main-mobile">
@@ -867,7 +890,7 @@ export default function GroupsSearchPanel({
                       <div
                         key={p.uid}
                         className="result-item"
-                        onClick={() => router.push(`/u/${p.handle}`)}
+                        onClick={() => handleNavigateAndClose(`/u/${p.handle}`)}
                       >
                         <div className="result-grid">
                           <div className="result-main-mobile">

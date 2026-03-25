@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -219,6 +219,24 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
   const [posts, setPosts] = useState<PostWithFlags[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(max-width: 900px)");
+
+    const sync = () => setIsMobile(mediaQuery.matches);
+    sync();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", sync);
+      return () => mediaQuery.removeEventListener("change", sync);
+    }
+
+    mediaQuery.addListener(sync);
+    return () => mediaQuery.removeListener(sync);
+  }, []);
 
   async function loadPosts() {
     if (!currentUserId) {
@@ -335,13 +353,19 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
     overflowX: "hidden",
   };
 
-  const headerStyle: CSSProperties = {
-    display: "grid",
-    gap: 4,
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-  };
+  const headerStyle: CSSProperties = useMemo(
+    () => ({
+      display: "grid",
+      gap: 4,
+      width: "100%",
+      maxWidth: "100%",
+      minWidth: 0,
+      paddingLeft: isMobile ? 14 : 0,
+      paddingRight: isMobile ? 14 : 0,
+      boxSizing: "border-box",
+    }),
+    [isMobile]
+  );
 
   const noticeStyle: CSSProperties = {
     width: "100%",

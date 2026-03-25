@@ -2,6 +2,7 @@ import { AuthProvider } from "./providers";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import RootChrome from "./RootChrome";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,7 +43,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <RootChrome>{children}</RootChrome>
+        </AuthProvider>
       </body>
     </html>
   );

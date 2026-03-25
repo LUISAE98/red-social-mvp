@@ -17,18 +17,23 @@ export default function GroupsHome() {
     minHeight: "100vh",
     color: "#fff",
     fontFamily: fontStack,
+    width: "100%",
+    boxSizing: "border-box",
   };
 
   const container: React.CSSProperties = {
-    maxWidth: 1080,
-    margin: "0 auto",
     width: "100%",
-    padding: "0 12px",
+    maxWidth: "100%",
+    margin: 0,
+    padding: 0,
     boxSizing: "border-box",
   };
 
   const feedWrap: React.CSSProperties = {
     marginTop: 16,
+    width: "100%",
+    maxWidth: "100%",
+    boxSizing: "border-box",
   };
 
   useEffect(() => {

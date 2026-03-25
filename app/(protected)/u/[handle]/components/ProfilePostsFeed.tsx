@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 
 import type { Comment, Post } from "@/lib/posts/types";
@@ -238,6 +238,24 @@ export default function ProfilePostsFeed({
   const [posts, setPosts] = useState<PostWithFlags[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(max-width: 900px)");
+
+    const sync = () => setIsMobile(mediaQuery.matches);
+    sync();
+
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", sync);
+      return () => mediaQuery.removeEventListener("change", sync);
+    }
+
+    mediaQuery.addListener(sync);
+    return () => mediaQuery.removeListener(sync);
+  }, []);
 
   async function loadPosts() {
     const nextPosts = await fetchUserProfilePosts(profileUid, viewerUid);
@@ -350,30 +368,41 @@ export default function ProfilePostsFeed({
     overflowX: "hidden",
   };
 
-  const headerStyle: CSSProperties = {
-    display: "grid",
-    gap: 4,
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-  };
+  const headerStyle: CSSProperties = useMemo(
+    () => ({
+      display: "grid",
+      gap: 4,
+      width: "100%",
+      maxWidth: "100%",
+      minWidth: 0,
+      paddingLeft: isMobile ? 8 : 0,
+      paddingRight: isMobile ? 8 : 0,
+      boxSizing: "border-box",
+    }),
+    [isMobile]
+  );
 
-  const noticeStyle: CSSProperties = {
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-    boxSizing: "border-box",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.03)",
-    padding: "12px 14px",
-    fontSize: 13,
-    fontWeight: 300,
-    lineHeight: 1.45,
-    color: "rgba(255,255,255,0.82)",
-    overflowWrap: "anywhere",
-    wordBreak: "break-word",
-  };
+  const noticeStyle: CSSProperties = useMemo(
+    () => ({
+      width: "100%",
+      maxWidth: "100%",
+      minWidth: 0,
+      boxSizing: "border-box",
+      borderRadius: 14,
+      border: "1px solid rgba(255,255,255,0.10)",
+      background: "rgba(255,255,255,0.03)",
+      padding: "12px 14px",
+      fontSize: 13,
+      fontWeight: 300,
+      lineHeight: 1.45,
+      color: "rgba(255,255,255,0.82)",
+      overflowWrap: "anywhere",
+      wordBreak: "break-word",
+      marginLeft: 0,
+      marginRight: 0,
+    }),
+    []
+  );
 
   const titleStyle: CSSProperties = {
     margin: 0,

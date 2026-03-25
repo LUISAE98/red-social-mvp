@@ -272,7 +272,7 @@ export default function GroupPage() {
     maxWidth: ui.pageMaxWidth,
     margin: "0 auto",
     width: "100%",
-    padding: "0 12px",
+    padding: "0",
     boxSizing: "border-box",
   };
 
@@ -906,6 +906,8 @@ export default function GroupPage() {
         <style jsx>{`
           .group-shell {
             width: 100%;
+            padding: 0;
+            box-sizing: border-box;
           }
 
           .group-card {
@@ -974,10 +976,15 @@ export default function GroupPage() {
           @media (max-width: 900px) {
             .group-shell {
               max-width: none;
+              padding: 0 8px;
             }
           }
 
           @media (max-width: 640px) {
+            .group-shell {
+              padding: 0 6px;
+            }
+
             .group-content {
               padding: 0 12px 18px;
             }
@@ -1115,6 +1122,8 @@ export default function GroupPage() {
         <style jsx>{`
           .group-shell {
             width: 100%;
+            padding: 0;
+            box-sizing: border-box;
           }
 
           .group-card {
@@ -1196,10 +1205,15 @@ export default function GroupPage() {
           @media (max-width: 900px) {
             .group-shell {
               max-width: none;
+              padding: 0 8px;
             }
           }
 
           @media (max-width: 640px) {
+            .group-shell {
+              padding: 0 6px;
+            }
+
             .group-content {
               padding: 0 12px 18px;
             }

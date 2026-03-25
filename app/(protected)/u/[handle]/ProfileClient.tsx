@@ -479,7 +479,7 @@ export default function ProfileClient() {
           fontFamily: fontStack,
         }}
       >
-        <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto", padding: "0 12px" }}>
+        <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto", padding: "0" }}>
           Cargando perfil...
         </div>
       </main>
@@ -497,7 +497,7 @@ export default function ProfileClient() {
           fontFamily: fontStack,
         }}
       >
-        <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto", padding: "0 12px" }}>
+        <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto", padding: "0" }}>
           {msg ?? "Perfil no disponible"}
         </div>
       </main>
@@ -540,7 +540,7 @@ export default function ProfileClient() {
             width: 100%;
             max-width: ${ui.pageMaxWidth}px;
             margin: 0 auto;
-            padding: 0 12px;
+            padding: 0;
             box-sizing: border-box;
           }
 

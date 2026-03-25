@@ -190,6 +190,7 @@ function AuthenticatedProfileShell({
           --shell-gutter: 16px;
           --sidebar-width: 300px;
           --main-max-width: 1120px;
+          --shell-column-gap: 24px;
           --desktop-search-width: 780px;
           --desktop-search-gap: 8px;
           --desktop-create-size: 35px;
@@ -225,7 +226,7 @@ function AuthenticatedProfileShell({
         .desktopHeader {
           display: grid;
           grid-template-columns: var(--sidebar-width) minmax(0, 1fr) auto;
-          gap: 14px;
+          gap: var(--shell-column-gap);
           align-items: center;
           min-height: 60px;
           width: 100%;
@@ -318,7 +319,7 @@ function AuthenticatedProfileShell({
         .contentArea {
           display: grid;
           grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-          gap: 24px;
+          gap: var(--shell-column-gap);
           width: 100%;
           flex: 1;
           padding-left: var(--shell-gutter);
@@ -349,14 +350,7 @@ function AuthenticatedProfileShell({
           .layout {
             --shell-gutter: 14px;
             --sidebar-width: 260px;
-          }
-
-          .desktopHeader {
-            gap: 12px;
-          }
-
-          .contentArea {
-            gap: 18px;
+            --shell-column-gap: 18px;
           }
         }
 
