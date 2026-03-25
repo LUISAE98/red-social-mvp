@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
+import { usePathname, useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import type { Comment, Post } from "@/lib/posts/types";
 import {
@@ -16,10 +17,15 @@ import {
 import GroupPostCard from "./GroupPostCard";
 import GroupPostComposer from "./GroupPostComposer";
 
+type InteractionBlockedReason = "login" | "join" | "restricted" | null;
+
 type GroupPostsFeedProps = {
   groupId: string;
   isOwner?: boolean;
   isModerator?: boolean;
+  canCreatePosts?: boolean;
+  canInteract?: boolean;
+  interactionBlockedReason?: InteractionBlockedReason;
 };
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
@@ -112,11 +118,35 @@ async function attachAuthorMemberState(
   });
 }
 
+function buildInteractionBlockedMessage(
+  reason: InteractionBlockedReason
+): string {
+  if (reason === "login") {
+    return "Inicia sesión para interactuar en esta comunidad.";
+  }
+
+  if (reason === "join") {
+    return "Debes unirte a esta comunidad para publicar o comentar.";
+  }
+
+  if (reason === "restricted") {
+    return "No puedes interactuar en esta comunidad por tu estado actual.";
+  }
+
+  return "No puedes realizar esta acción en este momento.";
+}
+
 export default function GroupPostsFeed({
   groupId,
   isOwner = false,
   isModerator = false,
+  canCreatePosts = false,
+  canInteract = false,
+  interactionBlockedReason = null,
 }: GroupPostsFeedProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [posts, setPosts] = useState<PostWithAuthorState[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [composerError, setComposerError] = useState<string | null>(null);
@@ -177,7 +207,49 @@ export default function GroupPostsFeed({
     };
   }, [groupId]);
 
+  function redirectToLogin() {
+    router.push(
+      `/login?next=${encodeURIComponent(pathname || `/groups/${groupId}`)}`
+    );
+  }
+
+  function guardInteraction(): boolean {
+    if (canInteract) {
+      return true;
+    }
+
+    const message = buildInteractionBlockedMessage(interactionBlockedReason);
+
+    if (interactionBlockedReason === "login") {
+      setError(message);
+      redirectToLogin();
+      return false;
+    }
+
+    setError(message);
+    return false;
+  }
+
+  function guardCreatePost(): boolean {
+    if (canCreatePosts) {
+      return true;
+    }
+
+    const message = buildInteractionBlockedMessage(interactionBlockedReason);
+
+    if (interactionBlockedReason === "login") {
+      setComposerError(message);
+      redirectToLogin();
+      return false;
+    }
+
+    setComposerError(message);
+    return false;
+  }
+
   async function handleCreatePost(text: string) {
+    if (!guardCreatePost()) return;
+
     try {
       setError(null);
       setComposerError(null);
@@ -214,6 +286,10 @@ export default function GroupPostsFeed({
     postId: string,
     text: string
   ): Promise<Comment[]> {
+    if (!guardInteraction()) {
+      throw new Error(buildInteractionBlockedMessage(interactionBlockedReason));
+    }
+
     try {
       setError(null);
       await createPostComment({ postId, text });
@@ -286,6 +362,16 @@ export default function GroupPostsFeed({
     lineHeight: 1.4,
   };
 
+  const interactionHintStyle: CSSProperties = {
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.025)",
+    color: "rgba(255,255,255,0.82)",
+    padding: "12px 14px",
+    fontSize: 12.5,
+    lineHeight: 1.45,
+  };
+
   return (
     <section style={shellStyle}>
       <div style={headerStyle}>
@@ -293,7 +379,13 @@ export default function GroupPostsFeed({
         <p style={subtitleStyle}>Feed de la comunidad.</p>
       </div>
 
-      <GroupPostComposer onSubmit={handleCreatePost} />
+      {canCreatePosts ? (
+        <GroupPostComposer onSubmit={handleCreatePost} />
+      ) : (
+        <div style={interactionHintStyle}>
+          {buildInteractionBlockedMessage(interactionBlockedReason)}
+        </div>
+      )}
 
       {composerError && <div style={composerErrorStyle}>{composerError}</div>}
 

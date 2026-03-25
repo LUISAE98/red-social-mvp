@@ -14,8 +14,9 @@ import {
 
 import { auth, db } from "@/lib/firebase";
 import GroupsSearchToolbar from "./GroupsSearchToolbar";
+import { SearchResultsExplorerPanel } from "./SearchResultsExplorerPanel";
 
-type Community = {
+export type Community = {
   id: string;
   name?: string;
   description?: string;
@@ -29,7 +30,7 @@ type Community = {
   };
 };
 
-type PublicUser = {
+export type PublicUser = {
   uid: string;
   handle: string;
   displayName?: string;
@@ -38,15 +39,12 @@ type PublicUser = {
   photoURL?: string | null;
 };
 
-type CanonicalMemberStatus = "active" | "muted" | "banned" | "removed" | null;
-
-type GroupsSearchPanelProps = {
-  fontStack: string;
-  showCreateGroup?: boolean;
-  createGroupHref?: string;
-  showCloseSearch?: boolean;
-  onCloseSearch?: () => void;
-};
+export type CanonicalMemberStatus =
+  | "active"
+  | "muted"
+  | "banned"
+  | "removed"
+  | null;
 
 function normalizeMemberStatus(raw: unknown): CanonicalMemberStatus {
   if (raw === "active") return "active";
@@ -58,15 +56,15 @@ function normalizeMemberStatus(raw: unknown): CanonicalMemberStatus {
   return null;
 }
 
-function isJoinedStatus(status: CanonicalMemberStatus) {
+export function isJoinedStatus(status: CanonicalMemberStatus) {
   return status === "active" || status === "muted";
 }
 
-function isBlockedStatus(status: CanonicalMemberStatus) {
+export function isBlockedStatus(status: CanonicalMemberStatus) {
   return status === "banned" || status === "removed";
 }
 
-function membershipStatusLabel(status: CanonicalMemberStatus) {
+export function membershipStatusLabel(status: CanonicalMemberStatus) {
   if (status === "active") return "Ya estás unido";
   if (status === "muted") return "Ya estás unido (muteado)";
   if (status === "banned") return "Baneado";
@@ -74,7 +72,7 @@ function membershipStatusLabel(status: CanonicalMemberStatus) {
   return "";
 }
 
-function buildUserSearchText(user: PublicUser) {
+export function buildUserSearchText(user: PublicUser) {
   return [
     user.handle,
     user.displayName,
@@ -87,12 +85,26 @@ function buildUserSearchText(user: PublicUser) {
     .toLowerCase();
 }
 
-function initialsFromName(name: string) {
+export function buildCommunitySearchText(group: Community) {
+  return [group.name ?? "", group.description ?? "", group.visibility ?? ""]
+    .join(" ")
+    .toLowerCase();
+}
+
+export function initialsFromName(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   const a = parts[0]?.[0] ?? "";
   const b = parts[1]?.[0] ?? "";
   return (a + b).toUpperCase() || "U";
 }
+
+type GroupsSearchPanelProps = {
+  fontStack: string;
+  showCreateGroup?: boolean;
+  createGroupHref?: string;
+  showCloseSearch?: boolean;
+  onCloseSearch?: () => void;
+};
 
 export default function GroupsSearchPanel({
   fontStack,
@@ -118,6 +130,7 @@ export default function GroupsSearchPanel({
   >({});
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
+  const [fullResultsOpen, setFullResultsOpen] = useState(false);
 
   const previousPathnameRef = useRef<string | null>(null);
 
@@ -283,6 +296,7 @@ export default function GroupsSearchPanel({
 
     if (pathname !== previousPathnameRef.current) {
       setSearch("");
+      setFullResultsOpen(false);
       onCloseSearch?.();
       previousPathnameRef.current = pathname;
     }
@@ -293,23 +307,30 @@ export default function GroupsSearchPanel({
   const filteredCommunities = useMemo(() => {
     if (!normalizedSearch) return [];
 
-    return communities.filter((g) => {
-      const haystack = [g.name ?? "", g.visibility ?? ""].join(" ").toLowerCase();
-      return haystack.includes(normalizedSearch);
-    });
+    return communities.filter((g) =>
+      buildCommunitySearchText(g).includes(normalizedSearch)
+    );
   }, [communities, normalizedSearch]);
 
   const filteredProfiles = useMemo(() => {
     if (!normalizedSearch) return [];
 
-    return profiles
-      .filter((p) => {
-        if (!p.handle) return false;
-        if (user?.uid && p.uid === user.uid) return false;
-        return buildUserSearchText(p).includes(normalizedSearch);
-      })
-      .slice(0, 12);
+    return profiles.filter((p) => {
+      if (!p.handle) return false;
+      if (user?.uid && p.uid === user.uid) return false;
+      return buildUserSearchText(p).includes(normalizedSearch);
+    });
   }, [profiles, normalizedSearch, user?.uid]);
+
+  const previewCommunities = useMemo(
+    () => filteredCommunities.slice(0, 4),
+    [filteredCommunities]
+  );
+
+  const previewProfiles = useMemo(
+    () => filteredProfiles.slice(0, 4),
+    [filteredProfiles]
+  );
 
   async function handleJoinPublic(groupId: string) {
     if (!user) return;
@@ -390,13 +411,24 @@ export default function GroupsSearchPanel({
 
   function handleCloseSearch() {
     setSearch("");
+    setFullResultsOpen(false);
     onCloseSearch?.();
   }
 
   function handleNavigateAndClose(href: string) {
     setSearch("");
+    setFullResultsOpen(false);
     onCloseSearch?.();
     router.push(href);
+  }
+
+  function handleOpenFullResults() {
+    if (!normalizedSearch) return;
+    setFullResultsOpen(true);
+  }
+
+  function handleCloseFullResults() {
+    setFullResultsOpen(false);
   }
 
   const isLoading = authLoading || communitiesLoading || profilesLoading;
@@ -458,6 +490,30 @@ export default function GroupsSearchPanel({
           color: rgba(255, 255, 255, 0.76);
           font-size: 14px;
           line-height: 1.45;
+        }
+
+        .dropdown-footer {
+          padding: 12px 14px 14px;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.02);
+        }
+
+        .more-results-btn {
+          width: 100%;
+          min-height: 42px;
+          padding: 10px 14px;
+          border-radius: 14px;
+          border: ${softBorder};
+          background: rgba(255, 255, 255, 0.07);
+          color: #fff;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 13px;
+          font-family: ${fontStack};
+        }
+
+        .more-results-btn:hover {
+          background: rgba(255, 255, 255, 0.09);
         }
 
         .error-card {
@@ -699,26 +755,26 @@ export default function GroupsSearchPanel({
           showCloseSearch={showCloseSearch}
         />
 
-        {hasSearch && (
+        {hasSearch && !fullResultsOpen && (
           <div className="search-dropdown">
             <div className="search-dropdown-inner">
               {isLoading && (
                 <div className="dropdown-helper">
-                  Buscando comunidades y perfiles...
+                  Buscando comunidades, perfiles y publicaciones...
                 </div>
               )}
 
               {!isLoading && !hasAnyResults && (
                 <div className="dropdown-helper">
-                  No se encontraron comunidades ni perfiles con ese nombre.
+                  No se encontraron comunidades ni perfiles con esa búsqueda.
                 </div>
               )}
 
-              {!isLoading && filteredCommunities.length > 0 && (
+              {!isLoading && previewCommunities.length > 0 && (
                 <section className="dropdown-section">
                   <h2 className="dropdown-title">Comunidades</h2>
 
-                  {filteredCommunities.map((g) => {
+                  {previewCommunities.map((g) => {
                     const isOwner = !!user && !!g.ownerId && g.ownerId === user.uid;
                     const membershipStatus = isOwner
                       ? "active"
@@ -875,11 +931,11 @@ export default function GroupsSearchPanel({
                 </section>
               )}
 
-              {!isLoading && filteredProfiles.length > 0 && (
+              {!isLoading && previewProfiles.length > 0 && (
                 <section className="dropdown-section">
                   <h2 className="dropdown-title">Perfiles</h2>
 
-                  {filteredProfiles.map((p) => {
+                  {previewProfiles.map((p) => {
                     const fullName =
                       p.displayName?.trim() ||
                       `${p.firstName ?? ""} ${p.lastName ?? ""}`.trim() ||
@@ -931,9 +987,38 @@ export default function GroupsSearchPanel({
                   })}
                 </section>
               )}
+
+              {!isLoading && hasSearch && (
+                <div className="dropdown-footer">
+                  <button
+                    type="button"
+                    className="more-results-btn"
+                    onClick={handleOpenFullResults}
+                  >
+                    Ver más resultados
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
+
+        <SearchResultsExplorerPanel
+          open={fullResultsOpen}
+          search={search}
+          fontStack={fontStack}
+          currentUser={user}
+          communities={filteredCommunities}
+          profiles={filteredProfiles}
+          memberMap={memberMap}
+          reqMap={reqMap}
+          onClose={handleCloseFullResults}
+          onNavigate={handleNavigateAndClose}
+          onJoinPublic={handleJoinPublic}
+          onRequestPrivate={handleRequestPrivate}
+          onCancelRequest={handleCancelRequest}
+          onLeave={handleLeave}
+        />
 
         {error && <div className="error-card">{error}</div>}
       </div>

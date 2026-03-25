@@ -87,12 +87,13 @@ function PublicGroupsShell({
           color: #fff;
           display: flex;
           flex-direction: column;
+          isolation: isolate;
         }
 
         .header {
           position: sticky;
           top: 0;
-          z-index: 60;
+          z-index: 2000;
           padding-top: env(safe-area-inset-top);
           padding-left: max(24px, env(safe-area-inset-left));
           padding-right: max(24px, env(safe-area-inset-right));
@@ -125,6 +126,8 @@ function PublicGroupsShell({
           padding-top: 24px;
           padding-bottom: calc(24px + env(safe-area-inset-bottom));
           box-sizing: border-box;
+          position: relative;
+          z-index: 1;
         }
 
         @media (max-width: 900px) {
@@ -201,12 +204,15 @@ function AuthenticatedGroupsShell({
           color: #fff;
           display: flex;
           flex-direction: column;
+          isolation: isolate;
+          position: relative;
+          z-index: 0;
         }
 
         .header {
           position: sticky;
           top: 0;
-          z-index: 80;
+          z-index: 2147483000;
           padding-top: env(safe-area-inset-top);
           border-bottom: 1px solid rgba(255, 255, 255, 0.12);
           background: rgba(0, 0, 0, 0.92);
@@ -221,6 +227,9 @@ function AuthenticatedGroupsShell({
           padding-top: 12px;
           padding-bottom: 12px;
           box-sizing: border-box;
+          position: relative;
+          z-index: 2147483001;
+          overflow: visible;
         }
 
         .desktopHeader {
@@ -252,6 +261,9 @@ function AuthenticatedGroupsShell({
           display: flex;
           align-items: center;
           gap: var(--desktop-search-gap);
+          position: relative;
+          z-index: 2147483002;
+          overflow: visible;
         }
 
         .desktopSearchCol {
@@ -261,6 +273,9 @@ function AuthenticatedGroupsShell({
             calc(100% - var(--desktop-create-size) - var(--desktop-search-gap))
           );
           flex: 0 1 auto;
+          position: relative;
+          z-index: 2147483003;
+          overflow: visible;
         }
 
         .desktopCreateButtonWrap {
@@ -309,11 +324,17 @@ function AuthenticatedGroupsShell({
 
         .mobileSearchRow {
           width: 100%;
+          position: relative;
+          z-index: 2147483003;
+          overflow: visible;
         }
 
         .mobileSearchCol {
           min-width: 0;
           width: 100%;
+          position: relative;
+          z-index: 2147483004;
+          overflow: visible;
         }
 
         .contentArea {
@@ -327,11 +348,14 @@ function AuthenticatedGroupsShell({
           padding-top: 24px;
           padding-bottom: calc(24px + env(safe-area-inset-bottom));
           box-sizing: border-box;
+          position: relative;
+          z-index: 1;
         }
 
         .sidebarCol {
           position: relative;
           min-width: 0;
+          z-index: 2;
         }
 
         .mainCol {
@@ -344,6 +368,11 @@ function AuthenticatedGroupsShell({
 
         .mainInner {
           width: min(var(--main-max-width), 100%);
+        }
+
+        .bottomNavLayer {
+          position: relative;
+          z-index: 5;
         }
 
         @media (max-width: 1100px) {
@@ -562,7 +591,9 @@ function AuthenticatedGroupsShell({
           </main>
         </div>
 
-        <MobileBottomNav />
+        <div className="bottomNavLayer">
+          <MobileBottomNav />
+        </div>
       </div>
     </>
   );

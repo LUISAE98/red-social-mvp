@@ -1116,6 +1116,23 @@ export default function GroupPage() {
     );
   }
 
+  const isPublicGroup = visibility === "public";
+  const canViewPublicFeed = isPublicGroup || effectiveIsMember || isOwner;
+  const canCreatePosts = isOwner || effectiveIsMember;
+  const canInteract = isOwner || effectiveIsMember;
+
+  let interactionBlockedReason: "login" | "join" | "restricted" | null = null;
+
+  if (!canInteract) {
+    if (!user) {
+      interactionBlockedReason = "login";
+    } else if (memberStatus === "banned" || memberStatus === "removed") {
+      interactionBlockedReason = "restricted";
+    } else {
+      interactionBlockedReason = "join";
+    }
+  }
+
   return (
     <>
       <main style={pageWrap}>
@@ -1366,6 +1383,19 @@ export default function GroupPage() {
                   </div>
                 )}
 
+                {canViewPublicFeed && (
+                  <section className="group-feed-wrap">
+                    <GroupPostsFeed
+                      groupId={groupId}
+                      isOwner={isOwner}
+                      isModerator={isModerator}
+                      canCreatePosts={canCreatePosts}
+                      canInteract={canInteract}
+                      interactionBlockedReason={interactionBlockedReason}
+                    />
+                  </section>
+                )}
+
                 {effectiveIsMember && (
                   <>
                     <GroupSubnav
@@ -1373,16 +1403,6 @@ export default function GroupPage() {
                       onChange={setActiveTab}
                       canManage={isOwner}
                     />
-
-                    {activeTab === "feed" && (
-                      <section className="group-feed-wrap">
-                        <GroupPostsFeed
-                          groupId={groupId}
-                          isOwner={isOwner}
-                          isModerator={isModerator}
-                        />
-                      </section>
-                    )}
 
                     {activeTab === "members" && (
                       <GroupMembersTab

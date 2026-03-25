@@ -20,8 +20,8 @@ export default function GroupsSearchToolbar({
   fontStack,
   showCreateGroup = true,
   showCloseSearch = false,
-  placeholder = "Buscar comunidad o perfil por nombre...",
-  ariaLabel = "Buscar comunidad o perfil por nombre",
+  placeholder = "Buscar grupos, perfiles o publicaciones...",
+  ariaLabel = "Buscar grupos, perfiles o publicaciones",
 }: GroupsSearchToolbarProps) {
   const fieldBorder = "1px solid rgba(255,255,255,0.18)";
   const fieldBg = "rgba(255,255,255,0.045)";
@@ -49,10 +49,21 @@ export default function GroupsSearchToolbar({
           width: 100%;
         }
 
+        .search-icon {
+          position: absolute;
+          top: 50%;
+          left: 14px;
+          transform: translateY(-50%);
+          width: 16px;
+          height: 16px;
+          color: rgba(255, 255, 255, 0.58);
+          pointer-events: none;
+        }
+
         .search-input {
           width: 100%;
           height: 46px;
-          padding: 0 42px 0 14px;
+          padding: 0 42px 0 40px;
           border-radius: 14px;
           border: ${fieldBorder};
           background: ${fieldBg};
@@ -63,6 +74,7 @@ export default function GroupsSearchToolbar({
           transition: border-color 0.18s ease, background 0.18s ease;
           appearance: none;
           -webkit-appearance: none;
+          font-family: ${fontStack};
         }
 
         .search-input::placeholder {
@@ -149,6 +161,29 @@ export default function GroupsSearchToolbar({
 
       <div className="search-toolbar">
         <div className="search-input-wrap">
+          <span className="search-icon" aria-hidden="true">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+            >
+              <circle
+                cx="11"
+                cy="11"
+                r="6.5"
+                stroke="currentColor"
+                strokeWidth="2"
+              />
+              <path
+                d="M16.2 16.2L20 20"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </span>
+
           <input
             type="text"
             placeholder={placeholder}

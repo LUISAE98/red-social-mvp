@@ -109,7 +109,6 @@ function resolveEffectiveMembershipStatus(
 
   if (status === "banned") return "banned";
   if (status === "removed") return "removed";
-
   if (status === "kicked") return "removed";
   if (status === "expelled") return "removed";
 
@@ -304,6 +303,12 @@ async function fetchOwnedGroupIds(userUid: string): Promise<string[]> {
   return snap.docs.map((d) => d.id);
 }
 
+async function fetchPublicGroupIds(): Promise<string[]> {
+  const q = query(collection(db, "groups"), where("visibility", "==", "public"));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.id);
+}
+
 async function fetchVisibleGroupsForMembershipChecks(): Promise<GroupDoc[]> {
   const groupsCol = collection(db, "groups");
 
@@ -368,8 +373,22 @@ async function fetchAccessibleGroupIds(userUid: string): Promise<string[]> {
     fetchHiddenMemberGroupIds(userUid),
   ]);
 
+  return Array.from(new Set([...ownedIds, ...memberIds, ...hiddenMemberIds]));
+}
+
+async function fetchProfileVisibleGroupIds(
+  viewerUid?: string | null
+): Promise<string[]> {
+  const publicGroupIds = await fetchPublicGroupIds();
+
+  if (!viewerUid) {
+    return Array.from(new Set(publicGroupIds));
+  }
+
+  const viewerAccessibleGroupIds = await fetchAccessibleGroupIds(viewerUid);
+
   return Array.from(
-    new Set([...ownedIds, ...memberIds, ...hiddenMemberIds])
+    new Set([...publicGroupIds, ...viewerAccessibleGroupIds])
   );
 }
 
@@ -520,17 +539,12 @@ export async function fetchUserProfilePosts(
     return [];
   }
 
-  let accessibleGroupIds: string[] = [];
+  const visibleGroupIds =
+    viewerUid === profileUid
+      ? await fetchAccessibleGroupIds(profileUid)
+      : await fetchProfileVisibleGroupIds(viewerUid);
 
-  if (viewerUid === profileUid) {
-    accessibleGroupIds = await fetchAccessibleGroupIds(profileUid);
-  } else if (viewerUid) {
-    accessibleGroupIds = await fetchAccessibleGroupIds(viewerUid);
-  } else {
-    accessibleGroupIds = [];
-  }
-
-  const rawPosts = await fetchPostsByAccessibleGroups(accessibleGroupIds);
+  const rawPosts = await fetchPostsByAccessibleGroups(visibleGroupIds);
   const filteredPosts = rawPosts.filter((post) => post.authorId === profileUid);
 
   const [userMap, groupMap] = await Promise.all([
