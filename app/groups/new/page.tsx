@@ -7,10 +7,14 @@ import Cropper from "react-easy-crop";
 import { useAuth } from "@/app/providers";
 import { createGroup } from "@/lib/groups/createGroup";
 import type {
+  CanonicalGroupCategory,
   Currency,
-  GroupCategory,
   GroupVisibility,
   PostingMode,
+} from "@/types/group";
+import {
+  GROUP_CATEGORY_OPTIONS,
+  normalizeGroupTags,
 } from "@/types/group";
 
 import { db } from "@/lib/firebase";
@@ -20,11 +24,7 @@ import { uploadFile } from "@/lib/storage/uploadFile";
 import { buildFileName } from "@/lib/storage/fileNaming";
 
 function parseTags(raw: string): string[] {
-  return raw
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean)
-    .slice(0, 10);
+  return normalizeGroupTags(raw.split(","));
 }
 
 function isAllowedImageType(type: string) {
@@ -269,7 +269,7 @@ export default function NewGroupPage() {
   const [description, setDescription] = useState("");
   const [visibility, setVisibility] = useState<GroupVisibility>("public");
 
-  const [category, setCategory] = useState<GroupCategory>("otros");
+  const [category, setCategory] = useState<CanonicalGroupCategory>("otros");
   const [tagsRaw, setTagsRaw] = useState("");
 
   const [greetingsEnabled, setGreetingsEnabled] = useState(false);
@@ -553,7 +553,7 @@ export default function NewGroupPage() {
     setCoverUploadPct(0);
 
     try {
-      const tags = parseTags(tagsRaw);
+      const tags = parseTags(tagsRaw).slice(0, 10);
 
       const groupId = await createGroup({
         name: trimmedName,
@@ -1154,24 +1154,13 @@ export default function NewGroupPage() {
                 </label>
                 <SelectField
                   value={category}
-                  onChange={(value) => setCategory(value as GroupCategory)}
+                  onChange={(value) => setCategory(value as CanonicalGroupCategory)}
                 >
-                  <option value="otros">Otros</option>
-                  <option value="entretenimiento">Entretenimiento</option>
-                  <option value="influencer">Influencer</option>
-                  <option value="actor">Actor</option>
-                  <option value="comediante">Comediante</option>
-                  <option value="cantante">Cantante</option>
-                  <option value="youtuber">YouTuber</option>
-                  <option value="streamer">Streamer</option>
-                  <option value="podcaster">Podcaster</option>
-                  <option value="tecnologia">Tecnología</option>
-                  <option value="videojuegos">Videojuegos</option>
-                  <option value="fitness">Fitness</option>
-                  <option value="negocios">Negocios</option>
-                  <option value="educacion">Educación</option>
-                  <option value="viajes">Viajes</option>
-                  <option value="comida">Comida</option>
+                  {GROUP_CATEGORY_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
                 </SelectField>
               </div>
 
@@ -1201,7 +1190,7 @@ export default function NewGroupPage() {
                   }}
                   value={tagsRaw}
                   onChange={(e) => setTagsRaw(e.target.value)}
-                  placeholder="ej: comedia, standup, fans"
+                  placeholder="ej: futbol, pumas, liga mx"
                 />
                 <p
                   style={{
@@ -1210,7 +1199,7 @@ export default function NewGroupPage() {
                     color: "rgba(255,255,255,0.45)",
                   }}
                 >
-                  Máximo 10 tags.
+                  Máximo 10 tags. Ejemplo: futbol, pumas, liga mx.
                 </p>
               </div>
 

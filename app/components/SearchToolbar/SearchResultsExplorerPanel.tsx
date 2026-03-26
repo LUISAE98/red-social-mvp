@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from "react";
+import { createPortal } from "react-dom";
 import type { User } from "firebase/auth";
 
 import type {
@@ -48,6 +54,11 @@ export function SearchResultsExplorerPanel({
   onLeave,
 }: SearchResultsExplorerPanelProps) {
   const [activeTab, setActiveTab] = useState<ResultTab>("groups");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -63,44 +74,59 @@ export function SearchResultsExplorerPanel({
       }
     }
 
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousBodyTouchAction = document.body.style.touchAction;
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+
     document.addEventListener("keydown", handleEscape);
-    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    document.body.style.touchAction = "none";
+    document.documentElement.style.overflow = "hidden";
 
     return () => {
       document.removeEventListener("keydown", handleEscape);
-      document.body.style.overflow = previousOverflow;
+      document.body.style.overflow = previousBodyOverflow;
+      document.body.style.touchAction = previousBodyTouchAction;
+      document.documentElement.style.overflow = previousHtmlOverflow;
     };
   }, [open, onClose]);
 
   const normalizedSearch = useMemo(() => search.trim(), [search]);
 
-  if (!open) return null;
+  if (!mounted || !open) return null;
 
   const overlayStyle: CSSProperties = {
     position: "fixed",
     inset: 0,
     zIndex: 2147483647,
-    background: "rgba(0,0,0,0.75)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
+    isolation: "isolate",
+    background: "rgba(0,0,0,0.78)",
+    backdropFilter: "blur(12px)",
+    WebkitBackdropFilter: "blur(12px)",
     display: "grid",
     placeItems: "center",
     padding: 12,
+    overscrollBehavior: "contain",
   };
 
   const panelStyle: CSSProperties = {
+    position: "relative",
+    zIndex: 2147483647,
     width: "min(960px, 100%)",
-    height: "min(86vh, 840px)",
+    height: "min(86dvh, 840px)",
+    maxHeight: "calc(100dvh - 24px)",
     borderRadius: 26,
     border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(10,10,10,0.98)",
-    boxShadow: "0 28px 80px rgba(0,0,0,0.55)",
+    background:
+      "linear-gradient(180deg, rgba(12,12,12,0.99) 0%, rgba(8,8,8,0.985) 100%)",
+    boxShadow:
+      "0 32px 90px rgba(0,0,0,0.58), inset 0 1px 0 rgba(255,255,255,0.04)",
     display: "grid",
     gridTemplateRows: "auto auto minmax(0, 1fr)",
     overflow: "hidden",
     color: "#fff",
     fontFamily: fontStack,
+    transform: "translateZ(0)",
   };
 
   const headerStyle: CSSProperties = {
@@ -111,6 +137,7 @@ export function SearchResultsExplorerPanel({
     justifyContent: "space-between",
     gap: 12,
     flexWrap: "wrap",
+    background: "rgba(255,255,255,0.015)",
   };
 
   const titleWrapStyle: CSSProperties = {
@@ -147,6 +174,7 @@ export function SearchResultsExplorerPanel({
     display: "inline-grid",
     placeItems: "center",
     padding: 0,
+    flexShrink: 0,
   };
 
   const menuShellStyle: CSSProperties = {
@@ -180,11 +208,12 @@ export function SearchResultsExplorerPanel({
     gap: 6,
     padding: "10px 12px",
     textAlign: "center",
+    transition: "background 0.16s ease, color 0.16s ease",
   };
 
   const activeTabStyle: CSSProperties = {
     ...tabButtonBaseStyle,
-    background: "rgba(255,255,255,0.05)",
+    background: "rgba(255,255,255,0.06)",
     color: "#fff",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
   };
@@ -193,6 +222,8 @@ export function SearchResultsExplorerPanel({
     minHeight: 0,
     overflow: "hidden",
     display: "grid",
+    position: "relative",
+    zIndex: 1,
   };
 
   const tabs = [
@@ -280,7 +311,7 @@ export function SearchResultsExplorerPanel({
     },
   ];
 
-  return (
+  const content = (
     <div style={overlayStyle} onClick={onClose}>
       <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
         <div style={headerStyle}>
@@ -380,4 +411,6 @@ export function SearchResultsExplorerPanel({
       </div>
     </div>
   );
+
+  return createPortal(content, document.body);
 }

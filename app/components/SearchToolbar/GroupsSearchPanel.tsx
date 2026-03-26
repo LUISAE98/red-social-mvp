@@ -15,6 +15,14 @@ import {
 import { auth, db } from "@/lib/firebase";
 import GroupsSearchToolbar from "./GroupsSearchToolbar";
 import { SearchResultsExplorerPanel } from "./SearchResultsExplorerPanel";
+import type { CanonicalGroupCategory } from "@/types/group";
+import {
+  GROUP_CATEGORY_LABELS,
+  normalizeGroupCategory,
+  normalizeGroupTags,
+} from "@/types/group";
+
+export type CommunitySearchMatchType = "exact" | "related" | "suggested";
 
 export type Community = {
   id: string;
@@ -23,11 +31,17 @@ export type Community = {
   avatarUrl?: string | null;
   visibility?: "public" | "private" | "hidden" | string;
   ownerId?: string;
+  category?: string;
+  tags?: string[];
+  discoverable?: boolean;
+  isActive?: boolean;
   monetization?: {
     isPaid?: boolean;
     priceMonthly?: number | null;
     currency?: string | null;
   };
+  searchMatchType?: CommunitySearchMatchType;
+  searchScore?: number;
 };
 
 export type PublicUser = {
@@ -91,11 +105,282 @@ export function buildCommunitySearchText(group: Community) {
     .toLowerCase();
 }
 
-export function initialsFromName(name: string) {
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+const SEARCH_STOP_WORDS = new Set([
+  "de",
+  "del",
+  "la",
+  "las",
+  "el",
+  "los",
+  "y",
+  "o",
+  "a",
+  "en",
+  "por",
+  "para",
+  "con",
+  "sin",
+  "un",
+  "una",
+  "unos",
+  "unas",
+]);
+
+function tokenizeSearch(value: string) {
+  return Array.from(
+    new Set(
+      normalizeText(value)
+        .split(/[^a-z0-9]+/i)
+        .map((item) => item.trim())
+        .filter((item) => item.length >= 2 && !SEARCH_STOP_WORDS.has(item))
+    )
+  );
+}
+
+function initialsFromName(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   const a = parts[0]?.[0] ?? "";
   const b = parts[1]?.[0] ?? "";
   return (a + b).toUpperCase() || "U";
+}
+
+function buildCommunityDiscoveryText(group: Community) {
+  const canonicalCategory = normalizeGroupCategory(group.category);
+  const categoryLabel = canonicalCategory
+    ? GROUP_CATEGORY_LABELS[canonicalCategory]
+    : "";
+
+  const tags = normalizeGroupTags(group.tags).join(" ");
+
+  return normalizeText(
+    [
+      group.name ?? "",
+      group.description ?? "",
+      group.visibility ?? "",
+      canonicalCategory ?? "",
+      categoryLabel,
+      tags,
+    ]
+      .join(" ")
+      .trim()
+  );
+}
+
+const CATEGORY_KEYWORDS: Record<CanonicalGroupCategory, string[]> = {
+  entretenimiento: [
+    "entretenimiento",
+    "show",
+    "shows",
+    "peliculas",
+    "series",
+    "cine",
+    "tv",
+    "humor",
+  ],
+  musica: [
+    "musica",
+    "music",
+    "cantante",
+    "banda",
+    "musico",
+    "concierto",
+    "album",
+    "canciones",
+  ],
+  creadores: [
+    "creadores",
+    "creador",
+    "influencer",
+    "streamer",
+    "youtuber",
+    "podcast",
+    "podcaster",
+    "contenido",
+  ],
+  gaming: [
+    "gaming",
+    "gamer",
+    "videojuegos",
+    "videojuego",
+    "esports",
+    "xbox",
+    "playstation",
+    "nintendo",
+    "steam",
+  ],
+  tecnologia: [
+    "tecnologia",
+    "tech",
+    "programacion",
+    "codigo",
+    "gadgets",
+    "ia",
+    "ai",
+    "web3",
+    "crypto",
+    "software",
+  ],
+  deportes: [
+    "deportes",
+    "deporte",
+    "futbol",
+    "soccer",
+    "liga",
+    "box",
+    "boxeo",
+    "nba",
+    "nfl",
+    "beisbol",
+    "tenis",
+  ],
+  fitness_bienestar: [
+    "fitness",
+    "bienestar",
+    "salud",
+    "running",
+    "gym",
+    "entrenamiento",
+    "wellness",
+  ],
+  educacion: [
+    "educacion",
+    "educativo",
+    "curso",
+    "cursos",
+    "clases",
+    "aprendizaje",
+    "escuela",
+  ],
+  negocios_finanzas: [
+    "negocios",
+    "finanzas",
+    "empresa",
+    "emprendimiento",
+    "dinero",
+    "inversion",
+    "inversiones",
+  ],
+  noticias_politica: [
+    "noticias",
+    "politica",
+    "actualidad",
+    "periodismo",
+    "gobierno",
+    "elecciones",
+  ],
+  ciencia: ["ciencia", "cientifico", "cientifica", "fisica", "quimica", "biologia"],
+  moda_belleza: ["moda", "belleza", "fashion", "makeup", "maquillaje", "skincare"],
+  comida: ["comida", "cocina", "recetas", "food", "chef", "restaurantes"],
+  viajes: ["viajes", "viaje", "turismo", "destinos", "aventura"],
+  autos: ["autos", "auto", "coches", "carros", "motos", "motor"],
+  mascotas: ["mascotas", "mascota", "perros", "gatos", "pet", "pets"],
+  hobbies: ["hobbies", "hobbie", "coleccion", "colecciones", "manualidades"],
+  familia_comunidad: ["familia", "comunidad", "padres", "madres", "vecinos"],
+  instituciones: ["instituciones", "institucion", "empresa", "escuela", "gobierno", "organizacion"],
+  otros: ["otros"],
+};
+
+function inferCategoriesFromQuery(search: string): CanonicalGroupCategory[] {
+  const normalized = normalizeText(search);
+
+  return (Object.entries(CATEGORY_KEYWORDS) as Array<
+    [CanonicalGroupCategory, string[]]
+  >)
+    .filter(([, keywords]) =>
+      keywords.some((keyword) => normalized.includes(normalizeText(keyword)))
+    )
+    .map(([category]) => category);
+}
+
+function uniqueStrings(values: string[]) {
+  return Array.from(
+    new Set(values.map((value) => value.trim()).filter(Boolean))
+  );
+}
+
+type AffinityContext = {
+  queryTokens: string[];
+  queryCategories: CanonicalGroupCategory[];
+  seedCategories: CanonicalGroupCategory[];
+  seedTags: string[];
+};
+
+function scoreRelatedCommunity(group: Community, ctx: AffinityContext) {
+  const discoveryText = buildCommunityDiscoveryText(group);
+  const tags = normalizeGroupTags(group.tags);
+  const canonicalCategory = normalizeGroupCategory(group.category);
+
+  const matchedQueryTokens = ctx.queryTokens.filter((token) =>
+    discoveryText.includes(token)
+  );
+
+  const matchedQueryTags = tags.filter((tag) =>
+    ctx.queryTokens.some(
+      (token) => tag.includes(token) || token.includes(tag)
+    )
+  );
+
+  const matchedSeedTags = tags.filter((tag) =>
+    ctx.seedTags.some((seed) => tag.includes(seed) || seed.includes(tag))
+  );
+
+  let score = 0;
+
+  score += matchedQueryTokens.length * 6;
+  score += matchedQueryTags.length * 8;
+  score += matchedSeedTags.length * 7;
+
+  if (canonicalCategory && ctx.queryCategories.includes(canonicalCategory)) {
+    score += 10;
+  }
+
+  if (canonicalCategory && ctx.seedCategories.includes(canonicalCategory)) {
+    score += 14;
+  }
+
+  return {
+    score,
+    hasDirectSignal:
+      matchedQueryTokens.length > 0 ||
+      matchedQueryTags.length > 0 ||
+      (canonicalCategory != null &&
+        ctx.queryCategories.includes(canonicalCategory)),
+    hasAffinitySignal:
+      matchedSeedTags.length > 0 ||
+      (canonicalCategory != null &&
+        ctx.seedCategories.includes(canonicalCategory)),
+  };
+}
+
+function getCommunityPreviewPriority(
+  group: Community,
+  currentUser: User | null,
+  memberMap: Record<string, CanonicalMemberStatus>,
+  reqMap: Record<string, boolean>
+) {
+  const isOwner = !!currentUser && !!group.ownerId && group.ownerId === currentUser.uid;
+  const membershipStatus = isOwner ? "active" : memberMap[group.id] ?? null;
+  const isMember = isOwner || isJoinedStatus(membershipStatus);
+  const isBlocked = !isOwner && isBlockedStatus(membershipStatus);
+  const isPrivate = group.visibility === "private";
+  const isPublic = group.visibility === "public";
+  const hasPendingReq = !!reqMap[group.id];
+
+  if (!isOwner && !isMember && !isBlocked && isPublic) return 0; // Unirme
+  if (!isOwner && !isMember && !isBlocked && isPrivate && !hasPendingReq) return 1; // Solicitar acceso
+  if (!isOwner && !isMember && !isBlocked && isPrivate && hasPendingReq) return 2; // Enviada/Cancelar
+  if (isMember && !isOwner) return 3; // Salir
+  if (isOwner) return 4; // Owner
+  if (isBlocked) return 5; // bloqueado
+  return 6;
 }
 
 type GroupsSearchPanelProps = {
@@ -304,13 +589,22 @@ export default function GroupsSearchPanel({
 
   const normalizedSearch = search.trim().toLowerCase();
 
+  const searchableCommunities = useMemo(() => {
+    return communities.filter((group) => {
+      if (group.visibility === "hidden") return false;
+      if (group.isActive === false) return false;
+      if (group.discoverable === false) return false;
+      return true;
+    });
+  }, [communities]);
+
   const filteredCommunities = useMemo(() => {
     if (!normalizedSearch) return [];
 
-    return communities.filter((g) =>
+    return searchableCommunities.filter((g) =>
       buildCommunitySearchText(g).includes(normalizedSearch)
     );
-  }, [communities, normalizedSearch]);
+  }, [searchableCommunities, normalizedSearch]);
 
   const filteredProfiles = useMemo(() => {
     if (!normalizedSearch) return [];
@@ -322,10 +616,110 @@ export default function GroupsSearchPanel({
     });
   }, [profiles, normalizedSearch, user?.uid]);
 
-  const previewCommunities = useMemo(
-    () => filteredCommunities.slice(0, 4),
-    [filteredCommunities]
-  );
+  const explorerCommunities = useMemo(() => {
+    if (!normalizedSearch) return [];
+
+    const queryTokens = tokenizeSearch(search);
+    const queryCategories = inferCategoriesFromQuery(search);
+
+    const exactGroups = searchableCommunities
+      .filter((group) => {
+        const discoveryText = buildCommunityDiscoveryText(group);
+        if (!discoveryText) return false;
+
+        if (discoveryText.includes(normalizeText(search))) {
+          return true;
+        }
+
+        if (queryTokens.length > 0) {
+          return queryTokens.every((token) => discoveryText.includes(token));
+        }
+
+        return false;
+      })
+      .map((group) => ({
+        ...group,
+        searchMatchType: "exact" as const,
+        searchScore: 1000,
+      }));
+
+    const exactIds = new Set(exactGroups.map((group) => group.id));
+
+    const seedCategories = uniqueStrings([
+      ...exactGroups
+        .map((group) => normalizeGroupCategory(group.category))
+        .filter((value): value is CanonicalGroupCategory => !!value),
+      ...queryCategories,
+    ]) as CanonicalGroupCategory[];
+
+    const seedTags = uniqueStrings([
+      ...queryTokens,
+      ...exactGroups.flatMap((group) => normalizeGroupTags(group.tags)),
+    ]);
+
+    const affinityContext: AffinityContext = {
+      queryTokens,
+      queryCategories,
+      seedCategories,
+      seedTags,
+    };
+
+    const relatedGroups = searchableCommunities
+      .filter((group) => !exactIds.has(group.id))
+      .map((group) => {
+        const scored = scoreRelatedCommunity(group, affinityContext);
+
+        return {
+          ...group,
+          searchMatchType: "related" as const,
+          searchScore: scored.score,
+          __hasDirectSignal: scored.hasDirectSignal,
+        };
+      })
+      .filter((group) => group.searchScore > 0 && group.__hasDirectSignal)
+      .sort((a, b) => {
+        const scoreDiff = (b.searchScore ?? 0) - (a.searchScore ?? 0);
+        if (scoreDiff !== 0) return scoreDiff;
+        return (a.name ?? "").localeCompare(b.name ?? "");
+      })
+      .map(({ __hasDirectSignal, ...group }) => group);
+
+    const relatedIds = new Set(relatedGroups.map((group) => group.id));
+
+    const suggestedGroups = searchableCommunities
+      .filter((group) => !exactIds.has(group.id) && !relatedIds.has(group.id))
+      .map((group) => {
+        const scored = scoreRelatedCommunity(group, affinityContext);
+
+        return {
+          ...group,
+          searchMatchType: "suggested" as const,
+          searchScore: scored.score,
+          __hasAffinitySignal: scored.hasAffinitySignal,
+        };
+      })
+      .filter((group) => group.searchScore > 0 && group.__hasAffinitySignal)
+      .sort((a, b) => {
+        const scoreDiff = (b.searchScore ?? 0) - (a.searchScore ?? 0);
+        if (scoreDiff !== 0) return scoreDiff;
+        return (a.name ?? "").localeCompare(b.name ?? "");
+      })
+      .map(({ __hasAffinitySignal, ...group }) => group);
+
+    return [...exactGroups, ...relatedGroups, ...suggestedGroups];
+  }, [normalizedSearch, search, searchableCommunities]);
+
+  const previewCommunities = useMemo(() => {
+    const ordered = [...filteredCommunities].sort((a, b) => {
+      const priorityA = getCommunityPreviewPriority(a, user, memberMap, reqMap);
+      const priorityB = getCommunityPreviewPriority(b, user, memberMap, reqMap);
+
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      return (a.name ?? "").localeCompare(b.name ?? "");
+    });
+
+    return ordered.slice(0, 4);
+  }, [filteredCommunities, user, memberMap, reqMap]);
 
   const previewProfiles = useMemo(
     () => filteredProfiles.slice(0, 4),
@@ -459,10 +853,14 @@ export default function GroupsSearchPanel({
           backdrop-filter: blur(14px);
           -webkit-backdrop-filter: blur(14px);
           z-index: 80;
+          display: flex;
+          flex-direction: column;
+          max-height: min(62vh, 560px);
         }
 
         .search-dropdown-inner {
-          max-height: min(62vh, 560px);
+          flex: 1 1 auto;
+          min-height: 0;
           overflow-y: auto;
         }
 
@@ -476,8 +874,8 @@ export default function GroupsSearchPanel({
 
         .dropdown-title {
           margin: 0;
-          padding: 14px 16px 10px;
-          font-size: 12px;
+          padding: 12px 14px 8px;
+          font-size: 11px;
           font-weight: 700;
           letter-spacing: 0.05em;
           text-transform: uppercase;
@@ -486,23 +884,26 @@ export default function GroupsSearchPanel({
         }
 
         .dropdown-helper {
-          padding: 16px;
+          padding: 14px;
           color: rgba(255, 255, 255, 0.76);
-          font-size: 14px;
-          line-height: 1.45;
+          font-size: 13px;
+          line-height: 1.4;
         }
 
         .dropdown-footer {
-          padding: 12px 14px 14px;
+          flex: 0 0 auto;
+          padding: 10px 12px 12px;
           border-top: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(255, 255, 255, 0.02);
+          background: rgba(12, 12, 12, 0.98);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
         }
 
         .more-results-btn {
           width: 100%;
-          min-height: 42px;
-          padding: 10px 14px;
-          border-radius: 14px;
+          min-height: 40px;
+          padding: 9px 12px;
+          border-radius: 12px;
           border: ${softBorder};
           background: rgba(255, 255, 255, 0.07);
           color: #fff;
@@ -528,7 +929,7 @@ export default function GroupsSearchPanel({
         }
 
         .result-item {
-          padding: 14px 16px;
+          padding: 10px 14px;
           transition: background 0.16s ease;
         }
 
@@ -538,18 +939,21 @@ export default function GroupsSearchPanel({
 
         .result-grid {
           display: grid;
-          grid-template-columns: auto minmax(0, 1fr) auto;
-          gap: 12px;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 10px;
           align-items: center;
         }
 
         .result-main-mobile {
-          display: contents;
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          min-width: 0;
         }
 
         .result-avatar {
-          width: 48px;
-          height: 48px;
+          width: 42px;
+          height: 42px;
           border-radius: 50%;
           overflow: hidden;
           border: 1px solid rgba(255, 255, 255, 0.14);
@@ -560,7 +964,7 @@ export default function GroupsSearchPanel({
         }
 
         .result-avatar-fallback {
-          font-size: 13px;
+          font-size: 12px;
           font-weight: 700;
           color: #fff;
         }
@@ -568,29 +972,30 @@ export default function GroupsSearchPanel({
         .result-content {
           min-width: 0;
           display: grid;
-          gap: 7px;
+          gap: 5px;
         }
 
         .result-name {
           margin: 0;
-          font-size: 15px;
+          font-size: 14px;
           font-weight: 600;
           line-height: 1.2;
           color: #fff;
-          overflow-wrap: anywhere;
-          word-break: break-word;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .result-meta {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           flex-wrap: wrap;
         }
 
         .pill {
-          font-size: 12px;
-          padding: 4px 9px;
+          font-size: 11px;
+          padding: 3px 8px;
           border-radius: 999px;
           border: 1px solid rgba(255, 255, 255, 0.14);
           background: rgba(255, 255, 255, 0.05);
@@ -606,9 +1011,9 @@ export default function GroupsSearchPanel({
         }
 
         .meta-inline {
-          font-size: 12px;
+          font-size: 11px;
           color: rgba(255, 255, 255, 0.56);
-          line-height: 1.3;
+          line-height: 1.25;
         }
 
         .meta-danger {
@@ -619,20 +1024,21 @@ export default function GroupsSearchPanel({
           display: flex;
           align-items: center;
           justify-content: flex-end;
-          gap: 8px;
-          flex-wrap: wrap;
+          gap: 6px;
+          flex-wrap: nowrap;
+          flex-shrink: 0;
         }
 
         .primary-btn {
-          min-height: 38px;
-          padding: 8px 12px;
-          border-radius: 12px;
+          min-height: 34px;
+          padding: 7px 11px;
+          border-radius: 11px;
           border: 1px solid rgba(255, 255, 255, 0.22);
           background: #fff;
           color: #000;
           cursor: pointer;
           font-weight: 600;
-          font-size: 13px;
+          font-size: 12px;
           font-family: ${fontStack};
           display: inline-flex;
           align-items: center;
@@ -641,35 +1047,35 @@ export default function GroupsSearchPanel({
         }
 
         .secondary-btn {
-          min-height: 38px;
-          padding: 8px 12px;
-          border-radius: 12px;
+          min-height: 34px;
+          padding: 7px 11px;
+          border-radius: 11px;
           border: ${softBorder};
           background: rgba(255, 255, 255, 0.06);
           color: #fff;
           cursor: pointer;
           font-weight: 600;
-          font-size: 13px;
+          font-size: 12px;
           font-family: ${fontStack};
           white-space: nowrap;
         }
 
         .disabled-btn {
-          min-height: 38px;
-          padding: 8px 12px;
-          border-radius: 12px;
+          min-height: 34px;
+          padding: 7px 11px;
+          border-radius: 11px;
           border: 1px solid rgba(255, 255, 255, 0.14);
           background: rgba(255, 255, 255, 0.05);
           color: rgba(255, 255, 255, 0.68);
           font-weight: 600;
-          font-size: 13px;
+          font-size: 12px;
           font-family: ${fontStack};
           cursor: default;
           white-space: nowrap;
         }
 
         .profile-cta {
-          font-size: 12px;
+          font-size: 11px;
           color: rgba(255, 255, 255, 0.52);
           white-space: nowrap;
         }
@@ -678,62 +1084,57 @@ export default function GroupsSearchPanel({
           .search-dropdown {
             top: calc(100% + 8px);
             border-radius: 18px;
-          }
-
-          .search-dropdown-inner {
             max-height: min(58vh, 460px);
-            overflow-y: auto;
           }
 
           .dropdown-title {
-            padding: 12px 14px 9px;
+            padding: 11px 13px 8px;
             font-size: 11px;
           }
 
           .result-item {
-            padding: 13px 14px;
+            padding: 10px 12px;
           }
 
           .result-grid {
-            grid-template-columns: 1fr;
-            gap: 12px;
-            align-items: stretch;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px;
+            align-items: center;
           }
 
           .result-main-mobile {
-            display: flex;
-            gap: 12px;
-            align-items: flex-start;
-            min-width: 0;
+            gap: 8px;
+            align-items: center;
           }
 
           .result-avatar {
-            width: 44px;
-            height: 44px;
+            width: 38px;
+            height: 38px;
           }
 
           .result-content {
             min-width: 0;
-            flex: 1;
           }
 
           .result-name {
-            font-size: 14px;
+            font-size: 13px;
+          }
+
+          .result-meta {
+            gap: 5px;
           }
 
           .actions-wrap {
-            width: 100%;
-            justify-content: stretch;
-          }
-
-          .actions-wrap > button {
-            flex: 1 1 auto;
+            justify-content: flex-end;
+            width: auto;
           }
 
           .primary-btn,
           .secondary-btn,
           .disabled-btn {
-            min-height: 40px;
+            min-height: 32px;
+            padding: 6px 10px;
+            font-size: 11px;
           }
 
           .profile-cta {
@@ -899,7 +1300,7 @@ export default function GroupsSearchPanel({
                                       className="disabled-btn"
                                       type="button"
                                     >
-                                      Solicitud enviada
+                                      Enviada
                                     </button>
 
                                     <button
@@ -987,19 +1388,19 @@ export default function GroupsSearchPanel({
                   })}
                 </section>
               )}
-
-              {!isLoading && hasSearch && (
-                <div className="dropdown-footer">
-                  <button
-                    type="button"
-                    className="more-results-btn"
-                    onClick={handleOpenFullResults}
-                  >
-                    Ver más resultados
-                  </button>
-                </div>
-              )}
             </div>
+
+            {!isLoading && hasSearch && (
+              <div className="dropdown-footer">
+                <button
+                  type="button"
+                  className="more-results-btn"
+                  onClick={handleOpenFullResults}
+                >
+                  Ver más resultados
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -1008,7 +1409,7 @@ export default function GroupsSearchPanel({
           search={search}
           fontStack={fontStack}
           currentUser={user}
-          communities={filteredCommunities}
+          communities={explorerCommunities}
           profiles={filteredProfiles}
           memberMap={memberMap}
           reqMap={reqMap}
