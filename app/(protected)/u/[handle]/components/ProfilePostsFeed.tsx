@@ -15,6 +15,8 @@ import {
 
 import { db } from "@/lib/firebase";
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
+import { buildRandomRecommendationSlots } from "@/app/components/GroupRecommendations/recommendation-engine";
 
 type ProfilePostsFeedProps = {
   profileUid: string;
@@ -229,6 +231,34 @@ async function attachModerationFlags(
   });
 }
 
+function buildStableFeedSeed(
+  baseId: string,
+  posts: Array<{ id?: string; createdAt?: any }>
+): number {
+  const raw = [
+    baseId,
+    ...posts.map((post, index) => {
+      const createdAtValue =
+        typeof post?.createdAt?.toMillis === "function"
+          ? String(post.createdAt.toMillis())
+          : typeof post?.createdAt === "number"
+          ? String(post.createdAt)
+          : typeof post?.createdAt === "string"
+          ? post.createdAt
+          : String(index);
+
+      return `${post.id ?? index}-${createdAtValue}`;
+    }),
+  ].join("|");
+
+  let hash = 0;
+  for (let i = 0; i < raw.length; i += 1) {
+    hash = (hash * 31 + raw.charCodeAt(i)) >>> 0;
+  }
+
+  return hash || 1;
+}
+
 export default function ProfilePostsFeed({
   profileUid,
   viewerUid,
@@ -434,6 +464,26 @@ export default function ProfilePostsFeed({
     overflowX: "hidden",
   };
 
+  const recommendationWrapperStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflowX: "hidden",
+  };
+
+  const recommendationSlots = useMemo(() => {
+    if (!viewerUid || posts.length === 0) {
+      return new Set<number>();
+    }
+
+    const seed = buildStableFeedSeed(`${profileUid}:${viewerUid}`, posts);
+    return buildRandomRecommendationSlots(posts.length, seed);
+  }, [profileUid, viewerUid, posts]);
+
+  const hasInlineRecommendation = useMemo(() => {
+    return recommendationSlots.size > 0;
+  }, [recommendationSlots]);
+
   if (!showPosts && !isOwner) {
     return (
       <section style={shellStyle}>
@@ -455,15 +505,26 @@ export default function ProfilePostsFeed({
 
       {loadingInitial && <div style={noticeStyle}>Cargando publicaciones...</div>}
 
-      {!loadingInitial && posts.length === 0 && (
+      {!loadingInitial && posts.length === 0 && viewerUid && (
+        <div style={recommendationWrapperStyle}>
+          <GroupRecommendationsRail
+            currentUserId={viewerUid}
+            context="profile"
+          />
+        </div>
+      )}
+
+      {!loadingInitial && posts.length === 0 && !viewerUid && (
         <div style={noticeStyle}>
           Todavía no hay publicaciones visibles en este perfil.
         </div>
       )}
 
-      {posts.map((post) => {
+      {posts.map((post, index) => {
         const canDeletePost =
           viewerUid === post.authorId || post.canModerateGroupAuthor === true;
+
+        const shouldRenderRecommendations = recommendationSlots.has(index + 1);
 
         return (
           <div key={post.id} style={postItemStyle}>
@@ -481,9 +542,27 @@ export default function ProfilePostsFeed({
               canModerateGroupAuthor={post.canModerateGroupAuthor === true}
               onModerationComplete={loadPosts}
             />
+
+            {shouldRenderRecommendations && viewerUid && (
+              <div style={recommendationWrapperStyle}>
+                <GroupRecommendationsRail
+                  currentUserId={viewerUid}
+                  context="profile"
+                />
+              </div>
+            )}
           </div>
         );
       })}
+
+      {!loadingInitial && posts.length > 0 && !hasInlineRecommendation && viewerUid && (
+        <div style={recommendationWrapperStyle}>
+          <GroupRecommendationsRail
+            currentUserId={viewerUid}
+            context="profile"
+          />
+        </div>
+      )}
     </section>
   );
 }

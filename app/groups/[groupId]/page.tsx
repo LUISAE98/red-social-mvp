@@ -11,6 +11,7 @@ import OwnerAdminPanel from "./components/OwnerAdminPanel";
 import GroupSubnav from "./components/GroupSubnav";
 import GroupMembersTab from "./components/GroupMembersTab";
 import GroupPostsFeed from "./components/posts/GroupPostsFeed";
+import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import {
   createGreetingRequest,
   type GreetingType,
@@ -1177,6 +1178,14 @@ export default function GroupPage() {
             margin-top: 10px;
           }
 
+          .group-subnav-wrap {
+            margin-top: 16px;
+            width: 100%;
+            max-width: 720px;
+            margin-left: auto;
+            margin-right: auto;
+          }
+
           .group-actions-wrap {
             margin-top: 18px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -1205,6 +1214,8 @@ export default function GroupPage() {
             width: 100%;
             max-width: 720px;
             margin: 0 auto;
+            display: grid;
+            gap: 12px;
           }
 
           @media (min-width: 700px) {
@@ -1244,6 +1255,10 @@ export default function GroupPage() {
             }
 
             .group-feed-wrap {
+              max-width: none;
+            }
+
+            .group-subnav-wrap {
               max-width: none;
             }
           }
@@ -1317,6 +1332,16 @@ export default function GroupPage() {
                   <div className="group-visibility" style={microText}>
                     {visibilityLabel(String(group.visibility ?? ""))}
                   </div>
+
+                  {effectiveIsMember && (
+                    <div className="group-subnav-wrap">
+                      <GroupSubnav
+                        activeTab={activeTab}
+                        onChange={setActiveTab}
+                        canManage={isOwner}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1381,52 +1406,6 @@ export default function GroupPage() {
                   >
                     {error}
                   </div>
-                )}
-
-                {canViewPublicFeed && (
-                  <section className="group-feed-wrap">
-                    <GroupPostsFeed
-                      groupId={groupId}
-                      isOwner={isOwner}
-                      isModerator={isModerator}
-                      canCreatePosts={canCreatePosts}
-                      canInteract={canInteract}
-                      interactionBlockedReason={interactionBlockedReason}
-                    />
-                  </section>
-                )}
-
-                {effectiveIsMember && (
-                  <>
-                    <GroupSubnav
-                      activeTab={activeTab}
-                      onChange={setActiveTab}
-                      canManage={isOwner}
-                    />
-
-                    {activeTab === "members" && (
-                      <GroupMembersTab
-                        groupId={groupId}
-                        isOwner={isOwner}
-                        isModerator={isModerator}
-                        canMembersViewList={canMembersViewList}
-                      />
-                    )}
-
-                    {activeTab === "settings" && isOwner && user && group.ownerId && (
-                      <OwnerAdminPanel
-                        groupId={groupId}
-                        ownerId={group.ownerId}
-                        currentUserId={user.uid}
-                        currentAvatarUrl={group.avatarUrl ?? null}
-                        currentCoverUrl={group.coverUrl ?? null}
-                        currentName={group.name ?? null}
-                        currentDescription={group.description ?? null}
-                        currentCategory={group.category ?? null}
-                        currentTags={group.tags ?? null}
-                      />
-                    )}
-                  </>
                 )}
 
                 {!isOwner && effectiveIsMember && enabledOfferings.length > 0 && (
@@ -1588,6 +1567,49 @@ export default function GroupPage() {
                       </div>
                     )}
                   </section>
+                )}
+
+                {canViewPublicFeed && activeTab === "feed" && (
+                  <section className="group-feed-wrap">
+                    <GroupPostsFeed
+                      groupId={groupId}
+                      isOwner={isOwner}
+                      isModerator={isModerator}
+                      canCreatePosts={canCreatePosts}
+                      canInteract={canInteract}
+                      interactionBlockedReason={interactionBlockedReason}
+                    />
+
+                    {user?.uid ? (
+                      <GroupRecommendationsRail
+                        currentUserId={user.uid}
+                        context="group"
+                      />
+                    ) : null}
+                  </section>
+                )}
+
+                {effectiveIsMember && activeTab === "members" && (
+                  <GroupMembersTab
+                    groupId={groupId}
+                    isOwner={isOwner}
+                    isModerator={isModerator}
+                    canMembersViewList={canMembersViewList}
+                  />
+                )}
+
+                {activeTab === "settings" && isOwner && user && group.ownerId && (
+                  <OwnerAdminPanel
+                    groupId={groupId}
+                    ownerId={group.ownerId}
+                    currentUserId={user.uid}
+                    currentAvatarUrl={group.avatarUrl ?? null}
+                    currentCoverUrl={group.coverUrl ?? null}
+                    currentName={group.name ?? null}
+                    currentDescription={group.description ?? null}
+                    currentCategory={group.category ?? null}
+                    currentTags={group.tags ?? null}
+                  />
                 )}
               </div>
             </div>

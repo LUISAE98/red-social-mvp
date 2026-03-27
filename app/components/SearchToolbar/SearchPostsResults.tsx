@@ -1,20 +1,35 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import type { User } from "firebase/auth";
 import {
   collection,
   doc,
   getDoc,
   getDocs,
-  limit,
-  orderBy,
   query,
   where,
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
 import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
+
+import type { Comment, Post } from "@/lib/posts/types";
+import {
+  createPostComment,
+  deletePostComment,
+  fetchGroupPosts,
+  fetchPostComments,
+  softDeletePost,
+} from "@/lib/posts/post-service";
+
+import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
 
 type SearchPostsResultsProps = {
   fontStack: string;
@@ -23,329 +38,190 @@ type SearchPostsResultsProps = {
   onNavigate: (href: string) => void;
 };
 
-type GroupVisibility = "public" | "private" | "hidden";
+type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
+type GroupRole = "owner" | "mod" | "member" | null;
 
-type SearchPost = {
-  id: string;
-  text: string;
-  authorId: string;
-  authorName: string;
-  authorAvatarUrl: string | null;
-  authorUsername: string | null;
-  groupId: string;
-  groupName: string | null;
-  groupAvatarUrl: string | null;
-  groupVisibility: GroupVisibility | null;
-  createdAt?: {
-    toDate?: () => Date;
-    toMillis?: () => number;
-  } | null;
+type PostWithFlags = Post & {
+  canModerateGroupAuthor?: boolean;
+  authorMemberStatus?: MemberStatus;
+  authorMutedUntil?: any;
 };
 
-type GroupMeta = {
-  id: string;
-  name: string | null;
-  avatarUrl: string | null;
-  visibility: GroupVisibility | null;
-  ownerId: string | null;
-};
-
-type UserMeta = {
-  displayName: string | null;
-  avatarUrl: string | null;
-  username: string | null;
-};
-
-type CanonicalMemberStatus =
-  | "active"
-  | "muted"
-  | "banned"
-  | "removed"
-  | null;
-
-function pickString(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : null;
-}
-
-function normalizeVisibility(value: unknown): GroupVisibility | null {
-  if (value === "public" || value === "private" || value === "hidden") {
-    return value;
-  }
+function normalizeRole(raw: unknown): GroupRole {
+  if (raw === "owner") return "owner";
+  if (raw === "mod") return "mod";
+  if (raw === "moderator") return "mod";
+  if (raw === "member") return "member";
   return null;
 }
 
-function normalizeMemberStatus(raw: unknown): CanonicalMemberStatus {
-  if (raw === "active") return "active";
-  if (raw === "muted") return "muted";
+function normalizeStatus(raw: unknown): MemberStatus {
   if (raw === "banned") return "banned";
-  if (raw === "removed") return "removed";
-  if (raw === "kicked") return "removed";
-  if (raw === "expelled") return "removed";
-  return null;
+  if (raw === "muted") return "muted";
+  if (raw === "removed" || raw === "kicked" || raw === "expelled") {
+    return "removed";
+  }
+  if (raw === "active") return "active";
+  return "active";
 }
 
-function isReadableMemberStatus(status: CanonicalMemberStatus) {
-  return status === "active" || status === "muted";
+function getTimestampMs(value: unknown): number {
+  if (!value || typeof value !== "object") return 0;
+
+  const candidate = value as any;
+
+  if (typeof candidate.toMillis === "function") {
+    return candidate.toMillis();
+  }
+
+  if (typeof candidate.toDate === "function") {
+    return candidate.toDate().getTime();
+  }
+
+  if (typeof candidate.seconds === "number") {
+    return candidate.seconds * 1000;
+  }
+
+  return 0;
 }
 
-function initialsFromName(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
-  if (parts.length === 0) return "P";
-  return parts.map((part) => part.charAt(0).toUpperCase()).join("");
+function getStartOfDayMs(dateValue: string): number | null {
+  if (!dateValue) return null;
+  const date = new Date(`${dateValue}T00:00:00`);
+  const ms = date.getTime();
+  return Number.isNaN(ms) ? null : ms;
 }
 
-function formatDate(value?: { toDate?: () => Date } | null) {
-  if (!value?.toDate) return "Ahora mismo";
+function getEndOfDayMs(dateValue: string): number | null {
+  if (!dateValue) return null;
+  const date = new Date(`${dateValue}T23:59:59.999`);
+  const ms = date.getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
 
+async function getMembershipMetaForGroup(groupId: string, userId: string) {
   try {
-    return new Intl.DateTimeFormat("es-MX", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(value.toDate());
+    const memberRef = doc(db, "groups", groupId, "members", userId);
+    const memberSnap = await getDoc(memberRef);
+
+    if (!memberSnap.exists()) {
+      return { status: null, mutedUntil: null, role: null };
+    }
+
+    const data = memberSnap.data() as any;
+
+    return {
+      status: normalizeStatus(data?.status),
+      mutedUntil: data?.mutedUntil ?? null,
+      role: normalizeRole(data?.roleInGroup ?? data?.role),
+    };
   } catch {
-    return "Fecha no disponible";
+    return { status: null, mutedUntil: null, role: null };
   }
 }
 
-async function fetchPublicGroupIds(): Promise<string[]> {
-  const snap = await getDocs(
+async function getViewerCanModerateGroup(groupId: string, userId: string) {
+  try {
+    const groupSnap = await getDoc(doc(db, "groups", groupId));
+    if (!groupSnap.exists()) return false;
+
+    const data = groupSnap.data() as any;
+
+    if (data?.ownerId === userId) return true;
+
+    const viewerMeta = await getMembershipMetaForGroup(groupId, userId);
+
+    return (
+      viewerMeta.role === "mod" &&
+      viewerMeta.status !== "banned" &&
+      viewerMeta.status !== "removed"
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function filterOutBlockedPosts(posts: Post[], userId: string) {
+  if (!posts.length) return posts;
+
+  const uniqueGroupIds = Array.from(
+    new Set(posts.map((p) => p.groupId).filter(Boolean))
+  );
+
+  const entries = await Promise.all(
+    uniqueGroupIds.map(async (groupId) => {
+      const meta = await getMembershipMetaForGroup(groupId, userId);
+      return [groupId, meta.status] as const;
+    })
+  );
+
+  const map = new Map(entries);
+
+  return posts.filter((post) => {
+    const status = map.get(post.groupId) ?? null;
+    return status !== "banned" && status !== "removed";
+  });
+}
+
+async function attachModerationFlags(posts: Post[], userId: string) {
+  const groupIds = Array.from(
+    new Set(posts.map((p) => p.groupId).filter(Boolean))
+  );
+
+  const modEntries = await Promise.all(
+    groupIds.map(
+      async (g) => [g, await getViewerCanModerateGroup(g, userId)] as const
+    )
+  );
+
+  const modMap = new Map(modEntries);
+
+  return posts.map((post) => ({
+    ...post,
+    canModerateGroupAuthor: modMap.get(post.groupId) === true,
+  }));
+}
+
+async function fetchAccessibleGroupIds(user: User | null) {
+  const publicSnap = await getDocs(
     query(collection(db, "groups"), where("visibility", "==", "public"))
   );
 
-  return snap.docs.map((docSnap) => docSnap.id);
-}
+  const publicIds = publicSnap.docs.map((d) => d.id);
 
-async function fetchOwnedGroupIds(userUid: string): Promise<string[]> {
-  const snap = await getDocs(
-    query(collection(db, "groups"), where("ownerId", "==", userUid))
+  if (!user?.uid) return publicIds;
+
+  const ownedSnap = await getDocs(
+    query(collection(db, "groups"), where("ownerId", "==", user.uid))
   );
 
-  return snap.docs.map((docSnap) => docSnap.id);
+  const ownedIds = ownedSnap.docs.map((d) => d.id);
+
+  const hidden = await getMyHiddenJoinedGroups();
+
+  const hiddenIds = hidden.map((g) => g.id);
+
+  return Array.from(new Set([...publicIds, ...ownedIds, ...hiddenIds]));
 }
 
-async function fetchMemberGroupIds(userUid: string): Promise<string[]> {
-  const groupsCol = collection(db, "groups");
-
-  const [publicSnap, privateSnap] = await Promise.all([
-    getDocs(query(groupsCol, where("visibility", "==", "public"))),
-    getDocs(query(groupsCol, where("visibility", "==", "private"))),
-  ]);
-
-  const groups = [
-    ...publicSnap.docs.map((d) => d.id),
-    ...privateSnap.docs.map((d) => d.id),
-  ];
-
-  const dedupedGroupIds = Array.from(new Set(groups));
-
-  const checks = await Promise.all(
-    dedupedGroupIds.map(async (groupId) => {
-      try {
-        const memberSnap = await getDoc(doc(db, "groups", groupId, "members", userUid));
-
-        if (!memberSnap.exists()) return null;
-
-        const data = memberSnap.data() as Record<string, unknown>;
-        const status = normalizeMemberStatus(data.status);
-
-        return isReadableMemberStatus(status) ? groupId : null;
-      } catch {
-        return null;
-      }
-    })
-  );
-
-  return checks.filter((value): value is string => !!value);
-}
-
-async function fetchHiddenJoinedGroupIds(userUid: string): Promise<string[]> {
-  try {
-    if (!userUid.trim()) return [];
-
-    const rows = await getMyHiddenJoinedGroups();
-
-    return rows
-      .map((row) => (typeof row.id === "string" ? row.id.trim() : ""))
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-
-async function fetchAccessibleGroupIds(user: User | null): Promise<string[]> {
-  const publicIds = await fetchPublicGroupIds();
-
-  if (!user?.uid) {
-    return Array.from(new Set(publicIds));
-  }
-
-  const [ownedIds, memberIds, hiddenIds] = await Promise.all([
-    fetchOwnedGroupIds(user.uid),
-    fetchMemberGroupIds(user.uid),
-    fetchHiddenJoinedGroupIds(user.uid),
-  ]);
-
-  return Array.from(new Set([...publicIds, ...ownedIds, ...memberIds, ...hiddenIds]));
-}
-
-async function fetchGroupsByIds(groupIds: string[]): Promise<Record<string, GroupMeta>> {
-  const uniqueIds = Array.from(new Set(groupIds.filter(Boolean)));
-
-  const entries = await Promise.all(
-    uniqueIds.map(async (groupId) => {
-      try {
-        const snap = await getDoc(doc(db, "groups", groupId));
-        if (!snap.exists()) {
-          return [
-            groupId,
-            {
-              id: groupId,
-              name: null,
-              avatarUrl: null,
-              visibility: null,
-              ownerId: null,
-            },
-          ] as const;
-        }
-
-        const data = snap.data() as Record<string, unknown>;
-
-        return [
-          groupId,
-          {
-            id: groupId,
-            name:
-              pickString(data.name) ||
-              pickString(data.title) ||
-              pickString(data.groupName),
-            avatarUrl:
-              pickString(data.avatarUrl) ||
-              pickString(data.photoURL) ||
-              pickString(data.groupAvatarUrl),
-            visibility: normalizeVisibility(data.visibility),
-            ownerId: pickString(data.ownerId),
-          },
-        ] as const;
-      } catch {
-        return [
-          groupId,
-          {
-            id: groupId,
-            name: null,
-            avatarUrl: null,
-            visibility: null,
-            ownerId: null,
-          },
-        ] as const;
-      }
-    })
-  );
-
-  return Object.fromEntries(entries);
-}
-
-async function fetchUsersByIds(userIds: string[]): Promise<Record<string, UserMeta>> {
-  const uniqueIds = Array.from(new Set(userIds.filter(Boolean)));
-
-  const entries = await Promise.all(
-    uniqueIds.map(async (userId) => {
-      try {
-        const snap = await getDoc(doc(db, "users", userId));
-
-        if (!snap.exists()) {
-          return [
-            userId,
-            {
-              displayName: null,
-              avatarUrl: null,
-              username: null,
-            },
-          ] as const;
-        }
-
-        const data = snap.data() as Record<string, unknown>;
-
-        return [
-          userId,
-          {
-            displayName:
-              pickString(data.displayName) || pickString(data.name),
-            avatarUrl:
-              pickString(data.avatarUrl) || pickString(data.photoURL),
-            username:
-              pickString(data.username) || pickString(data.handle),
-          },
-        ] as const;
-      } catch {
-        return [
-          userId,
-          {
-            displayName: null,
-            avatarUrl: null,
-            username: null,
-          },
-        ] as const;
-      }
-    })
-  );
-
-  return Object.fromEntries(entries);
-}
-
-async function fetchPostsByGroups(groupIds: string[]): Promise<SearchPost[]> {
-  if (groupIds.length === 0) return [];
+async function fetchSearchPosts(user: User | null) {
+  const groupIds = await fetchAccessibleGroupIds(user);
 
   const groupsPosts = await Promise.all(
     groupIds.map(async (groupId) => {
       try {
-        const snap = await getDocs(
-          query(
-            collection(db, "posts"),
-            where("groupId", "==", groupId),
-            where("isDeleted", "==", false),
-            orderBy("createdAt", "desc"),
-            limit(20)
-          )
-        );
-
-        return snap.docs.map((docSnap) => {
-          const data = docSnap.data() as Record<string, unknown>;
-
-          return {
-            id: docSnap.id,
-            text: typeof data.text === "string" ? data.text : "",
-            authorId: typeof data.authorId === "string" ? data.authorId : "",
-            authorName: typeof data.authorName === "string" ? data.authorName : "Usuario",
-            authorAvatarUrl:
-              typeof data.authorAvatarUrl === "string" ? data.authorAvatarUrl : null,
-            authorUsername:
-              typeof data.authorUsername === "string" ? data.authorUsername : null,
-            groupId: typeof data.groupId === "string" ? data.groupId : groupId,
-            groupName: typeof data.groupName === "string" ? data.groupName : null,
-            groupAvatarUrl:
-              typeof data.groupAvatarUrl === "string" ? data.groupAvatarUrl : null,
-            groupVisibility: normalizeVisibility(data.groupVisibility),
-            createdAt:
-              typeof data.createdAt === "object" ? (data.createdAt as SearchPost["createdAt"]) : null,
-          };
-        });
+        return await fetchGroupPosts(groupId);
       } catch {
-        return [] as SearchPost[];
+        return [];
       }
     })
   );
 
   const all = groupsPosts.flat();
 
-  const deduped = Array.from(new Map(all.map((post) => [post.id, post])).values());
+  const deduped = Array.from(new Map(all.map((p) => [p.id, p])).values());
 
-  deduped.sort((a, b) => {
-    const aMs = a.createdAt?.toMillis?.() ?? 0;
-    const bMs = b.createdAt?.toMillis?.() ?? 0;
-    return bMs - aMs;
-  });
+  deduped.sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
 
   return deduped;
 }
@@ -354,24 +230,46 @@ export default function SearchPostsResults({
   fontStack,
   search,
   currentUser,
-  onNavigate,
 }: SearchPostsResultsProps) {
-  const [posts, setPosts] = useState<SearchPost[]>([]);
+  const userId = currentUser?.uid ?? null;
+
+  const [posts, setPosts] = useState<PostWithFlags[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  const filtersPanelRef = useRef<HTMLDivElement | null>(null);
+
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!filtersPanelRef.current) return;
+      if (!filtersPanelRef.current.contains(event.target as Node)) {
+        setIsFiltersOpen(false);
+      }
+    }
+
+    if (isFiltersOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isFiltersOpen]);
 
   useEffect(() => {
     let active = true;
 
     async function run() {
       if (!normalizedSearch) {
-        if (active) {
-          setPosts([]);
-          setLoading(false);
-          setError(null);
-        }
+        setPosts([]);
+        setLoading(false);
+        setError(null);
         return;
       }
 
@@ -379,265 +277,425 @@ export default function SearchPostsResults({
         setLoading(true);
         setError(null);
 
-        const accessibleGroupIds = await fetchAccessibleGroupIds(currentUser);
-        const rawPosts = await fetchPostsByGroups(accessibleGroupIds);
+        const raw = await fetchSearchPosts(currentUser);
 
-        const matchingPosts = rawPosts.filter((post) =>
-          post.text.toLowerCase().includes(normalizedSearch)
+        const filtered = raw.filter((p) =>
+          (p.text ?? "").toLowerCase().includes(normalizedSearch)
         );
 
-        const groupMap = await fetchGroupsByIds(matchingPosts.map((post) => post.groupId));
-        const userMap = await fetchUsersByIds(matchingPosts.map((post) => post.authorId));
+        let finalPosts: PostWithFlags[] = filtered;
 
-        const hydrated = matchingPosts.slice(0, 60).map((post) => {
-          const groupMeta = groupMap[post.groupId];
-          const userMeta = userMap[post.authorId];
-
-          return {
-            ...post,
-            authorName:
-              userMeta?.displayName || post.authorName || post.authorId || "Usuario",
-            authorAvatarUrl: userMeta?.avatarUrl ?? post.authorAvatarUrl ?? null,
-            authorUsername: userMeta?.username ?? post.authorUsername ?? null,
-            groupName: groupMeta?.name ?? post.groupName ?? "Comunidad",
-            groupAvatarUrl: groupMeta?.avatarUrl ?? post.groupAvatarUrl ?? null,
-            groupVisibility: groupMeta?.visibility ?? post.groupVisibility ?? null,
-          };
-        });
+        if (userId) {
+          const visible = await filterOutBlockedPosts(filtered, userId);
+          finalPosts = await attachModerationFlags(visible, userId);
+        }
 
         if (!active) return;
-        setPosts(hydrated);
+        setPosts(finalPosts.slice(0, 60));
       } catch (e: any) {
         if (!active) return;
-        setError(e?.message ?? "No se pudieron cargar publicaciones.");
+        setError(e?.message ?? "Error");
       } finally {
         if (active) setLoading(false);
       }
     }
 
-    void run();
+    run();
 
     return () => {
       active = false;
     };
-  }, [normalizedSearch, currentUser]);
+  }, [normalizedSearch, currentUser, userId]);
+
+  async function handleDeletePost(postId: string) {
+    await softDeletePost(postId);
+  }
+
+  async function handleLoadComments(postId: string): Promise<Comment[]> {
+    return await fetchPostComments(postId);
+  }
+
+  async function handleCreateComment(postId: string, text: string) {
+    await createPostComment({ postId, text });
+    return await fetchPostComments(postId);
+  }
+
+  async function handleDeleteComment(postId: string, commentId: string) {
+    await deletePostComment({ postId, commentId });
+    return await fetchPostComments(postId);
+  }
+
+  function clearDateFilters() {
+    setFromDate("");
+    setToDate("");
+  }
+
+  function matchesDateRange(post: PostWithFlags) {
+    if (!fromDate && !toDate) return true;
+
+    const createdAtMs = getTimestampMs(post.createdAt);
+    if (!createdAtMs) return false;
+
+    const fromMs = getStartOfDayMs(fromDate);
+    const toMs = getEndOfDayMs(toDate);
+
+    if (fromMs !== null && createdAtMs < fromMs) return false;
+    if (toMs !== null && createdAtMs > toMs) return false;
+
+    return true;
+  }
+
+  const filteredPosts = useMemo(() => {
+    return posts.filter(matchesDateRange);
+  }, [posts, fromDate, toDate]);
+
+  const activeFilters = [
+    ...(fromDate
+      ? [
+          {
+            key: "fromDate",
+            label: `Desde: ${fromDate}`,
+            onRemove: () => setFromDate(""),
+          },
+        ]
+      : []),
+    ...(toDate
+      ? [
+          {
+            key: "toDate",
+            label: `Hasta: ${toDate}`,
+            onRemove: () => setToDate(""),
+          },
+        ]
+      : []),
+  ];
 
   const shellStyle: CSSProperties = {
-    minHeight: 0,
-    overflowY: "auto",
-    padding: 16,
-    display: "grid",
-    gap: 12,
-  };
-
-  const noticeStyle: CSSProperties = {
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.03)",
-    padding: "16px 18px",
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 14,
-    lineHeight: 1.5,
-  };
-
-  const cardStyle: CSSProperties = {
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.025)",
-    padding: 14,
-    display: "grid",
-    gap: 12,
-    cursor: "pointer",
-  };
-
-  const headerStyle: CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "auto minmax(0, 1fr) auto",
-    gap: 12,
-    alignItems: "center",
-  };
-
-  const avatarStyle: CSSProperties = {
-    width: 48,
-    height: 48,
-    borderRadius: "50%",
-    overflow: "hidden",
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.04)",
-    display: "grid",
-    placeItems: "center",
-    flexShrink: 0,
-  };
-
-  const fallbackStyle: CSSProperties = {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: 700,
-  };
-
-  const contentStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
     minWidth: 0,
     display: "grid",
-    gap: 6,
+    gap: 12,
+    marginBottom: 18,
+    overflowX: "hidden",
   };
 
-  const authorStyle: CSSProperties = {
-    margin: 0,
-    color: "#fff",
-    fontSize: 14.5,
-    fontWeight: 700,
-    lineHeight: 1.2,
-    overflowWrap: "anywhere",
-    wordBreak: "break-word",
+  const topBarStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) auto",
+    gap: 12,
+    alignItems: "start",
+    position: "relative",
   };
 
-  const metaStyle: CSSProperties = {
+  const activeFiltersWrapStyle: CSSProperties = {
+    minHeight: 36,
     display: "flex",
     alignItems: "center",
     gap: 8,
     flexWrap: "wrap",
+    padding: "0 2px",
   };
 
-  const pillStyle: CSSProperties = {
-    fontSize: 12,
-    padding: "4px 9px",
+  const activeFilterPillStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    minHeight: 30,
+    padding: "5px 10px",
     borderRadius: 999,
     border: "1px solid rgba(255,255,255,0.14)",
     background: "rgba(255,255,255,0.05)",
-    color: "rgba(255,255,255,0.88)",
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: 600,
     lineHeight: 1.2,
     whiteSpace: "nowrap",
   };
 
-  const subtleMetaStyle: CSSProperties = {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.56)",
-    lineHeight: 1.3,
+  const activeFilterRemoveStyle: CSSProperties = {
+    border: "none",
+    background: "transparent",
+    color: "rgba(255,255,255,0.72)",
+    cursor: "pointer",
+    padding: 0,
+    fontSize: 14,
+    lineHeight: 1,
   };
 
-  const openButtonStyle: CSSProperties = {
+  const filtersButtonStyle: CSSProperties = {
     minHeight: 36,
     padding: "8px 12px",
     borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.18)",
-    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.05)",
     color: "#fff",
     cursor: "pointer",
     fontWeight: 700,
-    fontSize: 13,
+    fontSize: 12.5,
     fontFamily: fontStack,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
     whiteSpace: "nowrap",
   };
 
-  const bodyStyle: CSSProperties = {
+  const filtersPanelStyle: CSSProperties = {
+    position: "absolute",
+    top: 44,
+    right: 0,
+    width: 280,
+    maxWidth: "calc(100vw - 24px)",
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(10,10,10,0.98)",
+    boxShadow: "0 16px 40px rgba(0,0,0,0.45)",
+    padding: 12,
+    display: "grid",
+    gap: 12,
+    zIndex: 20,
+    backdropFilter: "blur(12px)",
+  };
+
+  const filterBlockStyle: CSSProperties = {
+    display: "grid",
+    gap: 8,
+  };
+
+  const filterBlockTitleStyle: CSSProperties = {
     margin: 0,
-    fontSize: 13.5,
-    fontWeight: 300,
-    lineHeight: 1.68,
-    color: "rgba(255,255,255,0.92)",
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word",
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    color: "rgba(255,255,255,0.52)",
+  };
+
+  const dateFieldWrapStyle: CSSProperties = {
+    display: "grid",
+    gap: 6,
+  };
+
+  const dateLabelStyle: CSSProperties = {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.74)",
+    fontWeight: 600,
+  };
+
+  const dateInputStyle: CSSProperties = {
+    width: "100%",
+    minHeight: 38,
+    padding: "8px 10px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.05)",
+    color: "#fff",
+    fontSize: 13,
+    fontFamily: fontStack,
+    outline: "none",
+  };
+
+  const filterActionsRowStyle: CSSProperties = {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingTop: 4,
+  };
+
+  const filterActionSecondaryStyle: CSSProperties = {
+    flex: 1,
+    minHeight: 34,
+    padding: "7px 10px",
+    borderRadius: 11,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 600,
+    fontFamily: fontStack,
+  };
+
+  const filterActionPrimaryStyle: CSSProperties = {
+    ...filterActionSecondaryStyle,
+    background: "#fff",
+    color: "#000",
+    border: "1px solid rgba(255,255,255,0.20)",
+  };
+
+  const emptyStyle: CSSProperties = {
+    borderRadius: 18,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.03)",
+    padding: "15px 16px",
+    color: "rgba(255,255,255,0.78)",
+    fontSize: 14,
+    lineHeight: 1.45,
+  };
+
+  const postItemStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflowX: "hidden",
   };
 
   if (loading) {
-    return (
-      <section style={shellStyle}>
-        <div style={noticeStyle}>Buscando publicaciones...</div>
-      </section>
-    );
+    return <div>Buscando publicaciones...</div>;
   }
 
   if (error) {
-    return (
-      <section style={shellStyle}>
-        <div style={noticeStyle}>{error}</div>
-      </section>
-    );
+    return <div>{error}</div>;
   }
 
   if (!normalizedSearch) {
-    return (
-      <section style={shellStyle}>
-        <div style={noticeStyle}>
-          Escribe una búsqueda para ver publicaciones relacionadas.
-        </div>
-      </section>
-    );
-  }
-
-  if (posts.length === 0) {
-    return (
-      <section style={shellStyle}>
-        <div style={noticeStyle}>
-          No se encontraron publicaciones con ese texto.
-        </div>
-      </section>
-    );
+    return <div>Escribe algo para buscar</div>;
   }
 
   return (
     <section style={shellStyle}>
-      {posts.map((post) => {
-        const authorDisplayName = post.authorName || "Usuario";
-        const groupDisplayName = post.groupName || "Comunidad";
+      <div style={topBarStyle} className="search-posts-topbar">
+        <div style={activeFiltersWrapStyle}>
+          {activeFilters.length > 0
+            ? activeFilters.map((filter) => (
+                <span key={filter.key} style={activeFilterPillStyle}>
+                  {filter.label}
+                  <button
+                    type="button"
+                    style={activeFilterRemoveStyle}
+                    onClick={filter.onRemove}
+                    aria-label={`Quitar filtro ${filter.label}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))
+            : null}
+        </div>
 
-        return (
-          <article
-            key={post.id}
-            style={cardStyle}
-            onClick={() => onNavigate(`/groups/${post.groupId}`)}
+        <div ref={filtersPanelRef} className="search-posts-filters-anchor">
+          <button
+            type="button"
+            style={filtersButtonStyle}
+            onClick={() => setIsFiltersOpen((prev) => !prev)}
           >
-            <div style={headerStyle}>
-              <div style={avatarStyle}>
-                {post.authorAvatarUrl ? (
-                  <img
-                    src={post.authorAvatarUrl}
-                    alt={authorDisplayName}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
+            <span aria-hidden="true">☰</span>
+            Filtros
+          </button>
+
+          {isFiltersOpen && (
+            <div style={filtersPanelStyle} className="search-posts-filters-panel">
+              <div style={filterBlockStyle}>
+                <p style={filterBlockTitleStyle}>Fecha</p>
+
+                <div style={dateFieldWrapStyle}>
+                  <label htmlFor="posts-filter-from" style={dateLabelStyle}>
+                    Desde
+                  </label>
+                  <input
+                    id="posts-filter-from"
+                    type="date"
+                    value={fromDate}
+                    onChange={(e) => setFromDate(e.target.value)}
+                    style={dateInputStyle}
+                    max={toDate || undefined}
                   />
-                ) : (
-                  <span style={fallbackStyle}>
-                    {initialsFromName(authorDisplayName)}
-                  </span>
-                )}
-              </div>
+                </div>
 
-              <div style={contentStyle}>
-                <h3 style={authorStyle}>{authorDisplayName}</h3>
-
-                <div style={metaStyle}>
-                  {post.authorUsername && (
-                    <span style={pillStyle}>@{post.authorUsername}</span>
-                  )}
-
-                  <span style={pillStyle}>{groupDisplayName}</span>
-
-                  <span style={subtleMetaStyle}>
-                    {formatDate(post.createdAt)}
-                  </span>
+                <div style={dateFieldWrapStyle}>
+                  <label htmlFor="posts-filter-to" style={dateLabelStyle}>
+                    Hasta
+                  </label>
+                  <input
+                    id="posts-filter-to"
+                    type="date"
+                    value={toDate}
+                    onChange={(e) => setToDate(e.target.value)}
+                    style={dateInputStyle}
+                    min={fromDate || undefined}
+                  />
                 </div>
               </div>
 
-              <button
-                type="button"
-                style={openButtonStyle}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onNavigate(`/groups/${post.groupId}`);
-                }}
-              >
-                Abrir
-              </button>
-            </div>
+              <div style={filterActionsRowStyle}>
+                <button
+                  type="button"
+                  style={filterActionSecondaryStyle}
+                  onClick={clearDateFilters}
+                >
+                  Limpiar
+                </button>
 
-            <p style={bodyStyle}>{post.text}</p>
-          </article>
-        );
-      })}
+                <button
+                  type="button"
+                  style={filterActionPrimaryStyle}
+                  onClick={() => setIsFiltersOpen(false)}
+                >
+                  Listo
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {filteredPosts.length === 0 ? (
+        <div style={emptyStyle}>
+          No se encontraron publicaciones con los filtros seleccionados.
+        </div>
+      ) : (
+        filteredPosts.map((post) => {
+          const canDelete =
+            userId === post.authorId ||
+            post.canModerateGroupAuthor === true;
+
+          return (
+            <div key={post.id} style={postItemStyle}>
+              <GroupPostCard
+                post={post}
+                canDelete={canDelete}
+                onDelete={canDelete ? handleDeletePost : undefined}
+                onLoadComments={handleLoadComments}
+                onCreateComment={handleCreateComment}
+                onDeleteComment={handleDeleteComment}
+                currentUserId={userId}
+                isOwner={false}
+                isModerator={post.canModerateGroupAuthor === true}
+                showGroupContext={true}
+                canModerateGroupAuthor={post.canModerateGroupAuthor === true}
+              />
+            </div>
+          );
+        })
+      )}
+
+      <style jsx>{`
+        .search-posts-filters-anchor {
+          position: relative;
+        }
+
+        @media (max-width: 768px) {
+          .search-posts-topbar {
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .search-posts-filters-anchor {
+            width: 100%;
+          }
+
+          .search-posts-filters-anchor button {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .search-posts-filters-panel {
+            position: static !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin-top: 10px;
+          }
+        }
+      `}</style>
     </section>
   );
 }

@@ -15,6 +15,8 @@ import {
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
+import { buildRandomRecommendationSlots } from "@/app/components/GroupRecommendations/recommendation-engine";
 
 type HomePostsFeedProps = {
   currentUserId: string | null;
@@ -156,7 +158,10 @@ async function attachModerationFlags(
 
   const moderationEntries = await Promise.all(
     uniqueGroupIds.map(async (groupId) => {
-      const canModerate = await getViewerCanModerateGroup(groupId, currentUserId);
+      const canModerate = await getViewerCanModerateGroup(
+        groupId,
+        currentUserId
+      );
       return [groupId, canModerate] as const;
     })
   );
@@ -213,6 +218,34 @@ async function attachModerationFlags(
       authorMutedUntil: authorMeta?.mutedUntil ?? null,
     };
   });
+}
+
+function buildStableFeedSeed(
+  currentUserId: string,
+  posts: Array<{ id?: string; createdAt?: any }>
+): number {
+  const raw = [
+    currentUserId,
+    ...posts.map((post, index) => {
+      const createdAtValue =
+        typeof post?.createdAt?.toMillis === "function"
+          ? String(post.createdAt.toMillis())
+          : typeof post?.createdAt === "number"
+          ? String(post.createdAt)
+          : typeof post?.createdAt === "string"
+          ? post.createdAt
+          : String(index);
+
+      return `${post.id ?? index}-${createdAtValue}`;
+    }),
+  ].join("|");
+
+  let hash = 0;
+  for (let i = 0; i < raw.length; i += 1) {
+    hash = (hash * 31 + raw.charCodeAt(i)) >>> 0;
+  }
+
+  return hash || 1;
 }
 
 export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
@@ -390,6 +423,26 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
     overflowX: "hidden",
   };
 
+  const recommendationWrapperStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflowX: "hidden",
+  };
+
+  const recommendationSlots = useMemo(() => {
+    if (!currentUserId || posts.length === 0) {
+      return new Set<number>();
+    }
+
+    const seed = buildStableFeedSeed(currentUserId, posts);
+    return buildRandomRecommendationSlots(posts.length, seed);
+  }, [currentUserId, posts]);
+
+  const hasInlineRecommendation = useMemo(() => {
+    return recommendationSlots.size > 0;
+  }, [recommendationSlots]);
+
   if (!currentUserId) {
     return (
       <section style={shellStyle}>
@@ -431,7 +484,8 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
             wordBreak: "break-word",
           }}
         >
-          Publicaciones recientes de comunidades donde ya estás dentro o eres owner.
+          Publicaciones recientes de comunidades donde ya estás dentro o eres
+          owner.
         </p>
       </div>
 
@@ -442,15 +496,20 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
       )}
 
       {!loadingInitial && posts.length === 0 && (
-        <div style={noticeStyle}>
-          Aún no hay publicaciones en tus comunidades.
+        <div style={recommendationWrapperStyle}>
+          <GroupRecommendationsRail
+            currentUserId={currentUserId}
+            context="home"
+          />
         </div>
       )}
 
-      {posts.map((post) => {
+      {posts.map((post, index) => {
         const canDeletePost =
           currentUserId === post.authorId ||
           post.canModerateGroupAuthor === true;
+
+        const shouldRenderRecommendations = recommendationSlots.has(index + 1);
 
         return (
           <div key={post.id} style={postItemStyle}>
@@ -468,9 +527,27 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
               canModerateGroupAuthor={post.canModerateGroupAuthor === true}
               onModerationComplete={loadPosts}
             />
+
+            {shouldRenderRecommendations && (
+              <div style={recommendationWrapperStyle}>
+                <GroupRecommendationsRail
+                  currentUserId={currentUserId}
+                  context="home"
+                />
+              </div>
+            )}
           </div>
         );
       })}
+
+      {!loadingInitial && posts.length > 0 && !hasInlineRecommendation && (
+        <div style={recommendationWrapperStyle}>
+          <GroupRecommendationsRail
+            currentUserId={currentUserId}
+            context="home"
+          />
+        </div>
+      )}
     </section>
   );
 }

@@ -121,12 +121,13 @@ export function SearchResultsExplorerPanel({
       "linear-gradient(180deg, rgba(12,12,12,0.99) 0%, rgba(8,8,8,0.985) 100%)",
     boxShadow:
       "0 32px 90px rgba(0,0,0,0.58), inset 0 1px 0 rgba(255,255,255,0.04)",
-    display: "grid",
-    gridTemplateRows: "auto auto minmax(0, 1fr)",
+    display: "flex",
+    flexDirection: "column",
     overflow: "hidden",
     color: "#fff",
     fontFamily: fontStack,
     transform: "translateZ(0)",
+    minHeight: 0,
   };
 
   const headerStyle: CSSProperties = {
@@ -138,6 +139,7 @@ export function SearchResultsExplorerPanel({
     gap: 12,
     flexWrap: "wrap",
     background: "rgba(255,255,255,0.015)",
+    flexShrink: 0,
   };
 
   const titleWrapStyle: CSSProperties = {
@@ -181,6 +183,7 @@ export function SearchResultsExplorerPanel({
     padding: "14px 16px 12px",
     borderBottom: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.02)",
+    flexShrink: 0,
   };
 
   const segmentedStyle: CSSProperties = {
@@ -219,11 +222,14 @@ export function SearchResultsExplorerPanel({
   };
 
   const bodyStyle: CSSProperties = {
+    flex: 1,
     minHeight: 0,
-    overflow: "hidden",
-    display: "grid",
+    overflowY: "auto",
+    overflowX: "hidden",
+    display: "block",
     position: "relative",
     zIndex: 1,
+    WebkitOverflowScrolling: "touch",
   };
 
   const tabs = [
