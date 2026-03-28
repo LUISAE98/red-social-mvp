@@ -30,6 +30,7 @@ type MemberStatus =
   | null;
 
 type MemberRole = "owner" | "mod" | "member" | null;
+type Currency = "MXN" | "USD";
 
 type GroupDoc = {
   id: string;
@@ -45,8 +46,8 @@ type GroupDoc = {
   monetization?: {
     isPaid?: boolean;
     priceMonthly?: number | null;
-    currency?: string | null;
-  };
+    currency?: string | Currency | null;
+  } | null;
   settings?: {
     membersListVisibility?: "owner_only" | "members" | string;
   };
@@ -54,8 +55,8 @@ type GroupDoc = {
     type: "saludo" | "consejo" | "mensaje" | string;
     enabled?: boolean;
     price?: number | null;
-    currency?: string | null;
-  }>;
+    currency?: string | Currency | null;
+  }> | null;
 };
 
 type CropMode = "avatar" | "cover";
@@ -90,6 +91,12 @@ function normalizeMemberRole(raw: unknown): MemberRole {
   if (raw === "mod") return "mod";
   if (raw === "moderator") return "mod";
   if (raw === "member") return "member";
+  return null;
+}
+
+function normalizeCurrency(raw: unknown): Currency | null {
+  if (raw === "MXN") return "MXN";
+  if (raw === "USD") return "USD";
   return null;
 }
 
@@ -768,6 +775,20 @@ export default function GroupPage() {
   const visibility = group.visibility ?? "";
   const offerings = Array.isArray(group.offerings) ? group.offerings : [];
   const enabledOfferings = offerings.filter((o) => (o as any).enabled !== false);
+
+  const normalizedCurrentMonetization = group.monetization
+    ? {
+        isPaid: group.monetization.isPaid,
+        priceMonthly: group.monetization.priceMonthly ?? null,
+        currency: normalizeCurrency(group.monetization.currency),
+      }
+    : null;
+
+  const normalizedCurrentOfferings = offerings.map((o) => ({
+    ...o,
+    price: o.price ?? null,
+    currency: normalizeCurrency(o.currency),
+  }));
 
   const coverBg =
     group.coverUrl ||
@@ -1599,21 +1620,21 @@ export default function GroupPage() {
                 )}
 
                 {activeTab === "settings" && isOwner && user && group.ownerId && (
-  <OwnerAdminPanel
-    groupId={groupId}
-    ownerId={group.ownerId}
-    currentUserId={user.uid}
-    currentName={group.name ?? ""}
-    currentDescription={group.description ?? ""}
-    currentCategory={group.category ?? null}
-    currentTags={group.tags ?? []}
-    currentAvatarUrl={group.avatarUrl ?? null}
-    currentCoverUrl={group.coverUrl ?? null}
-    currentVisibility={group.visibility ?? null}
-    currentMonetization={group.monetization ?? null}
-    currentOfferings={group.offerings ?? []}
-  />
-)}
+                  <OwnerAdminPanel
+                    groupId={groupId}
+                    ownerId={group.ownerId}
+                    currentUserId={user.uid}
+                    currentName={group.name ?? ""}
+                    currentDescription={group.description ?? ""}
+                    currentCategory={group.category ?? null}
+                    currentTags={group.tags ?? []}
+                    currentAvatarUrl={group.avatarUrl ?? null}
+                    currentCoverUrl={group.coverUrl ?? null}
+                    currentVisibility={group.visibility ?? null}
+                    currentMonetization={normalizedCurrentMonetization}
+                    currentOfferings={normalizedCurrentOfferings}
+                  />
+                )}
               </div>
             </div>
           </section>
