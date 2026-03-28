@@ -5,21 +5,17 @@ import { useState } from "react";
 import InviteLinkModal from "./InviteLinkModal";
 import type {
   GroupDocLite,
-  GroupDraft,
   GreetingRequestDoc,
   JoinRequestRow,
   UserMini,
 } from "./OwnerSidebar";
-import { Chevron, CountBadge, Switch } from "./OwnerSidebar";
+import { Chevron, CountBadge } from "./OwnerSidebar";
 
 type Props = {
   loadingGroups: boolean;
   myGroups: GroupDocLite[];
   ownedGrouped: Array<{ key: string; title: string; items: GroupDocLite[] }>;
-  groupDraft: Record<string, GroupDraft>;
-  savedGroupDraft: Record<string, GroupDraft>;
   openCommunities: Record<string, boolean>;
-  savingGroupId: string | null;
   joinRequestsByGroup: Record<string, JoinRequestRow[]>;
   greetingsByGroup: Record<string, Array<{ id: string; data: GreetingRequestDoc }>>;
   greetingSectionOpen: Record<string, boolean>;
@@ -28,8 +24,6 @@ type Props = {
   userMiniMap: Record<string, UserMini>;
   styles: Record<string, React.CSSProperties>;
   getInitials: (name?: string | null) => string;
-  formatMoney: (value: number, currency: "MXN" | "USD") => string;
-  calcNetAmount: (raw: string) => { gross: number; net: number } | null;
   renderUserLink: (uid: string) => React.ReactNode;
   setOpenCommunities: React.Dispatch<
     React.SetStateAction<Record<string, boolean>>
@@ -43,10 +37,6 @@ type Props = {
   setGreetingSectionOpen: React.Dispatch<
     React.SetStateAction<Record<string, boolean>>
   >;
-  setGroupDraft: React.Dispatch<
-    React.SetStateAction<Record<string, GroupDraft>>
-  >;
-  saveGroupSettings: (groupId: string) => Promise<void>;
   handleApproveJoin: (groupId: string, userId: string) => Promise<void>;
   handleRejectJoin: (groupId: string, userId: string) => Promise<void>;
   handleGreetingAction: (
@@ -61,10 +51,7 @@ export default function OwnerSidebarMyGroups({
   loadingGroups,
   myGroups,
   ownedGrouped,
-  groupDraft,
-  savedGroupDraft,
   openCommunities,
-  savingGroupId,
   joinRequestsByGroup,
   greetingsByGroup,
   greetingSectionOpen,
@@ -73,15 +60,11 @@ export default function OwnerSidebarMyGroups({
   userMiniMap,
   styles,
   getInitials,
-  formatMoney,
-  calcNetAmount,
   renderUserLink,
   setOpenCommunities,
   setSeenCountsByGroup,
   setJoinSectionOpen,
   setGreetingSectionOpen,
-  setGroupDraft,
-  saveGroupSettings,
   handleApproveJoin,
   handleRejectJoin,
   handleGreetingAction,
@@ -109,21 +92,18 @@ export default function OwnerSidebarMyGroups({
           <div style={styles.sectionTitle}>{section.title}</div>
 
           {section.items.map((g) => {
-            const d = groupDraft[g.id];
-            const saved = savedGroupDraft[g.id];
-            if (!d || !saved) return null;
-
             const isOpen = openCommunities[g.id] === true;
-            const saving = savingGroupId === g.id;
             const isPublic = g.visibility === "public";
-            const isInviteEligible = g.visibility === "hidden";
+            const isInviteEligible =
+              g.visibility === "hidden" || g.visibility === "private";
+
             const joinRequests = joinRequestsByGroup[g.id] ?? [];
             const greetings = greetingsByGroup[g.id] ?? [];
             const communityName = g.name ?? "(Sin nombre)";
             const avatarFallback = getInitials(communityName);
-            const saludoEnabled = d.saludoEnabled;
+
             const showJoinSection = !isPublic && joinRequests.length > 0;
-            const showGreetingsSection = saludoEnabled && greetings.length > 0;
+            const showGreetingsSection = greetings.length > 0;
             const greetingListOpen = greetingSectionOpen[g.id] === true;
             const joinListOpen = joinSectionOpen[g.id] === true;
 
@@ -138,26 +118,6 @@ export default function OwnerSidebarMyGroups({
             const hasNewJoin = currentJoinCount > seen.join;
             const hasNewGreeting = currentGreetingCount > seen.greeting;
             const hasAlert = !isOpen && (hasNewJoin || hasNewGreeting);
-
-            const subChanged =
-              d.subscriptionEnabled !== saved.subscriptionEnabled ||
-              d.subscriptionPrice !== saved.subscriptionPrice ||
-              d.subscriptionCurrency !== saved.subscriptionCurrency;
-
-            const saludoChanged =
-              d.saludoEnabled !== saved.saludoEnabled ||
-              d.saludoPrice !== saved.saludoPrice ||
-              d.saludoCurrency !== saved.saludoCurrency;
-
-            const subscriptionCalc =
-              d.subscriptionEnabled && subChanged
-                ? calcNetAmount(d.subscriptionPrice)
-                : null;
-
-            const saludoCalc =
-              d.saludoEnabled && saludoChanged
-                ? calcNetAmount(d.saludoPrice)
-                : null;
 
             const borderBackground =
               hasAlert && hasNewJoin && hasNewGreeting
@@ -679,233 +639,18 @@ export default function OwnerSidebarMyGroups({
                         </div>
                       )}
 
-                      {!isPublic && (
-                        <div style={styles.sectionPanel}>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              gap: 10,
-                            }}
-                          >
-                            <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-                              <span
-                                style={{
-                                  fontSize: 12,
-                                  color: "#fff",
-                                  fontWeight: 700,
-                                }}
-                              >
-                                Suscripción mensual
-                              </span>
-                            </div>
-
-                            <Switch
-                              checked={d.subscriptionEnabled}
-                              disabled={saving}
-                              onChange={(next) =>
-                                setGroupDraft((prev) => ({
-                                  ...prev,
-                                  [g.id]: {
-                                    ...prev[g.id],
-                                    subscriptionEnabled: next,
-                                    subscriptionPrice: next
-                                      ? prev[g.id].subscriptionPrice
-                                      : "",
-                                  },
-                                }))
-                              }
-                              label="Activar suscripción mensual"
-                            />
-                          </div>
-
-                          {d.subscriptionEnabled && (
-                            <>
-                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                                <input
-                                  type="number"
-                                  value={d.subscriptionPrice}
-                                  onChange={(e) =>
-                                    setGroupDraft((prev) => ({
-                                      ...prev,
-                                      [g.id]: {
-                                        ...prev[g.id],
-                                        subscriptionPrice: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                  placeholder="Precio mensual"
-                                  style={{ ...styles.input, width: 116 }}
-                                />
-
-                                <select
-                                  value={d.subscriptionCurrency}
-                                  onChange={(e) =>
-                                    setGroupDraft((prev) => ({
-                                      ...prev,
-                                      [g.id]: {
-                                        ...prev[g.id],
-                                        subscriptionCurrency:
-                                          e.target.value as "MXN" | "USD",
-                                      },
-                                    }))
-                                  }
-                                  style={{ ...styles.input, flex: 1, minWidth: 82 }}
-                                >
-                                  <option value="MXN">MXN</option>
-                                  <option value="USD">USD</option>
-                                </select>
-                              </div>
-
-                              {subscriptionCalc && (
-                                <div
-                                  style={{
-                                    fontSize: 10,
-                                    lineHeight: 1.3,
-                                    color: "rgba(255,255,255,0.42)",
-                                    paddingTop: 1,
-                                  }}
-                                >
-                                  Por una suscripción de{" "}
-                                  {formatMoney(
-                                    subscriptionCalc.gross,
-                                    d.subscriptionCurrency
-                                  )}
-                                  , tú cobras{" "}
-                                  {formatMoney(
-                                    subscriptionCalc.net,
-                                    d.subscriptionCurrency
-                                  )}
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      )}
-
-                      <div style={styles.sectionPanel}>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 10,
-                          }}
-                        >
-                          <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-                            <span
-                              style={{
-                                fontSize: 12,
-                                color: "#fff",
-                                fontWeight: 700,
-                              }}
-                            >
-                              Saludos en comunidad
-                            </span>
-                          </div>
-
-                          <Switch
-                            checked={d.saludoEnabled}
-                            disabled={saving}
-                            onChange={(next) =>
-                              setGroupDraft((prev) => ({
-                                ...prev,
-                                [g.id]: {
-                                  ...prev[g.id],
-                                  saludoEnabled: next,
-                                  saludoPrice: next ? prev[g.id].saludoPrice : "",
-                                },
-                              }))
-                            }
-                            label="Saludos activos en esta comunidad"
-                          />
-                        </div>
-
-                        {d.saludoEnabled && (
-                          <>
-                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                              <input
-                                type="number"
-                                value={d.saludoPrice}
-                                onChange={(e) =>
-                                  setGroupDraft((prev) => ({
-                                    ...prev,
-                                    [g.id]: {
-                                      ...prev[g.id],
-                                      saludoPrice: e.target.value,
-                                    },
-                                  }))
-                                }
-                                placeholder="Precio"
-                                style={{ ...styles.input, width: 100 }}
-                              />
-
-                              <select
-                                value={d.saludoCurrency}
-                                onChange={(e) =>
-                                  setGroupDraft((prev) => ({
-                                    ...prev,
-                                    [g.id]: {
-                                      ...prev[g.id],
-                                      saludoCurrency:
-                                        e.target.value as "MXN" | "USD",
-                                    },
-                                  }))
-                                }
-                                style={{ ...styles.input, flex: 1, minWidth: 82 }}
-                              >
-                                <option value="MXN">MXN</option>
-                                <option value="USD">USD</option>
-                              </select>
-                            </div>
-
-                            {saludoCalc && (
-                              <div
-                                style={{
-                                  fontSize: 10,
-                                  lineHeight: 1.3,
-                                  color: "rgba(255,255,255,0.42)",
-                                  paddingTop: 1,
-                                }}
-                              >
-                                Por un saludo de{" "}
-                                {formatMoney(saludoCalc.gross, d.saludoCurrency)},
-                                tú cobras{" "}
-                                {formatMoney(saludoCalc.net, d.saludoCurrency)}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => saveGroupSettings(g.id)}
-                        disabled={saving}
+                      <div
                         style={{
-                          ...styles.buttonSecondary,
-                          width: "100%",
-                          opacity: saving ? 0.7 : 1,
-                          cursor: saving ? "not-allowed" : "pointer",
+                          fontSize: 10,
+                          lineHeight: 1.35,
+                          color: "rgba(255,255,255,0.36)",
+                          padding: "0 2px 2px",
                         }}
                       >
-                        {saving ? "Guardando..." : "Guardar cambios"}
-                      </button>
-
-                      {isPublic && (
-                        <div
-                          style={{
-                            fontSize: 10,
-                            lineHeight: 1.35,
-                            color: "rgba(255,255,255,0.36)",
-                            padding: "0 2px 2px",
-                          }}
-                        >
-                          Para activar suscripción mensual tu comunidad debe ser
-                          privada u oculta.
-                        </div>
-                      )}
+                        La configuración de suscripción y servicios ahora se maneja
+                        desde la pestaña Servicios dentro del panel de administración
+                        del grupo.
+                      </div>
                     </div>
                   )}
                 </div>

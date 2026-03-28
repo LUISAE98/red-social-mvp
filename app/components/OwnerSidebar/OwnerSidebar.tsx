@@ -24,10 +24,6 @@ import { onAuthStateChanged } from "firebase/auth";
 
 import { auth, db } from "@/lib/firebase";
 import {
-  updateOfferings,
-  type GroupOffering,
-} from "@/lib/groups/updateOfferings";
-import {
   approveJoinRequest,
   rejectJoinRequest,
 } from "@/lib/groups/joinRequests.admin";
@@ -118,15 +114,6 @@ export type OutgoingJoinRequestRow = {
   createdAt?: Timestamp;
 };
 
-export type GroupDraft = {
-  subscriptionEnabled: boolean;
-  subscriptionPrice: string;
-  subscriptionCurrency: Currency;
-  saludoEnabled: boolean;
-  saludoPrice: string;
-  saludoCurrency: Currency;
-};
-
 export type UserMini = {
   uid: string;
   displayName: string;
@@ -145,23 +132,6 @@ export function visibilitySectionTitle(v: string) {
   if (v === "private") return "Comunidades privadas";
   if (v === "hidden") return "Comunidades ocultas";
   return "Otras comunidades";
-}
-
-export function pickSaludoOffering(offerings: GroupDocLite["offerings"]) {
-  const arr = Array.isArray(offerings) ? offerings : [];
-  const found = arr.find((o) => String(o?.type) === "saludo");
-  const enabled = found?.enabled === true;
-  const price = found?.price ?? null;
-  const currency = (found?.currency ?? "MXN") as Currency;
-  return { enabled, price, currency };
-}
-
-export function pickSubscription(monetization: GroupDocLite["monetization"]) {
-  return {
-    enabled: monetization?.isPaid === true,
-    price: monetization?.priceMonthly ?? null,
-    currency: (monetization?.currency ?? "MXN") as Currency,
-  };
 }
 
 export function typeLabel(t: string) {
@@ -195,25 +165,6 @@ export function friendlyJoinErrorMessage(err: any) {
     return null;
   }
   return err?.message ?? "Ocurrió un error.";
-}
-
-export function formatMoney(value: number, currency: Currency) {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(value);
-  } catch {
-    return `${currency} ${value.toFixed(2)}`;
-  }
-}
-
-export function calcNetAmount(raw: string) {
-  const n = Number(raw);
-  if (raw.trim() === "" || Number.isNaN(n) || n <= 0) return null;
-  const net = n * 0.77;
-  return { gross: n, net };
 }
 
 export function buildDisplayName(user?: Partial<UserDoc> | null, uid?: string) {
@@ -409,7 +360,6 @@ export default function OwnerSidebar() {
 
   const [groupsErr, setGroupsErr] = useState<string | null>(null);
   const [savingProfileGreeting, setSavingProfileGreeting] = useState(false);
-  const [savingGroupId, setSavingGroupId] = useState<string | null>(null);
   const [joinBusyKey, setJoinBusyKey] = useState<string | null>(null);
   const [greetingBusyId, setGreetingBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -420,10 +370,6 @@ export default function OwnerSidebar() {
   const [pgPrice, setPgPrice] = useState<string>("");
   const [pgCurrency, setPgCurrency] = useState<Currency>("MXN");
 
-  const [groupDraft, setGroupDraft] = useState<Record<string, GroupDraft>>({});
-  const [savedGroupDraft, setSavedGroupDraft] = useState<
-    Record<string, GroupDraft>
-  >({});
   const [openCommunities, setOpenCommunities] = useState<
     Record<string, boolean>
   >({});
@@ -620,8 +566,6 @@ export default function OwnerSidebar() {
     async function loadMyCommunities() {
       if (!viewer?.uid) {
         setMyGroups([]);
-        setGroupDraft({});
-        setSavedGroupDraft({});
         setOpenCommunities({});
         return;
       }
@@ -645,25 +589,12 @@ export default function OwnerSidebar() {
 
         setMyGroups(rows);
 
-        const draft: Record<string, GroupDraft> = {};
         const initialOpen: Record<string, boolean> = {};
         const initialGreetingOpen: Record<string, boolean> = {};
         const initialJoinOpen: Record<string, boolean> = {};
         const initialGroupMeta: Record<string, GroupDocLite> = {};
 
         for (const g of rows) {
-          const saludo = pickSaludoOffering(g.offerings);
-          const sub = pickSubscription(g.monetization);
-
-          draft[g.id] = {
-            subscriptionEnabled: sub.enabled,
-            subscriptionPrice: sub.price == null ? "" : String(sub.price),
-            subscriptionCurrency: sub.currency ?? "MXN",
-            saludoEnabled: saludo.enabled,
-            saludoPrice: saludo.price == null ? "" : String(saludo.price),
-            saludoCurrency: saludo.currency ?? "MXN",
-          };
-
           initialOpen[g.id] = false;
           initialGreetingOpen[g.id] = false;
           initialJoinOpen[g.id] = false;
@@ -673,8 +604,6 @@ export default function OwnerSidebar() {
           };
         }
 
-        setGroupDraft(draft);
-        setSavedGroupDraft(draft);
         setOpenCommunities((prev) => ({ ...initialOpen, ...prev }));
         setGreetingSectionOpen((prev) => ({ ...initialGreetingOpen, ...prev }));
         setJoinSectionOpen((prev) => ({ ...initialJoinOpen, ...prev }));
@@ -682,8 +611,6 @@ export default function OwnerSidebar() {
       } catch (e: any) {
         setGroupsErr(e?.message ?? "No se pudieron cargar tus comunidades.");
         setMyGroups([]);
-        setGroupDraft({});
-        setSavedGroupDraft({});
         setOpenCommunities({});
       } finally {
         setLoadingGroups(false);
@@ -1110,10 +1037,7 @@ export default function OwnerSidebar() {
   }, [viewer?.uid, groupMetaMap]);
 
   useEffect(() => {
-    const groupsForSeen = [
-      ...myGroups,
-      ...moderatedGroups,
-    ].map((g) => g.id);
+    const groupsForSeen = [...myGroups, ...moderatedGroups].map((g) => g.id);
 
     if (groupsForSeen.length === 0) return;
 
@@ -1258,162 +1182,6 @@ export default function OwnerSidebar() {
       setMsg(e?.message ?? "❌ No se pudo guardar configuración.");
     } finally {
       setSavingProfileGreeting(false);
-    }
-  }
-
-  async function saveGroupSettings(groupId: string) {
-    const g = myGroups.find((x) => x.id === groupId);
-    if (!g) return;
-
-    const d = groupDraft[groupId];
-    if (!d) return;
-
-    const isPublic = g.visibility === "public";
-    const subscriptionPriceNum =
-      d.subscriptionPrice.trim() === "" ? null : Number(d.subscriptionPrice);
-    const saludoPriceNum =
-      d.saludoPrice.trim() === "" ? null : Number(d.saludoPrice);
-
-    if (
-      d.subscriptionEnabled &&
-      (subscriptionPriceNum == null ||
-        Number.isNaN(subscriptionPriceNum) ||
-        subscriptionPriceNum <= 0)
-    ) {
-      setGroupsErr("❌ Precio inválido para la suscripción mensual.");
-      return;
-    }
-
-    if (
-      d.saludoEnabled &&
-      (saludoPriceNum == null ||
-        Number.isNaN(saludoPriceNum) ||
-        saludoPriceNum < 0)
-    ) {
-      setGroupsErr("❌ Precio inválido para saludos.");
-      return;
-    }
-
-    if (isPublic && d.subscriptionEnabled) {
-      setGroupsErr(
-        "❌ Las comunidades públicas no pueden activar suscripción mensual."
-      );
-      return;
-    }
-
-    const existing = Array.isArray(g.offerings) ? g.offerings : [];
-    const nextOfferings: GroupOffering[] = [];
-    const hasType = (t: string) =>
-      existing.some((o: any) => String(o?.type) === t);
-
-    nextOfferings.push({
-      type: "saludo",
-      enabled: d.saludoEnabled,
-      price: d.saludoEnabled ? saludoPriceNum : null,
-      currency: d.saludoEnabled ? d.saludoCurrency : null,
-    });
-
-    if (hasType("consejo")) {
-      const o = existing.find((x: any) => String(x?.type) === "consejo") as any;
-      nextOfferings.push({
-        type: "consejo",
-        enabled: o?.enabled === true,
-        price: o?.price ?? null,
-        currency: o?.currency ?? null,
-      });
-    }
-
-    if (hasType("mensaje")) {
-      const o = existing.find((x: any) => String(x?.type) === "mensaje") as any;
-      nextOfferings.push({
-        type: "mensaje",
-        enabled: o?.enabled === true,
-        price: o?.price ?? null,
-        currency: o?.currency ?? null,
-      });
-    }
-
-    setSavingGroupId(groupId);
-    setGroupsErr(null);
-    setMsg(null);
-
-    try {
-      await updateDoc(doc(db, "groups", groupId), {
-        monetization: {
-          isPaid: isPublic ? false : d.subscriptionEnabled,
-          priceMonthly:
-            isPublic || !d.subscriptionEnabled ? null : subscriptionPriceNum,
-          currency:
-            isPublic || !d.subscriptionEnabled ? null : d.subscriptionCurrency,
-        },
-      });
-
-      await updateOfferings(groupId, nextOfferings);
-
-      setMyGroups((prev) =>
-        prev.map((gg) => {
-          if (gg.id !== groupId) return gg;
-
-          const filtered = (gg.offerings ?? []).filter(
-            (o: any) => String(o?.type) !== "saludo"
-          );
-
-          return {
-            ...gg,
-            monetization: {
-              isPaid: isPublic ? false : d.subscriptionEnabled,
-              priceMonthly:
-                isPublic || !d.subscriptionEnabled ? null : subscriptionPriceNum,
-              currency:
-                isPublic || !d.subscriptionEnabled ? null : d.subscriptionCurrency,
-            },
-            offerings: [
-              ...filtered,
-              {
-                type: "saludo",
-                enabled: d.saludoEnabled,
-                price: d.saludoEnabled ? saludoPriceNum : null,
-                currency: d.saludoEnabled ? d.saludoCurrency : null,
-              },
-            ],
-          };
-        })
-      );
-
-      setSavedGroupDraft((prev) => ({
-        ...prev,
-        [groupId]: {
-          ...d,
-          subscriptionEnabled: isPublic ? false : d.subscriptionEnabled,
-          subscriptionPrice:
-            isPublic || !d.subscriptionEnabled ? "" : d.subscriptionPrice,
-          subscriptionCurrency: d.subscriptionCurrency,
-          saludoEnabled: d.saludoEnabled,
-          saludoPrice: d.saludoEnabled ? d.saludoPrice : "",
-          saludoCurrency: d.saludoCurrency,
-        },
-      }));
-
-      setGroupDraft((prev) => ({
-        ...prev,
-        [groupId]: {
-          ...prev[groupId],
-          subscriptionEnabled: isPublic ? false : prev[groupId].subscriptionEnabled,
-          subscriptionPrice:
-            isPublic || !prev[groupId].subscriptionEnabled
-              ? ""
-              : prev[groupId].subscriptionPrice,
-          saludoPrice: prev[groupId].saludoEnabled
-            ? prev[groupId].saludoPrice
-            : "",
-        },
-      }));
-
-      setMsg("✅ Configuración de comunidad guardada.");
-    } catch (e: any) {
-      setGroupsErr(e?.message ?? "❌ No se pudo actualizar la comunidad.");
-    } finally {
-      setSavingGroupId(null);
     }
   }
 
@@ -2029,10 +1797,7 @@ export default function OwnerSidebar() {
               loadingGroups={loadingGroups}
               myGroups={myGroups}
               ownedGrouped={ownedGrouped}
-              groupDraft={groupDraft}
-              savedGroupDraft={savedGroupDraft}
               openCommunities={openCommunities}
-              savingGroupId={savingGroupId}
               joinRequestsByGroup={joinRequestsByGroup}
               greetingsByGroup={greetingsByGroup}
               greetingSectionOpen={greetingSectionOpen}
@@ -2041,15 +1806,11 @@ export default function OwnerSidebar() {
               userMiniMap={userMiniMap}
               styles={styles}
               getInitials={getInitials}
-              formatMoney={formatMoney}
-              calcNetAmount={calcNetAmount}
               renderUserLink={renderUserLink}
               setOpenCommunities={setOpenCommunities}
               setSeenCountsByGroup={setSeenCountsByGroup}
               setJoinSectionOpen={setJoinSectionOpen}
               setGreetingSectionOpen={setGreetingSectionOpen}
-              setGroupDraft={setGroupDraft}
-              saveGroupSettings={saveGroupSettings}
               handleApproveJoin={handleApproveJoin}
               handleRejectJoin={handleRejectJoin}
               handleGreetingAction={handleGreetingAction}

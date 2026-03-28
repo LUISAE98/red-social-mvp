@@ -1,8 +1,12 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { updateDoc, doc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import OwnerAdminServices from "./owner-admin-panel/OwnerAdminServices";
+import OwnerAdminGeneral from "./owner-admin-panel/OwnerAdminGeneral";
+import OwnerAdminStatus from "./owner-admin-panel/OwnerAdminStatus";
+
+type Currency = "MXN" | "USD";
+type OwnerAdminViewKey = "services" | "general" | "status";
 
 type Props = {
   groupId: string;
@@ -16,45 +20,20 @@ type Props = {
 
   currentAvatarUrl?: string | null;
   currentCoverUrl?: string | null;
+
+  currentVisibility?: "public" | "private" | "hidden" | string | null;
+  currentMonetization?: {
+    isPaid?: boolean;
+    priceMonthly?: number | null;
+    currency?: Currency | null;
+  } | null;
+  currentOfferings?: Array<{
+    type: "saludo" | "consejo" | "mensaje" | string;
+    enabled?: boolean;
+    price?: number | null;
+    currency?: Currency | null;
+  }> | null;
 };
-
-type TabKey = "general" | "status";
-
-function parseTags(raw: string): string[] {
-  return raw
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean)
-    .slice(0, 10);
-}
-
-function SpinningGear() {
-  return (
-    <>
-      <style jsx>{`
-        @keyframes ownerGearSpin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
-      <span
-        aria-hidden="true"
-        style={{
-          display: "inline-block",
-          animation: "ownerGearSpin 0.9s linear infinite",
-          transformOrigin: "50% 50%",
-          opacity: 0.9,
-        }}
-      >
-        ⚙
-      </span>
-    </>
-  );
-}
 
 export default function OwnerAdminPanel(props: Props) {
   const {
@@ -65,6 +44,9 @@ export default function OwnerAdminPanel(props: Props) {
     currentDescription = "",
     currentCategory = null,
     currentTags = null,
+    currentVisibility = null,
+    currentMonetization = null,
+    currentOfferings = null,
   } = props;
 
   const isOwner = useMemo(
@@ -72,90 +54,12 @@ export default function OwnerAdminPanel(props: Props) {
     [ownerId, currentUserId]
   );
 
-  const [tab, setTab] = useState<TabKey>("general");
-
-  const [name, setName] = useState(currentName ?? "");
-  const [description, setDescription] = useState(currentDescription ?? "");
-  const [category, setCategory] = useState(currentCategory ?? "otros");
-  const [tagsRaw, setTagsRaw] = useState((currentTags ?? []).join(", "));
-  const [savingGeneral, setSavingGeneral] = useState(false);
-  const [generalMsg, setGeneralMsg] = useState<string | null>(null);
-  const [generalErr, setGeneralErr] = useState<string | null>(null);
-
-  const [statusMsg, setStatusMsg] = useState<string | null>(null);
-  const [statusErr, setStatusErr] = useState<string | null>(null);
-  const [statusBusy, setStatusBusy] = useState(false);
+  const [activeView, setActiveView] =
+    useState<OwnerAdminViewKey>("services");
 
   useEffect(() => {
-    setName(currentName ?? "");
-    setDescription(currentDescription ?? "");
-    setCategory(currentCategory ?? "otros");
-    setTagsRaw((currentTags ?? []).join(", "));
-
-    setGeneralMsg(null);
-    setGeneralErr(null);
-    setStatusMsg(null);
-    setStatusErr(null);
-    setTab("general");
-  }, [currentName, currentDescription, currentCategory, currentTags]);
-
-  async function saveGeneral() {
-    setSavingGeneral(true);
-    setGeneralMsg(null);
-    setGeneralErr(null);
-
-    const trimmedName = name.trim();
-    const trimmedDesc = description.trim();
-
-    if (trimmedName.length < 3) {
-      setSavingGeneral(false);
-      setGeneralErr("El nombre debe tener al menos 3 caracteres.");
-      return;
-    }
-
-    if (trimmedDesc.length < 10) {
-      setSavingGeneral(false);
-      setGeneralErr("La descripción debe tener al menos 10 caracteres.");
-      return;
-    }
-
-    const tags = parseTags(tagsRaw);
-
-    try {
-      await updateDoc(doc(db, "groups", groupId), {
-        name: trimmedName,
-        description: trimmedDesc,
-        category: category ?? "otros",
-        tags,
-        updatedAt: Date.now(),
-      });
-
-      setGeneralMsg("Cambios guardados.");
-    } catch (e: any) {
-      setGeneralErr(e?.message ?? "No se pudieron guardar cambios.");
-    } finally {
-      setSavingGeneral(false);
-    }
-  }
-
-  async function setActive(isActive: boolean) {
-    setStatusBusy(true);
-    setStatusMsg(null);
-    setStatusErr(null);
-
-    try {
-      await updateDoc(doc(db, "groups", groupId), {
-        isActive,
-        updatedAt: Date.now(),
-      });
-
-      setStatusMsg(isActive ? "Comunidad reactivado." : "Comunidad pausado.");
-    } catch (e: any) {
-      setStatusErr(e?.message ?? "No se pudo actualizar el estado.");
-    } finally {
-      setStatusBusy(false);
-    }
-  }
+    setActiveView("services");
+  }, [groupId]);
 
   if (!isOwner) return null;
 
@@ -226,6 +130,7 @@ export default function OwnerAdminPanel(props: Props) {
     lineHeight: 1,
     cursor: "pointer",
     WebkitAppearance: "none",
+    appearance: "none",
   };
 
   const tabActiveStyle: React.CSSProperties = {
@@ -234,307 +139,79 @@ export default function OwnerAdminPanel(props: Props) {
     border: "1px solid rgba(255,255,255,0.16)",
   };
 
-  const contentStyle: React.CSSProperties = {
-    display: "grid",
-    gap: 10,
-  };
-
-  const fieldStyle: React.CSSProperties = {
-    display: "grid",
-    gap: 5,
-  };
-
-  const labelStyle: React.CSSProperties = {
-    fontSize: 10.5,
-    fontWeight: 500,
-    color: "rgba(255,255,255,0.88)",
-    lineHeight: 1.15,
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    minHeight: 40,
-    padding: "0 11px",
-    borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.035)",
-    color: "#fff",
-    outline: "none",
-    fontSize: 12.5,
-    fontWeight: 400,
-    fontFamily: fontStack,
-    boxSizing: "border-box",
-    WebkitAppearance: "none",
-    appearance: "none",
-  };
-
-  const textareaStyle: React.CSSProperties = {
-    ...inputStyle,
-    minHeight: 96,
-    padding: "10px 11px",
-    resize: "vertical",
-  };
-
-  const subtleTextStyle: React.CSSProperties = {
-    fontSize: 10.5,
-    color: "rgba(255,255,255,0.60)",
-    lineHeight: 1.35,
-  };
-
-  const noticeStyle: React.CSSProperties = {
-    borderRadius: 9,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.035)",
-    padding: "8px 10px",
-    fontSize: 10.5,
-    lineHeight: 1.35,
-    color: "rgba(255,255,255,0.84)",
-  };
-
-  const primaryButtonStyle: React.CSSProperties = {
-    width: "100%",
-    minHeight: 36,
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "#fff",
-    color: "#000",
-    fontSize: 12.5,
-    fontWeight: 600,
-    fontFamily: fontStack,
-    cursor: "pointer",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    WebkitAppearance: "none",
-  };
-
-  const secondaryButtonStyle: React.CSSProperties = {
-    ...primaryButtonStyle,
-    width: "auto",
-    background: "rgba(255,255,255,0.08)",
-    color: "#fff",
-  };
-
-  const statusActionsStyle: React.CSSProperties = {
-    display: "flex",
-    gap: 8,
-    flexWrap: "wrap",
-  };
+  function getTabStyle(view: OwnerAdminViewKey): React.CSSProperties {
+    return {
+      ...tabBaseStyle,
+      ...(activeView === view ? tabActiveStyle : {}),
+    };
+  }
 
   return (
     <div style={shellStyle}>
       <div style={cardStyle}>
         <div style={headerStyle}>
           <h3 style={titleStyle}>Administración de la comunidad</h3>
-          <p style={subtitleStyle}>Configura nombre, descripción, categoría y estado.</p>
+          <p style={subtitleStyle}>
+            Divide la administración en servicios, configuración general y estatus del grupo.
+          </p>
         </div>
 
         <div style={bodyStyle}>
           <div style={tabsRowStyle}>
             <button
               type="button"
-              onClick={() => setTab("general")}
-              style={{
-                ...tabBaseStyle,
-                ...(tab === "general" ? tabActiveStyle : {}),
-              }}
+              onClick={() => setActiveView("services")}
+              style={getTabStyle("services")}
             >
-              General
+              Servicios
             </button>
 
             <button
               type="button"
-              onClick={() => setTab("status")}
-              style={{
-                ...tabBaseStyle,
-                ...(tab === "status" ? tabActiveStyle : {}),
-              }}
+              onClick={() => setActiveView("general")}
+              style={getTabStyle("general")}
             >
-              Estado
+              Configuración general
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveView("status")}
+              style={getTabStyle("status")}
+            >
+              Estatus del grupo
             </button>
           </div>
 
-          {tab === "general" && (
-            <div style={contentStyle}>
-              <div style={fieldStyle}>
-                <span style={labelStyle}>Nombre</span>
-                <input
-                  style={inputStyle}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Nombre de la comunidad"
-                />
-              </div>
-
-              <div style={fieldStyle}>
-                <span style={labelStyle}>Descripción</span>
-                <textarea
-                  style={textareaStyle}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe el propósito de la comunidad"
-                />
-              </div>
-
-              <div style={fieldStyle}>
-                <span style={labelStyle}>Categoría</span>
-                <select
-                  style={inputStyle}
-                  value={category ?? "otros"}
-                  onChange={(e) => setCategory(e.target.value)}
-                >
-                  <option value="otros" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Otros
-                  </option>
-                  <option value="entretenimiento" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Entretenimiento
-                  </option>
-                  <option value="influencer" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Influencer
-                  </option>
-                  <option value="actor" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Actor
-                  </option>
-                  <option value="comediante" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Comediante
-                  </option>
-                  <option value="cantante" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Cantante
-                  </option>
-                  <option value="youtuber" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    YouTuber
-                  </option>
-                  <option value="streamer" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Streamer
-                  </option>
-                  <option value="podcaster" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Podcaster
-                  </option>
-                  <option value="tecnologia" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Tecnología
-                  </option>
-                  <option value="videojuegos" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Videojuegos
-                  </option>
-                  <option value="fitness" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Fitness
-                  </option>
-                  <option value="negocios" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Negocios
-                  </option>
-                  <option value="educacion" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Educación
-                  </option>
-                  <option value="viajes" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Viajes
-                  </option>
-                  <option value="comida" style={{ background: "#0c0c0c", color: "#fff" }}>
-                    Comida
-                  </option>
-                </select>
-              </div>
-
-              <div style={fieldStyle}>
-                <span style={labelStyle}>Tags</span>
-                <input
-                  style={inputStyle}
-                  value={tagsRaw}
-                  onChange={(e) => setTagsRaw(e.target.value)}
-                  placeholder="drift, autos, carreras"
-                />
-                <div style={subtleTextStyle}>Máximo 10 tags separadas por coma.</div>
-              </div>
-
-              {generalErr && <div style={noticeStyle}>{generalErr}</div>}
-              {generalMsg && <div style={noticeStyle}>{generalMsg}</div>}
-
-              <button
-                type="button"
-                onClick={saveGeneral}
-                disabled={savingGeneral}
-                style={{
-                  ...primaryButtonStyle,
-                  opacity: savingGeneral ? 0.84 : 1,
-                  cursor: savingGeneral ? "not-allowed" : "pointer",
-                  background: savingGeneral ? "rgba(255,255,255,0.18)" : "#fff",
-                  color: savingGeneral ? "#fff" : "#000",
-                }}
-              >
-                {savingGeneral ? (
-                  <>
-                    <SpinningGear />
-                    Guardando...
-                  </>
-                ) : (
-                  "Guardar cambios"
-                )}
-              </button>
-            </div>
+          {activeView === "services" && (
+            <OwnerAdminServices
+              groupId={groupId}
+              ownerId={ownerId}
+              currentUserId={currentUserId}
+              currentVisibility={currentVisibility}
+              currentMonetization={currentMonetization}
+              currentOfferings={currentOfferings}
+            />
           )}
 
-          {tab === "status" && (
-            <div style={contentStyle}>
-              <div style={subtleTextStyle}>
-                Pausar una comunidad la marca como inactiva. No elimina contenido.
-              </div>
+          {activeView === "general" && (
+            <OwnerAdminGeneral
+              groupId={groupId}
+              ownerId={ownerId}
+              currentUserId={currentUserId}
+              currentName={currentName}
+              currentDescription={currentDescription}
+              currentCategory={currentCategory}
+              currentTags={currentTags}
+            />
+          )}
 
-              <div style={statusActionsStyle}>
-                <button
-                  type="button"
-                  onClick={() => setActive(false)}
-                  disabled={statusBusy}
-                  style={{
-                    ...secondaryButtonStyle,
-                    flex: "1 1 160px",
-                    opacity: statusBusy ? 0.72 : 1,
-                    cursor: statusBusy ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {statusBusy ? (
-                    <>
-                      <SpinningGear />
-                      Procesando...
-                    </>
-                  ) : (
-                    "Pausar"
-                  )}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setActive(true)}
-                  disabled={statusBusy}
-                  style={{
-                    ...primaryButtonStyle,
-                    flex: "1 1 160px",
-                    width: "auto",
-                    opacity: statusBusy ? 0.84 : 1,
-                    cursor: statusBusy ? "not-allowed" : "pointer",
-                    background: statusBusy ? "rgba(255,255,255,0.18)" : "#fff",
-                    color: statusBusy ? "#fff" : "#000",
-                  }}
-                >
-                  {statusBusy ? (
-                    <>
-                      <SpinningGear />
-                      Procesando...
-                    </>
-                  ) : (
-                    "Reactivar"
-                  )}
-                </button>
-              </div>
-
-              {statusErr && <div style={noticeStyle}>{statusErr}</div>}
-              {statusMsg && <div style={noticeStyle}>{statusMsg}</div>}
-
-              <div style={subtleTextStyle}>
-                Después puedes agregar confirmación fuerte y motivo de auditoría
-                para una baja más avanzada.
-              </div>
-            </div>
+          {activeView === "status" && (
+            <OwnerAdminStatus
+              groupId={groupId}
+              ownerId={ownerId}
+              currentUserId={currentUserId}
+            />
           )}
         </div>
       </div>

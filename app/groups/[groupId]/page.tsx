@@ -1599,18 +1599,21 @@ export default function GroupPage() {
                 )}
 
                 {activeTab === "settings" && isOwner && user && group.ownerId && (
-                  <OwnerAdminPanel
-                    groupId={groupId}
-                    ownerId={group.ownerId}
-                    currentUserId={user.uid}
-                    currentAvatarUrl={group.avatarUrl ?? null}
-                    currentCoverUrl={group.coverUrl ?? null}
-                    currentName={group.name ?? null}
-                    currentDescription={group.description ?? null}
-                    currentCategory={group.category ?? null}
-                    currentTags={group.tags ?? null}
-                  />
-                )}
+  <OwnerAdminPanel
+    groupId={groupId}
+    ownerId={group.ownerId}
+    currentUserId={user.uid}
+    currentName={group.name ?? ""}
+    currentDescription={group.description ?? ""}
+    currentCategory={group.category ?? null}
+    currentTags={group.tags ?? []}
+    currentAvatarUrl={group.avatarUrl ?? null}
+    currentCoverUrl={group.coverUrl ?? null}
+    currentVisibility={group.visibility ?? null}
+    currentMonetization={group.monetization ?? null}
+    currentOfferings={group.offerings ?? []}
+  />
+)}
               </div>
             </div>
           </section>
