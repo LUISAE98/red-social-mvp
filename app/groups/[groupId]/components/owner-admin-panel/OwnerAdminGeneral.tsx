@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { doc, updateDoc } from "firebase/firestore";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+
+type GroupVisibility = "public" | "private" | "hidden";
 
 type Props = {
   groupId: string;
@@ -12,6 +14,7 @@ type Props = {
   currentDescription?: string | null;
   currentCategory?: string | null;
   currentTags?: string[] | null;
+  currentVisibility?: GroupVisibility | null;
 };
 
 function parseTags(raw: string): string[] {
@@ -20,6 +23,18 @@ function parseTags(raw: string): string[] {
     .map((t) => t.trim())
     .filter(Boolean)
     .slice(0, 10);
+}
+
+function normalizeVisibility(
+  value: GroupVisibility | string | null | undefined
+): GroupVisibility {
+  if (value === "private") return "private";
+  if (value === "hidden") return "hidden";
+  return "public";
+}
+
+function getDiscoverableFromVisibility(visibility: GroupVisibility): boolean {
+  return visibility !== "hidden";
 }
 
 function SpinningGear() {
@@ -58,6 +73,7 @@ export default function OwnerAdminGeneral({
   currentDescription = "",
   currentCategory = null,
   currentTags = null,
+  currentVisibility = "public",
 }: Props) {
   const isOwner = useMemo(
     () => ownerId === currentUserId,
@@ -68,18 +84,71 @@ export default function OwnerAdminGeneral({
   const [description, setDescription] = useState(currentDescription ?? "");
   const [category, setCategory] = useState(currentCategory ?? "otros");
   const [tagsRaw, setTagsRaw] = useState((currentTags ?? []).join(", "));
+
+  const [savedVisibility, setSavedVisibility] = useState<GroupVisibility>(
+    normalizeVisibility(currentVisibility)
+  );
+  const [visibility, setVisibility] = useState<GroupVisibility>(
+    normalizeVisibility(currentVisibility)
+  );
+
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [generalMsg, setGeneralMsg] = useState<string | null>(null);
   const [generalErr, setGeneralErr] = useState<string | null>(null);
 
+  const initializedGroupRef = useRef<string | null>(null);
+
   useEffect(() => {
+    if (initializedGroupRef.current === groupId) return;
+
     setName(currentName ?? "");
     setDescription(currentDescription ?? "");
     setCategory(currentCategory ?? "otros");
     setTagsRaw((currentTags ?? []).join(", "));
+    setSavedVisibility(normalizeVisibility(currentVisibility));
+    setVisibility(normalizeVisibility(currentVisibility));
     setGeneralMsg(null);
     setGeneralErr(null);
-  }, [currentName, currentDescription, currentCategory, currentTags]);
+
+    initializedGroupRef.current = groupId;
+  }, [
+    groupId,
+    currentName,
+    currentDescription,
+    currentCategory,
+    currentTags,
+    currentVisibility,
+  ]);
+
+  useEffect(() => {
+    if (!groupId) return;
+
+    const ref = doc(db, "groups", groupId);
+
+    const unsubscribe = onSnapshot(
+      ref,
+      (snap) => {
+        if (!snap.exists()) return;
+
+        const data = snap.data() as {
+          visibility?: string | null;
+        };
+
+        const nextVisibility = normalizeVisibility(data?.visibility);
+
+        setSavedVisibility(nextVisibility);
+        setVisibility((prev) => {
+          if (savingGeneral) return prev;
+          return nextVisibility;
+        });
+      },
+      () => {
+        // Silencioso para no romper UX si falla el listener.
+      }
+    );
+
+    return () => unsubscribe();
+  }, [groupId, savingGeneral]);
 
   async function saveGeneral() {
     setSavingGeneral(true);
@@ -101,7 +170,18 @@ export default function OwnerAdminGeneral({
       return;
     }
 
+    const isHiddenLocked = savedVisibility === "hidden";
+
+    let finalVisibility: GroupVisibility;
+
+    if (isHiddenLocked) {
+      finalVisibility = "hidden";
+    } else {
+      finalVisibility = visibility === "private" ? "private" : "public";
+    }
+
     const tags = parseTags(tagsRaw);
+    const discoverable = getDiscoverableFromVisibility(finalVisibility);
 
     try {
       await updateDoc(doc(db, "groups", groupId), {
@@ -109,9 +189,13 @@ export default function OwnerAdminGeneral({
         description: trimmedDesc,
         category: category ?? "otros",
         tags,
+        visibility: finalVisibility,
+        discoverable,
         updatedAt: Date.now(),
       });
 
+      setSavedVisibility(finalVisibility);
+      setVisibility(finalVisibility);
       setGeneralMsg("Cambios guardados.");
     } catch (e: any) {
       setGeneralErr(e?.message ?? "No se pudieron guardar cambios.");
@@ -121,6 +205,8 @@ export default function OwnerAdminGeneral({
   }
 
   if (!isOwner) return null;
+
+  const isHiddenLocked = savedVisibility === "hidden";
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
@@ -202,8 +288,32 @@ export default function OwnerAdminGeneral({
     appearance: "none",
   };
 
+  const disabledInputStyle: React.CSSProperties = {
+    ...inputStyle,
+    opacity: 0.72,
+    cursor: "not-allowed",
+  };
+
   return (
     <div style={contentStyle}>
+      <style jsx>{`
+        select,
+        option,
+        optgroup {
+          background-color: #101010;
+          color: #ffffff;
+        }
+
+        select:focus {
+          outline: none;
+        }
+
+        select:disabled {
+          opacity: 0.72;
+          cursor: not-allowed;
+        }
+      `}</style>
+
       <div style={fieldStyle}>
         <span style={labelStyle}>Nombre</span>
         <input
@@ -222,6 +332,47 @@ export default function OwnerAdminGeneral({
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Describe el propósito de la comunidad"
         />
+      </div>
+
+      <div style={fieldStyle}>
+        <span style={labelStyle}>Estado del grupo</span>
+
+        {isHiddenLocked ? (
+          <>
+            <input
+              style={disabledInputStyle}
+              value="Oculto (bloqueado desde creación)"
+              disabled
+              readOnly
+            />
+            <div style={subtleTextStyle}>
+              Este grupo fue creado como oculto. No puede cambiar a público o
+              privado.
+            </div>
+          </>
+        ) : (
+          <>
+            <select
+              style={inputStyle}
+              value={visibility}
+              onChange={(e) =>
+                setVisibility(
+                  e.target.value === "private" ? "private" : "public"
+                )
+              }
+            >
+              <option value="public">Público</option>
+              <option value="private">Privado (requiere aprobación)</option>
+            </select>
+
+            <div style={subtleTextStyle}>
+              {visibility === "public" &&
+                "Visible en exploración y acceso normal según reglas del grupo."}
+              {visibility === "private" &&
+                "Visible, pero el acceso requiere solicitud o aprobación."}
+            </div>
+          </>
+        )}
       </div>
 
       <div style={fieldStyle}>

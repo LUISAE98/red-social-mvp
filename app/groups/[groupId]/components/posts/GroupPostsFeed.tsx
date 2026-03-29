@@ -24,8 +24,9 @@ type GroupPostsFeedProps = {
   isOwner?: boolean;
   isModerator?: boolean;
   canCreatePosts?: boolean;
-  canInteract?: boolean;
-  interactionBlockedReason?: InteractionBlockedReason;
+  canCommentOnPosts?: boolean;
+  postBlockedReason?: InteractionBlockedReason;
+  commentBlockedReason?: InteractionBlockedReason;
 };
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
@@ -118,22 +119,36 @@ async function attachAuthorMemberState(
   });
 }
 
-function buildInteractionBlockedMessage(
-  reason: InteractionBlockedReason
-): string {
+function buildPostBlockedMessage(reason: InteractionBlockedReason): string {
   if (reason === "login") {
-    return "Inicia sesión para interactuar en esta comunidad.";
+    return "Inicia sesión para publicar en esta comunidad.";
   }
 
   if (reason === "join") {
-    return "Debes unirte a esta comunidad para publicar o comentar.";
+    return "Debes unirte a esta comunidad para publicar.";
   }
 
   if (reason === "restricted") {
-    return "No puedes interactuar en esta comunidad por tu estado actual.";
+    return "No puedes publicar en esta comunidad por la configuración actual o por tu estado dentro del grupo.";
   }
 
-  return "No puedes realizar esta acción en este momento.";
+  return "No puedes publicar en esta comunidad en este momento.";
+}
+
+function buildCommentBlockedMessage(reason: InteractionBlockedReason): string {
+  if (reason === "login") {
+    return "Inicia sesión para comentar en esta comunidad.";
+  }
+
+  if (reason === "join") {
+    return "Debes unirte a esta comunidad para comentar.";
+  }
+
+  if (reason === "restricted") {
+    return "No puedes comentar en esta comunidad por la configuración actual o por tu estado dentro del grupo.";
+  }
+
+  return "No puedes comentar en esta comunidad en este momento.";
 }
 
 export default function GroupPostsFeed({
@@ -141,8 +156,9 @@ export default function GroupPostsFeed({
   isOwner = false,
   isModerator = false,
   canCreatePosts = false,
-  canInteract = false,
-  interactionBlockedReason = null,
+  canCommentOnPosts = false,
+  postBlockedReason = null,
+  commentBlockedReason = null,
 }: GroupPostsFeedProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -213,37 +229,37 @@ export default function GroupPostsFeed({
     );
   }
 
-  function guardInteraction(): boolean {
-    if (canInteract) {
-      return true;
-    }
-
-    const message = buildInteractionBlockedMessage(interactionBlockedReason);
-
-    if (interactionBlockedReason === "login") {
-      setError(message);
-      redirectToLogin();
-      return false;
-    }
-
-    setError(message);
-    return false;
-  }
-
   function guardCreatePost(): boolean {
     if (canCreatePosts) {
       return true;
     }
 
-    const message = buildInteractionBlockedMessage(interactionBlockedReason);
+    const message = buildPostBlockedMessage(postBlockedReason);
 
-    if (interactionBlockedReason === "login") {
+    if (postBlockedReason === "login") {
       setComposerError(message);
       redirectToLogin();
       return false;
     }
 
     setComposerError(message);
+    return false;
+  }
+
+  function guardCreateComment(): boolean {
+    if (canCommentOnPosts) {
+      return true;
+    }
+
+    const message = buildCommentBlockedMessage(commentBlockedReason);
+
+    if (commentBlockedReason === "login") {
+      setError(message);
+      redirectToLogin();
+      return false;
+    }
+
+    setError(message);
     return false;
   }
 
@@ -257,7 +273,6 @@ export default function GroupPostsFeed({
       await loadPosts();
     } catch (e: any) {
       setComposerError(e?.message ?? "No se pudo publicar.");
-      return;
     }
   }
 
@@ -286,8 +301,8 @@ export default function GroupPostsFeed({
     postId: string,
     text: string
   ): Promise<Comment[]> {
-    if (!guardInteraction()) {
-      throw new Error(buildInteractionBlockedMessage(interactionBlockedReason));
+    if (!guardCreateComment()) {
+      throw new Error(buildCommentBlockedMessage(commentBlockedReason));
     }
 
     try {
@@ -383,7 +398,13 @@ export default function GroupPostsFeed({
         <GroupPostComposer onSubmit={handleCreatePost} />
       ) : (
         <div style={interactionHintStyle}>
-          {buildInteractionBlockedMessage(interactionBlockedReason)}
+          {buildPostBlockedMessage(postBlockedReason)}
+        </div>
+      )}
+
+      {!canCommentOnPosts && (
+        <div style={interactionHintStyle}>
+          {buildCommentBlockedMessage(commentBlockedReason)}
         </div>
       )}
 

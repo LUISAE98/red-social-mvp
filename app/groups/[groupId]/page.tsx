@@ -31,6 +31,8 @@ type MemberStatus =
 
 type MemberRole = "owner" | "mod" | "member" | null;
 type Currency = "MXN" | "USD";
+type PostingMode = "members" | "owner_only";
+type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 
 type GroupDoc = {
   id: string;
@@ -43,6 +45,8 @@ type GroupDoc = {
   coverUrl?: string | null;
   category?: string | null;
   tags?: string[] | null;
+  postingMode?: PostingMode | string | null;
+  commentsEnabled?: boolean | null;
   monetization?: {
     isPaid?: boolean;
     priceMonthly?: number | null;
@@ -51,6 +55,10 @@ type GroupDoc = {
   settings?: {
     membersListVisibility?: "owner_only" | "members" | string;
   };
+  permissions?: {
+    postingMode?: PostingMode | string | null;
+    commentsEnabled?: boolean | null;
+  } | null;
   offerings?: Array<{
     type: "saludo" | "consejo" | "mensaje" | string;
     enabled?: boolean;
@@ -98,6 +106,14 @@ function normalizeCurrency(raw: unknown): Currency | null {
   if (raw === "MXN") return "MXN";
   if (raw === "USD") return "USD";
   return null;
+}
+
+function normalizePostingMode(raw: unknown): PostingMode {
+  return raw === "owner_only" ? "owner_only" : "members";
+}
+
+function normalizeCommentsEnabled(raw: unknown): boolean {
+  return raw !== false;
 }
 
 function isJoinedStatus(status: MemberStatus) {
@@ -205,6 +221,22 @@ export default function GroupPage() {
 
   const effectiveIsMember =
     isOwner || (isMember && isJoinedStatus(memberStatus));
+
+  const currentPostingMode = useMemo(
+    () =>
+      normalizePostingMode(
+        group?.permissions?.postingMode ?? group?.postingMode ?? "members"
+      ),
+    [group]
+  );
+
+  const currentCommentsEnabled = useMemo(
+    () =>
+      normalizeCommentsEnabled(
+        group?.permissions?.commentsEnabled ?? group?.commentsEnabled ?? true
+      ),
+    [group]
+  );
 
   const [greetOpen, setGreetOpen] = useState(false);
   const [greetType, setGreetType] = useState<GreetingType>("saludo");
@@ -725,9 +757,9 @@ export default function GroupPage() {
 
       const gref = doc(db, "groups", groupId);
       if (mode === "avatar") {
-        await updateDoc(gref, { avatarUrl: url });
+        await updateDoc(gref, { avatarUrl: url, updatedAt: Date.now() });
       } else {
-        await updateDoc(gref, { coverUrl: url });
+        await updateDoc(gref, { coverUrl: url, updatedAt: Date.now() });
       }
 
       setCropOpen(false);
@@ -1140,18 +1172,51 @@ export default function GroupPage() {
 
   const isPublicGroup = visibility === "public";
   const canViewPublicFeed = isPublicGroup || effectiveIsMember || isOwner;
-  const canCreatePosts = isOwner || effectiveIsMember;
-  const canInteract = isOwner || effectiveIsMember;
 
-  let interactionBlockedReason: "login" | "join" | "restricted" | null = null;
+  const canCreatePosts =
+    isOwner ||
+    (effectiveIsMember &&
+      memberStatus === "active" &&
+      currentPostingMode === "members");
 
-  if (!canInteract) {
+  const canCommentOnPosts =
+    isOwner ||
+    (effectiveIsMember &&
+      memberStatus === "active" &&
+      currentCommentsEnabled);
+
+  let postBlockedReason: InteractionBlockedReason = null;
+  let commentBlockedReason: InteractionBlockedReason = null;
+
+  if (!canCreatePosts) {
     if (!user) {
-      interactionBlockedReason = "login";
-    } else if (memberStatus === "banned" || memberStatus === "removed") {
-      interactionBlockedReason = "restricted";
+      postBlockedReason = "login";
+    } else if (
+      memberStatus === "banned" ||
+      memberStatus === "removed" ||
+      memberStatus === "muted"
+    ) {
+      postBlockedReason = "restricted";
+    } else if (!effectiveIsMember) {
+      postBlockedReason = "join";
     } else {
-      interactionBlockedReason = "join";
+      postBlockedReason = "restricted";
+    }
+  }
+
+  if (!canCommentOnPosts) {
+    if (!user) {
+      commentBlockedReason = "login";
+    } else if (
+      memberStatus === "banned" ||
+      memberStatus === "removed" ||
+      memberStatus === "muted"
+    ) {
+      commentBlockedReason = "restricted";
+    } else if (!effectiveIsMember) {
+      commentBlockedReason = "join";
+    } else {
+      commentBlockedReason = "restricted";
     }
   }
 
@@ -1597,8 +1662,9 @@ export default function GroupPage() {
                       isOwner={isOwner}
                       isModerator={isModerator}
                       canCreatePosts={canCreatePosts}
-                      canInteract={canInteract}
-                      interactionBlockedReason={interactionBlockedReason}
+                      canCommentOnPosts={canCommentOnPosts}
+                      postBlockedReason={postBlockedReason}
+                      commentBlockedReason={commentBlockedReason}
                     />
 
                     {user?.uid ? (
@@ -1633,6 +1699,8 @@ export default function GroupPage() {
                     currentVisibility={group.visibility ?? null}
                     currentMonetization={normalizedCurrentMonetization}
                     currentOfferings={normalizedCurrentOfferings}
+                    currentPostingMode={currentPostingMode}
+                    currentCommentsEnabled={currentCommentsEnabled}
                   />
                 )}
               </div>

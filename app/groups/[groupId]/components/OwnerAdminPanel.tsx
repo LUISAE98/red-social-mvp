@@ -7,6 +7,7 @@ import OwnerAdminStatus from "./owner-admin-panel/OwnerAdminStatus";
 
 type Currency = "MXN" | "USD";
 type OwnerAdminViewKey = "services" | "general" | "status";
+type PostingMode = "members" | "owner_only";
 
 type Props = {
   groupId: string;
@@ -33,6 +34,9 @@ type Props = {
     price?: number | null;
     currency?: Currency | null;
   }> | null;
+
+  currentPostingMode?: PostingMode | string | null;
+  currentCommentsEnabled?: boolean | null;
 };
 
 export default function OwnerAdminPanel(props: Props) {
@@ -47,6 +51,8 @@ export default function OwnerAdminPanel(props: Props) {
     currentVisibility = null,
     currentMonetization = null,
     currentOfferings = null,
+    currentPostingMode = "members",
+    currentCommentsEnabled = true,
   } = props;
 
   const isOwner = useMemo(
@@ -211,6 +217,8 @@ export default function OwnerAdminPanel(props: Props) {
               groupId={groupId}
               ownerId={ownerId}
               currentUserId={currentUserId}
+              currentPostingMode={currentPostingMode}
+              currentCommentsEnabled={currentCommentsEnabled}
             />
           )}
         </div>

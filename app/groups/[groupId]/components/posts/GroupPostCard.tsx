@@ -20,6 +20,8 @@ import {
   unmuteGroupMember,
 } from "@/lib/groups/groupModeration";
 
+type InteractionBlockedReason = "login" | "join" | "restricted" | null;
+
 type GroupPostCardProps = {
   post: Post & {
     authorMemberStatus?: "active" | "muted" | "banned" | "removed" | null;
@@ -37,6 +39,8 @@ type GroupPostCardProps = {
   showGroupContext?: boolean;
   canModerateGroupAuthor?: boolean;
   onModerationComplete?: () => Promise<void> | void;
+  canCommentOnPosts?: boolean;
+  commentBlockedReason?: InteractionBlockedReason;
 };
 
 type ModerationAction =
@@ -199,6 +203,22 @@ function resolveEffectiveMemberStatus(rawStatus: unknown, mutedUntil: any) {
   return "active";
 }
 
+function buildCommentBlockedMessage(reason: InteractionBlockedReason): string {
+  if (reason === "login") {
+    return "Inicia sesión para comentar en esta comunidad.";
+  }
+
+  if (reason === "join") {
+    return "Debes unirte a esta comunidad para comentar.";
+  }
+
+  if (reason === "restricted") {
+    return "No puedes comentar en esta comunidad por la configuración actual o por tu estado dentro del grupo.";
+  }
+
+  return "No puedes comentar en esta comunidad en este momento.";
+}
+
 function AutoGrowTextarea({
   value,
   maxRows = 3,
@@ -323,6 +343,8 @@ export default function GroupPostCard({
   showGroupContext = false,
   canModerateGroupAuthor = false,
   onModerationComplete,
+  canCommentOnPosts = true,
+  commentBlockedReason = null,
 }: GroupPostCardProps) {
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [loadingComments, setLoadingComments] = useState(false);
@@ -542,6 +564,11 @@ export default function GroupPostCard({
   }
 
   async function handleCreateComment() {
+    if (!canCommentOnPosts) {
+      setInlineActionError(buildCommentBlockedMessage(commentBlockedReason));
+      return;
+    }
+
     if (creatingComment || commentText.trim().length === 0) return;
 
     try {
@@ -836,6 +863,19 @@ export default function GroupPostCard({
     WebkitAppearance: "none",
   };
 
+  const disabledTextareaStyle: CSSProperties = {
+    ...inputStyle,
+    color: "rgba(255,255,255,0.46)",
+    cursor: "not-allowed",
+  };
+
+  const blockedHintStyle: CSSProperties = {
+    marginTop: 2,
+    fontSize: 11.5,
+    lineHeight: 1.45,
+    color: "rgba(255,255,255,0.58)",
+  };
+
   const modalBackdropStyle: CSSProperties = {
     position: "fixed",
     inset: 0,
@@ -898,6 +938,9 @@ export default function GroupPostCard({
   };
 
   const shouldShowActionsMenu = availableActions.length > 0;
+  const commentBlockedMessage = !canCommentOnPosts
+    ? buildCommentBlockedMessage(commentBlockedReason)
+    : null;
 
   return (
     <article style={cardStyle}>
@@ -1221,18 +1264,32 @@ export default function GroupPostCard({
             <AutoGrowTextarea
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Escribe un comentario..."
+              placeholder={
+                canCommentOnPosts
+                  ? "Escribe un comentario..."
+                  : "Comentarios bloqueados en esta comunidad"
+              }
               maxRows={3}
-              style={inputStyle}
+              style={canCommentOnPosts ? inputStyle : disabledTextareaStyle}
+              disabled={!canCommentOnPosts}
             />
+            {!canCommentOnPosts && commentBlockedMessage && (
+              <div style={blockedHintStyle}>{commentBlockedMessage}</div>
+            )}
           </div>
 
           <button
             type="button"
             onClick={handleCreateComment}
-            disabled={creatingComment || commentText.trim().length === 0}
+            disabled={
+              !canCommentOnPosts ||
+              creatingComment ||
+              commentText.trim().length === 0
+            }
             style={
-              creatingComment || commentText.trim().length === 0
+              !canCommentOnPosts ||
+              creatingComment ||
+              commentText.trim().length === 0
                 ? disabledButtonStyle
                 : primaryButtonStyle
             }

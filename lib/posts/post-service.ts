@@ -1,17 +1,16 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
-  increment,
   limit,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
   where,
-  writeBatch,
   type DocumentData,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -44,6 +43,15 @@ type GroupLookup = {
 };
 
 type GroupMemberStatus = "active" | "muted" | "banned" | "removed" | null;
+type PostingMode = "members" | "owner_only";
+
+type GroupWriteAccess = {
+  ownerId: string | null;
+  isActive: boolean;
+  postingMode: PostingMode;
+  commentsEnabled: boolean;
+  membershipStatus: GroupMemberStatus;
+};
 
 function pickString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0
@@ -62,6 +70,14 @@ function normalizeGroupVisibility(value: unknown): GroupVisibility | null {
     return value;
   }
   return null;
+}
+
+function normalizePostingMode(value: unknown): PostingMode {
+  return value === "owner_only" ? "owner_only" : "members";
+}
+
+function normalizeCommentsEnabled(value: unknown): boolean {
+  return value !== false;
 }
 
 function readGroupName(data: Record<string, unknown>): string | null {
@@ -435,7 +451,10 @@ async function fetchPostsByAccessibleGroups(groupIds: string[]): Promise<Post[]>
   return deduped;
 }
 
-async function ensureUserCanWriteInGroup(groupId: string, userUid: string) {
+async function getGroupWriteAccess(
+  groupId: string,
+  userUid: string
+): Promise<GroupWriteAccess> {
   const groupRef = doc(db, "groups", groupId);
   const groupSnap = await getDoc(groupRef);
 
@@ -446,8 +465,27 @@ async function ensureUserCanWriteInGroup(groupId: string, userUid: string) {
   const groupData = groupSnap.data() as Record<string, unknown>;
   const ownerId = pickString(groupData.ownerId);
 
+  const permissions =
+    groupData.permissions && typeof groupData.permissions === "object"
+      ? (groupData.permissions as Record<string, unknown>)
+      : null;
+
+  const postingMode = normalizePostingMode(
+    permissions?.postingMode ?? groupData.postingMode
+  );
+  const commentsEnabled = normalizeCommentsEnabled(
+    permissions?.commentsEnabled ?? groupData.commentsEnabled
+  );
+  const isActive = groupData.isActive !== false;
+
   if (ownerId === userUid) {
-    return;
+    return {
+      ownerId,
+      isActive,
+      postingMode,
+      commentsEnabled,
+      membershipStatus: "active",
+    };
   }
 
   const memberRef = doc(db, "groups", groupId, "members", userUid);
@@ -458,11 +496,21 @@ async function ensureUserCanWriteInGroup(groupId: string, userUid: string) {
   }
 
   const memberData = memberSnap.data() as Record<string, unknown>;
-  const status = resolveEffectiveMembershipStatus(
+  const membershipStatus = resolveEffectiveMembershipStatus(
     memberData.status,
     memberData.mutedUntil
   );
 
+  return {
+    ownerId,
+    isActive,
+    postingMode,
+    commentsEnabled,
+    membershipStatus,
+  };
+}
+
+function assertMembershipCanInteract(status: GroupMemberStatus) {
   if (status === "banned") {
     throw new Error(
       "No puedes realizar esta acción porque estás baneado de este grupo."
@@ -479,6 +527,46 @@ async function ensureUserCanWriteInGroup(groupId: string, userUid: string) {
     throw new Error(
       "No puedes realizar esta acción porque estás muteado en este grupo."
     );
+  }
+
+  if (status !== "active") {
+    throw new Error("No puedes realizar esta acción en este grupo.");
+  }
+}
+
+async function ensureUserCanCreatePostInGroup(groupId: string, userUid: string) {
+  const access = await getGroupWriteAccess(groupId, userUid);
+
+  if (!access.isActive) {
+    throw new Error("Esta comunidad está inactiva.");
+  }
+
+  if (access.ownerId === userUid) {
+    return;
+  }
+
+  assertMembershipCanInteract(access.membershipStatus);
+
+  if (access.postingMode === "owner_only") {
+    throw new Error("Solo el owner puede publicar en esta comunidad.");
+  }
+}
+
+async function ensureUserCanCommentInGroup(groupId: string, userUid: string) {
+  const access = await getGroupWriteAccess(groupId, userUid);
+
+  if (!access.isActive) {
+    throw new Error("Esta comunidad está inactiva.");
+  }
+
+  if (access.ownerId === userUid) {
+    return;
+  }
+
+  assertMembershipCanInteract(access.membershipStatus);
+
+  if (!access.commentsEnabled) {
+    throw new Error("Solo el owner puede comentar en esta comunidad.");
   }
 }
 
@@ -567,7 +655,7 @@ export async function createTextPost(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
-  await ensureUserCanWriteInGroup(params.groupId, author.uid);
+  await ensureUserCanCreatePostInGroup(params.groupId, author.uid);
 
   await addDoc(collection(db, "posts"), {
     groupId: params.groupId,
@@ -647,12 +735,9 @@ export async function createPostComment(params: {
     throw new Error("La publicación no pertenece a un grupo válido.");
   }
 
-  await ensureUserCanWriteInGroup(groupId, author.uid);
+  await ensureUserCanCommentInGroup(groupId, author.uid);
 
-  const commentRef = doc(collection(db, "posts", params.postId, "comments"));
-  const batch = writeBatch(db);
-
-  batch.set(commentRef, {
+  await addDoc(collection(db, "posts", params.postId, "comments"), {
     authorId: author.uid,
     authorName: author.authorName,
     authorAvatarUrl: author.authorAvatarUrl,
@@ -661,13 +746,6 @@ export async function createPostComment(params: {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
-
-  batch.update(postRef, {
-    "counts.comments": increment(1),
-    updatedAt: serverTimestamp(),
-  });
-
-  await batch.commit();
 }
 
 export async function deletePostComment(params: {
@@ -677,7 +755,6 @@ export async function deletePostComment(params: {
   assertValidId(params.postId, "postId");
   assertValidId(params.commentId, "commentId");
 
-  const postRef = doc(db, "posts", params.postId);
   const commentRef = doc(db, "posts", params.postId, "comments", params.commentId);
   const commentSnap = await getDoc(commentRef);
 
@@ -685,13 +762,5 @@ export async function deletePostComment(params: {
     return;
   }
 
-  const batch = writeBatch(db);
-
-  batch.delete(commentRef);
-  batch.update(postRef, {
-    "counts.comments": increment(-1),
-    updatedAt: serverTimestamp(),
-  });
-
-  await batch.commit();
+  await deleteDoc(commentRef);
 }
