@@ -189,6 +189,49 @@ export default function ProfileGroupsTab({
 
   return (
     <section style={wrapStyle}>
+      <style jsx>{`
+        .profile-groups-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+          gap: 16px;
+          align-items: start;
+          width: 100%;
+          max-width: calc((320px * 3) + (16px * 2));
+          margin: 0 auto;
+        }
+
+        .profile-group-link {
+          display: block;
+          width: 100%;
+          text-decoration: none;
+          color: inherit;
+        }
+
+        .profile-group-card {
+          position: relative;
+          width: 100%;
+          max-width: 320px;
+          margin: 0 auto;
+          aspect-ratio: 1 / 1;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: #0d0d0f;
+          border-radius: 22px;
+          overflow: hidden;
+          box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+        }
+
+        @media (max-width: 767px) {
+          .profile-groups-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            max-width: 100%;
+          }
+
+          .profile-group-card {
+            max-width: 100%;
+          }
+        }
+      `}</style>
+
       <div
         style={{
           display: "grid",
@@ -309,14 +352,7 @@ export default function ProfileGroupsTab({
             {msg}
           </div>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: 16,
-              alignItems: "start",
-            }}
-          >
+          <div className="profile-groups-grid">
             {msg && (
               <div
                 style={{
@@ -338,24 +374,9 @@ export default function ProfileGroupsTab({
               <Link
                 key={group.id}
                 href={`/groups/${group.id}`}
-                style={{
-                  textDecoration: "none",
-                  color: "inherit",
-                  display: "block",
-                }}
+                className="profile-group-link"
               >
-                <article
-                  style={{
-                    position: "relative",
-                    width: "100%",
-                    aspectRatio: "1 / 1",
-                    border: "1px solid rgba(255,255,255,0.10)",
-                    background: "#0d0d0f",
-                    borderRadius: 22,
-                    overflow: "hidden",
-                    boxShadow: "0 18px 48px rgba(0,0,0,0.35)",
-                  }}
-                >
+                <article className="profile-group-card">
                   <div
                     style={{
                       position: "absolute",
@@ -380,7 +401,7 @@ export default function ProfileGroupsTab({
                     style={{
                       position: "absolute",
                       inset: 0,
-                      padding: 18,
+                      padding: 16,
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
@@ -390,19 +411,19 @@ export default function ProfileGroupsTab({
                   >
                     <div
                       style={{
-                        width: 112,
-                        height: 112,
+                        width: 84,
+                        height: 84,
                         borderRadius: "50%",
                         overflow: "hidden",
                         background: "#111",
-                        border: "4px solid rgba(0,0,0,0.92)",
-                        boxShadow: "0 14px 34px rgba(0,0,0,0.45)",
+                        border: "3px solid rgba(0,0,0,0.92)",
+                        boxShadow: "0 10px 24px rgba(0,0,0,0.40)",
                         display: "grid",
                         placeItems: "center",
                         color: "#fff",
                         fontWeight: 700,
-                        fontSize: 28,
-                        marginBottom: 14,
+                        fontSize: 22,
+                        marginBottom: 12,
                       }}
                     >
                       {group.avatarUrl ? (

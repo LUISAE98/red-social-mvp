@@ -36,19 +36,24 @@ type Props = {
   className?: string;
 };
 
+const fontStack =
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+
 const cardStyles = {
-  background: "rgba(9, 24, 44, 0.72)",
-  border: "1px solid rgba(123, 178, 255, 0.18)",
-  borderRadius: 16,
+  background: "rgba(28, 28, 31, 0.96)",
+  border: "1px solid rgba(255, 255, 255, 0.08)",
+  borderRadius: 18,
   minWidth: 216,
   maxWidth: 216,
-  padding: 12,
+  padding: 10,
   color: "#fff",
   display: "flex",
   flexDirection: "column" as const,
   gap: 10,
   scrollSnapAlign: "start" as const,
-  boxShadow: "0 0 0 1px rgba(123, 178, 255, 0.03) inset",
+  boxShadow:
+    "0 0 0 1px rgba(255,255,255,0.025) inset, 0 10px 24px rgba(0,0,0,0.18)",
+  flexShrink: 0,
 };
 
 function getDefaultTitle() {
@@ -78,7 +83,9 @@ async function resolveJoinState(
   if (memberSnap.exists()) return "joined";
 
   if (visibility === "private") {
-    const requestSnap = await getDoc(doc(db, "groups", groupId, "joinRequests", userId));
+    const requestSnap = await getDoc(
+      doc(db, "groups", groupId, "joinRequests", userId)
+    );
     if (requestSnap.exists()) return "pending";
     return "request";
   }
@@ -102,15 +109,16 @@ function GroupCategoryPill({
       style={{
         border: selected
           ? "1px solid rgba(255,255,255,0.9)"
-          : "1px solid rgba(123,178,255,0.16)",
-        background: selected ? "#ffffff" : "rgba(15, 32, 56, 0.8)",
+          : "1px solid rgba(255,255,255,0.10)",
+        background: selected ? "#ffffff" : "rgba(42, 42, 46, 0.95)",
         color: selected ? "#08111d" : "#ffffff",
         borderRadius: 999,
         padding: "8px 12px",
         fontSize: 12,
-        fontWeight: 700,
+        fontWeight: 600,
         cursor: "pointer",
         whiteSpace: "nowrap",
+        fontFamily: fontStack,
       }}
     >
       {label}
@@ -143,11 +151,12 @@ function JoinButton({
       disabled={loading || state === "joined" || state === "pending"}
       style={{
         width: "100%",
-        borderRadius: 10,
-        padding: "9px 11px",
+        borderRadius: 12,
+        padding: "10px 12px",
         border: "none",
-        fontWeight: 800,
-        fontSize: 13,
+        fontWeight: 700,
+        fontSize: 12,
+        letterSpacing: "-0.01em",
         cursor:
           loading || state === "joined" || state === "pending"
             ? "default"
@@ -160,6 +169,7 @@ function JoinButton({
           state === "joined" || state === "pending"
             ? "rgba(255,255,255,0.72)"
             : "#08111d",
+        fontFamily: fontStack,
       }}
     >
       {loading ? "Procesando..." : label}
@@ -184,10 +194,10 @@ function GroupCard({
 
   const visibilityLabel =
     group.visibility === "public"
-      ? "Pública"
+      ? "Comunidad pública"
       : group.visibility === "private"
-      ? "Privada"
-      : "Oculta";
+      ? "Comunidad privada"
+      : "Comunidad oculta";
 
   return (
     <div style={cardStyles}>
@@ -203,114 +213,152 @@ function GroupCard({
       >
         <div
           style={{
-            width: "100%",
-            height: 88,
-            borderRadius: 12,
-            overflow: "hidden",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(123,178,255,0.15)",
             position: "relative",
+            width: "100%",
+            aspectRatio: "1 / 1.04",
+            borderRadius: 14,
+            overflow: "hidden",
+            border: "1px solid rgba(255,255,255,0.08)",
+            background: "#0d0d0f",
+            boxShadow: "0 12px 28px rgba(0,0,0,0.22)",
           }}
         >
-          {group.coverUrl ? (
-            <img
-              src={group.coverUrl}
-              alt={`Portada de ${group.name}`}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            />
-          ) : (
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "grid",
-                placeItems: "center",
-                color: "rgba(255,255,255,0.45)",
-                fontSize: 11,
-              }}
-            >
-              Sin portada
-            </div>
-          )}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: group.coverUrl
+                ? `url(${group.coverUrl}) center / cover no-repeat`
+                : "linear-gradient(135deg, #161616 0%, #212125 55%, #121214 100%)",
+              transform: "scale(1.01)",
+            }}
+          />
 
           <div
             style={{
               position: "absolute",
-              left: 10,
-              bottom: 10,
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              overflow: "hidden",
-              border: "2px solid rgba(4, 12, 25, 0.75)",
-              background: "#0b1625",
+              inset: 0,
+              background:
+                "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.30) 36%, rgba(0,0,0,0.72) 68%, rgba(0,0,0,0.92) 100%)",
             }}
-          >
-            {group.avatarUrl ? (
-              <img
-                src={group.avatarUrl}
-                alt={`Avatar de ${group.name}`}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            ) : (
-              <div
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  display: "grid",
-                  placeItems: "center",
-                  color: "rgba(255,255,255,0.45)",
-                  fontSize: 10,
-                  fontWeight: 800,
-                }}
-              >
-                {group.name.slice(0, 1).toUpperCase()}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-          <strong
-            style={{
-              fontSize: 14,
-              lineHeight: 1.2,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {group.name}
-          </strong>
+          />
 
           <div
             style={{
+              position: "absolute",
+              inset: 0,
+              padding: 12,
               display: "flex",
-              flexWrap: "wrap",
-              gap: 6,
-              fontSize: 11,
-              color: "rgba(220,233,255,0.74)",
+              flexDirection: "column",
+              alignItems: "center",
+              textAlign: "center",
             }}
           >
-            <span>{visibilityLabel}</span>
-            <span>•</span>
-            <span>{categoryLabel}</span>
-          </div>
+            <div
+              style={{
+                width: 62,
+                height: 62,
+                borderRadius: "50%",
+                overflow: "hidden",
+                background: "#111",
+                border: "3px solid rgba(0,0,0,0.92)",
+                boxShadow: "0 8px 18px rgba(0,0,0,0.36)",
+                display: "grid",
+                placeItems: "center",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 18,
+                flexShrink: 0,
+                marginTop: 10,
+                marginBottom: 18,
+              }}
+            >
+              {group.avatarUrl ? (
+                <img
+                  src={group.avatarUrl}
+                  alt={`Avatar de ${group.name}`}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : (
+                group.name.slice(0, 1).toUpperCase()
+              )}
+            </div>
 
-          <p
-            style={{
-              margin: 0,
-              fontSize: 12,
-              color: "rgba(227,236,255,0.76)",
-              display: "-webkit-box",
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: "vertical",
-              overflow: "hidden",
-              minHeight: 32,
-            }}
-          >
-            {group.description || "Sin descripción disponible."}
-          </p>
+            <div
+              style={{
+                marginTop: "auto",
+                width: "100%",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+              }}
+            >
+              <strong
+                style={{
+                  fontSize: 14,
+                  lineHeight: 1.18,
+                  color: "#fff",
+                  maxWidth: "100%",
+                  wordBreak: "break-word",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  minHeight: 34,
+                  fontFamily: fontStack,
+                  fontWeight: 700,
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {group.name}
+              </strong>
+
+              <p
+                style={{
+                  margin: "8px 0 0 0",
+                  fontSize: 12,
+                  lineHeight: 1.35,
+                  color: "rgba(255,255,255,0.82)",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                  minHeight: 32,
+                  maxWidth: "100%",
+                  fontFamily: fontStack,
+                  fontWeight: 400,
+                }}
+              >
+                {group.description || "Sin descripción disponible."}
+              </p>
+
+              <div
+                style={{
+                  marginTop: 10,
+                  fontSize: 11,
+                  lineHeight: 1.2,
+                  color: "rgba(255,255,255,0.76)",
+                  fontFamily: fontStack,
+                  fontWeight: 500,
+                }}
+              >
+                {visibilityLabel}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 5,
+                  fontSize: 11,
+                  lineHeight: 1.2,
+                  color: "rgba(255,255,255,0.60)",
+                  fontFamily: fontStack,
+                  fontWeight: 400,
+                }}
+              >
+                {categoryLabel}
+              </div>
+            </div>
+          </div>
         </div>
       </Link>
 
@@ -329,16 +377,21 @@ export default function GroupRecommendationsRail({
   className,
 }: Props) {
   const router = useRouter();
-  const [selectedCategories, setSelectedCategories] = useState<CanonicalGroupCategory[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<
+    CanonicalGroupCategory[]
+  >([]);
   const [result, setResult] = useState<RecommendationFetchResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingOnboarding, setSavingOnboarding] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [joinStates, setJoinStates] = useState<Record<string, RecommendationJoinState>>({});
-  const [joinLoadingByGroup, setJoinLoadingByGroup] = useState<Record<string, boolean>>({});
+  const [joinStates, setJoinStates] = useState<
+    Record<string, RecommendationJoinState>
+  >({});
+  const [joinLoadingByGroup, setJoinLoadingByGroup] = useState<
+    Record<string, boolean>
+  >({});
 
   const heading = title ?? getDefaultTitle();
-  const subheading = subtitle ?? getDefaultSubtitle(context);
   const minCategories = recommendationEngineConstants.MIN_ONBOARDING_CATEGORIES;
 
   const hasRealSession =
@@ -365,7 +418,11 @@ export default function GroupRecommendationsRail({
       if (next.groups.length > 0) {
         const entries = await Promise.all(
           next.groups.map(async (group) => {
-            const state = await resolveJoinState(group.id, currentUserId, group.visibility);
+            const state = await resolveJoinState(
+              group.id,
+              currentUserId,
+              group.visibility
+            );
             return [group.id, state] as const;
           })
         );
@@ -375,7 +432,11 @@ export default function GroupRecommendationsRail({
         setJoinStates({});
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudieron cargar recomendaciones.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudieron cargar recomendaciones."
+      );
     } finally {
       setLoading(false);
     }
@@ -403,7 +464,9 @@ export default function GroupRecommendationsRail({
       completeRecommendationsOnboarding(currentUserId, selectedCategories);
       await loadRecommendations();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo guardar la selección.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo guardar la selección."
+      );
     } finally {
       setSavingOnboarding(false);
     }
@@ -432,7 +495,9 @@ export default function GroupRecommendationsRail({
 
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo completar la acción.");
+      setError(
+        err instanceof Error ? err.message : "No se pudo completar la acción."
+      );
     } finally {
       setJoinLoadingByGroup((prev) => ({ ...prev, [group.id]: false }));
     }
@@ -452,13 +517,13 @@ export default function GroupRecommendationsRail({
       style={{
         width: "100%",
         borderRadius: 22,
-        border: "1px solid rgba(123, 178, 255, 0.18)",
+        border: "1px solid rgba(255, 255, 255, 0.09)",
         background:
-          "linear-gradient(180deg, rgba(12,27,49,0.92) 0%, rgba(8,18,34,0.92) 100%)",
+          "linear-gradient(180deg, rgba(34,34,37,0.97) 0%, rgba(24,24,27,0.97) 100%)",
         padding: 16,
         color: "#fff",
         boxShadow:
-          "0 0 0 1px rgba(123,178,255,0.03) inset, 0 10px 30px rgba(4,10,20,0.18)",
+          "0 0 0 1px rgba(255,255,255,0.025) inset, 0 12px 28px rgba(0,0,0,0.18)",
       }}
     >
       <div
@@ -472,13 +537,17 @@ export default function GroupRecommendationsRail({
         }}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{heading}</h3>
-          <p style={{ margin: 0, fontSize: 13, color: "rgba(222,234,255,0.78)" }}>
-            {subheading}
-            {context === "search_empty" && emptySearchTerm
-              ? ` Búsqueda: "${emptySearchTerm}".`
-              : ""}
-          </p>
+          <h3
+            style={{
+              margin: 0,
+              fontSize: 16,
+              fontWeight: 700,
+              fontFamily: fontStack,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {heading}
+          </h3>
         </div>
 
         {context === "search_empty" && (
@@ -497,8 +566,9 @@ export default function GroupRecommendationsRail({
               background: "#ffffff",
               color: "#08111d",
               padding: "10px 14px",
-              fontWeight: 800,
+              fontWeight: 700,
               cursor: "pointer",
+              fontFamily: fontStack,
             }}
           >
             Crear grupo
@@ -515,6 +585,7 @@ export default function GroupRecommendationsRail({
             border: "1px solid rgba(255, 80, 80, 0.25)",
             padding: 12,
             fontSize: 13,
+            fontFamily: fontStack,
           }}
         >
           {error}
@@ -522,7 +593,13 @@ export default function GroupRecommendationsRail({
       ) : null}
 
       {loading ? (
-        <div style={{ fontSize: 14, color: "rgba(222,234,255,0.74)" }}>
+        <div
+          style={{
+            fontSize: 14,
+            color: "rgba(255,255,255,0.68)",
+            fontFamily: fontStack,
+          }}
+        >
           Cargando recomendaciones...
         </div>
       ) : null}
@@ -532,7 +609,8 @@ export default function GroupRecommendationsRail({
           <div
             style={{
               fontSize: 14,
-              color: "rgba(233,241,255,0.86)",
+              color: "rgba(255,255,255,0.84)",
+              fontFamily: fontStack,
             }}
           >
             Selecciona al menos <strong>{minCategories}</strong> categorías para
@@ -568,12 +646,14 @@ export default function GroupRecommendationsRail({
             <button
               type="button"
               onClick={handleSaveOnboarding}
-              disabled={savingOnboarding || selectedCategories.length < minCategories}
+              disabled={
+                savingOnboarding || selectedCategories.length < minCategories
+              }
               style={{
                 border: "none",
                 borderRadius: 12,
                 padding: "11px 16px",
-                fontWeight: 800,
+                fontWeight: 700,
                 background:
                   savingOnboarding || selectedCategories.length < minCategories
                     ? "rgba(255,255,255,0.16)"
@@ -586,12 +666,19 @@ export default function GroupRecommendationsRail({
                   savingOnboarding || selectedCategories.length < minCategories
                     ? "default"
                     : "pointer",
+                fontFamily: fontStack,
               }}
             >
               {savingOnboarding ? "Guardando..." : "Continuar"}
             </button>
 
-            <span style={{ fontSize: 12, color: "rgba(222,234,255,0.68)" }}>
+            <span
+              style={{
+                fontSize: 12,
+                color: "rgba(255,255,255,0.62)",
+                fontFamily: fontStack,
+              }}
+            >
               Seleccionadas: {selectedCategories.length}/{minCategories} mínimo
             </span>
           </div>
@@ -629,7 +716,14 @@ export default function GroupRecommendationsRail({
             padding: "8px 0 2px",
           }}
         >
-          <p style={{ margin: 0, fontSize: 14, color: "rgba(222,234,255,0.74)" }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 14,
+              color: "rgba(255,255,255,0.68)",
+              fontFamily: fontStack,
+            }}
+          >
             Aún no tenemos grupos disponibles para recomendarte.
           </p>
 
@@ -649,8 +743,9 @@ export default function GroupRecommendationsRail({
                 padding: "10px 14px",
                 background: "#ffffff",
                 color: "#08111d",
-                fontWeight: 800,
+                fontWeight: 700,
                 cursor: "pointer",
+                fontFamily: fontStack,
               }}
             >
               Crear grupo
@@ -669,13 +764,14 @@ export default function GroupRecommendationsRail({
                 );
               }}
               style={{
-                border: "1px solid rgba(123,178,255,0.18)",
+                border: "1px solid rgba(255,255,255,0.10)",
                 borderRadius: 12,
                 padding: "10px 14px",
                 background: "transparent",
                 color: "#ffffff",
-                fontWeight: 700,
+                fontWeight: 600,
                 cursor: "pointer",
+                fontFamily: fontStack,
               }}
             >
               Cambiar categorías
