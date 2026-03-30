@@ -20,6 +20,10 @@ import Cropper from "react-easy-crop";
 
 import { auth, db, storage } from "@/lib/firebase";
 import ProfilePostsFeed from "./components/ProfilePostsFeed";
+import ProfileSubnav, {
+  type ProfileTabKey,
+} from "./components/ProfileSubnav/ProfileSubnav";
+import ProfileGroupsTab from "./components/ProfileSubnav/ProfileGroupsTab";
 
 type UserDoc = {
   uid: string;
@@ -33,6 +37,7 @@ type UserDoc = {
   photoURL: string | null;
   coverUrl?: string | null;
   showPosts?: boolean;
+  showCreatedGroups?: boolean;
   profileGreeting?: {
     enabled: boolean;
     price: number | null;
@@ -165,7 +170,7 @@ export default function ProfileClient() {
   const [avatarRenderUrl, setAvatarRenderUrl] = useState<string | null>(null);
   const [coverRenderUrl, setCoverRenderUrl] = useState<string | null>(null);
 
-  const isOwner = !!viewer && !!userDoc && viewer.uid === userDoc.uid;
+  const [activeTab, setActiveTab] = useState<ProfileTabKey>("posts");
 
   const [cropOpen, setCropOpen] = useState(false);
   const [cropMode, setCropMode] = useState<CropMode>("avatar");
@@ -180,11 +185,57 @@ export default function ProfileClient() {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
+  const isOwner = !!viewer && !!userDoc && viewer.uid === userDoc.uid;
+
   const ageToShow = useMemo(() => {
     if (!userDoc) return null;
     if (typeof userDoc.age === "number") return userDoc.age;
     return calculateAgeFromBirthDate(userDoc.birthDate);
   }, [userDoc]);
+
+  const ownerShowPosts = userDoc?.showPosts ?? true;
+  const ownerShowGroups = userDoc?.showCreatedGroups ?? true;
+
+  const visitorCanSeePosts = userDoc?.showPosts ?? true;
+  const visitorCanSeeGroups = userDoc?.showCreatedGroups ?? true;
+
+  const showPostsTab = isOwner ? true : visitorCanSeePosts;
+  const showGroupsTab = isOwner ? true : visitorCanSeeGroups;
+
+  const shouldShowSubnav = isOwner ? true : showGroupsTab;
+
+  useEffect(() => {
+    if (!userDoc) return;
+
+    if (isOwner) {
+      if (activeTab === "posts") return;
+      if (activeTab === "groups") return;
+      if (activeTab === "settings") return;
+      setActiveTab("posts");
+      return;
+    }
+
+    if (!showPostsTab && !showGroupsTab) {
+      if (activeTab !== "posts") {
+        setActiveTab("posts");
+      }
+      return;
+    }
+
+    if (activeTab === "posts" && !showPostsTab && showGroupsTab) {
+      setActiveTab("groups");
+      return;
+    }
+
+    if (activeTab === "groups" && !showGroupsTab && showPostsTab) {
+      setActiveTab("posts");
+      return;
+    }
+
+    if (activeTab === "settings") {
+      setActiveTab(showPostsTab ? "posts" : "groups");
+    }
+  }, [activeTab, isOwner, showPostsTab, showGroupsTab, userDoc]);
 
   function redirectToLogin() {
     router.push(`/login?next=${encodeURIComponent(pathname || `/u/${handle}`)}`);
@@ -302,6 +353,15 @@ export default function ProfileClient() {
       border: ui.borderFaint,
       background: ui.panelBg,
       padding: 14,
+    } as React.CSSProperties,
+    tabPlaceholder: {
+      marginTop: 12,
+      borderRadius: 18,
+      border: ui.borderSoft,
+      background: ui.cardBg,
+      boxShadow: ui.shadow,
+      backdropFilter: "blur(10px)",
+      padding: 18,
     } as React.CSSProperties,
   };
 
@@ -864,7 +924,8 @@ export default function ProfileClient() {
                         textAlign: "center",
                       }}
                     >
-                      Puedes ver este perfil públicamente. Inicia sesión para interactuar, seguir explorando y usar funciones completas.
+                      Puedes ver este perfil públicamente. Inicia sesión para
+                      interactuar, seguir explorando y usar funciones completas.
                     </div>
 
                     <div className="profile-actions-row" style={{ marginTop: 14 }}>
@@ -893,12 +954,54 @@ export default function ProfileClient() {
             </div>
           </div>
 
-          <ProfilePostsFeed
-            profileUid={userDoc.uid}
-            viewerUid={viewer?.uid ?? null}
-            isOwner={isOwner}
-            showPosts={userDoc.showPosts ?? true}
-          />
+          {shouldShowSubnav && (
+            <div style={{ marginTop: 12 }}>
+              <ProfileSubnav
+                activeTab={activeTab}
+                onChange={setActiveTab}
+                isOwner={isOwner}
+                showPostsTab={showPostsTab}
+                showGroupsTab={showGroupsTab}
+              />
+            </div>
+          )}
+
+          {(isOwner || showPostsTab) && activeTab === "posts" && (
+            <ProfilePostsFeed
+              profileUid={userDoc.uid}
+              viewerUid={viewer?.uid ?? null}
+              isOwner={isOwner}
+              showPosts={isOwner ? ownerShowPosts : visitorCanSeePosts}
+            />
+          )}
+
+          {(isOwner || showGroupsTab) && activeTab === "groups" && (
+            <ProfileGroupsTab
+              profileUid={userDoc.uid}
+              isOwner={isOwner}
+              canViewerSeeGroups={isOwner ? true : visitorCanSeeGroups}
+              groupsVisibleToVisitors={ownerShowGroups}
+              onGroupsVisibilityChanged={(value) => {
+                setUserDoc((prev) =>
+                  prev ? { ...prev, showCreatedGroups: value } : prev
+                );
+
+                if (!value && !ownerShowPosts && activeTab === "groups") {
+                  setActiveTab("settings");
+                }
+              }}
+            />
+          )}
+
+          {activeTab === "settings" && isOwner && (
+            <section style={styles.tabPlaceholder}>
+              <h2 style={{ ...styles.subtitle, margin: 0 }}>Configuración</h2>
+
+              <div style={{ ...styles.microText, marginTop: 10 }}>
+                Próximamente aquí irá la administración completa del perfil.
+              </div>
+            </section>
+          )}
 
           <input
             ref={avatarInputRef}
