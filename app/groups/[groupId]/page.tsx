@@ -314,6 +314,7 @@ export default function GroupPage() {
     width: "100%",
     padding: "0",
     boxSizing: "border-box",
+    minWidth: 0,
   };
 
   const cardStyle: React.CSSProperties = {
@@ -324,6 +325,7 @@ export default function GroupPage() {
     boxShadow: ui.shadow,
     color: "#fff",
     backdropFilter: "blur(10px)",
+    minWidth: 0,
   };
 
   const panelStyle: React.CSSProperties = {
@@ -962,15 +964,18 @@ export default function GroupPage() {
             width: 100%;
             padding: 0;
             box-sizing: border-box;
+            min-width: 0;
           }
 
           .group-card {
             overflow: hidden;
+            min-width: 0;
           }
 
           .group-content {
             position: relative;
             padding: 0 18px 20px;
+            min-width: 0;
           }
 
           .group-header-copy {
@@ -978,12 +983,14 @@ export default function GroupPage() {
             position: relative;
             z-index: 1;
             min-height: 110px;
+            min-width: 0;
           }
 
           .group-meta {
             display: grid;
             place-items: center;
             text-align: center;
+            min-width: 0;
           }
 
           .group-description {
@@ -1000,6 +1007,7 @@ export default function GroupPage() {
             padding-top: 14px;
             display: grid;
             gap: 12px;
+            min-width: 0;
           }
 
           .group-actions-row {
@@ -1008,11 +1016,15 @@ export default function GroupPage() {
             gap: 10px;
             align-items: center;
             flex-wrap: wrap;
+            min-width: 0;
           }
 
           .cta-card {
             max-width: 640px;
             margin: 0 auto;
+            min-width: 0;
+            width: 100%;
+            box-sizing: border-box;
           }
 
           @media (min-width: 700px) {
@@ -1228,15 +1240,18 @@ export default function GroupPage() {
             width: 100%;
             padding: 0;
             box-sizing: border-box;
+            min-width: 0;
           }
 
           .group-card {
             overflow: hidden;
+            min-width: 0;
           }
 
           .group-content {
             position: relative;
             padding: 0 18px 20px;
+            min-width: 0;
           }
 
           .group-header-copy {
@@ -1244,12 +1259,14 @@ export default function GroupPage() {
             position: relative;
             z-index: 1;
             min-height: 110px;
+            min-width: 0;
           }
 
           .group-meta {
             display: grid;
             place-items: center;
             text-align: center;
+            min-width: 0;
           }
 
           .group-description {
@@ -1270,6 +1287,7 @@ export default function GroupPage() {
             max-width: 720px;
             margin-left: auto;
             margin-right: auto;
+            min-width: 0;
           }
 
           .group-actions-wrap {
@@ -1278,6 +1296,7 @@ export default function GroupPage() {
             padding-top: 14px;
             display: grid;
             gap: 12px;
+            min-width: 0;
           }
 
           .group-actions-row {
@@ -1286,6 +1305,7 @@ export default function GroupPage() {
             gap: 10px;
             align-items: center;
             flex-wrap: wrap;
+            min-width: 0;
           }
 
           .group-offerings-card {
@@ -1294,6 +1314,8 @@ export default function GroupPage() {
             margin-left: auto;
             margin-right: auto;
             box-shadow: ${ui.shadow};
+            min-width: 0;
+            box-sizing: border-box;
           }
 
           .group-feed-wrap {
@@ -1302,6 +1324,13 @@ export default function GroupPage() {
             margin: 0 auto;
             display: grid;
             gap: 12px;
+            min-width: 0;
+          }
+
+          .group-feed-item {
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
           }
 
           @media (min-width: 700px) {
@@ -1342,6 +1371,14 @@ export default function GroupPage() {
 
             .group-feed-wrap {
               max-width: none;
+              width: 100%;
+              min-width: 0;
+            }
+
+            .group-feed-item {
+              width: 100%;
+              min-width: 0;
+              max-width: 100%;
             }
 
             .group-subnav-wrap {
@@ -1657,21 +1694,25 @@ export default function GroupPage() {
 
                 {canViewPublicFeed && activeTab === "feed" && (
                   <section className="group-feed-wrap">
-                    <GroupPostsFeed
-                      groupId={groupId}
-                      isOwner={isOwner}
-                      isModerator={isModerator}
-                      canCreatePosts={canCreatePosts}
-                      canCommentOnPosts={canCommentOnPosts}
-                      postBlockedReason={postBlockedReason}
-                      commentBlockedReason={commentBlockedReason}
-                    />
+                    <div className="group-feed-item">
+                      <GroupPostsFeed
+                        groupId={groupId}
+                        isOwner={isOwner}
+                        isModerator={isModerator}
+                        canCreatePosts={canCreatePosts}
+                        canCommentOnPosts={canCommentOnPosts}
+                        postBlockedReason={postBlockedReason}
+                        commentBlockedReason={commentBlockedReason}
+                      />
+                    </div>
 
                     {user?.uid ? (
-                      <GroupRecommendationsRail
-                        currentUserId={user.uid}
-                        context="group"
-                      />
+                      <div className="group-feed-item">
+                        <GroupRecommendationsRail
+                          currentUserId={user.uid}
+                          context="group"
+                        />
+                      </div>
                     ) : null}
                   </section>
                 )}

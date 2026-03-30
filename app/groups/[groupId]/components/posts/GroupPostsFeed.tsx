@@ -330,33 +330,43 @@ export default function GroupPostsFeed({
 
   const shellStyle: CSSProperties = {
     width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
     display: "grid",
     gap: 12,
+    overflowX: "hidden",
   };
 
   const headerStyle: CSSProperties = {
     display: "grid",
     gap: 3,
+    minWidth: 0,
   };
 
   const titleStyle: CSSProperties = {
     margin: 0,
-    fontSize: "clamp(16px, 2vw, 18px)",
+    fontSize: "clamp(15px, 4vw, 18px)",
     fontWeight: 500,
     lineHeight: 1.08,
     letterSpacing: "-0.02em",
     color: "#fff",
+    wordBreak: "break-word",
   };
 
   const subtitleStyle: CSSProperties = {
     margin: 0,
-    fontSize: 11.5,
+    fontSize: "clamp(11px, 3.2vw, 11.5px)",
     fontWeight: 300,
     color: "rgba(255,255,255,0.58)",
     lineHeight: 1.35,
+    wordBreak: "break-word",
   };
 
   const noticeStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
     borderRadius: 10,
     border: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.03)",
@@ -365,9 +375,14 @@ export default function GroupPostsFeed({
     fontWeight: 300,
     lineHeight: 1.4,
     color: "rgba(255,255,255,0.82)",
+    overflowWrap: "anywhere",
   };
 
   const composerErrorStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
     borderRadius: 12,
     border: "1px solid rgba(255,90,90,0.24)",
     background: "rgba(120,18,18,0.28)",
@@ -375,9 +390,14 @@ export default function GroupPostsFeed({
     padding: "10px 12px",
     fontSize: 12,
     lineHeight: 1.4,
+    overflowWrap: "anywhere",
   };
 
   const interactionHintStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
     borderRadius: 12,
     border: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.025)",
@@ -385,6 +405,14 @@ export default function GroupPostsFeed({
     padding: "12px 14px",
     fontSize: 12.5,
     lineHeight: 1.45,
+    overflowWrap: "anywhere",
+  };
+
+  const cardShellStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflow: "hidden",
   };
 
   return (
@@ -395,7 +423,9 @@ export default function GroupPostsFeed({
       </div>
 
       {canCreatePosts ? (
-        <GroupPostComposer onSubmit={handleCreatePost} />
+        <div style={cardShellStyle}>
+          <GroupPostComposer onSubmit={handleCreatePost} />
+        </div>
       ) : (
         <div style={interactionHintStyle}>
           {buildPostBlockedMessage(postBlockedReason)}
@@ -427,21 +457,22 @@ export default function GroupPostsFeed({
           isOwner || isModerator || currentUid === post.authorId;
 
         return (
-          <GroupPostCard
-            key={post.id}
-            post={post}
-            canDelete={canDeletePost}
-            onDelete={canDeletePost ? handleDeletePost : undefined}
-            onLoadComments={handleLoadComments}
-            onCreateComment={handleCreateComment}
-            onDeleteComment={handleDeleteComment}
-            currentUserId={currentUid}
-            isOwner={isOwner}
-            isModerator={isModerator}
-            showGroupContext={false}
-            canModerateGroupAuthor={isOwner || isModerator}
-            onModerationComplete={loadPosts}
-          />
+          <div key={post.id} style={cardShellStyle}>
+            <GroupPostCard
+              post={post}
+              canDelete={canDeletePost}
+              onDelete={canDeletePost ? handleDeletePost : undefined}
+              onLoadComments={handleLoadComments}
+              onCreateComment={handleCreateComment}
+              onDeleteComment={handleDeleteComment}
+              currentUserId={currentUid}
+              isOwner={isOwner}
+              isModerator={isModerator}
+              showGroupContext={false}
+              canModerateGroupAuthor={isOwner || isModerator}
+              onModerationComplete={loadPosts}
+            />
+          </div>
         );
       })}
     </section>

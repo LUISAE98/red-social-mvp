@@ -256,8 +256,8 @@ function GroupCard({
           >
             <div
               style={{
-                width: 62,
-                height: 62,
+                width: 72,
+                height: 72,
                 borderRadius: "50%",
                 overflow: "hidden",
                 background: "#111",
@@ -267,7 +267,7 @@ function GroupCard({
                 placeItems: "center",
                 color: "#fff",
                 fontWeight: 700,
-                fontSize: 18,
+                fontSize: 20,
                 flexShrink: 0,
                 marginTop: 10,
                 marginBottom: 18,
@@ -312,25 +312,6 @@ function GroupCard({
               >
                 {group.name}
               </strong>
-
-              <p
-                style={{
-                  margin: "8px 0 0 0",
-                  fontSize: 12,
-                  lineHeight: 1.35,
-                  color: "rgba(255,255,255,0.82)",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                  minHeight: 32,
-                  maxWidth: "100%",
-                  fontFamily: fontStack,
-                  fontWeight: 400,
-                }}
-              >
-                {group.description || "Sin descripción disponible."}
-              </p>
 
               <div
                 style={{

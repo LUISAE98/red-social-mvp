@@ -310,6 +310,7 @@ export default function ProfilePostsFeed({
         if (active) {
           setPosts([]);
           setLoadingInitial(false);
+          setError(null);
         }
         return;
       }
@@ -434,6 +435,20 @@ export default function ProfilePostsFeed({
     []
   );
 
+  const reservedStyle: CSSProperties = useMemo(
+    () => ({
+      ...noticeStyle,
+      border: "1px solid rgba(255,255,255,0.14)",
+      background: "rgba(255,255,255,0.05)",
+      padding: "18px 16px",
+      textAlign: "center",
+      fontSize: 14,
+      fontWeight: 500,
+      color: "#fff",
+    }),
+    [noticeStyle]
+  );
+
   const titleStyle: CSSProperties = {
     margin: 0,
     maxWidth: "100%",
@@ -487,7 +502,7 @@ export default function ProfilePostsFeed({
   if (!showPosts && !isOwner) {
     return (
       <section style={shellStyle}>
-        <div style={noticeStyle}>Este usuario restringió sus publicaciones.</div>
+        <div style={reservedStyle}>Perfil reservado</div>
       </section>
     );
   }

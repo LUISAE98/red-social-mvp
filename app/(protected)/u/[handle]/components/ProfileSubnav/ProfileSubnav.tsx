@@ -10,6 +10,7 @@ type ProfileSubnavProps = {
   isOwner?: boolean;
   showGroupsTab?: boolean;
   showPostsTab?: boolean;
+  showSettingsTab?: boolean;
 };
 
 function IconPosts({ active }: { active: boolean }) {
@@ -21,6 +22,7 @@ function IconPosts({ active }: { active: boolean }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       style={{ display: "block" }}
+      aria-hidden="true"
     >
       <path
         d="M5 7H19"
@@ -53,6 +55,7 @@ function IconGroups({ active }: { active: boolean }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       style={{ display: "block" }}
+      aria-hidden="true"
     >
       <path
         d="M7 8.2C7 7.53726 7.53726 7 8.2 7H15.8C16.4627 7 17 7.53726 17 8.2V15.8C17 16.4627 16.4627 17 15.8 17H8.2C7.53726 17 7 16.4627 7 15.8V8.2Z"
@@ -90,6 +93,7 @@ function IconSettings({ active }: { active: boolean }) {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       style={{ display: "block" }}
+      aria-hidden="true"
     >
       <path
         d="M12 8.9C10.2889 8.9 8.9 10.2889 8.9 12C8.9 13.7111 10.2889 15.1 12 15.1C13.7111 15.1 15.1 13.7111 15.1 12C15.1 10.2889 13.7111 8.9 12 8.9Z"
@@ -112,6 +116,7 @@ export default function ProfileSubnav({
   isOwner = false,
   showGroupsTab = true,
   showPostsTab = true,
+  showSettingsTab = true,
 }: ProfileSubnavProps) {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -137,12 +142,12 @@ export default function ProfileSubnav({
           },
         ]
       : []),
-    ...(isOwner
+    ...(isOwner && showSettingsTab
       ? [
           {
             key: "settings" as const,
             label: "Config",
-            title: "Configuración",
+            title: "Configuración del perfil",
             icon: IconSettings,
           },
         ]
@@ -166,7 +171,7 @@ export default function ProfileSubnav({
 
   const itemBase: CSSProperties = {
     position: "relative",
-    height: 52,
+    minHeight: 52,
     display: "grid",
     placeItems: "center",
     color: "rgba(255,255,255,0.5)",
@@ -176,6 +181,7 @@ export default function ProfileSubnav({
     cursor: "pointer",
     transition: "color 0.2s ease, transform 0.15s ease, background 0.2s ease",
     WebkitTapHighlightColor: "transparent",
+    padding: "8px 6px",
   };
 
   const activeStyle: CSSProperties = {
@@ -205,6 +211,7 @@ export default function ProfileSubnav({
     fontWeight: 600,
     lineHeight: 1,
     letterSpacing: -0.1,
+    whiteSpace: "nowrap",
   };
 
   return (
@@ -219,10 +226,11 @@ export default function ProfileSubnav({
             type="button"
             onClick={() => onChange(tab.key)}
             aria-pressed={active}
+            aria-label={tab.title}
             title={tab.title}
             style={{
               ...itemBase,
-              ...(active ? activeStyle : null),
+              ...(active ? activeStyle : {}),
             }}
           >
             <span
@@ -233,7 +241,7 @@ export default function ProfileSubnav({
                       background: "#fff",
                       opacity: 1,
                     }
-                  : null),
+                  : {}),
               }}
             />
             <span style={itemInner}>

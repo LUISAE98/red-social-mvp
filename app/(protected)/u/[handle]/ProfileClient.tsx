@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  CSSProperties,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 
 import {
@@ -24,6 +31,16 @@ import ProfileSubnav, {
   type ProfileTabKey,
 } from "./components/ProfileSubnav/ProfileSubnav";
 import ProfileGroupsTab from "./components/ProfileSubnav/ProfileGroupsTab";
+import ProfileSettingsTab from "./components/ProfileSubnav/ProfileSettingsTab";
+
+type FirestoreDateLike =
+  | string
+  | Date
+  | {
+      toDate?: () => Date;
+    }
+  | null
+  | undefined;
 
 type UserDoc = {
   uid: string;
@@ -32,12 +49,14 @@ type UserDoc = {
   firstName: string;
   lastName: string;
   age?: number;
-  birthDate?: string;
+  birthDate?: FirestoreDateLike;
+  createdAt?: FirestoreDateLike;
   sex: string;
   photoURL: string | null;
   coverUrl?: string | null;
   showPosts?: boolean;
   showCreatedGroups?: boolean;
+  profileRestricted?: boolean;
   profileGreeting?: {
     enabled: boolean;
     price: number | null;
@@ -76,6 +95,16 @@ function createImage(url: string): Promise<HTMLImageElement> {
     img.setAttribute("crossOrigin", "anonymous");
     img.src = url;
   });
+}
+
+function normalizeDateValue(value?: FirestoreDateLike): string | Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === "object" && typeof value.toDate === "function") {
+    return value.toDate();
+  }
+  if (typeof value === "string") return value;
+  return null;
 }
 
 async function getCroppedBlob(
@@ -120,32 +149,6 @@ async function getCroppedBlob(
   });
 }
 
-function calculateAgeFromBirthDate(birthDate?: string) {
-  if (!birthDate) return null;
-
-  const [y, m, d] = birthDate.split("-").map(Number);
-  if (!y || !m || !d) return null;
-
-  const today = new Date();
-  let age = today.getFullYear() - y;
-  const monthDiff = today.getMonth() + 1 - m;
-  const dayDiff = today.getDate() - d;
-
-  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-    age -= 1;
-  }
-
-  return age >= 0 ? age : null;
-}
-
-function sexLabel(sex: string) {
-  if (sex === "male") return "Hombre";
-  if (sex === "female") return "Mujer";
-  if (sex === "other") return "Otro";
-  if (sex === "prefer_not_say") return "Prefiero no decir";
-  return sex || "No disponible";
-}
-
 export default function ProfileClient() {
   const params = useParams<{ handle: string }>();
   const pathname = usePathname();
@@ -164,6 +167,8 @@ export default function ProfileClient() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const [uploading, setUploading] = useState(false);
+  const [savingProfileRestricted, setSavingProfileRestricted] = useState(false);
+
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -187,30 +192,33 @@ export default function ProfileClient() {
 
   const isOwner = !!viewer && !!userDoc && viewer.uid === userDoc.uid;
 
-  const ageToShow = useMemo(() => {
-    if (!userDoc) return null;
-    if (typeof userDoc.age === "number") return userDoc.age;
-    return calculateAgeFromBirthDate(userDoc.birthDate);
-  }, [userDoc]);
-
   const ownerShowPosts = userDoc?.showPosts ?? true;
   const ownerShowGroups = userDoc?.showCreatedGroups ?? true;
+  const profileRestricted = userDoc?.profileRestricted ?? false;
 
-  const visitorCanSeePosts = userDoc?.showPosts ?? true;
+  const isProfileRestrictedForVisitor = !isOwner && profileRestricted;
+
+  const visitorCanSeePosts =
+    !isProfileRestrictedForVisitor && (userDoc?.showPosts ?? true);
+
   const visitorCanSeeGroups = userDoc?.showCreatedGroups ?? true;
 
   const showPostsTab = isOwner ? true : visitorCanSeePosts;
   const showGroupsTab = isOwner ? true : visitorCanSeeGroups;
 
-  const shouldShowSubnav = isOwner ? true : showGroupsTab;
+  const shouldShowSubnav = isOwner ? true : showPostsTab || showGroupsTab;
 
   useEffect(() => {
     if (!userDoc) return;
 
     if (isOwner) {
-      if (activeTab === "posts") return;
-      if (activeTab === "groups") return;
-      if (activeTab === "settings") return;
+      if (
+        activeTab === "posts" ||
+        activeTab === "groups" ||
+        activeTab === "settings"
+      ) {
+        return;
+      }
       setActiveTab("posts");
       return;
     }
@@ -271,7 +279,7 @@ export default function ProfileClient() {
       background: ui.cardBg,
       boxShadow: ui.shadow,
       backdropFilter: "blur(10px)",
-    } as React.CSSProperties,
+    } as CSSProperties,
     buttonPrimary: {
       padding: ui.buttonPadding,
       borderRadius: ui.buttonRadius,
@@ -283,7 +291,7 @@ export default function ProfileClient() {
       fontSize: ui.body,
       fontFamily: fontStack,
       lineHeight: 1.2,
-    } as React.CSSProperties,
+    } as CSSProperties,
     buttonSecondary: {
       padding: ui.buttonPadding,
       borderRadius: ui.buttonRadius,
@@ -296,7 +304,7 @@ export default function ProfileClient() {
       fontFamily: fontStack,
       lineHeight: 1.2,
       backdropFilter: "blur(8px)",
-    } as React.CSSProperties,
+    } as CSSProperties,
     tinyGhostButton: {
       padding: "7px 10px",
       borderRadius: ui.buttonRadius,
@@ -310,13 +318,13 @@ export default function ProfileClient() {
       fontFamily: fontStack,
       backdropFilter: "blur(10px)",
       boxShadow: ui.shadow,
-    } as React.CSSProperties,
+    } as CSSProperties,
     label: {
       fontSize: ui.label,
       fontWeight: 500,
       lineHeight: 1.3,
       color: "#fff",
-    } as React.CSSProperties,
+    } as CSSProperties,
     message: {
       padding: "10px 12px",
       borderRadius: 10,
@@ -325,27 +333,27 @@ export default function ProfileClient() {
       color: "#fff",
       fontSize: ui.micro,
       lineHeight: 1.45,
-    } as React.CSSProperties,
+    } as CSSProperties,
     title: {
       fontSize: ui.title,
       fontWeight: 600,
       lineHeight: 1.16,
       color: "#fff",
       letterSpacing: 0,
-    } as React.CSSProperties,
+    } as CSSProperties,
     subtitle: {
       fontSize: ui.subtitle,
       fontWeight: 600,
       lineHeight: 1.2,
       color: "#fff",
       letterSpacing: 0,
-    } as React.CSSProperties,
+    } as CSSProperties,
     microText: {
       fontSize: ui.micro,
       fontWeight: 400,
       lineHeight: 1.4,
       color: "rgba(255,255,255,0.70)",
-    } as React.CSSProperties,
+    } as CSSProperties,
     ctaCard: {
       maxWidth: 640,
       margin: "18px auto 0",
@@ -353,16 +361,25 @@ export default function ProfileClient() {
       border: ui.borderFaint,
       background: ui.panelBg,
       padding: 14,
-    } as React.CSSProperties,
+    } as CSSProperties,
     tabPlaceholder: {
-      marginTop: 12,
       borderRadius: 18,
       border: ui.borderSoft,
       background: ui.cardBg,
       boxShadow: ui.shadow,
       backdropFilter: "blur(10px)",
       padding: 18,
-    } as React.CSSProperties,
+      width: "100%",
+      minWidth: 0,
+      overflow: "hidden",
+      boxSizing: "border-box",
+    } as CSSProperties,
+    tabContentWrap: {
+      width: "100%",
+      minWidth: 0,
+      overflow: "hidden",
+      boxSizing: "border-box",
+    } as CSSProperties,
   };
 
   useEffect(() => {
@@ -464,6 +481,44 @@ export default function ProfileClient() {
     },
     []
   );
+
+  async function handleToggleProfileRestricted(nextValue: boolean) {
+    if (!userDoc || !isOwner) return;
+
+    setSavingProfileRestricted(true);
+    setMsg(null);
+
+    try {
+      const userRef = doc(db, "users", userDoc.uid);
+
+      await updateDoc(userRef, {
+        profileRestricted: nextValue,
+      });
+
+      setUserDoc((prev) =>
+        prev ? { ...prev, profileRestricted: nextValue } : prev
+      );
+
+      if (nextValue && activeTab === "posts" && !isOwner && showGroupsTab) {
+        setActiveTab("groups");
+      }
+
+      setMsg(
+        nextValue
+          ? "✅ Perfil reservado activado."
+          : "✅ Perfil público activado."
+      );
+    } catch (e: any) {
+      setMsg(
+        e?.code === "permission-denied"
+          ? "❌ Permiso denegado. Revisa reglas de Firestore."
+          : `❌ No se pudo actualizar la privacidad del perfil: ${e?.message ?? "error"}`
+      );
+      throw e;
+    } finally {
+      setSavingProfileRestricted(false);
+    }
+  }
 
   async function uploadCropped(mode: CropMode) {
     if (!userDoc || !isOwner) return;
@@ -567,6 +622,13 @@ export default function ProfileClient() {
   const fullName =
     userDoc.displayName || `${userDoc.firstName} ${userDoc.lastName}`.trim();
 
+  const profileVisibilityLabel = profileRestricted
+    ? "Perfil reservado"
+    : "Perfil público";
+
+  const normalizedBirthDate = normalizeDateValue(userDoc.birthDate ?? null);
+  const normalizedCreatedAt = normalizeDateValue(userDoc.createdAt ?? null);
+
   const coverSvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="600">
   <defs>
@@ -602,15 +664,18 @@ export default function ProfileClient() {
             margin: 0 auto;
             padding: 0;
             box-sizing: border-box;
+            min-width: 0;
           }
 
           .profile-card {
             overflow: hidden;
+            min-width: 0;
           }
 
           .profile-content {
             position: relative;
             padding: 0 18px 20px;
+            min-width: 0;
           }
 
           .profile-meta {
@@ -635,38 +700,6 @@ export default function ProfileClient() {
             line-height: 1.3;
           }
 
-          .profile-stats {
-            margin-top: 18px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            padding-top: 14px;
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-          }
-
-          .profile-stat-card {
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            background: rgba(255, 255, 255, 0.03);
-            border-radius: 14px;
-            padding: 14px;
-            min-width: 0;
-          }
-
-          .profile-stat-label {
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 12px;
-            line-height: 1.2;
-          }
-
-          .profile-stat-value {
-            margin-top: 6px;
-            color: #fff;
-            font-size: clamp(15px, 2vw, 16px);
-            font-weight: 600;
-            line-height: 1.25;
-            word-break: break-word;
-          }
-
           .profile-actions-wrap {
             margin-top: 18px;
             border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -681,6 +714,20 @@ export default function ProfileClient() {
             gap: 10px;
             align-items: center;
             flex-wrap: wrap;
+          }
+
+          .profile-tab-content {
+            width: 100%;
+            min-width: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+          }
+
+          .profile-tab-panel {
+            width: 100%;
+            min-width: 0;
+            overflow: hidden;
+            box-sizing: border-box;
           }
 
           @media (max-width: 900px) {
@@ -701,15 +748,6 @@ export default function ProfileClient() {
 
             .profile-content {
               padding: 0 12px 18px;
-            }
-
-            .profile-stats {
-              grid-template-columns: 1fr;
-              gap: 10px;
-            }
-
-            .profile-stat-card {
-              padding: 13px;
             }
 
             .profile-handle {
@@ -894,23 +932,7 @@ export default function ProfileClient() {
 
                   <div className="profile-handle">@{userDoc.handle}</div>
 
-                  <div className="profile-visibility">Perfil público</div>
-                </div>
-              </div>
-
-              <div className="profile-stats">
-                <div className="profile-stat-card">
-                  <div className="profile-stat-label">Edad</div>
-                  <div className="profile-stat-value">
-                    {ageToShow ?? "No disponible"}
-                  </div>
-                </div>
-
-                <div className="profile-stat-card">
-                  <div className="profile-stat-label">Sexo</div>
-                  <div className="profile-stat-value">
-                    {sexLabel(userDoc.sex)}
-                  </div>
+                  <div className="profile-visibility">{profileVisibilityLabel}</div>
                 </div>
               </div>
 
@@ -966,42 +988,57 @@ export default function ProfileClient() {
             </div>
           )}
 
-          {(isOwner || showPostsTab) && activeTab === "posts" && (
-            <ProfilePostsFeed
-              profileUid={userDoc.uid}
-              viewerUid={viewer?.uid ?? null}
-              isOwner={isOwner}
-              showPosts={isOwner ? ownerShowPosts : visitorCanSeePosts}
-            />
-          )}
+          <div className="profile-tab-content" style={styles.tabContentWrap}>
+            {(isOwner || showPostsTab || isProfileRestrictedForVisitor) &&
+              activeTab === "posts" && (
+                <div className="profile-tab-panel">
+                  <ProfilePostsFeed
+                    profileUid={userDoc.uid}
+                    viewerUid={viewer?.uid ?? null}
+                    isOwner={isOwner}
+                    showPosts={isOwner ? ownerShowPosts : visitorCanSeePosts}
+                  />
+                </div>
+              )}
 
-          {(isOwner || showGroupsTab) && activeTab === "groups" && (
-            <ProfileGroupsTab
-              profileUid={userDoc.uid}
-              isOwner={isOwner}
-              canViewerSeeGroups={isOwner ? true : visitorCanSeeGroups}
-              groupsVisibleToVisitors={ownerShowGroups}
-              onGroupsVisibilityChanged={(value) => {
-                setUserDoc((prev) =>
-                  prev ? { ...prev, showCreatedGroups: value } : prev
-                );
+            {(isOwner || showGroupsTab) && activeTab === "groups" && (
+              <div className="profile-tab-panel">
+                <ProfileGroupsTab
+                  profileUid={userDoc.uid}
+                  isOwner={isOwner}
+                  isViewerLoggedIn={!!viewer}
+                  canViewerSeeGroups={isOwner ? true : visitorCanSeeGroups}
+                  groupsVisibleToVisitors={ownerShowGroups}
+                  onGroupsVisibilityChanged={(value) => {
+                    setUserDoc((prev) =>
+                      prev ? { ...prev, showCreatedGroups: value } : prev
+                    );
 
-                if (!value && !ownerShowPosts && activeTab === "groups") {
-                  setActiveTab("settings");
-                }
-              }}
-            />
-          )}
-
-          {activeTab === "settings" && isOwner && (
-            <section style={styles.tabPlaceholder}>
-              <h2 style={{ ...styles.subtitle, margin: 0 }}>Configuración</h2>
-
-              <div style={{ ...styles.microText, marginTop: 10 }}>
-                Próximamente aquí irá la administración completa del perfil.
+                    if (!value && !ownerShowPosts && activeTab === "groups") {
+                      setActiveTab("settings");
+                    }
+                  }}
+                />
               </div>
-            </section>
-          )}
+            )}
+
+            {activeTab === "settings" && isOwner && (
+              <section
+                className="profile-tab-panel"
+                style={{ ...styles.tabPlaceholder, marginTop: 12 }}
+              >
+                <ProfileSettingsTab
+                  isSaving={savingProfileRestricted}
+                  isRestricted={profileRestricted}
+                  onToggleRestricted={handleToggleProfileRestricted}
+                  displayName={fullName}
+                  username={userDoc.handle}
+                  birthDate={normalizedBirthDate}
+                  appCreatedAt={normalizedCreatedAt}
+                />
+              </section>
+            )}
+          </div>
 
           <input
             ref={avatarInputRef}

@@ -16,6 +16,7 @@ import { db } from "@/lib/firebase";
 type ProfileGroupsTabProps = {
   profileUid: string;
   isOwner: boolean;
+  isViewerLoggedIn: boolean;
   canViewerSeeGroups: boolean;
   groupsVisibleToVisitors: boolean;
   onGroupsVisibilityChanged?: (value: boolean) => void;
@@ -39,9 +40,78 @@ function initials(name: string) {
   return (a + b).toUpperCase() || "?";
 }
 
+function getVisibilityLabel(
+  visibility?: "public" | "private" | "hidden"
+): string {
+  if (visibility === "private") return "Comunidad privada";
+  if (visibility === "hidden") return "Comunidad oculta";
+  return "Comunidad pública";
+}
+
+function Switch({
+  checked,
+  onChange,
+  disabled = false,
+  label,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => !disabled && onChange(!checked)}
+      disabled={disabled}
+      aria-pressed={checked}
+      aria-label={label}
+      title={label}
+      style={{
+        width: 40,
+        minWidth: 40,
+        maxWidth: 40,
+        height: 22,
+        minHeight: 22,
+        maxHeight: 22,
+        borderRadius: 999,
+        border: "1px solid rgba(255,255,255,0.14)",
+        background: checked ? "#ffffff" : "rgba(255,255,255,0.08)",
+        padding: 2,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: checked ? "flex-end" : "flex-start",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.55 : 1,
+        transition: "all 160ms ease",
+        flexShrink: 0,
+        boxSizing: "border-box",
+        overflow: "hidden",
+      }}
+    >
+      <span
+        style={{
+          width: 16,
+          minWidth: 16,
+          maxWidth: 16,
+          height: 16,
+          minHeight: 16,
+          maxHeight: 16,
+          borderRadius: "50%",
+          background: checked ? "#000" : "#fff",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.35)",
+          transition: "all 160ms ease",
+          flexShrink: 0,
+        }}
+      />
+    </button>
+  );
+}
+
 export default function ProfileGroupsTab({
   profileUid,
   isOwner,
+  isViewerLoggedIn,
   canViewerSeeGroups,
   groupsVisibleToVisitors,
   onGroupsVisibilityChanged,
@@ -64,6 +134,10 @@ export default function ProfileGroupsTab({
     padding: 16,
     color: "#fff",
     fontFamily: fontStack,
+    overflow: "hidden",
+    boxSizing: "border-box",
+    width: "100%",
+    minWidth: 0,
   };
 
   useEffect(() => {
@@ -73,6 +147,13 @@ export default function ProfileGroupsTab({
       if (!profileUid) {
         setGroups([]);
         setMsg("Perfil inválido.");
+        setLoading(false);
+        return;
+      }
+
+      if (!isOwner && !isViewerLoggedIn) {
+        setGroups([]);
+        setMsg("Para ver grupos debes iniciar sesión.");
         setLoading(false);
         return;
       }
@@ -153,12 +234,10 @@ export default function ProfileGroupsTab({
     return () => {
       cancelled = true;
     };
-  }, [profileUid, isOwner, canViewerSeeGroups]);
+  }, [profileUid, isOwner, isViewerLoggedIn, canViewerSeeGroups]);
 
-  async function toggleGroupsVisibility() {
+  async function toggleGroupsVisibility(nextValue: boolean) {
     if (!isOwner || !profileUid || savingVisibility) return;
-
-    const nextValue = !groupsVisibleToVisitors;
 
     try {
       setSavingVisibility(true);
@@ -205,6 +284,7 @@ export default function ProfileGroupsTab({
           width: 100%;
           text-decoration: none;
           color: inherit;
+          min-width: 0;
         }
 
         .profile-group-card {
@@ -218,6 +298,49 @@ export default function ProfileGroupsTab({
           border-radius: 22px;
           overflow: hidden;
           box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+          min-width: 0;
+        }
+
+        .profile-groups-visibility-card {
+          margin-top: 14px;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          grid-template-areas:
+            "title switch"
+            "desc desc";
+          column-gap: 16px;
+          row-gap: 8px;
+          padding: 14px;
+          border-radius: 14px;
+          border: 1px solid rgba(255,255,255,0.10);
+          background: rgba(255,255,255,0.03);
+          width: 100%;
+          min-width: 0;
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+
+        .profile-groups-visibility-title {
+          grid-area: title;
+          min-width: 0;
+        }
+
+        .profile-groups-visibility-description {
+          grid-area: desc;
+          min-width: 0;
+        }
+
+        .profile-groups-visibility-switch {
+          grid-area: switch;
+          width: 40px;
+          minWidth: 40px;
+          maxWidth: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          align-self: start;
+          justify-self: end;
+          flex-shrink: 0;
         }
 
         @media (max-width: 767px) {
@@ -230,15 +353,25 @@ export default function ProfileGroupsTab({
             max-width: 100%;
           }
         }
+
+        @media (max-width: 640px) {
+          .profile-groups-visibility-card {
+            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-areas:
+              "title switch"
+              "desc desc";
+          }
+        }
       `}</style>
 
       <div
         style={{
           display: "grid",
           gap: 14,
+          minWidth: 0,
         }}
       >
-        <div>
+        <div style={{ minWidth: 0 }}>
           <h2
             style={{
               margin: 0,
@@ -251,79 +384,39 @@ export default function ProfileGroupsTab({
           </h2>
 
           {isOwner && (
-            <div
-              style={{
-                marginTop: 14,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 16,
-                padding: 14,
-                borderRadius: 14,
-                border: "1px solid rgba(255,255,255,0.10)",
-                background: "rgba(255,255,255,0.03)",
-              }}
-            >
-              <div style={{ minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "#fff",
-                    lineHeight: 1.2,
-                  }}
-                >
-                  Mostrar mis grupos creados
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 6,
-                    fontSize: 12,
-                    lineHeight: 1.45,
-                    color: "rgba(255,255,255,0.70)",
-                  }}
-                >
-                  Actívalo para que los visitantes puedan ver los grupos que has
-                  creado. Los ocultos NUNCA se mostrarán.
-                </div>
+            <div className="profile-groups-visibility-card">
+              <div
+                className="profile-groups-visibility-title"
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "#fff",
+                  lineHeight: 1.2,
+                }}
+              >
+                Mostrar mis grupos creados
               </div>
 
-              <button
-                type="button"
-                onClick={toggleGroupsVisibility}
-                disabled={savingVisibility}
-                style={{
-                  position: "relative",
-                  width: 56,
-                  height: 32,
-                  borderRadius: 999,
-                  border: "1px solid rgba(255,255,255,0.14)",
-                  background: groupsVisibleToVisitors
-                    ? "#fff"
-                    : "rgba(255,255,255,0.14)",
-                  cursor: savingVisibility ? "not-allowed" : "pointer",
-                  transition: "all 0.2s ease",
-                  flexShrink: 0,
-                  opacity: savingVisibility ? 0.7 : 1,
-                }}
-                aria-pressed={groupsVisibleToVisitors}
-                aria-label="Mostrar mis grupos creados"
-                title="Mostrar mis grupos creados"
-              >
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 3,
-                    left: groupsVisibleToVisitors ? 27 : 3,
-                    width: 24,
-                    height: 24,
-                    borderRadius: "50%",
-                    background: groupsVisibleToVisitors ? "#000" : "#fff",
-                    transition: "all 0.2s ease",
-                  }}
+              <div className="profile-groups-visibility-switch">
+                <Switch
+                  checked={groupsVisibleToVisitors}
+                  onChange={toggleGroupsVisibility}
+                  disabled={savingVisibility}
+                  label="Mostrar mis grupos creados"
                 />
-              </button>
+              </div>
+
+              <div
+                className="profile-groups-visibility-description"
+                style={{
+                  fontSize: 12,
+                  lineHeight: 1.45,
+                  color: "rgba(255,255,255,0.70)",
+                }}
+              >
+                Actívalo para que los visitantes puedan ver los grupos que has
+                creado. Los ocultos NUNCA se mostrarán.
+              </div>
             </div>
           )}
         </div>
@@ -404,101 +497,95 @@ export default function ProfileGroupsTab({
                       padding: 16,
                       display: "flex",
                       flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "flex-end",
+                      justifyContent: "space-between",
                       textAlign: "center",
                     }}
                   >
-                    <div
-                      style={{
-                        width: 84,
-                        height: 84,
-                        borderRadius: "50%",
-                        overflow: "hidden",
-                        background: "#111",
-                        border: "3px solid rgba(0,0,0,0.92)",
-                        boxShadow: "0 10px 24px rgba(0,0,0,0.40)",
-                        display: "grid",
-                        placeItems: "center",
-                        color: "#fff",
-                        fontWeight: 700,
-                        fontSize: 22,
-                        marginBottom: 12,
-                      }}
-                    >
-                      {group.avatarUrl ? (
-                        <img
-                          src={group.avatarUrl}
-                          alt={group.name}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                          }}
-                        />
-                      ) : (
-                        initials(group.name)
-                      )}
-                    </div>
+                    <div />
 
                     <div
                       style={{
-                        fontSize: 16,
-                        fontWeight: 700,
-                        lineHeight: 1.2,
-                        color: "#fff",
-                        maxWidth: "100%",
-                        wordBreak: "break-word",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: 10,
+                        minHeight: "48%",
                       }}
                     >
-                      {group.name}
-                    </div>
-
-                    {!!group.description && (
                       <div
                         style={{
-                          marginTop: 8,
-                          fontSize: 13,
-                          lineHeight: 1.45,
-                          color: "rgba(255,255,255,0.84)",
-                          maxWidth: "100%",
+                          width: 84,
+                          height: 84,
+                          minWidth: 84,
+                          minHeight: 84,
+                          borderRadius: "50%",
                           overflow: "hidden",
-                          display: "-webkit-box",
-                          WebkitBoxOrient: "vertical",
-                          WebkitLineClamp: 2,
+                          background: "#111",
+                          border: "3px solid rgba(0,0,0,0.92)",
+                          boxShadow: "0 10px 24px rgba(0,0,0,0.40)",
+                          display: "grid",
+                          placeItems: "center",
+                          color: "#fff",
+                          fontWeight: 700,
+                          fontSize: 22,
+                          flexShrink: 0,
                         }}
                       >
-                        {group.description}
+                        {group.avatarUrl ? (
+                          <img
+                            src={group.avatarUrl}
+                            alt={group.name}
+                            style={{
+                              display: "block",
+                              width: "100%",
+                              height: "100%",
+                              minWidth: "100%",
+                              minHeight: "100%",
+                              borderRadius: "50%",
+                              objectFit: "cover",
+                              objectPosition: "center",
+                            }}
+                          />
+                        ) : (
+                          initials(group.name)
+                        )}
                       </div>
-                    )}
 
-                    <div
-                      style={{
-                        marginTop: 12,
-                        fontSize: 13,
-                        lineHeight: 1.25,
-                        color: "rgba(255,255,255,0.78)",
-                      }}
-                    >
-                      {group.visibility === "private"
-                        ? "Comunidad privada"
-                        : group.visibility === "hidden"
-                        ? "Comunidad oculta"
-                        : "Comunidad pública"}
-                    </div>
-
-                    {typeof group.memberCount === "number" && (
                       <div
                         style={{
-                          marginTop: 8,
-                          fontSize: 12,
-                          lineHeight: 1.2,
-                          color: "rgba(255,255,255,0.62)",
+                          display: "grid",
+                          gap: 6,
+                          width: "100%",
+                          justifyItems: "center",
                         }}
                       >
-                        {group.memberCount} integrantes
+                        <div
+                          style={{
+                            fontSize: 16,
+                            fontWeight: 700,
+                            lineHeight: 1.2,
+                            color: "#fff",
+                            maxWidth: "100%",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {group.name}
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize: 13,
+                            lineHeight: 1.25,
+                            color: "rgba(255,255,255,0.78)",
+                          }}
+                        >
+                          {getVisibilityLabel(group.visibility)}
+                        </div>
                       </div>
-                    )}
+                    </div>
+
+                    <div />
                   </div>
                 </article>
               </Link>
