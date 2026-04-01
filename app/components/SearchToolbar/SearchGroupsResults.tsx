@@ -609,7 +609,7 @@ export default function SearchGroupsResults({
         </div>
 
         <div style={emptyStyle}>
-          No se encontraron grupos con esos filtros.
+          No se encontraron comunidades con esos filtros.
         </div>
 
         <style jsx>{`
@@ -827,7 +827,7 @@ export default function SearchGroupsResults({
 
       {relatedGroups.length > 0 && (
         <div style={sectionStyle}>
-          <h2 style={sectionTitleStyle}>Grupos relacionados</h2>
+          <h2 style={sectionTitleStyle}>Comunidades relacionadas</h2>
           {relatedGroups.map(renderGroupCard)}
         </div>
       )}

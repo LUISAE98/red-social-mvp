@@ -235,7 +235,7 @@ export function SearchResultsExplorerPanel({
   const tabs = [
     {
       key: "groups" as const,
-      label: "Grupos",
+      label: "Comunidades",
       icon: (
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path

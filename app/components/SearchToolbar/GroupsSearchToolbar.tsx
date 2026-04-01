@@ -20,8 +20,8 @@ export default function GroupsSearchToolbar({
   fontStack,
   showCreateGroup = true,
   showCloseSearch = false,
-  placeholder = "Buscar grupos, perfiles o publicaciones...",
-  ariaLabel = "Buscar grupos, perfiles o publicaciones",
+  placeholder = "Buscar comunidades, perfiles o publicaciones...",
+  ariaLabel = "Buscar comunidades, perfiles o publicaciones",
 }: GroupsSearchToolbarProps) {
   const fieldBorder = "1px solid rgba(255,255,255,0.18)";
   const fieldBg = "rgba(255,255,255,0.045)";

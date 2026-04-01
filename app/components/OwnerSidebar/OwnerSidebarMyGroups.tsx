@@ -649,7 +649,7 @@ export default function OwnerSidebarMyGroups({
                       >
                         La configuración de suscripción y servicios ahora se maneja
                         desde la pestaña Servicios dentro del panel de administración
-                        del grupo.
+                        de la comunidad.
                       </div>
                     </div>
                   )}

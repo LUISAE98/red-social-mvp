@@ -57,7 +57,7 @@ const cardStyles = {
 };
 
 function getDefaultTitle() {
-  return "Grupos recomendados para ti";
+  return "Comunidades recomendadas para ti";
 }
 
 function getDefaultSubtitle(context: RecommendationRailContext) {
@@ -70,7 +70,7 @@ function getDefaultSubtitle(context: RecommendationRailContext) {
       return "Descubre otras comunidades similares.";
     case "home":
     default:
-      return "Te mostramos grupos en función de tus categorías e historial.";
+      return "Te mostramos comunidades en función de tus categorías e historial.";
   }
 }
 
@@ -552,7 +552,7 @@ export default function GroupRecommendationsRail({
               fontFamily: fontStack,
             }}
           >
-            Crear grupo
+            Crear comunidad
           </button>
         )}
       </div>
@@ -595,7 +595,7 @@ export default function GroupRecommendationsRail({
             }}
           >
             Selecciona al menos <strong>{minCategories}</strong> categorías para
-            personalizar tus grupos sugeridos.
+            personalizar tus comunidades sugeridas.
           </div>
 
           <div
@@ -705,7 +705,7 @@ export default function GroupRecommendationsRail({
               fontFamily: fontStack,
             }}
           >
-            Aún no tenemos grupos disponibles para recomendarte.
+            Aún no tenemos comunidades disponibles para recomendarte.
           </p>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -729,7 +729,7 @@ export default function GroupRecommendationsRail({
                 fontFamily: fontStack,
               }}
             >
-              Crear grupo
+              Crear comunidad
             </button>
 
             <button

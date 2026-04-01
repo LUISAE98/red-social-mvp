@@ -541,9 +541,12 @@ export default function NewGroupPage() {
           {
             type: "saludo" as const,
             enabled: true,
+            visible: true,
             memberPrice: sPrice,
             publicPrice: sPrice,
             currency: offerCurrency,
+            requiresApproval: true,
+            sourceScope: "group" as const,
           },
         ]
       : [];

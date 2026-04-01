@@ -213,7 +213,7 @@ function buildCommentBlockedMessage(reason: InteractionBlockedReason): string {
   }
 
   if (reason === "restricted") {
-    return "No puedes comentar en esta comunidad por la configuración actual o por tu estado dentro del grupo.";
+    return "No puedes comentar en esta comunidad por la configuración actual o por tu estado dentro de la comunidad.";
   }
 
   return "No puedes comentar en esta comunidad en este momento.";

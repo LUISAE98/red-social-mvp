@@ -2,7 +2,12 @@
 
 import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import { db, storage } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import { joinGroup, leaveGroup } from "@/lib/groups/membership";
@@ -12,6 +17,8 @@ import GroupSubnav from "./components/GroupSubnav";
 import GroupMembersTab from "./components/GroupMembersTab";
 import GroupPostsFeed from "./components/posts/GroupPostsFeed";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
+import CreatorServicesMenu from "@/components/services/CreatorServicesMenu";
+import DonationEntryPoint from "@/components/services/DonationEntryPoint";
 import {
   createGreetingRequest,
   type GreetingType,
@@ -33,6 +40,8 @@ type MemberRole = "owner" | "mod" | "member" | null;
 type Currency = "MXN" | "USD";
 type PostingMode = "members" | "owner_only";
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
+type DonationMode = "none" | "general" | "wedding";
+type DonationSourceScope = "group" | "profile";
 
 type GroupDoc = {
   id: string;
@@ -60,11 +69,30 @@ type GroupDoc = {
     commentsEnabled?: boolean | null;
   } | null;
   offerings?: Array<{
-    type: "saludo" | "consejo" | "mensaje" | string;
+    type:
+      | "saludo"
+      | "consejo"
+      | "meet_greet_digital"
+      | "mensaje"
+      | string;
     enabled?: boolean;
-    price?: number | null;
+    visible?: boolean;
+    memberPrice?: number | null;
+    publicPrice?: number | null;
     currency?: string | Currency | null;
+    requiresApproval?: boolean;
+    sourceScope?: "group" | "profile" | "both" | string;
+    price?: number | null;
   }> | null;
+  donation?: {
+    mode?: DonationMode | string;
+    enabled?: boolean;
+    visible?: boolean;
+    currency?: string | Currency | null;
+    sourceScope?: DonationSourceScope | string;
+    suggestedAmounts?: number[] | null;
+    goalLabel?: string | null;
+  } | null;
 };
 
 type CropMode = "avatar" | "cover";
@@ -73,6 +101,7 @@ type Area = { x: number; y: number; width: number; height: number };
 function labelForOfferingType(t: string) {
   if (t === "saludo") return "Saludo";
   if (t === "consejo") return "Consejo";
+  if (t === "meet_greet_digital") return "Meet & Greet";
   return "Mensaje";
 }
 
@@ -118,6 +147,35 @@ function normalizeCommentsEnabled(raw: unknown): boolean {
 
 function isJoinedStatus(status: MemberStatus) {
   return status === "active" || status === "muted";
+}
+
+function normalizeDonationMode(raw: unknown): DonationMode {
+  if (raw === "general") return "general";
+  if (raw === "wedding") return "wedding";
+  return "none";
+}
+
+function normalizeDonationSourceScope(raw: unknown): DonationSourceScope {
+  return raw === "profile" ? "profile" : "group";
+}
+
+function normalizeSuggestedAmounts(raw: unknown): number[] {
+  if (!Array.isArray(raw)) return [];
+
+  return Array.from(
+    new Set(
+      raw
+        .map((value) => Number(value))
+        .filter((value) => Number.isFinite(value) && value > 0)
+        .slice(0, 12)
+    )
+  );
+}
+
+function normalizeNullableText(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  return trimmed ? trimmed : null;
 }
 
 function dataUrlFromFile(file: File): Promise<string> {
@@ -196,6 +254,7 @@ export default function GroupPage() {
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const [group, setGroup] = useState<GroupDoc | null>(null);
   const [isMember, setIsMember] = useState<boolean>(false);
@@ -269,6 +328,15 @@ export default function GroupPage() {
     router.push(
       `/login?next=${encodeURIComponent(pathname || `/groups/${groupId}`)}`
     );
+  }
+
+  function clearServiceQuery() {
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("service");
+    const nextHref = nextParams.toString()
+      ? `${pathname}?${nextParams.toString()}`
+      : pathname;
+    router.replace(nextHref, { scroll: false });
   }
 
   const fontStack =
@@ -432,6 +500,16 @@ export default function GroupPage() {
     fontFamily: fontStack,
     backdropFilter: "blur(10px)",
     boxShadow: ui.shadow,
+  };
+
+  const coverDonationButton: React.CSSProperties = {
+    ...tinyGhostButton,
+    position: "absolute",
+    left: 12,
+    top: 12,
+    zIndex: 3,
+    background: "rgba(0,0,0,0.92)",
+    border: "1px solid rgba(255,255,255,0.18)",
   };
 
   const inputStyle: React.CSSProperties = {
@@ -648,6 +726,7 @@ export default function GroupPage() {
     setGreetSuccess(null);
     setToName("");
     setInstructions("");
+    clearServiceQuery();
   }
 
   async function submitGreetingRequest() {
@@ -687,12 +766,32 @@ export default function GroupPage() {
       setGreetOpen(false);
       setToName("");
       setInstructions("");
+      clearServiceQuery();
     } catch (e: any) {
       setGreetError(e?.message ?? "No se pudo enviar la solicitud.");
     } finally {
       setGreetSubmitting(false);
     }
   }
+
+  useEffect(() => {
+    const requestedService = searchParams.get("service");
+
+    if (!requestedService) return;
+    if (!user || !effectiveIsMember || isOwner) return;
+
+    if (isGreetingType(requestedService)) {
+      openGreetingForm(requestedService);
+      return;
+    }
+
+    if (requestedService === "meet_greet_digital") {
+      setGreetError(
+        "Meet & Greet digital aún no está conectado al flujo completo. Ya quedó visible en el menú."
+      );
+      return;
+    }
+  }, [searchParams, user, effectiveIsMember, isOwner]);
 
   const openCropWithFile = useCallback(
     async (mode: CropMode, file: File) => {
@@ -808,7 +907,6 @@ export default function GroupPage() {
 
   const visibility = group.visibility ?? "";
   const offerings = Array.isArray(group.offerings) ? group.offerings : [];
-  const enabledOfferings = offerings.filter((o) => (o as any).enabled !== false);
 
   const normalizedCurrentMonetization = group.monetization
     ? {
@@ -820,9 +918,37 @@ export default function GroupPage() {
 
   const normalizedCurrentOfferings = offerings.map((o) => ({
     ...o,
+    visible: typeof o.visible === "boolean" ? o.visible : o.enabled !== false,
+    memberPrice: o.memberPrice ?? o.price ?? null,
+    publicPrice: o.publicPrice ?? o.price ?? null,
     price: o.price ?? null,
     currency: normalizeCurrency(o.currency),
+    requiresApproval:
+      typeof o.requiresApproval === "boolean" ? o.requiresApproval : true,
+    sourceScope:
+      o.sourceScope === "profile" ||
+      o.sourceScope === "both" ||
+      o.sourceScope === "group"
+        ? o.sourceScope
+        : "group",
   }));
+
+  const normalizedCurrentDonation = group.donation
+    ? {
+        mode: normalizeDonationMode(group.donation.mode),
+        enabled: group.donation.enabled === true,
+        visible:
+          typeof group.donation.visible === "boolean"
+            ? group.donation.visible
+            : group.donation.enabled === true,
+        currency: normalizeCurrency(group.donation.currency) ?? "MXN",
+        sourceScope: normalizeDonationSourceScope(group.donation.sourceScope),
+        suggestedAmounts: normalizeSuggestedAmounts(
+          group.donation.suggestedAmounts
+        ),
+        goalLabel: normalizeNullableText(group.donation.goalLabel),
+      }
+    : null;
 
   const coverBg =
     group.coverUrl ||
@@ -1281,6 +1407,15 @@ export default function GroupPage() {
             margin-top: 10px;
           }
 
+          .group-services-wrap {
+            margin-top: 14px;
+            width: 100%;
+            max-width: 720px;
+            margin-left: auto;
+            margin-right: auto;
+            min-width: 0;
+          }
+
           .group-subnav-wrap {
             margin-top: 16px;
             width: 100%;
@@ -1381,7 +1516,8 @@ export default function GroupPage() {
               max-width: 100%;
             }
 
-            .group-subnav-wrap {
+            .group-subnav-wrap,
+            .group-services-wrap {
               max-width: none;
             }
           }
@@ -1413,6 +1549,18 @@ export default function GroupPage() {
                   inset: 0,
                   background:
                     "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.52) 58%, rgba(0,0,0,0.88) 100%)",
+                }}
+              />
+
+              <DonationEntryPoint
+                donation={normalizedCurrentDonation}
+                isLoggedIn={!!user}
+                onRequireLogin={redirectToLogin}
+                videoEnabled={false}
+                videoUrl={null}
+                buttonStyle={coverDonationButton}
+                onDonateIntent={(payload) => {
+                  console.log("donation_intent", payload);
                 }}
               />
 
@@ -1455,6 +1603,20 @@ export default function GroupPage() {
                   <div className="group-visibility" style={microText}>
                     {visibilityLabel(String(group.visibility ?? ""))}
                   </div>
+
+                  {!isOwner &&
+                    effectiveIsMember &&
+                    normalizedCurrentOfferings.length > 0 && (
+                      <div className="group-services-wrap">
+                        <CreatorServicesMenu
+                          services={normalizedCurrentOfferings}
+                          contextType="group"
+                          groupId={groupId}
+                          viewerMembershipStatus={memberStatus}
+                          viewerCanRequest={!isOwner && effectiveIsMember}
+                        />
+                      </div>
+                    )}
 
                   {effectiveIsMember && (
                     <div className="group-subnav-wrap">
@@ -1531,161 +1693,129 @@ export default function GroupPage() {
                   </div>
                 )}
 
-                {!isOwner && effectiveIsMember && enabledOfferings.length > 0 && (
-                  <section style={{ ...panelStyle }} className="group-offerings-card">
-                    <div style={{ ...subtitleStyle, marginBottom: 6 }}>
-                      Comprar al creador
+                {(greetOpen || greetError || greetSuccess) && (
+                  <section
+                    style={{ ...panelStyle }}
+                    className="group-offerings-card"
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div style={subtitleStyle}>
+                        {greetOpen
+                          ? `Solicitar ${labelForOfferingType(greetType)}`
+                          : "Solicitud de servicio"}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={closeGreetingForm}
+                        disabled={greetSubmitting}
+                        style={secondaryButton}
+                      >
+                        Cerrar
+                      </button>
                     </div>
 
-                    <div style={{ ...microText, marginBottom: 12 }}>
-                      MVP sin pagos reales todavía. Envías una solicitud y el
-                      creador podrá aceptarla o rechazarla.
-                    </div>
+                    {greetError && !greetOpen && (
+                      <div style={{ marginTop: 10, ...messageBox }}>
+                        {greetError}
+                      </div>
+                    )}
 
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {enabledOfferings.map((o: any) => {
-                        const t = String(o.type ?? "");
-                        const label = labelForOfferingType(t);
-                        const priceText =
-                          o.price != null && o.currency
-                            ? ` — ${o.currency} ${o.price}`
-                            : "";
-                        const disabled = !isGreetingType(t);
-
-                        return (
-                          <button
-                            key={t}
-                            type="button"
-                            onClick={() => {
-                              if (!isGreetingType(t)) return;
-                              openGreetingForm(t);
-                            }}
-                            disabled={disabled}
-                            style={{
-                              ...secondaryButton,
-                              textAlign: "left",
-                              opacity: disabled ? 0.55 : 1,
-                              cursor: disabled ? "not-allowed" : "pointer",
-                            }}
-                            title={
-                              disabled
-                                ? "Tipo de servicio no soportado en MVP"
-                                : undefined
-                            }
-                          >
-                            Solicitar {label}
-                            {priceText}
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {greetSuccess && !greetOpen && (
+                      <div style={{ marginTop: 10, ...messageBox }}>
+                        {greetSuccess}
+                      </div>
+                    )}
 
                     {greetOpen && (
                       <div
                         style={{
-                          marginTop: 14,
-                          ...panelStyle,
-                          background: "rgba(255,255,255,0.035)",
+                          marginTop: 10,
+                          display: "grid",
+                          gap: 10,
                         }}
                       >
+                        <label style={{ display: "grid", gap: 6 }}>
+                          <span style={labelStyle}>¿A quién va dirigido?</span>
+                          <input
+                            value={toName}
+                            onChange={(e) => setToName(e.target.value)}
+                            placeholder="Ej. Para Juan"
+                            disabled={greetSubmitting}
+                            style={inputStyle}
+                          />
+                        </label>
+
+                        <label style={{ display: "grid", gap: 6 }}>
+                          <span style={labelStyle}>Contexto / instrucciones</span>
+                          <textarea
+                            value={instructions}
+                            onChange={(e) => setInstructions(e.target.value)}
+                            placeholder="Ej. Cumpleaños, felicitación por logro, tono del mensaje, etc."
+                            disabled={greetSubmitting}
+                            rows={5}
+                            style={{
+                              ...inputStyle,
+                              resize: "vertical",
+                              minHeight: 110,
+                            }}
+                          />
+                        </label>
+
+                        {greetError && <div style={messageBox}>{greetError}</div>}
+                        {greetSuccess && (
+                          <div style={messageBox}>{greetSuccess}</div>
+                        )}
+
                         <div
                           style={{
                             display: "flex",
-                            justifyContent: "space-between",
-                            gap: 12,
-                            alignItems: "center",
+                            gap: 10,
                             flexWrap: "wrap",
                           }}
                         >
-                          <div style={subtitleStyle}>
-                            Solicitar {labelForOfferingType(greetType)}
-                          </div>
+                          <button
+                            type="button"
+                            onClick={submitGreetingRequest}
+                            disabled={greetSubmitting}
+                            style={{
+                              ...primaryButton,
+                              opacity: greetSubmitting ? 0.75 : 1,
+                              cursor: greetSubmitting
+                                ? "not-allowed"
+                                : "pointer",
+                            }}
+                          >
+                            {greetSubmitting ? "Enviando..." : "Enviar solicitud"}
+                          </button>
 
                           <button
                             type="button"
                             onClick={closeGreetingForm}
                             disabled={greetSubmitting}
-                            style={secondaryButton}
+                            style={{
+                              ...secondaryButton,
+                              opacity: greetSubmitting ? 0.75 : 1,
+                              cursor: greetSubmitting
+                                ? "not-allowed"
+                                : "pointer",
+                            }}
                           >
-                            Cerrar
+                            Cancelar
                           </button>
                         </div>
 
-                        <div
-                          style={{
-                            marginTop: 10,
-                            display: "grid",
-                            gap: 10,
-                          }}
-                        >
-                          <label style={{ display: "grid", gap: 6 }}>
-                            <span style={labelStyle}>¿A quién va dirigido?</span>
-                            <input
-                              value={toName}
-                              onChange={(e) => setToName(e.target.value)}
-                              placeholder="Ej. Para Juan"
-                              disabled={greetSubmitting}
-                              style={inputStyle}
-                            />
-                          </label>
-
-                          <label style={{ display: "grid", gap: 6 }}>
-                            <span style={labelStyle}>Contexto / instrucciones</span>
-                            <textarea
-                              value={instructions}
-                              onChange={(e) => setInstructions(e.target.value)}
-                              placeholder="Ej. Cumpleaños, felicitación por logro, tono del mensaje, etc."
-                              disabled={greetSubmitting}
-                              rows={5}
-                              style={{
-                                ...inputStyle,
-                                resize: "vertical",
-                                minHeight: 110,
-                              }}
-                            />
-                          </label>
-
-                          {greetError && <div style={messageBox}>{greetError}</div>}
-                          {greetSuccess && <div style={messageBox}>{greetSuccess}</div>}
-
-                          <div
-                            style={{
-                              display: "flex",
-                              gap: 10,
-                              flexWrap: "wrap",
-                            }}
-                          >
-                            <button
-                              type="button"
-                              onClick={submitGreetingRequest}
-                              disabled={greetSubmitting}
-                              style={{
-                                ...primaryButton,
-                                opacity: greetSubmitting ? 0.75 : 1,
-                                cursor: greetSubmitting ? "not-allowed" : "pointer",
-                              }}
-                            >
-                              {greetSubmitting ? "Enviando..." : "Enviar solicitud"}
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={closeGreetingForm}
-                              disabled={greetSubmitting}
-                              style={{
-                                ...secondaryButton,
-                                opacity: greetSubmitting ? 0.75 : 1,
-                                cursor: greetSubmitting ? "not-allowed" : "pointer",
-                              }}
-                            >
-                              Cancelar
-                            </button>
-                          </div>
-
-                          <div style={microText}>
-                            Nota: el creador podrá aceptar o rechazar tu
-                            solicitud. Pagos y entrega de video se integran después.
-                          </div>
+                        <div style={microText}>
+                          Nota: el creador podrá aceptar o rechazar tu solicitud.
+                          Pagos y entrega de video se integran después.
                         </div>
                       </div>
                     )}
@@ -1740,6 +1870,7 @@ export default function GroupPage() {
                     currentVisibility={group.visibility ?? null}
                     currentMonetization={normalizedCurrentMonetization}
                     currentOfferings={normalizedCurrentOfferings}
+                    currentDonation={normalizedCurrentDonation}
                     currentPostingMode={currentPostingMode}
                     currentCommentsEnabled={currentCommentsEnabled}
                   />

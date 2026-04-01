@@ -1,14 +1,19 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import {
-  updateOfferings,
-  type GroupOffering,
-} from "@/lib/groups/updateOfferings";
+import { updateOfferings } from "@/lib/groups/updateOfferings";
+import type {
+  Currency,
+  GroupOffering,
+  CreatorServiceType,
+  ServiceSourceScope,
+  GroupDonationSettings,
+  DonationMode,
+} from "@/types/group";
 
-type Currency = "MXN" | "USD";
+type Visibility = "public" | "private" | "hidden" | string | null;
 
 type MonetizationInput = {
   isPaid?: boolean;
@@ -17,28 +22,42 @@ type MonetizationInput = {
 } | null;
 
 type OfferingInput = {
-  type: "saludo" | "consejo" | "mensaje" | string;
+  type?: CreatorServiceType | string;
   enabled?: boolean;
-  price?: number | null;
+  visible?: boolean;
+  memberPrice?: number | null;
+  publicPrice?: number | null;
   currency?: Currency | null;
+  requiresApproval?: boolean;
+  sourceScope?: ServiceSourceScope | string;
+  price?: number | null;
 } | null;
+
+type DonationInput = Partial<GroupDonationSettings> | null;
 
 type Props = {
   groupId: string;
   ownerId: string;
   currentUserId: string;
-  currentVisibility?: "public" | "private" | "hidden" | string | null;
+  currentVisibility?: Visibility;
   currentMonetization?: MonetizationInput;
   currentOfferings?: OfferingInput[] | null;
+  currentDonation?: DonationInput;
 };
 
 type ServiceDraft = {
   subscriptionEnabled: boolean;
   subscriptionPrice: string;
   subscriptionCurrency: Currency;
+
   saludoEnabled: boolean;
   saludoPrice: string;
   saludoCurrency: Currency;
+
+  donationMode: DonationMode;
+  donationCurrency: Currency;
+  donationMinimumAmount: string;
+  donationGoalLabel: string;
 };
 
 function pickSubscription(monetization: MonetizationInput) {
@@ -53,10 +72,35 @@ function pickSaludoOffering(offerings: OfferingInput[] | null | undefined) {
   const arr = Array.isArray(offerings) ? offerings : [];
   const found = arr.find((o) => String(o?.type) === "saludo");
 
+  const resolvedPrice =
+    found?.memberPrice ?? found?.publicPrice ?? found?.price ?? null;
+
   return {
     enabled: found?.enabled === true,
-    price: found?.price ?? null,
+    price: resolvedPrice,
     currency: (found?.currency ?? "MXN") as Currency,
+  };
+}
+
+function pickDonation(donation: DonationInput) {
+  const mode: DonationMode =
+    donation?.mode === "general" || donation?.mode === "wedding"
+      ? donation.mode
+      : "none";
+
+  const minimumAmount =
+    Array.isArray(donation?.suggestedAmounts) &&
+    donation.suggestedAmounts.length > 0 &&
+    Number(donation.suggestedAmounts[0]) > 0
+      ? String(Number(donation.suggestedAmounts[0]))
+      : "";
+
+  return {
+    mode,
+    currency: (donation?.currency ?? "MXN") as Currency,
+    minimumAmount,
+    goalLabel:
+      typeof donation?.goalLabel === "string" ? donation.goalLabel : "",
   };
 }
 
@@ -155,6 +199,105 @@ function Switch({
   );
 }
 
+function DonationModeButton({
+  active,
+  disabled,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  disabled?: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        padding: "10px 12px",
+        borderRadius: 12,
+        border: active
+          ? "1px solid rgba(255,255,255,0.92)"
+          : "1px solid rgba(255,255,255,0.12)",
+        background: active ? "#fff" : "rgba(255,255,255,0.04)",
+        color: active ? "#000" : "#fff",
+        cursor: disabled ? "not-allowed" : "pointer",
+        fontWeight: 700,
+        fontSize: 12,
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+        transition: "all 160ms ease",
+        minHeight: 42,
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
+function buildOfferingFromExisting(params: {
+  existingOffering: OfferingInput;
+  fallbackType: CreatorServiceType;
+}): GroupOffering | null {
+  const { existingOffering, fallbackType } = params;
+
+  const rawType = (existingOffering?.type ?? fallbackType) as CreatorServiceType;
+
+  if (
+    rawType !== "saludo" &&
+    rawType !== "consejo" &&
+    rawType !== "meet_greet_digital" &&
+    rawType !== "mensaje"
+  ) {
+    return null;
+  }
+
+  const memberPrice =
+    existingOffering?.memberPrice ?? existingOffering?.price ?? null;
+
+  const publicPrice =
+    existingOffering?.publicPrice ?? existingOffering?.price ?? null;
+
+  return {
+    type: rawType,
+    enabled: existingOffering?.enabled === true,
+    visible:
+      typeof existingOffering?.visible === "boolean"
+        ? existingOffering.visible
+        : existingOffering?.enabled === true,
+    memberPrice,
+    publicPrice,
+    currency: existingOffering?.currency ?? null,
+    requiresApproval:
+      typeof existingOffering?.requiresApproval === "boolean"
+        ? existingOffering.requiresApproval
+        : true,
+    sourceScope:
+      existingOffering?.sourceScope === "profile" ||
+      existingOffering?.sourceScope === "both" ||
+      existingOffering?.sourceScope === "group"
+        ? existingOffering.sourceScope
+        : "group",
+  };
+}
+
+function sameDraft(a: ServiceDraft, b: ServiceDraft) {
+  return (
+    a.subscriptionEnabled === b.subscriptionEnabled &&
+    a.subscriptionPrice === b.subscriptionPrice &&
+    a.subscriptionCurrency === b.subscriptionCurrency &&
+    a.saludoEnabled === b.saludoEnabled &&
+    a.saludoPrice === b.saludoPrice &&
+    a.saludoCurrency === b.saludoCurrency &&
+    a.donationMode === b.donationMode &&
+    a.donationCurrency === b.donationCurrency &&
+    a.donationMinimumAmount === b.donationMinimumAmount &&
+    a.donationGoalLabel === b.donationGoalLabel
+  );
+}
+
 export default function OwnerAdminServices({
   groupId,
   ownerId,
@@ -162,6 +305,7 @@ export default function OwnerAdminServices({
   currentVisibility = null,
   currentMonetization = null,
   currentOfferings = null,
+  currentDonation = null,
 }: Props) {
   const isOwner = useMemo(
     () => ownerId === currentUserId,
@@ -177,6 +321,10 @@ export default function OwnerAdminServices({
     saludoEnabled: false,
     saludoPrice: "",
     saludoCurrency: "MXN",
+    donationMode: "none",
+    donationCurrency: "MXN",
+    donationMinimumAmount: "",
+    donationGoalLabel: "",
   });
 
   const [savedDraft, setSavedDraft] = useState<ServiceDraft>({
@@ -186,15 +334,29 @@ export default function OwnerAdminServices({
     saludoEnabled: false,
     saludoPrice: "",
     saludoCurrency: "MXN",
+    donationMode: "none",
+    donationCurrency: "MXN",
+    donationMinimumAmount: "",
+    donationGoalLabel: "",
   });
 
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  const lastHydratedGroupIdRef = useRef<string | null>(null);
+  const skipHydrationWhileSavingRef = useRef(false);
+
   useEffect(() => {
+    if (!isOwner) return;
+
+    if (skipHydrationWhileSavingRef.current) {
+      return;
+    }
+
     const sub = pickSubscription(currentMonetization);
     const saludo = pickSaludoOffering(currentOfferings);
+    const donation = pickDonation(currentDonation);
 
     const nextDraft: ServiceDraft = {
       subscriptionEnabled: isPublic ? false : sub.enabled,
@@ -204,13 +366,52 @@ export default function OwnerAdminServices({
       saludoEnabled: saludo.enabled,
       saludoPrice: saludo.price == null ? "" : String(saludo.price),
       saludoCurrency: saludo.currency ?? "MXN",
+      donationMode: donation.mode,
+      donationCurrency: donation.currency ?? "MXN",
+      donationMinimumAmount: donation.minimumAmount,
+      donationGoalLabel: donation.goalLabel ?? "",
     };
 
-    setDraft(nextDraft);
-    setSavedDraft(nextDraft);
-    setMsg(null);
-    setErr(null);
-  }, [groupId, currentMonetization, currentOfferings, isPublic]);
+    const isFirstHydrationForGroup = lastHydratedGroupIdRef.current !== groupId;
+
+    if (isFirstHydrationForGroup) {
+      lastHydratedGroupIdRef.current = groupId;
+      setDraft(nextDraft);
+      setSavedDraft(nextDraft);
+      setMsg(null);
+      setErr(null);
+      return;
+    }
+
+    setSavedDraft((prevSaved) => {
+      if (sameDraft(prevSaved, nextDraft)) {
+        return prevSaved;
+      }
+      return nextDraft;
+    });
+
+    setDraft((prevDraft) => {
+      const hasUnsavedChanges = !sameDraft(prevDraft, savedDraft);
+      if (hasUnsavedChanges) {
+        return prevDraft;
+      }
+      return nextDraft;
+    });
+  }, [
+    groupId,
+    isOwner,
+    isPublic,
+    currentMonetization,
+    currentOfferings,
+    currentDonation,
+    savedDraft,
+  ]);
+
+  useEffect(() => {
+    if (!saving) {
+      skipHydrationWhileSavingRef.current = false;
+    }
+  }, [saving]);
 
   if (!isOwner) return null;
 
@@ -299,6 +500,12 @@ export default function OwnerAdminServices({
     draft.saludoPrice !== savedDraft.saludoPrice ||
     draft.saludoCurrency !== savedDraft.saludoCurrency;
 
+  const donationChanged =
+    draft.donationMode !== savedDraft.donationMode ||
+    draft.donationCurrency !== savedDraft.donationCurrency ||
+    draft.donationMinimumAmount !== savedDraft.donationMinimumAmount ||
+    draft.donationGoalLabel !== savedDraft.donationGoalLabel;
+
   const subscriptionCalc =
     draft.subscriptionEnabled && subChanged
       ? calcNetAmount(draft.subscriptionPrice)
@@ -307,6 +514,11 @@ export default function OwnerAdminServices({
   const saludoCalc =
     draft.saludoEnabled && saludoChanged
       ? calcNetAmount(draft.saludoPrice)
+      : null;
+
+  const donationMinimumCalc =
+    draft.donationMode !== "none"
+      ? calcNetAmount(draft.donationMinimumAmount)
       : null;
 
   async function saveServices() {
@@ -323,6 +535,11 @@ export default function OwnerAdminServices({
       const saludoPriceNum =
         draft.saludoPrice.trim() === "" ? null : Number(draft.saludoPrice);
 
+      const donationMinimumNum =
+        draft.donationMinimumAmount.trim() === ""
+          ? null
+          : Number(draft.donationMinimumAmount);
+
       if (
         draft.subscriptionEnabled &&
         (subscriptionPriceNum == null ||
@@ -337,7 +554,7 @@ export default function OwnerAdminServices({
         draft.saludoEnabled &&
         (saludoPriceNum == null ||
           Number.isNaN(saludoPriceNum) ||
-          saludoPriceNum < 0)
+          saludoPriceNum <= 0)
       ) {
         setErr("❌ Precio inválido para saludos.");
         return;
@@ -350,38 +567,89 @@ export default function OwnerAdminServices({
         return;
       }
 
+      if (
+        draft.donationMode !== "none" &&
+        (donationMinimumNum == null ||
+          Number.isNaN(donationMinimumNum) ||
+          donationMinimumNum <= 0)
+      ) {
+        setErr("❌ Debes definir un monto mínimo válido para la donación.");
+        return;
+      }
+
+      if (
+        draft.donationMode === "wedding" &&
+        !draft.donationGoalLabel.trim()
+      ) {
+        setErr("❌ Debes escribir el texto visible para la donación de boda.");
+        return;
+      }
+
       const existing = Array.isArray(currentOfferings) ? currentOfferings : [];
       const nextOfferings: GroupOffering[] = [];
-
-      const hasType = (t: string) =>
-        existing.some((o: any) => String(o?.type) === t);
 
       nextOfferings.push({
         type: "saludo",
         enabled: draft.saludoEnabled,
-        price: draft.saludoEnabled ? saludoPriceNum : null,
+        visible: draft.saludoEnabled,
+        memberPrice: draft.saludoEnabled ? saludoPriceNum : null,
+        publicPrice: draft.saludoEnabled ? saludoPriceNum : null,
         currency: draft.saludoEnabled ? draft.saludoCurrency : null,
+        requiresApproval: true,
+        sourceScope: "group",
       });
 
-      if (hasType("consejo")) {
-        const o = existing.find((x: any) => String(x?.type) === "consejo") as any;
-        nextOfferings.push({
-          type: "consejo",
-          enabled: o?.enabled === true,
-          price: o?.price ?? null,
-          currency: o?.currency ?? null,
+      const consejoExisting = existing.find(
+        (x) => String(x?.type) === "consejo"
+      );
+      if (consejoExisting) {
+        const normalized = buildOfferingFromExisting({
+          existingOffering: consejoExisting,
+          fallbackType: "consejo",
         });
+        if (normalized) nextOfferings.push(normalized);
       }
 
-      if (hasType("mensaje")) {
-        const o = existing.find((x: any) => String(x?.type) === "mensaje") as any;
-        nextOfferings.push({
-          type: "mensaje",
-          enabled: o?.enabled === true,
-          price: o?.price ?? null,
-          currency: o?.currency ?? null,
+      const meetGreetExisting = existing.find(
+        (x) => String(x?.type) === "meet_greet_digital"
+      );
+      if (meetGreetExisting) {
+        const normalized = buildOfferingFromExisting({
+          existingOffering: meetGreetExisting,
+          fallbackType: "meet_greet_digital",
         });
+        if (normalized) nextOfferings.push(normalized);
       }
+
+      const mensajeExisting = existing.find(
+        (x) => String(x?.type) === "mensaje"
+      );
+      if (mensajeExisting) {
+        const normalized = buildOfferingFromExisting({
+          existingOffering: mensajeExisting,
+          fallbackType: "mensaje",
+        });
+        if (normalized) nextOfferings.push(normalized);
+      }
+
+      const nextDonation: GroupDonationSettings = {
+        mode: draft.donationMode,
+        enabled: draft.donationMode !== "none",
+        visible: draft.donationMode !== "none",
+        currency:
+          draft.donationMode !== "none" ? draft.donationCurrency : "MXN",
+        sourceScope: "group",
+        suggestedAmounts:
+          draft.donationMode !== "none" && donationMinimumNum != null
+            ? [donationMinimumNum]
+            : [],
+        goalLabel:
+          draft.donationMode === "wedding"
+            ? draft.donationGoalLabel.trim() || null
+            : null,
+      };
+
+      skipHydrationWhileSavingRef.current = true;
 
       await updateDoc(doc(db, "groups", groupId), {
         monetization: {
@@ -395,7 +663,7 @@ export default function OwnerAdminServices({
         },
       });
 
-      await updateOfferings(groupId, nextOfferings);
+      await updateOfferings(groupId, nextOfferings, nextDonation);
 
       const nextSaved: ServiceDraft = {
         subscriptionEnabled: isPublic ? false : draft.subscriptionEnabled,
@@ -405,12 +673,20 @@ export default function OwnerAdminServices({
         saludoEnabled: draft.saludoEnabled,
         saludoPrice: draft.saludoEnabled ? draft.saludoPrice : "",
         saludoCurrency: draft.saludoCurrency,
+        donationMode: draft.donationMode,
+        donationCurrency:
+          draft.donationMode !== "none" ? draft.donationCurrency : "MXN",
+        donationMinimumAmount:
+          draft.donationMode !== "none" ? draft.donationMinimumAmount : "",
+        donationGoalLabel:
+          draft.donationMode === "wedding" ? draft.donationGoalLabel : "",
       };
 
       setDraft(nextSaved);
       setSavedDraft(nextSaved);
-      setMsg("✅ Servicios del grupo guardados.");
+      setMsg("✅ Servicios y donación guardados.");
     } catch (e: any) {
+      skipHydrationWhileSavingRef.current = false;
       setErr(e?.message ?? "❌ No se pudieron guardar los servicios.");
     } finally {
       setSaving(false);
@@ -500,7 +776,7 @@ export default function OwnerAdminServices({
           <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
             <span style={titleStyle}>Saludos en comunidad</span>
             <span style={subtleStyle}>
-              Activa o desactiva la compra de saludos desde este grupo.
+              Activa o desactiva la compra de saludos desde esta comunidad.
             </span>
           </div>
 
@@ -557,6 +833,143 @@ export default function OwnerAdminServices({
               </div>
             )}
           </>
+        )}
+      </div>
+
+      <div style={panelStyle}>
+        <div style={{ display: "grid", gap: 2 }}>
+          <span style={titleStyle}>Donación</span>
+          <span style={subtleStyle}>
+            Elige una sola modalidad. Si activas donación o donación para boda,
+            se mostrará el monto mínimo. Si eliges sin donación, debe quedar
+            totalmente desactivada.
+          </span>
+        </div>
+
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gap: 8,
+          }}
+        >
+          <DonationModeButton
+            active={draft.donationMode === "none"}
+            disabled={saving}
+            label="Sin donación"
+            onClick={() =>
+              setDraft((prev) => ({
+                ...prev,
+                donationMode: "none",
+                donationCurrency: "MXN",
+                donationMinimumAmount: "",
+                donationGoalLabel: "",
+              }))
+            }
+          />
+
+          <DonationModeButton
+            active={draft.donationMode === "general"}
+            disabled={saving}
+            label="Donación"
+            onClick={() =>
+              setDraft((prev) => ({
+                ...prev,
+                donationMode: "general",
+                donationGoalLabel: "",
+              }))
+            }
+          />
+
+          <DonationModeButton
+            active={draft.donationMode === "wedding"}
+            disabled={saving}
+            label="Donación para boda"
+            onClick={() =>
+              setDraft((prev) => ({
+                ...prev,
+                donationMode: "wedding",
+              }))
+            }
+          />
+        </div>
+
+        {draft.donationMode !== "none" && (
+          <>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                type="number"
+                min="1"
+                step="0.01"
+                value={draft.donationMinimumAmount}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    donationMinimumAmount: e.target.value,
+                  }))
+                }
+                placeholder="Monto mínimo"
+                style={{ ...inputStyle, width: 130 }}
+              />
+
+              <select
+                value={draft.donationCurrency}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    donationCurrency: e.target.value as Currency,
+                  }))
+                }
+                style={{ ...inputStyle, flex: 1, minWidth: 82 }}
+              >
+                <option value="MXN">MXN</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
+
+            {draft.donationMode === "wedding" && (
+              <input
+                type="text"
+                value={draft.donationGoalLabel}
+                onChange={(e) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    donationGoalLabel: e.target.value,
+                  }))
+                }
+                placeholder="Texto visible (ej. Apoyo para nuestra boda)"
+                style={{ ...inputStyle, width: "100%" }}
+              />
+            )}
+
+            {donationMinimumCalc && (
+              <div style={subtleStyle}>
+                Monto mínimo configurado:{" "}
+                {formatMoney(
+                  donationMinimumCalc.gross,
+                  draft.donationCurrency
+                )}
+                . El usuario podrá donar ese monto o uno mayor.
+              </div>
+            )}
+
+            <div style={subtleStyle}>
+              El video de agradecimiento o presentación de la donación queda
+              pendiente para el hito donde integremos video/live.
+            </div>
+          </>
+        )}
+
+        {donationChanged && (
+          <div style={subtleStyle}>
+            Estado seleccionado:{" "}
+            {draft.donationMode === "none"
+              ? "sin donación"
+              : draft.donationMode === "general"
+              ? "donación"
+              : "donación para boda"}
+            .
+          </div>
         )}
       </div>
 

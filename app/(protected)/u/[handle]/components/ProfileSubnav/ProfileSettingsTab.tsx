@@ -319,7 +319,7 @@ export default function ProfileSettingsTab({
             Al activarlo, nadie podrá ver publicaciones desde tu perfil. Debe
             mostrarse la leyenda “perfil reservado” tanto a usuarios logueados
             como no logueados. Esto solo aplica dentro del perfil, no dentro de
-            los grupos compartidos.
+            las comunidades compartidas.
           </p>
         </div>
 

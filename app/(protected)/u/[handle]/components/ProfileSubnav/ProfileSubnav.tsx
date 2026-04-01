@@ -136,8 +136,8 @@ export default function ProfileSubnav({
       ? [
           {
             key: "groups" as const,
-            label: isOwner ? "Mis grupos" : "Sus grupos",
-            title: isOwner ? "Mis grupos" : "Los grupos de este perfil",
+            label: isOwner ? "Mis comunidades" : "Sus comunidades",
+            title: isOwner ? "Mis comunidades" : "Las comunidades de este perfil",
             icon: IconGroups,
           },
         ]

@@ -83,7 +83,7 @@ function isHttpsErrorLike(err: unknown): err is HttpsError {
 /**
  * CREATE INVITE LINK
  * - Solo owner
- * - Solo grupos private / hidden
+ * - Solo comunidades private / hidden
  * - Expiración obligatoria
  * - maxUses opcional
  */
@@ -140,7 +140,7 @@ export const createInviteLink = onCall(async (request) => {
   const groupSnap = await groupRef.get();
 
   if (!groupSnap.exists) {
-    throw new HttpsError("not-found", "Grupo no existe.");
+    throw new HttpsError("not-found", "Comunidad no existe.");
   }
 
   const groupData = groupSnap.data() as {

@@ -356,7 +356,7 @@ export default function OwnerAdminStatus({
   return (
     <div style={contentStyle}>
       <div style={subtleTextStyle}>
-        Aquí controlas el estado general del grupo y las reglas base de
+        Aquí controlas el estado general de la comunidad y las reglas base de
         publicación/comentarios.
       </div>
 
@@ -366,7 +366,7 @@ export default function OwnerAdminStatus({
           gap: 10,
         }}
       >
-        <h4 style={sectionTitleStyle}>Permisos del grupo</h4>
+        <h4 style={sectionTitleStyle}>Permisos de la comunidad</h4>
 
         <PermissionSwitchRow
           label="Publicaciones"
@@ -400,7 +400,7 @@ export default function OwnerAdminStatus({
           marginTop: 2,
         }}
       >
-        <h4 style={sectionTitleStyle}>Estado del grupo</h4>
+        <h4 style={sectionTitleStyle}>Estado de la comunidad</h4>
 
         <div style={subtleTextStyle}>
           Pausar una comunidad la marca como inactiva. No elimina contenido.

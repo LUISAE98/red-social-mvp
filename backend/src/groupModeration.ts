@@ -179,7 +179,7 @@ function ensureActorCanModerateTarget(
   if (targetRole === "owner") {
     throw new HttpsError(
       "failed-precondition",
-      "No se puede moderar al owner del grupo."
+      "No se puede moderar al owner de la comunidad."
     );
   }
 
@@ -195,7 +195,7 @@ function ensureOwnerOnly(actorRole: CanonicalGroupRole) {
   if (actorRole !== "owner") {
     throw new HttpsError(
       "permission-denied",
-      "Solo el owner del grupo puede realizar esta acción."
+      "Solo el owner de la comunidad puede realizar esta acción."
     );
   }
 }

@@ -260,7 +260,9 @@ export function normalizeGroupTags(tags: unknown): string[] {
  * Helper para construir texto útil para búsqueda.
  * Ya incluye name, description, category normalizada y tags.
  */
-export function buildGroupSearchText(group: Pick<Group, "name" | "description" | "category" | "tags">): string {
+export function buildGroupSearchText(
+  group: Pick<Group, "name" | "description" | "category" | "tags">
+): string {
   const canonicalCategory = normalizeGroupCategory(group.category);
   const categoryLabel = canonicalCategory
     ? GROUP_CATEGORY_LABELS[canonicalCategory].toLowerCase()
@@ -268,41 +270,119 @@ export function buildGroupSearchText(group: Pick<Group, "name" | "description" |
 
   const tags = normalizeGroupTags(group.tags).join(" ");
 
-  return [group.name ?? "", group.description ?? "", canonicalCategory ?? "", categoryLabel, tags]
+  return [
+    group.name ?? "",
+    group.description ?? "",
+    canonicalCategory ?? "",
+    categoryLabel,
+    tags,
+  ]
     .join(" ")
     .trim()
     .toLowerCase();
 }
 
 /**
- * Cosas que el creador puede vender.
+ * Tipos formales de servicios visibles del creador.
+ * "mensaje" se conserva como legacy para no romper datos existentes.
  */
-export type OfferingType = "saludo" | "consejo" | "mensaje";
+export type CreatorServiceType =
+  | "saludo"
+  | "consejo"
+  | "meet_greet_digital"
+  | "mensaje";
 
-export type GroupOffering = {
-  type: OfferingType;
+export type ServiceSourceScope = "group" | "profile" | "both";
+
+export type CreatorService = {
+  type: CreatorServiceType;
   enabled: boolean;
+  visible: boolean;
 
   /**
-   * Precio para miembros/suscriptores (cuando compran dentro del grupo).
-   * Puede ser null si todavía no define precio.
+   * Precio para miembros/suscriptores o dentro del contexto grupo.
    */
   memberPrice: number | null;
 
   /**
-   * Precio público (cuando NO son miembros; típicamente desde perfil).
-   * En grupos gratis, debe ser igual a memberPrice.
+   * Precio público o fuera del contexto grupo.
    */
   publicPrice: number | null;
 
   currency: Currency | null;
 
   /**
-   * Compatibilidad (legacy): antes usábamos "price".
-   * Ya no se usa para guardar, pero si existe, se normaliza a memberPrice/publicPrice.
+   * Sirve para servicios que puedan requerir aprobación manual
+   * antes de aceptarse o agendarse.
+   */
+  requiresApproval: boolean;
+
+  /**
+   * Define si el servicio pertenece al grupo, al perfil o a ambos.
+   */
+  sourceScope: ServiceSourceScope;
+
+  /**
+   * Compatibilidad legacy:
+   * antes varias pantallas usaban solo "price".
+   * Ya no debe usarse para persistencia nueva,
+   * pero se conserva temporalmente para migración segura.
    */
   price?: number | null;
 };
+
+/**
+ * Monetización flexible de donación.
+ * Se separa de offerings porque no usa precio fijo
+ * y solo puede existir una modalidad activa a la vez.
+ */
+export type DonationMode = "none" | "general" | "wedding";
+export type DonationSourceScope = "group" | "profile";
+
+export type GroupDonationSettings = {
+  /**
+   * none     = sin donación activa
+   * general  = donación abierta al creador
+   * wedding  = ayuda/donación para boda
+   */
+  mode: DonationMode;
+
+  enabled: boolean;
+  visible: boolean;
+  currency: Currency | null;
+
+  /**
+   * Define si esta monetización vive en grupo o perfil.
+   * En este paso la usaremos primero en grupo.
+   */
+  sourceScope: DonationSourceScope;
+
+  /**
+   * Personalización opcional de UX.
+   */
+  title?: string | null;
+  description?: string | null;
+
+  /**
+   * Montos sugeridos opcionales para UI.
+   * El usuario sigue pudiendo decidir libremente cuánto donar.
+   */
+  suggestedAmounts?: number[];
+
+  /**
+   * Texto opcional específico para wedding.
+   * Ej: "Apoyo para nuestra boda"
+   */
+  goalLabel?: string | null;
+};
+
+/**
+ * Alias temporales para no romper imports existentes.
+ * Más adelante todo debe migrar visual y semánticamente
+ * a CreatorService / CreatorServiceType.
+ */
+export type GroupOffering = CreatorService;
+export type OfferingType = CreatorServiceType;
 
 export interface Group {
   id?: string;
@@ -331,8 +411,6 @@ export interface Group {
 
   /**
    * Etiquetas libres para afinidad/búsqueda.
-   * Ej:
-   * ["futbol", "pumas", "liga mx", "cdmx"]
    */
   tags?: string[];
 
@@ -354,9 +432,16 @@ export interface Group {
   };
 
   /**
-   * Servicios vendibles del creador (saludo, consejo, mensaje).
+   * Servicios visibles del grupo.
+   * Mantiene el nombre "offerings" por compatibilidad con el código actual.
    */
-  offerings?: GroupOffering[];
+  offerings?: CreatorService[];
+
+  /**
+   * Monetización flexible tipo donación.
+   * Va separada de offerings porque no usa precio fijo.
+   */
+  donation?: GroupDonationSettings;
 
   isActive: boolean;
 

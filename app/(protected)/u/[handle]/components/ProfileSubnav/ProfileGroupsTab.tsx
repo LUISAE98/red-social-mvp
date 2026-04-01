@@ -153,14 +153,14 @@ export default function ProfileGroupsTab({
 
       if (!isOwner && !isViewerLoggedIn) {
         setGroups([]);
-        setMsg("Para ver grupos debes iniciar sesión.");
+        setMsg("Para ver comunidades debes iniciar sesión.");
         setLoading(false);
         return;
       }
 
       if (!isOwner && !canViewerSeeGroups) {
         setGroups([]);
-        setMsg("Este perfil no muestra sus grupos.");
+        setMsg("Este perfil no muestra sus comunidades.");
         setLoading(false);
         return;
       }
@@ -216,13 +216,13 @@ export default function ProfileGroupsTab({
         if (!next.length) {
           setMsg(
             isOwner
-              ? "Todavía no has creado grupos visibles aquí."
-              : "Este perfil todavía no tiene grupos visibles."
+              ? "Todavía no has creado comunidades visibles aquí."
+              : "Este perfil todavía no tiene comunidades visibles."
           );
         }
       } catch (e: any) {
         if (cancelled) return;
-        setMsg(e?.message ?? "No se pudieron cargar los grupos.");
+        setMsg(e?.message ?? "No se pudieron cargar las comunidades.");
         setGroups([]);
       } finally {
         if (!cancelled) setLoading(false);
@@ -250,12 +250,12 @@ export default function ProfileGroupsTab({
       onGroupsVisibilityChanged?.(nextValue);
       setMsg(
         nextValue
-          ? "✅ Ahora los visitantes pueden ver tus grupos."
-          : "✅ Tus grupos ya no se muestran a visitantes."
+          ? "✅ Ahora los visitantes pueden ver tus comunidades."
+          : "✅ Tus comunidades ya no se muestran a visitantes."
       );
     } catch (e: any) {
       setMsg(
-        e?.message ?? "❌ No se pudo actualizar la visibilidad de tus grupos."
+        e?.message ?? "❌ No se pudo actualizar la visibilidad de tus comunidades."
       );
     } finally {
       setSavingVisibility(false);
@@ -263,7 +263,7 @@ export default function ProfileGroupsTab({
   }
 
   const title = useMemo(() => {
-    return isOwner ? "Mis grupos" : "Sus grupos";
+    return isOwner ? "Mis comunidades" : "Sus comunidades";
   }, [isOwner]);
 
   return (
@@ -394,7 +394,7 @@ export default function ProfileGroupsTab({
                   lineHeight: 1.2,
                 }}
               >
-                Mostrar mis grupos creados
+                Mostrar mis comunidades creadas
               </div>
 
               <div className="profile-groups-visibility-switch">
@@ -402,7 +402,7 @@ export default function ProfileGroupsTab({
                   checked={groupsVisibleToVisitors}
                   onChange={toggleGroupsVisibility}
                   disabled={savingVisibility}
-                  label="Mostrar mis grupos creados"
+                  label="Mostrar mis comunidades creadas"
                 />
               </div>
 
@@ -414,7 +414,7 @@ export default function ProfileGroupsTab({
                   color: "rgba(255,255,255,0.70)",
                 }}
               >
-                Actívalo para que los visitantes puedan ver los grupos que has
+                Actívalo para que los visitantes puedan ver las comunidades que has
                 creado. Los ocultos NUNCA se mostrarán.
               </div>
             </div>
@@ -428,7 +428,7 @@ export default function ProfileGroupsTab({
               color: "rgba(255,255,255,0.72)",
             }}
           >
-            Cargando grupos...
+            Cargando comunidades...
           </div>
         ) : msg && !groups.length ? (
           <div

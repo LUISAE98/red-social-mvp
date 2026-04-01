@@ -335,7 +335,7 @@ export default function OwnerAdminGeneral({
       </div>
 
       <div style={fieldStyle}>
-        <span style={labelStyle}>Estado del grupo</span>
+        <span style={labelStyle}>Estado de la comunidad</span>
 
         {isHiddenLocked ? (
           <>
@@ -346,7 +346,7 @@ export default function OwnerAdminGeneral({
               readOnly
             />
             <div style={subtleTextStyle}>
-              Este grupo fue creado como oculto. No puede cambiar a público o
+              Esta comunidad fue creada como oculta. No puede cambiar a público o
               privado.
             </div>
           </>
@@ -367,7 +367,7 @@ export default function OwnerAdminGeneral({
 
             <div style={subtleTextStyle}>
               {visibility === "public" &&
-                "Visible en exploración y acceso normal según reglas del grupo."}
+                "Visible en exploración y acceso normal según reglas de la comunidad."}
               {visibility === "private" &&
                 "Visible, pero el acceso requiere solicitud o aprobación."}
             </div>
