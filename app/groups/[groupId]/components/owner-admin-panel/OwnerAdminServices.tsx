@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { updateOfferings } from "@/lib/groups/updateOfferings";
+import { buildNormalizedGroupCommerceState } from "@/lib/groups/groupServiceCatalog";
 import type {
   Currency,
   GroupOffering,
@@ -59,12 +59,14 @@ type Props = {
   currentDonation?: DonationInput;
 };
 
+type EditableServiceVisibility = "public" | "members";
+
 type ServiceBlockDraft = {
   enabled: boolean;
   price: string;
   currency: Currency;
   visible: boolean;
-  visibility: ServiceVisibility;
+  visibility: EditableServiceVisibility;
 };
 
 type ServiceDraft = {
@@ -110,12 +112,9 @@ function pickSubscription(
         : enabled,
     visibility:
       subscriptionOffering?.visibility === "members" ||
-      subscriptionOffering?.visibility === "public" ||
-      subscriptionOffering?.visibility === "hidden"
+      subscriptionOffering?.visibility === "public"
         ? subscriptionOffering.visibility
-        : enabled
-        ? "public"
-        : "hidden",
+        : "public",
   };
 }
 
@@ -140,13 +139,9 @@ function pickOffering(
         ? found.visible
         : found?.enabled === true,
     visibility:
-      found?.visibility === "members" ||
-      found?.visibility === "public" ||
-      found?.visibility === "hidden"
+      found?.visibility === "members" || found?.visibility === "public"
         ? found.visibility
-        : found?.enabled === true
-        ? "public"
-        : "hidden",
+        : "public",
     meta,
   };
 }
@@ -193,9 +188,9 @@ function formatMoney(value: number, currency: Currency) {
 
 function normalizeServiceVisibility(
   value: unknown,
-  fallback: ServiceVisibility
-): ServiceVisibility {
-  if (value === "hidden" || value === "members" || value === "public") {
+  fallback: EditableServiceVisibility
+): EditableServiceVisibility {
+  if (value === "members" || value === "public") {
     return value;
   }
   return fallback;
@@ -221,7 +216,7 @@ function buildServiceBlockDraft(input: {
   price: number | null;
   currency: Currency;
   visible: boolean;
-  visibility: ServiceVisibility;
+  visibility: EditableServiceVisibility;
 }): ServiceBlockDraft {
   return {
     enabled: input.enabled,
@@ -494,8 +489,8 @@ function ServiceEditorBlock({
               ...prev,
               enabled: next,
               price: next ? prev.price : "",
-              visible: next ? prev.visible : false,
-              visibility: next ? prev.visibility : "hidden",
+              visible: next ? true : false,
+              visibility: next ? prev.visibility : "public",
             }))
           }
           label={`Activar ${title}`}
@@ -539,15 +534,14 @@ function ServiceEditorBlock({
               onChange={(e) =>
                 applyChange((prev) => ({
                   ...prev,
-                  visibility: e.target.value as ServiceVisibility,
-                  visible: e.target.value !== "hidden",
+                  visibility: e.target.value as EditableServiceVisibility,
+                  visible: true,
                 }))
               }
               style={{ ...inputStyle, flex: 1, minWidth: 130 }}
             >
               <option value="public">Visible público</option>
               <option value="members">Visible solo miembros</option>
-              <option value="hidden">Oculto</option>
             </select>
           </div>
 
@@ -572,7 +566,7 @@ function ServiceEditorBlock({
             <div style={subtleStyle}>{netText}</div>
           ) : (
             <div style={subtleStyle}>
-              Este servicio se mostrará en el menú del grupo según su visibilidad.
+              Este servicio se mostrará en el menú del grupo según el acceso configurado.
             </div>
           )}
         </>
@@ -603,28 +597,28 @@ export default function OwnerAdminServices({
       price: "",
       currency: "MXN",
       visible: false,
-      visibility: "hidden",
+      visibility: "public",
     },
     saludo: {
       enabled: false,
       price: "",
       currency: "MXN",
       visible: false,
-      visibility: "hidden",
+      visibility: "public",
     },
     consejo: {
       enabled: false,
       price: "",
       currency: "MXN",
       visible: false,
-      visibility: "hidden",
+      visibility: "public",
     },
     meetGreet: {
       enabled: false,
       price: "",
       currency: "MXN",
       visible: false,
-      visibility: "hidden",
+      visibility: "public",
       durationMinutes: "",
     },
     customClass: {
@@ -632,7 +626,7 @@ export default function OwnerAdminServices({
       price: "",
       currency: "MXN",
       visible: false,
-      visibility: "hidden",
+      visibility: "public",
       durationMinutes: "",
     },
     donationMode: "none",
@@ -647,28 +641,28 @@ export default function OwnerAdminServices({
       price: "",
       currency: "MXN",
       visible: false,
-      visibility: "hidden",
+      visibility: "public",
     },
     saludo: {
       enabled: false,
       price: "",
       currency: "MXN",
       visible: false,
-      visibility: "hidden",
+      visibility: "public",
     },
     consejo: {
       enabled: false,
       price: "",
       currency: "MXN",
       visible: false,
-      visibility: "hidden",
+      visibility: "public",
     },
     meetGreet: {
       enabled: false,
       price: "",
       currency: "MXN",
       visible: false,
-      visibility: "hidden",
+      visibility: "public",
       durationMinutes: "",
     },
     customClass: {
@@ -676,7 +670,7 @@ export default function OwnerAdminServices({
       price: "",
       currency: "MXN",
       visible: false,
-      visibility: "hidden",
+      visibility: "public",
       durationMinutes: "",
     },
     donationMode: "none",
@@ -710,31 +704,22 @@ export default function OwnerAdminServices({
         currency: sub.currency ?? "MXN",
         visible: isPublic ? false : sub.visible,
         visibility: isPublic
-          ? "hidden"
-          : normalizeServiceVisibility(
-              sub.visibility,
-              sub.enabled ? "public" : "hidden"
-            ),
+          ? "public"
+          : normalizeServiceVisibility(sub.visibility, "public"),
       }),
       saludo: buildServiceBlockDraft({
         enabled: saludo.enabled,
         price: saludo.price,
         currency: saludo.currency ?? "MXN",
         visible: saludo.visible,
-        visibility: normalizeServiceVisibility(
-          saludo.visibility,
-          saludo.enabled ? "public" : "hidden"
-        ),
+        visibility: normalizeServiceVisibility(saludo.visibility, "public"),
       }),
       consejo: buildServiceBlockDraft({
         enabled: consejo.enabled,
         price: consejo.price,
         currency: consejo.currency ?? "MXN",
         visible: consejo.visible,
-        visibility: normalizeServiceVisibility(
-          consejo.visibility,
-          consejo.enabled ? "public" : "hidden"
-        ),
+        visibility: normalizeServiceVisibility(consejo.visibility, "public"),
       }),
       meetGreet: {
         ...buildServiceBlockDraft({
@@ -742,10 +727,7 @@ export default function OwnerAdminServices({
           price: meetGreet.price,
           currency: meetGreet.currency ?? "MXN",
           visible: meetGreet.visible,
-          visibility: normalizeServiceVisibility(
-            meetGreet.visibility,
-            meetGreet.enabled ? "public" : "hidden"
-          ),
+          visibility: normalizeServiceVisibility(meetGreet.visibility, "public"),
         }),
         durationMinutes: normalizeDurationMeta(meetGreet.meta, "meetGreet"),
       },
@@ -755,10 +737,7 @@ export default function OwnerAdminServices({
           price: customClass.price,
           currency: customClass.currency ?? "MXN",
           visible: customClass.visible,
-          visibility: normalizeServiceVisibility(
-            customClass.visibility,
-            customClass.enabled ? "public" : "hidden"
-          ),
+          visibility: normalizeServiceVisibility(customClass.visibility, "public"),
         }),
         durationMinutes: normalizeDurationMeta(
           customClass.meta,
@@ -1050,7 +1029,7 @@ export default function OwnerAdminServices({
             ...draft.subscription,
             enabled: isPublic ? false : draft.subscription.enabled,
             visible: isPublic ? false : draft.subscription.visible,
-            visibility: isPublic ? "hidden" : draft.subscription.visibility,
+            visibility: isPublic ? "public" : draft.subscription.visibility,
           },
           displayOrder: 0,
           meta: {
@@ -1153,14 +1132,25 @@ export default function OwnerAdminServices({
         digitalMeetGreetEnabled: draft.meetGreet.enabled,
       };
 
+      const commerce = buildNormalizedGroupCommerceState({
+        offerings: nextOfferings,
+        monetization: nextMonetization,
+        donation: nextDonation,
+        legacyGreetingsEnabled: draft.saludo.enabled,
+        currency:
+          (!isPublic && draft.subscription.enabled
+            ? draft.subscription.currency
+            : draft.saludo.currency) ?? "MXN",
+      });
+
       skipHydrationWhileSavingRef.current = true;
 
       await updateDoc(doc(db, "groups", groupId), {
-        monetization: nextMonetization,
-        greetingsEnabled: draft.saludo.enabled,
-      });
-
-      await updateOfferings(groupId, nextOfferings, nextDonation);
+  monetization: commerce.monetization,
+  offerings: commerce.offerings,
+  donation: commerce.donation,
+  greetingsEnabled: commerce.monetization.greetingsEnabled,
+});
 
       const nextSaved: ServiceDraft = {
         subscription: {
@@ -1171,19 +1161,19 @@ export default function OwnerAdminServices({
               ? ""
               : draft.subscription.price,
           visible: isPublic ? false : draft.subscription.visible,
-          visibility: isPublic ? "hidden" : draft.subscription.visibility,
+          visibility: isPublic ? "public" : draft.subscription.visibility,
         },
         saludo: {
           ...draft.saludo,
           price: draft.saludo.enabled ? draft.saludo.price : "",
           visible: draft.saludo.enabled ? draft.saludo.visible : false,
-          visibility: draft.saludo.enabled ? draft.saludo.visibility : "hidden",
+          visibility: draft.saludo.enabled ? draft.saludo.visibility : "public",
         },
         consejo: {
           ...draft.consejo,
           price: draft.consejo.enabled ? draft.consejo.price : "",
           visible: draft.consejo.enabled ? draft.consejo.visible : false,
-          visibility: draft.consejo.enabled ? draft.consejo.visibility : "hidden",
+          visibility: draft.consejo.enabled ? draft.consejo.visibility : "public",
         },
         meetGreet: {
           ...draft.meetGreet,
@@ -1191,7 +1181,7 @@ export default function OwnerAdminServices({
           visible: draft.meetGreet.enabled ? draft.meetGreet.visible : false,
           visibility: draft.meetGreet.enabled
             ? draft.meetGreet.visibility
-            : "hidden",
+            : "public",
           durationMinutes: draft.meetGreet.enabled
             ? draft.meetGreet.durationMinutes
             : "",
@@ -1202,7 +1192,7 @@ export default function OwnerAdminServices({
           visible: draft.customClass.enabled ? draft.customClass.visible : false,
           visibility: draft.customClass.enabled
             ? draft.customClass.visibility
-            : "hidden",
+            : "public",
           durationMinutes: draft.customClass.enabled
             ? draft.customClass.durationMinutes
             : "",
@@ -1309,9 +1299,7 @@ export default function OwnerAdminServices({
             "meetGreet",
             updater as
               | Partial<ServiceDraft["meetGreet"]>
-              | ((
-                  prev: ServiceDraft["meetGreet"]
-                ) => ServiceDraft["meetGreet"])
+              | ((prev: ServiceDraft["meetGreet"]) => ServiceDraft["meetGreet"])
           )
         }
         showDuration
@@ -1339,9 +1327,7 @@ export default function OwnerAdminServices({
             "customClass",
             updater as
               | Partial<ServiceDraft["customClass"]>
-              | ((
-                  prev: ServiceDraft["customClass"]
-                ) => ServiceDraft["customClass"])
+              | ((prev: ServiceDraft["customClass"]) => ServiceDraft["customClass"])
           )
         }
         showDuration

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 type PostingMode = "members" | "owner_only";
@@ -214,7 +214,7 @@ export default function OwnerAdminStatus({
     try {
       await updateDoc(doc(db, "groups", groupId), {
         isActive,
-        updatedAt: Date.now(),
+        updatedAt: serverTimestamp(),
       });
 
       setStatusMsg(isActive ? "Comunidad reactivada." : "Comunidad pausada.");
@@ -237,8 +237,11 @@ export default function OwnerAdminStatus({
 
     try {
       await updateDoc(doc(db, "groups", groupId), {
-        "permissions.postingMode": nextMode,
-        updatedAt: Date.now(),
+        permissions: {
+          postingMode: nextMode,
+          commentsEnabled,
+        },
+        updatedAt: serverTimestamp(),
       });
 
       setStatusMsg(
@@ -268,8 +271,11 @@ export default function OwnerAdminStatus({
 
     try {
       await updateDoc(doc(db, "groups", groupId), {
-        "permissions.commentsEnabled": nextValue,
-        updatedAt: Date.now(),
+        permissions: {
+          postingMode,
+          commentsEnabled: nextValue,
+        },
+        updatedAt: serverTimestamp(),
       });
 
       setStatusMsg(

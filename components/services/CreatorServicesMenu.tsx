@@ -31,12 +31,16 @@ type Props = {
 
 function getServiceLabel(type: CreatorServiceType): string {
   switch (type) {
+    case "suscripcion":
+      return "Suscripción";
     case "saludo":
       return "Saludo";
     case "consejo":
       return "Consejo";
     case "meet_greet_digital":
       return "Meet & Greet";
+    case "clase_personalizada":
+      return "Clase personalizada";
     case "mensaje":
       return "Mensaje";
     default:
@@ -46,12 +50,16 @@ function getServiceLabel(type: CreatorServiceType): string {
 
 function getServiceIcon(type: CreatorServiceType): string {
   switch (type) {
+    case "suscripcion":
+      return "💎";
     case "saludo":
       return "👋";
     case "consejo":
       return "💡";
     case "meet_greet_digital":
       return "🎥";
+    case "clase_personalizada":
+      return "🎓";
     case "mensaje":
       return "✉️";
     default:
@@ -108,6 +116,15 @@ function buildHref(params: {
 }) {
   const { service, contextType, groupId, creatorHandle } = params;
 
+  if (service.type === "suscripcion") {
+    if (contextType === "group" && groupId) {
+      return `/groups/${groupId}?service=suscripcion`;
+    }
+    if (contextType === "profile" && creatorHandle) {
+      return `/u/${creatorHandle}?service=suscripcion`;
+    }
+  }
+
   if (service.type === "saludo") {
     if (contextType === "group" && groupId) {
       return `/groups/${groupId}?service=saludo`;
@@ -132,6 +149,15 @@ function buildHref(params: {
     }
     if (contextType === "profile" && creatorHandle) {
       return `/u/${creatorHandle}?service=meet_greet_digital`;
+    }
+  }
+
+  if (service.type === "clase_personalizada") {
+    if (contextType === "group" && groupId) {
+      return `/groups/${groupId}?service=clase_personalizada`;
+    }
+    if (contextType === "profile" && creatorHandle) {
+      return `/u/${creatorHandle}?service=clase_personalizada`;
     }
   }
 
