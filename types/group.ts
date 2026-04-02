@@ -283,21 +283,79 @@ export function buildGroupSearchText(
 }
 
 /**
- * Tipos formales de servicios visibles del creador.
- * "mensaje" se conserva como legacy para no romper datos existentes.
+ * Flags estructurales de monetización del grupo.
+ * Estas flags indican capacidades habilitadas a nivel grupo.
+ * No sustituyen el catálogo visible del menú.
+ */
+export type GroupMonetizationFlags = {
+  subscriptionsEnabled: boolean;
+  paidPostsEnabled: boolean;
+  paidLivesEnabled: boolean;
+  paidVodEnabled: boolean;
+  paidLiveCommentsEnabled: boolean;
+  greetingsEnabled: boolean;
+  adviceEnabled: boolean;
+  customClassEnabled: boolean;
+  digitalMeetGreetEnabled: boolean;
+};
+
+/**
+ * Tipos formales del catálogo visible de servicios del grupo/perfil.
+ *
+ * NOTAS:
+ * - "mensaje" se conserva solo como legacy temporal.
+ * - "suscripcion" entra al catálogo visible porque debe poder mostrarse
+ *   también en el mini menú de servicios.
+ * - "clase_personalizada" se deja preparada aunque operativamente más adelante
+ *   pueda apoyarse sobre live/evento programado.
  */
 export type CreatorServiceType =
+  | "suscripcion"
   | "saludo"
   | "consejo"
   | "meet_greet_digital"
+  | "clase_personalizada"
   | "mensaje";
 
 export type ServiceSourceScope = "group" | "profile" | "both";
+export type ServiceVisibility = "hidden" | "members" | "public";
+
+export type MeetGreetServiceMeta = {
+  durationMinutes: number | null;
+};
+
+export type SubscriptionServiceMeta = {
+  billingPeriod?: "monthly";
+};
+
+export type CustomClassServiceMeta = {
+  durationMinutes?: number | null;
+};
+
+export type CreatorServiceMeta = {
+  meetGreet?: MeetGreetServiceMeta | null;
+  subscription?: SubscriptionServiceMeta | null;
+  customClass?: CustomClassServiceMeta | null;
+};
 
 export type CreatorService = {
   type: CreatorServiceType;
   enabled: boolean;
   visible: boolean;
+
+  /**
+   * Controla el orden del mini menú de servicios.
+   * Menor número = más arriba / más a la izquierda.
+   */
+  displayOrder: number;
+
+  /**
+   * Nivel formal de visibilidad del servicio.
+   * hidden  = no se muestra
+   * members = visible solo en contexto privado / miembros
+   * public  = visible públicamente
+   */
+  visibility: ServiceVisibility;
 
   /**
    * Precio para miembros/suscriptores o dentro del contexto grupo.
@@ -321,6 +379,12 @@ export type CreatorService = {
    * Define si el servicio pertenece al grupo, al perfil o a ambos.
    */
   sourceScope: ServiceSourceScope;
+
+  /**
+   * Metadata opcional específica del servicio.
+   * Ej: duración para meet & greet.
+   */
+  meta?: CreatorServiceMeta | null;
 
   /**
    * Compatibilidad legacy:
@@ -384,6 +448,34 @@ export type GroupDonationSettings = {
 export type GroupOffering = CreatorService;
 export type OfferingType = CreatorServiceType;
 
+/**
+ * Catálogo formal de servicios del grupo.
+ * "offerings" se mantiene por compatibilidad,
+ * pero este alias deja explícito el propósito del arreglo.
+ */
+export type GroupServiceCatalog = CreatorService[];
+
+export type GroupMonetizationSettings = {
+  isPaid: boolean;
+  priceMonthly: number | null;
+  currency: Currency | null;
+
+  /**
+   * Flags estructurales base del grupo.
+   * Este bloque prepara el sistema para suscripciones,
+   * contenido pagado y servicios monetizables.
+   */
+  subscriptionsEnabled: boolean;
+  paidPostsEnabled: boolean;
+  paidLivesEnabled: boolean;
+  paidVodEnabled: boolean;
+  paidLiveCommentsEnabled: boolean;
+  greetingsEnabled: boolean;
+  adviceEnabled: boolean;
+  customClassEnabled: boolean;
+  digitalMeetGreetEnabled: boolean;
+};
+
 export interface Group {
   id?: string;
 
@@ -414,7 +506,13 @@ export interface Group {
    */
   tags?: string[];
 
+  /**
+   * Legacy temporal.
+   * Se conserva para no romper lecturas viejas mientras migramos
+   * a monetization.greetingsEnabled.
+   */
   greetingsEnabled?: boolean;
+
   welcomeMessage?: string | null;
 
   ageMin?: number | null;
@@ -425,21 +523,19 @@ export interface Group {
     commentsEnabled: boolean;
   };
 
-  monetization: {
-    isPaid: boolean;
-    priceMonthly: number | null;
-    currency: Currency | null;
-  };
+  monetization: GroupMonetizationSettings;
 
   /**
    * Servicios visibles del grupo.
-   * Mantiene el nombre "offerings" por compatibilidad con el código actual.
+   * Se mantiene el nombre "offerings" por compatibilidad con el código actual.
+   * Hacia adelante representa el catálogo visible del grupo.
    */
-  offerings?: CreatorService[];
+  offerings?: GroupServiceCatalog;
 
   /**
    * Monetización flexible tipo donación.
-   * Va separada de offerings porque no usa precio fijo.
+   * Va separada de offerings porque no usa precio fijo
+   * y se presenta fuera del mini menú de servicios.
    */
   donation?: GroupDonationSettings;
 

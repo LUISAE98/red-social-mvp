@@ -9,6 +9,7 @@ import { createGroup } from "@/lib/groups/createGroup";
 import type {
   CanonicalGroupCategory,
   Currency,
+  GroupOffering,
   GroupVisibility,
   PostingMode,
 } from "@/types/group";
@@ -517,10 +518,6 @@ export default function NewGroupPage() {
         setError("Precio mensual inválido.");
         return;
       }
-      if (!currency) {
-        setError("Selecciona moneda para suscripción.");
-        return;
-      }
     }
 
     const sPrice = saludoPrice ? Number(saludoPrice) : null;
@@ -530,23 +527,22 @@ export default function NewGroupPage() {
         setError("Precio de saludo inválido.");
         return;
       }
-      if (!offerCurrency) {
-        setError("Selecciona moneda para saludos.");
-        return;
-      }
     }
 
-    const offerings = sellSaludo
+    const offerings: GroupOffering[] = sellSaludo
       ? [
           {
-            type: "saludo" as const,
+            type: "saludo",
             enabled: true,
             visible: true,
+            visibility: "public",
+            displayOrder: 1,
             memberPrice: sPrice,
             publicPrice: sPrice,
             currency: offerCurrency,
             requiresApproval: true,
-            sourceScope: "group" as const,
+            sourceScope: "group",
+            price: sPrice,
           },
         ]
       : [];
@@ -580,6 +576,15 @@ export default function NewGroupPage() {
           isPaid,
           priceMonthly: isPaid ? priceNum : null,
           currency: isPaid ? currency : null,
+          subscriptionsEnabled: isPaid,
+          paidPostsEnabled: false,
+          paidLivesEnabled: false,
+          paidVodEnabled: false,
+          paidLiveCommentsEnabled: false,
+          greetingsEnabled,
+          adviceEnabled: false,
+          customClassEnabled: false,
+          digitalMeetGreetEnabled: false,
         },
         offerings,
         imageUrl: null,

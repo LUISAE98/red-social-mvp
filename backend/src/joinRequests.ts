@@ -35,7 +35,7 @@ async function getActorContextOrThrow(groupId: string, actorUid: string) {
   const groupSnap = await groupRef.get();
 
   if (!groupSnap.exists) {
-    throw new HttpsError("not-found", "Grupo no existe.");
+    throw new HttpsError("not-found", "Comunidad no existe.");
   }
 
   const groupData = groupSnap.data() as any;
@@ -54,7 +54,7 @@ async function getActorContextOrThrow(groupId: string, actorUid: string) {
   const actorMemberSnap = await actorMemberRef.get();
 
   if (!actorMemberSnap.exists) {
-    throw new HttpsError("permission-denied", "No perteneces a este grupo.");
+    throw new HttpsError("permission-denied", "No perteneces a esta comunidad.");
   }
 
   const actorData = actorMemberSnap.data() as any;

@@ -8,41 +8,46 @@ import type {
   Currency,
   CreatorServiceType,
   ServiceSourceScope,
+  ServiceVisibility,
+  CreatorServiceMeta,
   GroupDonationSettings,
-  DonationMode,
-  DonationSourceScope,
+  GroupVisibility,
 } from "@/types/group";
 
-type Visibility = "public" | "private" | "hidden" | string | null;
+type Visibility = GroupVisibility | null;
 type PostingMode = "members" | "owner_only";
 
 type MonetizationInput = {
   isPaid?: boolean;
   priceMonthly?: number | null;
   currency?: Currency | null;
+  subscriptionsEnabled?: boolean;
+  paidPostsEnabled?: boolean;
+  paidLivesEnabled?: boolean;
+  paidVodEnabled?: boolean;
+  paidLiveCommentsEnabled?: boolean;
+  greetingsEnabled?: boolean;
+  adviceEnabled?: boolean;
+  customClassEnabled?: boolean;
+  digitalMeetGreetEnabled?: boolean;
 } | null;
 
 type OfferingInput = {
   type?: CreatorServiceType | string;
   enabled?: boolean;
   visible?: boolean;
+  visibility?: ServiceVisibility | string;
+  displayOrder?: number | null;
   memberPrice?: number | null;
   publicPrice?: number | null;
   currency?: Currency | null;
   requiresApproval?: boolean;
   sourceScope?: ServiceSourceScope | string;
+  meta?: CreatorServiceMeta | null;
   price?: number | null;
 } | null;
 
-type DonationInput = {
-  mode?: DonationMode | string;
-  enabled?: boolean;
-  visible?: boolean;
-  currency?: Currency | null;
-  sourceScope?: DonationSourceScope | string;
-  suggestedAmounts?: number[] | null;
-  goalLabel?: string | null;
-} | Partial<GroupDonationSettings> | null;
+type DonationInput = Partial<GroupDonationSettings> | null;
 
 type Props = {
   groupId: string;
@@ -95,6 +100,9 @@ export default function OwnerAdminPanel({
 
   if (!isOwner) return null;
 
+  void currentAvatarUrl;
+  void currentCoverUrl;
+
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
 
@@ -116,13 +124,14 @@ export default function OwnerAdminPanel({
     minHeight: 40,
     padding: "10px 14px",
     borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.14)",
+    border: "1px solid rgba(255,255,255,0.10)",
     background: "rgba(255,255,255,0.04)",
     color: "#fff",
+    cursor: "pointer",
     fontSize: 13,
     fontWeight: 700,
+    lineHeight: 1.1,
     fontFamily: fontStack,
-    cursor: "pointer",
     transition: "all 160ms ease",
   };
 
@@ -130,14 +139,15 @@ export default function OwnerAdminPanel({
     ...baseTabStyle,
     background: "#fff",
     color: "#000",
-    border: "1px solid rgba(255,255,255,0.94)",
+    border: "1px solid rgba(255,255,255,0.92)",
   };
 
   const panelStyle: React.CSSProperties = {
     borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.10)",
+    border: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(255,255,255,0.03)",
-    padding: 14,
+    padding: 12,
+    width: "100%",
     minWidth: 0,
   };
 
@@ -178,9 +188,8 @@ export default function OwnerAdminPanel({
             currentName={currentName}
             currentDescription={currentDescription}
             currentCategory={currentCategory}
-            currentTags={currentTags ?? []}
-            currentAvatarUrl={currentAvatarUrl}
-            currentCoverUrl={currentCoverUrl}
+            currentTags={currentTags}
+            currentVisibility={currentVisibility}
           />
         )}
 

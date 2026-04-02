@@ -301,7 +301,7 @@ export default function CreatorServicesMenu({
                   <span style={badgeStyle}>Requiere aprobación</span>
                 )}
                 <span style={badgeStyle}>
-                  {contextType === "group" ? "Contexto grupo" : "Contexto perfil"}
+                  {contextType === "group" ? "Contexto comunidad" : "Contexto perfil"}
                 </span>
               </div>
 

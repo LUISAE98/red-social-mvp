@@ -23,8 +23,23 @@ import {
   createGreetingRequest,
   type GreetingType,
 } from "@/lib/greetings/greetingRequests";
+import {
+  mergeMonetizationWithCatalog,
+  mergeWithDefaultCatalog,
+  normalizeDonationSettings,
+} from "@/lib/groups/groupServiceCatalog";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Cropper from "react-easy-crop";
+import type {
+  Currency,
+  CreatorServiceMeta,
+  CreatorServiceType,
+  GroupDonationSettings,
+  GroupMonetizationSettings,
+  GroupOffering,
+  ServiceSourceScope,
+  ServiceVisibility,
+} from "@/types/group";
 
 type JoinRequestStatus = "pending" | "approved" | "rejected" | string;
 type MemberStatus =
@@ -37,18 +52,23 @@ type MemberStatus =
   | null;
 
 type MemberRole = "owner" | "mod" | "member" | null;
-type Currency = "MXN" | "USD";
 type PostingMode = "members" | "owner_only";
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 type DonationMode = "none" | "general" | "wedding";
 type DonationSourceScope = "group" | "profile";
+type Visibility = "public" | "private" | "hidden";
+type LegacyServiceVisibility = "hidden" | "members" | "public";
+type LegacyServiceSourceScope = "group" | "profile" | "both";
+
+type LocalCreatorServiceType = CreatorServiceType;
+type LocalServiceMeta = CreatorServiceMeta | null;
 
 type GroupDoc = {
   id: string;
   name?: string;
   description?: string;
   ownerId?: string;
-  visibility?: "public" | "private" | "hidden" | string;
+  visibility?: Visibility | string;
   isActive?: boolean;
   avatarUrl?: string | null;
   coverUrl?: string | null;
@@ -56,10 +76,21 @@ type GroupDoc = {
   tags?: string[] | null;
   postingMode?: PostingMode | string | null;
   commentsEnabled?: boolean | null;
+  greetingsEnabled?: boolean | null;
+  welcomeMessage?: string | null;
   monetization?: {
     isPaid?: boolean;
     priceMonthly?: number | null;
     currency?: string | Currency | null;
+    subscriptionsEnabled?: boolean;
+    paidPostsEnabled?: boolean;
+    paidLivesEnabled?: boolean;
+    paidVodEnabled?: boolean;
+    paidLiveCommentsEnabled?: boolean;
+    greetingsEnabled?: boolean;
+    adviceEnabled?: boolean;
+    customClassEnabled?: boolean;
+    digitalMeetGreetEnabled?: boolean;
   } | null;
   settings?: {
     membersListVisibility?: "owner_only" | "members" | string;
@@ -69,19 +100,17 @@ type GroupDoc = {
     commentsEnabled?: boolean | null;
   } | null;
   offerings?: Array<{
-    type:
-      | "saludo"
-      | "consejo"
-      | "meet_greet_digital"
-      | "mensaje"
-      | string;
+    type: LocalCreatorServiceType;
     enabled?: boolean;
     visible?: boolean;
+    visibility?: LegacyServiceVisibility | string;
+    displayOrder?: number | null;
     memberPrice?: number | null;
     publicPrice?: number | null;
     currency?: string | Currency | null;
     requiresApproval?: boolean;
-    sourceScope?: "group" | "profile" | "both" | string;
+    sourceScope?: LegacyServiceSourceScope | string;
+    meta?: LocalServiceMeta;
     price?: number | null;
   }> | null;
   donation?: {
@@ -92,6 +121,8 @@ type GroupDoc = {
     sourceScope?: DonationSourceScope | string;
     suggestedAmounts?: number[] | null;
     goalLabel?: string | null;
+    title?: string | null;
+    description?: string | null;
   } | null;
 };
 
@@ -99,9 +130,11 @@ type CropMode = "avatar" | "cover";
 type Area = { x: number; y: number; width: number; height: number };
 
 function labelForOfferingType(t: string) {
+  if (t === "suscripcion") return "Suscripción";
   if (t === "saludo") return "Saludo";
   if (t === "consejo") return "Consejo";
   if (t === "meet_greet_digital") return "Meet & Greet";
+  if (t === "clase_personalizada") return "Clase personalizada";
   return "Mensaje";
 }
 
@@ -137,6 +170,60 @@ function normalizeCurrency(raw: unknown): Currency | null {
   return null;
 }
 
+function normalizeMonetization(
+  raw: GroupDoc["monetization"]
+): Partial<GroupMonetizationSettings> | undefined {
+  if (!raw) return undefined;
+
+  return {
+    isPaid: raw.isPaid,
+    priceMonthly: raw.priceMonthly ?? null,
+    currency: normalizeCurrency(raw.currency),
+    subscriptionsEnabled: raw.subscriptionsEnabled,
+    paidPostsEnabled: raw.paidPostsEnabled,
+    paidLivesEnabled: raw.paidLivesEnabled,
+    paidVodEnabled: raw.paidVodEnabled,
+    paidLiveCommentsEnabled: raw.paidLiveCommentsEnabled,
+    greetingsEnabled: raw.greetingsEnabled,
+    adviceEnabled: raw.adviceEnabled,
+    customClassEnabled: raw.customClassEnabled,
+    digitalMeetGreetEnabled: raw.digitalMeetGreetEnabled,
+  };
+}
+
+function normalizeDonationInput(
+  raw: GroupDoc["donation"]
+): Partial<GroupDonationSettings> | undefined {
+  if (!raw) return undefined;
+
+  const normalizedMode =
+    raw.mode === "general" || raw.mode === "wedding" || raw.mode === "none"
+      ? raw.mode
+      : undefined;
+
+  const normalizedSourceScope =
+    raw.sourceScope === "group" || raw.sourceScope === "profile"
+      ? raw.sourceScope
+      : undefined;
+
+  return {
+    mode: normalizedMode,
+    enabled: raw.enabled,
+    visible: raw.visible,
+    currency: normalizeCurrency(raw.currency),
+    sourceScope: normalizedSourceScope,
+    suggestedAmounts: Array.isArray(raw.suggestedAmounts)
+      ? raw.suggestedAmounts.filter(
+          (value): value is number =>
+            typeof value === "number" && Number.isFinite(value)
+        )
+      : undefined,
+    goalLabel: raw.goalLabel ?? null,
+    title: raw.title ?? null,
+    description: raw.description ?? null,
+  };
+}
+
 function normalizePostingMode(raw: unknown): PostingMode {
   return raw === "owner_only" ? "owner_only" : "members";
 }
@@ -149,33 +236,42 @@ function isJoinedStatus(status: MemberStatus) {
   return status === "active" || status === "muted";
 }
 
-function normalizeDonationMode(raw: unknown): DonationMode {
-  if (raw === "general") return "general";
-  if (raw === "wedding") return "wedding";
-  return "none";
+function normalizeVisibility(raw: unknown): Visibility | null {
+  if (raw === "public" || raw === "private" || raw === "hidden") return raw;
+  return null;
 }
 
-function normalizeDonationSourceScope(raw: unknown): DonationSourceScope {
-  return raw === "profile" ? "profile" : "group";
-}
+function toCatalogOfferings(
+  offerings: GroupDoc["offerings"]
+): Partial<GroupOffering>[] {
+  const arr = Array.isArray(offerings) ? offerings : [];
 
-function normalizeSuggestedAmounts(raw: unknown): number[] {
-  if (!Array.isArray(raw)) return [];
-
-  return Array.from(
-    new Set(
-      raw
-        .map((value) => Number(value))
-        .filter((value) => Number.isFinite(value) && value > 0)
-        .slice(0, 12)
-    )
-  );
-}
-
-function normalizeNullableText(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const trimmed = raw.trim();
-  return trimmed ? trimmed : null;
+  return arr
+    .filter((item): item is NonNullable<typeof item> => !!item)
+    .map((item): Partial<GroupOffering> => ({
+      type: item.type,
+      enabled: item.enabled,
+      visible: item.visible,
+      visibility:
+        item.visibility === "hidden" ||
+        item.visibility === "members" ||
+        item.visibility === "public"
+          ? item.visibility
+          : undefined,
+      displayOrder: item.displayOrder ?? undefined,
+      memberPrice: item.memberPrice ?? undefined,
+      publicPrice: item.publicPrice ?? undefined,
+      currency: normalizeCurrency(item.currency) ?? undefined,
+      requiresApproval: item.requiresApproval,
+      sourceScope:
+        item.sourceScope === "group" ||
+        item.sourceScope === "profile" ||
+        item.sourceScope === "both"
+          ? item.sourceScope
+          : undefined,
+      meta: item.meta ?? null,
+      price: item.price ?? undefined,
+    }));
 }
 
 function dataUrlFromFile(file: File): Promise<string> {
@@ -296,6 +392,33 @@ export default function GroupPage() {
       ),
     [group]
   );
+
+  const normalizedCurrentOfferings = useMemo<GroupOffering[]>(() => {
+    if (!group) return [];
+    return mergeWithDefaultCatalog(
+      toCatalogOfferings(group.offerings),
+      normalizeCurrency(group.monetization?.currency) ?? "MXN"
+    );
+  }, [group]);
+
+  const normalizedCurrentMonetization =
+    useMemo<GroupMonetizationSettings | null>(() => {
+      if (!group) return null;
+      return mergeMonetizationWithCatalog({
+        monetization: normalizeMonetization(group.monetization),
+        catalog: normalizedCurrentOfferings,
+        legacyGreetingsEnabled:
+          typeof group.greetingsEnabled === "boolean"
+            ? group.greetingsEnabled
+            : undefined,
+      });
+    }, [group, normalizedCurrentOfferings]);
+
+  const normalizedCurrentDonation =
+    useMemo<GroupDonationSettings | null>(() => {
+      if (!group) return null;
+      return normalizeDonationSettings(normalizeDonationInput(group.donation));
+    }, [group]);
 
   const [greetOpen, setGreetOpen] = useState(false);
   const [greetType, setGreetType] = useState<GreetingType>("saludo");
@@ -791,6 +914,19 @@ export default function GroupPage() {
       );
       return;
     }
+
+    if (requestedService === "suscripcion") {
+      setGreetError(
+        "La suscripción ya quedó preparada en el catálogo, pero el checkout se conecta después."
+      );
+      return;
+    }
+
+    if (requestedService === "clase_personalizada") {
+      setGreetError(
+        "Clase personalizada ya quedó preparada en el catálogo, pero su flujo operativo se conecta después."
+      );
+    }
   }, [searchParams, user, effectiveIsMember, isOwner]);
 
   const openCropWithFile = useCallback(
@@ -906,50 +1042,6 @@ export default function GroupPage() {
   if (!group) return null;
 
   const visibility = group.visibility ?? "";
-  const offerings = Array.isArray(group.offerings) ? group.offerings : [];
-
-  const normalizedCurrentMonetization = group.monetization
-    ? {
-        isPaid: group.monetization.isPaid,
-        priceMonthly: group.monetization.priceMonthly ?? null,
-        currency: normalizeCurrency(group.monetization.currency),
-      }
-    : null;
-
-  const normalizedCurrentOfferings = offerings.map((o) => ({
-    ...o,
-    visible: typeof o.visible === "boolean" ? o.visible : o.enabled !== false,
-    memberPrice: o.memberPrice ?? o.price ?? null,
-    publicPrice: o.publicPrice ?? o.price ?? null,
-    price: o.price ?? null,
-    currency: normalizeCurrency(o.currency),
-    requiresApproval:
-      typeof o.requiresApproval === "boolean" ? o.requiresApproval : true,
-    sourceScope:
-      o.sourceScope === "profile" ||
-      o.sourceScope === "both" ||
-      o.sourceScope === "group"
-        ? o.sourceScope
-        : "group",
-  }));
-
-  const normalizedCurrentDonation = group.donation
-    ? {
-        mode: normalizeDonationMode(group.donation.mode),
-        enabled: group.donation.enabled === true,
-        visible:
-          typeof group.donation.visible === "boolean"
-            ? group.donation.visible
-            : group.donation.enabled === true,
-        currency: normalizeCurrency(group.donation.currency) ?? "MXN",
-        sourceScope: normalizeDonationSourceScope(group.donation.sourceScope),
-        suggestedAmounts: normalizeSuggestedAmounts(
-          group.donation.suggestedAmounts
-        ),
-        goalLabel: normalizeNullableText(group.donation.goalLabel),
-      }
-    : null;
-
   const coverBg =
     group.coverUrl ||
     "data:image/svg+xml;base64," +
@@ -1867,7 +1959,7 @@ export default function GroupPage() {
                     currentTags={group.tags ?? []}
                     currentAvatarUrl={group.avatarUrl ?? null}
                     currentCoverUrl={group.coverUrl ?? null}
-                    currentVisibility={group.visibility ?? null}
+                    currentVisibility={normalizeVisibility(group.visibility)}
                     currentMonetization={normalizedCurrentMonetization}
                     currentOfferings={normalizedCurrentOfferings}
                     currentDonation={normalizedCurrentDonation}

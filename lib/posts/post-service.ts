@@ -459,7 +459,7 @@ async function getGroupWriteAccess(
   const groupSnap = await getDoc(groupRef);
 
   if (!groupSnap.exists()) {
-    throw new Error("El grupo no existe.");
+    throw new Error("La comunidad no existe.");
   }
 
   const groupData = groupSnap.data() as Record<string, unknown>;
@@ -492,7 +492,7 @@ async function getGroupWriteAccess(
   const memberSnap = await getDoc(memberRef);
 
   if (!memberSnap.exists()) {
-    throw new Error("Debes pertenecer al grupo para realizar esta acción.");
+    throw new Error("Debes pertenecer a la comunidad para realizar esta acción.");
   }
 
   const memberData = memberSnap.data() as Record<string, unknown>;
@@ -513,24 +513,24 @@ async function getGroupWriteAccess(
 function assertMembershipCanInteract(status: GroupMemberStatus) {
   if (status === "banned") {
     throw new Error(
-      "No puedes realizar esta acción porque estás baneado de este grupo."
+      "No puedes realizar esta acción porque estás baneado de esta comunidad."
     );
   }
 
   if (status === "removed") {
     throw new Error(
-      "No puedes realizar esta acción porque ya no perteneces a este grupo."
+      "No puedes realizar esta acción porque ya no perteneces a esta comunidad."
     );
   }
 
   if (status === "muted") {
     throw new Error(
-      "No puedes realizar esta acción porque estás muteado en este grupo."
+      "No puedes realizar esta acción porque estás muteado en esta comunidad."
     );
   }
 
   if (status !== "active") {
-    throw new Error("No puedes realizar esta acción en este grupo.");
+    throw new Error("No puedes realizar esta acción en esta comunidad.");
   }
 }
 
@@ -732,7 +732,7 @@ export async function createPostComment(params: {
   const groupId = pickString(postData.groupId);
 
   if (!groupId) {
-    throw new Error("La publicación no pertenece a un grupo válido.");
+    throw new Error("La publicación no pertenece a una comunidad válida.");
   }
 
   await ensureUserCanCommentInGroup(groupId, author.uid);

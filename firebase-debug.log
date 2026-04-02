@@ -1,0 +1,37 @@
+[debug] [2026-04-01T23:56:12.537Z] ----------------------------------------------------------------------
+[debug] [2026-04-01T23:56:12.540Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\luis\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions
+[debug] [2026-04-01T23:56:12.540Z] CLI Version:   15.6.0
+[debug] [2026-04-01T23:56:12.540Z] Platform:      win32
+[debug] [2026-04-01T23:56:12.540Z] Node Version:  v25.2.1
+[debug] [2026-04-01T23:56:12.540Z] Time:          Wed Apr 01 2026 17:56:12 GMT-0600 (hora estándar central)
+[debug] [2026-04-01T23:56:12.540Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-04-01T23:56:12.542Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-04-01T23:56:15.812Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-04-01T23:56:15.812Z] > authorizing via signed-in user (luis@consumed.mx)
+[debug] [2026-04-01T23:56:15.813Z] [iam] checking project red-social-mvp for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2026-04-01T23:56:15.813Z] Checked if tokens are valid: false, expires at: 1774292348104
+[debug] [2026-04-01T23:56:15.813Z] Checked if tokens are valid: false, expires at: 1774292348104
+[debug] [2026-04-01T23:56:15.814Z] > refreshing access token with scopes: []
+[debug] [2026-04-01T23:56:15.815Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-04-01T23:56:15.815Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-04-01T23:56:15.939Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 200
+[debug] [2026-04-01T23:56:15.939Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json {"cloudBuildErrorAfter":1594252800000,"cloudBuildWarnAfter":1590019200000,"defaultNode10After":1594252800000,"minVersion":"3.0.5","node8DeploysDisabledAfter":1613390400000,"node8RuntimeDisabledAfter":1615809600000,"node8WarnAfter":1600128000000}
+[debug] [2026-04-01T23:56:15.948Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-04-01T23:56:15.948Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-04-01T23:56:15.954Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/red-social-mvp:testIamPermissions [none]
+[debug] [2026-04-01T23:56:15.954Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/red-social-mvp:testIamPermissions  x-goog-user-project=red-social-mvp
+[debug] [2026-04-01T23:56:15.955Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/red-social-mvp:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-04-01T23:56:16.257Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/red-social-mvp:testIamPermissions 200
+[debug] [2026-04-01T23:56:16.257Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/red-social-mvp:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-04-01T23:56:16.257Z] Checked if tokens are valid: true, expires at: 1775091374948
+[debug] [2026-04-01T23:56:16.257Z] Checked if tokens are valid: true, expires at: 1775091374948
+[debug] [2026-04-01T23:56:16.258Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/red-social-mvp/serviceAccounts/red-social-mvp@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2026-04-01T23:56:16.258Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/red-social-mvp/serviceAccounts/red-social-mvp@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2026-04-01T23:56:16.593Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/red-social-mvp/serviceAccounts/red-social-mvp@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2026-04-01T23:56:16.594Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/red-social-mvp/serviceAccounts/red-social-mvp@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[info] 
+[info] === Deploying to 'red-social-mvp'...
+[info] 
+[info] i  deploying functions 
+[info] Running command: npm --prefix "$RESOURCE_DIR" run build

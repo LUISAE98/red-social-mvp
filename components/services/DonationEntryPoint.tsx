@@ -18,24 +18,13 @@ type Props = {
   donation: DonationEntryDonation | null;
   isLoggedIn: boolean;
   onRequireLogin: () => void;
-
-  /**
-   * Preparado para el siguiente paso.
-   * Aún no está conectado a backend real.
-   */
   videoEnabled?: boolean;
   videoUrl?: string | null;
-
-  /**
-   * Opcional: te deja capturar el monto elegido
-   * para el siguiente paso cuando conectemos pagos.
-   */
   onDonateIntent?: (payload: {
     mode: DonationMode;
     amount: number;
     currency: Currency;
   }) => void;
-
   buttonStyle?: React.CSSProperties;
 };
 
@@ -129,8 +118,13 @@ export default function DonationEntryPoint({
     return null;
   }
 
+  const resolvedNormalized = normalized;
+  const resolvedMinimumAmount = minimumAmount;
+
   const buttonLabel =
-    normalized.mode === "wedding" ? "Donación para boda" : "Donación";
+    resolvedNormalized.mode === "wedding"
+      ? "Donación para boda"
+      : "Donación";
 
   function closePanel() {
     setOpen(false);
@@ -160,16 +154,16 @@ export default function DonationEntryPoint({
       return;
     }
 
-    let finalAmount = minimumAmount;
+    let finalAmount = resolvedMinimumAmount;
 
     if (amountMode === "custom") {
       const parsed = Number(customAmount);
 
-      if (!Number.isFinite(parsed) || parsed < minimumAmount) {
+      if (!Number.isFinite(parsed) || parsed < resolvedMinimumAmount) {
         setError(
           `❌ El monto debe ser igual o mayor a ${formatMoney(
-            minimumAmount,
-            normalized.currency
+            resolvedMinimumAmount,
+            resolvedNormalized.currency
           )}.`
         );
         return;
@@ -185,16 +179,16 @@ export default function DonationEntryPoint({
     try {
       if (onDonateIntent) {
         onDonateIntent({
-          mode: normalized.mode,
+          mode: resolvedNormalized.mode,
           amount: finalAmount,
-          currency: normalized.currency,
+          currency: resolvedNormalized.currency,
         });
       }
 
       setSuccess(
         `✅ Donación preparada por ${formatMoney(
           finalAmount,
-          normalized.currency
+          resolvedNormalized.currency
         )}. El pago real se conectará en el siguiente paso.`
       );
     } catch (e: any) {
@@ -337,7 +331,7 @@ export default function DonationEntryPoint({
               }}
             >
               <div style={titleStyle}>
-                {normalized.mode === "wedding"
+                {resolvedNormalized.mode === "wedding"
                   ? "Donación para boda"
                   : "Donación"}
               </div>
@@ -382,15 +376,18 @@ export default function DonationEntryPoint({
               </div>
 
               <div style={infoBoxStyle}>
-                {normalized.mode === "wedding"
-                  ? normalized.goalLabel || "Apoyo para boda"
+                {resolvedNormalized.mode === "wedding"
+                  ? resolvedNormalized.goalLabel || "Apoyo para boda"
                   : "Apoya directamente a este creador o institución."}
               </div>
 
               <div style={textStyle}>
                 Elige tu aporte. El monto mínimo configurado es{" "}
                 <strong style={{ color: "#fff" }}>
-                  {formatMoney(minimumAmount, normalized.currency)}
+                  {formatMoney(
+                    resolvedMinimumAmount,
+                    resolvedNormalized.currency
+                  )}
                 </strong>
                 .
               </div>
@@ -408,7 +405,10 @@ export default function DonationEntryPoint({
                   }}
                 >
                   Donar mínimo{" "}
-                  {formatMoney(minimumAmount, normalized.currency)}
+                  {formatMoney(
+                    resolvedMinimumAmount,
+                    resolvedNormalized.currency
+                  )}
                 </button>
 
                 <button
@@ -429,7 +429,7 @@ export default function DonationEntryPoint({
               {amountMode === "custom" && (
                 <input
                   type="number"
-                  min={minimumAmount}
+                  min={resolvedMinimumAmount}
                   step="0.01"
                   value={customAmount}
                   onChange={(e) => setCustomAmount(e.target.value)}

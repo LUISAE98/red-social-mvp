@@ -160,7 +160,7 @@ export const createInviteLink = onCall(async (request) => {
   if (groupData?.isActive !== true) {
     throw new HttpsError(
       "failed-precondition",
-      "Solo se pueden generar links para grupos activos."
+      "Solo se pueden generar links para comunidades activas."
     );
   }
 
@@ -170,7 +170,7 @@ export const createInviteLink = onCall(async (request) => {
   ) {
     throw new HttpsError(
       "failed-precondition",
-      "Solo los grupos privados u ocultos pueden usar links de invitación."
+      "Solo las comunidades privadas u ocultas pueden usar links de invitación."
     );
   }
 
@@ -257,7 +257,7 @@ export const getInviteLinkPreview = onCall(async (request) => {
 
   const groupSnap = await db.collection("groups").doc(groupId).get();
   if (!groupSnap.exists) {
-    throw new HttpsError("not-found", "Grupo no encontrado.");
+    throw new HttpsError("not-found", "Comunidad no encontrada.");
   }
 
   const groupData = groupSnap.data() as {
@@ -386,7 +386,7 @@ export const consumeInviteLink = onCall(async (request) => {
       const joinRequestSnap = await tx.get(joinRequestRef);
 
       if (!groupSnap.exists) {
-        throw new HttpsError("not-found", "Grupo no existe.");
+        throw new HttpsError("not-found", "Comunidad no existe.");
       }
 
       const groupData = groupSnap.data() as {
@@ -413,7 +413,7 @@ export const consumeInviteLink = onCall(async (request) => {
       if (groupData?.isActive !== true) {
         throw new HttpsError(
           "failed-precondition",
-          "El grupo ya no está activo."
+          "La comunidad ya no está activa."
         );
       }
 
@@ -423,7 +423,7 @@ export const consumeInviteLink = onCall(async (request) => {
       ) {
         throw new HttpsError(
           "failed-precondition",
-          "Este link ya no corresponde a un grupo elegible."
+          "Este link ya no corresponde a una comunidad elegible."
         );
       }
 

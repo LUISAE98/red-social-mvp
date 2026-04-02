@@ -9,8 +9,10 @@ import type {
   GroupOffering,
   CreatorServiceType,
   ServiceSourceScope,
+  ServiceVisibility,
   GroupDonationSettings,
   DonationMode,
+  CreatorServiceMeta,
 } from "@/types/group";
 
 type Visibility = "public" | "private" | "hidden" | string | null;
@@ -19,17 +21,29 @@ type MonetizationInput = {
   isPaid?: boolean;
   priceMonthly?: number | null;
   currency?: Currency | null;
+  subscriptionsEnabled?: boolean;
+  paidPostsEnabled?: boolean;
+  paidLivesEnabled?: boolean;
+  paidVodEnabled?: boolean;
+  paidLiveCommentsEnabled?: boolean;
+  greetingsEnabled?: boolean;
+  adviceEnabled?: boolean;
+  customClassEnabled?: boolean;
+  digitalMeetGreetEnabled?: boolean;
 } | null;
 
 type OfferingInput = {
   type?: CreatorServiceType | string;
   enabled?: boolean;
   visible?: boolean;
+  visibility?: ServiceVisibility | string;
+  displayOrder?: number | null;
   memberPrice?: number | null;
   publicPrice?: number | null;
   currency?: Currency | null;
   requiresApproval?: boolean;
   sourceScope?: ServiceSourceScope | string;
+  meta?: CreatorServiceMeta | null;
   price?: number | null;
 } | null;
 
@@ -45,40 +59,95 @@ type Props = {
   currentDonation?: DonationInput;
 };
 
+type ServiceBlockDraft = {
+  enabled: boolean;
+  price: string;
+  currency: Currency;
+  visible: boolean;
+  visibility: ServiceVisibility;
+};
+
 type ServiceDraft = {
-  subscriptionEnabled: boolean;
-  subscriptionPrice: string;
-  subscriptionCurrency: Currency;
-
-  saludoEnabled: boolean;
-  saludoPrice: string;
-  saludoCurrency: Currency;
-
+  subscription: ServiceBlockDraft;
+  saludo: ServiceBlockDraft;
+  consejo: ServiceBlockDraft;
+  meetGreet: ServiceBlockDraft & {
+    durationMinutes: string;
+  };
+  customClass: ServiceBlockDraft & {
+    durationMinutes: string;
+  };
   donationMode: DonationMode;
   donationCurrency: Currency;
   donationMinimumAmount: string;
   donationGoalLabel: string;
 };
 
-function pickSubscription(monetization: MonetizationInput) {
+function pickSubscription(
+  monetization: MonetizationInput,
+  offerings: OfferingInput[] | null | undefined
+) {
+  const arr = Array.isArray(offerings) ? offerings : [];
+  const subscriptionOffering = arr.find((o) => String(o?.type) === "suscripcion");
+
+  const enabled =
+    typeof monetization?.subscriptionsEnabled === "boolean"
+      ? monetization.subscriptionsEnabled
+      : monetization?.isPaid === true || subscriptionOffering?.enabled === true;
+
   return {
-    enabled: monetization?.isPaid === true,
-    price: monetization?.priceMonthly ?? null,
-    currency: (monetization?.currency ?? "MXN") as Currency,
+    enabled,
+    price:
+      monetization?.priceMonthly ??
+      subscriptionOffering?.memberPrice ??
+      subscriptionOffering?.publicPrice ??
+      subscriptionOffering?.price ??
+      null,
+    currency: monetization?.currency ?? subscriptionOffering?.currency ?? "MXN",
+    visible:
+      typeof subscriptionOffering?.visible === "boolean"
+        ? subscriptionOffering.visible
+        : enabled,
+    visibility:
+      subscriptionOffering?.visibility === "members" ||
+      subscriptionOffering?.visibility === "public" ||
+      subscriptionOffering?.visibility === "hidden"
+        ? subscriptionOffering.visibility
+        : enabled
+        ? "public"
+        : "hidden",
   };
 }
 
-function pickSaludoOffering(offerings: OfferingInput[] | null | undefined) {
+function pickOffering(
+  offerings: OfferingInput[] | null | undefined,
+  type: CreatorServiceType
+) {
   const arr = Array.isArray(offerings) ? offerings : [];
-  const found = arr.find((o) => String(o?.type) === "saludo");
+  const found = arr.find((o) => String(o?.type) === type);
 
   const resolvedPrice =
     found?.memberPrice ?? found?.publicPrice ?? found?.price ?? null;
+
+  const meta = found?.meta ?? null;
 
   return {
     enabled: found?.enabled === true,
     price: resolvedPrice,
     currency: (found?.currency ?? "MXN") as Currency,
+    visible:
+      typeof found?.visible === "boolean"
+        ? found.visible
+        : found?.enabled === true,
+    visibility:
+      found?.visibility === "members" ||
+      found?.visibility === "public" ||
+      found?.visibility === "hidden"
+        ? found.visibility
+        : found?.enabled === true
+        ? "public"
+        : "hidden",
+    meta,
   };
 }
 
@@ -99,8 +168,7 @@ function pickDonation(donation: DonationInput) {
     mode,
     currency: (donation?.currency ?? "MXN") as Currency,
     minimumAmount,
-    goalLabel:
-      typeof donation?.goalLabel === "string" ? donation.goalLabel : "",
+    goalLabel: typeof donation?.goalLabel === "string" ? donation.goalLabel : "",
   };
 }
 
@@ -121,6 +189,47 @@ function formatMoney(value: number, currency: Currency) {
   } catch {
     return `${currency} ${value.toFixed(2)}`;
   }
+}
+
+function normalizeServiceVisibility(
+  value: unknown,
+  fallback: ServiceVisibility
+): ServiceVisibility {
+  if (value === "hidden" || value === "members" || value === "public") {
+    return value;
+  }
+  return fallback;
+}
+
+function normalizeDurationMeta(
+  meta: CreatorServiceMeta | null | undefined,
+  mode: "meetGreet" | "customClass"
+): string {
+  const raw =
+    mode === "meetGreet"
+      ? meta?.meetGreet?.durationMinutes
+      : meta?.customClass?.durationMinutes;
+
+  if (raw == null) return "";
+
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? String(n) : "";
+}
+
+function buildServiceBlockDraft(input: {
+  enabled: boolean;
+  price: number | null;
+  currency: Currency;
+  visible: boolean;
+  visibility: ServiceVisibility;
+}): ServiceBlockDraft {
+  return {
+    enabled: input.enabled,
+    price: input.price == null ? "" : String(input.price),
+    currency: input.currency,
+    visible: input.visible,
+    visibility: input.visibility,
+  };
 }
 
 function SpinningGear() {
@@ -237,60 +346,25 @@ function DonationModeButton({
   );
 }
 
-function buildOfferingFromExisting(params: {
-  existingOffering: OfferingInput;
-  fallbackType: CreatorServiceType;
-}): GroupOffering | null {
-  const { existingOffering, fallbackType } = params;
-
-  const rawType = (existingOffering?.type ?? fallbackType) as CreatorServiceType;
-
-  if (
-    rawType !== "saludo" &&
-    rawType !== "consejo" &&
-    rawType !== "meet_greet_digital" &&
-    rawType !== "mensaje"
-  ) {
-    return null;
-  }
-
-  const memberPrice =
-    existingOffering?.memberPrice ?? existingOffering?.price ?? null;
-
-  const publicPrice =
-    existingOffering?.publicPrice ?? existingOffering?.price ?? null;
-
-  return {
-    type: rawType,
-    enabled: existingOffering?.enabled === true,
-    visible:
-      typeof existingOffering?.visible === "boolean"
-        ? existingOffering.visible
-        : existingOffering?.enabled === true,
-    memberPrice,
-    publicPrice,
-    currency: existingOffering?.currency ?? null,
-    requiresApproval:
-      typeof existingOffering?.requiresApproval === "boolean"
-        ? existingOffering.requiresApproval
-        : true,
-    sourceScope:
-      existingOffering?.sourceScope === "profile" ||
-      existingOffering?.sourceScope === "both" ||
-      existingOffering?.sourceScope === "group"
-        ? existingOffering.sourceScope
-        : "group",
-  };
+function sameServiceBlock(a: ServiceBlockDraft, b: ServiceBlockDraft) {
+  return (
+    a.enabled === b.enabled &&
+    a.price === b.price &&
+    a.currency === b.currency &&
+    a.visible === b.visible &&
+    a.visibility === b.visibility
+  );
 }
 
 function sameDraft(a: ServiceDraft, b: ServiceDraft) {
   return (
-    a.subscriptionEnabled === b.subscriptionEnabled &&
-    a.subscriptionPrice === b.subscriptionPrice &&
-    a.subscriptionCurrency === b.subscriptionCurrency &&
-    a.saludoEnabled === b.saludoEnabled &&
-    a.saludoPrice === b.saludoPrice &&
-    a.saludoCurrency === b.saludoCurrency &&
+    sameServiceBlock(a.subscription, b.subscription) &&
+    sameServiceBlock(a.saludo, b.saludo) &&
+    sameServiceBlock(a.consejo, b.consejo) &&
+    sameServiceBlock(a.meetGreet, b.meetGreet) &&
+    a.meetGreet.durationMinutes === b.meetGreet.durationMinutes &&
+    sameServiceBlock(a.customClass, b.customClass) &&
+    a.customClass.durationMinutes === b.customClass.durationMinutes &&
     a.donationMode === b.donationMode &&
     a.donationCurrency === b.donationCurrency &&
     a.donationMinimumAmount === b.donationMinimumAmount &&
@@ -298,130 +372,58 @@ function sameDraft(a: ServiceDraft, b: ServiceDraft) {
   );
 }
 
-export default function OwnerAdminServices({
-  groupId,
-  ownerId,
-  currentUserId,
-  currentVisibility = null,
-  currentMonetization = null,
-  currentOfferings = null,
-  currentDonation = null,
-}: Props) {
-  const isOwner = useMemo(
-    () => ownerId === currentUserId,
-    [ownerId, currentUserId]
-  );
+function buildOffering(params: {
+  type: CreatorServiceType;
+  draft: ServiceBlockDraft;
+  displayOrder: number;
+  meta?: CreatorServiceMeta | null;
+}): GroupOffering {
+  const { type, draft, displayOrder, meta = null } = params;
+  const priceNum = draft.price.trim() === "" ? null : Number(draft.price);
 
-  const isPublic = currentVisibility === "public";
+  return {
+    type,
+    enabled: draft.enabled,
+    visible: draft.visible,
+    visibility: draft.visibility,
+    displayOrder,
+    memberPrice: draft.enabled ? priceNum : null,
+    publicPrice: draft.enabled ? priceNum : null,
+    currency: draft.enabled ? draft.currency : null,
+    requiresApproval: type !== "suscripcion",
+    sourceScope: "group",
+    meta,
+    price: draft.enabled ? priceNum : null,
+  };
+}
 
-  const [draft, setDraft] = useState<ServiceDraft>({
-    subscriptionEnabled: false,
-    subscriptionPrice: "",
-    subscriptionCurrency: "MXN",
-    saludoEnabled: false,
-    saludoPrice: "",
-    saludoCurrency: "MXN",
-    donationMode: "none",
-    donationCurrency: "MXN",
-    donationMinimumAmount: "",
-    donationGoalLabel: "",
-  });
-
-  const [savedDraft, setSavedDraft] = useState<ServiceDraft>({
-    subscriptionEnabled: false,
-    subscriptionPrice: "",
-    subscriptionCurrency: "MXN",
-    saludoEnabled: false,
-    saludoPrice: "",
-    saludoCurrency: "MXN",
-    donationMode: "none",
-    donationCurrency: "MXN",
-    donationMinimumAmount: "",
-    donationGoalLabel: "",
-  });
-
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-
-  const lastHydratedGroupIdRef = useRef<string | null>(null);
-  const skipHydrationWhileSavingRef = useRef(false);
-
-  useEffect(() => {
-    if (!isOwner) return;
-
-    if (skipHydrationWhileSavingRef.current) {
-      return;
-    }
-
-    const sub = pickSubscription(currentMonetization);
-    const saludo = pickSaludoOffering(currentOfferings);
-    const donation = pickDonation(currentDonation);
-
-    const nextDraft: ServiceDraft = {
-      subscriptionEnabled: isPublic ? false : sub.enabled,
-      subscriptionPrice:
-        isPublic || sub.price == null ? "" : String(sub.price),
-      subscriptionCurrency: sub.currency ?? "MXN",
-      saludoEnabled: saludo.enabled,
-      saludoPrice: saludo.price == null ? "" : String(saludo.price),
-      saludoCurrency: saludo.currency ?? "MXN",
-      donationMode: donation.mode,
-      donationCurrency: donation.currency ?? "MXN",
-      donationMinimumAmount: donation.minimumAmount,
-      donationGoalLabel: donation.goalLabel ?? "",
-    };
-
-    const isFirstHydrationForGroup = lastHydratedGroupIdRef.current !== groupId;
-
-    if (isFirstHydrationForGroup) {
-      lastHydratedGroupIdRef.current = groupId;
-      setDraft(nextDraft);
-      setSavedDraft(nextDraft);
-      setMsg(null);
-      setErr(null);
-      return;
-    }
-
-    setSavedDraft((prevSaved) => {
-      if (sameDraft(prevSaved, nextDraft)) {
-        return prevSaved;
-      }
-      return nextDraft;
-    });
-
-    setDraft((prevDraft) => {
-      const hasUnsavedChanges = !sameDraft(prevDraft, savedDraft);
-      if (hasUnsavedChanges) {
-        return prevDraft;
-      }
-      return nextDraft;
-    });
-  }, [
-    groupId,
-    isOwner,
-    isPublic,
-    currentMonetization,
-    currentOfferings,
-    currentDonation,
-    savedDraft,
-  ]);
-
-  useEffect(() => {
-    if (!saving) {
-      skipHydrationWhileSavingRef.current = false;
-    }
-  }, [saving]);
-
-  if (!isOwner) return null;
-
+function ServiceEditorBlock({
+  title,
+  description,
+  draft,
+  onChange,
+  saving,
+  showDuration = false,
+  durationLabel = "Duración (minutos)",
+  netText,
+}: {
+  title: string;
+  description: string;
+  draft: ServiceBlockDraft & { durationMinutes?: string };
+  onChange: (
+    updater:
+      | Partial<ServiceBlockDraft & { durationMinutes?: string }>
+      | ((
+          prev: ServiceBlockDraft & { durationMinutes?: string }
+        ) => ServiceBlockDraft & { durationMinutes?: string })
+  ) => void;
+  saving: boolean;
+  showDuration?: boolean;
+  durationLabel?: string;
+  netText?: string | null;
+}) {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
-
-  const contentStyle: React.CSSProperties = {
-    display: "grid",
-    gap: 12,
-  };
 
   const panelStyle: React.CSSProperties = {
     padding: "10px",
@@ -466,6 +468,402 @@ export default function OwnerAdminServices({
     minHeight: 42,
   };
 
+  const applyChange = (
+    updater:
+      | Partial<ServiceBlockDraft & { durationMinutes?: string }>
+      | ((
+          prev: ServiceBlockDraft & { durationMinutes?: string }
+        ) => ServiceBlockDraft & { durationMinutes?: string })
+  ) => {
+    onChange(updater);
+  };
+
+  return (
+    <div style={panelStyle}>
+      <div style={rowBetweenStyle}>
+        <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
+          <span style={titleStyle}>{title}</span>
+          <span style={subtleStyle}>{description}</span>
+        </div>
+
+        <Switch
+          checked={draft.enabled}
+          disabled={saving}
+          onChange={(next) =>
+            applyChange((prev) => ({
+              ...prev,
+              enabled: next,
+              price: next ? prev.price : "",
+              visible: next ? prev.visible : false,
+              visibility: next ? prev.visibility : "hidden",
+            }))
+          }
+          label={`Activar ${title}`}
+        />
+      </div>
+
+      {draft.enabled && (
+        <>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input
+              type="number"
+              min="1"
+              step="0.01"
+              value={draft.price}
+              onChange={(e) =>
+                applyChange((prev) => ({
+                  ...prev,
+                  price: e.target.value,
+                }))
+              }
+              placeholder="Precio"
+              style={{ ...inputStyle, width: 110 }}
+            />
+
+            <select
+              value={draft.currency}
+              onChange={(e) =>
+                applyChange((prev) => ({
+                  ...prev,
+                  currency: e.target.value as Currency,
+                }))
+              }
+              style={{ ...inputStyle, width: 92 }}
+            >
+              <option value="MXN">MXN</option>
+              <option value="USD">USD</option>
+            </select>
+
+            <select
+              value={draft.visibility}
+              onChange={(e) =>
+                applyChange((prev) => ({
+                  ...prev,
+                  visibility: e.target.value as ServiceVisibility,
+                  visible: e.target.value !== "hidden",
+                }))
+              }
+              style={{ ...inputStyle, flex: 1, minWidth: 130 }}
+            >
+              <option value="public">Visible público</option>
+              <option value="members">Visible solo miembros</option>
+              <option value="hidden">Oculto</option>
+            </select>
+          </div>
+
+          {showDuration && (
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={draft.durationMinutes ?? ""}
+              onChange={(e) =>
+                applyChange((prev) => ({
+                  ...prev,
+                  durationMinutes: e.target.value,
+                }))
+              }
+              placeholder={durationLabel}
+              style={{ ...inputStyle, width: 180 }}
+            />
+          )}
+
+          {netText ? (
+            <div style={subtleStyle}>{netText}</div>
+          ) : (
+            <div style={subtleStyle}>
+              Este servicio se mostrará en el menú del grupo según su visibilidad.
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function OwnerAdminServices({
+  groupId,
+  ownerId,
+  currentUserId,
+  currentVisibility = null,
+  currentMonetization = null,
+  currentOfferings = null,
+  currentDonation = null,
+}: Props) {
+  const isOwner = useMemo(
+    () => ownerId === currentUserId,
+    [ownerId, currentUserId]
+  );
+
+  const isPublic = currentVisibility === "public";
+
+  const [draft, setDraft] = useState<ServiceDraft>({
+    subscription: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "hidden",
+    },
+    saludo: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "hidden",
+    },
+    consejo: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "hidden",
+    },
+    meetGreet: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "hidden",
+      durationMinutes: "",
+    },
+    customClass: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "hidden",
+      durationMinutes: "",
+    },
+    donationMode: "none",
+    donationCurrency: "MXN",
+    donationMinimumAmount: "",
+    donationGoalLabel: "",
+  });
+
+  const [savedDraft, setSavedDraft] = useState<ServiceDraft>({
+    subscription: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "hidden",
+    },
+    saludo: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "hidden",
+    },
+    consejo: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "hidden",
+    },
+    meetGreet: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "hidden",
+      durationMinutes: "",
+    },
+    customClass: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "hidden",
+      durationMinutes: "",
+    },
+    donationMode: "none",
+    donationCurrency: "MXN",
+    donationMinimumAmount: "",
+    donationGoalLabel: "",
+  });
+
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  const lastHydratedGroupIdRef = useRef<string | null>(null);
+  const skipHydrationWhileSavingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isOwner) return;
+    if (skipHydrationWhileSavingRef.current) return;
+
+    const sub = pickSubscription(currentMonetization, currentOfferings);
+    const saludo = pickOffering(currentOfferings, "saludo");
+    const consejo = pickOffering(currentOfferings, "consejo");
+    const meetGreet = pickOffering(currentOfferings, "meet_greet_digital");
+    const customClass = pickOffering(currentOfferings, "clase_personalizada");
+    const donation = pickDonation(currentDonation);
+
+    const nextDraft: ServiceDraft = {
+      subscription: buildServiceBlockDraft({
+        enabled: isPublic ? false : sub.enabled,
+        price: isPublic ? null : sub.price,
+        currency: sub.currency ?? "MXN",
+        visible: isPublic ? false : sub.visible,
+        visibility: isPublic
+          ? "hidden"
+          : normalizeServiceVisibility(
+              sub.visibility,
+              sub.enabled ? "public" : "hidden"
+            ),
+      }),
+      saludo: buildServiceBlockDraft({
+        enabled: saludo.enabled,
+        price: saludo.price,
+        currency: saludo.currency ?? "MXN",
+        visible: saludo.visible,
+        visibility: normalizeServiceVisibility(
+          saludo.visibility,
+          saludo.enabled ? "public" : "hidden"
+        ),
+      }),
+      consejo: buildServiceBlockDraft({
+        enabled: consejo.enabled,
+        price: consejo.price,
+        currency: consejo.currency ?? "MXN",
+        visible: consejo.visible,
+        visibility: normalizeServiceVisibility(
+          consejo.visibility,
+          consejo.enabled ? "public" : "hidden"
+        ),
+      }),
+      meetGreet: {
+        ...buildServiceBlockDraft({
+          enabled: meetGreet.enabled,
+          price: meetGreet.price,
+          currency: meetGreet.currency ?? "MXN",
+          visible: meetGreet.visible,
+          visibility: normalizeServiceVisibility(
+            meetGreet.visibility,
+            meetGreet.enabled ? "public" : "hidden"
+          ),
+        }),
+        durationMinutes: normalizeDurationMeta(meetGreet.meta, "meetGreet"),
+      },
+      customClass: {
+        ...buildServiceBlockDraft({
+          enabled: customClass.enabled,
+          price: customClass.price,
+          currency: customClass.currency ?? "MXN",
+          visible: customClass.visible,
+          visibility: normalizeServiceVisibility(
+            customClass.visibility,
+            customClass.enabled ? "public" : "hidden"
+          ),
+        }),
+        durationMinutes: normalizeDurationMeta(
+          customClass.meta,
+          "customClass"
+        ),
+      },
+      donationMode: donation.mode,
+      donationCurrency: donation.currency ?? "MXN",
+      donationMinimumAmount: donation.minimumAmount,
+      donationGoalLabel: donation.goalLabel ?? "",
+    };
+
+    const isFirstHydrationForGroup = lastHydratedGroupIdRef.current !== groupId;
+
+    if (isFirstHydrationForGroup) {
+      lastHydratedGroupIdRef.current = groupId;
+      setDraft(nextDraft);
+      setSavedDraft(nextDraft);
+      setMsg(null);
+      setErr(null);
+      return;
+    }
+
+    setSavedDraft((prevSaved) => {
+      if (sameDraft(prevSaved, nextDraft)) return prevSaved;
+      return nextDraft;
+    });
+
+    setDraft((prevDraft) => {
+      const hasUnsavedChanges = !sameDraft(prevDraft, savedDraft);
+      if (hasUnsavedChanges) return prevDraft;
+      return nextDraft;
+    });
+  }, [
+    groupId,
+    isOwner,
+    isPublic,
+    currentMonetization,
+    currentOfferings,
+    currentDonation,
+    savedDraft,
+  ]);
+
+  useEffect(() => {
+    if (!saving) {
+      skipHydrationWhileSavingRef.current = false;
+    }
+  }, [saving]);
+
+  if (!isOwner) return null;
+
+  const fontStack =
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
+
+  const contentStyle: React.CSSProperties = {
+    display: "grid",
+    gap: 12,
+  };
+
+  const panelStyle: React.CSSProperties = {
+    padding: "10px",
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.02)",
+    display: "grid",
+    gap: 9,
+  };
+
+  const subtleStyle: React.CSSProperties = {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.56)",
+    lineHeight: 1.35,
+  };
+
+  const titleStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: "#fff",
+    fontWeight: 700,
+  };
+
+  const inputStyle: React.CSSProperties = {
+    padding: "8px 10px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#fff",
+    outline: "none",
+    fontSize: 12,
+    fontFamily: fontStack,
+    boxSizing: "border-box",
+    appearance: "none",
+    WebkitAppearance: "none",
+    minHeight: 42,
+  };
+
+  const noticeStyle: React.CSSProperties = {
+    borderRadius: 9,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.035)",
+    padding: "8px 10px",
+    fontSize: 10.5,
+    lineHeight: 1.35,
+    color: "rgba(255,255,255,0.84)",
+  };
+
   const buttonSecondaryStyle: React.CSSProperties = {
     padding: "8px 12px",
     borderRadius: 10,
@@ -480,46 +878,36 @@ export default function OwnerAdminServices({
     width: "100%",
   };
 
-  const noticeStyle: React.CSSProperties = {
-    borderRadius: 9,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.035)",
-    padding: "8px 10px",
-    fontSize: 10.5,
-    lineHeight: 1.35,
-    color: "rgba(255,255,255,0.84)",
-  };
-
-  const subChanged =
-    draft.subscriptionEnabled !== savedDraft.subscriptionEnabled ||
-    draft.subscriptionPrice !== savedDraft.subscriptionPrice ||
-    draft.subscriptionCurrency !== savedDraft.subscriptionCurrency;
-
-  const saludoChanged =
-    draft.saludoEnabled !== savedDraft.saludoEnabled ||
-    draft.saludoPrice !== savedDraft.saludoPrice ||
-    draft.saludoCurrency !== savedDraft.saludoCurrency;
-
-  const donationChanged =
-    draft.donationMode !== savedDraft.donationMode ||
-    draft.donationCurrency !== savedDraft.donationCurrency ||
-    draft.donationMinimumAmount !== savedDraft.donationMinimumAmount ||
-    draft.donationGoalLabel !== savedDraft.donationGoalLabel;
-
   const subscriptionCalc =
-    draft.subscriptionEnabled && subChanged
-      ? calcNetAmount(draft.subscriptionPrice)
-      : null;
-
+    draft.subscription.enabled ? calcNetAmount(draft.subscription.price) : null;
   const saludoCalc =
-    draft.saludoEnabled && saludoChanged
-      ? calcNetAmount(draft.saludoPrice)
-      : null;
-
+    draft.saludo.enabled ? calcNetAmount(draft.saludo.price) : null;
+  const consejoCalc =
+    draft.consejo.enabled ? calcNetAmount(draft.consejo.price) : null;
+  const meetGreetCalc =
+    draft.meetGreet.enabled ? calcNetAmount(draft.meetGreet.price) : null;
+  const customClassCalc =
+    draft.customClass.enabled ? calcNetAmount(draft.customClass.price) : null;
   const donationMinimumCalc =
     draft.donationMode !== "none"
       ? calcNetAmount(draft.donationMinimumAmount)
       : null;
+
+  function updateBlock<K extends keyof Pick<
+    ServiceDraft,
+    "subscription" | "saludo" | "consejo" | "meetGreet" | "customClass"
+  >>(
+    key: K,
+    updater: Partial<ServiceDraft[K]> | ((prev: ServiceDraft[K]) => ServiceDraft[K])
+  ) {
+    setDraft((prev) => ({
+      ...prev,
+      [key]:
+        typeof updater === "function"
+          ? (updater as (prevValue: ServiceDraft[K]) => ServiceDraft[K])(prev[key])
+          : { ...prev[key], ...updater },
+    }));
+  }
 
   async function saveServices() {
     setSaving(true);
@@ -528,12 +916,35 @@ export default function OwnerAdminServices({
 
     try {
       const subscriptionPriceNum =
-        draft.subscriptionPrice.trim() === ""
+        draft.subscription.price.trim() === ""
           ? null
-          : Number(draft.subscriptionPrice);
+          : Number(draft.subscription.price);
 
       const saludoPriceNum =
-        draft.saludoPrice.trim() === "" ? null : Number(draft.saludoPrice);
+        draft.saludo.price.trim() === "" ? null : Number(draft.saludo.price);
+
+      const consejoPriceNum =
+        draft.consejo.price.trim() === "" ? null : Number(draft.consejo.price);
+
+      const meetGreetPriceNum =
+        draft.meetGreet.price.trim() === ""
+          ? null
+          : Number(draft.meetGreet.price);
+
+      const customClassPriceNum =
+        draft.customClass.price.trim() === ""
+          ? null
+          : Number(draft.customClass.price);
+
+      const meetGreetDurationNum =
+        draft.meetGreet.durationMinutes.trim() === ""
+          ? null
+          : Number(draft.meetGreet.durationMinutes);
+
+      const customClassDurationNum =
+        draft.customClass.durationMinutes.trim() === ""
+          ? null
+          : Number(draft.customClass.durationMinutes);
 
       const donationMinimumNum =
         draft.donationMinimumAmount.trim() === ""
@@ -541,7 +952,7 @@ export default function OwnerAdminServices({
           : Number(draft.donationMinimumAmount);
 
       if (
-        draft.subscriptionEnabled &&
+        draft.subscription.enabled &&
         (subscriptionPriceNum == null ||
           Number.isNaN(subscriptionPriceNum) ||
           subscriptionPriceNum <= 0)
@@ -551,7 +962,7 @@ export default function OwnerAdminServices({
       }
 
       if (
-        draft.saludoEnabled &&
+        draft.saludo.enabled &&
         (saludoPriceNum == null ||
           Number.isNaN(saludoPriceNum) ||
           saludoPriceNum <= 0)
@@ -560,10 +971,60 @@ export default function OwnerAdminServices({
         return;
       }
 
-      if (isPublic && draft.subscriptionEnabled) {
-        setErr(
-          "❌ Las comunidades públicas no pueden activar suscripción mensual."
-        );
+      if (
+        draft.consejo.enabled &&
+        (consejoPriceNum == null ||
+          Number.isNaN(consejoPriceNum) ||
+          consejoPriceNum <= 0)
+      ) {
+        setErr("❌ Precio inválido para consejos.");
+        return;
+      }
+
+      if (
+        draft.meetGreet.enabled &&
+        (meetGreetPriceNum == null ||
+          Number.isNaN(meetGreetPriceNum) ||
+          meetGreetPriceNum <= 0)
+      ) {
+        setErr("❌ Precio inválido para meet & greet digital.");
+        return;
+      }
+
+      if (
+        draft.customClass.enabled &&
+        (customClassPriceNum == null ||
+          Number.isNaN(customClassPriceNum) ||
+          customClassPriceNum <= 0)
+      ) {
+        setErr("❌ Precio inválido para clase personalizada.");
+        return;
+      }
+
+      if (
+        draft.meetGreet.enabled &&
+        (meetGreetDurationNum == null ||
+          Number.isNaN(meetGreetDurationNum) ||
+          meetGreetDurationNum <= 0 ||
+          !Number.isInteger(meetGreetDurationNum))
+      ) {
+        setErr("❌ Debes definir una duración válida en minutos para meet & greet.");
+        return;
+      }
+
+      if (
+        draft.customClass.enabled &&
+        (customClassDurationNum == null ||
+          Number.isNaN(customClassDurationNum) ||
+          customClassDurationNum <= 0 ||
+          !Number.isInteger(customClassDurationNum))
+      ) {
+        setErr("❌ Debes definir una duración válida en minutos para la clase personalizada.");
+        return;
+      }
+
+      if (isPublic && draft.subscription.enabled) {
+        setErr("❌ Las comunidades públicas no pueden activar suscripción mensual.");
         return;
       }
 
@@ -577,60 +1038,62 @@ export default function OwnerAdminServices({
         return;
       }
 
-      if (
-        draft.donationMode === "wedding" &&
-        !draft.donationGoalLabel.trim()
-      ) {
+      if (draft.donationMode === "wedding" && !draft.donationGoalLabel.trim()) {
         setErr("❌ Debes escribir el texto visible para la donación de boda.");
         return;
       }
 
-      const existing = Array.isArray(currentOfferings) ? currentOfferings : [];
-      const nextOfferings: GroupOffering[] = [];
-
-      nextOfferings.push({
-        type: "saludo",
-        enabled: draft.saludoEnabled,
-        visible: draft.saludoEnabled,
-        memberPrice: draft.saludoEnabled ? saludoPriceNum : null,
-        publicPrice: draft.saludoEnabled ? saludoPriceNum : null,
-        currency: draft.saludoEnabled ? draft.saludoCurrency : null,
-        requiresApproval: true,
-        sourceScope: "group",
-      });
-
-      const consejoExisting = existing.find(
-        (x) => String(x?.type) === "consejo"
-      );
-      if (consejoExisting) {
-        const normalized = buildOfferingFromExisting({
-          existingOffering: consejoExisting,
-          fallbackType: "consejo",
-        });
-        if (normalized) nextOfferings.push(normalized);
-      }
-
-      const meetGreetExisting = existing.find(
-        (x) => String(x?.type) === "meet_greet_digital"
-      );
-      if (meetGreetExisting) {
-        const normalized = buildOfferingFromExisting({
-          existingOffering: meetGreetExisting,
-          fallbackType: "meet_greet_digital",
-        });
-        if (normalized) nextOfferings.push(normalized);
-      }
-
-      const mensajeExisting = existing.find(
-        (x) => String(x?.type) === "mensaje"
-      );
-      if (mensajeExisting) {
-        const normalized = buildOfferingFromExisting({
-          existingOffering: mensajeExisting,
-          fallbackType: "mensaje",
-        });
-        if (normalized) nextOfferings.push(normalized);
-      }
+      const nextOfferings: GroupOffering[] = [
+        buildOffering({
+          type: "suscripcion",
+          draft: {
+            ...draft.subscription,
+            enabled: isPublic ? false : draft.subscription.enabled,
+            visible: isPublic ? false : draft.subscription.visible,
+            visibility: isPublic ? "hidden" : draft.subscription.visibility,
+          },
+          displayOrder: 0,
+          meta: {
+            subscription: {
+              billingPeriod: "monthly",
+            },
+          },
+        }),
+        buildOffering({
+          type: "saludo",
+          draft: draft.saludo,
+          displayOrder: 1,
+        }),
+        buildOffering({
+          type: "consejo",
+          draft: draft.consejo,
+          displayOrder: 2,
+        }),
+        buildOffering({
+          type: "meet_greet_digital",
+          draft: draft.meetGreet,
+          displayOrder: 3,
+          meta: {
+            meetGreet: {
+              durationMinutes: draft.meetGreet.enabled
+                ? meetGreetDurationNum
+                : null,
+            },
+          },
+        }),
+        buildOffering({
+          type: "clase_personalizada",
+          draft: draft.customClass,
+          displayOrder: 4,
+          meta: {
+            customClass: {
+              durationMinutes: draft.customClass.enabled
+                ? customClassDurationNum
+                : null,
+            },
+          },
+        }),
+      ];
 
       const nextDonation: GroupDonationSettings = {
         mode: draft.donationMode,
@@ -649,30 +1112,101 @@ export default function OwnerAdminServices({
             : null,
       };
 
+      const preservedPaidPostsEnabled =
+        typeof currentMonetization?.paidPostsEnabled === "boolean"
+          ? currentMonetization.paidPostsEnabled
+          : false;
+
+      const preservedPaidLivesEnabled =
+        typeof currentMonetization?.paidLivesEnabled === "boolean"
+          ? currentMonetization.paidLivesEnabled
+          : false;
+
+      const preservedPaidVodEnabled =
+        typeof currentMonetization?.paidVodEnabled === "boolean"
+          ? currentMonetization.paidVodEnabled
+          : false;
+
+      const preservedPaidLiveCommentsEnabled =
+        typeof currentMonetization?.paidLiveCommentsEnabled === "boolean"
+          ? currentMonetization.paidLiveCommentsEnabled
+          : false;
+
+      const nextMonetization = {
+        isPaid: isPublic ? false : draft.subscription.enabled,
+        priceMonthly:
+          isPublic || !draft.subscription.enabled ? null : subscriptionPriceNum,
+        currency:
+          isPublic || !draft.subscription.enabled
+            ? null
+            : draft.subscription.currency,
+
+        subscriptionsEnabled: isPublic ? false : draft.subscription.enabled,
+        paidPostsEnabled: preservedPaidPostsEnabled,
+        paidLivesEnabled: preservedPaidLivesEnabled,
+        paidVodEnabled: preservedPaidVodEnabled,
+        paidLiveCommentsEnabled: preservedPaidLiveCommentsEnabled,
+
+        greetingsEnabled: draft.saludo.enabled,
+        adviceEnabled: draft.consejo.enabled,
+        customClassEnabled: draft.customClass.enabled,
+        digitalMeetGreetEnabled: draft.meetGreet.enabled,
+      };
+
       skipHydrationWhileSavingRef.current = true;
 
       await updateDoc(doc(db, "groups", groupId), {
-        monetization: {
-          isPaid: isPublic ? false : draft.subscriptionEnabled,
-          priceMonthly:
-            isPublic || !draft.subscriptionEnabled ? null : subscriptionPriceNum,
-          currency:
-            isPublic || !draft.subscriptionEnabled
-              ? null
-              : draft.subscriptionCurrency,
-        },
+        monetization: nextMonetization,
+        greetingsEnabled: draft.saludo.enabled,
       });
 
       await updateOfferings(groupId, nextOfferings, nextDonation);
 
       const nextSaved: ServiceDraft = {
-        subscriptionEnabled: isPublic ? false : draft.subscriptionEnabled,
-        subscriptionPrice:
-          isPublic || !draft.subscriptionEnabled ? "" : draft.subscriptionPrice,
-        subscriptionCurrency: draft.subscriptionCurrency,
-        saludoEnabled: draft.saludoEnabled,
-        saludoPrice: draft.saludoEnabled ? draft.saludoPrice : "",
-        saludoCurrency: draft.saludoCurrency,
+        subscription: {
+          ...draft.subscription,
+          enabled: isPublic ? false : draft.subscription.enabled,
+          price:
+            isPublic || !draft.subscription.enabled
+              ? ""
+              : draft.subscription.price,
+          visible: isPublic ? false : draft.subscription.visible,
+          visibility: isPublic ? "hidden" : draft.subscription.visibility,
+        },
+        saludo: {
+          ...draft.saludo,
+          price: draft.saludo.enabled ? draft.saludo.price : "",
+          visible: draft.saludo.enabled ? draft.saludo.visible : false,
+          visibility: draft.saludo.enabled ? draft.saludo.visibility : "hidden",
+        },
+        consejo: {
+          ...draft.consejo,
+          price: draft.consejo.enabled ? draft.consejo.price : "",
+          visible: draft.consejo.enabled ? draft.consejo.visible : false,
+          visibility: draft.consejo.enabled ? draft.consejo.visibility : "hidden",
+        },
+        meetGreet: {
+          ...draft.meetGreet,
+          price: draft.meetGreet.enabled ? draft.meetGreet.price : "",
+          visible: draft.meetGreet.enabled ? draft.meetGreet.visible : false,
+          visibility: draft.meetGreet.enabled
+            ? draft.meetGreet.visibility
+            : "hidden",
+          durationMinutes: draft.meetGreet.enabled
+            ? draft.meetGreet.durationMinutes
+            : "",
+        },
+        customClass: {
+          ...draft.customClass,
+          price: draft.customClass.enabled ? draft.customClass.price : "",
+          visible: draft.customClass.enabled ? draft.customClass.visible : false,
+          visibility: draft.customClass.enabled
+            ? draft.customClass.visibility
+            : "hidden",
+          durationMinutes: draft.customClass.enabled
+            ? draft.customClass.durationMinutes
+            : "",
+        },
         donationMode: draft.donationMode,
         donationCurrency:
           draft.donationMode !== "none" ? draft.donationCurrency : "MXN",
@@ -684,7 +1218,7 @@ export default function OwnerAdminServices({
 
       setDraft(nextSaved);
       setSavedDraft(nextSaved);
-      setMsg("✅ Servicios y donación guardados.");
+      setMsg("✅ Catálogo de servicios y donación guardados.");
     } catch (e: any) {
       skipHydrationWhileSavingRef.current = false;
       setErr(e?.message ?? "❌ No se pudieron guardar los servicios.");
@@ -696,145 +1230,134 @@ export default function OwnerAdminServices({
   return (
     <div style={contentStyle}>
       <div style={panelStyle}>
-        <div style={rowBetweenStyle}>
-          <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <span style={titleStyle}>Suscripción mensual</span>
-            <span style={subtleStyle}>
-              Define si tu comunidad cobra acceso mensual.
-            </span>
-          </div>
-
-          <Switch
-            checked={draft.subscriptionEnabled}
-            disabled={saving || isPublic}
-            onChange={(next) =>
-              setDraft((prev) => ({
-                ...prev,
-                subscriptionEnabled: next,
-                subscriptionPrice: next ? prev.subscriptionPrice : "",
-              }))
-            }
-            label="Activar suscripción mensual"
-          />
+        <div style={{ display: "grid", gap: 2 }}>
+          <span style={titleStyle}>Catálogo de servicios del grupo</span>
+          <span style={subtleStyle}>
+            Aquí defines qué servicios del menú estarán activos, cuánto cuestan
+            y cómo se muestran. Donación sigue separada porque no pertenece al
+            menú principal.
+          </span>
         </div>
-
-        {draft.subscriptionEnabled && !isPublic && (
-          <>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <input
-                type="number"
-                value={draft.subscriptionPrice}
-                onChange={(e) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    subscriptionPrice: e.target.value,
-                  }))
-                }
-                placeholder="Precio mensual"
-                style={{ ...inputStyle, width: 116 }}
-              />
-
-              <select
-                value={draft.subscriptionCurrency}
-                onChange={(e) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    subscriptionCurrency: e.target.value as Currency,
-                  }))
-                }
-                style={{ ...inputStyle, flex: 1, minWidth: 82 }}
-              >
-                <option value="MXN">MXN</option>
-                <option value="USD">USD</option>
-              </select>
-            </div>
-
-            {subscriptionCalc && (
-              <div style={subtleStyle}>
-                Por una suscripción de{" "}
-                {formatMoney(
-                  subscriptionCalc.gross,
-                  draft.subscriptionCurrency
-                )}
-                , tú cobras{" "}
-                {formatMoney(subscriptionCalc.net, draft.subscriptionCurrency)}
-              </div>
-            )}
-          </>
-        )}
-
-        {isPublic && (
-          <div style={subtleStyle}>
-            Para activar suscripción mensual tu comunidad debe ser privada u
-            oculta.
-          </div>
-        )}
       </div>
 
-      <div style={panelStyle}>
-        <div style={rowBetweenStyle}>
-          <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <span style={titleStyle}>Saludos en comunidad</span>
-            <span style={subtleStyle}>
-              Activa o desactiva la compra de saludos desde esta comunidad.
-            </span>
-          </div>
+      <ServiceEditorBlock
+        title="Suscripción mensual"
+        description="Define si tu comunidad cobra acceso mensual."
+        draft={draft.subscription}
+        saving={saving || isPublic}
+        onChange={(updater) => updateBlock("subscription", updater)}
+        netText={
+          subscriptionCalc
+            ? `Por una suscripción de ${formatMoney(
+                subscriptionCalc.gross,
+                draft.subscription.currency
+              )}, tú cobras ${formatMoney(
+                subscriptionCalc.net,
+                draft.subscription.currency
+              )}.`
+            : isPublic
+            ? "Para activar suscripción mensual tu comunidad debe ser privada u oculta."
+            : null
+        }
+      />
 
-          <Switch
-            checked={draft.saludoEnabled}
-            disabled={saving}
-            onChange={(next) =>
-              setDraft((prev) => ({
-                ...prev,
-                saludoEnabled: next,
-                saludoPrice: next ? prev.saludoPrice : "",
-              }))
-            }
-            label="Saludos activos en esta comunidad"
-          />
-        </div>
+      <ServiceEditorBlock
+        title="Saludos"
+        description="Activa o desactiva la compra de saludos desde esta comunidad."
+        draft={draft.saludo}
+        saving={saving}
+        onChange={(updater) => updateBlock("saludo", updater)}
+        netText={
+          saludoCalc
+            ? `Por un saludo de ${formatMoney(
+                saludoCalc.gross,
+                draft.saludo.currency
+              )}, tú cobras ${formatMoney(
+                saludoCalc.net,
+                draft.saludo.currency
+              )}.`
+            : null
+        }
+      />
 
-        {draft.saludoEnabled && (
-          <>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <input
-                type="number"
-                value={draft.saludoPrice}
-                onChange={(e) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    saludoPrice: e.target.value,
-                  }))
-                }
-                placeholder="Precio"
-                style={{ ...inputStyle, width: 100 }}
-              />
+      <ServiceEditorBlock
+        title="Consejos"
+        description="Permite vender consejos personalizados desde esta comunidad."
+        draft={draft.consejo}
+        saving={saving}
+        onChange={(updater) => updateBlock("consejo", updater)}
+        netText={
+          consejoCalc
+            ? `Por un consejo de ${formatMoney(
+                consejoCalc.gross,
+                draft.consejo.currency
+              )}, tú cobras ${formatMoney(
+                consejoCalc.net,
+                draft.consejo.currency
+              )}.`
+            : null
+        }
+      />
 
-              <select
-                value={draft.saludoCurrency}
-                onChange={(e) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    saludoCurrency: e.target.value as Currency,
-                  }))
-                }
-                style={{ ...inputStyle, flex: 1, minWidth: 82 }}
-              >
-                <option value="MXN">MXN</option>
-                <option value="USD">USD</option>
-              </select>
-            </div>
+      <ServiceEditorBlock
+        title="Meet & Greet digital"
+        description="Servicio visible del menú. El creador define duración y precio."
+        draft={draft.meetGreet}
+        saving={saving}
+        onChange={(updater) =>
+          updateBlock(
+            "meetGreet",
+            updater as
+              | Partial<ServiceDraft["meetGreet"]>
+              | ((
+                  prev: ServiceDraft["meetGreet"]
+                ) => ServiceDraft["meetGreet"])
+          )
+        }
+        showDuration
+        durationLabel="Duración en minutos"
+        netText={
+          meetGreetCalc
+            ? `Por un meet & greet de ${formatMoney(
+                meetGreetCalc.gross,
+                draft.meetGreet.currency
+              )}, tú cobras ${formatMoney(
+                meetGreetCalc.net,
+                draft.meetGreet.currency
+              )}.`
+            : null
+        }
+      />
 
-            {saludoCalc && (
-              <div style={subtleStyle}>
-                Por un saludo de{" "}
-                {formatMoney(saludoCalc.gross, draft.saludoCurrency)}, tú cobras{" "}
-                {formatMoney(saludoCalc.net, draft.saludoCurrency)}
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      <ServiceEditorBlock
+        title="Clase personalizada"
+        description="Se prepara como servicio visible del catálogo aunque su ejecución se apoye después en live/evento."
+        draft={draft.customClass}
+        saving={saving}
+        onChange={(updater) =>
+          updateBlock(
+            "customClass",
+            updater as
+              | Partial<ServiceDraft["customClass"]>
+              | ((
+                  prev: ServiceDraft["customClass"]
+                ) => ServiceDraft["customClass"])
+          )
+        }
+        showDuration
+        durationLabel="Duración en minutos"
+        netText={
+          customClassCalc
+            ? `Por una clase de ${formatMoney(
+                customClassCalc.gross,
+                draft.customClass.currency
+              )}, tú cobras ${formatMoney(
+                customClassCalc.net,
+                draft.customClass.currency
+              )}.`
+            : null
+        }
+      />
 
       <div style={panelStyle}>
         <div style={{ display: "grid", gap: 2 }}>
@@ -958,18 +1481,6 @@ export default function OwnerAdminServices({
               pendiente para el hito donde integremos video/live.
             </div>
           </>
-        )}
-
-        {donationChanged && (
-          <div style={subtleStyle}>
-            Estado seleccionado:{" "}
-            {draft.donationMode === "none"
-              ? "sin donación"
-              : draft.donationMode === "general"
-              ? "donación"
-              : "donación para boda"}
-            .
-          </div>
         )}
       </div>
 
