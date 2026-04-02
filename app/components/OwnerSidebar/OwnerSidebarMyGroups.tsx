@@ -9,7 +9,7 @@ import type {
   JoinRequestRow,
   UserMini,
 } from "./OwnerSidebar";
-import { Chevron, CountBadge } from "./OwnerSidebar";
+import { Chevron, CountBadge, typeLabel } from "./OwnerSidebar";
 
 type Props = {
   loadingGroups: boolean;
@@ -46,6 +46,34 @@ type Props = {
   joinBusyKey: string | null;
   greetingBusyId: string | null;
 };
+
+function getRequestTone(type: string): "green" | "yellow" {
+  return type === "consejo" ? "yellow" : "green";
+}
+
+function getTypeChipStyle(type: string): React.CSSProperties {
+  if (type === "saludo") {
+    return {
+      border: "1px solid rgba(34,197,94,0.28)",
+      background: "rgba(34,197,94,0.16)",
+      color: "#86efac",
+    };
+  }
+
+  if (type === "consejo") {
+    return {
+      border: "1px solid rgba(250,204,21,0.30)",
+      background: "rgba(250,204,21,0.16)",
+      color: "#fde047",
+    };
+  }
+
+  return {
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#fff",
+  };
+}
 
 export default function OwnerSidebarMyGroups({
   loadingGroups,
@@ -107,6 +135,13 @@ export default function OwnerSidebarMyGroups({
             const greetingListOpen = greetingSectionOpen[g.id] === true;
             const joinListOpen = joinSectionOpen[g.id] === true;
 
+            const saludoCount = greetings.filter(
+              (row) => row.data.type === "saludo"
+            ).length;
+            const consejoCount = greetings.filter(
+              (row) => row.data.type === "consejo"
+            ).length;
+
             const currentJoinCount = showJoinSection ? joinRequests.length : 0;
             const currentGreetingCount = showGreetingsSection ? greetings.length : 0;
 
@@ -117,15 +152,29 @@ export default function OwnerSidebarMyGroups({
 
             const hasNewJoin = currentJoinCount > seen.join;
             const hasNewGreeting = currentGreetingCount > seen.greeting;
+
+            const hasSaludoAlert = greetings.some((row) => row.data.type === "saludo");
+            const hasConsejoAlert = greetings.some(
+              (row) => row.data.type === "consejo"
+            );
+
             const hasAlert = !isOpen && (hasNewJoin || hasNewGreeting);
 
             const borderBackground =
-              hasAlert && hasNewJoin && hasNewGreeting
+              hasAlert && hasNewJoin && hasSaludoAlert && hasConsejoAlert
+                ? "linear-gradient(90deg, rgba(47,140,255,0.95) 0%, rgba(47,140,255,0.95) 33.33%, rgba(34,197,94,0.95) 33.33%, rgba(34,197,94,0.95) 66.66%, rgba(250,204,21,0.95) 66.66%, rgba(250,204,21,0.95) 100%)"
+                : hasAlert && hasNewJoin && hasSaludoAlert
                 ? "linear-gradient(90deg, rgba(47,140,255,0.95) 0%, rgba(47,140,255,0.95) 50%, rgba(34,197,94,0.95) 50%, rgba(34,197,94,0.95) 100%)"
+                : hasAlert && hasNewJoin && hasConsejoAlert
+                ? "linear-gradient(90deg, rgba(47,140,255,0.95) 0%, rgba(47,140,255,0.95) 50%, rgba(250,204,21,0.95) 50%, rgba(250,204,21,0.95) 100%)"
                 : hasAlert && hasNewJoin
                 ? "linear-gradient(90deg, rgba(47,140,255,0.95), rgba(47,140,255,0.95))"
-                : hasAlert && hasNewGreeting
+                : hasAlert && hasSaludoAlert && hasConsejoAlert
+                ? "linear-gradient(90deg, rgba(34,197,94,0.95) 0%, rgba(34,197,94,0.95) 50%, rgba(250,204,21,0.95) 50%, rgba(250,204,21,0.95) 100%)"
+                : hasAlert && hasSaludoAlert
                 ? "linear-gradient(90deg, rgba(34,197,94,0.95), rgba(34,197,94,0.95))"
+                : hasAlert && hasConsejoAlert
+                ? "linear-gradient(90deg, rgba(250,204,21,0.95), rgba(250,204,21,0.95))"
                 : null;
 
             return (
@@ -136,10 +185,10 @@ export default function OwnerSidebarMyGroups({
                   padding: hasAlert ? 1 : 0,
                   background: borderBackground ?? "transparent",
                   boxShadow: hasAlert
-                    ? hasNewJoin && hasNewGreeting
-                      ? "0 0 0 1px rgba(255,255,255,0.03), 0 10px 28px rgba(0,0,0,0.18)"
-                      : hasNewJoin
+                    ? hasNewJoin
                       ? "0 0 0 1px rgba(47,140,255,0.14), 0 10px 28px rgba(0,0,0,0.18)"
+                      : hasConsejoAlert
+                      ? "0 0 0 1px rgba(250,204,21,0.14), 0 10px 28px rgba(0,0,0,0.18)"
                       : "0 0 0 1px rgba(34,197,94,0.14), 0 10px 28px rgba(0,0,0,0.18)"
                     : undefined,
                   animation: hasAlert ? "ownerSidebarBuzz 4.8s infinite" : undefined,
@@ -516,6 +565,7 @@ export default function OwnerSidebarMyGroups({
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 8,
+                                flexWrap: "wrap",
                               }}
                             >
                               <span
@@ -525,9 +575,16 @@ export default function OwnerSidebarMyGroups({
                                   fontWeight: 700,
                                 }}
                               >
-                                Solicitudes de saludo
+                                Solicitudes de servicios
                               </span>
-                              <CountBadge count={greetings.length} tone="green" />
+
+                              {saludoCount > 0 && (
+                                <CountBadge count={saludoCount} tone="green" />
+                              )}
+
+                              {consejoCount > 0 && (
+                                <CountBadge count={consejoCount} tone="yellow" />
+                              )}
                             </div>
                             <Chevron open={greetingListOpen} />
                           </button>
@@ -538,26 +595,52 @@ export default function OwnerSidebarMyGroups({
                                 {greetings.map((r) => {
                                   const req = r.data;
                                   const busy = greetingBusyId === r.id;
+                                  const chipStyle = getTypeChipStyle(req.type);
 
                                   return (
                                     <div key={r.id} style={styles.miniItem}>
-                                      <div style={{ display: "grid", gap: 3 }}>
+                                      <div style={{ display: "grid", gap: 6 }}>
                                         <div
                                           style={{
-                                            fontSize: 12,
-                                            fontWeight: 700,
-                                            color: "#fff",
-                                            lineHeight: 1.25,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 8,
+                                            flexWrap: "wrap",
                                           }}
                                         >
-                                          {req.type} para{" "}
                                           <span
                                             style={{
-                                              color: "rgba(255,255,255,0.88)",
+                                              ...chipStyle,
+                                              borderRadius: 999,
+                                              padding: "4px 8px",
+                                              fontSize: 11,
+                                              fontWeight: 700,
+                                              lineHeight: 1,
+                                              display: "inline-flex",
+                                              alignItems: "center",
+                                              justifyContent: "center",
                                             }}
                                           >
-                                            {req.toName}
+                                            {typeLabel(req.type)}
                                           </span>
+
+                                          <div
+                                            style={{
+                                              fontSize: 12,
+                                              fontWeight: 700,
+                                              color: "#fff",
+                                              lineHeight: 1.25,
+                                            }}
+                                          >
+                                            Para{" "}
+                                            <span
+                                              style={{
+                                                color: "rgba(255,255,255,0.88)",
+                                              }}
+                                            >
+                                              {req.toName}
+                                            </span>
+                                          </div>
                                         </div>
 
                                         <div

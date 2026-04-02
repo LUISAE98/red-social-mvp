@@ -12,6 +12,30 @@ type Props = {
   router: any;
 };
 
+function getTypeChipStyle(type: string): React.CSSProperties {
+  if (type === "saludo") {
+    return {
+      border: "1px solid rgba(34,197,94,0.28)",
+      background: "rgba(34,197,94,0.16)",
+      color: "#86efac",
+    };
+  }
+
+  if (type === "consejo") {
+    return {
+      border: "1px solid rgba(250,204,21,0.30)",
+      background: "rgba(250,204,21,0.16)",
+      color: "#fde047",
+    };
+  }
+
+  return {
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#fff",
+  };
+}
+
 export default function OwnerSidebarGreetings({
   buyerPending,
   groupMetaMap,
@@ -23,7 +47,7 @@ export default function OwnerSidebarGreetings({
 }: Props) {
   return (
     <div style={{ display: "grid", gap: 8 }}>
-      <div style={styles.sectionTitle}>Saludos solicitados</div>
+      <div style={styles.sectionTitle}>Servicios solicitados</div>
 
       {buyerPending.length === 0 ? (
         <div
@@ -33,26 +57,52 @@ export default function OwnerSidebarGreetings({
             padding: "2px 2px 0",
           }}
         >
-          No tienes saludos pendientes por recibir.
+          No tienes servicios pendientes por recibir.
         </div>
       ) : (
         <div style={{ display: "grid", gap: 8 }}>
           {buyerPending.map((row) => {
             const req = row.data;
             const group = groupMetaMap[req.groupId] ?? null;
+            const chipStyle = getTypeChipStyle(req.type);
 
             return (
               <div key={row.id} style={styles.card}>
-                <div style={{ display: "grid", gap: 5 }}>
+                <div style={{ display: "grid", gap: 7 }}>
                   <div
                     style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: "#fff",
-                      lineHeight: 1.25,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flexWrap: "wrap",
                     }}
                   >
-                    {typeLabel(req.type)} para {req.toName}
+                    <span
+                      style={{
+                        ...chipStyle,
+                        borderRadius: 999,
+                        padding: "4px 8px",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      {typeLabel(req.type)}
+                    </span>
+
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#fff",
+                        lineHeight: 1.25,
+                      }}
+                    >
+                      Para {req.toName}
+                    </div>
                   </div>
 
                   <div

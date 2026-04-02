@@ -303,12 +303,16 @@ export function CountBadge({
   tone,
 }: {
   count: number;
-  tone: "blue" | "green";
+  tone: "blue" | "green" | "yellow";
 }) {
   const bg =
     tone === "blue"
       ? "linear-gradient(180deg, #2f8cff 0%, #1f6fe5 100%)"
+      : tone === "yellow"
+      ? "linear-gradient(180deg, #facc15 0%, #eab308 100%)"
       : "linear-gradient(180deg, #22c55e 0%, #16a34a 100%)";
+
+  const color = tone === "yellow" ? "#111" : "#fff";
 
   return (
     <span
@@ -321,7 +325,7 @@ export function CountBadge({
         alignItems: "center",
         justifyContent: "center",
         background: bg,
-        color: "#fff",
+        color,
         fontSize: 11,
         fontWeight: 700,
         lineHeight: 1,
@@ -977,7 +981,7 @@ export default function OwnerSidebar() {
       },
       (e: any) => {
         setGroupsErr(
-          e?.message ?? "No se pudieron cargar solicitudes de saludo."
+          e?.message ?? "No se pudieron cargar solicitudes de servicios."
         );
         setGreetingsByGroup({});
       }
@@ -1258,8 +1262,8 @@ export default function OwnerSidebar() {
       await respondGreetingRequest({ requestId, action });
       setMsg(
         action === "accept"
-          ? "✅ Solicitud de saludo aceptada."
-          : "✅ Solicitud de saludo rechazada."
+          ? "✅ Solicitud de servicio aceptada."
+          : "✅ Solicitud de servicio rechazada."
       );
     } catch (e: any) {
       setGroupsErr(e?.message ?? "❌ No se pudo actualizar la solicitud.");
