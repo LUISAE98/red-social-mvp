@@ -71,6 +71,9 @@ export type GroupDocLite = {
     isPaid?: boolean;
     priceMonthly?: number | null;
     currency?: Currency | null;
+    subscriptionsEnabled?: boolean;
+    subscriptionPriceMonthly?: number | null;
+    subscriptionCurrency?: Currency | null;
   };
   offerings?: Array<{
     type: "saludo" | "consejo" | "mensaje" | string;
@@ -219,6 +222,41 @@ function sortGroupsWithModsFirst(items: GroupDocLite[]) {
     const bName = (b.name ?? "").trim().toLocaleLowerCase("es-MX");
     return aName.localeCompare(bName, "es-MX");
   });
+}
+
+function resolveSidebarSubscriptionEnabled(group?: GroupDocLite | null) {
+  return (
+    group?.monetization?.subscriptionsEnabled === true ||
+    group?.monetization?.isPaid === true
+  );
+}
+
+function resolveSidebarSubscriptionPrice(group?: GroupDocLite | null) {
+  return (
+    group?.monetization?.subscriptionPriceMonthly ??
+    group?.monetization?.priceMonthly ??
+    null
+  );
+}
+
+function resolveSidebarSubscriptionCurrency(group?: GroupDocLite | null) {
+  return (
+    group?.monetization?.subscriptionCurrency ??
+    group?.monetization?.currency ??
+    null
+  );
+}
+
+function formatSidebarMoney(value: number, currency: Currency) {
+  try {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${currency} ${value.toFixed(2)}`;
+  }
 }
 
 export function Switch({
@@ -1325,6 +1363,26 @@ export default function OwnerSidebar() {
     const communityName = g.name ?? "(Sin nombre)";
     const avatarFallback = getInitials(communityName);
 
+    const autoSubscriptionSubtitle =
+      !opts?.subtitle &&
+      resolveSidebarSubscriptionEnabled(g) &&
+      (g.visibility === "private" || g.visibility === "hidden")
+        ? (() => {
+            const price = resolveSidebarSubscriptionPrice(g);
+            const currency = resolveSidebarSubscriptionCurrency(g);
+
+            if (
+              price != null &&
+              currency &&
+              (currency === "MXN" || currency === "USD")
+            ) {
+              return `Suscripción activa · ${formatSidebarMoney(price, currency)}`;
+            }
+
+            return "Suscripción activa";
+          })()
+        : null;
+
     return (
       <div
         key={g.id}
@@ -1398,7 +1456,11 @@ export default function OwnerSidebar() {
               {communityName}
             </div>
 
-            {opts?.subtitle ? <div style={styles.subtle}>{opts.subtitle}</div> : null}
+            {opts?.subtitle ? (
+              <div style={styles.subtle}>{opts.subtitle}</div>
+            ) : autoSubscriptionSubtitle ? (
+              <div style={styles.subtle}>{autoSubscriptionSubtitle}</div>
+            ) : null}
           </div>
         </button>
       </div>

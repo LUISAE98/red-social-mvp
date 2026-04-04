@@ -17,11 +17,24 @@ import type {
 type Visibility = GroupVisibility | null;
 type PostingMode = "members" | "owner_only";
 
+type SubscriptionTransitionPolicy =
+  | "keep_existing_free"
+  | "remove_existing_members"
+  | "unset"
+  | null;
+
 type MonetizationInput = {
   isPaid?: boolean;
   priceMonthly?: number | null;
   currency?: Currency | null;
+
   subscriptionsEnabled?: boolean;
+  subscriptionPriceMonthly?: number | null;
+  subscriptionCurrency?: Currency | null;
+  subscriptionTransitionPolicy?: SubscriptionTransitionPolicy;
+  subscriptionTransitionConfiguredAt?: unknown | null;
+  subscriptionTransitionChangedAt?: unknown | null;
+
   paidPostsEnabled?: boolean;
   paidLivesEnabled?: boolean;
   paidVodEnabled?: boolean;

@@ -93,6 +93,34 @@ async function resolveJoinState(
   return "join";
 }
 
+function getRecommendationMonetization(
+  group: RecommendationGroupCard
+): Record<string, unknown> | null {
+  const candidate = (group as RecommendationGroupCard & {
+    monetization?: unknown;
+  }).monetization;
+
+  if (!candidate || typeof candidate !== "object") return null;
+  return candidate as Record<string, unknown>;
+}
+
+function resolveSubscriptionEnabled(group: RecommendationGroupCard) {
+  const monetization = getRecommendationMonetization(group);
+  return monetization?.isPaid === true;
+}
+
+function resolveSubscriptionPrice(group: RecommendationGroupCard) {
+  const monetization = getRecommendationMonetization(group);
+  const value = monetization?.priceMonthly;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function resolveSubscriptionCurrency(group: RecommendationGroupCard) {
+  const monetization = getRecommendationMonetization(group);
+  const value = monetization?.currency;
+  return typeof value === "string" ? value : null;
+}
+
 function GroupCategoryPill({
   label,
   selected,
@@ -130,10 +158,12 @@ function JoinButton({
   state,
   onClick,
   loading,
+  isPaidSubscriptionPrivate,
 }: {
   state: RecommendationJoinState;
   onClick: () => void;
   loading: boolean;
+  isPaidSubscriptionPrivate: boolean;
 }) {
   const label =
     state === "joined"
@@ -141,7 +171,9 @@ function JoinButton({
       : state === "pending"
       ? "Solicitud enviada"
       : state === "request"
-      ? "Solicitar"
+      ? isPaidSubscriptionPrivate
+        ? "Suscribirme"
+        : "Solicitar"
       : "Unirme";
 
   return (
@@ -198,6 +230,9 @@ function GroupCard({
       : group.visibility === "private"
       ? "Comunidad privada"
       : "Comunidad oculta";
+
+  const isPaidSubscriptionPrivate =
+    group.visibility === "private" && resolveSubscriptionEnabled(group);
 
   return (
     <div style={cardStyles}>
@@ -343,7 +378,12 @@ function GroupCard({
         </div>
       </Link>
 
-      <JoinButton state={joinState} onClick={onJoin} loading={loading} />
+      <JoinButton
+        state={joinState}
+        onClick={onJoin}
+        loading={loading}
+        isPaidSubscriptionPrivate={isPaidSubscriptionPrivate}
+      />
     </div>
   );
 }
@@ -373,6 +413,7 @@ export default function GroupRecommendationsRail({
   >({});
 
   const heading = title ?? getDefaultTitle();
+  const railSubtitle = subtitle ?? getDefaultSubtitle(context);
   const minCategories = recommendationEngineConstants.MIN_ONBOARDING_CATEGORIES;
 
   const hasRealSession =
@@ -460,9 +501,15 @@ export default function GroupRecommendationsRail({
     setError(null);
 
     try {
+      const isPaidSubscriptionPrivate =
+        group.visibility === "private" && resolveSubscriptionEnabled(group);
+
       if (group.visibility === "public") {
         await joinGroup(group.id, currentUserId);
         setJoinStates((prev) => ({ ...prev, [group.id]: "joined" }));
+      } else if (isPaidSubscriptionPrivate) {
+        router.push(`/groups/${group.id}?service=suscripcion`);
+        return;
       } else if (group.visibility === "private") {
         await requestToJoin(group.id, currentUserId);
         setJoinStates((prev) => ({ ...prev, [group.id]: "pending" }));
@@ -529,6 +576,16 @@ export default function GroupRecommendationsRail({
           >
             {heading}
           </h3>
+
+          <div
+            style={{
+              fontSize: 13,
+              color: "rgba(255,255,255,0.68)",
+              fontFamily: fontStack,
+            }}
+          >
+            {railSubtitle}
+          </div>
         </div>
 
         {context === "search_empty" && (

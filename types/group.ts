@@ -145,10 +145,6 @@ export const GROUP_CATEGORY_LABELS: Record<CanonicalGroupCategory, string> = {
 
 /**
  * Mapa de conversión de categorías viejas hacia categorías nuevas.
- * Esto será clave para:
- * - buscador
- * - filtros
- * - futura migración de datos
  */
 export const LEGACY_TO_CANONICAL_GROUP_CATEGORY: Record<
   LegacyGroupCategory,
@@ -209,9 +205,6 @@ export const LEGACY_TO_CANONICAL_GROUP_CATEGORY: Record<
   otros: "otros",
 };
 
-/**
- * Devuelve true si la categoría ya es canónica.
- */
 export function isCanonicalGroupCategory(
   value: unknown
 ): value is CanonicalGroupCategory {
@@ -221,10 +214,6 @@ export function isCanonicalGroupCategory(
   );
 }
 
-/**
- * Normaliza una categoría vieja o nueva a categoría canónica.
- * Si no se reconoce, devuelve null.
- */
 export function normalizeGroupCategory(
   value: unknown
 ): CanonicalGroupCategory | null {
@@ -239,13 +228,6 @@ export function normalizeGroupCategory(
   return LEGACY_TO_CANONICAL_GROUP_CATEGORY[raw as LegacyGroupCategory] ?? null;
 }
 
-/**
- * Normaliza tags:
- * - trim
- * - minúsculas
- * - sin vacíos
- * - sin duplicados
- */
 export function normalizeGroupTags(tags: unknown): string[] {
   if (!Array.isArray(tags)) return [];
 
@@ -256,10 +238,6 @@ export function normalizeGroupTags(tags: unknown): string[] {
   return Array.from(new Set(normalized));
 }
 
-/**
- * Helper para construir texto útil para búsqueda.
- * Ya incluye name, description, category normalizada y tags.
- */
 export function buildGroupSearchText(
   group: Pick<Group, "name" | "description" | "category" | "tags">
 ): string {
@@ -284,8 +262,7 @@ export function buildGroupSearchText(
 
 /**
  * Flags estructurales de monetización del grupo.
- * Estas flags indican capacidades habilitadas a nivel grupo.
- * No sustituyen el catálogo visible del menú.
+ * Suscripción es estructural, NO un servicio visible normal.
  */
 export type GroupMonetizationFlags = {
   subscriptionsEnabled: boolean;
@@ -300,17 +277,58 @@ export type GroupMonetizationFlags = {
 };
 
 /**
+ * Políticas al cambiar GRATIS -> SUSCRIPCION
+ */
+export type FreeToSubscriptionPolicy =
+  | "legacy_free"
+  | "require_subscription";
+
+/**
+ * Políticas al cambiar SUSCRIPCION -> GRATIS
+ */
+export type SubscriptionToFreePolicy =
+  | "keep_members_free"
+  | "remove_all_members";
+
+/**
+ * Estado de acceso de un miembro frente a un grupo con suscripción.
+ * Se usa para alinear UI, membership y sidebar.
+ */
+export type GroupMembershipAccessType =
+  | "standard"
+  | "subscription"
+  | "legacy_free"
+  | "requires_subscription";
+
+/**
+ * Snapshot de transición de suscripción a nivel grupo.
+ * Deja lista la lógica aunque el pago real llegue después.
+ */
+export type GroupSubscriptionTransitionSettings = {
+  freeToSubscriptionPolicy: FreeToSubscriptionPolicy | null;
+  subscriptionToFreePolicy: SubscriptionToFreePolicy | null;
+
+  /**
+   * Marca informativa de que el grupo cambió recientemente su esquema.
+   * Útil para UI/sidebar/avisos.
+   */
+  lastMonetizationChangeAt?: any;
+
+  /**
+   * Para soporte futuro/auditoría mínima.
+   */
+  lastMonetizationChangeBy?: string | null;
+};
+
+/**
  * Tipos formales del catálogo visible de servicios del grupo/perfil.
  *
- * NOTAS:
+ * NOTA IMPORTANTE:
+ * - "suscripcion" YA NO entra aquí.
+ * - La suscripción vive en monetization como capa estructural del grupo.
  * - "mensaje" se conserva solo como legacy temporal.
- * - "suscripcion" entra al catálogo visible porque debe poder mostrarse
- *   también en el mini menú de servicios.
- * - "clase_personalizada" se deja preparada aunque operativamente más adelante
- *   pueda apoyarse sobre live/evento programado.
  */
 export type CreatorServiceType =
-  | "suscripcion"
   | "saludo"
   | "consejo"
   | "meet_greet_digital"
@@ -324,17 +342,12 @@ export type MeetGreetServiceMeta = {
   durationMinutes: number | null;
 };
 
-export type SubscriptionServiceMeta = {
-  billingPeriod?: "monthly";
-};
-
 export type CustomClassServiceMeta = {
   durationMinutes?: number | null;
 };
 
 export type CreatorServiceMeta = {
   meetGreet?: MeetGreetServiceMeta | null;
-  subscription?: SubscriptionServiceMeta | null;
   customClass?: CustomClassServiceMeta | null;
 };
 
@@ -358,7 +371,7 @@ export type CreatorService = {
   visibility: ServiceVisibility;
 
   /**
-   * Precio para miembros/suscriptores o dentro del contexto grupo.
+   * Precio para miembros o dentro del contexto grupo.
    */
   memberPrice: number | null;
 
@@ -380,92 +393,60 @@ export type CreatorService = {
    */
   sourceScope: ServiceSourceScope;
 
-  /**
-   * Metadata opcional específica del servicio.
-   * Ej: duración para meet & greet.
-   */
   meta?: CreatorServiceMeta | null;
 
   /**
-   * Compatibilidad legacy:
-   * antes varias pantallas usaban solo "price".
-   * Ya no debe usarse para persistencia nueva,
-   * pero se conserva temporalmente para migración segura.
+   * Compatibilidad legacy.
    */
   price?: number | null;
 };
 
-/**
- * Monetización flexible de donación.
- * Se separa de offerings porque no usa precio fijo
- * y solo puede existir una modalidad activa a la vez.
- */
 export type DonationMode = "none" | "general" | "wedding";
 export type DonationSourceScope = "group" | "profile";
 
 export type GroupDonationSettings = {
-  /**
-   * none     = sin donación activa
-   * general  = donación abierta al creador
-   * wedding  = ayuda/donación para boda
-   */
   mode: DonationMode;
-
   enabled: boolean;
   visible: boolean;
   currency: Currency | null;
-
-  /**
-   * Define si esta monetización vive en grupo o perfil.
-   * En este paso la usaremos primero en grupo.
-   */
   sourceScope: DonationSourceScope;
-
-  /**
-   * Personalización opcional de UX.
-   */
   title?: string | null;
   description?: string | null;
-
-  /**
-   * Montos sugeridos opcionales para UI.
-   * El usuario sigue pudiendo decidir libremente cuánto donar.
-   */
   suggestedAmounts?: number[];
-
-  /**
-   * Texto opcional específico para wedding.
-   * Ej: "Apoyo para nuestra boda"
-   */
   goalLabel?: string | null;
 };
 
 /**
  * Alias temporales para no romper imports existentes.
- * Más adelante todo debe migrar visual y semánticamente
- * a CreatorService / CreatorServiceType.
  */
 export type GroupOffering = CreatorService;
 export type OfferingType = CreatorServiceType;
-
-/**
- * Catálogo formal de servicios del grupo.
- * "offerings" se mantiene por compatibilidad,
- * pero este alias deja explícito el propósito del arreglo.
- */
 export type GroupServiceCatalog = CreatorService[];
 
 export type GroupMonetizationSettings = {
+  /**
+   * Compatibilidad legacy:
+   * muchas pantallas viejas leen esto para saber si el grupo "es pagado".
+   */
   isPaid: boolean;
+
+  /**
+   * Compatibilidad legacy:
+   * mantener mientras se migra todo a subscriptionPriceMonthly.
+   */
   priceMonthly: number | null;
   currency: Currency | null;
 
   /**
-   * Flags estructurales base del grupo.
-   * Este bloque prepara el sistema para suscripciones,
-   * contenido pagado y servicios monetizables.
+   * Modelo formal nuevo de suscripción.
    */
   subscriptionsEnabled: boolean;
+  subscriptionPriceMonthly: number | null;
+  subscriptionCurrency: Currency | null;
+
+  /**
+   * Flags estructurales base del grupo.
+   */
   paidPostsEnabled: boolean;
   paidLivesEnabled: boolean;
   paidVodEnabled: boolean;
@@ -474,6 +455,11 @@ export type GroupMonetizationSettings = {
   adviceEnabled: boolean;
   customClassEnabled: boolean;
   digitalMeetGreetEnabled: boolean;
+
+  /**
+   * Políticas de transición entre gratis y suscripción.
+   */
+  transitions?: GroupSubscriptionTransitionSettings | null;
 };
 
 export interface Group {
@@ -527,20 +513,57 @@ export interface Group {
 
   /**
    * Servicios visibles del grupo.
-   * Se mantiene el nombre "offerings" por compatibilidad con el código actual.
-   * Hacia adelante representa el catálogo visible del grupo.
+   * IMPORTANTE: suscripción NO debe entrar aquí.
    */
   offerings?: GroupServiceCatalog;
 
-  /**
-   * Monetización flexible tipo donación.
-   * Va separada de offerings porque no usa precio fijo
-   * y se presenta fuera del mini menú de servicios.
-   */
   donation?: GroupDonationSettings;
 
   isActive: boolean;
 
   createdAt: any;
   updatedAt: any;
+}
+
+/**
+ * Helpers de suscripción / compatibilidad
+ */
+export function groupHasSubscription(group: Pick<Group, "monetization">): boolean {
+  return (
+    group.monetization?.subscriptionsEnabled === true ||
+    group.monetization?.isPaid === true
+  );
+}
+
+export function getGroupSubscriptionPrice(
+  group: Pick<Group, "monetization">
+): number | null {
+  if (typeof group.monetization?.subscriptionPriceMonthly === "number") {
+    return group.monetization.subscriptionPriceMonthly;
+  }
+
+  if (typeof group.monetization?.priceMonthly === "number") {
+    return group.monetization.priceMonthly;
+  }
+
+  return null;
+}
+
+export function getGroupSubscriptionCurrency(
+  group: Pick<Group, "monetization">
+): Currency {
+  return (
+    group.monetization?.subscriptionCurrency ||
+    group.monetization?.currency ||
+    "MXN"
+  );
+}
+
+export function groupSupportsVisibleService(
+  group: Pick<Group, "offerings">,
+  serviceType: CreatorServiceType
+): boolean {
+  return !!group.offerings?.some(
+    (service) => service.type === serviceType && service.enabled && service.visible
+  );
 }

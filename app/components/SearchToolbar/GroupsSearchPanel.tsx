@@ -86,6 +86,14 @@ export function membershipStatusLabel(status: CanonicalMemberStatus) {
   return "";
 }
 
+function isPaidGroup(group: Community) {
+  return !!group.monetization?.isPaid;
+}
+
+function isPaidPrivateGroup(group: Community) {
+  return group.visibility === "private" && isPaidGroup(group);
+}
+
 export function buildUserSearchText(user: PublicUser) {
   return [
     user.handle,
@@ -373,14 +381,16 @@ function getCommunityPreviewPriority(
   const isPrivate = group.visibility === "private";
   const isPublic = group.visibility === "public";
   const hasPendingReq = !!reqMap[group.id];
+  const paidPrivate = isPaidPrivateGroup(group);
 
   if (!isOwner && !isMember && !isBlocked && isPublic) return 0; // Unirme
-  if (!isOwner && !isMember && !isBlocked && isPrivate && !hasPendingReq) return 1; // Solicitar acceso
-  if (!isOwner && !isMember && !isBlocked && isPrivate && hasPendingReq) return 2; // Enviada/Cancelar
-  if (isMember && !isOwner) return 3; // Salir
-  if (isOwner) return 4; // Owner
-  if (isBlocked) return 5; // bloqueado
-  return 6;
+  if (!isOwner && !isMember && !isBlocked && paidPrivate) return 1; // Suscribirme
+  if (!isOwner && !isMember && !isBlocked && isPrivate && !hasPendingReq) return 2; // Solicitar acceso
+  if (!isOwner && !isMember && !isBlocked && isPrivate && hasPendingReq) return 3; // Enviada/Cancelar
+  if (isMember && !isOwner) return 4; // Salir
+  if (isOwner) return 5; // Owner
+  if (isBlocked) return 6; // bloqueado
+  return 7;
 }
 
 type GroupsSearchPanelProps = {
@@ -422,6 +432,9 @@ export default function GroupsSearchPanel({
   const cardBorder = "1px solid rgba(255,255,255,0.14)";
   const softBorder = "1px solid rgba(255,255,255,0.18)";
   const shadow = "0 18px 46px rgba(0,0,0,0.42)";
+
+  const normalizedSearch = search.trim().toLowerCase();
+  const hasSearch = normalizedSearch.length > 0;
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -571,7 +584,7 @@ export default function GroupsSearchPanel({
     }
 
     void loadMembershipsAndRequests();
-  }, [user, communities]);
+  }, [user, communities, pathname, hasSearch]);
 
   useEffect(() => {
     if (previousPathnameRef.current === null) {
@@ -586,8 +599,6 @@ export default function GroupsSearchPanel({
       previousPathnameRef.current = pathname;
     }
   }, [pathname, onCloseSearch]);
-
-  const normalizedSearch = search.trim().toLowerCase();
 
   const searchableCommunities = useMemo(() => {
     return communities.filter((group) => {
@@ -737,6 +748,11 @@ export default function GroupsSearchPanel({
         ...prev,
         [groupId]: "active",
       }));
+
+      setReqMap((prev) => ({
+        ...prev,
+        [groupId]: false,
+      }));
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "No se pudo unir a la comunidad";
@@ -746,6 +762,12 @@ export default function GroupsSearchPanel({
 
   async function handleRequestPrivate(groupId: string) {
     if (!user) return;
+
+    const group = communities.find((item) => item.id === groupId);
+    if (group && isPaidPrivateGroup(group)) {
+      handleNavigateAndClose(`/groups/${groupId}`);
+      return;
+    }
 
     try {
       const { requestToJoin } = await import("@/lib/groups/joinRequests");
@@ -796,6 +818,11 @@ export default function GroupsSearchPanel({
         ...prev,
         [groupId]: null,
       }));
+
+      setReqMap((prev) => ({
+        ...prev,
+        [groupId]: false,
+      }));
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "No se pudo salir de la comunidad";
@@ -816,6 +843,10 @@ export default function GroupsSearchPanel({
     router.push(href);
   }
 
+  function handleOpenSubscription(groupId: string) {
+    handleNavigateAndClose(`/groups/${groupId}`);
+  }
+
   function handleOpenFullResults() {
     if (!normalizedSearch) return;
     setFullResultsOpen(true);
@@ -826,7 +857,6 @@ export default function GroupsSearchPanel({
   }
 
   const isLoading = authLoading || communitiesLoading || profilesLoading;
-  const hasSearch = normalizedSearch.length > 0;
   const hasAnyResults =
     filteredCommunities.length > 0 || filteredProfiles.length > 0;
 
@@ -1187,6 +1217,7 @@ export default function GroupsSearchPanel({
                     const isPrivate = g.visibility === "private";
                     const isPublic = g.visibility === "public";
                     const hasPendingReq = !!reqMap[g.id];
+                    const paidPrivate = isPaidPrivateGroup(g);
 
                     const visLabel =
                       g.visibility === "public"
@@ -1260,6 +1291,7 @@ export default function GroupsSearchPanel({
                                   !isMember &&
                                   !isBlocked &&
                                   isPrivate &&
+                                  !paidPrivate &&
                                   hasPendingReq && (
                                     <span className="meta-inline">
                                       (Pendiente)
@@ -1283,37 +1315,51 @@ export default function GroupsSearchPanel({
                               </button>
                             )}
 
-                            {!isOwner && !isMember && !isBlocked && isPrivate && (
-                              <>
-                                {!hasPendingReq ? (
-                                  <button
-                                    onClick={() => void handleRequestPrivate(g.id)}
-                                    className="secondary-btn"
-                                    type="button"
-                                  >
-                                    Solicitar acceso
-                                  </button>
-                                ) : (
-                                  <>
-                                    <button
-                                      disabled
-                                      className="disabled-btn"
-                                      type="button"
-                                    >
-                                      Enviada
-                                    </button>
+                            {!isOwner && !isMember && !isBlocked && paidPrivate && (
+                              <button
+                                onClick={() => handleOpenSubscription(g.id)}
+                                className="primary-btn"
+                                type="button"
+                              >
+                                Suscribirme
+                              </button>
+                            )}
 
+                            {!isOwner &&
+                              !isMember &&
+                              !isBlocked &&
+                              isPrivate &&
+                              !paidPrivate && (
+                                <>
+                                  {!hasPendingReq ? (
                                     <button
-                                      onClick={() => void handleCancelRequest(g.id)}
+                                      onClick={() => void handleRequestPrivate(g.id)}
                                       className="secondary-btn"
                                       type="button"
                                     >
-                                      Cancelar
+                                      Solicitar acceso
                                     </button>
-                                  </>
-                                )}
-                              </>
-                            )}
+                                  ) : (
+                                    <>
+                                      <button
+                                        disabled
+                                        className="disabled-btn"
+                                        type="button"
+                                      >
+                                        Enviada
+                                      </button>
+
+                                      <button
+                                        onClick={() => void handleCancelRequest(g.id)}
+                                        className="secondary-btn"
+                                        type="button"
+                                      >
+                                        Cancelar
+                                      </button>
+                                    </>
+                                  )}
+                                </>
+                              )}
 
                             {isMember && !isOwner && (
                               <button

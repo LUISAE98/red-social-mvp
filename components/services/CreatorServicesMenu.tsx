@@ -31,8 +31,6 @@ type Props = {
 
 function getServiceLabel(type: CreatorServiceType): string {
   switch (type) {
-    case "suscripcion":
-      return "Suscripción";
     case "saludo":
       return "Saludo";
     case "consejo":
@@ -50,8 +48,6 @@ function getServiceLabel(type: CreatorServiceType): string {
 
 function getServiceIcon(type: CreatorServiceType): string {
   switch (type) {
-    case "suscripcion":
-      return "💎";
     case "saludo":
       return "👋";
     case "consejo":
@@ -115,15 +111,6 @@ function buildHref(params: {
   creatorHandle?: string | null;
 }) {
   const { service, contextType, groupId, creatorHandle } = params;
-
-  if (service.type === "suscripcion") {
-    if (contextType === "group" && groupId) {
-      return `/groups/${groupId}?service=suscripcion`;
-    }
-    if (contextType === "profile" && creatorHandle) {
-      return `/u/${creatorHandle}?service=suscripcion`;
-    }
-  }
 
   if (service.type === "saludo") {
     if (contextType === "group" && groupId) {

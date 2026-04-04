@@ -17,35 +17,57 @@ import type {
 
 type Visibility = "public" | "private" | "hidden" | string | null;
 
-type MonetizationInput = {
-  isPaid?: boolean;
-  priceMonthly?: number | null;
-  currency?: Currency | null;
-  subscriptionsEnabled?: boolean;
-  paidPostsEnabled?: boolean;
-  paidLivesEnabled?: boolean;
-  paidVodEnabled?: boolean;
-  paidLiveCommentsEnabled?: boolean;
-  greetingsEnabled?: boolean;
-  adviceEnabled?: boolean;
-  customClassEnabled?: boolean;
-  digitalMeetGreetEnabled?: boolean;
-} | null;
+type FreeToSubscriptionPolicy = "legacy_free" | "require_subscription" | "";
+type SubscriptionToFreePolicy = "keep_members_free" | "remove_all_members" | "";
 
-type OfferingInput = {
-  type?: CreatorServiceType | string;
-  enabled?: boolean;
-  visible?: boolean;
-  visibility?: ServiceVisibility | string;
-  displayOrder?: number | null;
-  memberPrice?: number | null;
-  publicPrice?: number | null;
-  currency?: Currency | null;
-  requiresApproval?: boolean;
-  sourceScope?: ServiceSourceScope | string;
-  meta?: CreatorServiceMeta | null;
-  price?: number | null;
-} | null;
+type MonetizationTransitionsInput =
+  | {
+      freeToSubscriptionPolicy?: "legacy_free" | "require_subscription" | null;
+      subscriptionToFreePolicy?:
+        | "keep_members_free"
+        | "remove_all_members"
+        | null;
+      lastMonetizationChangeAt?: unknown;
+      lastMonetizationChangeBy?: string | null;
+    }
+  | null;
+
+type MonetizationInput =
+  | {
+      isPaid?: boolean;
+      priceMonthly?: number | null;
+      currency?: Currency | null;
+      subscriptionsEnabled?: boolean;
+      paidPostsEnabled?: boolean;
+      paidLivesEnabled?: boolean;
+      paidVodEnabled?: boolean;
+      paidLiveCommentsEnabled?: boolean;
+      greetingsEnabled?: boolean;
+      adviceEnabled?: boolean;
+      customClassEnabled?: boolean;
+      digitalMeetGreetEnabled?: boolean;
+      subscriptionPriceMonthly?: number | null;
+      subscriptionCurrency?: Currency | null;
+      transitions?: MonetizationTransitionsInput;
+    }
+  | null;
+
+type OfferingInput =
+  | {
+      type?: CreatorServiceType | string;
+      enabled?: boolean;
+      visible?: boolean;
+      visibility?: ServiceVisibility | string;
+      displayOrder?: number | null;
+      memberPrice?: number | null;
+      publicPrice?: number | null;
+      currency?: Currency | null;
+      requiresApproval?: boolean;
+      sourceScope?: ServiceSourceScope | string;
+      meta?: CreatorServiceMeta | null;
+      price?: number | null;
+    }
+  | null;
 
 type DonationInput = Partial<GroupDonationSettings> | null;
 
@@ -69,52 +91,78 @@ type ServiceBlockDraft = {
   visibility: EditableServiceVisibility;
 };
 
+type SubscriptionDraft = {
+  enabled: boolean;
+  price: string;
+  currency: Currency;
+};
+
+type MeetGreetDraft = ServiceBlockDraft & {
+  durationMinutes: string;
+};
+
+type CustomClassDraft = ServiceBlockDraft & {
+  durationMinutes: string;
+};
+
 type ServiceDraft = {
-  subscription: ServiceBlockDraft;
+  subscription: SubscriptionDraft;
   saludo: ServiceBlockDraft;
   consejo: ServiceBlockDraft;
-  meetGreet: ServiceBlockDraft & {
-    durationMinutes: string;
-  };
-  customClass: ServiceBlockDraft & {
-    durationMinutes: string;
-  };
+  meetGreet: MeetGreetDraft;
+  customClass: CustomClassDraft;
   donationMode: DonationMode;
   donationCurrency: Currency;
   donationMinimumAmount: string;
   donationGoalLabel: string;
+  freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
+  subscriptionToFreePolicy: SubscriptionToFreePolicy;
 };
 
-function pickSubscription(
-  monetization: MonetizationInput,
-  offerings: OfferingInput[] | null | undefined
-) {
-  const arr = Array.isArray(offerings) ? offerings : [];
-  const subscriptionOffering = arr.find((o) => String(o?.type) === "suscripcion");
-
+function pickSubscription(monetization: MonetizationInput) {
   const enabled =
     typeof monetization?.subscriptionsEnabled === "boolean"
       ? monetization.subscriptionsEnabled
-      : monetization?.isPaid === true || subscriptionOffering?.enabled === true;
+      : monetization?.isPaid === true;
+
+  const price =
+    monetization?.subscriptionPriceMonthly ??
+    monetization?.priceMonthly ??
+    null;
+
+  const currency =
+    monetization?.subscriptionCurrency ??
+    monetization?.currency ??
+    "MXN";
 
   return {
     enabled,
-    price:
-      monetization?.priceMonthly ??
-      subscriptionOffering?.memberPrice ??
-      subscriptionOffering?.publicPrice ??
-      subscriptionOffering?.price ??
-      null,
-    currency: monetization?.currency ?? subscriptionOffering?.currency ?? "MXN",
-    visible:
-      typeof subscriptionOffering?.visible === "boolean"
-        ? subscriptionOffering.visible
-        : enabled,
-    visibility:
-      subscriptionOffering?.visibility === "members" ||
-      subscriptionOffering?.visibility === "public"
-        ? subscriptionOffering.visibility
-        : "public",
+    price,
+    currency,
+  };
+}
+
+function pickTransitions(monetization: MonetizationInput): {
+  freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
+  subscriptionToFreePolicy: SubscriptionToFreePolicy;
+} {
+  const transitions = monetization?.transitions ?? null;
+
+  const freeToSubscriptionPolicy: FreeToSubscriptionPolicy =
+    transitions?.freeToSubscriptionPolicy === "legacy_free" ||
+    transitions?.freeToSubscriptionPolicy === "require_subscription"
+      ? transitions.freeToSubscriptionPolicy
+      : "";
+
+  const subscriptionToFreePolicy: SubscriptionToFreePolicy =
+    transitions?.subscriptionToFreePolicy === "keep_members_free" ||
+    transitions?.subscriptionToFreePolicy === "remove_all_members"
+      ? transitions.subscriptionToFreePolicy
+      : "";
+
+  return {
+    freeToSubscriptionPolicy,
+    subscriptionToFreePolicy,
   };
 }
 
@@ -190,9 +238,7 @@ function normalizeServiceVisibility(
   value: unknown,
   fallback: EditableServiceVisibility
 ): EditableServiceVisibility {
-  if (value === "members" || value === "public") {
-    return value;
-  }
+  if (value === "members" || value === "public") return value;
   return fallback;
 }
 
@@ -224,6 +270,64 @@ function buildServiceBlockDraft(input: {
     currency: input.currency,
     visible: input.visible,
     visibility: input.visibility,
+  };
+}
+
+function buildSubscriptionDraft(input: {
+  enabled: boolean;
+  price: number | null;
+  currency: Currency;
+}): SubscriptionDraft {
+  return {
+    enabled: input.enabled,
+    price: input.price == null ? "" : String(input.price),
+    currency: input.currency,
+  };
+}
+
+function createEmptyDraft(): ServiceDraft {
+  return {
+    subscription: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+    },
+    saludo: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "public",
+    },
+    consejo: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "public",
+    },
+    meetGreet: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "public",
+      durationMinutes: "",
+    },
+    customClass: {
+      enabled: false,
+      price: "",
+      currency: "MXN",
+      visible: false,
+      visibility: "public",
+      durationMinutes: "",
+    },
+    donationMode: "none",
+    donationCurrency: "MXN",
+    donationMinimumAmount: "",
+    donationGoalLabel: "",
+    freeToSubscriptionPolicy: "",
+    subscriptionToFreePolicy: "",
   };
 }
 
@@ -351,9 +455,17 @@ function sameServiceBlock(a: ServiceBlockDraft, b: ServiceBlockDraft) {
   );
 }
 
+function sameSubscriptionBlock(a: SubscriptionDraft, b: SubscriptionDraft) {
+  return (
+    a.enabled === b.enabled &&
+    a.price === b.price &&
+    a.currency === b.currency
+  );
+}
+
 function sameDraft(a: ServiceDraft, b: ServiceDraft) {
   return (
-    sameServiceBlock(a.subscription, b.subscription) &&
+    sameSubscriptionBlock(a.subscription, b.subscription) &&
     sameServiceBlock(a.saludo, b.saludo) &&
     sameServiceBlock(a.consejo, b.consejo) &&
     sameServiceBlock(a.meetGreet, b.meetGreet) &&
@@ -363,7 +475,9 @@ function sameDraft(a: ServiceDraft, b: ServiceDraft) {
     a.donationMode === b.donationMode &&
     a.donationCurrency === b.donationCurrency &&
     a.donationMinimumAmount === b.donationMinimumAmount &&
-    a.donationGoalLabel === b.donationGoalLabel
+    a.donationGoalLabel === b.donationGoalLabel &&
+    a.freeToSubscriptionPolicy === b.freeToSubscriptionPolicy &&
+    a.subscriptionToFreePolicy === b.subscriptionToFreePolicy
   );
 }
 
@@ -385,14 +499,14 @@ function buildOffering(params: {
     memberPrice: draft.enabled ? priceNum : null,
     publicPrice: draft.enabled ? priceNum : null,
     currency: draft.enabled ? draft.currency : null,
-    requiresApproval: type !== "suscripcion",
+    requiresApproval: true,
     sourceScope: "group",
     meta,
     price: draft.enabled ? priceNum : null,
   };
 }
 
-function ServiceEditorBlock({
+function ServiceEditorBlock<TDraft extends ServiceBlockDraft>({
   title,
   description,
   draft,
@@ -404,13 +518,9 @@ function ServiceEditorBlock({
 }: {
   title: string;
   description: string;
-  draft: ServiceBlockDraft & { durationMinutes?: string };
+  draft: TDraft;
   onChange: (
-    updater:
-      | Partial<ServiceBlockDraft & { durationMinutes?: string }>
-      | ((
-          prev: ServiceBlockDraft & { durationMinutes?: string }
-        ) => ServiceBlockDraft & { durationMinutes?: string })
+    updater: Partial<TDraft> | ((prev: TDraft) => TDraft)
   ) => void;
   saving: boolean;
   showDuration?: boolean;
@@ -464,14 +574,15 @@ function ServiceEditorBlock({
   };
 
   const applyChange = (
-    updater:
-      | Partial<ServiceBlockDraft & { durationMinutes?: string }>
-      | ((
-          prev: ServiceBlockDraft & { durationMinutes?: string }
-        ) => ServiceBlockDraft & { durationMinutes?: string })
+    updater: Partial<TDraft> | ((prev: TDraft) => TDraft)
   ) => {
     onChange(updater);
   };
+
+    const hasDurationField = "durationMinutes" in draft;
+  const durationDraft = hasDurationField
+    ? (draft as TDraft & { durationMinutes: string })
+    : null;
 
   return (
     <div style={panelStyle}>
@@ -545,12 +656,12 @@ function ServiceEditorBlock({
             </select>
           </div>
 
-          {showDuration && (
+                    {showDuration && durationDraft && (
             <input
               type="number"
               min="1"
               step="1"
-              value={draft.durationMinutes ?? ""}
+              value={durationDraft.durationMinutes}
               onChange={(e) =>
                 applyChange((prev) => ({
                   ...prev,
@@ -575,6 +686,274 @@ function ServiceEditorBlock({
   );
 }
 
+function SubscriptionEditorBlock({
+  draft,
+  saving,
+  disabledByVisibility,
+  onChange,
+  netText,
+}: {
+  draft: SubscriptionDraft;
+  saving: boolean;
+  disabledByVisibility: boolean;
+  onChange: (
+    updater:
+      | Partial<SubscriptionDraft>
+      | ((prev: SubscriptionDraft) => SubscriptionDraft)
+  ) => void;
+  netText?: string | null;
+}) {
+  const fontStack =
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
+
+  const panelStyle: React.CSSProperties = {
+    padding: "10px",
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.02)",
+    display: "grid",
+    gap: 9,
+  };
+
+  const rowBetweenStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+  };
+
+  const titleStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: "#fff",
+    fontWeight: 700,
+  };
+
+  const subtleStyle: React.CSSProperties = {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.56)",
+    lineHeight: 1.35,
+  };
+
+  const inputStyle: React.CSSProperties = {
+    padding: "8px 10px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#fff",
+    outline: "none",
+    fontSize: 12,
+    fontFamily: fontStack,
+    boxSizing: "border-box",
+    appearance: "none",
+    WebkitAppearance: "none",
+    minHeight: 42,
+  };
+
+  const applyChange = (
+    updater:
+      | Partial<SubscriptionDraft>
+      | ((prev: SubscriptionDraft) => SubscriptionDraft)
+  ) => {
+    onChange(updater);
+  };
+
+  return (
+    <div style={panelStyle}>
+      <div style={rowBetweenStyle}>
+        <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
+          <span style={titleStyle}>Suscripción mensual</span>
+          <span style={subtleStyle}>
+            Configura el acceso mensual del grupo. Esta suscripción no se muestra
+            dentro del menú de servicios visibles.
+          </span>
+        </div>
+
+        <Switch
+          checked={draft.enabled}
+          disabled={saving || disabledByVisibility}
+          onChange={(next) =>
+            applyChange((prev) => ({
+              ...prev,
+              enabled: next,
+              price: next ? prev.price : "",
+            }))
+          }
+          label="Activar suscripción mensual"
+        />
+      </div>
+
+      {draft.enabled && !disabledByVisibility && (
+        <>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input
+              type="number"
+              min="1"
+              step="0.01"
+              value={draft.price}
+              onChange={(e) =>
+                applyChange((prev) => ({
+                  ...prev,
+                  price: e.target.value,
+                }))
+              }
+              placeholder="Precio mensual"
+              style={{ ...inputStyle, width: 140 }}
+            />
+
+            <select
+              value={draft.currency}
+              onChange={(e) =>
+                applyChange((prev) => ({
+                  ...prev,
+                  currency: e.target.value as Currency,
+                }))
+              }
+              style={{ ...inputStyle, width: 92 }}
+            >
+              <option value="MXN">MXN</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
+
+          {netText ? (
+            <div style={subtleStyle}>{netText}</div>
+          ) : (
+            <div style={subtleStyle}>
+              Al activar suscripción, el CTA del grupo cambiará a “Suscribirme”
+              en los flujos correspondientes.
+            </div>
+          )}
+        </>
+      )}
+
+      {disabledByVisibility && (
+        <div style={subtleStyle}>
+          Para activar suscripción mensual, la comunidad debe ser privada u oculta.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TransitionPolicyPanel({
+  mode,
+  value,
+  onChange,
+  saving,
+}: {
+  mode: "free_to_subscription" | "subscription_to_free";
+  value: string;
+  onChange: (next: string) => void;
+  saving: boolean;
+}) {
+  const panelStyle: React.CSSProperties = {
+    padding: "10px",
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.02)",
+    display: "grid",
+    gap: 10,
+  };
+
+  const titleStyle: React.CSSProperties = {
+    fontSize: 12,
+    color: "#fff",
+    fontWeight: 700,
+  };
+
+  const subtleStyle: React.CSSProperties = {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.56)",
+    lineHeight: 1.35,
+  };
+
+  const optionCard = (active: boolean): React.CSSProperties => ({
+    borderRadius: 12,
+    border: active
+      ? "1px solid rgba(255,255,255,0.9)"
+      : "1px solid rgba(255,255,255,0.1)",
+    background: active ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)",
+    padding: "10px 12px",
+    display: "grid",
+    gap: 4,
+    cursor: saving ? "not-allowed" : "pointer",
+    opacity: saving ? 0.6 : 1,
+    textAlign: "left",
+  });
+
+  if (mode === "free_to_subscription") {
+    return (
+      <div style={panelStyle}>
+        <div style={{ display: "grid", gap: 2 }}>
+          <span style={titleStyle}>Transición: gratis → suscripción</span>
+          <span style={subtleStyle}>
+            Debes decidir qué pasa con los miembros actuales al volver la comunidad de suscripción.
+          </span>
+        </div>
+
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => onChange("legacy_free")}
+          style={optionCard(value === "legacy_free")}
+        >
+          <span style={titleStyle}>Dejar a los miembros actuales gratis</span>
+          <span style={subtleStyle}>
+            Los miembros que ya estaban dentro conservan acceso legado sin pagar.
+          </span>
+        </button>
+
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => onChange("require_subscription")}
+          style={optionCard(value === "require_subscription")}
+        >
+          <span style={titleStyle}>Pedir suscripción a los miembros actuales</span>
+          <span style={subtleStyle}>
+            Los miembros existentes deberán suscribirse para continuar con acceso.
+          </span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={panelStyle}>
+      <div style={{ display: "grid", gap: 2 }}>
+        <span style={titleStyle}>Transición: suscripción → gratis</span>
+        <span style={subtleStyle}>
+          Debes decidir qué pasa con los integrantes cuando la comunidad deje de ser de suscripción.
+        </span>
+      </div>
+
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => onChange("keep_members_free")}
+        style={optionCard(value === "keep_members_free")}
+      >
+        <span style={titleStyle}>Mantener a todos dentro y volverla gratuita</span>
+        <span style={subtleStyle}>
+          La comunidad deja de cobrar y quienes están dentro permanecen con acceso normal.
+        </span>
+      </button>
+
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => onChange("remove_all_members")}
+        style={optionCard(value === "remove_all_members")}
+      >
+        <span style={titleStyle}>Sacar a todos al quitar la suscripción</span>
+        <span style={subtleStyle}>
+          La comunidad vuelve a ser gratuita, pero sin conservar automáticamente a los miembros actuales.
+        </span>
+      </button>
+    </div>
+  );
+}
+
 export default function OwnerAdminServices({
   groupId,
   ownerId,
@@ -591,93 +970,8 @@ export default function OwnerAdminServices({
 
   const isPublic = currentVisibility === "public";
 
-  const [draft, setDraft] = useState<ServiceDraft>({
-    subscription: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-    },
-    saludo: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-    },
-    consejo: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-    },
-    meetGreet: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-      durationMinutes: "",
-    },
-    customClass: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-      durationMinutes: "",
-    },
-    donationMode: "none",
-    donationCurrency: "MXN",
-    donationMinimumAmount: "",
-    donationGoalLabel: "",
-  });
-
-  const [savedDraft, setSavedDraft] = useState<ServiceDraft>({
-    subscription: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-    },
-    saludo: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-    },
-    consejo: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-    },
-    meetGreet: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-      durationMinutes: "",
-    },
-    customClass: {
-      enabled: false,
-      price: "",
-      currency: "MXN",
-      visible: false,
-      visibility: "public",
-      durationMinutes: "",
-    },
-    donationMode: "none",
-    donationCurrency: "MXN",
-    donationMinimumAmount: "",
-    donationGoalLabel: "",
-  });
+  const [draft, setDraft] = useState<ServiceDraft>(createEmptyDraft());
+  const [savedDraft, setSavedDraft] = useState<ServiceDraft>(createEmptyDraft());
 
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -690,7 +984,8 @@ export default function OwnerAdminServices({
     if (!isOwner) return;
     if (skipHydrationWhileSavingRef.current) return;
 
-    const sub = pickSubscription(currentMonetization, currentOfferings);
+    const sub = pickSubscription(currentMonetization);
+    const transitions = pickTransitions(currentMonetization);
     const saludo = pickOffering(currentOfferings, "saludo");
     const consejo = pickOffering(currentOfferings, "consejo");
     const meetGreet = pickOffering(currentOfferings, "meet_greet_digital");
@@ -698,14 +993,10 @@ export default function OwnerAdminServices({
     const donation = pickDonation(currentDonation);
 
     const nextDraft: ServiceDraft = {
-      subscription: buildServiceBlockDraft({
+      subscription: buildSubscriptionDraft({
         enabled: isPublic ? false : sub.enabled,
         price: isPublic ? null : sub.price,
         currency: sub.currency ?? "MXN",
-        visible: isPublic ? false : sub.visible,
-        visibility: isPublic
-          ? "public"
-          : normalizeServiceVisibility(sub.visibility, "public"),
       }),
       saludo: buildServiceBlockDraft({
         enabled: saludo.enabled,
@@ -737,7 +1028,10 @@ export default function OwnerAdminServices({
           price: customClass.price,
           currency: customClass.currency ?? "MXN",
           visible: customClass.visible,
-          visibility: normalizeServiceVisibility(customClass.visibility, "public"),
+          visibility: normalizeServiceVisibility(
+            customClass.visibility,
+            "public"
+          ),
         }),
         durationMinutes: normalizeDurationMeta(
           customClass.meta,
@@ -748,6 +1042,8 @@ export default function OwnerAdminServices({
       donationCurrency: donation.currency ?? "MXN",
       donationMinimumAmount: donation.minimumAmount,
       donationGoalLabel: donation.goalLabel ?? "",
+      freeToSubscriptionPolicy: transitions.freeToSubscriptionPolicy,
+      subscriptionToFreePolicy: transitions.subscriptionToFreePolicy,
     };
 
     const isFirstHydrationForGroup = lastHydratedGroupIdRef.current !== groupId;
@@ -786,6 +1082,12 @@ export default function OwnerAdminServices({
       skipHydrationWhileSavingRef.current = false;
     }
   }, [saving]);
+
+  const wasSubscriptionEnabled = savedDraft.subscription.enabled;
+  const willEnableSubscription =
+    !wasSubscriptionEnabled && draft.subscription.enabled && !isPublic;
+  const willDisableSubscription =
+    wasSubscriptionEnabled && !draft.subscription.enabled;
 
   if (!isOwner) return null;
 
@@ -872,20 +1174,27 @@ export default function OwnerAdminServices({
       ? calcNetAmount(draft.donationMinimumAmount)
       : null;
 
-  function updateBlock<K extends keyof Pick<
-    ServiceDraft,
-    "subscription" | "saludo" | "consejo" | "meetGreet" | "customClass"
-  >>(
+  function updateBlock<
+    K extends "subscription" | "saludo" | "consejo" | "meetGreet" | "customClass"
+  >(
     key: K,
-    updater: Partial<ServiceDraft[K]> | ((prev: ServiceDraft[K]) => ServiceDraft[K])
+    updater:
+      | Partial<ServiceDraft[K]>
+      | ((prev: ServiceDraft[K]) => ServiceDraft[K])
   ) {
-    setDraft((prev) => ({
-      ...prev,
-      [key]:
+    setDraft((prev) => {
+      const currentValue = prev[key];
+
+      const nextValue =
         typeof updater === "function"
-          ? (updater as (prevValue: ServiceDraft[K]) => ServiceDraft[K])(prev[key])
-          : { ...prev[key], ...updater },
-    }));
+          ? (updater as (prev: ServiceDraft[K]) => ServiceDraft[K])(currentValue)
+          : ({ ...currentValue, ...updater } as ServiceDraft[K]);
+
+      return {
+        ...prev,
+        [key]: nextValue,
+      };
+    });
   }
 
   async function saveServices() {
@@ -987,7 +1296,9 @@ export default function OwnerAdminServices({
           meetGreetDurationNum <= 0 ||
           !Number.isInteger(meetGreetDurationNum))
       ) {
-        setErr("❌ Debes definir una duración válida en minutos para meet & greet.");
+        setErr(
+          "❌ Debes definir una duración válida en minutos para meet & greet."
+        );
         return;
       }
 
@@ -998,12 +1309,30 @@ export default function OwnerAdminServices({
           customClassDurationNum <= 0 ||
           !Number.isInteger(customClassDurationNum))
       ) {
-        setErr("❌ Debes definir una duración válida en minutos para la clase personalizada.");
+        setErr(
+          "❌ Debes definir una duración válida en minutos para la clase personalizada."
+        );
         return;
       }
 
       if (isPublic && draft.subscription.enabled) {
-        setErr("❌ Las comunidades públicas no pueden activar suscripción mensual.");
+        setErr(
+          "❌ Las comunidades públicas no pueden activar suscripción mensual."
+        );
+        return;
+      }
+
+      if (willEnableSubscription && !draft.freeToSubscriptionPolicy) {
+        setErr(
+          "❌ Debes definir qué pasa con los miembros actuales al cambiar de gratis a suscripción."
+        );
+        return;
+      }
+
+      if (willDisableSubscription && !draft.subscriptionToFreePolicy) {
+        setErr(
+          "❌ Debes definir qué pasa con los integrantes al cambiar de suscripción a gratis."
+        );
         return;
       }
 
@@ -1023,21 +1352,6 @@ export default function OwnerAdminServices({
       }
 
       const nextOfferings: GroupOffering[] = [
-        buildOffering({
-          type: "suscripcion",
-          draft: {
-            ...draft.subscription,
-            enabled: isPublic ? false : draft.subscription.enabled,
-            visible: isPublic ? false : draft.subscription.visible,
-            visibility: isPublic ? "public" : draft.subscription.visibility,
-          },
-          displayOrder: 0,
-          meta: {
-            subscription: {
-              billingPeriod: "monthly",
-            },
-          },
-        }),
         buildOffering({
           type: "saludo",
           draft: draft.saludo,
@@ -1111,6 +1425,23 @@ export default function OwnerAdminServices({
           ? currentMonetization.paidLiveCommentsEnabled
           : false;
 
+      const nextTransitions = {
+        freeToSubscriptionPolicy:
+          willEnableSubscription && draft.freeToSubscriptionPolicy
+            ? draft.freeToSubscriptionPolicy
+            : currentMonetization?.transitions?.freeToSubscriptionPolicy ?? null,
+        subscriptionToFreePolicy:
+          willDisableSubscription && draft.subscriptionToFreePolicy
+            ? draft.subscriptionToFreePolicy
+            : currentMonetization?.transitions?.subscriptionToFreePolicy ?? null,
+        lastMonetizationChangeAt:
+          willEnableSubscription || willDisableSubscription ? Date.now() : null,
+        lastMonetizationChangeBy:
+          willEnableSubscription || willDisableSubscription
+            ? currentUserId
+            : currentMonetization?.transitions?.lastMonetizationChangeBy ?? null,
+      };
+
       const nextMonetization = {
         isPaid: isPublic ? false : draft.subscription.enabled,
         priceMonthly:
@@ -1121,6 +1452,13 @@ export default function OwnerAdminServices({
             : draft.subscription.currency,
 
         subscriptionsEnabled: isPublic ? false : draft.subscription.enabled,
+        subscriptionPriceMonthly:
+          isPublic || !draft.subscription.enabled ? null : subscriptionPriceNum,
+        subscriptionCurrency:
+          isPublic || !draft.subscription.enabled
+            ? null
+            : draft.subscription.currency,
+
         paidPostsEnabled: preservedPaidPostsEnabled,
         paidLivesEnabled: preservedPaidLivesEnabled,
         paidVodEnabled: preservedPaidVodEnabled,
@@ -1130,6 +1468,8 @@ export default function OwnerAdminServices({
         adviceEnabled: draft.consejo.enabled,
         customClassEnabled: draft.customClass.enabled,
         digitalMeetGreetEnabled: draft.meetGreet.enabled,
+
+        transitions: nextTransitions,
       };
 
       const commerce = buildNormalizedGroupCommerceState({
@@ -1146,22 +1486,26 @@ export default function OwnerAdminServices({
       skipHydrationWhileSavingRef.current = true;
 
       await updateDoc(doc(db, "groups", groupId), {
-  monetization: commerce.monetization,
-  offerings: commerce.offerings,
-  donation: commerce.donation,
-  greetingsEnabled: commerce.monetization.greetingsEnabled,
-});
+        monetization: {
+          ...commerce.monetization,
+          transitions: nextTransitions,
+        },
+        offerings: commerce.offerings,
+        donation: commerce.donation,
+        greetingsEnabled: commerce.monetization.greetingsEnabled,
+      });
 
       const nextSaved: ServiceDraft = {
         subscription: {
-          ...draft.subscription,
           enabled: isPublic ? false : draft.subscription.enabled,
           price:
             isPublic || !draft.subscription.enabled
               ? ""
               : draft.subscription.price,
-          visible: isPublic ? false : draft.subscription.visible,
-          visibility: isPublic ? "public" : draft.subscription.visibility,
+          currency:
+            isPublic || !draft.subscription.enabled
+              ? "MXN"
+              : draft.subscription.currency,
         },
         saludo: {
           ...draft.saludo,
@@ -1204,11 +1548,15 @@ export default function OwnerAdminServices({
           draft.donationMode !== "none" ? draft.donationMinimumAmount : "",
         donationGoalLabel:
           draft.donationMode === "wedding" ? draft.donationGoalLabel : "",
+        freeToSubscriptionPolicy: draft.freeToSubscriptionPolicy,
+        subscriptionToFreePolicy: draft.subscriptionToFreePolicy,
       };
 
       setDraft(nextSaved);
       setSavedDraft(nextSaved);
-      setMsg("✅ Catálogo de servicios y donación guardados.");
+      setMsg(
+        "✅ Configuración de suscripción, transición, catálogo y donación guardados."
+      );
     } catch (e: any) {
       skipHydrationWhileSavingRef.current = false;
       setErr(e?.message ?? "❌ No se pudieron guardar los servicios.");
@@ -1221,20 +1569,20 @@ export default function OwnerAdminServices({
     <div style={contentStyle}>
       <div style={panelStyle}>
         <div style={{ display: "grid", gap: 2 }}>
-          <span style={titleStyle}>Catálogo de servicios del grupo</span>
+          <span style={titleStyle}>Configuración comercial del grupo</span>
           <span style={subtleStyle}>
-            Aquí defines qué servicios del menú estarán activos, cuánto cuestan
-            y cómo se muestran. Donación sigue separada porque no pertenece al
-            menú principal.
+            La suscripción mensual se configura como una capa estructural del
+            grupo. El menú visible solo incluye servicios activos como saludo,
+            consejo, meet & greet digital y clase personalizada. Donación sigue
+            separada porque no pertenece al menú principal.
           </span>
         </div>
       </div>
 
-      <ServiceEditorBlock
-        title="Suscripción mensual"
-        description="Define si tu comunidad cobra acceso mensual."
+      <SubscriptionEditorBlock
         draft={draft.subscription}
-        saving={saving || isPublic}
+        saving={saving}
+        disabledByVisibility={isPublic}
         onChange={(updater) => updateBlock("subscription", updater)}
         netText={
           subscriptionCalc
@@ -1246,10 +1594,38 @@ export default function OwnerAdminServices({
                 draft.subscription.currency
               )}.`
             : isPublic
-            ? "Para activar suscripción mensual tu comunidad debe ser privada u oculta."
-            : null
+              ? "Para activar suscripción mensual tu comunidad debe ser privada u oculta."
+              : null
         }
       />
+
+      {willEnableSubscription && (
+        <TransitionPolicyPanel
+          mode="free_to_subscription"
+          value={draft.freeToSubscriptionPolicy}
+          onChange={(next) =>
+            setDraft((prev) => ({
+              ...prev,
+              freeToSubscriptionPolicy: next as FreeToSubscriptionPolicy,
+            }))
+          }
+          saving={saving}
+        />
+      )}
+
+      {willDisableSubscription && (
+        <TransitionPolicyPanel
+          mode="subscription_to_free"
+          value={draft.subscriptionToFreePolicy}
+          onChange={(next) =>
+            setDraft((prev) => ({
+              ...prev,
+              subscriptionToFreePolicy: next as SubscriptionToFreePolicy,
+            }))
+          }
+          saving={saving}
+        />
+      )}
 
       <ServiceEditorBlock
         title="Saludos"
@@ -1294,14 +1670,7 @@ export default function OwnerAdminServices({
         description="Servicio visible del menú. El creador define duración y precio."
         draft={draft.meetGreet}
         saving={saving}
-        onChange={(updater) =>
-          updateBlock(
-            "meetGreet",
-            updater as
-              | Partial<ServiceDraft["meetGreet"]>
-              | ((prev: ServiceDraft["meetGreet"]) => ServiceDraft["meetGreet"])
-          )
-        }
+        onChange={(updater) => updateBlock("meetGreet", updater)}
         showDuration
         durationLabel="Duración en minutos"
         netText={
@@ -1322,14 +1691,7 @@ export default function OwnerAdminServices({
         description="Se prepara como servicio visible del catálogo aunque su ejecución se apoye después en live/evento."
         draft={draft.customClass}
         saving={saving}
-        onChange={(updater) =>
-          updateBlock(
-            "customClass",
-            updater as
-              | Partial<ServiceDraft["customClass"]>
-              | ((prev: ServiceDraft["customClass"]) => ServiceDraft["customClass"])
-          )
-        }
+        onChange={(updater) => updateBlock("customClass", updater)}
         showDuration
         durationLabel="Duración en minutos"
         netText={

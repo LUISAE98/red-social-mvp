@@ -18,7 +18,11 @@ import {
 import { createPortal } from "react-dom";
 import { db, storage } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
-import { joinGroup, leaveGroup } from "@/lib/groups/membership";
+import {
+  joinGroup,
+  joinGroupWithSubscription,
+  leaveGroup,
+} from "@/lib/groups/membership";
 import { requestToJoin, cancelJoinRequest } from "@/lib/groups/joinRequests";
 import OwnerAdminPanel from "./components/OwnerAdminPanel";
 import GroupSubnav from "./components/GroupSubnav";
@@ -89,6 +93,8 @@ type GroupDoc = {
     priceMonthly?: number | null;
     currency?: string | Currency | null;
     subscriptionsEnabled?: boolean;
+    subscriptionPriceMonthly?: number | null;
+    subscriptionCurrency?: string | Currency | null;
     paidPostsEnabled?: boolean;
     paidLivesEnabled?: boolean;
     paidVodEnabled?: boolean;
@@ -183,9 +189,16 @@ function normalizeMonetization(
 
   return {
     isPaid: raw.isPaid,
-    priceMonthly: raw.priceMonthly ?? null,
-    currency: normalizeCurrency(raw.currency),
+    priceMonthly: raw.priceMonthly ?? raw.subscriptionPriceMonthly ?? null,
+    currency:
+      normalizeCurrency(raw.currency) ??
+      normalizeCurrency(raw.subscriptionCurrency),
     subscriptionsEnabled: raw.subscriptionsEnabled,
+    subscriptionPriceMonthly:
+      raw.subscriptionPriceMonthly ?? raw.priceMonthly ?? null,
+    subscriptionCurrency:
+      normalizeCurrency(raw.subscriptionCurrency) ??
+      normalizeCurrency(raw.currency),
     paidPostsEnabled: raw.paidPostsEnabled,
     paidLivesEnabled: raw.paidLivesEnabled,
     paidVodEnabled: raw.paidVodEnabled,
@@ -349,6 +362,18 @@ function visibilityLabel(v: string) {
   return v ? `Comunidad ${v}` : "";
 }
 
+function formatMoney(value: number, currency: Currency) {
+  try {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${currency} ${value.toFixed(2)}`;
+  }
+}
+
 export default function GroupPage() {
   const params = useParams<{ groupId: string }>();
   const groupId = params.groupId;
@@ -426,6 +451,35 @@ export default function GroupPage() {
       return normalizeDonationSettings(normalizeDonationInput(group.donation));
     }, [group]);
 
+  const subscriptionEnabled = useMemo(() => {
+    if (!normalizedCurrentMonetization) return false;
+    return normalizedCurrentMonetization.subscriptionsEnabled === true;
+  }, [normalizedCurrentMonetization]);
+
+  const subscriptionPrice = useMemo(() => {
+    if (!normalizedCurrentMonetization) return null;
+    return (
+      normalizedCurrentMonetization.subscriptionPriceMonthly ??
+      normalizedCurrentMonetization.priceMonthly ??
+      null
+    );
+  }, [normalizedCurrentMonetization]);
+
+  const subscriptionCurrency = useMemo<Currency>(() => {
+    if (!normalizedCurrentMonetization) return "MXN";
+    return (
+      normalizedCurrentMonetization.subscriptionCurrency ??
+      normalizedCurrentMonetization.currency ??
+      "MXN"
+    );
+  }, [normalizedCurrentMonetization]);
+
+  const isSubscriptionGroup =
+    !isOwner &&
+    !effectiveIsMember &&
+    (group?.visibility === "private" || group?.visibility === "hidden") &&
+    subscriptionEnabled;
+
   const [greetOpen, setGreetOpen] = useState(false);
   const [greetType, setGreetType] = useState<GreetingType>("saludo");
   const [toName, setToName] = useState("");
@@ -435,6 +489,10 @@ export default function GroupPage() {
   const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
   const [serviceToast, setServiceToast] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
+
+  const [subscriptionOpen, setSubscriptionOpen] = useState(false);
+  const [subscriptionSubmitting, setSubscriptionSubmitting] = useState(false);
+  const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<"feed" | "members" | "settings">(
     "feed"
@@ -468,6 +526,70 @@ export default function GroupPage() {
       ? `${pathname}?${nextParams.toString()}`
       : pathname;
     router.replace(nextHref, { scroll: false });
+  }
+
+  function openSubscriptionModal() {
+    setSubscriptionError(null);
+    setServiceToast(null);
+    setSubscriptionOpen(true);
+  }
+
+  function closeSubscriptionModal() {
+    if (subscriptionSubmitting) return;
+    setSubscriptionOpen(false);
+    setSubscriptionError(null);
+    clearServiceQuery();
+  }
+
+  async function handleSubscriptionCheckout() {
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
+
+    if (!group) return;
+
+    if (group.visibility !== "private" && group.visibility !== "hidden") {
+      setSubscriptionError(
+        "La suscripción mensual solo puede usarse en comunidades privadas u ocultas."
+      );
+      return;
+    }
+
+    if (!subscriptionEnabled) {
+      setSubscriptionError("Esta comunidad no tiene suscripción activa.");
+      return;
+    }
+
+    setSubscriptionSubmitting(true);
+    setSubscriptionError(null);
+    setError(null);
+
+    try {
+      await joinGroupWithSubscription(groupId, user.uid, {
+        priceMonthly: subscriptionPrice ?? undefined,
+        currency: subscriptionCurrency,
+      });
+
+      const successMessage =
+        "✅ Suscripción procesada. Ya formas parte de la comunidad.";
+      setSubscriptionOpen(false);
+      setServiceToast(successMessage);
+      clearServiceQuery();
+
+      window.setTimeout(() => {
+        setServiceToast((current) =>
+          current === successMessage ? null : current
+        );
+      }, 4000);
+    } catch (e: any) {
+      setSubscriptionError(
+        e?.message ??
+          "No se pudo completar la suscripción. El flujo backend se conecta en el siguiente bloque."
+      );
+    } finally {
+      setSubscriptionSubmitting(false);
+    }
   }
 
   const fontStack =
@@ -818,11 +940,16 @@ export default function GroupPage() {
   }, [groupId, user]);
 
   useEffect(() => {
-    if (!greetOpen) return;
+    if (!greetOpen && !subscriptionOpen) return;
 
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape" && !greetSubmitting) {
-        closeGreetingForm();
+      if (event.key === "Escape") {
+        if (greetOpen && !greetSubmitting) {
+          closeGreetingForm();
+        }
+        if (subscriptionOpen && !subscriptionSubmitting) {
+          closeSubscriptionModal();
+        }
       }
     }
 
@@ -841,7 +968,7 @@ export default function GroupPage() {
       document.body.style.touchAction = previousBodyTouchAction;
       document.documentElement.style.overflow = previousHtmlOverflow;
     };
-  }, [greetOpen, greetSubmitting]);
+  }, [greetOpen, greetSubmitting, subscriptionOpen, subscriptionSubmitting]);
 
   async function handleJoinPublic() {
     if (!user) {
@@ -873,6 +1000,11 @@ export default function GroupPage() {
     try {
       await requestToJoin(groupId, user.uid);
     } catch (e: any) {
+      if (e?.message === "GROUP_REQUIRES_SUBSCRIPTION") {
+        openSubscriptionModal();
+        return;
+      }
+
       setError(e?.message ?? "No se pudo enviar la solicitud");
     } finally {
       setJoining(false);
@@ -995,10 +1127,14 @@ export default function GroupPage() {
     const requestedService = searchParams.get("service");
 
     if (!requestedService) return;
-    if (!user || !effectiveIsMember || isOwner) return;
+    if (!user || effectiveIsMember || isOwner) return;
+
+    if (requestedService === "suscripcion" && isSubscriptionGroup) {
+      openSubscriptionModal();
+      return;
+    }
 
     if (isGreetingType(requestedService)) {
-      openGreetingForm(requestedService);
       return;
     }
 
@@ -1010,21 +1146,19 @@ export default function GroupPage() {
       return;
     }
 
-    if (requestedService === "suscripcion") {
-      setServiceToast(
-        "La suscripción ya quedó preparada en el catálogo, pero el checkout se conecta después."
-      );
-      clearServiceQuery();
-      return;
-    }
-
     if (requestedService === "clase_personalizada") {
       setServiceToast(
         "Clase personalizada ya quedó preparada en el catálogo, pero su flujo operativo se conecta después."
       );
       clearServiceQuery();
     }
-  }, [searchParams, user, effectiveIsMember, isOwner]);
+  }, [
+    searchParams,
+    user,
+    effectiveIsMember,
+    isOwner,
+    isSubscriptionGroup,
+  ]);
 
   useEffect(() => {
     if (!serviceToast) return;
@@ -1469,6 +1603,125 @@ export default function GroupPage() {
         )
       : null;
 
+  const subscriptionModal =
+    mounted && subscriptionOpen
+      ? createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="group-subscription-modal-title"
+            style={serviceModalBackdropStyle}
+            onClick={() => {
+              if (!subscriptionSubmitting) closeSubscriptionModal();
+            }}
+          >
+            <div
+              style={serviceModalCardStyle}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div id="group-subscription-modal-title" style={subtitleStyle}>
+                  Suscripción mensual
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeSubscriptionModal}
+                  disabled={subscriptionSubmitting}
+                  style={{
+                    ...secondaryButton,
+                    opacity: subscriptionSubmitting ? 0.75 : 1,
+                    cursor: subscriptionSubmitting ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Cerrar
+                </button>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "grid",
+                  gap: 12,
+                }}
+              >
+                <div style={textStyle}>
+                  Esta comunidad requiere suscripción para unirte.
+                </div>
+
+                <div style={panelStyle}>
+                  <div style={labelStyle}>Costo mensual</div>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 24,
+                      fontWeight: 800,
+                      color: "#fff",
+                    }}
+                  >
+                    {subscriptionPrice != null
+                      ? formatMoney(subscriptionPrice, subscriptionCurrency)
+                      : `Precio no disponible (${subscriptionCurrency})`}
+                  </div>
+                  <div style={{ marginTop: 8, ...microText }}>
+                    Al continuar, el flujo intenta darte acceso inmediato a la
+                    comunidad. La conexión completa del backend se termina en el
+                    siguiente bloque.
+                  </div>
+                </div>
+
+                {subscriptionError && (
+                  <div style={messageBox}>{subscriptionError}</div>
+                )}
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={handleSubscriptionCheckout}
+                    disabled={subscriptionSubmitting}
+                    style={{
+                      ...primaryButton,
+                      opacity: subscriptionSubmitting ? 0.75 : 1,
+                      cursor: subscriptionSubmitting ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {subscriptionSubmitting ? "Procesando..." : "Pagar y unirme"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={closeSubscriptionModal}
+                    disabled={subscriptionSubmitting}
+                    style={{
+                      ...secondaryButton,
+                      opacity: subscriptionSubmitting ? 0.75 : 1,
+                      cursor: subscriptionSubmitting ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
   const toastNode =
     mounted && serviceToast
       ? createPortal(
@@ -1656,25 +1909,58 @@ export default function GroupPage() {
                         "🚫 Estás baneado de esta comunidad. No puedes ingresar."}
                       {!isBanned && approved && "✅ Aprobado. Entrando…"}
                       {!isBanned &&
+                        isSubscriptionGroup &&
+                        `Esta comunidad requiere suscripción para entrar. ${
+                          subscriptionPrice != null
+                            ? `Costo mensual: ${formatMoney(
+                                subscriptionPrice,
+                                subscriptionCurrency
+                              )}.`
+                            : "Costo mensual disponible dentro del panel de suscripción."
+                        }`}
+                      {!isBanned &&
+                        !isSubscriptionGroup &&
                         isPrivate &&
                         pending &&
                         "✅ Solicitud enviada. Está pendiente de revisión."}
                       {!isBanned &&
+                        !isSubscriptionGroup &&
                         isPrivate &&
                         !pending &&
                         !approved &&
                         !rejected &&
                         "Esta comunidad es privada. Puedes verla, pero necesitas aprobación para entrar."}
                       {!isBanned &&
+                        !isSubscriptionGroup &&
                         isPrivate &&
                         rejected &&
                         "❌ Tu solicitud fue rechazada."}
                       {!isBanned &&
+                        !isSubscriptionGroup &&
                         isHidden &&
                         "Esta comunidad es oculta. No tienes acceso en este momento."}
                     </div>
 
-                    {!isBanned && isPrivate && (
+                    {!isBanned && isSubscriptionGroup && (
+                      <div
+                        className="group-actions-row"
+                        style={{ marginTop: 14 }}
+                      >
+                        <button
+                          onClick={openSubscriptionModal}
+                          disabled={joining}
+                          style={{
+                            ...primaryButton,
+                            opacity: joining ? 0.75 : 1,
+                            cursor: joining ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {user ? "Suscribirme" : "Iniciar sesión para suscribirme"}
+                        </button>
+                      </div>
+                    )}
+
+                    {!isBanned && !isSubscriptionGroup && isPrivate && (
                       <div
                         className="group-actions-row"
                         style={{ marginTop: 14 }}
@@ -1717,6 +2003,7 @@ export default function GroupPage() {
           </div>
         </main>
 
+        {subscriptionModal}
         {toastNode}
       </>
     );
@@ -1868,7 +2155,7 @@ export default function GroupPage() {
 
           .group-feed-item {
             width: 100%;
-            minWidth: 0;
+            min-width: 0;
             max-width: 100%;
           }
 
@@ -2179,6 +2466,7 @@ export default function GroupPage() {
       </main>
 
       {greetingModal}
+      {subscriptionModal}
       {toastNode}
 
       {!cropOpen ? null : (

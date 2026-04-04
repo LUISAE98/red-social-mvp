@@ -53,6 +53,22 @@ function membershipStatusLabel(status: CanonicalMemberStatus) {
   return "";
 }
 
+function resolveSubscriptionEnabled(group: Community) {
+  return group.monetization?.isPaid === true;
+}
+
+function resolveSubscriptionPrice(group: Community) {
+  return group.monetization?.priceMonthly ?? null;
+}
+
+function resolveSubscriptionCurrency(group: Community) {
+  return group.monetization?.currency ?? null;
+}
+
+function isPaidPrivateGroup(group: Community) {
+  return group.visibility === "private" && resolveSubscriptionEnabled(group);
+}
+
 export default function SearchGroupsResults({
   fontStack,
   currentUser,
@@ -447,7 +463,7 @@ export default function SearchGroupsResults({
   function matchesMonetizationFilters(group: Community) {
     if (monetizationFilters.length === 0) return true;
 
-    const isPaid = !!group.monetization?.isPaid;
+    const isPaid = resolveSubscriptionEnabled(group);
     const isFree = !isPaid;
 
     if (monetizationFilters.includes("paid") && isPaid) return true;
@@ -654,6 +670,8 @@ export default function SearchGroupsResults({
     const isPrivate = group.visibility === "private";
     const isPublic = group.visibility === "public";
     const hasPendingReq = !!reqMap[group.id];
+    const paid = resolveSubscriptionEnabled(group);
+    const paidPrivate = isPaidPrivateGroup(group);
 
     const visLabel =
       group.visibility === "public"
@@ -662,9 +680,8 @@ export default function SearchGroupsResults({
           ? "Comunidad privada"
           : "Comunidad oculta";
 
-    const paid = !!group.monetization?.isPaid;
-    const price = group.monetization?.priceMonthly ?? null;
-    const cur = group.monetization?.currency ?? null;
+    const price = resolveSubscriptionPrice(group);
+    const cur = resolveSubscriptionCurrency(group);
 
     return (
       <article
@@ -727,6 +744,7 @@ export default function SearchGroupsResults({
                   !isMember &&
                   !isBlocked &&
                   isPrivate &&
+                  !paidPrivate &&
                   hasPendingReq && (
                     <span style={inlineMetaStyle}>(Pendiente)</span>
                   )}
@@ -749,7 +767,17 @@ export default function SearchGroupsResults({
               </button>
             )}
 
-            {!isOwner && !isMember && !isBlocked && isPrivate && (
+            {!isOwner && !isMember && !isBlocked && paidPrivate && (
+              <button
+                type="button"
+                style={primaryButtonStyle}
+                onClick={() => onNavigate(`/groups/${group.id}?service=suscripcion`)}
+              >
+                Suscribirme
+              </button>
+            )}
+
+            {!isOwner && !isMember && !isBlocked && isPrivate && !paidPrivate && (
               <>
                 {!hasPendingReq ? (
                   <button

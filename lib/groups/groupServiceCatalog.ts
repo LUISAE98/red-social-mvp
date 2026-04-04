@@ -16,19 +16,15 @@ type PartialOffering = Partial<GroupOffering> | null | undefined;
 
 const DEFAULT_CURRENCY: Currency = "MXN";
 
-const DEFAULT_SERVICE_ORDER: Record<
-  Exclude<CreatorServiceType, "mensaje">,
-  number
-> = {
-  suscripcion: 0,
+const DEFAULT_SERVICE_ORDER: Record<CreatorServiceType, number> = {
   saludo: 1,
   consejo: 2,
   meet_greet_digital: 3,
   clase_personalizada: 4,
+  mensaje: 99,
 };
 
 const ALL_SUPPORTED_SERVICE_TYPES: CreatorServiceType[] = [
-  "suscripcion",
   "saludo",
   "consejo",
   "meet_greet_digital",
@@ -100,7 +96,6 @@ export function normalizeServiceSourceScope(
 }
 
 export function getDefaultDisplayOrder(type: CreatorServiceType): number {
-  if (type === "mensaje") return 99;
   return DEFAULT_SERVICE_ORDER[type];
 }
 
@@ -119,14 +114,6 @@ export function normalizeServiceMeta(
     return {
       meetGreet: {
         durationMinutes,
-      },
-    };
-  }
-
-  if (type === "suscripcion") {
-    return {
-      subscription: {
-        billingPeriod: "monthly",
       },
     };
   }
@@ -163,12 +150,21 @@ function normalizePriceFields(raw: Record<string, unknown>) {
 export function normalizeSingleService(
   offering: PartialOffering,
   fallbackIndex = 0
-): GroupOffering {
+): GroupOffering | null {
   const raw = (offering ?? {}) as Record<string, unknown>;
   const rawType = raw.type;
 
+  // Compatibilidad legacy:
+  // si todavía viene "suscripcion" dentro de offerings, la ignoramos
+  // porque ahora la suscripción vive en monetization.
+  if (rawType === "suscripcion") {
+    return null;
+  }
+
+  // Si llega cualquier otro tipo inválido legacy, lo ignoramos
+  // para no romper runtime en grupos existentes.
   if (!isValidServiceType(rawType)) {
-    throw new Error("Tipo de servicio inválido.");
+    return null;
   }
 
   const type = rawType as CreatorServiceType;
@@ -181,13 +177,13 @@ export function normalizeSingleService(
     raw.currency == null
       ? null
       : isValidCurrency(raw.currency)
-      ? raw.currency
-      : null;
+        ? raw.currency
+        : null;
 
   const requiresApproval =
     typeof raw.requiresApproval === "boolean"
       ? raw.requiresApproval
-      : type !== "suscripcion";
+      : type !== "mensaje";
 
   const sourceScope = normalizeServiceSourceScope(raw.sourceScope);
   const visibility = normalizeServiceVisibility(raw.visibility, visible);
@@ -197,16 +193,11 @@ export function normalizeSingleService(
   );
   const meta = normalizeServiceMeta(type, raw.meta);
 
-  // Regla importante:
-  // - si el servicio está apagado, toleramos currency sin precio
-  // - si está encendido y tiene precio, debe tener moneda
-  // - si está encendido y no tiene precio, currency puede quedar null
   if (enabled && hasAnyPrice && !currency) {
     throw new Error("Si un servicio habilitado tiene precio, debe tener moneda.");
   }
 
   if (!enabled && !hasAnyPrice) {
-    // Permitimos que la UI conserve currency/defaults, pero no la persistimos
     currency = null;
   }
 
@@ -239,6 +230,7 @@ export function normalizeServiceCatalog(
 
   arr.forEach((offering, index) => {
     const normalized = normalizeSingleService(offering, index);
+    if (!normalized) return;
     deduped.set(normalized.type, normalized);
   });
 
@@ -267,28 +259,9 @@ export function buildDefaultGroupServiceCatalog(params?: {
   currency?: Currency | null;
   includeLegacyMessage?: boolean;
 }): GroupServiceCatalog {
-  const currency = params?.currency ?? DEFAULT_CURRENCY;
   const includeLegacyMessage = params?.includeLegacyMessage ?? false;
 
   const base: GroupServiceCatalog = [
-    {
-      type: "suscripcion",
-      enabled: false,
-      visible: false,
-      visibility: "hidden",
-      displayOrder: 0,
-      memberPrice: null,
-      publicPrice: null,
-      currency: null,
-      requiresApproval: false,
-      sourceScope: "group",
-      meta: {
-        subscription: {
-          billingPeriod: "monthly",
-        },
-      },
-      price: null,
-    },
     {
       type: "saludo",
       enabled: false,
@@ -413,13 +386,7 @@ export function mergeWithDefaultCatalog(
 export function deriveMonetizationFlagsFromCatalog(
   catalog: GroupServiceCatalog | null | undefined
 ) {
-  const subscription = findService(catalog, "suscripcion");
-
   return {
-    isPaid:
-      subscription?.enabled === true &&
-      normalizePositiveNullableNumber(subscription.memberPrice) != null,
-    subscriptionsEnabled: hasEnabledService(catalog, "suscripcion"),
     greetingsEnabled: hasEnabledService(catalog, "saludo"),
     adviceEnabled: hasEnabledService(catalog, "consejo"),
     customClassEnabled: hasEnabledService(catalog, "clase_personalizada"),
@@ -435,42 +402,45 @@ export function mergeMonetizationWithCatalog(params: {
   const monetization = params.monetization ?? null;
   const catalog = Array.isArray(params.catalog) ? params.catalog : [];
   const derived = deriveMonetizationFlagsFromCatalog(catalog);
-  const subscription = findService(catalog, "suscripcion");
+
+  const subscriptionsEnabled = normalizeBoolean(
+    monetization?.subscriptionsEnabled,
+    normalizeBoolean(monetization?.isPaid, false)
+  );
+
+  const subscriptionPriceMonthly = normalizePositiveNullableNumber(
+    monetization?.subscriptionPriceMonthly ?? monetization?.priceMonthly ?? null
+  );
+
+  const subscriptionCurrency =
+    monetization?.subscriptionCurrency &&
+    isValidCurrency(monetization.subscriptionCurrency)
+      ? monetization.subscriptionCurrency
+      : monetization?.currency && isValidCurrency(monetization.currency)
+        ? monetization.currency
+        : null;
 
   const isPaid =
     typeof monetization?.isPaid === "boolean"
       ? monetization.isPaid
-      : derived.isPaid;
-
-  const priceMonthly = normalizePositiveNullableNumber(
-    monetization?.priceMonthly ??
-      subscription?.memberPrice ??
-      subscription?.price ??
-      null
-  );
-
-  const currency =
-    monetization?.currency && isValidCurrency(monetization.currency)
-      ? monetization.currency
-      : subscription?.currency && isValidCurrency(subscription.currency)
-      ? subscription.currency
-      : null;
+      : subscriptionsEnabled;
 
   const greetingsEnabled =
     typeof monetization?.greetingsEnabled === "boolean"
       ? monetization.greetingsEnabled
       : typeof params.legacyGreetingsEnabled === "boolean"
-      ? params.legacyGreetingsEnabled
-      : derived.greetingsEnabled;
+        ? params.legacyGreetingsEnabled
+        : derived.greetingsEnabled;
 
   return {
     isPaid,
-    priceMonthly: isPaid ? priceMonthly : null,
-    currency: isPaid ? currency : null,
-    subscriptionsEnabled:
-      typeof monetization?.subscriptionsEnabled === "boolean"
-        ? monetization.subscriptionsEnabled
-        : derived.subscriptionsEnabled,
+    priceMonthly: isPaid ? subscriptionPriceMonthly : null,
+    currency: isPaid ? subscriptionCurrency : null,
+    subscriptionsEnabled,
+    subscriptionPriceMonthly: subscriptionsEnabled
+      ? subscriptionPriceMonthly
+      : null,
+    subscriptionCurrency: subscriptionsEnabled ? subscriptionCurrency : null,
     paidPostsEnabled: normalizeBoolean(monetization?.paidPostsEnabled, false),
     paidLivesEnabled: normalizeBoolean(monetization?.paidLivesEnabled, false),
     paidVodEnabled: normalizeBoolean(monetization?.paidVodEnabled, false),
@@ -492,60 +462,6 @@ export function mergeMonetizationWithCatalog(params: {
         ? monetization.digitalMeetGreetEnabled
         : derived.digitalMeetGreetEnabled,
   };
-}
-
-export function buildSubscriptionOfferingFromMonetization(
-  monetization?: PartialMonetization
-): GroupOffering {
-  const enabled =
-    normalizeBoolean(monetization?.subscriptionsEnabled, false) ||
-    normalizeBoolean(monetization?.isPaid, false);
-
-  const priceMonthly = normalizePositiveNullableNumber(
-    monetization?.priceMonthly ?? null
-  );
-
-  const currency =
-    monetization?.currency && isValidCurrency(monetization.currency)
-      ? monetization.currency
-      : enabled && priceMonthly != null
-      ? DEFAULT_CURRENCY
-      : null;
-
-  return {
-    type: "suscripcion",
-    enabled,
-    visible: enabled,
-    visibility: enabled ? "public" : "hidden",
-    displayOrder: 0,
-    memberPrice: enabled ? priceMonthly : null,
-    publicPrice: null,
-    currency: enabled ? currency : null,
-    requiresApproval: false,
-    sourceScope: "group",
-    meta: {
-      subscription: {
-        billingPeriod: "monthly",
-      },
-    },
-    price: enabled ? priceMonthly : null,
-  };
-}
-
-export function syncCatalogWithMonetization(
-  catalog: GroupServiceCatalog | null | undefined,
-  monetization?: PartialMonetization
-): GroupServiceCatalog {
-  const merged = mergeWithDefaultCatalog(catalog ?? []);
-  const subscription = buildSubscriptionOfferingFromMonetization(monetization);
-
-  const withoutSubscription = merged.filter(
-    (item) => item.type !== "suscripcion"
-  );
-
-  return [subscription, ...withoutSubscription].sort(
-    (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)
-  );
 }
 
 export function normalizeDonationSettings(
@@ -622,26 +538,25 @@ export function buildNormalizedGroupCommerceState(params: {
   const mergedCatalog = mergeWithDefaultCatalog(
     params.offerings,
     params.currency ??
-      (params.monetization?.currency && isValidCurrency(params.monetization.currency)
-        ? params.monetization.currency
-        : DEFAULT_CURRENCY)
-  );
-
-  const syncedCatalog = syncCatalogWithMonetization(
-    mergedCatalog,
-    params.monetization
+      (params.monetization?.subscriptionCurrency &&
+      isValidCurrency(params.monetization.subscriptionCurrency)
+        ? params.monetization.subscriptionCurrency
+        : params.monetization?.currency &&
+            isValidCurrency(params.monetization.currency)
+          ? params.monetization.currency
+          : DEFAULT_CURRENCY)
   );
 
   const monetization = mergeMonetizationWithCatalog({
     monetization: params.monetization,
-    catalog: syncedCatalog,
+    catalog: mergedCatalog,
     legacyGreetingsEnabled: params.legacyGreetingsEnabled,
   });
 
   const donation = normalizeDonationSettings(params.donation);
 
   return {
-    offerings: syncedCatalog,
+    offerings: mergedCatalog,
     monetization,
     donation,
   };

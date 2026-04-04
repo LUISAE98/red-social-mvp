@@ -577,6 +577,8 @@ export default function NewGroupPage() {
           priceMonthly: isPaid ? priceNum : null,
           currency: isPaid ? currency : null,
           subscriptionsEnabled: isPaid,
+          subscriptionPriceMonthly: isPaid ? priceNum : null,
+          subscriptionCurrency: isPaid ? currency : null,
           paidPostsEnabled: false,
           paidLivesEnabled: false,
           paidVodEnabled: false,
