@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import type {
   GroupDocLite,
   JoinRequestRow,
@@ -37,6 +40,7 @@ type Props = {
 
 type SidebarMemberStatus =
   | "active"
+  | "subscribed"
   | "muted"
   | "banned"
   | "removed"
@@ -44,52 +48,59 @@ type SidebarMemberStatus =
 
 type SidebarMemberRole = "owner" | "mod" | "member" | null;
 
-type SubscriptionAccessState =
-  | "requires_subscription"
+type AccessState =
+  | "joined"
   | "legacy_free"
   | "subscribed"
-  | "group_now_paid"
-  | "standard";
+  | "requires_subscription"
+  | "banned";
 
-type MemberSubscriptionLite = {
-  access?: string | null;
-  status?: string | null;
-  legacyComplimentary?: boolean;
-  requiresSubscription?: boolean;
-};
+type NoticeTone = "warning" | "success" | "info" | "danger";
+
+const DISMISSED_GROUPS_STORAGE_KEY =
+  "vibra_owner_sidebar_dismissed_transition_groups";
 
 function normalizeMemberStatus(group: GroupDocLite): SidebarMemberStatus {
-  const raw = (group as any)?.memberStatus ?? (group as any)?.status ?? null;
+  const raw = group?.memberStatus ?? null;
 
   if (raw === "active") return "active";
+  if (raw === "subscribed") return "subscribed";
   if (raw === "muted") return "muted";
   if (raw === "banned") return "banned";
   if (raw === "removed") return "removed";
-
-  if (raw === "kicked") return "removed";
-  if (raw === "expelled") return "removed";
 
   return null;
 }
 
 function normalizeMemberRole(group: GroupDocLite): SidebarMemberRole {
-  const raw = (group as any)?.memberRole ?? (group as any)?.roleInGroup ?? null;
+  const raw = group?.memberRole ?? null;
 
   if (raw === "owner") return "owner";
-  if (raw === "mod" || raw === "moderator") return "mod";
+  if (raw === "mod") return "mod";
   if (raw === "member") return "member";
+
   return null;
 }
 
 function isVisibleJoinedStatus(status: SidebarMemberStatus) {
-  return status === "active" || status === "muted" || status === "banned";
+  return (
+    status === "active" ||
+    status === "subscribed" ||
+    status === "muted" ||
+    status === "banned"
+  );
 }
 
 function isActuallyJoinedStatus(status: SidebarMemberStatus) {
-  return status === "active" || status === "muted";
+  return (
+    status === "active" ||
+    status === "subscribed" ||
+    status === "muted"
+  );
 }
 
 function statusDotColor(status?: SidebarMemberStatus) {
+  if (status === "subscribed") return "#38bdf8";
   if (status === "muted") return "#f5a623";
   if (status === "banned") return "#ef4444";
   if (status === "removed") return "#b91c1c";
@@ -97,9 +108,10 @@ function statusDotColor(status?: SidebarMemberStatus) {
 }
 
 function statusLabel(status?: SidebarMemberStatus) {
+  if (status === "subscribed") return "Suscrito";
   if (status === "muted") return "Muteado";
   if (status === "banned") return "Baneado";
-  if (status === "removed") return "Expulsado";
+  if (status === "removed") return "Sin acceso";
   return "Activo";
 }
 
@@ -110,7 +122,7 @@ function roleLabel(role?: SidebarMemberRole) {
 }
 
 function groupHasPaidSubscription(group: GroupDocLite) {
-  const monetization = (group as any)?.monetization ?? {};
+  const monetization = group?.monetization ?? {};
 
   return (
     monetization?.subscriptionsEnabled === true ||
@@ -122,65 +134,51 @@ function groupHasPaidSubscription(group: GroupDocLite) {
   );
 }
 
-function normalizeSubscriptionAccessState(
-  group: GroupDocLite
-): SubscriptionAccessState {
-  const memberSubscription = (((group as any)?.memberSubscription ?? {}) ||
-    {}) as MemberSubscriptionLite;
-
-  const monetization = ((group as any)?.monetization ?? {}) as {
-    subscriptionTransitionPolicy?: string | null;
-  };
-
-  const rawRequiresSubscription =
-    memberSubscription.requiresSubscription === true ||
-    memberSubscription.access === "requires_subscription" ||
-    memberSubscription.status === "requires_subscription" ||
-    (group as any)?.requiresResubscribe === true ||
-    (group as any)?.membershipRequiresResubscribe === true ||
-    (group as any)?.memberRequiresSubscription === true ||
-    (group as any)?.requiresSubscription === true;
-
-  const rawLegacyFree =
-    memberSubscription.legacyComplimentary === true ||
-    memberSubscription.access === "included_legacy" ||
-    (group as any)?.legacyFreeAccess === true ||
-    (group as any)?.memberLegacyFreeAccess === true ||
-    (group as any)?.legacyAccessFree === true;
-
-  const rawSubscribed =
-    memberSubscription.access === "subscribed" ||
-    memberSubscription.status === "active" ||
-    memberSubscription.status === "paid" ||
-    (group as any)?.subscriptionStatus === "active";
-
-  const subscriptionsEnabled = groupHasPaidSubscription(group);
-
-  const transitionPolicy = monetization.subscriptionTransitionPolicy ?? null;
-
-  if (rawRequiresSubscription) {
+function resolveAccessState(group: GroupDocLite): AccessState {
+  if (group.sidebarState === "legacy_free") return "legacy_free";
+  if (group.sidebarState === "requires_subscription") {
     return "requires_subscription";
   }
+  if (group.sidebarState === "banned") return "banned";
 
-  if (rawLegacyFree) {
+  if (
+    group.membershipAccessType === "legacy_free" ||
+    group.legacyComplimentary === true
+  ) {
     return "legacy_free";
   }
 
-  if (rawSubscribed) {
+  if (
+    group.membershipAccessType === "subscription" ||
+    group.membershipAccessType === "subscribed" ||
+    group.memberStatus === "subscribed" ||
+    group.subscriptionActive === true
+  ) {
     return "subscribed";
   }
 
-  if (
-    subscriptionsEnabled &&
-    (transitionPolicy === "keep_existing_free" ||
-      transitionPolicy === "remove_existing_members" ||
-      transitionPolicy === "unset" ||
-      transitionPolicy == null)
-  ) {
-    return "group_now_paid";
+  if (group.requiresSubscription === true) {
+    return "requires_subscription";
   }
 
-  return "standard";
+  if (normalizeMemberStatus(group) === "banned") {
+    return "banned";
+  }
+
+  return "joined";
+}
+
+function isJoinedLikeState(state: AccessState) {
+  return (
+    state === "joined" ||
+    state === "legacy_free" ||
+    state === "subscribed" ||
+    state === "banned"
+  );
+}
+
+function shouldShowGroup(group: GroupDocLite, dismissedIds: Set<string>) {
+  return true;
 }
 
 function buildJoinedSubtitle(
@@ -191,7 +189,7 @@ function buildJoinedSubtitle(
   const role = normalizeMemberRole(group);
   const statusText = statusLabel(status);
   const dotColor = statusDotColor(status);
-  const subscriptionAccessState = normalizeSubscriptionAccessState(group);
+  const accessState = resolveAccessState(group);
 
   return (
     <span
@@ -224,10 +222,7 @@ function buildJoinedSubtitle(
         <>
           <span
             aria-hidden="true"
-            style={{
-              color: "rgba(255,255,255,0.34)",
-              flexShrink: 0,
-            }}
+            style={{ color: "rgba(255,255,255,0.34)", flexShrink: 0 }}
           >
             •
           </span>
@@ -235,29 +230,11 @@ function buildJoinedSubtitle(
         </>
       )}
 
-      {subscriptionAccessState === "requires_subscription" && (
+      {accessState === "legacy_free" && (
         <>
           <span
             aria-hidden="true"
-            style={{
-              color: "rgba(255,255,255,0.34)",
-              flexShrink: 0,
-            }}
-          >
-            •
-          </span>
-          <span style={{ color: "#fbbf24" }}>Debes suscribirte</span>
-        </>
-      )}
-
-      {subscriptionAccessState === "legacy_free" && (
-        <>
-          <span
-            aria-hidden="true"
-            style={{
-              color: "rgba(255,255,255,0.34)",
-              flexShrink: 0,
-            }}
+            style={{ color: "rgba(255,255,255,0.34)", flexShrink: 0 }}
           >
             •
           </span>
@@ -265,14 +242,11 @@ function buildJoinedSubtitle(
         </>
       )}
 
-      {subscriptionAccessState === "subscribed" && (
+      {accessState === "subscribed" && (
         <>
           <span
             aria-hidden="true"
-            style={{
-              color: "rgba(255,255,255,0.34)",
-              flexShrink: 0,
-            }}
+            style={{ color: "rgba(255,255,255,0.34)", flexShrink: 0 }}
           >
             •
           </span>
@@ -280,18 +254,15 @@ function buildJoinedSubtitle(
         </>
       )}
 
-      {subscriptionAccessState === "group_now_paid" && (
+      {accessState === "requires_subscription" && (
         <>
           <span
             aria-hidden="true"
-            style={{
-              color: "rgba(255,255,255,0.34)",
-              flexShrink: 0,
-            }}
+            style={{ color: "rgba(255,255,255,0.34)", flexShrink: 0 }}
           >
             •
           </span>
-          <span style={{ color: "#fbbf24" }}>Ahora es de suscripción</span>
+          <span style={{ color: "#fbbf24" }}>Debes suscribirte</span>
         </>
       )}
     </span>
@@ -304,44 +275,89 @@ function buildAccessNotice(
   | {
       title?: string;
       text: string;
-      tone: "warning" | "success" | "info";
+      tone: NoticeTone;
+      showSubscribeCta?: boolean;
+      showDismissCta?: boolean;
     }
   | null {
-  const state = normalizeSubscriptionAccessState(group);
+  const state = resolveAccessState(group);
 
   if (state === "requires_subscription") {
     return {
-      title: "Cambio importante",
-      text: "Esta comunidad ahora requiere suscripción para conservar o recuperar acceso. Revisa si deseas continuar dentro de ella.",
+      title: "Acceso pendiente de suscripción",
+      text: "Esta comunidad ahora requiere suscripción. Como tu acceso anterior ya no es suficiente, debes suscribirte para continuar dentro.",
       tone: "warning",
+      showSubscribeCta: true,
+      showDismissCta: false,
     };
   }
 
   if (state === "legacy_free") {
     return {
       title: "Acceso conservado",
-      text: "Conservas acceso gratis porque ya pertenecías a esta comunidad antes del cambio a suscripción.",
+      text: "Esta comunidad ahora es de suscripción, pero conservas acceso gratis porque ya estabas dentro antes del cambio.",
       tone: "success",
+      showSubscribeCta: false,
+      showDismissCta: false,
     };
   }
 
   if (state === "subscribed") {
     return {
       title: "Suscripción activa",
-      text: "Esta comunidad ya funciona con suscripción y tu acceso se encuentra activo.",
+      text: "Tu acceso a esta comunidad está activo mediante suscripción.",
       tone: "info",
+      showSubscribeCta: false,
+      showDismissCta: false,
     };
   }
 
-  if (state === "group_now_paid") {
+  if (state === "banned") {
     return {
-      title: "Nuevo estado de la comunidad",
-      text: "Esta comunidad se convirtió en una comunidad de suscripción. Te lo mostramos aquí para que sepas que cambió su modelo de acceso.",
-      tone: "warning",
+      title: "Acceso restringido",
+      text: "No puedes interactuar normalmente en esta comunidad porque tu estado actual está restringido.",
+      tone: "danger",
+      showSubscribeCta: false,
+      showDismissCta: false,
     };
   }
 
   return null;
+}
+
+function noticeStyles(tone: NoticeTone, isMobile: boolean): React.CSSProperties {
+  return {
+    borderRadius: 10,
+    border:
+      tone === "warning"
+        ? "1px solid rgba(251,191,36,0.28)"
+        : tone === "success"
+        ? "1px solid rgba(134,239,172,0.22)"
+        : tone === "danger"
+        ? "1px solid rgba(252,165,165,0.24)"
+        : "1px solid rgba(147,197,253,0.22)",
+    background:
+      tone === "warning"
+        ? "rgba(251,191,36,0.08)"
+        : tone === "success"
+        ? "rgba(134,239,172,0.08)"
+        : tone === "danger"
+        ? "rgba(252,165,165,0.08)"
+        : "rgba(147,197,253,0.08)",
+    padding: "8px 10px",
+    fontSize: isMobile ? 10 : 11,
+    lineHeight: 1.35,
+    color:
+      tone === "warning"
+        ? "rgba(255,235,180,0.96)"
+        : tone === "success"
+        ? "rgba(220,255,230,0.96)"
+        : tone === "danger"
+        ? "rgba(255,220,220,0.96)"
+        : "rgba(220,236,255,0.96)",
+    display: "grid",
+    gap: 6,
+  };
 }
 
 function renderJoinedCardWithAccessNotice(params: {
@@ -351,8 +367,10 @@ function renderJoinedCardWithAccessNotice(params: {
     g: GroupDocLite,
     opts?: { compact?: boolean; subtitle?: React.ReactNode }
   ) => React.ReactNode;
+  onSubscribe: (groupId: string) => void;
+  onDismiss: (groupId: string) => void;
 }) {
-  const { group, isMobile, renderCommunityCard } = params;
+  const { group, isMobile, renderCommunityCard, onSubscribe, onDismiss } = params;
   const notice = buildAccessNotice(group);
 
   return (
@@ -368,38 +386,60 @@ function renderJoinedCardWithAccessNotice(params: {
       })}
 
       {notice && (
-        <div
-          style={{
-            borderRadius: 10,
-            border:
-              notice.tone === "warning"
-                ? "1px solid rgba(251,191,36,0.28)"
-                : notice.tone === "success"
-                ? "1px solid rgba(134,239,172,0.22)"
-                : "1px solid rgba(147,197,253,0.22)",
-            background:
-              notice.tone === "warning"
-                ? "rgba(251,191,36,0.08)"
-                : notice.tone === "success"
-                ? "rgba(134,239,172,0.08)"
-                : "rgba(147,197,253,0.08)",
-            padding: "8px 10px",
-            fontSize: isMobile ? 10 : 11,
-            lineHeight: 1.35,
-            color:
-              notice.tone === "warning"
-                ? "rgba(255,235,180,0.96)"
-                : notice.tone === "success"
-                ? "rgba(220,255,230,0.96)"
-                : "rgba(220,236,255,0.96)",
-            display: "grid",
-            gap: notice.title ? 3 : 0,
-          }}
-        >
-          {notice.title ? (
-            <div style={{ fontWeight: 700 }}>{notice.title}</div>
-          ) : null}
+        <div style={noticeStyles(notice.tone, isMobile)}>
+          {notice.title ? <div style={{ fontWeight: 700 }}>{notice.title}</div> : null}
           <div>{notice.text}</div>
+
+          {(notice.showSubscribeCta || notice.showDismissCta) && (
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                marginTop: 2,
+              }}
+            >
+              {notice.showSubscribeCta && (
+                <button
+                  type="button"
+                  onClick={() => onSubscribe(group.id)}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.16)",
+                    background: "#fff",
+                    color: "#000",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    lineHeight: 1.1,
+                    cursor: "pointer",
+                  }}
+                >
+                  Suscribirme
+                </button>
+              )}
+
+              {notice.showDismissCta && (
+                <button
+                  type="button"
+                  onClick={() => onDismiss(group.id)}
+                  style={{
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    background: "rgba(255,255,255,0.05)",
+                    color: "#fff",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    lineHeight: 1.1,
+                    cursor: "pointer",
+                  }}
+                >
+                  Olvidar
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -424,17 +464,56 @@ export default function OwnerSidebarOtherGroups({
   getInitials,
   renderUserLink,
 }: Props) {
+  const router = useRouter();
+  const [dismissedGroupIds, setDismissedGroupIds] = useState<Set<string>>(
+    () => new Set()
+  );
+
   const isMobile =
     typeof window !== "undefined" ? window.innerWidth <= 640 : false;
 
-  const visibleJoinedGrouped = joinedGrouped
-    .map((section) => ({
-      ...section,
-      items: section.items.filter((g) =>
-        isVisibleJoinedStatus(normalizeMemberStatus(g))
-      ),
-    }))
-    .filter((section) => section.items.length > 0);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(DISMISSED_GROUPS_STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+
+      setDismissedGroupIds(new Set(parsed.filter((v) => typeof v === "string")));
+    } catch {
+      setDismissedGroupIds(new Set());
+    }
+  }, []);
+
+  function persistDismissed(next: Set<string>) {
+    setDismissedGroupIds(next);
+    try {
+      window.localStorage.setItem(
+        DISMISSED_GROUPS_STORAGE_KEY,
+        JSON.stringify(Array.from(next))
+      );
+    } catch {}
+  }
+
+  function handleSubscribe(groupId: string) {
+    router.push(`/groups/${groupId}`);
+  }
+
+  function handleDismiss(groupId: string) {
+    const next = new Set(dismissedGroupIds);
+    next.add(groupId);
+    persistDismissed(next);
+  }
+
+  const visibleJoinedGrouped = useMemo(() => {
+    return joinedGrouped
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((g) => shouldShowGroup(g, dismissedGroupIds)),
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [joinedGrouped, dismissedGroupIds]);
 
   const visiblePendingJoinRequestsSent = pendingJoinRequestsSent.filter((row) => {
     const community = groupMetaMap[row.groupId] ?? null;
@@ -442,9 +521,8 @@ export default function OwnerSidebarOtherGroups({
       return true;
     }
 
-    const status = normalizeMemberStatus(community);
-
-    return !isActuallyJoinedStatus(status);
+    const state = resolveAccessState(community);
+    return !isJoinedLikeState(state);
   });
 
   const hasAnyJoined = visibleJoinedGrouped.length > 0;
@@ -461,20 +539,29 @@ export default function OwnerSidebarOtherGroups({
               const role = normalizeMemberRole(g);
               const isMod = role === "mod";
               const joinRequests = joinRequestsByGroup[g.id] ?? [];
-              const showJoinSection =
-                isMod &&
-                g.visibility !== "public" &&
-                joinRequests.length > 0;
               const joinListOpen = joinSectionOpen[g.id] === true;
               const communityName = g.name ?? "(Sin nombre)";
               const avatarFallback = getInitials(communityName);
               const accessNotice = buildAccessNotice(g);
+              const accessState = resolveAccessState(g);
+              const memberStatus = normalizeMemberStatus(g);
+
+              const showJoinSection =
+                isMod &&
+                g.visibility !== "public" &&
+                joinRequests.length > 0 &&
+                (accessState === "joined" ||
+                  accessState === "legacy_free" ||
+                  accessState === "subscribed") &&
+                isActuallyJoinedStatus(memberStatus);
 
               if (!showJoinSection) {
                 return renderJoinedCardWithAccessNotice({
                   group: g,
                   isMobile,
                   renderCommunityCard,
+                  onSubscribe: handleSubscribe,
+                  onDismiss: handleDismiss,
                 });
               }
 
@@ -600,40 +687,63 @@ export default function OwnerSidebarOtherGroups({
                   </div>
 
                   {accessNotice && (
-                    <div
-                      style={{
-                        borderRadius: 10,
-                        border:
-                          accessNotice.tone === "warning"
-                            ? "1px solid rgba(251,191,36,0.28)"
-                            : accessNotice.tone === "success"
-                            ? "1px solid rgba(134,239,172,0.22)"
-                            : "1px solid rgba(147,197,253,0.22)",
-                        background:
-                          accessNotice.tone === "warning"
-                            ? "rgba(251,191,36,0.08)"
-                            : accessNotice.tone === "success"
-                            ? "rgba(134,239,172,0.08)"
-                            : "rgba(147,197,253,0.08)",
-                        padding: "8px 10px",
-                        fontSize: isMobile ? 10 : 11,
-                        lineHeight: 1.35,
-                        color:
-                          accessNotice.tone === "warning"
-                            ? "rgba(255,235,180,0.96)"
-                            : accessNotice.tone === "success"
-                            ? "rgba(220,255,230,0.96)"
-                            : "rgba(220,236,255,0.96)",
-                        display: "grid",
-                        gap: accessNotice.title ? 3 : 0,
-                      }}
-                    >
+                    <div style={noticeStyles(accessNotice.tone, isMobile)}>
                       {accessNotice.title ? (
-                        <div style={{ fontWeight: 700 }}>
-                          {accessNotice.title}
-                        </div>
+                        <div style={{ fontWeight: 700 }}>{accessNotice.title}</div>
                       ) : null}
                       <div>{accessNotice.text}</div>
+
+                      {(accessNotice.showSubscribeCta ||
+                        accessNotice.showDismissCta) && (
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            flexWrap: "wrap",
+                            marginTop: 2,
+                          }}
+                        >
+                          {accessNotice.showSubscribeCta && (
+                            <button
+                              type="button"
+                              onClick={() => handleSubscribe(g.id)}
+                              style={{
+                                padding: "8px 12px",
+                                borderRadius: 10,
+                                border: "1px solid rgba(255,255,255,0.16)",
+                                background: "#fff",
+                                color: "#000",
+                                fontSize: 12,
+                                fontWeight: 700,
+                                lineHeight: 1.1,
+                                cursor: "pointer",
+                              }}
+                            >
+                              Suscribirme
+                            </button>
+                          )}
+
+                          {accessNotice.showDismissCta && (
+                            <button
+                              type="button"
+                              onClick={() => handleDismiss(g.id)}
+                              style={{
+                                padding: "8px 12px",
+                                borderRadius: 10,
+                                border: "1px solid rgba(255,255,255,0.10)",
+                                background: "rgba(255,255,255,0.05)",
+                                color: "#fff",
+                                fontSize: 12,
+                                fontWeight: 600,
+                                lineHeight: 1.1,
+                                cursor: "pointer",
+                              }}
+                            >
+                              Olvidar
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
 

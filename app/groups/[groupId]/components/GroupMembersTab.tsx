@@ -57,6 +57,7 @@ type EnrichedMember = MemberDoc & {
 type FilterValue =
   | "all"
   | "active"
+  | "subscribed"
   | "muted"
   | "banned"
   | "removed"
@@ -79,7 +80,12 @@ type MenuPosition = {
   left: number;
 };
 
-type CanonicalMemberStatus = "active" | "muted" | "banned" | "removed";
+type CanonicalMemberStatus =
+  | "active"
+  | "subscribed"
+  | "muted"
+  | "banned"
+  | "removed";
 type CanonicalRole = "owner" | "mod" | "member";
 
 function normalizeRole(role?: string): CanonicalRole {
@@ -126,6 +132,8 @@ function resolveEffectiveStatus(
     return "muted";
   }
 
+  if (status === "subscribed") return "subscribed";
+
   return "active";
 }
 
@@ -155,6 +163,7 @@ function friendlyStatus(status?: string, mutedUntil?: any) {
     return remaining ? `Muteado, ${remaining}` : "Muteado";
   }
 
+  if (normalized === "subscribed") return "Suscrito";
   if (normalized === "banned") return "Baneado";
   if (normalized === "removed") return "Expulsado";
   return "Activo";
@@ -165,6 +174,7 @@ function statusDotColor(status?: string, mutedUntil?: any) {
   if (normalized === "banned") return "#ff4d4f";
   if (normalized === "removed") return "#b91c1c";
   if (normalized === "muted") return "#f5a623";
+  if (normalized === "subscribed") return "#38bdf8";
   return "#22c55e";
 }
 
@@ -456,10 +466,11 @@ export default function GroupMembersTab({
         const matchesSearch =
           !term || name.includes(term) || handle.includes(term);
 
-        const matchesFilter =
+                const matchesFilter =
           !canUseFilters || filter === "all"
             ? true
             : filter === "active" ||
+              filter === "subscribed" ||
               filter === "muted" ||
               filter === "banned" ||
               filter === "removed"
@@ -545,7 +556,10 @@ export default function GroupMembersTab({
     const role = normalizeRole(member.roleInGroup || member.role);
 
     if (isOwner) {
-      if (role === "member" && status === "active") {
+      if (
+        role === "member" &&
+        (status === "active" || status === "subscribed")
+      ) {
         actions.push("promote_to_mod");
       }
 
@@ -571,7 +585,6 @@ export default function GroupMembersTab({
     actions.push("mute", "ban", "remove");
     return actions;
   }
-
   async function runAction(
     member: EnrichedMember,
     action: Exclude<MemberAction, "mute">
@@ -1099,6 +1112,9 @@ export default function GroupMembersTab({
               </option>
               <option value="active" style={{ background: "#141414", color: "#fff" }}>
                 Activos
+              </option>
+              <option value="subscribed" style={{ background: "#141414", color: "#fff" }}>
+                Suscritos
               </option>
               <option value="muted" style={{ background: "#141414", color: "#fff" }}>
                 Muteados

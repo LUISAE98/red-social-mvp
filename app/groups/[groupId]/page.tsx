@@ -54,6 +54,7 @@ import type {
 type JoinRequestStatus = "pending" | "approved" | "rejected" | string;
 type MemberStatus =
   | "active"
+  | "subscribed"
   | "muted"
   | "banned"
   | "removed"
@@ -69,6 +70,12 @@ type DonationSourceScope = "group" | "profile";
 type Visibility = "public" | "private" | "hidden";
 type LegacyServiceVisibility = "hidden" | "members" | "public";
 type LegacyServiceSourceScope = "group" | "profile" | "both";
+type MembershipAccessType =
+  | "standard"
+  | "subscription"
+  | "subscribed"
+  | "legacy_free"
+  | "unknown";
 
 type LocalCreatorServiceType = CreatorServiceType;
 type LocalServiceMeta = CreatorServiceMeta | null;
@@ -160,6 +167,7 @@ function clamp(n: number, min: number, max: number) {
 
 function normalizeMemberStatus(raw: unknown): MemberStatus {
   if (raw === "active") return "active";
+  if (raw === "subscribed") return "subscribed";
   if (raw === "muted") return "muted";
   if (raw === "banned") return "banned";
   if (raw === "removed") return "removed";
@@ -174,6 +182,14 @@ function normalizeMemberRole(raw: unknown): MemberRole {
   if (raw === "moderator") return "mod";
   if (raw === "member") return "member";
   return null;
+}
+
+function normalizeMembershipAccessType(raw: unknown): MembershipAccessType {
+  if (raw === "standard") return "standard";
+  if (raw === "subscription") return "subscription";
+  if (raw === "subscribed") return "subscribed";
+  if (raw === "legacy_free") return "legacy_free";
+  return "unknown";
 }
 
 function normalizeCurrency(raw: unknown): Currency | null {
@@ -252,7 +268,11 @@ function normalizeCommentsEnabled(raw: unknown): boolean {
 }
 
 function isJoinedStatus(status: MemberStatus) {
-  return status === "active" || status === "muted";
+  return (
+    status === "active" ||
+    status === "subscribed" ||
+    status === "muted"
+  );
 }
 
 function normalizeVisibility(raw: unknown): Visibility | null {
@@ -387,6 +407,18 @@ export default function GroupPage() {
   const [isMember, setIsMember] = useState<boolean>(false);
   const [memberStatus, setMemberStatus] = useState<MemberStatus>(null);
   const [memberRole, setMemberRole] = useState<MemberRole>(null);
+  const [membershipAccessType, setMembershipAccessType] =
+    useState<MembershipAccessType>("unknown");
+  const [membershipRequiresSubscription, setMembershipRequiresSubscription] =
+    useState(false);
+  const [membershipSubscriptionActive, setMembershipSubscriptionActive] =
+    useState(false);
+  const [membershipLegacyComplimentary, setMembershipLegacyComplimentary] =
+    useState(false);
+  const [membershipTransitionPendingAction, setMembershipTransitionPendingAction] =
+    useState(false);
+  const [membershipTransitionReason, setMembershipTransitionReason] =
+    useState<string | null>(null);
   const [joinReqStatus, setJoinReqStatus] =
     useState<JoinRequestStatus | null>(null);
 
@@ -474,11 +506,32 @@ export default function GroupPage() {
     );
   }, [normalizedCurrentMonetization]);
 
+    const removedBySubscriptionTransition = useMemo(() => {
+    return false;
+  }, []);
+
+    const requiresSubscriptionFromMembership = useMemo(() => {
+    return (
+      membershipRequiresSubscription ||
+      membershipAccessType === "subscription"
+    );
+  }, [membershipRequiresSubscription, membershipAccessType]);
+
+  const shouldShowSubscriptionRecovery =
+    !isOwner &&
+    !effectiveIsMember &&
+    subscriptionEnabled &&
+    (group?.visibility === "private" || group?.visibility === "hidden") &&
+    (membershipRequiresSubscription || removedBySubscriptionTransition);
+
   const isSubscriptionGroup =
     !isOwner &&
     !effectiveIsMember &&
     (group?.visibility === "private" || group?.visibility === "hidden") &&
-    subscriptionEnabled;
+    subscriptionEnabled &&
+    (!membershipTransitionPendingAction ||
+      membershipRequiresSubscription ||
+      removedBySubscriptionTransition);
 
   const [greetOpen, setGreetOpen] = useState(false);
   const [greetType, setGreetType] = useState<GreetingType>("saludo");
@@ -883,6 +936,12 @@ export default function GroupPage() {
             setIsMember(false);
             setMemberStatus(null);
             setMemberRole(null);
+            setMembershipAccessType("unknown");
+            setMembershipRequiresSubscription(false);
+            setMembershipSubscriptionActive(false);
+            setMembershipLegacyComplimentary(false);
+            setMembershipTransitionPendingAction(false);
+            setMembershipTransitionReason(null);
             return;
           }
 
@@ -891,9 +950,28 @@ export default function GroupPage() {
           const role = normalizeMemberRole(
             data?.roleInGroup ?? data?.role ?? "member"
           );
+          const accessType = normalizeMembershipAccessType(data?.accessType);
+          const requiresSubscription = data?.requiresSubscription === true;
+          const subscriptionActive = data?.subscriptionActive === true;
+          const legacyComplimentary =
+            data?.legacyComplimentary === true ||
+            accessType === "legacy_free";
+          const transitionPendingAction = data?.transitionPendingAction === true;
+          const transitionReason =
+            typeof data?.removedReason === "string"
+              ? data.removedReason
+              : data?.removedDueToSubscriptionTransition === true
+              ? "subscription_transition"
+              : null;
 
           setMemberStatus(status);
           setMemberRole(role);
+          setMembershipAccessType(accessType);
+          setMembershipRequiresSubscription(requiresSubscription);
+          setMembershipSubscriptionActive(subscriptionActive);
+          setMembershipLegacyComplimentary(legacyComplimentary);
+          setMembershipTransitionPendingAction(transitionPendingAction);
+          setMembershipTransitionReason(transitionReason);
 
           if (isJoinedStatus(status)) {
             setIsMember(true);
@@ -905,12 +983,24 @@ export default function GroupPage() {
           setIsMember(false);
           setMemberStatus(null);
           setMemberRole(null);
+          setMembershipAccessType("unknown");
+          setMembershipRequiresSubscription(false);
+          setMembershipSubscriptionActive(false);
+          setMembershipLegacyComplimentary(false);
+          setMembershipTransitionPendingAction(false);
+          setMembershipTransitionReason(null);
         }
       );
     } else {
       setIsMember(false);
       setMemberStatus(null);
       setMemberRole(null);
+      setMembershipAccessType("unknown");
+      setMembershipRequiresSubscription(false);
+      setMembershipSubscriptionActive(false);
+      setMembershipLegacyComplimentary(false);
+      setMembershipTransitionPendingAction(false);
+      setMembershipTransitionReason(null);
     }
 
     let unsubJoinReq = () => {};
@@ -1739,6 +1829,8 @@ export default function GroupPage() {
     const isBanned = memberStatus === "banned";
     const isPrivate = group.visibility === "private";
     const isHidden = group.visibility === "hidden";
+    const hasLegacyAccess =
+      membershipAccessType === "legacy_free" || membershipLegacyComplimentary;
 
     return (
       <>
@@ -1907,8 +1999,28 @@ export default function GroupPage() {
                     >
                       {isBanned &&
                         "🚫 Estás baneado de esta comunidad. No puedes ingresar."}
-                      {!isBanned && approved && "✅ Aprobado. Entrando…"}
+
                       {!isBanned &&
+                        hasLegacyAccess &&
+                        "✅ Conservas acceso legado en esta comunidad. Recarga la vista si tu estado cambió hace un momento."}
+
+                      {!isBanned &&
+                        approved &&
+                        "✅ Aprobado. Entrando…"}
+
+                      {!isBanned &&
+                        shouldShowSubscriptionRecovery &&
+                        `Esta comunidad ahora requiere suscripción para recuperar o conservar acceso. ${
+                          subscriptionPrice != null
+                            ? `Costo mensual: ${formatMoney(
+                                subscriptionPrice,
+                                subscriptionCurrency
+                              )}.`
+                            : "Costo mensual disponible dentro del panel de suscripción."
+                        }`}
+
+                      {!isBanned &&
+                        !shouldShowSubscriptionRecovery &&
                         isSubscriptionGroup &&
                         `Esta comunidad requiere suscripción para entrar. ${
                           subscriptionPrice != null
@@ -1918,56 +2030,54 @@ export default function GroupPage() {
                               )}.`
                             : "Costo mensual disponible dentro del panel de suscripción."
                         }`}
+
                       {!isBanned &&
+                        removedBySubscriptionTransition &&
+                        !subscriptionEnabled &&
+                        "Tu acceso anterior fue retirado durante un cambio de modelo de acceso. En este momento ya no perteneces a la comunidad."}
+
+                      {!isBanned &&
+                        !shouldShowSubscriptionRecovery &&
+                        !removedBySubscriptionTransition &&
                         !isSubscriptionGroup &&
                         isPrivate &&
                         pending &&
                         "✅ Solicitud enviada. Está pendiente de revisión."}
+
                       {!isBanned &&
+                        !shouldShowSubscriptionRecovery &&
+                        !removedBySubscriptionTransition &&
                         !isSubscriptionGroup &&
                         isPrivate &&
                         !pending &&
                         !approved &&
                         !rejected &&
                         "Esta comunidad es privada. Puedes verla, pero necesitas aprobación para entrar."}
+
                       {!isBanned &&
+                        !shouldShowSubscriptionRecovery &&
+                        !removedBySubscriptionTransition &&
                         !isSubscriptionGroup &&
                         isPrivate &&
                         rejected &&
                         "❌ Tu solicitud fue rechazada."}
+
                       {!isBanned &&
+                        !shouldShowSubscriptionRecovery &&
+                        !removedBySubscriptionTransition &&
                         !isSubscriptionGroup &&
                         isHidden &&
                         "Esta comunidad es oculta. No tienes acceso en este momento."}
                     </div>
 
-                    {!isBanned && isSubscriptionGroup && (
-                      <div
-                        className="group-actions-row"
-                        style={{ marginTop: 14 }}
-                      >
-                        <button
-                          onClick={openSubscriptionModal}
-                          disabled={joining}
-                          style={{
-                            ...primaryButton,
-                            opacity: joining ? 0.75 : 1,
-                            cursor: joining ? "not-allowed" : "pointer",
-                          }}
+                    {!isBanned &&
+                      (shouldShowSubscriptionRecovery || isSubscriptionGroup) && (
+                        <div
+                          className="group-actions-row"
+                          style={{ marginTop: 14 }}
                         >
-                          {user ? "Suscribirme" : "Iniciar sesión para suscribirme"}
-                        </button>
-                      </div>
-                    )}
-
-                    {!isBanned && !isSubscriptionGroup && isPrivate && (
-                      <div
-                        className="group-actions-row"
-                        style={{ marginTop: 14 }}
-                      >
-                        {!pending && !rejected ? (
                           <button
-                            onClick={handleRequestPrivate}
+                            onClick={openSubscriptionModal}
                             disabled={joining}
                             style={{
                               ...primaryButton,
@@ -1975,27 +2085,51 @@ export default function GroupPage() {
                               cursor: joining ? "not-allowed" : "pointer",
                             }}
                           >
-                            {joining
-                              ? "Enviando..."
-                              : user
-                              ? "Solicitar acceso"
-                              : "Iniciar sesión para solicitar acceso"}
+                            {user ? "Suscribirme" : "Iniciar sesión para suscribirme"}
                           </button>
-                        ) : (
-                          <button
-                            onClick={handleCancelPrivate}
-                            disabled={joining}
-                            style={{
-                              ...secondaryButton,
-                              opacity: joining ? 0.75 : 1,
-                              cursor: joining ? "not-allowed" : "pointer",
-                            }}
-                          >
-                            {joining ? "Cancelando..." : "Cancelar solicitud"}
-                          </button>
-                        )}
-                      </div>
-                    )}
+                        </div>
+                      )}
+
+                    {!isBanned &&
+                      !shouldShowSubscriptionRecovery &&
+                      !removedBySubscriptionTransition &&
+                      !isSubscriptionGroup &&
+                      isPrivate && (
+                        <div
+                          className="group-actions-row"
+                          style={{ marginTop: 14 }}
+                        >
+                          {!pending && !rejected ? (
+                            <button
+                              onClick={handleRequestPrivate}
+                              disabled={joining}
+                              style={{
+                                ...primaryButton,
+                                opacity: joining ? 0.75 : 1,
+                                cursor: joining ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              {joining
+                                ? "Enviando..."
+                                : user
+                                ? "Solicitar acceso"
+                                : "Iniciar sesión para solicitar acceso"}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={handleCancelPrivate}
+                              disabled={joining}
+                              style={{
+                                ...secondaryButton,
+                                opacity: joining ? 0.75 : 1,
+                                cursor: joining ? "not-allowed" : "pointer",
+                              }}
+                            >
+                              {joining ? "Cancelando..." : "Cancelar solicitud"}
+                            </button>
+                          )}
+                        </div>
+                      )}
                   </div>
                 </div>
               </div>
@@ -2012,16 +2146,16 @@ export default function GroupPage() {
   const isPublicGroup = group.visibility === "public";
   const canViewPublicFeed = isPublicGroup || effectiveIsMember || isOwner;
 
-  const canCreatePosts =
+    const canCreatePosts =
     isOwner ||
     (effectiveIsMember &&
-      memberStatus === "active" &&
+      (memberStatus === "active" || memberStatus === "subscribed") &&
       currentPostingMode === "members");
 
   const canCommentOnPosts =
     isOwner ||
     (effectiveIsMember &&
-      memberStatus === "active" &&
+      (memberStatus === "active" || memberStatus === "subscribed") &&
       currentCommentsEnabled);
 
   let postBlockedReason: InteractionBlockedReason = null;
@@ -2040,6 +2174,22 @@ export default function GroupPage() {
       postBlockedReason = "join";
     } else {
       postBlockedReason = "restricted";
+    }
+  }
+
+  if (!canCommentOnPosts) {
+    if (!user) {
+      commentBlockedReason = "login";
+    } else if (
+      memberStatus === "banned" ||
+      memberStatus === "removed" ||
+      memberStatus === "muted"
+    ) {
+      commentBlockedReason = "restricted";
+    } else if (!effectiveIsMember) {
+      commentBlockedReason = "join";
+    } else {
+      commentBlockedReason = "restricted";
     }
   }
 

@@ -38,12 +38,28 @@ import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
 export type Currency = "MXN" | "USD";
 export type SidebarMemberStatus =
   | "active"
+  | "subscribed"
   | "muted"
   | "banned"
   | "removed"
   | null;
 
 export type GroupRoleLite = "owner" | "mod" | "member" | null;
+
+export type MembershipAccessTypeLite =
+  | "standard"
+  | "subscription"
+  | "subscribed"
+  | "legacy_free"
+  | "unknown"
+  | null;
+
+export type HiddenSidebarStateLite =
+  | "joined"
+  | "legacy_free"
+  | "requires_subscription"
+  | "banned"
+  | null;
 
 export type UserDoc = {
   uid: string;
@@ -81,6 +97,16 @@ export type GroupDocLite = {
     price?: number | null;
     currency?: Currency | null;
   }>;
+
+  // nueva metadata de acceso/transición para communities tab
+  membershipAccessType?: MembershipAccessTypeLite;
+  requiresSubscription?: boolean | null;
+  subscriptionActive?: boolean | null;
+  legacyComplimentary?: boolean | null;
+  transitionPendingAction?: boolean | null;
+  transitionReason?: string | null;
+  canDismiss?: boolean | null;
+  sidebarState?: HiddenSidebarStateLite;
 };
 
 export type GreetingStatus =
@@ -187,6 +213,7 @@ export function buildDisplayName(user?: Partial<UserDoc> | null, uid?: string) {
 function normalizeSidebarMemberStatus(raw: unknown): SidebarMemberStatus {
   if (raw === "banned") return "banned";
   if (raw === "muted") return "muted";
+  if (raw === "subscribed") return "subscribed";
   if (raw === "active") return "active";
   if (raw === "removed") return "removed";
 
@@ -204,7 +231,12 @@ function normalizeSidebarGroupRole(raw: unknown): GroupRoleLite {
 }
 
 function isJoinedSidebarStatus(status: SidebarMemberStatus) {
-  return status === "active" || status === "muted" || status === "banned";
+  return (
+    status === "active" ||
+    status === "subscribed" ||
+    status === "muted" ||
+    status === "banned"
+  );
 }
 
 function isExcludedSidebarStatus(status: SidebarMemberStatus) {
@@ -859,10 +891,32 @@ export default function OwnerSidebar() {
                 ownerId: g.ownerId ?? undefined,
                 visibility: g.visibility ?? undefined,
                 avatarUrl: g.avatarUrl ?? null,
-                memberStatus: (g.memberStatus ?? null) as SidebarMemberStatus,
+                memberStatus: normalizeSidebarMemberStatus(g.memberStatus ?? null),
                 memberRole,
                 monetization: g.monetization ?? undefined,
                 offerings: g.offerings ?? [],
+
+                                membershipAccessType:
+                  g.membershipAccessType === "subscription" ||
+                  g.membershipAccessType === "subscribed" ||
+                  g.membershipAccessType === "standard" ||
+                  g.membershipAccessType === "legacy_free" ||
+                  g.membershipAccessType === "unknown"
+                    ? g.membershipAccessType
+                    : null,
+                requiresSubscription: g.requiresSubscription ?? null,
+                subscriptionActive: g.subscriptionActive ?? null,
+                legacyComplimentary: g.legacyComplimentary ?? null,
+                transitionPendingAction: g.transitionPendingAction ?? null,
+                transitionReason: g.transitionReason ?? null,
+                canDismiss: g.canDismiss ?? null,
+                                sidebarState:
+                  g.sidebarState === "joined" ||
+                  g.sidebarState === "legacy_free" ||
+                  g.sidebarState === "requires_subscription" ||
+                  g.sidebarState === "banned"
+                    ? g.sidebarState
+                    : null,
               } as GroupDocLite;
             })
           )

@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { buildNormalizedGroupCommerceState } from "@/lib/groups/groupServiceCatalog";
+import { applyGroupSubscriptionTransition } from "@/lib/groups/subscriptionTransitions";
 import type {
   Currency,
   GroupOffering,
@@ -506,6 +507,51 @@ function buildOffering(params: {
   };
 }
 
+function buildTransitionSuccessMessage(params: {
+  direction: "free_to_subscription" | "subscription_to_free";
+  policy:
+    | "legacy_free"
+    | "require_subscription"
+    | "keep_members_free"
+    | "remove_all_members";
+  alreadyApplied: boolean;
+  updatedMembers: number;
+  legacyGrantedMembers: number;
+  removedMembers: number;
+  skippedMembers: number;
+}) {
+  const {
+    direction,
+    policy,
+    alreadyApplied,
+    updatedMembers,
+    legacyGrantedMembers,
+    removedMembers,
+    skippedMembers,
+  } = params;
+
+  if (alreadyApplied) {
+    return "✅ Configuración guardada. Esta transición ya había sido aplicada anteriormente y no se duplicó.";
+  }
+
+  if (direction === "free_to_subscription" && policy === "legacy_free") {
+    return `✅ Configuración guardada. Se mantuvo gratis a ${legacyGrantedMembers} integrante(s) existentes. Actualizados: ${updatedMembers}. Omitidos: ${skippedMembers}.`;
+  }
+
+  if (direction === "free_to_subscription" && policy === "require_subscription") {
+    return `✅ Configuración guardada. Se retiró el acceso a ${removedMembers} integrante(s) para que deban suscribirse de nuevo. Actualizados: ${updatedMembers}. Omitidos: ${skippedMembers}.`;
+  }
+
+  if (
+    direction === "subscription_to_free" &&
+    policy === "keep_members_free"
+  ) {
+    return `✅ Configuración guardada. La comunidad volvió a gratis y ${updatedMembers} integrante(s) conservaron acceso normal. Omitidos: ${skippedMembers}.`;
+  }
+
+  return `✅ Configuración guardada. La comunidad volvió a gratis y se retiró el acceso a ${removedMembers} integrante(s). Actualizados: ${updatedMembers}. Omitidos: ${skippedMembers}.`;
+}
+
 function ServiceEditorBlock<TDraft extends ServiceBlockDraft>({
   title,
   description,
@@ -579,7 +625,7 @@ function ServiceEditorBlock<TDraft extends ServiceBlockDraft>({
     onChange(updater);
   };
 
-    const hasDurationField = "durationMinutes" in draft;
+  const hasDurationField = "durationMinutes" in draft;
   const durationDraft = hasDurationField
     ? (draft as TDraft & { durationMinutes: string })
     : null;
@@ -656,7 +702,7 @@ function ServiceEditorBlock<TDraft extends ServiceBlockDraft>({
             </select>
           </div>
 
-                    {showDuration && durationDraft && (
+          {showDuration && durationDraft && (
             <input
               type="number"
               min="1"
@@ -1425,6 +1471,9 @@ export default function OwnerAdminServices({
           ? currentMonetization.paidLiveCommentsEnabled
           : false;
 
+      const isTransitioningSubscriptionModel =
+        willEnableSubscription || willDisableSubscription;
+
       const nextTransitions = {
         freeToSubscriptionPolicy:
           willEnableSubscription && draft.freeToSubscriptionPolicy
@@ -1434,12 +1483,12 @@ export default function OwnerAdminServices({
           willDisableSubscription && draft.subscriptionToFreePolicy
             ? draft.subscriptionToFreePolicy
             : currentMonetization?.transitions?.subscriptionToFreePolicy ?? null,
-        lastMonetizationChangeAt:
-          willEnableSubscription || willDisableSubscription ? Date.now() : null,
-        lastMonetizationChangeBy:
-          willEnableSubscription || willDisableSubscription
-            ? currentUserId
-            : currentMonetization?.transitions?.lastMonetizationChangeBy ?? null,
+        lastMonetizationChangeAt: isTransitioningSubscriptionModel
+          ? Date.now()
+          : currentMonetization?.transitions?.lastMonetizationChangeAt ?? null,
+        lastMonetizationChangeBy: isTransitioningSubscriptionModel
+          ? currentUserId
+          : currentMonetization?.transitions?.lastMonetizationChangeBy ?? null,
       };
 
       const nextMonetization = {
@@ -1494,6 +1543,102 @@ export default function OwnerAdminServices({
         donation: commerce.donation,
         greetingsEnabled: commerce.monetization.greetingsEnabled,
       });
+
+      let successMessage =
+        "✅ Configuración de suscripción, transición, catálogo y donación guardados.";
+
+      if (isTransitioningSubscriptionModel) {
+        try {
+          const transitionResponse = await applyGroupSubscriptionTransition({
+            groupId,
+            nextSubscriptionEnabled: !isPublic && draft.subscription.enabled,
+            freeToSubscriptionPolicy:
+              willEnableSubscription && draft.freeToSubscriptionPolicy
+                ? draft.freeToSubscriptionPolicy
+                : undefined,
+            subscriptionToFreePolicy:
+              willDisableSubscription && draft.subscriptionToFreePolicy
+                ? draft.subscriptionToFreePolicy
+                : undefined,
+          });
+
+          successMessage = buildTransitionSuccessMessage(transitionResponse);
+        } catch (transitionError: any) {
+          const transitionMessage =
+            transitionError?.message ??
+            "La transición de miembros no pudo completarse.";
+
+          const nextSavedAfterPartialSuccess: ServiceDraft = {
+            subscription: {
+              enabled: isPublic ? false : draft.subscription.enabled,
+              price:
+                isPublic || !draft.subscription.enabled
+                  ? ""
+                  : draft.subscription.price,
+              currency:
+                isPublic || !draft.subscription.enabled
+                  ? "MXN"
+                  : draft.subscription.currency,
+            },
+            saludo: {
+              ...draft.saludo,
+              price: draft.saludo.enabled ? draft.saludo.price : "",
+              visible: draft.saludo.enabled ? draft.saludo.visible : false,
+              visibility: draft.saludo.enabled
+                ? draft.saludo.visibility
+                : "public",
+            },
+            consejo: {
+              ...draft.consejo,
+              price: draft.consejo.enabled ? draft.consejo.price : "",
+              visible: draft.consejo.enabled ? draft.consejo.visible : false,
+              visibility: draft.consejo.enabled
+                ? draft.consejo.visibility
+                : "public",
+            },
+            meetGreet: {
+              ...draft.meetGreet,
+              price: draft.meetGreet.enabled ? draft.meetGreet.price : "",
+              visible: draft.meetGreet.enabled ? draft.meetGreet.visible : false,
+              visibility: draft.meetGreet.enabled
+                ? draft.meetGreet.visibility
+                : "public",
+              durationMinutes: draft.meetGreet.enabled
+                ? draft.meetGreet.durationMinutes
+                : "",
+            },
+            customClass: {
+              ...draft.customClass,
+              price: draft.customClass.enabled ? draft.customClass.price : "",
+              visible: draft.customClass.enabled
+                ? draft.customClass.visible
+                : false,
+              visibility: draft.customClass.enabled
+                ? draft.customClass.visibility
+                : "public",
+              durationMinutes: draft.customClass.enabled
+                ? draft.customClass.durationMinutes
+                : "",
+            },
+            donationMode: draft.donationMode,
+            donationCurrency:
+              draft.donationMode !== "none" ? draft.donationCurrency : "MXN",
+            donationMinimumAmount:
+              draft.donationMode !== "none" ? draft.donationMinimumAmount : "",
+            donationGoalLabel:
+              draft.donationMode === "wedding" ? draft.donationGoalLabel : "",
+            freeToSubscriptionPolicy: draft.freeToSubscriptionPolicy,
+            subscriptionToFreePolicy: draft.subscriptionToFreePolicy,
+          };
+
+          setDraft(nextSavedAfterPartialSuccess);
+          setSavedDraft(nextSavedAfterPartialSuccess);
+          setErr(
+            `⚠️ La configuración del grupo sí se guardó, pero la transición de miembros no terminó correctamente: ${transitionMessage}`
+          );
+          return;
+        }
+      }
 
       const nextSaved: ServiceDraft = {
         subscription: {
@@ -1554,9 +1699,7 @@ export default function OwnerAdminServices({
 
       setDraft(nextSaved);
       setSavedDraft(nextSaved);
-      setMsg(
-        "✅ Configuración de suscripción, transición, catálogo y donación guardados."
-      );
+      setMsg(successMessage);
     } catch (e: any) {
       skipHydrationWhileSavingRef.current = false;
       setErr(e?.message ?? "❌ No se pudieron guardar los servicios.");
@@ -1594,8 +1737,8 @@ export default function OwnerAdminServices({
                 draft.subscription.currency
               )}.`
             : isPublic
-              ? "Para activar suscripción mensual tu comunidad debe ser privada u oculta."
-              : null
+            ? "Para activar suscripción mensual tu comunidad debe ser privada u oculta."
+            : null
         }
       />
 

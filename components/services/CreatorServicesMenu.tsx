@@ -10,6 +10,7 @@ import {
 
 type ViewerMembershipStatus =
   | "active"
+  | "subscribed"
   | "muted"
   | "banned"
   | "removed"
@@ -96,7 +97,11 @@ function canRenderAction(params: {
   if (viewerCanRequest === false) return false;
 
   if (contextType === "group") {
-    if (viewerMembershipStatus && viewerMembershipStatus !== "active") {
+    if (
+      viewerMembershipStatus &&
+      viewerMembershipStatus !== "active" &&
+      viewerMembershipStatus !== "subscribed"
+    ) {
       return false;
     }
   }

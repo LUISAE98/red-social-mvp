@@ -106,19 +106,53 @@ function getRecommendationMonetization(
 
 function resolveSubscriptionEnabled(group: RecommendationGroupCard) {
   const monetization = getRecommendationMonetization(group);
-  return monetization?.isPaid === true;
+  return (
+    monetization?.subscriptionsEnabled === true ||
+    monetization?.isPaid === true
+  );
 }
 
 function resolveSubscriptionPrice(group: RecommendationGroupCard) {
   const monetization = getRecommendationMonetization(group);
-  const value = monetization?.priceMonthly;
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
+
+  const subscriptionPrice = monetization?.subscriptionPriceMonthly;
+  if (typeof subscriptionPrice === "number" && Number.isFinite(subscriptionPrice)) {
+    return subscriptionPrice;
+  }
+
+  const legacyPrice = monetization?.priceMonthly;
+  return typeof legacyPrice === "number" && Number.isFinite(legacyPrice)
+    ? legacyPrice
+    : null;
 }
 
 function resolveSubscriptionCurrency(group: RecommendationGroupCard) {
   const monetization = getRecommendationMonetization(group);
-  const value = monetization?.currency;
-  return typeof value === "string" ? value : null;
+
+  const subscriptionCurrency = monetization?.subscriptionCurrency;
+  if (typeof subscriptionCurrency === "string") {
+    return subscriptionCurrency;
+  }
+
+  const legacyCurrency = monetization?.currency;
+  return typeof legacyCurrency === "string" ? legacyCurrency : null;
+}
+
+function formatSubscriptionPrice(group: RecommendationGroupCard) {
+  const price = resolveSubscriptionPrice(group);
+  const currency = resolveSubscriptionCurrency(group);
+
+  if (price == null || !currency) return null;
+
+  try {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: 2,
+    }).format(price);
+  } catch {
+    return `${currency} ${price.toFixed(2)}`;
+  }
 }
 
 function GroupCategoryPill({
@@ -169,12 +203,12 @@ function JoinButton({
     state === "joined"
       ? "Unido"
       : state === "pending"
-      ? "Solicitud enviada"
-      : state === "request"
-      ? isPaidSubscriptionPrivate
-        ? "Suscribirme"
-        : "Solicitar"
-      : "Unirme";
+        ? "Solicitud enviada"
+        : state === "request"
+          ? isPaidSubscriptionPrivate
+            ? "Suscribirme"
+            : "Solicitar"
+          : "Unirme";
 
   return (
     <button
@@ -228,11 +262,15 @@ function GroupCard({
     group.visibility === "public"
       ? "Comunidad pública"
       : group.visibility === "private"
-      ? "Comunidad privada"
-      : "Comunidad oculta";
+        ? "Comunidad privada"
+        : "Comunidad oculta";
 
   const isPaidSubscriptionPrivate =
     group.visibility === "private" && resolveSubscriptionEnabled(group);
+
+  const subscriptionPriceLabel = isPaidSubscriptionPrivate
+    ? formatSubscriptionPrice(group)
+    : null;
 
   return (
     <div style={cardStyles}>
@@ -373,6 +411,21 @@ function GroupCard({
               >
                 {categoryLabel}
               </div>
+
+              {subscriptionPriceLabel ? (
+                <div
+                  style={{
+                    marginTop: 6,
+                    fontSize: 11,
+                    lineHeight: 1.2,
+                    color: "rgba(255,255,255,0.88)",
+                    fontFamily: fontStack,
+                    fontWeight: 700,
+                  }}
+                >
+                  {subscriptionPriceLabel} / mes
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
@@ -523,9 +576,15 @@ export default function GroupRecommendationsRail({
 
       router.refresh();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "No se pudo completar la acción."
-      );
+      const message =
+        err instanceof Error ? err.message : "No se pudo completar la acción.";
+
+      if (message === "GROUP_REQUIRES_SUBSCRIPTION") {
+        router.push(`/groups/${group.id}?service=suscripcion`);
+        return;
+      }
+
+      setError(message);
     } finally {
       setJoinLoadingByGroup((prev) => ({ ...prev, [group.id]: false }));
     }

@@ -15,6 +15,7 @@ import {
   normalizeGroupCategory,
   normalizeGroupTags,
   type CanonicalGroupCategory,
+  type Currency,
   type Group,
 } from "@/types/group";
 import type {
@@ -66,6 +67,41 @@ function chunkArray<T>(items: T[], size: number): T[][] {
   return chunks;
 }
 
+function normalizeRecommendationMonetization(
+  monetization: Partial<Group["monetization"]> | null | undefined
+): RecommendationGroupCard["monetization"] {
+  if (!monetization) return null;
+
+  const normalizeCurrency = (value: unknown): Currency | null => {
+    return value === "MXN" || value === "USD" ? value : null;
+  };
+
+  const priceMonthly =
+    typeof monetization.priceMonthly === "number" &&
+    Number.isFinite(monetization.priceMonthly)
+      ? monetization.priceMonthly
+      : null;
+
+  const subscriptionPriceMonthly =
+    typeof monetization.subscriptionPriceMonthly === "number" &&
+    Number.isFinite(monetization.subscriptionPriceMonthly)
+      ? monetization.subscriptionPriceMonthly
+      : null;
+
+  return {
+    isPaid:
+      typeof monetization.isPaid === "boolean" ? monetization.isPaid : undefined,
+    subscriptionsEnabled:
+      typeof monetization.subscriptionsEnabled === "boolean"
+        ? monetization.subscriptionsEnabled
+        : undefined,
+    priceMonthly,
+    currency: normalizeCurrency(monetization.currency),
+    subscriptionPriceMonthly,
+    subscriptionCurrency: normalizeCurrency(monetization.subscriptionCurrency),
+  };
+}
+
 function toRecommendationCard(
   groupId: string,
   data: Partial<Group>
@@ -85,6 +121,7 @@ function toRecommendationCard(
     category,
     tags,
     memberCount: null,
+    monetization: normalizeRecommendationMonetization(data.monetization),
   };
 }
 

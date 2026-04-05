@@ -51,3 +51,6 @@ export {
   removeGroupMember,
   cleanupExpiredGroupMutes,
 } from "./groupModeration";
+
+// 🔥 NUEVO — Subscription transitions
+export { applyGroupSubscriptionTransition } from "./subscriptionTransitions";

@@ -1,4 +1,4 @@
-import type { CanonicalGroupCategory } from "@/types/group";
+import type { CanonicalGroupCategory, Currency } from "@/types/group";
 
 export type RecommendationReason =
   | "onboarding_categories"
@@ -16,6 +16,14 @@ export type RecommendationGroupCard = {
   category: CanonicalGroupCategory | null;
   tags: string[];
   memberCount?: number | null;
+  monetization?: {
+    isPaid?: boolean;
+    subscriptionsEnabled?: boolean;
+    priceMonthly?: number | null;
+    currency?: Currency | null;
+    subscriptionPriceMonthly?: number | null;
+    subscriptionCurrency?: Currency | null;
+  } | null;
 };
 
 export type StoredRecommendationPreferences = {
