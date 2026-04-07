@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type {
@@ -9,6 +9,7 @@ import type {
   OutgoingJoinRequestRow,
   UserMini,
 } from "./OwnerSidebar";
+import { dismissHiddenGroupTransition } from "@/lib/groups/sidebarGroups";
 import { Chevron, CountBadge } from "./OwnerSidebar";
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
   pendingJoinRequestsSent: OutgoingJoinRequestRow[];
   browseGroups: GroupDocLite[];
   joinedGrouped: Array<{ key: string; title: string; items: GroupDocLite[] }>;
+  subscriptionPendingGroups: GroupDocLite[];
   browseGrouped: Array<{ key: string; title: string; items: GroupDocLite[] }>;
   groupMetaMap: Record<string, GroupDocLite>;
   styles: Record<string, React.CSSProperties>;
@@ -56,9 +58,6 @@ type AccessState =
   | "banned";
 
 type NoticeTone = "warning" | "success" | "info" | "danger";
-
-const DISMISSED_GROUPS_STORAGE_KEY =
-  "vibra_owner_sidebar_dismissed_transition_groups";
 
 function normalizeMemberStatus(group: GroupDocLite): SidebarMemberStatus {
   const raw = group?.memberStatus ?? null;
@@ -178,6 +177,10 @@ function isJoinedLikeState(state: AccessState) {
 }
 
 function shouldShowGroup(group: GroupDocLite, dismissedIds: Set<string>) {
+  if (group.canDismiss === true && dismissedIds.has(group.id)) {
+    return false;
+  }
+
   return true;
 }
 
@@ -262,7 +265,11 @@ function buildJoinedSubtitle(
           >
             •
           </span>
-          <span style={{ color: "#fbbf24" }}>Debes suscribirte</span>
+          <span style={{ color: "#fbbf24" }}>
+            {group.canDismiss === true
+              ? "Tu acceso gratis terminó"
+              : "Debes suscribirte"}
+          </span>
         </>
       )}
     </span>
@@ -283,12 +290,21 @@ function buildAccessNotice(
   const state = resolveAccessState(group);
 
   if (state === "requires_subscription") {
+    const wasTransitionReminder =
+      group.canDismiss === true &&
+      (group.transitionReason === "subscription_required_after_transition" ||
+        group.transitionReason === "subscription_transition");
+
     return {
-      title: "Acceso pendiente de suscripción",
-      text: "Esta comunidad ahora requiere suscripción. Como tu acceso anterior ya no es suficiente, debes suscribirte para continuar dentro.",
+      title: wasTransitionReminder
+        ? "Esta comunidad cambió a suscripción"
+        : "Acceso pendiente de suscripción",
+      text: wasTransitionReminder
+        ? "Antes estabas dentro gratis, pero esta comunidad ahora requiere suscripción. Puedes suscribirte para volver a entrar o quitar esta comunidad del sidebar."
+        : "Esta comunidad ahora requiere suscripción. Como tu acceso anterior ya no es suficiente, debes suscribirte para continuar dentro.",
       tone: "warning",
       showSubscribeCta: true,
-      showDismissCta: false,
+      showDismissCta: wasTransitionReminder,
     };
   }
 
@@ -368,7 +384,7 @@ function renderJoinedCardWithAccessNotice(params: {
     opts?: { compact?: boolean; subtitle?: React.ReactNode }
   ) => React.ReactNode;
   onSubscribe: (groupId: string) => void;
-  onDismiss: (groupId: string) => void;
+  onDismiss: (groupId: string) => void | Promise<void>;
 }) {
   const { group, isMobile, renderCommunityCard, onSubscribe, onDismiss } = params;
   const notice = buildAccessNotice(group);
@@ -419,10 +435,12 @@ function renderJoinedCardWithAccessNotice(params: {
                 </button>
               )}
 
-              {notice.showDismissCta && (
+                {notice.showDismissCta && (
                 <button
                   type="button"
-                  onClick={() => onDismiss(group.id)}
+                  onClick={() => {
+                    void onDismiss(group.id);
+                  }}
                   style={{
                     padding: "8px 12px",
                     borderRadius: 10,
@@ -450,6 +468,7 @@ export default function OwnerSidebarOtherGroups({
   loadingCommunities,
   pendingJoinRequestsSent,
   joinedGrouped,
+  subscriptionPendingGroups,
   groupMetaMap,
   styles,
   fmtDate,
@@ -464,49 +483,53 @@ export default function OwnerSidebarOtherGroups({
   getInitials,
   renderUserLink,
 }: Props) {
-  const router = useRouter();
+    const router = useRouter();
   const [dismissedGroupIds, setDismissedGroupIds] = useState<Set<string>>(
+    () => new Set()
+  );
+  const [dismissingGroupIds, setDismissingGroupIds] = useState<Set<string>>(
     () => new Set()
   );
 
   const isMobile =
     typeof window !== "undefined" ? window.innerWidth <= 640 : false;
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(DISMISSED_GROUPS_STORAGE_KEY);
-      if (!raw) return;
-
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return;
-
-      setDismissedGroupIds(new Set(parsed.filter((v) => typeof v === "string")));
-    } catch {
-      setDismissedGroupIds(new Set());
-    }
-  }, []);
-
-  function persistDismissed(next: Set<string>) {
+    function persistDismissed(next: Set<string>) {
     setDismissedGroupIds(next);
-    try {
-      window.localStorage.setItem(
-        DISMISSED_GROUPS_STORAGE_KEY,
-        JSON.stringify(Array.from(next))
-      );
-    } catch {}
   }
 
   function handleSubscribe(groupId: string) {
-    router.push(`/groups/${groupId}`);
+    router.push(`/groups/${groupId}?service=suscripcion`);
   }
 
-  function handleDismiss(groupId: string) {
-    const next = new Set(dismissedGroupIds);
-    next.add(groupId);
-    persistDismissed(next);
+    async function handleDismiss(groupId: string) {
+    if (!groupId.trim()) return;
+    if (dismissingGroupIds.has(groupId)) return;
+
+    setDismissingGroupIds((prev) => {
+      const next = new Set(prev);
+      next.add(groupId);
+      return next;
+    });
+
+    try {
+      await dismissHiddenGroupTransition(groupId);
+
+      const next = new Set(dismissedGroupIds);
+      next.add(groupId);
+      persistDismissed(next);
+    } catch (error) {
+      console.error("dismissHiddenGroupTransition error", error);
+    } finally {
+      setDismissingGroupIds((prev) => {
+        const next = new Set(prev);
+        next.delete(groupId);
+        return next;
+      });
+    }
   }
 
-  const visibleJoinedGrouped = useMemo(() => {
+    const visibleJoinedGrouped = useMemo(() => {
     return joinedGrouped
       .map((section) => ({
         ...section,
@@ -515,21 +538,55 @@ export default function OwnerSidebarOtherGroups({
       .filter((section) => section.items.length > 0);
   }, [joinedGrouped, dismissedGroupIds]);
 
+  const visibleSubscriptionPendingGroups = useMemo(() => {
+    return subscriptionPendingGroups.filter((g) =>
+      shouldShowGroup(g, dismissedGroupIds)
+    );
+  }, [subscriptionPendingGroups, dismissedGroupIds]);
+
   const visiblePendingJoinRequestsSent = pendingJoinRequestsSent.filter((row) => {
     const community = groupMetaMap[row.groupId] ?? null;
     if (!community) {
       return true;
     }
 
+    if (community.canDismiss === true) {
+      return false;
+    }
+
     const state = resolveAccessState(community);
     return !isJoinedLikeState(state);
   });
 
-  const hasAnyJoined = visibleJoinedGrouped.length > 0;
+      const hasAnyJoined = visibleJoinedGrouped.some(
+    (section) => section.items.length > 0
+  );
+
+  const hasAnySubscriptionPending = visibleSubscriptionPendingGroups.length > 0;
   const hasAnyPending = visiblePendingJoinRequestsSent.length > 0;
 
   return (
     <>
+           {hasAnySubscriptionPending && (
+        <div style={{ display: "grid", gap: 8 }}>
+          <div style={styles.sectionTitle}>
+            Comunidades pendientes de suscripción
+          </div>
+
+          <div style={{ display: "grid", gap: 8 }}>
+            {visibleSubscriptionPendingGroups.map((g) =>
+              renderJoinedCardWithAccessNotice({
+                group: g,
+                isMobile,
+                renderCommunityCard,
+                onSubscribe: handleSubscribe,
+                onDismiss: handleDismiss,
+              })
+            )}
+          </div>
+        </div>
+      )}
+
       {visibleJoinedGrouped.map((section) => (
         <div key={`joined-${section.key}`} style={{ display: "grid", gap: 8 }}>
           <div style={styles.sectionTitle}>{section.title}</div>
@@ -726,7 +783,9 @@ export default function OwnerSidebarOtherGroups({
                           {accessNotice.showDismissCta && (
                             <button
                               type="button"
-                              onClick={() => handleDismiss(g.id)}
+                              onClick={() => {
+                                void handleDismiss(g.id);
+                              }}
                               style={{
                                 padding: "8px 12px",
                                 borderRadius: 10,
@@ -912,17 +971,20 @@ export default function OwnerSidebarOtherGroups({
         </div>
       )}
 
-      {!loadingCommunities && !hasAnyJoined && !hasAnyPending && (
-        <div
-          style={{
-            fontSize: 12,
-            color: "rgba(255,255,255,0.58)",
-            padding: "2px 2px 0",
-          }}
-        >
-          No tienes otras comunidades ni solicitudes pendientes.
-        </div>
-      )}
+            {!loadingCommunities &&
+        !hasAnyJoined &&
+        !hasAnySubscriptionPending &&
+        !hasAnyPending && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "rgba(255,255,255,0.58)",
+              padding: "2px 2px 0",
+            }}
+          >
+            No tienes otras comunidades ni solicitudes pendientes.
+          </div>
+        )}
     </>
   );
 }

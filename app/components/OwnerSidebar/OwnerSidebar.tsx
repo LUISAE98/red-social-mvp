@@ -234,8 +234,7 @@ function isJoinedSidebarStatus(status: SidebarMemberStatus) {
   return (
     status === "active" ||
     status === "subscribed" ||
-    status === "muted" ||
-    status === "banned"
+    status === "muted"
   );
 }
 
@@ -747,14 +746,44 @@ export default function OwnerSidebar() {
                     )
                   : null;
 
+                                const memberData = memberSnap.exists()
+                  ? (memberSnap.data() as any)
+                  : null;
+
                 const hydratedGroup: GroupDocLite = {
                   ...g,
                   memberStatus,
                   memberRole,
+                  membershipAccessType:
+                    memberData?.accessType === "subscription" ||
+                    memberData?.accessType === "subscribed" ||
+                    memberData?.accessType === "standard" ||
+                    memberData?.accessType === "legacy_free" ||
+                    memberData?.accessType === "unknown"
+                      ? memberData.accessType
+                      : null,
+                  requiresSubscription:
+                    memberData?.requiresSubscription === true,
+                  subscriptionActive:
+                    memberData?.subscriptionActive === true,
+                  legacyComplimentary:
+                    memberData?.legacyComplimentary === true ||
+                    memberData?.accessType === "legacy_free",
+                  transitionPendingAction:
+                    memberData?.transitionPendingAction === true,
+                  transitionReason:
+                    typeof memberData?.removedReason === "string"
+                      ? memberData.removedReason
+                      : null,
+                  canDismiss: false,
+                  sidebarState:
+                    memberStatus === "banned" ? "banned" : "joined",
                 };
 
-                const isJoined = isJoinedSidebarStatus(memberStatus);
-                const isExcluded = isExcludedSidebarStatus(memberStatus);
+                  const isJoined =
+                  isJoinedSidebarStatus(memberStatus) ||
+                  memberStatus === "banned";
+                  const isExcluded = isExcludedSidebarStatus(memberStatus);
 
                 return {
                   group: hydratedGroup,
@@ -866,7 +895,7 @@ export default function OwnerSidebar() {
         const rows = await getMyHiddenJoinedGroups();
         if (cancelled) return;
 
-        const groups = (
+                const groups = (
           await Promise.all(
             rows.map(async (g) => {
               let memberRole: GroupRoleLite = null;
@@ -885,6 +914,14 @@ export default function OwnerSidebar() {
                 memberRole = null;
               }
 
+              const normalizedSidebarState =
+                g.sidebarState === "joined" ||
+                g.sidebarState === "legacy_free" ||
+                g.sidebarState === "requires_subscription" ||
+                g.sidebarState === "banned"
+                  ? g.sidebarState
+                  : null;
+
               return {
                 id: g.id,
                 name: g.name ?? undefined,
@@ -896,7 +933,7 @@ export default function OwnerSidebar() {
                 monetization: g.monetization ?? undefined,
                 offerings: g.offerings ?? [],
 
-                                membershipAccessType:
+                membershipAccessType:
                   g.membershipAccessType === "subscription" ||
                   g.membershipAccessType === "subscribed" ||
                   g.membershipAccessType === "standard" ||
@@ -909,14 +946,8 @@ export default function OwnerSidebar() {
                 legacyComplimentary: g.legacyComplimentary ?? null,
                 transitionPendingAction: g.transitionPendingAction ?? null,
                 transitionReason: g.transitionReason ?? null,
-                canDismiss: g.canDismiss ?? null,
-                                sidebarState:
-                  g.sidebarState === "joined" ||
-                  g.sidebarState === "legacy_free" ||
-                  g.sidebarState === "requires_subscription" ||
-                  g.sidebarState === "banned"
-                    ? g.sidebarState
-                    : null,
+                canDismiss: g.canDismiss === true,
+                sidebarState: normalizedSidebarState,
               } as GroupDocLite;
             })
           )
@@ -943,19 +974,31 @@ export default function OwnerSidebar() {
     return () => {
       cancelled = true;
     };
-  }, [viewer?.uid]);
+    }, [viewer?.uid]);
 
-  const moderatedGroups = useMemo(() => {
+  const hiddenSidebarMembershipGroups = useMemo(() => {
+    return hiddenJoinedGroups.filter(
+      (g) => g.sidebarState !== "requires_subscription"
+    );
+  }, [hiddenJoinedGroups]);
+
+  const subscriptionPendingGroups = useMemo(() => {
+    return hiddenJoinedGroups.filter(
+      (g) => g.sidebarState === "requires_subscription"
+    );
+  }, [hiddenJoinedGroups]);
+
+    const moderatedGroups = useMemo(() => {
     const mergedMap = new Map<string, GroupDocLite>();
 
-    [...joinedGroups, ...hiddenJoinedGroups].forEach((g) => {
+    [...joinedGroups, ...hiddenSidebarMembershipGroups].forEach((g) => {
       if (g.memberRole === "mod") {
         mergedMap.set(g.id, g);
       }
     });
 
     return Array.from(mergedMap.values());
-  }, [joinedGroups, hiddenJoinedGroups]);
+  }, [joinedGroups, hiddenSidebarMembershipGroups]);
 
   useEffect(() => {
     joinUnsubsRef.current.forEach((fn) => fn());
@@ -1540,10 +1583,10 @@ export default function OwnerSidebar() {
     ].filter((section) => section.items.length > 0);
   }, [myGroups]);
 
-  const joinedGrouped = useMemo(() => {
+    const joinedGrouped = useMemo(() => {
     const mergedMap = new Map<string, GroupDocLite>();
 
-    [...joinedGroups, ...hiddenJoinedGroups].forEach((g) => {
+    [...joinedGroups, ...hiddenSidebarMembershipGroups].forEach((g) => {
       mergedMap.set(g.id, g);
     });
 
@@ -1573,7 +1616,7 @@ export default function OwnerSidebar() {
       { key: "hidden", title: visibilitySectionTitle("hidden"), items: hiddens },
       { key: "other", title: visibilitySectionTitle("other"), items: others },
     ].filter((section) => section.items.length > 0);
-  }, [joinedGroups, hiddenJoinedGroups]);
+  }, [joinedGroups, hiddenSidebarMembershipGroups]);
 
   const browseGrouped = useMemo(() => {
     const withoutJoined = browseGroups.filter(
@@ -1939,13 +1982,14 @@ export default function OwnerSidebar() {
             />
           )}
 
-          {activeView === "communities" && (
+                    {activeView === "communities" && (
             <OwnerSidebarOtherGroups
               loadingCommunities={loadingCommunities}
               joinedGroups={joinedGroups}
               pendingJoinRequestsSent={pendingJoinRequestsSent}
               browseGroups={browseGroups}
               joinedGrouped={joinedGrouped}
+              subscriptionPendingGroups={subscriptionPendingGroups}
               browseGrouped={browseGrouped}
               groupMetaMap={groupMetaMap}
               styles={styles}

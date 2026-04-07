@@ -2,6 +2,7 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import {
   FieldValue,
   getFirestore,
+  type DocumentReference,
   type WriteBatch,
 } from "firebase-admin/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -29,6 +30,10 @@ type ApplySubscriptionTransitionData = {
   subscriptionToFreePolicy?: unknown;
 };
 
+type DismissHiddenGroupTransitionData = {
+  groupId?: unknown;
+};
+
 type GroupMonetizationTransitions = {
   freeToSubscriptionPolicy?: FreeToSubscriptionPolicy | null;
   subscriptionToFreePolicy?: SubscriptionToFreePolicy | null;
@@ -51,7 +56,9 @@ type GroupMonetization = {
 
 type GroupDocShape = {
   ownerId?: string;
+  name?: string;
   visibility?: string;
+  avatarUrl?: string | null;
   monetization?: GroupMonetization | null;
 };
 
@@ -63,6 +70,22 @@ type MemberDocShape = {
   accessType?: string | null;
   requiresSubscription?: boolean;
   subscriptionActive?: boolean;
+};
+
+type HiddenGroupTransitionDoc = {
+  userId?: string;
+  groupId?: string;
+  ownerId?: string | null;
+  groupName?: string | null;
+  visibility?: string | null;
+  avatarUrl?: string | null;
+  reason?: string | null;
+  canDismiss?: boolean;
+  requiresSubscription?: boolean;
+  transitionPendingAction?: boolean;
+  transitionDirection?: string | null;
+  subscriptionActive?: boolean;
+  lastTransitionKey?: string | null;
 };
 
 type TransitionPlan =
@@ -328,6 +351,51 @@ function buildDisableSubscriptionPatch(params: {
   return null;
 }
 
+function hiddenTransitionRef(userId: string, groupId: string): DocumentReference {
+  return db
+    .collection("users")
+    .doc(userId)
+    .collection("hiddenGroupTransitions")
+    .doc(groupId);
+}
+
+function buildHiddenTransitionReminder(params: {
+  userId: string;
+  actorUid: string;
+  groupId: string;
+  group: GroupDocShape;
+  transitionKey: string;
+}) {
+  return {
+    userId: params.userId,
+    groupId: params.groupId,
+    ownerId:
+      typeof params.group.ownerId === "string" ? params.group.ownerId : null,
+    groupName:
+      typeof params.group.name === "string" ? params.group.name : null,
+    visibility:
+      typeof params.group.visibility === "string"
+        ? params.group.visibility
+        : null,
+    avatarUrl:
+      typeof params.group.avatarUrl === "string"
+        ? params.group.avatarUrl
+        : null,
+    reason: "subscription_required_after_transition",
+    canDismiss: true,
+    requiresSubscription: true,
+    transitionPendingAction: true,
+    transitionDirection: "free_to_subscription",
+    transitionResolvedAt: FieldValue.serverTimestamp(),
+    removedDueToSubscriptionTransition: true,
+    subscriptionActive: false,
+    lastTransitionKey: params.transitionKey,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+    createdBy: params.actorUid,
+  };
+}
+
 export const applyGroupSubscriptionTransition = onCall(
   {
     region: "us-central1",
@@ -404,6 +472,7 @@ export const applyGroupSubscriptionTransition = onCall(
         legacyGrantedMembers: 0,
         removedMembers: 0,
         skippedMembers: 0,
+        reminderMembers: 0,
       };
     }
 
@@ -413,6 +482,7 @@ export const applyGroupSubscriptionTransition = onCall(
     let legacyGrantedMembers = 0;
     let removedMembers = 0;
     let skippedMembers = 0;
+    let reminderMembers = 0;
 
     const memberDocs = membersSnap.docs.filter((docSnap) => {
       const member = (docSnap.data() ?? {}) as MemberDocShape;
@@ -432,6 +502,14 @@ export const applyGroupSubscriptionTransition = onCall(
       for (const memberDoc of chunk) {
         const member = (memberDoc.data() ?? {}) as MemberDocShape;
         const memberStatus = normalizeMemberStatus(member.status);
+        const targetUserId =
+          typeof member.userId === "string" ? member.userId.trim() : "";
+
+        if (!targetUserId) {
+          continue;
+        }
+
+        const reminderRef = hiddenTransitionRef(targetUserId, groupId);
 
         const patch =
           plan.direction === "free_to_subscription"
@@ -448,16 +526,39 @@ export const applyGroupSubscriptionTransition = onCall(
 
         if (patch === null) {
           if (memberStatus === "banned") {
+            batch.delete(reminderRef);
             continue;
           }
 
           batch.delete(memberDoc.ref);
+
+          if (
+            plan.direction === "free_to_subscription" &&
+            plan.policy === "require_subscription"
+          ) {
+            batch.set(
+              reminderRef,
+              buildHiddenTransitionReminder({
+                userId: targetUserId,
+                actorUid,
+                groupId,
+                group,
+                transitionKey: plan.transitionKey,
+              }),
+              { merge: true }
+            );
+            reminderMembers += 1;
+          } else {
+            batch.delete(reminderRef);
+          }
+
           removedMembers += 1;
           updatedMembers += 1;
           continue;
         }
 
         batch.set(memberDoc.ref, patch, { merge: true });
+        batch.delete(reminderRef);
 
         if (
           plan.direction === "free_to_subscription" &&
@@ -501,6 +602,7 @@ export const applyGroupSubscriptionTransition = onCall(
       legacyGrantedMembers,
       removedMembers,
       skippedMembers,
+      reminderMembers,
     });
 
     return {
@@ -513,6 +615,54 @@ export const applyGroupSubscriptionTransition = onCall(
       legacyGrantedMembers,
       removedMembers,
       skippedMembers,
+      reminderMembers,
+    };
+  }
+);
+
+export const dismissHiddenGroupTransition = onCall(
+  {
+    region: "us-central1",
+    cors: true,
+  },
+  async (request) => {
+    const actorUid = requireAuth(request);
+    const data = (request.data ?? {}) as DismissHiddenGroupTransitionData;
+
+    const groupId = normalizeString(data.groupId, "groupId");
+    const reminderRef = hiddenTransitionRef(actorUid, groupId);
+    const reminderSnap = await reminderRef.get();
+
+    if (!reminderSnap.exists) {
+      return {
+        ok: true,
+        alreadyDismissed: true,
+        groupId,
+      };
+    }
+
+    const reminder = (reminderSnap.data() ?? {}) as HiddenGroupTransitionDoc;
+
+    if (reminder.canDismiss !== true) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Esta comunidad no se puede olvidar desde el sidebar."
+      );
+    }
+
+    await reminderRef.delete();
+
+    logger.info("hidden group transition dismissed", {
+      actorUid,
+      groupId,
+      reason: reminder.reason ?? null,
+      transitionDirection: reminder.transitionDirection ?? null,
+    });
+
+    return {
+      ok: true,
+      alreadyDismissed: false,
+      groupId,
     };
   }
 );

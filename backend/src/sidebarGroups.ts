@@ -71,6 +71,42 @@ type MemberData = {
   transitionDirection?: string | null;
 };
 
+type HiddenGroupTransitionData = {
+  userId?: string;
+  groupId?: string;
+  ownerId?: string | null;
+  groupName?: string | null;
+  visibility?: string | null;
+  avatarUrl?: string | null;
+  reason?: string | null;
+  canDismiss?: boolean;
+  requiresSubscription?: boolean;
+  transitionPendingAction?: boolean;
+  transitionDirection?: string | null;
+  subscriptionActive?: boolean;
+};
+
+type SidebarGroupRow = {
+  id: string;
+  name?: string | null;
+  ownerId?: string | null;
+  visibility?: string | null;
+  avatarUrl?: string | null;
+
+  memberStatus?: MemberStatus;
+  membershipAccessType?: SidebarMembershipAccessType | null;
+  requiresSubscription?: boolean;
+  subscriptionActive?: boolean;
+  legacyComplimentary?: boolean;
+  transitionPendingAction?: boolean;
+  transitionReason?: string | null;
+  canDismiss?: boolean;
+  sidebarState?: SidebarState;
+
+  monetization?: GroupMonetization | null;
+  offerings?: GroupOffering[];
+};
+
 function normalizeSidebarMemberStatus(raw: unknown): MemberStatus {
   if (raw === "active") return "active";
   if (raw === "subscribed") return "subscribed";
@@ -90,7 +126,9 @@ function normalizeAccessType(raw: unknown): SidebarMembershipAccessType {
   return "unknown";
 }
 
-function isSubscriptionEnabled(monetization: GroupMonetization | null | undefined) {
+function isSubscriptionEnabled(
+  monetization: GroupMonetization | null | undefined
+) {
   return (
     monetization?.subscriptionsEnabled === true || monetization?.isPaid === true
   );
@@ -117,6 +155,72 @@ function isVisibleJoinedStatus(status: MemberStatus) {
 
 function isRemovedLikeStatus(status: MemberStatus) {
   return status === "removed" || status === "kicked" || status === "expelled";
+}
+
+function resolveReminderSidebarState(reminder: HiddenGroupTransitionData): SidebarState {
+  if (reminder.requiresSubscription === true) {
+    return "requires_subscription";
+  }
+
+  return "hidden";
+}
+
+function buildReminderSidebarRow(params: {
+  groupId: string;
+  group: GroupData | null;
+  reminder: HiddenGroupTransitionData;
+}): SidebarGroupRow | null {
+  const visibility =
+    typeof params.group?.visibility === "string"
+      ? params.group.visibility
+      : typeof params.reminder.visibility === "string"
+      ? params.reminder.visibility
+      : null;
+
+  const sidebarState = resolveReminderSidebarState(params.reminder);
+
+  // Solo dejamos pasar reminders útiles para el sidebar.
+  // Hoy el caso importante es requires_subscription.
+  if (sidebarState !== "requires_subscription") {
+    return null;
+  }
+
+  return {
+    id: params.groupId,
+    name:
+      typeof params.group?.name === "string"
+        ? params.group.name
+        : typeof params.reminder.groupName === "string"
+        ? params.reminder.groupName
+        : null,
+    ownerId:
+      typeof params.group?.ownerId === "string"
+        ? params.group.ownerId
+        : typeof params.reminder.ownerId === "string"
+        ? params.reminder.ownerId
+        : null,
+    visibility,
+    avatarUrl:
+      typeof params.group?.avatarUrl === "string"
+        ? params.group.avatarUrl
+        : typeof params.reminder.avatarUrl === "string"
+        ? params.reminder.avatarUrl
+        : null,
+
+    memberStatus: null,
+    membershipAccessType: "unknown",
+    requiresSubscription: params.reminder.requiresSubscription === true,
+    subscriptionActive: params.reminder.subscriptionActive === true,
+    legacyComplimentary: false,
+    transitionPendingAction: params.reminder.transitionPendingAction === true,
+    transitionReason:
+      typeof params.reminder.reason === "string" ? params.reminder.reason : null,
+    canDismiss: params.reminder.canDismiss === true,
+    sidebarState,
+
+    monetization: params.group?.monetization ?? null,
+    offerings: Array.isArray(params.group?.offerings) ? params.group.offerings : [],
+  };
 }
 
 function resolveSidebarState(params: {
@@ -180,7 +284,7 @@ export const getMyHiddenJoinedGroups = onCall(async (request) => {
     .where("userId", "==", callerUid)
     .get();
 
-  const rows = await Promise.all(
+  const membershipRows = await Promise.all(
     membershipsSnap.docs.map(async (memberDoc) => {
       const memberData = (memberDoc.data() ?? {}) as MemberData;
 
@@ -193,6 +297,9 @@ export const getMyHiddenJoinedGroups = onCall(async (request) => {
       const groupData = (groupSnap.data() ?? {}) as GroupData;
 
       if (groupData?.ownerId === callerUid) return null;
+
+      // Este callable sigue conservando la parte original:
+      // memberships reales para comunidades hidden dentro de "other groups".
       if (groupData?.visibility !== "hidden") return null;
 
       const memberStatus = normalizeSidebarMemberStatus(
@@ -221,7 +328,7 @@ export const getMyHiddenJoinedGroups = onCall(async (request) => {
 
       if (sidebarState === "hidden") return null;
 
-            const canDismiss = false;
+      const canDismiss = false;
 
       return {
         id: groupSnap.id,
@@ -244,12 +351,114 @@ export const getMyHiddenJoinedGroups = onCall(async (request) => {
         offerings: Array.isArray(groupData?.offerings)
           ? groupData.offerings
           : [],
-      };
+      } satisfies SidebarGroupRow;
     })
   );
 
+  const remindersSnap = await db
+    .collection("users")
+    .doc(callerUid)
+    .collection("hiddenGroupTransitions")
+    .get();
+
+    const reminderRows = await Promise.all(
+    remindersSnap.docs.map(async (reminderDoc) => {
+      const reminderData = (reminderDoc.data() ??
+        {}) as HiddenGroupTransitionData;
+      const groupId = reminderDoc.id;
+
+      const groupSnap = await db.collection("groups").doc(groupId).get();
+      const groupData = groupSnap.exists
+        ? ((groupSnap.data() ?? {}) as GroupData)
+        : null;
+
+      if (groupData?.ownerId === callerUid) return null;
+
+      const memberSnap = await db
+        .collection("groups")
+        .doc(groupId)
+        .collection("members")
+        .doc(callerUid)
+        .get();
+
+      if (memberSnap.exists) {
+        const memberData = (memberSnap.data() ?? {}) as MemberData;
+        const memberStatus = normalizeSidebarMemberStatus(
+          memberData?.status ?? "active"
+        );
+        const membershipAccessType = normalizeAccessType(memberData?.accessType);
+        const requiresSubscription = memberData?.requiresSubscription === true;
+        const subscriptionActive = memberData?.subscriptionActive === true;
+        const transitionPendingAction =
+          memberData?.transitionPendingAction === true;
+        const transitionReason = buildTransitionReason(memberData);
+        const groupSubscriptionEnabled = isSubscriptionEnabled(
+          groupData?.monetization
+        );
+
+        const sidebarState = resolveSidebarState({
+          status: memberStatus,
+          accessType: membershipAccessType,
+          requiresSubscription,
+          subscriptionActive,
+          transitionPendingAction,
+          transitionReason,
+          groupSubscriptionEnabled,
+        });
+
+        // Si el usuario ya volvió a tener acceso real al grupo,
+        // el reminder quedó obsoleto y ya no debe mostrarse.
+        if (
+          sidebarState === "joined" ||
+          sidebarState === "legacy_free" ||
+          sidebarState === "banned"
+        ) {
+          await reminderDoc.ref.delete();
+          return null;
+        }
+      }
+
+      return buildReminderSidebarRow({
+        groupId,
+        group: groupData,
+        reminder: reminderData,
+      });
+    })
+  );
+
+  const merged = new Map<string, SidebarGroupRow>();
+
+  for (const row of membershipRows) {
+    if (row) {
+      merged.set(row.id, row);
+    }
+  }
+
+  for (const row of reminderRows) {
+    if (!row) continue;
+
+    const existing = merged.get(row.id);
+
+    // Si ya existe una membresía real visible, no la pisamos,
+    // excepto si el reminder es requires_subscription y la actual no lo es.
+    if (!existing) {
+      merged.set(row.id, row);
+      continue;
+    }
+
+    if (
+      row.sidebarState === "requires_subscription" &&
+      existing.sidebarState !== "requires_subscription"
+    ) {
+      merged.set(row.id, {
+        ...existing,
+        ...row,
+      });
+    }
+  }
+
   return {
     success: true,
-    groups: rows.filter(Boolean),
+    groups: Array.from(merged.values()),
   };
 });

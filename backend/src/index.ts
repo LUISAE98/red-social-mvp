@@ -53,4 +53,7 @@ export {
 } from "./groupModeration";
 
 // 🔥 NUEVO — Subscription transitions
-export { applyGroupSubscriptionTransition } from "./subscriptionTransitions";
+export {
+  applyGroupSubscriptionTransition,
+  dismissHiddenGroupTransition,
+} from "./subscriptionTransitions";

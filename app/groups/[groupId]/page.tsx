@@ -506,9 +506,13 @@ export default function GroupPage() {
     );
   }, [normalizedCurrentMonetization]);
 
-    const removedBySubscriptionTransition = useMemo(() => {
-    return false;
-  }, []);
+      const removedBySubscriptionTransition = useMemo(() => {
+    return (
+      membershipTransitionPendingAction &&
+      (membershipTransitionReason === "subscription_required_after_transition" ||
+        membershipTransitionReason === "subscription_transition")
+    );
+  }, [membershipTransitionPendingAction, membershipTransitionReason]);
 
     const requiresSubscriptionFromMembership = useMemo(() => {
     return (
@@ -517,21 +521,20 @@ export default function GroupPage() {
     );
   }, [membershipRequiresSubscription, membershipAccessType]);
 
-  const shouldShowSubscriptionRecovery =
+    const shouldShowSubscriptionRecovery =
     !isOwner &&
     !effectiveIsMember &&
     subscriptionEnabled &&
     (group?.visibility === "private" || group?.visibility === "hidden") &&
-    (membershipRequiresSubscription || removedBySubscriptionTransition);
+    (membershipRequiresSubscription ||
+      removedBySubscriptionTransition ||
+      searchParams.get("service") === "suscripcion");
 
-  const isSubscriptionGroup =
+    const isSubscriptionGroup =
     !isOwner &&
     !effectiveIsMember &&
     (group?.visibility === "private" || group?.visibility === "hidden") &&
-    subscriptionEnabled &&
-    (!membershipTransitionPendingAction ||
-      membershipRequiresSubscription ||
-      removedBySubscriptionTransition);
+    subscriptionEnabled;
 
   const [greetOpen, setGreetOpen] = useState(false);
   const [greetType, setGreetType] = useState<GreetingType>("saludo");
@@ -581,7 +584,12 @@ export default function GroupPage() {
     router.replace(nextHref, { scroll: false });
   }
 
-  function openSubscriptionModal() {
+    function openSubscriptionModal() {
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
+
     setSubscriptionError(null);
     setServiceToast(null);
     setSubscriptionOpen(true);
@@ -2174,22 +2182,6 @@ export default function GroupPage() {
       postBlockedReason = "join";
     } else {
       postBlockedReason = "restricted";
-    }
-  }
-
-  if (!canCommentOnPosts) {
-    if (!user) {
-      commentBlockedReason = "login";
-    } else if (
-      memberStatus === "banned" ||
-      memberStatus === "removed" ||
-      memberStatus === "muted"
-    ) {
-      commentBlockedReason = "restricted";
-    } else if (!effectiveIsMember) {
-      commentBlockedReason = "join";
-    } else {
-      commentBlockedReason = "restricted";
     }
   }
 
