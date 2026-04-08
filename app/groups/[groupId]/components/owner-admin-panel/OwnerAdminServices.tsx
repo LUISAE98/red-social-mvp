@@ -20,6 +20,10 @@ type Visibility = "public" | "private" | "hidden" | string | null;
 
 type FreeToSubscriptionPolicy = "legacy_free" | "require_subscription" | "";
 type SubscriptionToFreePolicy = "keep_members_free" | "remove_all_members" | "";
+type SubscriptionPriceIncreasePolicy =
+  | "keep_legacy_price"
+  | "require_resubscribe_new_price"
+  | "";
 
 type MonetizationTransitionsInput =
   | {
@@ -28,6 +32,13 @@ type MonetizationTransitionsInput =
         | "keep_members_free"
         | "remove_all_members"
         | null;
+      subscriptionPriceIncreasePolicy?:
+        | "keep_legacy_price"
+        | "require_resubscribe_new_price"
+        | null;
+      previousSubscriptionPriceMonthly?: number | null;
+      nextSubscriptionPriceMonthly?: number | null;
+      subscriptionPriceChangeCurrency?: Currency | null;
       lastMonetizationChangeAt?: unknown;
       lastMonetizationChangeBy?: string | null;
     }
@@ -118,6 +129,7 @@ type ServiceDraft = {
   donationGoalLabel: string;
   freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
   subscriptionToFreePolicy: SubscriptionToFreePolicy;
+  subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;
 };
 
 function pickSubscription(monetization: MonetizationInput) {
@@ -146,6 +158,7 @@ function pickSubscription(monetization: MonetizationInput) {
 function pickTransitions(monetization: MonetizationInput): {
   freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
   subscriptionToFreePolicy: SubscriptionToFreePolicy;
+  subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;
 } {
   const transitions = monetization?.transitions ?? null;
 
@@ -161,9 +174,17 @@ function pickTransitions(monetization: MonetizationInput): {
       ? transitions.subscriptionToFreePolicy
       : "";
 
+  const subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy =
+    transitions?.subscriptionPriceIncreasePolicy === "keep_legacy_price" ||
+    transitions?.subscriptionPriceIncreasePolicy ===
+      "require_resubscribe_new_price"
+      ? transitions.subscriptionPriceIncreasePolicy
+      : "";
+
   return {
     freeToSubscriptionPolicy,
     subscriptionToFreePolicy,
+    subscriptionPriceIncreasePolicy,
   };
 }
 
@@ -329,6 +350,7 @@ function createEmptyDraft(): ServiceDraft {
     donationGoalLabel: "",
     freeToSubscriptionPolicy: "",
     subscriptionToFreePolicy: "",
+    subscriptionPriceIncreasePolicy: "",
   };
 }
 
@@ -478,7 +500,8 @@ function sameDraft(a: ServiceDraft, b: ServiceDraft) {
     a.donationMinimumAmount === b.donationMinimumAmount &&
     a.donationGoalLabel === b.donationGoalLabel &&
     a.freeToSubscriptionPolicy === b.freeToSubscriptionPolicy &&
-    a.subscriptionToFreePolicy === b.subscriptionToFreePolicy
+    a.subscriptionToFreePolicy === b.subscriptionToFreePolicy &&
+    a.subscriptionPriceIncreasePolicy === b.subscriptionPriceIncreasePolicy
   );
 }
 
@@ -508,15 +531,21 @@ function buildOffering(params: {
 }
 
 function buildTransitionSuccessMessage(params: {
-  direction: "free_to_subscription" | "subscription_to_free";
+  direction:
+    | "free_to_subscription"
+    | "subscription_to_free"
+    | "subscription_price_increase";
   policy:
     | "legacy_free"
     | "require_subscription"
     | "keep_members_free"
-    | "remove_all_members";
+    | "remove_all_members"
+    | "keep_legacy_price"
+    | "require_resubscribe_new_price";
   alreadyApplied: boolean;
   updatedMembers: number;
   legacyGrantedMembers: number;
+  legacyPricedMembers?: number;
   removedMembers: number;
   skippedMembers: number;
 }) {
@@ -526,6 +555,7 @@ function buildTransitionSuccessMessage(params: {
     alreadyApplied,
     updatedMembers,
     legacyGrantedMembers,
+    legacyPricedMembers = 0,
     removedMembers,
     skippedMembers,
   } = params;
@@ -549,7 +579,28 @@ function buildTransitionSuccessMessage(params: {
     return `✅ Configuración guardada. La comunidad volvió a gratis y ${updatedMembers} integrante(s) conservaron acceso normal. Omitidos: ${skippedMembers}.`;
   }
 
-  return `✅ Configuración guardada. La comunidad volvió a gratis y se retiró el acceso a ${removedMembers} integrante(s). Actualizados: ${updatedMembers}. Omitidos: ${skippedMembers}.`;
+  if (
+    direction === "subscription_to_free" &&
+    policy === "remove_all_members"
+  ) {
+    return `✅ Configuración guardada. La comunidad volvió a gratis y se retiró el acceso a ${removedMembers} integrante(s). Actualizados: ${updatedMembers}. Omitidos: ${skippedMembers}.`;
+  }
+
+  if (
+    direction === "subscription_price_increase" &&
+    policy === "keep_legacy_price"
+  ) {
+    return `✅ Configuración guardada. Se aumentó el precio para nuevas suscripciones y ${legacyPricedMembers} suscriptor(es) actuales conservaron su precio anterior. Actualizados: ${updatedMembers}. Omitidos: ${skippedMembers}.`;
+  }
+
+  if (
+    direction === "subscription_price_increase" &&
+    policy === "require_resubscribe_new_price"
+  ) {
+    return `✅ Configuración guardada. Se retiró el acceso a ${removedMembers} suscriptor(es) actuales para que deban suscribirse de nuevo con el nuevo precio. Actualizados: ${updatedMembers}. Omitidos: ${skippedMembers}.`;
+  }
+
+  return "✅ Configuración guardada.";
 }
 
 function ServiceEditorBlock<TDraft extends ServiceBlockDraft>({
@@ -887,7 +938,10 @@ function TransitionPolicyPanel({
   onChange,
   saving,
 }: {
-  mode: "free_to_subscription" | "subscription_to_free";
+  mode:
+    | "free_to_subscription"
+    | "subscription_to_free"
+    | "subscription_price_increase";
   value: string;
   onChange: (next: string) => void;
   saving: boolean;
@@ -958,6 +1012,47 @@ function TransitionPolicyPanel({
           <span style={titleStyle}>Pedir suscripción a los miembros actuales</span>
           <span style={subtleStyle}>
             Los miembros existentes deberán suscribirse para continuar con acceso.
+          </span>
+        </button>
+      </div>
+    );
+  }
+
+    if (mode === "subscription_price_increase") {
+    return (
+      <div style={panelStyle}>
+        <div style={{ display: "grid", gap: 2 }}>
+          <span style={titleStyle}>Cambio: aumento de precio de suscripción</span>
+          <span style={subtleStyle}>
+            Como el nuevo precio es mayor al anterior, debes decidir qué pasa con los suscriptores actuales.
+          </span>
+        </div>
+
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => onChange("keep_legacy_price")}
+          style={optionCard(value === "keep_legacy_price")}
+        >
+          <span style={titleStyle}>
+            Mantener precio anterior a suscriptores actuales
+          </span>
+          <span style={subtleStyle}>
+            Quienes ya están suscritos conservan su precio anterior. El nuevo precio solo aplica a futuras suscripciones.
+          </span>
+        </button>
+
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => onChange("require_resubscribe_new_price")}
+          style={optionCard(value === "require_resubscribe_new_price")}
+        >
+          <span style={titleStyle}>
+            Pedir nueva suscripción al monto actualizado
+          </span>
+          <span style={subtleStyle}>
+            Los suscriptores actuales perderán acceso y deberán suscribirse de nuevo con el nuevo precio.
           </span>
         </button>
       </div>
@@ -1090,6 +1185,8 @@ export default function OwnerAdminServices({
       donationGoalLabel: donation.goalLabel ?? "",
       freeToSubscriptionPolicy: transitions.freeToSubscriptionPolicy,
       subscriptionToFreePolicy: transitions.subscriptionToFreePolicy,
+      subscriptionPriceIncreasePolicy:
+        transitions.subscriptionPriceIncreasePolicy,
     };
 
     const isFirstHydrationForGroup = lastHydratedGroupIdRef.current !== groupId;
@@ -1129,11 +1226,32 @@ export default function OwnerAdminServices({
     }
   }, [saving]);
 
-  const wasSubscriptionEnabled = savedDraft.subscription.enabled;
+    const wasSubscriptionEnabled = savedDraft.subscription.enabled;
   const willEnableSubscription =
     !wasSubscriptionEnabled && draft.subscription.enabled && !isPublic;
   const willDisableSubscription =
     wasSubscriptionEnabled && !draft.subscription.enabled;
+
+  const previousSubscriptionPrice =
+    savedDraft.subscription.price.trim() === ""
+      ? null
+      : Number(savedDraft.subscription.price);
+
+  const nextSubscriptionPrice =
+    draft.subscription.price.trim() === ""
+      ? null
+      : Number(draft.subscription.price);
+
+  const willIncreaseSubscriptionPrice =
+    !isPublic &&
+    wasSubscriptionEnabled &&
+    draft.subscription.enabled &&
+    savedDraft.subscription.currency === draft.subscription.currency &&
+    previousSubscriptionPrice != null &&
+    nextSubscriptionPrice != null &&
+    !Number.isNaN(previousSubscriptionPrice) &&
+    !Number.isNaN(nextSubscriptionPrice) &&
+    nextSubscriptionPrice > previousSubscriptionPrice;
 
   if (!isOwner) return null;
 
@@ -1375,9 +1493,19 @@ export default function OwnerAdminServices({
         return;
       }
 
-      if (willDisableSubscription && !draft.subscriptionToFreePolicy) {
+            if (willDisableSubscription && !draft.subscriptionToFreePolicy) {
         setErr(
           "❌ Debes definir qué pasa con los integrantes al cambiar de suscripción a gratis."
+        );
+        return;
+      }
+
+      if (
+        willIncreaseSubscriptionPrice &&
+        !draft.subscriptionPriceIncreasePolicy
+      ) {
+        setErr(
+          "❌ Debes definir qué pasa con los suscriptores actuales al subir el precio."
         );
         return;
       }
@@ -1472,9 +1600,11 @@ export default function OwnerAdminServices({
           : false;
 
       const isTransitioningSubscriptionModel =
-        willEnableSubscription || willDisableSubscription;
+        willEnableSubscription ||
+        willDisableSubscription ||
+        willIncreaseSubscriptionPrice;
 
-      const nextTransitions = {
+            const nextTransitions = {
         freeToSubscriptionPolicy:
           willEnableSubscription && draft.freeToSubscriptionPolicy
             ? draft.freeToSubscriptionPolicy
@@ -1483,6 +1613,23 @@ export default function OwnerAdminServices({
           willDisableSubscription && draft.subscriptionToFreePolicy
             ? draft.subscriptionToFreePolicy
             : currentMonetization?.transitions?.subscriptionToFreePolicy ?? null,
+        subscriptionPriceIncreasePolicy:
+          willIncreaseSubscriptionPrice && draft.subscriptionPriceIncreasePolicy
+            ? draft.subscriptionPriceIncreasePolicy
+            : currentMonetization?.transitions?.subscriptionPriceIncreasePolicy ??
+              null,
+        previousSubscriptionPriceMonthly: willIncreaseSubscriptionPrice
+          ? previousSubscriptionPrice
+          : currentMonetization?.transitions?.previousSubscriptionPriceMonthly ??
+            null,
+        nextSubscriptionPriceMonthly: willIncreaseSubscriptionPrice
+          ? nextSubscriptionPrice
+          : currentMonetization?.transitions?.nextSubscriptionPriceMonthly ??
+            null,
+        subscriptionPriceChangeCurrency: willIncreaseSubscriptionPrice
+          ? draft.subscription.currency
+          : currentMonetization?.transitions?.subscriptionPriceChangeCurrency ??
+            null,
         lastMonetizationChangeAt: isTransitioningSubscriptionModel
           ? Date.now()
           : currentMonetization?.transitions?.lastMonetizationChangeAt ?? null,
@@ -1549,7 +1696,7 @@ export default function OwnerAdminServices({
 
       if (isTransitioningSubscriptionModel) {
         try {
-          const transitionResponse = await applyGroupSubscriptionTransition({
+                    const transitionResponse = await applyGroupSubscriptionTransition({
             groupId,
             nextSubscriptionEnabled: !isPublic && draft.subscription.enabled,
             freeToSubscriptionPolicy:
@@ -1559,6 +1706,19 @@ export default function OwnerAdminServices({
             subscriptionToFreePolicy:
               willDisableSubscription && draft.subscriptionToFreePolicy
                 ? draft.subscriptionToFreePolicy
+                : undefined,
+            subscriptionPriceIncreasePolicy:
+              willIncreaseSubscriptionPrice &&
+              draft.subscriptionPriceIncreasePolicy
+                ? draft.subscriptionPriceIncreasePolicy
+                : undefined,
+            previousSubscriptionPriceMonthly:
+              willIncreaseSubscriptionPrice ? previousSubscriptionPrice : undefined,
+            nextSubscriptionPriceMonthly:
+              willIncreaseSubscriptionPrice ? nextSubscriptionPrice : undefined,
+            subscriptionPriceChangeCurrency:
+              willIncreaseSubscriptionPrice
+                ? draft.subscription.currency
                 : undefined,
           });
 
@@ -1629,6 +1789,8 @@ export default function OwnerAdminServices({
               draft.donationMode === "wedding" ? draft.donationGoalLabel : "",
             freeToSubscriptionPolicy: draft.freeToSubscriptionPolicy,
             subscriptionToFreePolicy: draft.subscriptionToFreePolicy,
+            subscriptionPriceIncreasePolicy:
+              draft.subscriptionPriceIncreasePolicy,
           };
 
           setDraft(nextSavedAfterPartialSuccess);
@@ -1695,6 +1857,8 @@ export default function OwnerAdminServices({
           draft.donationMode === "wedding" ? draft.donationGoalLabel : "",
         freeToSubscriptionPolicy: draft.freeToSubscriptionPolicy,
         subscriptionToFreePolicy: draft.subscriptionToFreePolicy,
+        subscriptionPriceIncreasePolicy:
+          draft.subscriptionPriceIncreasePolicy,
       };
 
       setDraft(nextSaved);
@@ -1715,9 +1879,10 @@ export default function OwnerAdminServices({
           <span style={titleStyle}>Configuración comercial del grupo</span>
           <span style={subtleStyle}>
             La suscripción mensual se configura como una capa estructural del
-            grupo. El menú visible solo incluye servicios activos como saludo,
-            consejo, meet & greet digital y clase personalizada. Donación sigue
-            separada porque no pertenece al menú principal.
+            grupo. Si el precio sube, el sistema pedirá una política para los
+            suscriptores actuales. El menú visible solo incluye servicios
+            activos como saludo, consejo, meet & greet digital y clase
+            personalizada. Donación sigue separada porque no pertenece al menú principal.
           </span>
         </div>
       </div>
@@ -1756,7 +1921,7 @@ export default function OwnerAdminServices({
         />
       )}
 
-      {willDisableSubscription && (
+            {willDisableSubscription && (
         <TransitionPolicyPanel
           mode="subscription_to_free"
           value={draft.subscriptionToFreePolicy}
@@ -1764,6 +1929,21 @@ export default function OwnerAdminServices({
             setDraft((prev) => ({
               ...prev,
               subscriptionToFreePolicy: next as SubscriptionToFreePolicy,
+            }))
+          }
+          saving={saving}
+        />
+      )}
+
+      {willIncreaseSubscriptionPrice && (
+        <TransitionPolicyPanel
+          mode="subscription_price_increase"
+          value={draft.subscriptionPriceIncreasePolicy}
+          onChange={(next) =>
+            setDraft((prev) => ({
+              ...prev,
+              subscriptionPriceIncreasePolicy:
+                next as SubscriptionPriceIncreasePolicy,
             }))
           }
           saving={saving}

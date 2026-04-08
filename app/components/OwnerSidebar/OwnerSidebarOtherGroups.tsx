@@ -59,6 +59,12 @@ type AccessState =
 
 type NoticeTone = "warning" | "success" | "info" | "danger";
 
+type PriceAwareGroup = GroupDocLite & {
+  previousSubscriptionPriceMonthly?: number | null;
+  nextSubscriptionPriceMonthly?: number | null;
+  subscriptionPriceChangeCurrency?: "MXN" | "USD" | string | null;
+};
+
 function normalizeMemberStatus(group: GroupDocLite): SidebarMemberStatus {
   const raw = group?.memberStatus ?? null;
 
@@ -79,15 +85,6 @@ function normalizeMemberRole(group: GroupDocLite): SidebarMemberRole {
   if (raw === "member") return "member";
 
   return null;
-}
-
-function isVisibleJoinedStatus(status: SidebarMemberStatus) {
-  return (
-    status === "active" ||
-    status === "subscribed" ||
-    status === "muted" ||
-    status === "banned"
-  );
 }
 
 function isActuallyJoinedStatus(status: SidebarMemberStatus) {
@@ -118,19 +115,6 @@ function roleLabel(role?: SidebarMemberRole) {
   if (role === "mod") return "Moderador";
   if (role === "owner") return "Owner";
   return "Miembro";
-}
-
-function groupHasPaidSubscription(group: GroupDocLite) {
-  const monetization = group?.monetization ?? {};
-
-  return (
-    monetization?.subscriptionsEnabled === true ||
-    monetization?.isPaid === true ||
-    (typeof monetization?.subscriptionPriceMonthly === "number" &&
-      monetization.subscriptionPriceMonthly > 0) ||
-    (typeof monetization?.priceMonthly === "number" &&
-      monetization.priceMonthly > 0)
-  );
 }
 
 function resolveAccessState(group: GroupDocLite): AccessState {
@@ -182,6 +166,46 @@ function shouldShowGroup(group: GroupDocLite, dismissedIds: Set<string>) {
   }
 
   return true;
+}
+
+function formatMoney(value: number, currency: "MXN" | "USD" | string) {
+  try {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: currency === "USD" ? "USD" : "MXN",
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${currency} ${value.toFixed(2)}`;
+  }
+}
+
+function getPriceIncreaseMeta(group: GroupDocLite) {
+  const priceAware = group as PriceAwareGroup;
+
+  const previous =
+    typeof priceAware.previousSubscriptionPriceMonthly === "number"
+      ? priceAware.previousSubscriptionPriceMonthly
+      : null;
+
+  const next =
+    typeof priceAware.nextSubscriptionPriceMonthly === "number"
+      ? priceAware.nextSubscriptionPriceMonthly
+      : null;
+
+  const currency =
+    typeof priceAware.subscriptionPriceChangeCurrency === "string" &&
+    priceAware.subscriptionPriceChangeCurrency.trim()
+      ? priceAware.subscriptionPriceChangeCurrency.trim().toUpperCase()
+      : group.monetization?.subscriptionCurrency ||
+        group.monetization?.currency ||
+        "MXN";
+
+  return {
+    previous,
+    next,
+    currency,
+  };
 }
 
 function buildJoinedSubtitle(
@@ -267,7 +291,7 @@ function buildJoinedSubtitle(
           </span>
           <span style={{ color: "#fbbf24" }}>
             {group.canDismiss === true
-              ? "Tu acceso gratis terminó"
+              ? "Tu acceso requiere actualización"
               : "Debes suscribirte"}
           </span>
         </>
@@ -290,21 +314,49 @@ function buildAccessNotice(
   const state = resolveAccessState(group);
 
   if (state === "requires_subscription") {
-    const wasTransitionReminder =
+    const isFreeToSubscriptionReminder =
       group.canDismiss === true &&
       (group.transitionReason === "subscription_required_after_transition" ||
         group.transitionReason === "subscription_transition");
 
+    const isPriceIncreaseReminder =
+      group.canDismiss === true &&
+      group.transitionReason ===
+        "subscription_price_increase_requires_resubscribe";
+
+    if (isPriceIncreaseReminder) {
+      const { previous, next, currency } = getPriceIncreaseMeta(group);
+
+      const priceText =
+        previous != null && next != null
+          ? `La suscripción pasó de ${formatMoney(previous, currency)} a ${formatMoney(next, currency)}.`
+          : "La suscripción aumentó de precio.";
+
+      return {
+        title: "Esta comunidad aumentó su precio de suscripción",
+        text: `${priceText} Para seguir dentro debes suscribirte de nuevo con el nuevo monto, o puedes quitar esta comunidad del sidebar.`,
+        tone: "warning",
+        showSubscribeCta: true,
+        showDismissCta: true,
+      };
+    }
+
+    if (isFreeToSubscriptionReminder) {
+      return {
+        title: "Esta comunidad cambió a suscripción",
+        text: "Antes estabas dentro gratis, pero esta comunidad ahora requiere suscripción. Puedes suscribirte para volver a entrar o quitar esta comunidad del sidebar.",
+        tone: "warning",
+        showSubscribeCta: true,
+        showDismissCta: true,
+      };
+    }
+
     return {
-      title: wasTransitionReminder
-        ? "Esta comunidad cambió a suscripción"
-        : "Acceso pendiente de suscripción",
-      text: wasTransitionReminder
-        ? "Antes estabas dentro gratis, pero esta comunidad ahora requiere suscripción. Puedes suscribirte para volver a entrar o quitar esta comunidad del sidebar."
-        : "Esta comunidad ahora requiere suscripción. Como tu acceso anterior ya no es suficiente, debes suscribirte para continuar dentro.",
+      title: "Acceso pendiente de suscripción",
+      text: "Esta comunidad ahora requiere suscripción. Como tu acceso anterior ya no es suficiente, debes suscribirte para continuar dentro.",
       tone: "warning",
       showSubscribeCta: true,
-      showDismissCta: wasTransitionReminder,
+      showDismissCta: false,
     };
   }
 
@@ -341,7 +393,10 @@ function buildAccessNotice(
   return null;
 }
 
-function noticeStyles(tone: NoticeTone, isMobile: boolean): React.CSSProperties {
+function noticeStyles(
+  tone: NoticeTone,
+  isMobile: boolean
+): React.CSSProperties {
   return {
     borderRadius: 10,
     border:
@@ -385,8 +440,17 @@ function renderJoinedCardWithAccessNotice(params: {
   ) => React.ReactNode;
   onSubscribe: (groupId: string) => void;
   onDismiss: (groupId: string) => void | Promise<void>;
+  isDismissing?: boolean;
 }) {
-  const { group, isMobile, renderCommunityCard, onSubscribe, onDismiss } = params;
+  const {
+    group,
+    isMobile,
+    renderCommunityCard,
+    onSubscribe,
+    onDismiss,
+    isDismissing = false,
+  } = params;
+
   const notice = buildAccessNotice(group);
 
   return (
@@ -403,7 +467,9 @@ function renderJoinedCardWithAccessNotice(params: {
 
       {notice && (
         <div style={noticeStyles(notice.tone, isMobile)}>
-          {notice.title ? <div style={{ fontWeight: 700 }}>{notice.title}</div> : null}
+          {notice.title ? (
+            <div style={{ fontWeight: 700 }}>{notice.title}</div>
+          ) : null}
           <div>{notice.text}</div>
 
           {(notice.showSubscribeCta || notice.showDismissCta) && (
@@ -435,9 +501,10 @@ function renderJoinedCardWithAccessNotice(params: {
                 </button>
               )}
 
-                {notice.showDismissCta && (
+              {notice.showDismissCta && (
                 <button
                   type="button"
+                  disabled={isDismissing}
                   onClick={() => {
                     void onDismiss(group.id);
                   }}
@@ -450,10 +517,11 @@ function renderJoinedCardWithAccessNotice(params: {
                     fontSize: 12,
                     fontWeight: 600,
                     lineHeight: 1.1,
-                    cursor: "pointer",
+                    cursor: isDismissing ? "not-allowed" : "pointer",
+                    opacity: isDismissing ? 0.7 : 1,
                   }}
                 >
-                  Olvidar
+                  {isDismissing ? "Olvidando..." : "Olvidar"}
                 </button>
               )}
             </div>
@@ -483,7 +551,7 @@ export default function OwnerSidebarOtherGroups({
   getInitials,
   renderUserLink,
 }: Props) {
-    const router = useRouter();
+  const router = useRouter();
   const [dismissedGroupIds, setDismissedGroupIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -494,7 +562,7 @@ export default function OwnerSidebarOtherGroups({
   const isMobile =
     typeof window !== "undefined" ? window.innerWidth <= 640 : false;
 
-    function persistDismissed(next: Set<string>) {
+  function persistDismissed(next: Set<string>) {
     setDismissedGroupIds(next);
   }
 
@@ -502,7 +570,7 @@ export default function OwnerSidebarOtherGroups({
     router.push(`/groups/${groupId}?service=suscripcion`);
   }
 
-    async function handleDismiss(groupId: string) {
+  async function handleDismiss(groupId: string) {
     if (!groupId.trim()) return;
     if (dismissingGroupIds.has(groupId)) return;
 
@@ -529,11 +597,13 @@ export default function OwnerSidebarOtherGroups({
     }
   }
 
-    const visibleJoinedGrouped = useMemo(() => {
+  const visibleJoinedGrouped = useMemo(() => {
     return joinedGrouped
       .map((section) => ({
         ...section,
-        items: section.items.filter((g) => shouldShowGroup(g, dismissedGroupIds)),
+        items: section.items.filter((g) =>
+          shouldShowGroup(g, dismissedGroupIds)
+        ),
       }))
       .filter((section) => section.items.length > 0);
   }, [joinedGrouped, dismissedGroupIds]);
@@ -558,7 +628,7 @@ export default function OwnerSidebarOtherGroups({
     return !isJoinedLikeState(state);
   });
 
-      const hasAnyJoined = visibleJoinedGrouped.some(
+  const hasAnyJoined = visibleJoinedGrouped.some(
     (section) => section.items.length > 0
   );
 
@@ -567,7 +637,7 @@ export default function OwnerSidebarOtherGroups({
 
   return (
     <>
-           {hasAnySubscriptionPending && (
+      {hasAnySubscriptionPending && (
         <div style={{ display: "grid", gap: 8 }}>
           <div style={styles.sectionTitle}>
             Comunidades pendientes de suscripción
@@ -581,6 +651,7 @@ export default function OwnerSidebarOtherGroups({
                 renderCommunityCard,
                 onSubscribe: handleSubscribe,
                 onDismiss: handleDismiss,
+                isDismissing: dismissingGroupIds.has(g.id),
               })
             )}
           </div>
@@ -619,6 +690,7 @@ export default function OwnerSidebarOtherGroups({
                   renderCommunityCard,
                   onSubscribe: handleSubscribe,
                   onDismiss: handleDismiss,
+                  isDismissing: dismissingGroupIds.has(g.id),
                 });
               }
 
@@ -746,7 +818,9 @@ export default function OwnerSidebarOtherGroups({
                   {accessNotice && (
                     <div style={noticeStyles(accessNotice.tone, isMobile)}>
                       {accessNotice.title ? (
-                        <div style={{ fontWeight: 700 }}>{accessNotice.title}</div>
+                        <div style={{ fontWeight: 700 }}>
+                          {accessNotice.title}
+                        </div>
                       ) : null}
                       <div>{accessNotice.text}</div>
 
@@ -783,6 +857,7 @@ export default function OwnerSidebarOtherGroups({
                           {accessNotice.showDismissCta && (
                             <button
                               type="button"
+                              disabled={dismissingGroupIds.has(g.id)}
                               onClick={() => {
                                 void handleDismiss(g.id);
                               }}
@@ -795,10 +870,15 @@ export default function OwnerSidebarOtherGroups({
                                 fontSize: 12,
                                 fontWeight: 600,
                                 lineHeight: 1.1,
-                                cursor: "pointer",
+                                cursor: dismissingGroupIds.has(g.id)
+                                  ? "not-allowed"
+                                  : "pointer",
+                                opacity: dismissingGroupIds.has(g.id) ? 0.7 : 1,
                               }}
                             >
-                              Olvidar
+                              {dismissingGroupIds.has(g.id)
+                                ? "Olvidando..."
+                                : "Olvidar"}
                             </button>
                           )}
                         </div>
@@ -971,7 +1051,7 @@ export default function OwnerSidebarOtherGroups({
         </div>
       )}
 
-            {!loadingCommunities &&
+      {!loadingCommunities &&
         !hasAnyJoined &&
         !hasAnySubscriptionPending &&
         !hasAnyPending && (

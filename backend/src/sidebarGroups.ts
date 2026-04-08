@@ -84,6 +84,9 @@ type HiddenGroupTransitionData = {
   transitionPendingAction?: boolean;
   transitionDirection?: string | null;
   subscriptionActive?: boolean;
+  previousSubscriptionPriceMonthly?: number | null;
+  nextSubscriptionPriceMonthly?: number | null;
+  subscriptionPriceChangeCurrency?: "MXN" | "USD" | string | null;
 };
 
 type SidebarGroupRow = {
@@ -102,6 +105,10 @@ type SidebarGroupRow = {
   transitionReason?: string | null;
   canDismiss?: boolean;
   sidebarState?: SidebarState;
+
+  previousSubscriptionPriceMonthly?: number | null;
+  nextSubscriptionPriceMonthly?: number | null;
+  subscriptionPriceChangeCurrency?: "MXN" | "USD" | string | null;
 
   monetization?: GroupMonetization | null;
   offerings?: GroupOffering[];
@@ -157,7 +164,9 @@ function isRemovedLikeStatus(status: MemberStatus) {
   return status === "removed" || status === "kicked" || status === "expelled";
 }
 
-function resolveReminderSidebarState(reminder: HiddenGroupTransitionData): SidebarState {
+function resolveReminderSidebarState(
+  reminder: HiddenGroupTransitionData
+): SidebarState {
   if (reminder.requiresSubscription === true) {
     return "requires_subscription";
   }
@@ -179,8 +188,6 @@ function buildReminderSidebarRow(params: {
 
   const sidebarState = resolveReminderSidebarState(params.reminder);
 
-  // Solo dejamos pasar reminders útiles para el sidebar.
-  // Hoy el caso importante es requires_subscription.
   if (sidebarState !== "requires_subscription") {
     return null;
   }
@@ -218,8 +225,23 @@ function buildReminderSidebarRow(params: {
     canDismiss: params.reminder.canDismiss === true,
     sidebarState,
 
+    previousSubscriptionPriceMonthly:
+      typeof params.reminder.previousSubscriptionPriceMonthly === "number"
+        ? params.reminder.previousSubscriptionPriceMonthly
+        : null,
+    nextSubscriptionPriceMonthly:
+      typeof params.reminder.nextSubscriptionPriceMonthly === "number"
+        ? params.reminder.nextSubscriptionPriceMonthly
+        : null,
+    subscriptionPriceChangeCurrency:
+      typeof params.reminder.subscriptionPriceChangeCurrency === "string"
+        ? params.reminder.subscriptionPriceChangeCurrency
+        : null,
+
     monetization: params.group?.monetization ?? null,
-    offerings: Array.isArray(params.group?.offerings) ? params.group.offerings : [],
+    offerings: Array.isArray(params.group?.offerings)
+      ? params.group.offerings
+      : [],
   };
 }
 
@@ -298,8 +320,8 @@ export const getMyHiddenJoinedGroups = onCall(async (request) => {
 
       if (groupData?.ownerId === callerUid) return null;
 
-      // Este callable sigue conservando la parte original:
-      // memberships reales para comunidades hidden dentro de "other groups".
+      // Mantiene el comportamiento original:
+      // memberships reales de comunidades hidden dentro de "other groups".
       if (groupData?.visibility !== "hidden") return null;
 
       const memberStatus = normalizeSidebarMemberStatus(
@@ -347,6 +369,10 @@ export const getMyHiddenJoinedGroups = onCall(async (request) => {
         canDismiss,
         sidebarState,
 
+        previousSubscriptionPriceMonthly: null,
+        nextSubscriptionPriceMonthly: null,
+        subscriptionPriceChangeCurrency: null,
+
         monetization: groupData?.monetization ?? null,
         offerings: Array.isArray(groupData?.offerings)
           ? groupData.offerings
@@ -361,7 +387,7 @@ export const getMyHiddenJoinedGroups = onCall(async (request) => {
     .collection("hiddenGroupTransitions")
     .get();
 
-    const reminderRows = await Promise.all(
+  const reminderRows = await Promise.all(
     remindersSnap.docs.map(async (reminderDoc) => {
       const reminderData = (reminderDoc.data() ??
         {}) as HiddenGroupTransitionData;
@@ -439,8 +465,6 @@ export const getMyHiddenJoinedGroups = onCall(async (request) => {
 
     const existing = merged.get(row.id);
 
-    // Si ya existe una membresía real visible, no la pisamos,
-    // excepto si el reminder es requires_subscription y la actual no lo es.
     if (!existing) {
       merged.set(row.id, row);
       continue;

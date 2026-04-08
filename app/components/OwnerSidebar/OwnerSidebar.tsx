@@ -98,7 +98,7 @@ export type GroupDocLite = {
     currency?: Currency | null;
   }>;
 
-  // nueva metadata de acceso/transición para communities tab
+  // metadata de acceso/transición para communities tab
   membershipAccessType?: MembershipAccessTypeLite;
   requiresSubscription?: boolean | null;
   subscriptionActive?: boolean | null;
@@ -107,6 +107,11 @@ export type GroupDocLite = {
   transitionReason?: string | null;
   canDismiss?: boolean | null;
   sidebarState?: HiddenSidebarStateLite;
+
+  // metadata extra para reminders de aumento de precio
+  previousSubscriptionPriceMonthly?: number | null;
+  nextSubscriptionPriceMonthly?: number | null;
+  subscriptionPriceChangeCurrency?: Currency | string | null;
 };
 
 export type GreetingStatus =
@@ -922,7 +927,7 @@ export default function OwnerSidebar() {
                   ? g.sidebarState
                   : null;
 
-              return {
+                            return {
                 id: g.id,
                 name: g.name ?? undefined,
                 ownerId: g.ownerId ?? undefined,
@@ -948,6 +953,19 @@ export default function OwnerSidebar() {
                 transitionReason: g.transitionReason ?? null,
                 canDismiss: g.canDismiss === true,
                 sidebarState: normalizedSidebarState,
+
+                previousSubscriptionPriceMonthly:
+                  typeof (g as any).previousSubscriptionPriceMonthly === "number"
+                    ? (g as any).previousSubscriptionPriceMonthly
+                    : null,
+                nextSubscriptionPriceMonthly:
+                  typeof (g as any).nextSubscriptionPriceMonthly === "number"
+                    ? (g as any).nextSubscriptionPriceMonthly
+                    : null,
+                subscriptionPriceChangeCurrency:
+                  typeof (g as any).subscriptionPriceChangeCurrency === "string"
+                    ? (g as any).subscriptionPriceChangeCurrency
+                    : null,
               } as GroupDocLite;
             })
           )

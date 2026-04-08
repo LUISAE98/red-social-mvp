@@ -14,20 +14,28 @@ if (!getApps().length) {
 
 const db = getFirestore();
 
-type TransitionDirection = "free_to_subscription" | "subscription_to_free";
+type TransitionDirection =
+  | "free_to_subscription"
+  | "subscription_to_free"
+  | "subscription_price_increase";
+
 type FreeToSubscriptionPolicy = "legacy_free" | "require_subscription";
 type SubscriptionToFreePolicy = "keep_members_free" | "remove_all_members";
-type CanonicalMemberStatus =
-  | "active"
-  | "muted"
-  | "banned"
-  | "removed";
+type SubscriptionPriceIncreasePolicy =
+  | "keep_legacy_price"
+  | "require_resubscribe_new_price";
+
+type CanonicalMemberStatus = "active" | "muted" | "banned" | "removed";
 
 type ApplySubscriptionTransitionData = {
   groupId?: unknown;
   nextSubscriptionEnabled?: unknown;
   freeToSubscriptionPolicy?: unknown;
   subscriptionToFreePolicy?: unknown;
+  subscriptionPriceIncreasePolicy?: unknown;
+  previousSubscriptionPriceMonthly?: unknown;
+  nextSubscriptionPriceMonthly?: unknown;
+  subscriptionPriceChangeCurrency?: unknown;
 };
 
 type DismissHiddenGroupTransitionData = {
@@ -37,6 +45,10 @@ type DismissHiddenGroupTransitionData = {
 type GroupMonetizationTransitions = {
   freeToSubscriptionPolicy?: FreeToSubscriptionPolicy | null;
   subscriptionToFreePolicy?: SubscriptionToFreePolicy | null;
+  subscriptionPriceIncreasePolicy?: SubscriptionPriceIncreasePolicy | null;
+  previousSubscriptionPriceMonthly?: number | null;
+  nextSubscriptionPriceMonthly?: number | null;
+  subscriptionPriceChangeCurrency?: string | null;
   lastMonetizationChangeAt?: unknown;
   lastMonetizationChangeBy?: string | null;
   lastAppliedTransitionKey?: string | null;
@@ -86,6 +98,9 @@ type HiddenGroupTransitionDoc = {
   transitionDirection?: string | null;
   subscriptionActive?: boolean;
   lastTransitionKey?: string | null;
+  previousSubscriptionPriceMonthly?: number | null;
+  nextSubscriptionPriceMonthly?: number | null;
+  subscriptionPriceChangeCurrency?: string | null;
 };
 
 type TransitionPlan =
@@ -100,6 +115,15 @@ type TransitionPlan =
       policy: SubscriptionToFreePolicy;
       transitionKey: string;
       nextSubscriptionEnabled: false;
+    }
+  | {
+      direction: "subscription_price_increase";
+      policy: SubscriptionPriceIncreasePolicy;
+      transitionKey: string;
+      nextSubscriptionEnabled: true;
+      previousSubscriptionPriceMonthly: number;
+      nextSubscriptionPriceMonthly: number;
+      subscriptionPriceChangeCurrency: string | null;
     };
 
 const MAX_BATCH_WRITES = 400;
@@ -156,6 +180,31 @@ function normalizeSubscriptionToFreePolicy(
   return null;
 }
 
+function normalizeSubscriptionPriceIncreasePolicy(
+  value: unknown
+): SubscriptionPriceIncreasePolicy | null {
+  if (
+    value === "keep_legacy_price" ||
+    value === "require_resubscribe_new_price"
+  ) {
+    return value;
+  }
+  return null;
+}
+
+function normalizePositiveNumberOrNull(value: unknown): number | null {
+  if (typeof value !== "number" || Number.isNaN(value) || value <= 0) {
+    return null;
+  }
+  return value;
+}
+
+function normalizeCurrencyOrNull(value: unknown): string | null {
+  return typeof value === "string" && value.trim()
+    ? value.trim().toUpperCase()
+    : null;
+}
+
 function normalizeMemberStatus(raw: unknown): CanonicalMemberStatus {
   const value = typeof raw === "string" ? raw.trim().toLowerCase() : "";
 
@@ -177,7 +226,10 @@ function isSubscriptionEnabledFromGroup(group: GroupDocShape): boolean {
 
 function buildTransitionKey(params: {
   direction: TransitionDirection;
-  policy: FreeToSubscriptionPolicy | SubscriptionToFreePolicy;
+  policy:
+    | FreeToSubscriptionPolicy
+    | SubscriptionToFreePolicy
+    | SubscriptionPriceIncreasePolicy;
   changeAt: unknown;
   actorUid: string;
 }) {
@@ -200,6 +252,10 @@ function resolveTransitionPlan(params: {
   requestedNextSubscriptionEnabled: boolean;
   requestedFreeToSubscriptionPolicy: FreeToSubscriptionPolicy | null;
   requestedSubscriptionToFreePolicy: SubscriptionToFreePolicy | null;
+  requestedSubscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy | null;
+  requestedPreviousSubscriptionPriceMonthly: number | null;
+  requestedNextSubscriptionPriceMonthly: number | null;
+  requestedSubscriptionPriceChangeCurrency: string | null;
 }): TransitionPlan {
   const groupMonetization = params.group.monetization ?? null;
   const transitions = groupMonetization?.transitions ?? null;
@@ -212,6 +268,48 @@ function resolveTransitionPlan(params: {
       "failed-precondition",
       "El documento del grupo aún no refleja el estado final de suscripción. Guarda primero el grupo y luego ejecuta la transición."
     );
+  }
+
+  const requestedPreviousPrice = params.requestedPreviousSubscriptionPriceMonthly;
+  const requestedNextPrice = params.requestedNextSubscriptionPriceMonthly;
+
+  const isPriceIncreaseTransition =
+    currentSubscriptionEnabled === true &&
+    nextSubscriptionEnabled === true &&
+    requestedPreviousPrice != null &&
+    requestedNextPrice != null &&
+    requestedNextPrice > requestedPreviousPrice;
+
+  if (isPriceIncreaseTransition) {
+    const policy =
+      params.requestedSubscriptionPriceIncreasePolicy ??
+      normalizeSubscriptionPriceIncreasePolicy(
+        transitions?.subscriptionPriceIncreasePolicy
+      );
+
+    if (!policy) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Falta subscriptionPriceIncreasePolicy para aplicar el aumento de precio."
+      );
+    }
+
+    return {
+      direction: "subscription_price_increase",
+      policy,
+      transitionKey: buildTransitionKey({
+        direction: "subscription_price_increase",
+        policy,
+        changeAt: transitions?.lastMonetizationChangeAt ?? Date.now(),
+        actorUid: params.actorUid,
+      }),
+      nextSubscriptionEnabled: true,
+      previousSubscriptionPriceMonthly: requestedPreviousPrice,
+      nextSubscriptionPriceMonthly: requestedNextPrice,
+      subscriptionPriceChangeCurrency:
+        params.requestedSubscriptionPriceChangeCurrency ??
+        normalizeCurrencyOrNull(transitions?.subscriptionPriceChangeCurrency),
+    };
   }
 
   if (nextSubscriptionEnabled) {
@@ -302,8 +400,7 @@ function buildEnableSubscriptionPatch(params: {
 }) {
   if (params.policy === "legacy_free") {
     return {
-      status:
-        params.memberStatus === "banned" ? "banned" : "active",
+      status: params.memberStatus === "banned" ? "banned" : "active",
       accessType: "legacy_free",
       requiresSubscription: false,
       subscriptionActive: false,
@@ -330,8 +427,7 @@ function buildDisableSubscriptionPatch(params: {
 }) {
   if (params.policy === "keep_members_free") {
     return {
-      status:
-        params.memberStatus === "banned" ? "banned" : "active",
+      status: params.memberStatus === "banned" ? "banned" : "active",
       accessType: "standard",
       requiresSubscription: false,
       subscriptionActive: false,
@@ -343,6 +439,39 @@ function buildDisableSubscriptionPatch(params: {
       removedDueToSubscriptionTransition: false,
       transitionPendingAction: false,
       transitionDirection: "subscription_to_free",
+      transitionResolvedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+  }
+
+  return null;
+}
+
+function buildPriceIncreasePatch(params: {
+  actorUid: string;
+  memberStatus: CanonicalMemberStatus;
+  policy: SubscriptionPriceIncreasePolicy;
+  previousSubscriptionPriceMonthly: number;
+  nextSubscriptionPriceMonthly: number;
+  subscriptionPriceChangeCurrency: string | null;
+}) {
+  if (params.policy === "keep_legacy_price") {
+    return {
+      status: params.memberStatus === "banned" ? "banned" : "subscribed",
+      accessType: "subscription",
+      requiresSubscription: false,
+      subscriptionActive: true,
+      legacySubscriptionPriceMonthly: params.previousSubscriptionPriceMonthly,
+      legacySubscriptionCurrency: params.subscriptionPriceChangeCurrency,
+      nextSubscriptionPriceMonthly: params.nextSubscriptionPriceMonthly,
+      subscriptionPriceIncreasedAt: FieldValue.serverTimestamp(),
+      subscriptionPriceIncreasedBy: params.actorUid,
+      removedReason: FieldValue.delete(),
+      removedAt: FieldValue.delete(),
+      removedBy: FieldValue.delete(),
+      removedDueToSubscriptionTransition: false,
+      transitionPendingAction: false,
+      transitionDirection: "subscription_price_increase",
       transitionResolvedAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     };
@@ -365,6 +494,10 @@ function buildHiddenTransitionReminder(params: {
   groupId: string;
   group: GroupDocShape;
   transitionKey: string;
+  direction: "free_to_subscription" | "subscription_price_increase";
+  previousSubscriptionPriceMonthly?: number | null;
+  nextSubscriptionPriceMonthly?: number | null;
+  subscriptionPriceChangeCurrency?: string | null;
 }) {
   return {
     userId: params.userId,
@@ -381,14 +514,23 @@ function buildHiddenTransitionReminder(params: {
       typeof params.group.avatarUrl === "string"
         ? params.group.avatarUrl
         : null,
-    reason: "subscription_required_after_transition",
+    reason:
+      params.direction === "subscription_price_increase"
+        ? "subscription_price_increase_requires_resubscribe"
+        : "subscription_required_after_transition",
     canDismiss: true,
     requiresSubscription: true,
     transitionPendingAction: true,
-    transitionDirection: "free_to_subscription",
+    transitionDirection: params.direction,
     transitionResolvedAt: FieldValue.serverTimestamp(),
     removedDueToSubscriptionTransition: true,
     subscriptionActive: false,
+    previousSubscriptionPriceMonthly:
+      params.previousSubscriptionPriceMonthly ?? null,
+    nextSubscriptionPriceMonthly:
+      params.nextSubscriptionPriceMonthly ?? null,
+    subscriptionPriceChangeCurrency:
+      params.subscriptionPriceChangeCurrency ?? null,
     lastTransitionKey: params.transitionKey,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -415,6 +557,16 @@ export const applyGroupSubscriptionTransition = onCall(
       normalizeFreeToSubscriptionPolicy(data.freeToSubscriptionPolicy);
     const requestedSubscriptionToFreePolicy =
       normalizeSubscriptionToFreePolicy(data.subscriptionToFreePolicy);
+    const requestedSubscriptionPriceIncreasePolicy =
+      normalizeSubscriptionPriceIncreasePolicy(
+        data.subscriptionPriceIncreasePolicy
+      );
+    const requestedPreviousSubscriptionPriceMonthly =
+      normalizePositiveNumberOrNull(data.previousSubscriptionPriceMonthly);
+    const requestedNextSubscriptionPriceMonthly =
+      normalizePositiveNumberOrNull(data.nextSubscriptionPriceMonthly);
+    const requestedSubscriptionPriceChangeCurrency =
+      normalizeCurrencyOrNull(data.subscriptionPriceChangeCurrency);
 
     const groupRef = db.collection("groups").doc(groupId);
     const groupSnap = await groupRef.get();
@@ -447,6 +599,10 @@ export const applyGroupSubscriptionTransition = onCall(
       requestedNextSubscriptionEnabled,
       requestedFreeToSubscriptionPolicy,
       requestedSubscriptionToFreePolicy,
+      requestedSubscriptionPriceIncreasePolicy,
+      requestedPreviousSubscriptionPriceMonthly,
+      requestedNextSubscriptionPriceMonthly,
+      requestedSubscriptionPriceChangeCurrency,
     });
 
     const transitions = group.monetization?.transitions ?? null;
@@ -470,6 +626,7 @@ export const applyGroupSubscriptionTransition = onCall(
         transitionKey: plan.transitionKey,
         updatedMembers: 0,
         legacyGrantedMembers: 0,
+        legacyPricedMembers: 0,
         removedMembers: 0,
         skippedMembers: 0,
         reminderMembers: 0,
@@ -480,6 +637,7 @@ export const applyGroupSubscriptionTransition = onCall(
 
     let updatedMembers = 0;
     let legacyGrantedMembers = 0;
+    let legacyPricedMembers = 0;
     let removedMembers = 0;
     let skippedMembers = 0;
     let reminderMembers = 0;
@@ -518,10 +676,21 @@ export const applyGroupSubscriptionTransition = onCall(
                 memberStatus,
                 policy: plan.policy,
               })
-            : buildDisableSubscriptionPatch({
+            : plan.direction === "subscription_to_free"
+            ? buildDisableSubscriptionPatch({
                 actorUid,
                 memberStatus,
                 policy: plan.policy,
+              })
+            : buildPriceIncreasePatch({
+                actorUid,
+                memberStatus,
+                policy: plan.policy,
+                previousSubscriptionPriceMonthly:
+                  plan.previousSubscriptionPriceMonthly,
+                nextSubscriptionPriceMonthly: plan.nextSubscriptionPriceMonthly,
+                subscriptionPriceChangeCurrency:
+                  plan.subscriptionPriceChangeCurrency,
               });
 
         if (patch === null) {
@@ -533,8 +702,10 @@ export const applyGroupSubscriptionTransition = onCall(
           batch.delete(memberDoc.ref);
 
           if (
-            plan.direction === "free_to_subscription" &&
-            plan.policy === "require_subscription"
+            (plan.direction === "free_to_subscription" &&
+              plan.policy === "require_subscription") ||
+            (plan.direction === "subscription_price_increase" &&
+              plan.policy === "require_resubscribe_new_price")
           ) {
             batch.set(
               reminderRef,
@@ -544,6 +715,19 @@ export const applyGroupSubscriptionTransition = onCall(
                 groupId,
                 group,
                 transitionKey: plan.transitionKey,
+                direction: plan.direction,
+                previousSubscriptionPriceMonthly:
+                  plan.direction === "subscription_price_increase"
+                    ? plan.previousSubscriptionPriceMonthly
+                    : null,
+                nextSubscriptionPriceMonthly:
+                  plan.direction === "subscription_price_increase"
+                    ? plan.nextSubscriptionPriceMonthly
+                    : null,
+                subscriptionPriceChangeCurrency:
+                  plan.direction === "subscription_price_increase"
+                    ? plan.subscriptionPriceChangeCurrency
+                    : null,
               }),
               { merge: true }
             );
@@ -568,6 +752,14 @@ export const applyGroupSubscriptionTransition = onCall(
           legacyGrantedMembers += 1;
         }
 
+        if (
+          plan.direction === "subscription_price_increase" &&
+          plan.policy === "keep_legacy_price" &&
+          memberStatus !== "banned"
+        ) {
+          legacyPricedMembers += 1;
+        }
+
         updatedMembers += 1;
       }
 
@@ -582,6 +774,26 @@ export const applyGroupSubscriptionTransition = onCall(
           ...(group.monetization ?? {}),
           transitions: {
             ...(group.monetization?.transitions ?? {}),
+            subscriptionPriceIncreasePolicy:
+              plan.direction === "subscription_price_increase"
+                ? plan.policy
+                : group.monetization?.transitions?.subscriptionPriceIncreasePolicy ??
+                  null,
+            previousSubscriptionPriceMonthly:
+              plan.direction === "subscription_price_increase"
+                ? plan.previousSubscriptionPriceMonthly
+                : group.monetization?.transitions?.previousSubscriptionPriceMonthly ??
+                  null,
+            nextSubscriptionPriceMonthly:
+              plan.direction === "subscription_price_increase"
+                ? plan.nextSubscriptionPriceMonthly
+                : group.monetization?.transitions?.nextSubscriptionPriceMonthly ??
+                  null,
+            subscriptionPriceChangeCurrency:
+              plan.direction === "subscription_price_increase"
+                ? plan.subscriptionPriceChangeCurrency
+                : group.monetization?.transitions?.subscriptionPriceChangeCurrency ??
+                  null,
             lastAppliedTransitionKey: plan.transitionKey,
             lastAppliedTransitionAt: FieldValue.serverTimestamp(),
             lastAppliedTransitionBy: actorUid,
@@ -600,6 +812,7 @@ export const applyGroupSubscriptionTransition = onCall(
       transitionKey: plan.transitionKey,
       updatedMembers,
       legacyGrantedMembers,
+      legacyPricedMembers,
       removedMembers,
       skippedMembers,
       reminderMembers,
@@ -613,6 +826,7 @@ export const applyGroupSubscriptionTransition = onCall(
       transitionKey: plan.transitionKey,
       updatedMembers,
       legacyGrantedMembers,
+      legacyPricedMembers,
       removedMembers,
       skippedMembers,
       reminderMembers,
