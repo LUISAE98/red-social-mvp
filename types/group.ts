@@ -290,6 +290,9 @@ export type SubscriptionToFreePolicy =
   | "keep_members_free"
   | "remove_all_members";
 
+  export type SubscriptionPriceIncreasePolicy =
+  | "keep_legacy_price"
+  | "require_resubscribe_new_price";
 /**
  * Estado de acceso de un miembro frente a un grupo con suscripción.
  * Se usa para alinear UI, membership y sidebar.
@@ -307,6 +310,10 @@ export type GroupMembershipAccessType =
 export type GroupSubscriptionTransitionSettings = {
   freeToSubscriptionPolicy: FreeToSubscriptionPolicy | null;
   subscriptionToFreePolicy: SubscriptionToFreePolicy | null;
+  subscriptionPriceIncreasePolicy?: SubscriptionPriceIncreasePolicy | null;
+  previousSubscriptionPriceMonthly?: number | null;
+  nextSubscriptionPriceMonthly?: number | null;
+  subscriptionPriceChangeCurrency?: Currency | null;
 
   /**
    * Marca informativa de que el grupo cambió recientemente su esquema.
@@ -318,8 +325,15 @@ export type GroupSubscriptionTransitionSettings = {
    * Para soporte futuro/auditoría mínima.
    */
   lastMonetizationChangeBy?: string | null;
-};
 
+  /**
+   * Última transición aplicada realmente a miembros.
+   * Sirve para evitar duplicados y para mantener estado al recargar.
+   */
+  lastAppliedTransitionKey?: string | null;
+  lastAppliedTransitionAt?: any;
+  lastAppliedTransitionBy?: string | null;
+};
 /**
  * Tipos formales del catálogo visible de servicios del grupo/perfil.
  *

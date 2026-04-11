@@ -95,7 +95,7 @@ type GroupDoc = {
   commentsEnabled?: boolean | null;
   greetingsEnabled?: boolean | null;
   welcomeMessage?: string | null;
-  monetization?: {
+   monetization?: {
     isPaid?: boolean;
     priceMonthly?: number | null;
     currency?: string | Currency | null;
@@ -110,6 +110,28 @@ type GroupDoc = {
     adviceEnabled?: boolean;
     customClassEnabled?: boolean;
     digitalMeetGreetEnabled?: boolean;
+    transitions?: {
+      freeToSubscriptionPolicy?:
+        | "legacy_free"
+        | "require_subscription"
+        | null;
+      subscriptionToFreePolicy?:
+        | "keep_members_free"
+        | "remove_all_members"
+        | null;
+      subscriptionPriceIncreasePolicy?:
+        | "keep_legacy_price"
+        | "require_resubscribe_new_price"
+        | null;
+      previousSubscriptionPriceMonthly?: number | null;
+      nextSubscriptionPriceMonthly?: number | null;
+      subscriptionPriceChangeCurrency?: string | Currency | null;
+      lastMonetizationChangeAt?: unknown;
+      lastMonetizationChangeBy?: string | null;
+      lastAppliedTransitionKey?: string | null;
+      lastAppliedTransitionAt?: unknown;
+      lastAppliedTransitionBy?: string | null;
+    } | null;
   } | null;
   settings?: {
     membersListVisibility?: "owner_only" | "members" | string;
@@ -223,6 +245,56 @@ function normalizeMonetization(
     adviceEnabled: raw.adviceEnabled,
     customClassEnabled: raw.customClassEnabled,
     digitalMeetGreetEnabled: raw.digitalMeetGreetEnabled,
+    transitions: raw.transitions
+      ? {
+          freeToSubscriptionPolicy:
+            raw.transitions.freeToSubscriptionPolicy === "legacy_free" ||
+            raw.transitions.freeToSubscriptionPolicy ===
+              "require_subscription"
+              ? raw.transitions.freeToSubscriptionPolicy
+              : null,
+          subscriptionToFreePolicy:
+            raw.transitions.subscriptionToFreePolicy ===
+              "keep_members_free" ||
+            raw.transitions.subscriptionToFreePolicy === "remove_all_members"
+              ? raw.transitions.subscriptionToFreePolicy
+              : null,
+          subscriptionPriceIncreasePolicy:
+            raw.transitions.subscriptionPriceIncreasePolicy ===
+              "keep_legacy_price" ||
+            raw.transitions.subscriptionPriceIncreasePolicy ===
+              "require_resubscribe_new_price"
+              ? raw.transitions.subscriptionPriceIncreasePolicy
+              : null,
+          previousSubscriptionPriceMonthly:
+            typeof raw.transitions.previousSubscriptionPriceMonthly === "number"
+              ? raw.transitions.previousSubscriptionPriceMonthly
+              : null,
+          nextSubscriptionPriceMonthly:
+            typeof raw.transitions.nextSubscriptionPriceMonthly === "number"
+              ? raw.transitions.nextSubscriptionPriceMonthly
+              : null,
+          subscriptionPriceChangeCurrency:
+            normalizeCurrency(raw.transitions.subscriptionPriceChangeCurrency) ??
+            null,
+          lastMonetizationChangeAt:
+            raw.transitions.lastMonetizationChangeAt ?? null,
+          lastMonetizationChangeBy:
+            typeof raw.transitions.lastMonetizationChangeBy === "string"
+              ? raw.transitions.lastMonetizationChangeBy
+              : null,
+          lastAppliedTransitionKey:
+            typeof raw.transitions.lastAppliedTransitionKey === "string"
+              ? raw.transitions.lastAppliedTransitionKey
+              : null,
+          lastAppliedTransitionAt:
+            raw.transitions.lastAppliedTransitionAt ?? null,
+          lastAppliedTransitionBy:
+            typeof raw.transitions.lastAppliedTransitionBy === "string"
+              ? raw.transitions.lastAppliedTransitionBy
+              : null,
+        }
+      : null,
   };
 }
 

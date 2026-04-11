@@ -37,6 +37,20 @@ type ApplySubscriptionTransitionResponse = {
   legacyPricedMembers?: number;
 };
 
+type RemoveLegacyFreeMembersAfterSubscriptionTransitionInput = {
+  groupId: string;
+};
+
+type RemoveLegacyFreeMembersAfterSubscriptionTransitionResponse = {
+  ok: boolean;
+  groupId: string;
+  transitionKey?: string;
+  updatedMembers: number;
+  removedMembers: number;
+  reminderMembers: number;
+  skippedMembers: number;
+};
+
 export async function applyGroupSubscriptionTransition(
   input: ApplySubscriptionTransitionInput
 ): Promise<ApplySubscriptionTransitionResponse> {
@@ -44,6 +58,23 @@ export async function applyGroupSubscriptionTransition(
     ApplySubscriptionTransitionInput,
     ApplySubscriptionTransitionResponse
   >(functions, "applyGroupSubscriptionTransition");
+
+  const response = await callable(input);
+
+  if (!response?.data) {
+    throw new Error("No se recibió respuesta del servidor.");
+  }
+
+  return response.data;
+}
+
+export async function removeLegacyFreeMembersAfterSubscriptionTransition(
+  input: RemoveLegacyFreeMembersAfterSubscriptionTransitionInput
+): Promise<RemoveLegacyFreeMembersAfterSubscriptionTransitionResponse> {
+  const callable = httpsCallable<
+    RemoveLegacyFreeMembersAfterSubscriptionTransitionInput,
+    RemoveLegacyFreeMembersAfterSubscriptionTransitionResponse
+  >(functions, "removeLegacyFreeMembersAfterSubscriptionTransition");
 
   const response = await callable(input);
 

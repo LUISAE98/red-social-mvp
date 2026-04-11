@@ -51,6 +51,7 @@ export type MembershipAccessTypeLite =
   | "subscription"
   | "subscribed"
   | "legacy_free"
+  | "subscription_required"
   | "unknown"
   | null;
 
@@ -764,9 +765,10 @@ export default function OwnerSidebar() {
                     memberData?.accessType === "subscribed" ||
                     memberData?.accessType === "standard" ||
                     memberData?.accessType === "legacy_free" ||
+                    memberData?.accessType === "subscription_required" ||
                     memberData?.accessType === "unknown"
-                      ? memberData.accessType
-                      : null,
+                    ? memberData.accessType
+                    : null,
                   requiresSubscription:
                     memberData?.requiresSubscription === true,
                   subscriptionActive:
@@ -888,111 +890,119 @@ export default function OwnerSidebar() {
   }, [viewer?.uid]);
 
   useEffect(() => {
-    let cancelled = false;
+  let cancelled = false;
 
-    async function loadHiddenJoinedGroups() {
-      if (!viewer?.uid) {
-        setHiddenJoinedGroups([]);
-        return;
-      }
-
-      try {
-        const rows = await getMyHiddenJoinedGroups();
-        if (cancelled) return;
-
-                const groups = (
-          await Promise.all(
-            rows.map(async (g) => {
-              let memberRole: GroupRoleLite = null;
-
-              try {
-                const memberSnap = await getDoc(
-                  doc(db, "groups", g.id, "members", viewer.uid)
-                );
-                if (memberSnap.exists()) {
-                  const memberData = memberSnap.data() as any;
-                  memberRole = normalizeSidebarGroupRole(
-                    memberData?.roleInGroup ?? memberData?.role ?? "member"
-                  );
-                }
-              } catch {
-                memberRole = null;
-              }
-
-              const normalizedSidebarState =
-                g.sidebarState === "joined" ||
-                g.sidebarState === "legacy_free" ||
-                g.sidebarState === "requires_subscription" ||
-                g.sidebarState === "banned"
-                  ? g.sidebarState
-                  : null;
-
-                            return {
-                id: g.id,
-                name: g.name ?? undefined,
-                ownerId: g.ownerId ?? undefined,
-                visibility: g.visibility ?? undefined,
-                avatarUrl: g.avatarUrl ?? null,
-                memberStatus: normalizeSidebarMemberStatus(g.memberStatus ?? null),
-                memberRole,
-                monetization: g.monetization ?? undefined,
-                offerings: g.offerings ?? [],
-
-                membershipAccessType:
-                  g.membershipAccessType === "subscription" ||
-                  g.membershipAccessType === "subscribed" ||
-                  g.membershipAccessType === "standard" ||
-                  g.membershipAccessType === "legacy_free" ||
-                  g.membershipAccessType === "unknown"
-                    ? g.membershipAccessType
-                    : null,
-                requiresSubscription: g.requiresSubscription ?? null,
-                subscriptionActive: g.subscriptionActive ?? null,
-                legacyComplimentary: g.legacyComplimentary ?? null,
-                transitionPendingAction: g.transitionPendingAction ?? null,
-                transitionReason: g.transitionReason ?? null,
-                canDismiss: g.canDismiss === true,
-                sidebarState: normalizedSidebarState,
-
-                previousSubscriptionPriceMonthly:
-                  typeof (g as any).previousSubscriptionPriceMonthly === "number"
-                    ? (g as any).previousSubscriptionPriceMonthly
-                    : null,
-                nextSubscriptionPriceMonthly:
-                  typeof (g as any).nextSubscriptionPriceMonthly === "number"
-                    ? (g as any).nextSubscriptionPriceMonthly
-                    : null,
-                subscriptionPriceChangeCurrency:
-                  typeof (g as any).subscriptionPriceChangeCurrency === "string"
-                    ? (g as any).subscriptionPriceChangeCurrency
-                    : null,
-              } as GroupDocLite;
-            })
-          )
-        ) as GroupDocLite[];
-
-        setHiddenJoinedGroups(groups);
-
-        const meta: Record<string, GroupDocLite> = {};
-        groups.forEach((g) => {
-          meta[g.id] = g;
-        });
-
-        setGroupMetaMap((prev) => ({ ...prev, ...meta }));
-      } catch (e: any) {
-        console.error("getMyHiddenJoinedGroups error", e);
-        if (!cancelled) {
-          setHiddenJoinedGroups([]);
-        }
-      }
+  async function loadHiddenJoinedGroups() {
+    if (!viewer?.uid) {
+      setHiddenJoinedGroups([]);
+      return;
     }
 
-    loadHiddenJoinedGroups();
+    try {
+      const rows = await getMyHiddenJoinedGroups();
+      if (cancelled) return;
 
-    return () => {
-      cancelled = true;
-    };
-    }, [viewer?.uid]);
+      const groups = (
+        await Promise.all(
+          rows.map(async (g) => {
+            let memberRole: GroupRoleLite = null;
+
+            try {
+              const memberSnap = await getDoc(
+                doc(db, "groups", g.id, "members", viewer.uid)
+              );
+              if (memberSnap.exists()) {
+                const memberData = memberSnap.data() as any;
+                memberRole = normalizeSidebarGroupRole(
+                  memberData?.roleInGroup ?? memberData?.role ?? "member"
+                );
+              }
+            } catch {
+              memberRole = null;
+            }
+
+            const normalizedSidebarState =
+              g.sidebarState === "joined" ||
+              g.sidebarState === "legacy_free" ||
+              g.sidebarState === "requires_subscription" ||
+              g.sidebarState === "banned"
+                ? g.sidebarState
+                : null;
+
+            return {
+              id: g.id,
+              name: g.name ?? undefined,
+              ownerId: g.ownerId ?? undefined,
+              visibility: g.visibility ?? undefined,
+              avatarUrl: g.avatarUrl ?? null,
+              memberStatus: normalizeSidebarMemberStatus(g.memberStatus ?? null),
+              memberRole,
+              monetization: g.monetization ?? undefined,
+              offerings: g.offerings ?? [],
+
+              membershipAccessType:
+                g.membershipAccessType === "subscription" ||
+                g.membershipAccessType === "subscribed" ||
+                g.membershipAccessType === "standard" ||
+                g.membershipAccessType === "legacy_free" ||
+                g.membershipAccessType === "subscription_required" ||
+                g.membershipAccessType === "unknown"
+                  ? g.membershipAccessType
+                  : null,
+              requiresSubscription: g.requiresSubscription ?? null,
+              subscriptionActive: g.subscriptionActive ?? null,
+              legacyComplimentary: g.legacyComplimentary ?? null,
+              transitionPendingAction: g.transitionPendingAction ?? null,
+              transitionReason: g.transitionReason ?? null,
+              canDismiss: g.canDismiss === true,
+              sidebarState: normalizedSidebarState,
+
+              previousSubscriptionPriceMonthly:
+                typeof (g as any).previousSubscriptionPriceMonthly === "number"
+                  ? (g as any).previousSubscriptionPriceMonthly
+                  : null,
+              nextSubscriptionPriceMonthly:
+                typeof (g as any).nextSubscriptionPriceMonthly === "number"
+                  ? (g as any).nextSubscriptionPriceMonthly
+                  : null,
+              subscriptionPriceChangeCurrency:
+                typeof (g as any).subscriptionPriceChangeCurrency === "string"
+                  ? (g as any).subscriptionPriceChangeCurrency
+                  : null,
+            } as GroupDocLite;
+          })
+        )
+      ) as GroupDocLite[];
+
+      if (cancelled) return;
+
+      setHiddenJoinedGroups(groups);
+
+      const meta: Record<string, GroupDocLite> = {};
+      groups.forEach((g) => {
+        meta[g.id] = g;
+      });
+
+      setGroupMetaMap((prev) => ({ ...prev, ...meta }));
+    } catch (e: any) {
+      console.error("getMyHiddenJoinedGroups error", e);
+      if (!cancelled) {
+        setHiddenJoinedGroups([]);
+      }
+    }
+  }
+
+  loadHiddenJoinedGroups();
+
+  const refreshInterval = window.setInterval(() => {
+    void loadHiddenJoinedGroups();
+  }, 10000);
+
+  return () => {
+    cancelled = true;
+    window.clearInterval(refreshInterval);
+  };
+}, [viewer?.uid]);
 
   const hiddenSidebarMembershipGroups = useMemo(() => {
     return hiddenJoinedGroups.filter(

@@ -6,6 +6,7 @@ export type MembershipAccessType =
   | "subscription"
   | "subscribed"
   | "legacy_free"
+  | "subscription_required"
   | "unknown";
 
 export type SidebarGroupState =
@@ -30,6 +31,8 @@ export type SidebarGroup = {
     | "kicked"
     | "expelled"
     | null;
+
+  memberRole?: "owner" | "mod" | "moderator" | "member" | string | null;
 
   monetization?: {
     isPaid?: boolean;
@@ -56,11 +59,15 @@ export type SidebarGroup = {
   transitionReason?: string | null;
   canDismiss?: boolean | null;
   sidebarState?: SidebarGroupState | null;
+
+  previousSubscriptionPriceMonthly?: number | null;
+  nextSubscriptionPriceMonthly?: number | null;
+  subscriptionPriceChangeCurrency?: "MXN" | "USD" | string | null;
 };
 
 type GetMyHiddenJoinedGroupsResult = {
-  success: boolean;
-  groups: SidebarGroup[];
+  success?: boolean;
+  groups?: SidebarGroup[] | null;
 };
 
 type DismissHiddenGroupTransitionParams = {
@@ -68,25 +75,37 @@ type DismissHiddenGroupTransitionParams = {
 };
 
 type DismissHiddenGroupTransitionResult = {
-  ok: boolean;
+  ok?: boolean;
   alreadyDismissed?: boolean;
-  groupId: string;
+  groupId?: string | null;
 };
 
+function normalizeGroupId(groupId: string): string {
+  return typeof groupId === "string" ? groupId.trim() : "";
+}
+
 export async function getMyHiddenJoinedGroups(): Promise<SidebarGroup[]> {
-  const fn = httpsCallable<any, GetMyHiddenJoinedGroupsResult>(
+  const fn = httpsCallable<Record<string, never>, GetMyHiddenJoinedGroupsResult>(
     functions,
     "getMyHiddenJoinedGroups"
   );
 
   const res = await fn({});
-  return Array.isArray(res.data?.groups) ? res.data.groups : [];
+
+  if (!Array.isArray(res.data?.groups)) {
+    return [];
+  }
+
+  return res.data.groups.filter(
+    (group): group is SidebarGroup =>
+      !!group && typeof group.id === "string" && group.id.trim().length > 0
+  );
 }
 
 export async function dismissHiddenGroupTransition(
   groupId: string
 ): Promise<DismissHiddenGroupTransitionResult> {
-  const normalizedGroupId = groupId.trim();
+  const normalizedGroupId = normalizeGroupId(groupId);
 
   if (!normalizedGroupId) {
     throw new Error("groupId es requerido.");
@@ -102,7 +121,10 @@ export async function dismissHiddenGroupTransition(
   return {
     ok: res.data?.ok === true,
     alreadyDismissed: res.data?.alreadyDismissed === true,
-    groupId: res.data?.groupId ?? normalizedGroupId,
+    groupId:
+      typeof res.data?.groupId === "string" && res.data.groupId.trim()
+        ? res.data.groupId.trim()
+        : normalizedGroupId,
   };
 }
 
@@ -142,6 +164,19 @@ export function sidebarGroupSubscriptionCurrency(
   );
 }
 
+export function sidebarGroupWasRemovedBySubscriptionTransition(
+  group: SidebarGroup
+): boolean {
+  return (
+    group.requiresSubscription === true &&
+    group.canDismiss === true &&
+    (group.transitionReason === "subscription_required_after_transition" ||
+      group.transitionReason === "subscription_transition" ||
+      group.transitionReason ===
+        "subscription_price_increase_requires_resubscribe")
+  );
+}
+
 export function resolveSidebarGroupAccessState(
   group: SidebarGroup
 ):
@@ -150,6 +185,10 @@ export function resolveSidebarGroupAccessState(
   | "subscribed"
   | "requires_subscription"
   | "banned" {
+  if (group.sidebarState === "banned") {
+    return "banned";
+  }
+
   if (group.sidebarState === "legacy_free") {
     return "legacy_free";
   }
@@ -158,8 +197,11 @@ export function resolveSidebarGroupAccessState(
     return "requires_subscription";
   }
 
-  if (group.sidebarState === "banned") {
-    return "banned";
+  if (
+    group.membershipAccessType === "legacy_free" ||
+    group.legacyComplimentary === true
+  ) {
+    return "legacy_free";
   }
 
   if (
@@ -172,17 +214,15 @@ export function resolveSidebarGroupAccessState(
   }
 
   if (
-    group.membershipAccessType === "legacy_free" ||
-    group.legacyComplimentary === true
-  ) {
-    return "legacy_free";
-  }
-
-  if (
+    group.membershipAccessType === "subscription_required" ||
     group.requiresSubscription === true ||
     sidebarGroupWasRemovedBySubscriptionTransition(group)
   ) {
     return "requires_subscription";
+  }
+
+  if (group.memberStatus === "banned") {
+    return "banned";
   }
 
   return "joined";
@@ -205,18 +245,9 @@ export function sidebarGroupRequiresSubscription(
 ): boolean {
   return (
     group.sidebarState === "requires_subscription" ||
-    group.requiresSubscription === true
-  );
-}
-
-export function sidebarGroupWasRemovedBySubscriptionTransition(
-  group: SidebarGroup
-): boolean {
-  return (
-    group.requiresSubscription === true &&
-    group.canDismiss === true &&
-    (group.transitionReason === "subscription_required_after_transition" ||
-      group.transitionReason === "subscription_transition")
+    group.membershipAccessType === "subscription_required" ||
+    group.requiresSubscription === true ||
+    sidebarGroupWasRemovedBySubscriptionTransition(group)
   );
 }
 

@@ -78,10 +78,13 @@ function normalizeMemberStatus(group: GroupDocLite): SidebarMemberStatus {
 }
 
 function normalizeMemberRole(group: GroupDocLite): SidebarMemberRole {
-  const raw = group?.memberRole ?? null;
+  const raw =
+    typeof group?.memberRole === "string"
+      ? group.memberRole.trim().toLowerCase()
+      : null;
 
   if (raw === "owner") return "owner";
-  if (raw === "mod") return "mod";
+  if (raw === "mod" || raw === "moderator") return "mod";
   if (raw === "member") return "member";
 
   return null;

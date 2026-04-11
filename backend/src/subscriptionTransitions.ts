@@ -42,6 +42,10 @@ type DismissHiddenGroupTransitionData = {
   groupId?: unknown;
 };
 
+type RemoveLegacyFreeMembersAfterSubscriptionTransitionData = {
+  groupId?: unknown;
+};
+
 type GroupMonetizationTransitions = {
   freeToSubscriptionPolicy?: FreeToSubscriptionPolicy | null;
   subscriptionToFreePolicy?: SubscriptionToFreePolicy | null;
@@ -82,6 +86,7 @@ type MemberDocShape = {
   accessType?: string | null;
   requiresSubscription?: boolean;
   subscriptionActive?: boolean;
+  legacyComplimentary?: boolean;
 };
 
 type HiddenGroupTransitionDoc = {
@@ -390,7 +395,52 @@ function shouldSkipMember(member: MemberDocShape, ownerId: string): boolean {
       ? member.role
       : "";
 
-  return roleRaw.trim().toLowerCase() === "owner";
+  const normalizedRole = roleRaw.trim().toLowerCase();
+
+  return (
+    normalizedRole === "owner" ||
+    normalizedRole === "mod" ||
+    normalizedRole === "moderator"
+  );
+}
+
+function normalizeAccessType(member: MemberDocShape): string {
+  return typeof member.accessType === "string"
+    ? member.accessType.trim().toLowerCase()
+    : "";
+}
+
+function isLegacyComplimentaryMember(member: MemberDocShape): boolean {
+  const accessType = normalizeAccessType(member);
+
+  if (accessType === "legacy_free") return true;
+  if (member.legacyComplimentary === true) return true;
+
+  // Compatibilidad con miembros antiguos gratis dentro de un grupo ya de suscripción
+  if (
+    accessType !== "subscription" &&
+    member.subscriptionActive !== true &&
+    member.requiresSubscription !== true
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+function isLegacyFreeActiveMember(member: MemberDocShape): boolean {
+  const status = normalizeMemberStatus(member.status);
+  return status === "active" && isLegacyComplimentaryMember(member);
+}
+
+function isPaidSubscriberMember(member: MemberDocShape): boolean {
+  const accessType = normalizeAccessType(member);
+
+  if (isLegacyComplimentaryMember(member)) return false;
+  if (accessType === "subscription" || accessType === "subscribed") return true;
+  if (member.subscriptionActive === true) return true;
+
+  return false;
 }
 
 function buildEnableSubscriptionPatch(params: {
@@ -449,16 +499,55 @@ function buildDisableSubscriptionPatch(params: {
 
 function buildPriceIncreasePatch(params: {
   actorUid: string;
+  member: MemberDocShape;
   memberStatus: CanonicalMemberStatus;
   policy: SubscriptionPriceIncreasePolicy;
   previousSubscriptionPriceMonthly: number;
   nextSubscriptionPriceMonthly: number;
   subscriptionPriceChangeCurrency: string | null;
 }) {
-  if (params.policy === "keep_legacy_price") {
+  if (params.policy !== "keep_legacy_price") {
+    return null;
+  }
+
+  if (params.memberStatus === "banned") {
     return {
-      status: params.memberStatus === "banned" ? "banned" : "subscribed",
+      status: "banned",
+      transitionPendingAction: false,
+      transitionDirection: "subscription_price_increase",
+      transitionResolvedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+  }
+
+  if (isLegacyComplimentaryMember(params.member)) {
+    return {
+      status: params.memberStatus === "muted" ? "muted" : "active",
+      accessType: "legacy_free",
+      legacyComplimentary: true,
+      requiresSubscription: false,
+      subscriptionActive: false,
+      legacySubscriptionPriceMonthly: FieldValue.delete(),
+      legacySubscriptionCurrency: FieldValue.delete(),
+      nextSubscriptionPriceMonthly: FieldValue.delete(),
+      subscriptionPriceIncreasedAt: FieldValue.serverTimestamp(),
+      subscriptionPriceIncreasedBy: params.actorUid,
+      removedReason: FieldValue.delete(),
+      removedAt: FieldValue.delete(),
+      removedBy: FieldValue.delete(),
+      removedDueToSubscriptionTransition: false,
+      transitionPendingAction: false,
+      transitionDirection: "subscription_price_increase",
+      transitionResolvedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+  }
+
+  if (isPaidSubscriberMember(params.member)) {
+    return {
+      status: "subscribed",
       accessType: "subscription",
+      legacyComplimentary: false,
       requiresSubscription: false,
       subscriptionActive: true,
       legacySubscriptionPriceMonthly: params.previousSubscriptionPriceMonthly,
@@ -477,7 +566,57 @@ function buildPriceIncreasePatch(params: {
     };
   }
 
-  return null;
+  return {
+    status: params.memberStatus === "muted" ? "muted" : "active",
+    accessType:
+      normalizeAccessType(params.member) === "subscription" ? "subscription" : "standard",
+    legacyComplimentary: false,
+    requiresSubscription:
+      normalizeAccessType(params.member) === "subscription"
+        ? false
+        : params.member.requiresSubscription === true,
+    subscriptionActive: params.member.subscriptionActive === true,
+    legacySubscriptionPriceMonthly: FieldValue.delete(),
+    legacySubscriptionCurrency: FieldValue.delete(),
+    nextSubscriptionPriceMonthly: FieldValue.delete(),
+    subscriptionPriceIncreasedAt: FieldValue.serverTimestamp(),
+    subscriptionPriceIncreasedBy: params.actorUid,
+    removedReason: FieldValue.delete(),
+    removedAt: FieldValue.delete(),
+    removedBy: FieldValue.delete(),
+    removedDueToSubscriptionTransition: false,
+    transitionPendingAction: false,
+    transitionDirection: "subscription_price_increase",
+    transitionResolvedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+}
+
+function buildManualLegacyRemovalPatch(params: {
+  actorUid: string;
+}) {
+  return {
+    status: "removed",
+    accessType: "subscription_required",
+    requiresSubscription: true,
+    subscriptionActive: false,
+    legacyComplimentary: false,
+    legacyGrantedAt: FieldValue.delete(),
+    legacyGrantedBy: FieldValue.delete(),
+    legacySubscriptionPriceMonthly: FieldValue.delete(),
+    legacySubscriptionCurrency: FieldValue.delete(),
+    nextSubscriptionPriceMonthly: FieldValue.delete(),
+    subscriptionEndedAt: FieldValue.serverTimestamp(),
+    subscriptionEndedBy: params.actorUid,
+    removedReason: "subscription_required_after_transition",
+    removedAt: FieldValue.serverTimestamp(),
+    removedBy: params.actorUid,
+    removedDueToSubscriptionTransition: true,
+    transitionPendingAction: true,
+    transitionDirection: "free_to_subscription",
+    transitionResolvedAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
 }
 
 function hiddenTransitionRef(userId: string, groupId: string): DocumentReference {
@@ -684,15 +823,15 @@ export const applyGroupSubscriptionTransition = onCall(
               })
             : buildPriceIncreasePatch({
                 actorUid,
+                member,
                 memberStatus,
                 policy: plan.policy,
                 previousSubscriptionPriceMonthly:
-                  plan.previousSubscriptionPriceMonthly,
+              plan.previousSubscriptionPriceMonthly,
                 nextSubscriptionPriceMonthly: plan.nextSubscriptionPriceMonthly,
                 subscriptionPriceChangeCurrency:
-                  plan.subscriptionPriceChangeCurrency,
+              plan.subscriptionPriceChangeCurrency,
               });
-
         if (patch === null) {
           if (memberStatus === "banned") {
             batch.delete(reminderRef);
@@ -755,7 +894,8 @@ export const applyGroupSubscriptionTransition = onCall(
         if (
           plan.direction === "subscription_price_increase" &&
           plan.policy === "keep_legacy_price" &&
-          memberStatus !== "banned"
+          memberStatus !== "banned" &&
+          isPaidSubscriberMember(member)
         ) {
           legacyPricedMembers += 1;
         }
@@ -830,6 +970,192 @@ export const applyGroupSubscriptionTransition = onCall(
       removedMembers,
       skippedMembers,
       reminderMembers,
+    };
+  }
+);
+
+export const removeLegacyFreeMembersAfterSubscriptionTransition = onCall(
+  {
+    region: "us-central1",
+    cors: true,
+  },
+  async (request) => {
+    const actorUid = requireAuth(request);
+    const data =
+      (request.data ?? {}) as RemoveLegacyFreeMembersAfterSubscriptionTransitionData;
+
+    const groupId = normalizeString(data.groupId, "groupId");
+    const groupRef = db.collection("groups").doc(groupId);
+    const groupSnap = await groupRef.get();
+
+    if (!groupSnap.exists) {
+      throw new HttpsError("not-found", "La comunidad no existe.");
+    }
+
+    const group = (groupSnap.data() ?? {}) as GroupDocShape;
+    const ownerId =
+      typeof group.ownerId === "string" ? group.ownerId.trim() : "";
+
+    if (!ownerId) {
+      throw new HttpsError(
+        "failed-precondition",
+        "La comunidad no tiene ownerId válido."
+      );
+    }
+
+    if (ownerId !== actorUid) {
+      throw new HttpsError(
+        "permission-denied",
+        "Solo el owner puede ejecutar esta acción."
+      );
+    }
+
+    if (!isSubscriptionEnabledFromGroup(group)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "La comunidad debe seguir con suscripción activa para ejecutar esta acción."
+      );
+    }
+
+    const transitions = group.monetization?.transitions ?? null;
+    const freeToSubscriptionPolicy = normalizeFreeToSubscriptionPolicy(
+      transitions?.freeToSubscriptionPolicy
+    );
+
+    const transitionKey =
+      typeof transitions?.lastAppliedTransitionKey === "string" &&
+      transitions.lastAppliedTransitionKey.trim()
+        ? transitions.lastAppliedTransitionKey.trim()
+        : buildTransitionKey({
+            direction: "free_to_subscription",
+            policy: "legacy_free",
+            changeAt: transitions?.lastMonetizationChangeAt ?? Date.now(),
+            actorUid,
+          });
+
+    const membersSnap = await groupRef.collection("members").get();
+
+    let updatedMembers = 0;
+    let removedMembers = 0;
+    let reminderMembers = 0;
+    let skippedMembers = 0;
+
+    const memberDocs = membersSnap.docs.filter((docSnap) => {
+      const member = (docSnap.data() ?? {}) as MemberDocShape;
+
+      if (shouldSkipMember(member, ownerId)) {
+        skippedMembers += 1;
+        return false;
+      }
+
+      if (!isLegacyFreeActiveMember(member)) {
+        skippedMembers += 1;
+        return false;
+      }
+
+      return true;
+    });
+
+    if (memberDocs.length === 0) {
+      logger.info("no legacy_free active members to remove", {
+        groupId,
+        actorUid,
+        freeToSubscriptionPolicy,
+      });
+
+      return {
+        ok: true,
+        groupId,
+        transitionKey,
+        updatedMembers: 0,
+        removedMembers: 0,
+        reminderMembers: 0,
+        skippedMembers,
+      };
+    }
+
+    const chunks = splitIntoChunks(memberDocs, MAX_BATCH_WRITES);
+    const batches: WriteBatch[] = [];
+
+    for (const chunk of chunks) {
+      const batch = db.batch();
+
+      for (const memberDoc of chunk) {
+        const member = (memberDoc.data() ?? {}) as MemberDocShape;
+        const targetUserId =
+          typeof member.userId === "string" ? member.userId.trim() : "";
+
+        if (!targetUserId) {
+          skippedMembers += 1;
+          continue;
+        }
+
+        batch.set(
+          memberDoc.ref,
+          buildManualLegacyRemovalPatch({ actorUid }),
+          { merge: true }
+        );
+
+        batch.set(
+          hiddenTransitionRef(targetUserId, groupId),
+          buildHiddenTransitionReminder({
+            userId: targetUserId,
+            actorUid,
+            groupId,
+            group,
+            transitionKey,
+            direction: "free_to_subscription",
+          }),
+          { merge: true }
+        );
+
+        updatedMembers += 1;
+        removedMembers += 1;
+        reminderMembers += 1;
+      }
+
+      batches.push(batch);
+    }
+
+    await commitBatches(batches);
+
+    await groupRef.set(
+      {
+        monetization: {
+          ...(group.monetization ?? {}),
+          transitions: {
+            ...(group.monetization?.transitions ?? {}),
+            freeToSubscriptionPolicy:
+              freeToSubscriptionPolicy ?? "legacy_free",
+            lastAppliedTransitionKey: transitionKey,
+            lastAppliedTransitionAt: FieldValue.serverTimestamp(),
+            lastAppliedTransitionBy: actorUid,
+          },
+        },
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    logger.info("legacy_free members removed after transition", {
+      groupId,
+      actorUid,
+      transitionKey,
+      freeToSubscriptionPolicy,
+      updatedMembers,
+      removedMembers,
+      reminderMembers,
+      skippedMembers,
+    });
+
+    return {
+      ok: true,
+      groupId,
+      transitionKey,
+      updatedMembers,
+      removedMembers,
+      reminderMembers,
+      skippedMembers,
     };
   }
 );

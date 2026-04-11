@@ -1,10 +1,18 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { doc, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  onSnapshot,
+  updateDoc,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { buildNormalizedGroupCommerceState } from "@/lib/groups/groupServiceCatalog";
-import { applyGroupSubscriptionTransition } from "@/lib/groups/subscriptionTransitions";
+import {
+  applyGroupSubscriptionTransition,
+  removeLegacyFreeMembersAfterSubscriptionTransition,
+} from "@/lib/groups/subscriptionTransitions";
 import type {
   Currency,
   GroupOffering,
@@ -603,6 +611,20 @@ function buildTransitionSuccessMessage(params: {
   return "✅ Configuración guardada.";
 }
 
+function buildManualLegacyRemovalSuccessMessage(params: {
+  removedMembers: number;
+  reminderMembers: number;
+  skippedMembers: number;
+}) {
+  const { removedMembers, reminderMembers, skippedMembers } = params;
+
+  if (removedMembers <= 0) {
+    return "✅ No había miembros gratuitos activos para retirar en este momento.";
+  }
+
+  return `✅ Se retiró a ${removedMembers} miembro(s) gratuito(s) y se generó el recordatorio correspondiente para ${reminderMembers} cuenta(s). Omitidos: ${skippedMembers}.`;
+}
+
 function ServiceEditorBlock<TDraft extends ServiceBlockDraft>({
   title,
   description,
@@ -1018,13 +1040,13 @@ function TransitionPolicyPanel({
     );
   }
 
-    if (mode === "subscription_price_increase") {
+        if (mode === "subscription_price_increase") {
     return (
       <div style={panelStyle}>
         <div style={{ display: "grid", gap: 2 }}>
           <span style={titleStyle}>Cambio: aumento de precio de suscripción</span>
           <span style={subtleStyle}>
-            Como el nuevo precio es mayor al anterior, debes decidir qué pasa con los suscriptores actuales.
+            Como el nuevo precio es mayor al anterior, debes decidir qué pasa con los miembros que ya estaban dentro.
           </span>
         </div>
 
@@ -1035,10 +1057,10 @@ function TransitionPolicyPanel({
           style={optionCard(value === "keep_legacy_price")}
         >
           <span style={titleStyle}>
-            Mantener precio anterior a suscriptores actuales
+            Mantener a cada quien como ya estaba
           </span>
           <span style={subtleStyle}>
-            Quienes ya están suscritos conservan su precio anterior. El nuevo precio solo aplica a futuras suscripciones.
+            Los suscriptores de pago actuales conservan su precio anterior. Los integrantes que ya eran gratis por legado siguen gratis por legado. El nuevo precio solo aplica a nuevas suscripciones.
           </span>
         </button>
 
@@ -1049,10 +1071,10 @@ function TransitionPolicyPanel({
           style={optionCard(value === "require_resubscribe_new_price")}
         >
           <span style={titleStyle}>
-            Pedir nueva suscripción al monto actualizado
+            Sacar a los suscriptores de pago actuales y pedir nueva suscripción
           </span>
           <span style={subtleStyle}>
-            Los suscriptores actuales perderán acceso y deberán suscribirse de nuevo con el nuevo precio.
+            Los suscriptores de pago actuales deberán suscribirse otra vez con el nuevo precio. Los integrantes gratis por legado se mantienen como gratis por legado.
           </span>
         </button>
       </div>
@@ -1095,6 +1117,154 @@ function TransitionPolicyPanel({
   );
 }
 
+function ConfirmModal({
+  open,
+  title,
+  description,
+  confirmLabel,
+  cancelLabel = "Cancelar",
+  loading = false,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  description: React.ReactNode;
+  confirmLabel: string;
+  cancelLabel?: string;
+  loading?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  if (!open) return null;
+
+  const fontStack =
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="owner-services-confirm-title"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 2000,
+        background: "rgba(0,0,0,0.62)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+      onClick={loading ? undefined : onCancel}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: 520,
+          borderRadius: 20,
+          border: "1px solid rgba(255,255,255,0.10)",
+          background: "#111",
+          boxShadow: "0 24px 80px rgba(0,0,0,0.45)",
+          padding: 18,
+          display: "grid",
+          gap: 14,
+        }}
+      >
+        <div style={{ display: "grid", gap: 6 }}>
+          <h3
+            id="owner-services-confirm-title"
+            style={{
+              margin: 0,
+              color: "#fff",
+              fontSize: 18,
+              lineHeight: 1.2,
+              fontWeight: 800,
+              fontFamily: fontStack,
+            }}
+          >
+            {title}
+          </h3>
+
+          <div
+            style={{
+              color: "rgba(255,255,255,0.72)",
+              fontSize: 13,
+              lineHeight: 1.5,
+              fontFamily: fontStack,
+            }}
+          >
+            {description}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            justifyContent: "flex-end",
+            flexWrap: "wrap",
+          }}
+        >
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={loading}
+            style={{
+              minWidth: 120,
+              padding: "10px 14px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.05)",
+              color: "#fff",
+              cursor: loading ? "not-allowed" : "pointer",
+              fontWeight: 700,
+              fontSize: 13,
+              fontFamily: fontStack,
+              opacity: loading ? 0.6 : 1,
+            }}
+          >
+            {cancelLabel}
+          </button>
+
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={loading}
+            style={{
+              minWidth: 190,
+              padding: "10px 14px",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.92)",
+              background: "#fff",
+              color: "#000",
+              cursor: loading ? "not-allowed" : "pointer",
+              fontWeight: 800,
+              fontSize: 13,
+              fontFamily: fontStack,
+              opacity: loading ? 0.75 : 1,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+            }}
+          >
+            {loading ? (
+              <>
+                <SpinningGear />
+                Procesando...
+              </>
+            ) : (
+              confirmLabel
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OwnerAdminServices({
   groupId,
   ownerId,
@@ -1117,6 +1287,20 @@ export default function OwnerAdminServices({
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  const [removingLegacyMembers, setRemovingLegacyMembers] = useState(false);
+  const [showRemoveLegacyMembersModal, setShowRemoveLegacyMembersModal] =
+      useState(false);
+  const [activeLegacyFreeMembersCount, setActiveLegacyFreeMembersCount] =
+      useState(0);
+
+  const hasActiveLegacyFreeMembers = activeLegacyFreeMembersCount > 0;
+
+  const canRemoveLegacyFreeMembersLater =
+    !isPublic &&
+    (currentMonetization?.subscriptionsEnabled === true ||
+      currentMonetization?.isPaid === true) &&
+    hasActiveLegacyFreeMembers;
 
   const lastHydratedGroupIdRef = useRef<string | null>(null);
   const skipHydrationWhileSavingRef = useRef(false);
@@ -1220,11 +1404,97 @@ export default function OwnerAdminServices({
     savedDraft,
   ]);
 
-  useEffect(() => {
-    if (!saving) {
-      skipHydrationWhileSavingRef.current = false;
+      useEffect(() => {
+    if (!isOwner) {
+      setActiveLegacyFreeMembersCount(0);
+      return;
     }
-  }, [saving]);
+
+    const subscriptionIsPersistedActive =
+      currentMonetization?.subscriptionsEnabled === true ||
+      currentMonetization?.isPaid === true;
+
+    if (isPublic || !subscriptionIsPersistedActive) {
+      setActiveLegacyFreeMembersCount(0);
+      return;
+    }
+
+    const membersRef = collection(db, "groups", groupId, "members");
+
+    const unsubscribe = onSnapshot(
+      membersRef,
+      (snapshot) => {
+        let count = 0;
+
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() as {
+            status?: string;
+            roleInGroup?: string;
+            role?: string;
+            accessType?: string | null;
+            legacyComplimentary?: boolean;
+            subscriptionActive?: boolean;
+            requiresSubscription?: boolean;
+          };
+
+          const roleRaw =
+  typeof data.roleInGroup === "string"
+    ? data.roleInGroup
+    : typeof data.role === "string"
+    ? data.role
+    : "";
+
+const normalizedRole = roleRaw.trim().toLowerCase();
+
+if (
+  normalizedRole === "owner" ||
+  normalizedRole === "mod" ||
+  normalizedRole === "moderator"
+) {
+  return;
+}
+
+          const status =
+            typeof data.status === "string"
+              ? data.status.trim().toLowerCase()
+              : "active";
+
+          if (status !== "active") return;
+
+          const accessType =
+            typeof data.accessType === "string"
+              ? data.accessType.trim().toLowerCase()
+              : "";
+
+          const isLegacyFree =
+            accessType === "legacy_free" ||
+            data.legacyComplimentary === true ||
+            (
+              accessType !== "subscription" &&
+              data.subscriptionActive !== true &&
+              data.requiresSubscription !== true
+            );
+
+          if (isLegacyFree) {
+            count += 1;
+          }
+        });
+
+        setActiveLegacyFreeMembersCount(count);
+      },
+      () => {
+        setActiveLegacyFreeMembersCount(0);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [
+    groupId,
+    isOwner,
+    isPublic,
+    currentMonetization?.subscriptionsEnabled,
+    currentMonetization?.isPaid,
+  ]);
 
     const wasSubscriptionEnabled = savedDraft.subscription.enabled;
   const willEnableSubscription =
@@ -1360,7 +1630,41 @@ export default function OwnerAdminServices({
       };
     });
   }
+  function openRemoveLegacyMembersModal() {
+  if (!canRemoveLegacyFreeMembersLater || saving || removingLegacyMembers) return;
+  setShowRemoveLegacyMembersModal(true);
+}
 
+async function handleConfirmRemoveLegacyFreeMembersLater() {
+  if (!canRemoveLegacyFreeMembersLater) return;
+
+  setRemovingLegacyMembers(true);
+  setMsg(null);
+  setErr(null);
+
+  try {
+    const response =
+      await removeLegacyFreeMembersAfterSubscriptionTransition({
+        groupId,
+      });
+
+    setShowRemoveLegacyMembersModal(false);
+    setMsg(
+      buildManualLegacyRemovalSuccessMessage({
+        removedMembers: response.removedMembers,
+        reminderMembers: response.reminderMembers,
+        skippedMembers: response.skippedMembers,
+      })
+    );
+  } catch (e: any) {
+    setErr(
+      e?.message ??
+        "❌ No se pudo retirar a los miembros gratuitos."
+    );
+  } finally {
+    setRemovingLegacyMembers(false);
+  }
+}
   async function saveServices() {
     setSaving(true);
     setMsg(null);
@@ -1887,25 +2191,76 @@ export default function OwnerAdminServices({
         </div>
       </div>
 
-      <SubscriptionEditorBlock
-        draft={draft.subscription}
-        saving={saving}
-        disabledByVisibility={isPublic}
-        onChange={(updater) => updateBlock("subscription", updater)}
-        netText={
-          subscriptionCalc
-            ? `Por una suscripción de ${formatMoney(
-                subscriptionCalc.gross,
-                draft.subscription.currency
-              )}, tú cobras ${formatMoney(
-                subscriptionCalc.net,
-                draft.subscription.currency
-              )}.`
-            : isPublic
-            ? "Para activar suscripción mensual tu comunidad debe ser privada u oculta."
-            : null
-        }
-      />
+            <div style={{ display: "grid", gap: 10 }}>
+        <SubscriptionEditorBlock
+          draft={draft.subscription}
+          saving={saving || removingLegacyMembers}
+          disabledByVisibility={isPublic}
+          onChange={(updater) => updateBlock("subscription", updater)}
+          netText={
+            subscriptionCalc
+              ? `Por una suscripción de ${formatMoney(
+                  subscriptionCalc.gross,
+                  draft.subscription.currency
+                )}, tú cobras ${formatMoney(
+                  subscriptionCalc.net,
+                  draft.subscription.currency
+                )}.`
+              : isPublic
+              ? "Para activar suscripción mensual tu comunidad debe ser privada u oculta."
+              : null
+          }
+        />
+
+                        {canRemoveLegacyFreeMembersLater && (
+  <div style={panelStyle}>
+    <div style={{ display: "grid", gap: 2 }}>
+      <span style={titleStyle}>
+        Retirar miembros gratuitos
+      </span>
+      <span style={subtleStyle}>
+        Esta acción aparece solo cuando la comunidad ya quedó guardada como comunidad de suscripción y todavía existen miembros activos con acceso gratuito heredado.
+      </span>
+    </div>
+
+    <div style={subtleStyle}>
+      Miembros gratuitos detectados actualmente:{" "}
+      <strong style={{ color: "#fff" }}>
+        {activeLegacyFreeMembersCount}
+      </strong>
+    </div>
+
+    <button
+      type="button"
+      onClick={openRemoveLegacyMembersModal}
+      disabled={saving || removingLegacyMembers}
+      style={{
+        ...buttonSecondaryStyle,
+        opacity: saving || removingLegacyMembers ? 0.7 : 1,
+        cursor:
+          saving || removingLegacyMembers ? "not-allowed" : "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+      }}
+    >
+      {removingLegacyMembers ? (
+        <>
+          <SpinningGear />
+          Retirando miembros gratuitos...
+        </>
+      ) : (
+        "Sacar a los miembros gratuitos"
+      )}
+    </button>
+
+    <div style={subtleStyle}>
+      Solo afectará a miembros activos con acceso gratuito heredado. No toca owner, moderadores protegidos, miembros removidos ni suscriptores de pago.
+    </div>
+  </div>
+)}
+      </div>
 
       {willEnableSubscription && (
         <TransitionPolicyPanel
@@ -2155,17 +2510,42 @@ export default function OwnerAdminServices({
         )}
       </div>
 
-      {err && <div style={noticeStyle}>{err}</div>}
+            {err && <div style={noticeStyle}>{err}</div>}
       {msg && <div style={noticeStyle}>{msg}</div>}
+
+      <ConfirmModal
+        open={showRemoveLegacyMembersModal}
+        title="Retirar miembros gratuitos"
+        description={
+          <>
+            Vas a retirar a todos los miembros que siguen dentro con acceso gratuito
+            heredado en esta comunidad. Después de esto, deberán suscribirse o
+            quitar/olvidar el grupo.
+            <br />
+            <br />
+            <strong style={{ color: "#fff" }}>
+              Miembros detectados para esta acción: {activeLegacyFreeMembersCount}
+            </strong>
+          </>
+        }
+        confirmLabel="Sí, retirar miembros gratuitos"
+        loading={removingLegacyMembers}
+        onCancel={() => {
+          if (removingLegacyMembers) return;
+          setShowRemoveLegacyMembersModal(false);
+        }}
+        onConfirm={handleConfirmRemoveLegacyFreeMembersLater}
+      />
 
       <button
         type="button"
         onClick={saveServices}
-        disabled={saving}
+        disabled={saving || removingLegacyMembers}
         style={{
           ...buttonSecondaryStyle,
-          opacity: saving ? 0.7 : 1,
-          cursor: saving ? "not-allowed" : "pointer",
+          opacity: saving || removingLegacyMembers ? 0.7 : 1,
+          cursor: 
+          saving || removingLegacyMembers ? "not-allowed" : "pointer",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
