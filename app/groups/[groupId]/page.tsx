@@ -73,7 +73,6 @@ type LegacyServiceSourceScope = "group" | "profile" | "both";
 type MembershipAccessType =
   | "standard"
   | "subscription"
-  | "subscribed"
   | "legacy_free"
   | "unknown";
 
@@ -209,7 +208,6 @@ function normalizeMemberRole(raw: unknown): MemberRole {
 function normalizeMembershipAccessType(raw: unknown): MembershipAccessType {
   if (raw === "standard") return "standard";
   if (raw === "subscription") return "subscription";
-  if (raw === "subscribed") return "subscribed";
   if (raw === "legacy_free") return "legacy_free";
   return "unknown";
 }

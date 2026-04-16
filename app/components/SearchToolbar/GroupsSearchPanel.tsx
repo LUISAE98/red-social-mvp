@@ -6,10 +6,11 @@ import { onAuthStateChanged, type User } from "firebase/auth";
 import {
   collection,
   doc,
-  getDoc,
   getDocs,
+  onSnapshot,
   query,
   where,
+  type Unsubscribe,
 } from "firebase/firestore";
 
 import { auth, db } from "@/lib/firebase";
@@ -55,6 +56,7 @@ export type PublicUser = {
 
 export type CanonicalMemberStatus =
   | "active"
+  | "subscribed"
   | "muted"
   | "banned"
   | "removed"
@@ -62,6 +64,7 @@ export type CanonicalMemberStatus =
 
 function normalizeMemberStatus(raw: unknown): CanonicalMemberStatus {
   if (raw === "active") return "active";
+  if (raw === "subscribed") return "subscribed";
   if (raw === "muted") return "muted";
   if (raw === "banned") return "banned";
   if (raw === "removed") return "removed";
@@ -71,7 +74,11 @@ function normalizeMemberStatus(raw: unknown): CanonicalMemberStatus {
 }
 
 export function isJoinedStatus(status: CanonicalMemberStatus) {
-  return status === "active" || status === "muted";
+  return (
+    status === "active" ||
+    status === "subscribed" ||
+    status === "muted"
+  );
 }
 
 export function isBlockedStatus(status: CanonicalMemberStatus) {
@@ -80,6 +87,7 @@ export function isBlockedStatus(status: CanonicalMemberStatus) {
 
 export function membershipStatusLabel(status: CanonicalMemberStatus) {
   if (status === "active") return "Ya estás unido";
+  if (status === "subscribed") return "Suscripción activa";
   if (status === "muted") return "Ya estás unido (muteado)";
   if (status === "banned") return "Baneado";
   if (status === "removed") return "Expulsado";
@@ -284,15 +292,36 @@ const CATEGORY_KEYWORDS: Record<CanonicalGroupCategory, string[]> = {
     "gobierno",
     "elecciones",
   ],
-  ciencia: ["ciencia", "cientifico", "cientifica", "fisica", "quimica", "biologia"],
-  moda_belleza: ["moda", "belleza", "fashion", "makeup", "maquillaje", "skincare"],
+  ciencia: [
+    "ciencia",
+    "cientifico",
+    "cientifica",
+    "fisica",
+    "quimica",
+    "biologia",
+  ],
+  moda_belleza: [
+    "moda",
+    "belleza",
+    "fashion",
+    "makeup",
+    "maquillaje",
+    "skincare",
+  ],
   comida: ["comida", "cocina", "recetas", "food", "chef", "restaurantes"],
   viajes: ["viajes", "viaje", "turismo", "destinos", "aventura"],
   autos: ["autos", "auto", "coches", "carros", "motos", "motor"],
   mascotas: ["mascotas", "mascota", "perros", "gatos", "pet", "pets"],
   hobbies: ["hobbies", "hobbie", "coleccion", "colecciones", "manualidades"],
   familia_comunidad: ["familia", "comunidad", "padres", "madres", "vecinos"],
-  instituciones: ["instituciones", "institucion", "empresa", "escuela", "gobierno", "organizacion"],
+  instituciones: [
+    "instituciones",
+    "institucion",
+    "empresa",
+    "escuela",
+    "gobierno",
+    "organizacion",
+  ],
   otros: ["otros"],
 };
 
@@ -374,7 +403,8 @@ function getCommunityPreviewPriority(
   memberMap: Record<string, CanonicalMemberStatus>,
   reqMap: Record<string, boolean>
 ) {
-  const isOwner = !!currentUser && !!group.ownerId && group.ownerId === currentUser.uid;
+  const isOwner =
+    !!currentUser && !!group.ownerId && group.ownerId === currentUser.uid;
   const membershipStatus = isOwner ? "active" : memberMap[group.id] ?? null;
   const isMember = isOwner || isJoinedStatus(membershipStatus);
   const isBlocked = !isOwner && isBlockedStatus(membershipStatus);
@@ -383,13 +413,15 @@ function getCommunityPreviewPriority(
   const hasPendingReq = !!reqMap[group.id];
   const paidPrivate = isPaidPrivateGroup(group);
 
-  if (!isOwner && !isMember && !isBlocked && isPublic) return 0; // Unirme
-  if (!isOwner && !isMember && !isBlocked && paidPrivate) return 1; // Suscribirme
-  if (!isOwner && !isMember && !isBlocked && isPrivate && !hasPendingReq) return 2; // Solicitar acceso
-  if (!isOwner && !isMember && !isBlocked && isPrivate && hasPendingReq) return 3; // Enviada/Cancelar
-  if (isMember && !isOwner) return 4; // Salir
-  if (isOwner) return 5; // Owner
-  if (isBlocked) return 6; // bloqueado
+  if (!isOwner && !isMember && !isBlocked && isPublic) return 0;
+  if (!isOwner && !isMember && !isBlocked && paidPrivate) return 1;
+  if (!isOwner && !isMember && !isBlocked && isPrivate && !hasPendingReq)
+    return 2;
+  if (!isOwner && !isMember && !isBlocked && isPrivate && hasPendingReq)
+    return 3;
+  if (isMember && !isOwner) return 4;
+  if (isOwner) return 5;
+  if (isBlocked) return 6;
   return 7;
 }
 
@@ -502,11 +534,9 @@ export default function GroupsSearchPanel({
             handle: typeof data.handle === "string" ? data.handle : "",
             displayName:
               typeof data.displayName === "string" ? data.displayName : "",
-            firstName:
-              typeof data.firstName === "string" ? data.firstName : "",
+            firstName: typeof data.firstName === "string" ? data.firstName : "",
             lastName: typeof data.lastName === "string" ? data.lastName : "",
-            photoURL:
-              typeof data.photoURL === "string" ? data.photoURL : null,
+            photoURL: typeof data.photoURL === "string" ? data.photoURL : null,
           };
         });
 
@@ -524,67 +554,91 @@ export default function GroupsSearchPanel({
   }, []);
 
   useEffect(() => {
-    async function loadMembershipsAndRequests() {
-      if (!user || communities.length === 0) {
-        setMemberMap({});
-        setReqMap({});
-        return;
-      }
-
-      try {
-        const entries = await Promise.all(
-          communities.map(async (g) => {
-            const mref = doc(db, "groups", g.id, "members", user.uid);
-            const msnap = await getDoc(mref);
-
-            const membershipStatus = msnap.exists()
-              ? normalizeMemberStatus(
-                  (msnap.data() as Record<string, unknown>)?.status ?? "active"
-                )
-              : null;
-
-            const jref = doc(db, "groups", g.id, "joinRequests", user.uid);
-            const jsnap = await getDoc(jref);
-
-            const joinRequestData = jsnap.data() as
-              | Record<string, unknown>
-              | undefined;
-
-            const pending =
-              !isJoinedStatus(membershipStatus) &&
-              !isBlockedStatus(membershipStatus) &&
-              jsnap.exists() &&
-              ((joinRequestData?.status ?? "pending") === "pending");
-
-            return {
-              groupId: g.id,
-              status: membershipStatus,
-              hasPendingReq: pending,
-            };
-          })
-        );
-
-        const nextMemberMap: Record<string, CanonicalMemberStatus> = {};
-        const nextReqMap: Record<string, boolean> = {};
-
-        for (const entry of entries) {
-          nextMemberMap[entry.groupId] = entry.status;
-          nextReqMap[entry.groupId] = entry.hasPendingReq;
-        }
-
-        setMemberMap(nextMemberMap);
-        setReqMap(nextReqMap);
-      } catch (e) {
-        const message =
-          e instanceof Error
-            ? e.message
-            : "Error leyendo members/joinRequests";
-        setError(message);
-      }
+    if (!user || communities.length === 0) {
+      setMemberMap({});
+      setReqMap({});
+      return;
     }
 
-    void loadMembershipsAndRequests();
-  }, [user, communities, pathname, hasSearch]);
+    const unsubscribers: Unsubscribe[] = [];
+
+    for (const group of communities) {
+      const memberRef = doc(db, "groups", group.id, "members", user.uid);
+      const requestRef = doc(db, "groups", group.id, "joinRequests", user.uid);
+
+      let latestMembershipStatus: CanonicalMemberStatus = null;
+      let latestPendingRequest = false;
+
+      const syncRequestState = () => {
+        setMemberMap((prev) => {
+          if (prev[group.id] === latestMembershipStatus) return prev;
+          return { ...prev, [group.id]: latestMembershipStatus };
+        });
+
+        setReqMap((prev) => {
+          if (prev[group.id] === latestPendingRequest) return prev;
+          return { ...prev, [group.id]: latestPendingRequest };
+        });
+      };
+
+      const unsubMember = onSnapshot(
+        memberRef,
+        (snapshot) => {
+          latestMembershipStatus = snapshot.exists()
+            ? normalizeMemberStatus(
+                (snapshot.data() as Record<string, unknown>)?.status ?? "active"
+              )
+            : null;
+
+          if (
+            isJoinedStatus(latestMembershipStatus) ||
+            isBlockedStatus(latestMembershipStatus)
+          ) {
+            latestPendingRequest = false;
+          }
+
+          syncRequestState();
+        },
+        (snapshotError) => {
+          const message =
+            snapshotError instanceof Error
+              ? snapshotError.message
+              : "Error leyendo membresía en tiempo real";
+          setError(message);
+        }
+      );
+
+      const unsubRequest = onSnapshot(
+        requestRef,
+        (snapshot) => {
+          const joinRequestData = snapshot.data() as
+            | Record<string, unknown>
+            | undefined;
+
+          latestPendingRequest =
+            !isJoinedStatus(latestMembershipStatus) &&
+            !isBlockedStatus(latestMembershipStatus) &&
+            snapshot.exists() &&
+            (joinRequestData?.status ?? "pending") === "pending";
+
+          syncRequestState();
+        },
+        (snapshotError) => {
+          const message =
+            snapshotError instanceof Error
+              ? snapshotError.message
+              : "Error leyendo solicitud en tiempo real";
+          setError(message);
+        }
+      );
+
+      unsubscribers.push(unsubMember, unsubRequest);
+    }
+
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [user, communities]);
 
   useEffect(() => {
     if (previousPathnameRef.current === null) {
@@ -612,20 +666,30 @@ export default function GroupsSearchPanel({
   const filteredCommunities = useMemo(() => {
     if (!normalizedSearch) return [];
 
-    return searchableCommunities.filter((g) =>
-      buildCommunitySearchText(g).includes(normalizedSearch)
-    );
-  }, [searchableCommunities, normalizedSearch]);
+    const normalizedQuery = normalizeText(search);
+
+    return searchableCommunities.filter((g) => {
+      const basicText = normalizeText(buildCommunitySearchText(g));
+      const discoveryText = buildCommunityDiscoveryText(g);
+
+      return (
+        basicText.includes(normalizedQuery) ||
+        discoveryText.includes(normalizedQuery)
+      );
+    });
+  }, [searchableCommunities, normalizedSearch, search]);
 
   const filteredProfiles = useMemo(() => {
     if (!normalizedSearch) return [];
 
+    const normalizedQuery = normalizeText(search);
+
     return profiles.filter((p) => {
       if (!p.handle) return false;
       if (user?.uid && p.uid === user.uid) return false;
-      return buildUserSearchText(p).includes(normalizedSearch);
+      return normalizeText(buildUserSearchText(p)).includes(normalizedQuery);
     });
-  }, [profiles, normalizedSearch, user?.uid]);
+  }, [profiles, normalizedSearch, search, user?.uid]);
 
   const explorerCommunities = useMemo(() => {
     if (!normalizedSearch) return [];
@@ -1206,13 +1270,15 @@ export default function GroupsSearchPanel({
                   <h2 className="dropdown-title">Comunidades</h2>
 
                   {previewCommunities.map((g) => {
-                    const isOwner = !!user && !!g.ownerId && g.ownerId === user.uid;
+                    const isOwner =
+                      !!user && !!g.ownerId && g.ownerId === user.uid;
                     const membershipStatus = isOwner
                       ? "active"
                       : memberMap[g.id] ?? null;
 
                     const isMember = isOwner || isJoinedStatus(membershipStatus);
-                    const isBlocked = !isOwner && isBlockedStatus(membershipStatus);
+                    const isBlocked =
+                      !isOwner && isBlockedStatus(membershipStatus);
 
                     const isPrivate = g.visibility === "private";
                     const isPublic = g.visibility === "public";
@@ -1267,12 +1333,16 @@ export default function GroupsSearchPanel({
                                 {paid && (
                                   <span className="pill pill-paid">
                                     Con suscripción
-                                    {price != null ? ` · ${price} ${cur ?? ""}` : ""}
+                                    {price != null
+                                      ? ` · ${price} ${cur ?? ""}`
+                                      : ""}
                                   </span>
                                 )}
 
                                 {isOwner && (
-                                  <span className="meta-inline">(Eres owner)</span>
+                                  <span className="meta-inline">
+                                    (Eres owner)
+                                  </span>
                                 )}
 
                                 {!isOwner && isMember && (
@@ -1333,7 +1403,9 @@ export default function GroupsSearchPanel({
                                 <>
                                   {!hasPendingReq ? (
                                     <button
-                                      onClick={() => void handleRequestPrivate(g.id)}
+                                      onClick={() =>
+                                        void handleRequestPrivate(g.id)
+                                      }
                                       className="secondary-btn"
                                       type="button"
                                     >
@@ -1350,7 +1422,9 @@ export default function GroupsSearchPanel({
                                       </button>
 
                                       <button
-                                        onClick={() => void handleCancelRequest(g.id)}
+                                        onClick={() =>
+                                          void handleCancelRequest(g.id)
+                                        }
                                         className="secondary-btn"
                                         type="button"
                                       >

@@ -38,7 +38,11 @@ function initialsFromName(name: string) {
 }
 
 function isJoinedStatus(status: CanonicalMemberStatus) {
-  return status === "active" || status === "muted";
+  return (
+    status === "active" ||
+    status === "subscribed" ||
+    status === "muted"
+  );
 }
 
 function isBlockedStatus(status: CanonicalMemberStatus) {
@@ -454,7 +458,10 @@ export default function SearchGroupsResults({
     if (visibilityFilters.includes("public") && group.visibility === "public") {
       return true;
     }
-    if (visibilityFilters.includes("private") && group.visibility === "private") {
+    if (
+      visibilityFilters.includes("private") &&
+      group.visibility === "private"
+    ) {
       return true;
     }
     return false;
@@ -495,12 +502,12 @@ export default function SearchGroupsResults({
 
   const activeFilters = [
     ...visibilityFilters.map((value) => ({
-      key: value,
+      key: `visibility-${value}`,
       label: value === "public" ? "Públicas" : "Privadas",
       onRemove: () => toggleVisibilityFilter(value),
     })),
     ...monetizationFilters.map((value) => ({
-      key: value,
+      key: `monetization-${value}`,
       label: value === "free" ? "Gratuitas" : "De pago",
       onRemove: () => toggleMonetizationFilter(value),
     })),
@@ -596,66 +603,6 @@ export default function SearchGroupsResults({
           </div>
         )}
       </div>
-    );
-  }
-
-  if (filteredByUi.length === 0) {
-    return (
-      <section style={shellStyle}>
-        <div style={topBarStyle} className="search-groups-topbar">
-          <div style={activeFiltersWrapStyle}>
-            {activeFilters.length > 0
-              ? activeFilters.map((filter) => (
-                  <span key={filter.key} style={activeFilterPillStyle}>
-                    {filter.label}
-                    <button
-                      type="button"
-                      style={activeFilterRemoveStyle}
-                      onClick={filter.onRemove}
-                      aria-label={`Quitar filtro ${filter.label}`}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))
-              : null}
-          </div>
-
-          {renderFiltersPanel()}
-        </div>
-
-        <div style={emptyStyle}>
-          No se encontraron comunidades con esos filtros.
-        </div>
-
-        <style jsx>{`
-          .search-groups-filters-anchor {
-            position: relative;
-          }
-
-          @media (max-width: 768px) {
-            .search-groups-topbar {
-              grid-template-columns: minmax(0, 1fr);
-            }
-
-            .search-groups-filters-anchor {
-              width: 100%;
-            }
-
-            .search-groups-filters-anchor button {
-              width: 100%;
-              justify-content: center;
-            }
-
-            .search-groups-filters-panel {
-              position: static !important;
-              width: 100% !important;
-              max-width: 100% !important;
-              margin-top: 10px;
-            }
-          }
-        `}</style>
-      </section>
     );
   }
 
@@ -771,7 +718,7 @@ export default function SearchGroupsResults({
               <button
                 type="button"
                 style={primaryButtonStyle}
-                onClick={() => onNavigate(`/groups/${group.id}?service=suscripcion`)}
+                onClick={() => onNavigate(`/groups/${group.id}`)}
               >
                 Suscribirme
               </button>
@@ -821,6 +768,66 @@ export default function SearchGroupsResults({
           </div>
         </div>
       </article>
+    );
+  }
+
+  if (filteredByUi.length === 0) {
+    return (
+      <section style={shellStyle}>
+        <div style={topBarStyle} className="search-groups-topbar">
+          <div style={activeFiltersWrapStyle}>
+            {activeFilters.length > 0
+              ? activeFilters.map((filter) => (
+                  <span key={filter.key} style={activeFilterPillStyle}>
+                    {filter.label}
+                    <button
+                      type="button"
+                      style={activeFilterRemoveStyle}
+                      onClick={filter.onRemove}
+                      aria-label={`Quitar filtro ${filter.label}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
+              : null}
+          </div>
+
+          {renderFiltersPanel()}
+        </div>
+
+        <div style={emptyStyle}>
+          No se encontraron comunidades con esos filtros.
+        </div>
+
+        <style jsx>{`
+          .search-groups-filters-anchor {
+            position: relative;
+          }
+
+          @media (max-width: 768px) {
+            .search-groups-topbar {
+              grid-template-columns: minmax(0, 1fr);
+            }
+
+            .search-groups-filters-anchor {
+              width: 100%;
+            }
+
+            .search-groups-filters-anchor button {
+              width: 100%;
+              justify-content: center;
+            }
+
+            .search-groups-filters-panel {
+              position: static !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              margin-top: 10px;
+            }
+          }
+        `}</style>
+      </section>
     );
   }
 

@@ -1,16 +1,48 @@
 import { Timestamp } from "firebase/firestore";
 
 export type GroupRole = "owner" | "moderator" | "member";
-export type MemberStatus = "active" | "muted" | "banned";
 
 /**
- * Controla el tipo de acceso del usuario dentro del grupo
+ * Estado visible/canónico del miembro dentro del grupo.
+ *
+ * active:
+ *   miembro normal con acceso vigente.
+ *
+ * subscribed:
+ *   miembro con acceso vigente por suscripción.
+ *
+ * muted:
+ *   miembro vigente pero silenciado/restringido.
+ *
+ * banned:
+ *   bloqueado del grupo.
+ *
+ * removed:
+ *   removido/expulsado del grupo.
+ */
+export type MemberStatus =
+  | "active"
+  | "subscribed"
+  | "muted"
+  | "banned"
+  | "removed";
+
+/**
+ * Controla el tipo de acceso del usuario dentro del grupo.
+ *
+ * standard:
+ *   acceso normal gratis.
+ *
+ * subscription:
+ *   acceso por suscripción activa.
+ *
+ * legacy_free:
+ *   acceso gratis conservado por transición histórica.
  */
 export type AccessType =
-  | "free" // acceso abierto
-  | "subscription_active" // suscripción vigente
-  | "subscription_inactive" // suscripción vencida
-  | "legacy_free"; // acceso gratis por transición histórica
+  | "standard"
+  | "subscription"
+  | "legacy_free";
 
 export type GroupMember = {
   userId: string;
@@ -19,18 +51,38 @@ export type GroupMember = {
   roleInGroup: GroupRole;
   status: MemberStatus;
 
-  // Control de acceso real (CRÍTICO)
+  // Control de acceso real (crítico)
   accessType: AccessType;
 
-  // Suscripción (si aplica)
-  subscriptionActive?: boolean; // redundancia útil para queries
+  // Compatibilidad con lógica actual
+  requiresSubscription?: boolean;
+  subscriptionActive?: boolean;
+
+  // Metadata de suscripción
   subscriptionStartedAt?: Timestamp | null;
   subscriptionExpiresAt?: Timestamp | null;
+  subscriptionEndedAt?: Timestamp | null;
+  subscriptionPriceMonthly?: number | null;
+  subscriptionCurrency?: string | null;
+  subscribedAt?: Timestamp | null;
 
-  // Flags para transiciones
-  isLegacy?: boolean; // vino de etapa gratis → suscripción
+  // Flags y metadata legacy / transición
+  isLegacy?: boolean;
+  legacyComplimentary?: boolean;
+  legacyGrantedAt?: Timestamp | null;
+  legacyGrantedBy?: string | null;
 
-  // Auditoría
+  transitionPendingAction?: boolean;
+  transitionDirection?: string | null;
+  transitionResolvedAt?: Timestamp | null;
+  removedDueToSubscriptionTransition?: boolean;
+
+  // Auditoría de remoción
+  removedAt?: Timestamp | null;
+  removedBy?: string | null;
+  removedReason?: string | null;
+
+  // Auditoría general
   joinedAt: Timestamp;
   updatedAt: Timestamp;
 };

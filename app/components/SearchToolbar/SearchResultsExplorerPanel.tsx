@@ -76,18 +76,26 @@ export function SearchResultsExplorerPanel({
 
     const previousBodyOverflow = document.body.style.overflow;
     const previousBodyTouchAction = document.body.style.touchAction;
+    const previousBodyOverscrollBehavior = document.body.style.overscrollBehavior;
     const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousHtmlOverscrollBehavior =
+      document.documentElement.style.overscrollBehavior;
 
     document.addEventListener("keydown", handleEscape);
     document.body.style.overflow = "hidden";
     document.body.style.touchAction = "none";
+    document.body.style.overscrollBehavior = "contain";
     document.documentElement.style.overflow = "hidden";
+    document.documentElement.style.overscrollBehavior = "contain";
 
     return () => {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = previousBodyOverflow;
       document.body.style.touchAction = previousBodyTouchAction;
+      document.body.style.overscrollBehavior = previousBodyOverscrollBehavior;
       document.documentElement.style.overflow = previousHtmlOverflow;
+      document.documentElement.style.overscrollBehavior =
+        previousHtmlOverscrollBehavior;
     };
   }, [open, onClose]);
 
@@ -318,7 +326,7 @@ export function SearchResultsExplorerPanel({
   ];
 
   const content = (
-    <div style={overlayStyle} onClick={onClose}>
+    <div style={overlayStyle} onClick={onClose} aria-modal="true" role="dialog">
       <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
         <div style={headerStyle}>
           <div style={titleWrapStyle}>

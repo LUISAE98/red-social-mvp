@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef } from "react";
+
 export type GroupsSearchToolbarProps = {
   search: string;
   onSearchChange: (value: string) => void;
@@ -23,13 +25,26 @@ export default function GroupsSearchToolbar({
   placeholder = "Buscar comunidades, perfiles o publicaciones...",
   ariaLabel = "Buscar comunidades, perfiles o publicaciones",
 }: GroupsSearchToolbarProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
   const fieldBorder = "1px solid rgba(255,255,255,0.18)";
   const fieldBg = "rgba(255,255,255,0.045)";
   const fieldBgFocus = "rgba(255,255,255,0.065)";
   const hasSearch = search.trim().length > 0;
 
+  function blurInput() {
+    inputRef.current?.blur();
+  }
+
   function handleClearSearch() {
     onSearchChange("");
+    blurInput();
+  }
+
+  function handleClose() {
+    onSearchChange("");
+    blurInput();
+    onCloseSearch?.();
   }
 
   return (
@@ -185,10 +200,17 @@ export default function GroupsSearchToolbar({
           </span>
 
           <input
+            ref={inputRef}
             type="text"
             placeholder={placeholder}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.preventDefault();
+                handleClose();
+              }
+            }}
             className="search-input"
             aria-label={ariaLabel}
             autoCorrect="off"
@@ -200,7 +222,7 @@ export default function GroupsSearchToolbar({
             <button
               type="button"
               className="inner-action-btn"
-              onClick={onCloseSearch}
+              onClick={handleClose}
               aria-label="Cerrar búsqueda"
               title="Cerrar búsqueda"
             >

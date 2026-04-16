@@ -17,7 +17,10 @@ type MembershipAccessType =
 
 type MembershipStatus =
   | "active"
-  | "subscribed";
+  | "subscribed"
+  | "muted"
+  | "banned"
+  | "removed";
 
 type JoinWithSubscriptionOptions = {
   priceMonthly?: number;
@@ -50,10 +53,11 @@ function buildBaseMemberFields(uid: string, status: MembershipStatus) {
  * Join estándar (flujo actual)
  */
 export async function joinGroup(groupId: string, uid: string) {
-  const ref = doc(db, "groups", groupId, "members", uid);
+  const memberRef = doc(db, "groups", groupId, "members", uid);
+  const joinRequestRef = doc(db, "groups", groupId, "joinRequests", uid);
 
   await setDoc(
-    ref,
+    memberRef,
     {
       ...buildBaseMemberFields(uid, "active"),
 
@@ -73,6 +77,10 @@ export async function joinGroup(groupId: string, uid: string) {
     },
     { merge: true }
   );
+
+  await deleteDoc(joinRequestRef).catch(() => {
+    // No-op: si no existe la solicitud, no pasa nada.
+  });
 }
 
 /**
@@ -91,10 +99,11 @@ export async function joinGroupWithSubscription(
   uid: string,
   options?: JoinWithSubscriptionOptions
 ) {
-  const ref = doc(db, "groups", groupId, "members", uid);
+  const memberRef = doc(db, "groups", groupId, "members", uid);
+  const joinRequestRef = doc(db, "groups", groupId, "joinRequests", uid);
 
   await setDoc(
-    ref,
+    memberRef,
     {
       ...buildBaseMemberFields(uid, "subscribed"),
 
@@ -114,6 +123,10 @@ export async function joinGroupWithSubscription(
     },
     { merge: true }
   );
+
+  await deleteDoc(joinRequestRef).catch(() => {
+    // No-op: si no existe la solicitud, no pasa nada.
+  });
 }
 
 /**
@@ -127,10 +140,11 @@ export async function joinGroupWithSubscription(
  * - accessType = "legacy_free"
  */
 export async function joinGroupAsLegacyFree(groupId: string, uid: string) {
-  const ref = doc(db, "groups", groupId, "members", uid);
+  const memberRef = doc(db, "groups", groupId, "members", uid);
+  const joinRequestRef = doc(db, "groups", groupId, "joinRequests", uid);
 
   await setDoc(
-    ref,
+    memberRef,
     {
       ...buildBaseMemberFields(uid, "active"),
 
@@ -149,6 +163,10 @@ export async function joinGroupAsLegacyFree(groupId: string, uid: string) {
     },
     { merge: true }
   );
+
+  await deleteDoc(joinRequestRef).catch(() => {
+    // No-op: si no existe la solicitud, no pasa nada.
+  });
 }
 
 /**
