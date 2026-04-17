@@ -3,13 +3,21 @@
 import Link from "next/link";
 import { useState } from "react";
 import InviteLinkModal from "./InviteLinkModal";
+import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
 import type {
   GroupDocLite,
   GreetingRequestDoc,
   JoinRequestRow,
+  MeetGreetRequestDoc,
   UserMini,
 } from "./OwnerSidebar";
 import { Chevron, CountBadge, typeLabel } from "./OwnerSidebar";
+import {
+  acceptMeetGreetRequest,
+  proposeMeetGreetSchedule,
+  rejectMeetGreetRequest,
+  setMeetGreetPreparing,
+} from "@/lib/meetGreet/meetGreetRequests";
 
 type Props = {
   loadingGroups: boolean;
@@ -18,6 +26,7 @@ type Props = {
   openCommunities: Record<string, boolean>;
   joinRequestsByGroup: Record<string, JoinRequestRow[]>;
   greetingsByGroup: Record<string, Array<{ id: string; data: GreetingRequestDoc }>>;
+  meetGreetsByGroup: Record<string, Array<{ id: string; data: MeetGreetRequestDoc }>>;
   greetingSectionOpen: Record<string, boolean>;
   joinSectionOpen: Record<string, boolean>;
   seenCountsByGroup: Record<string, { join: number; greeting: number }>;
@@ -47,9 +56,10 @@ type Props = {
   greetingBusyId: string | null;
 };
 
-function getRequestTone(type: string): "green" | "yellow" {
-  return type === "consejo" ? "yellow" : "green";
-}
+type BusyMap = Record<string, boolean>;
+type TextMap = Record<string, string>;
+type DateMap = Record<string, string>;
+type ToggleMap = Record<string, boolean>;
 
 function getTypeChipStyle(type: string): React.CSSProperties {
   if (type === "saludo") {
@@ -68,11 +78,207 @@ function getTypeChipStyle(type: string): React.CSSProperties {
     };
   }
 
+  if (type === "meet_greet_digital") {
+    return {
+      border: "1px solid rgba(96,165,250,0.30)",
+      background: "rgba(96,165,250,0.16)",
+      color: "#93c5fd",
+    };
+  }
+
   return {
     border: "1px solid rgba(255,255,255,0.14)",
     background: "rgba(255,255,255,0.06)",
     color: "#fff",
   };
+}
+
+function getMeetGreetStatusLabel(status: string): string {
+  switch (status) {
+    case "pending_creator_response":
+      return "En espera de aceptación";
+    case "accepted_pending_schedule":
+      return "Aceptado, pendiente de fecha";
+    case "scheduled":
+      return "Agendado";
+    case "reschedule_requested":
+      return "Cambio de fecha solicitado";
+    case "rejected":
+      return "Rechazado";
+    case "refund_requested":
+      return "Devolución solicitada";
+    case "refund_review":
+      return "Devolución en revisión";
+    case "ready_to_prepare":
+      return "Ya casi inicia";
+    case "in_preparation":
+      return "En preparación";
+    case "completed":
+      return "Completado";
+    case "cancelled":
+      return "Cancelado";
+    default:
+      return status || "Estado desconocido";
+  }
+}
+
+function getMeetGreetStatusStyle(status: string): React.CSSProperties {
+  if (
+    status === "scheduled" ||
+    status === "accepted_pending_schedule" ||
+    status === "completed"
+  ) {
+    return {
+      border: "1px solid rgba(34,197,94,0.24)",
+      background: "rgba(34,197,94,0.12)",
+      color: "#86efac",
+    };
+  }
+
+  if (status === "in_preparation") {
+    return {
+      border: "1px solid rgba(96,165,250,0.30)",
+      background: "rgba(96,165,250,0.16)",
+      color: "#93c5fd",
+    };
+  }
+
+  if (
+    status === "reschedule_requested" ||
+    status === "ready_to_prepare" ||
+    status === "refund_requested" ||
+    status === "refund_review"
+  ) {
+    return {
+      border: "1px solid rgba(250,204,21,0.26)",
+      background: "rgba(250,204,21,0.12)",
+      color: "#fde047",
+    };
+  }
+
+  if (status === "rejected" || status === "cancelled") {
+    return {
+      border: "1px solid rgba(248,113,113,0.28)",
+      background: "rgba(248,113,113,0.14)",
+      color: "#fca5a5",
+    };
+  }
+
+  return {
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#fff",
+  };
+}
+
+function formatUnknownDate(value: unknown): string | null {
+  if (!value) return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toLocaleString("es-MX");
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as { toDate?: unknown }).toDate === "function"
+  ) {
+    const date = (value as { toDate: () => Date }).toDate();
+    if (date instanceof Date && !Number.isNaN(date.getTime())) {
+      return date.toLocaleString("es-MX");
+    }
+  }
+
+  if (typeof value === "string" || typeof value === "number") {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toLocaleString("es-MX");
+    }
+  }
+
+  return null;
+}
+
+function formatMoney(value: number, currency?: string | null): string {
+  const safeCurrency = currency === "USD" ? "USD" : "MXN";
+
+  try {
+    return new Intl.NumberFormat("es-MX", {
+      style: "currency",
+      currency: safeCurrency,
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${safeCurrency} ${value}`;
+  }
+}
+
+function getRequestCurrency(req: MeetGreetRequestDoc): string {
+  return req.currency ?? req.serviceSnapshot?.currency ?? "MXN";
+}
+
+function toDateSafe(value: unknown): Date | null {
+  if (!value) return null;
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value;
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as { toDate?: unknown }).toDate === "function"
+  ) {
+    const date = (value as { toDate: () => Date }).toDate();
+    if (date instanceof Date && !Number.isNaN(date.getTime())) {
+      return date;
+    }
+  }
+
+  if (typeof value === "string" || typeof value === "number") {
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return date;
+    }
+  }
+
+  return null;
+}
+
+function isPrepareWindowOpen(value: unknown): boolean {
+  const date = toDateSafe(value);
+  if (!date) return false;
+
+  const now = Date.now();
+  const startsAt = date.getTime();
+  const prepareFrom = startsAt - 10 * 60 * 1000;
+
+  return now >= prepareFrom;
+}
+
+function isStartingSoon(value: unknown): boolean {
+  const date = toDateSafe(value);
+  if (!date) return false;
+
+  const now = Date.now();
+  const diff = date.getTime() - now;
+
+  return diff > 0 && diff <= 24 * 60 * 60 * 1000;
+}
+
+function toDateTimeLocalValue(value: unknown): string {
+  const date = toDateSafe(value);
+  if (!date) return "";
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
 export default function OwnerSidebarMyGroups({
@@ -82,6 +288,7 @@ export default function OwnerSidebarMyGroups({
   openCommunities,
   joinRequestsByGroup,
   greetingsByGroup,
+  meetGreetsByGroup,
   greetingSectionOpen,
   joinSectionOpen,
   seenCountsByGroup,
@@ -100,6 +307,207 @@ export default function OwnerSidebarMyGroups({
   greetingBusyId,
 }: Props) {
   const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
+
+  const [meetGreetBusyMap, setMeetGreetBusyMap] = useState<BusyMap>({});
+  const [meetGreetErrorMap, setMeetGreetErrorMap] = useState<TextMap>({});
+  const [meetGreetSuccessMap, setMeetGreetSuccessMap] = useState<TextMap>({});
+  const [rejectOpenMap, setRejectOpenMap] = useState<ToggleMap>({});
+  const [scheduleOpenMap, setScheduleOpenMap] = useState<ToggleMap>({});
+  const [preparationOpenMap, setPreparationOpenMap] = useState<ToggleMap>({});
+  const [preparationRoleMap, setPreparationRoleMap] = useState<TextMap>({});
+  const [rejectReasonMap, setRejectReasonMap] = useState<TextMap>({});
+  const [scheduleNoteMap, setScheduleNoteMap] = useState<TextMap>({});
+  const [scheduleDateMap, setScheduleDateMap] = useState<DateMap>({});
+
+  function setMeetGreetBusy(requestId: string, value: boolean) {
+    setMeetGreetBusyMap((prev) => ({ ...prev, [requestId]: value }));
+  }
+
+  function setMeetGreetError(requestId: string, value: string | null) {
+    setMeetGreetErrorMap((prev) => ({
+      ...prev,
+      [requestId]: value ?? "",
+    }));
+  }
+
+  function setMeetGreetSuccess(requestId: string, value: string | null) {
+    setMeetGreetSuccessMap((prev) => ({
+      ...prev,
+      [requestId]: value ?? "",
+    }));
+  }
+
+  async function handleCreatorAccept(requestId: string) {
+    setMeetGreetBusy(requestId, true);
+    setMeetGreetError(requestId, null);
+    setMeetGreetSuccess(requestId, null);
+
+    try {
+      await acceptMeetGreetRequest({ requestId });
+      setMeetGreetSuccess(
+        requestId,
+        "✅ Solicitud aceptada. Ahora puedes proponer fecha y hora."
+      );
+      setScheduleOpenMap((prev) => ({ ...prev, [requestId]: true }));
+    } catch (e: any) {
+      setMeetGreetError(
+        requestId,
+        e?.message ?? "No se pudo aceptar la solicitud."
+      );
+    } finally {
+      setMeetGreetBusy(requestId, false);
+    }
+  }
+
+  async function handleCreatorReject(requestId: string) {
+    setMeetGreetBusy(requestId, true);
+    setMeetGreetError(requestId, null);
+    setMeetGreetSuccess(requestId, null);
+
+    try {
+      await rejectMeetGreetRequest({
+        requestId,
+        rejectionReason: rejectReasonMap[requestId] ?? null,
+      });
+      setMeetGreetSuccess(requestId, "✅ Solicitud rechazada.");
+      setRejectOpenMap((prev) => ({ ...prev, [requestId]: false }));
+    } catch (e: any) {
+      setMeetGreetError(
+        requestId,
+        e?.message ?? "No se pudo rechazar la solicitud."
+      );
+    } finally {
+      setMeetGreetBusy(requestId, false);
+    }
+  }
+
+  async function handleCreatorSchedule(requestId: string) {
+    const scheduledAt = (scheduleDateMap[requestId] ?? "").trim();
+
+    if (!scheduledAt) {
+      setMeetGreetError(requestId, "Selecciona fecha y hora.");
+      return;
+    }
+
+    setMeetGreetBusy(requestId, true);
+    setMeetGreetError(requestId, null);
+    setMeetGreetSuccess(requestId, null);
+
+    try {
+      await proposeMeetGreetSchedule({
+        requestId,
+        scheduledAt: new Date(scheduledAt).toISOString(),
+        note: scheduleNoteMap[requestId] ?? null,
+      });
+
+      setMeetGreetSuccess(
+        requestId,
+        "✅ Fecha propuesta/agendada correctamente."
+      );
+      setScheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
+    } catch (e: any) {
+      setMeetGreetError(
+        requestId,
+        e?.message ?? "No se pudo guardar la fecha del meet & greet."
+      );
+    } finally {
+      setMeetGreetBusy(requestId, false);
+    }
+  }
+
+  async function handlePrepare(
+    requestId: string,
+    role: "creator"
+  ) {
+    setMeetGreetBusy(requestId, true);
+    setMeetGreetError(requestId, null);
+    setMeetGreetSuccess(requestId, null);
+
+    try {
+      await setMeetGreetPreparing({ requestId, role });
+
+      setPreparationRoleMap((prev) => ({
+        ...prev,
+        [requestId]: role,
+      }));
+
+      setPreparationOpenMap((prev) => ({
+        ...prev,
+        [requestId]: true,
+      }));
+
+      setMeetGreetSuccess(requestId, "✅ Panel de preparación abierto.");
+    } catch (e: any) {
+      setMeetGreetError(
+        requestId,
+        e?.message ?? "No se pudo abrir la preparación."
+      );
+    } finally {
+      setMeetGreetBusy(requestId, false);
+    }
+  }
+
+  function renderMeetGreetFeedback(requestId: string) {
+    const error = meetGreetErrorMap[requestId];
+    const success = meetGreetSuccessMap[requestId];
+
+    return (
+      <>
+        {error ? (
+          <div
+            style={{
+              borderRadius: 10,
+              border: "1px solid rgba(248,113,113,0.18)",
+              background: "rgba(248,113,113,0.08)",
+              padding: "7px 8px",
+              fontSize: 12,
+              lineHeight: 1.3,
+              color: "#fecaca",
+            }}
+          >
+            {error}
+          </div>
+        ) : null}
+
+        {success ? (
+          <div
+            style={{
+              borderRadius: 10,
+              border: "1px solid rgba(34,197,94,0.18)",
+              background: "rgba(34,197,94,0.08)",
+              padding: "7px 8px",
+              fontSize: 12,
+              lineHeight: 1.3,
+              color: "#bbf7d0",
+            }}
+          >
+            {success}
+          </div>
+        ) : null}
+      </>
+    );
+  }
+
+    function renderPreparationPanel(
+    requestId: string,
+    req: MeetGreetRequestDoc,
+    role: "creator"
+  ) {
+    return (
+      <MeetGreetPreparationFullscreen
+        open={!!preparationOpenMap[requestId]}
+        onClose={() =>
+          setPreparationOpenMap((prev) => ({
+            ...prev,
+            [requestId]: false,
+          }))
+        }
+        role={role}
+        scheduledAtLabel={req.scheduledAt ? formatUnknownDate(req.scheduledAt) : null}
+        durationMinutes={req.durationMinutes ?? null}
+      />
+    );
+  }
 
   return (
     <>
@@ -127,11 +535,13 @@ export default function OwnerSidebarMyGroups({
 
             const joinRequests = joinRequestsByGroup[g.id] ?? [];
             const greetings = greetingsByGroup[g.id] ?? [];
+            const meetGreets = meetGreetsByGroup[g.id] ?? [];
             const communityName = g.name ?? "(Sin nombre)";
             const avatarFallback = getInitials(communityName);
 
             const showJoinSection = !isPublic && joinRequests.length > 0;
-            const showGreetingsSection = greetings.length > 0;
+            const showGreetingsSection =
+              greetings.length > 0 || meetGreets.length > 0;
             const greetingListOpen = greetingSectionOpen[g.id] === true;
             const joinListOpen = joinSectionOpen[g.id] === true;
 
@@ -141,9 +551,12 @@ export default function OwnerSidebarMyGroups({
             const consejoCount = greetings.filter(
               (row) => row.data.type === "consejo"
             ).length;
+            const meetGreetCount = meetGreets.length;
 
             const currentJoinCount = showJoinSection ? joinRequests.length : 0;
-            const currentGreetingCount = showGreetingsSection ? greetings.length : 0;
+            const currentGreetingCount = showGreetingsSection
+              ? greetings.length + meetGreets.length
+              : 0;
 
             const seen = seenCountsByGroup[g.id] ?? {
               join: 0,
@@ -157,11 +570,26 @@ export default function OwnerSidebarMyGroups({
             const hasConsejoAlert = greetings.some(
               (row) => row.data.type === "consejo"
             );
+            const hasMeetGreetAlert = meetGreets.length > 0;
 
             const hasAlert = !isOpen && (hasNewJoin || hasNewGreeting);
 
             const borderBackground =
-              hasAlert && hasNewJoin && hasSaludoAlert && hasConsejoAlert
+              hasAlert &&
+              hasNewJoin &&
+              hasSaludoAlert &&
+              hasConsejoAlert &&
+              hasMeetGreetAlert
+                ? "linear-gradient(90deg, rgba(47,140,255,0.95) 0%, rgba(47,140,255,0.95) 25%, rgba(34,197,94,0.95) 25%, rgba(34,197,94,0.95) 50%, rgba(250,204,21,0.95) 50%, rgba(250,204,21,0.95) 75%, rgba(96,165,250,0.95) 75%, rgba(96,165,250,0.95) 100%)"
+                : hasAlert && hasNewJoin && hasMeetGreetAlert
+                ? "linear-gradient(90deg, rgba(47,140,255,0.95) 0%, rgba(47,140,255,0.95) 50%, rgba(96,165,250,0.95) 50%, rgba(96,165,250,0.95) 100%)"
+                : hasAlert && hasSaludoAlert && hasMeetGreetAlert
+                ? "linear-gradient(90deg, rgba(34,197,94,0.95) 0%, rgba(34,197,94,0.95) 50%, rgba(96,165,250,0.95) 50%, rgba(96,165,250,0.95) 100%)"
+                : hasAlert && hasConsejoAlert && hasMeetGreetAlert
+                ? "linear-gradient(90deg, rgba(250,204,21,0.95) 0%, rgba(250,204,21,0.95) 50%, rgba(96,165,250,0.95) 50%, rgba(96,165,250,0.95) 100%)"
+                : hasAlert && hasMeetGreetAlert
+                ? "linear-gradient(90deg, rgba(96,165,250,0.95), rgba(96,165,250,0.95))"
+                : hasAlert && hasNewJoin && hasSaludoAlert && hasConsejoAlert
                 ? "linear-gradient(90deg, rgba(47,140,255,0.95) 0%, rgba(47,140,255,0.95) 33.33%, rgba(34,197,94,0.95) 33.33%, rgba(34,197,94,0.95) 66.66%, rgba(250,204,21,0.95) 66.66%, rgba(250,204,21,0.95) 100%)"
                 : hasAlert && hasNewJoin && hasSaludoAlert
                 ? "linear-gradient(90deg, rgba(47,140,255,0.95) 0%, rgba(47,140,255,0.95) 50%, rgba(34,197,94,0.95) 50%, rgba(34,197,94,0.95) 100%)"
@@ -187,6 +615,8 @@ export default function OwnerSidebarMyGroups({
                   boxShadow: hasAlert
                     ? hasNewJoin
                       ? "0 0 0 1px rgba(47,140,255,0.14), 0 10px 28px rgba(0,0,0,0.18)"
+                      : hasMeetGreetAlert
+                      ? "0 0 0 1px rgba(96,165,250,0.16), 0 10px 28px rgba(0,0,0,0.18)"
                       : hasConsejoAlert
                       ? "0 0 0 1px rgba(250,204,21,0.14), 0 10px 28px rgba(0,0,0,0.18)"
                       : "0 0 0 1px rgba(34,197,94,0.14), 0 10px 28px rgba(0,0,0,0.18)"
@@ -585,6 +1015,10 @@ export default function OwnerSidebarMyGroups({
                               {consejoCount > 0 && (
                                 <CountBadge count={consejoCount} tone="yellow" />
                               )}
+
+                              {meetGreetCount > 0 && (
+                                <CountBadge count={meetGreetCount} tone="blue" />
+                              )}
                             </div>
                             <Chevron open={greetingListOpen} />
                           </button>
@@ -713,6 +1147,479 @@ export default function OwnerSidebarMyGroups({
                                           {busy ? "Procesando..." : "Rechazar"}
                                         </button>
                                       </div>
+                                    </div>
+                                  );
+                                })}
+
+                                {meetGreets.map((r) => {
+                                  const req = r.data;
+                                  const statusStyle = getMeetGreetStatusStyle(
+                                    req.status
+                                  );
+                                  const createdAtText = formatUnknownDate(req.createdAt);
+                                  const scheduledAtText = formatUnknownDate(req.scheduledAt);
+                                  const startingSoon = isStartingSoon(req.scheduledAt);
+                                  const prepareWindowOpen = isPrepareWindowOpen(
+                                    req.scheduledAt
+                                  );
+                                  const busy = !!meetGreetBusyMap[r.id];
+                                  const canAccept =
+                                    req.status === "pending_creator_response";
+                                  const canReject =
+                                    req.status === "pending_creator_response" ||
+                                    req.status === "accepted_pending_schedule" ||
+                                    req.status === "reschedule_requested";
+                                  const canSchedule =
+                                    req.status === "accepted_pending_schedule" ||
+                                    req.status === "reschedule_requested" ||
+                                    req.status === "scheduled" ||
+                                    req.status === "ready_to_prepare";
+                                  const canPrepare =
+                                    (req.status === "scheduled" ||
+                                      req.status === "ready_to_prepare" ||
+                                      req.status === "in_preparation") &&
+                                    prepareWindowOpen;
+
+                                  return (
+                                    <div key={r.id} style={styles.miniItem}>
+                                      <div style={{ display: "grid", gap: 6 }}>
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 8,
+                                            flexWrap: "wrap",
+                                          }}
+                                        >
+                                          <span
+                                            style={{
+                                              ...getTypeChipStyle("meet_greet_digital"),
+                                              borderRadius: 999,
+                                              padding: "4px 8px",
+                                              fontSize: 11,
+                                              fontWeight: 700,
+                                              lineHeight: 1,
+                                              display: "inline-flex",
+                                              alignItems: "center",
+                                              justifyContent: "center",
+                                            }}
+                                          >
+                                            Meet & Greet
+                                          </span>
+
+                                          <div
+                                            style={{
+                                              fontSize: 12,
+                                              fontWeight: 700,
+                                              color: "#fff",
+                                              lineHeight: 1.25,
+                                            }}
+                                          >
+                                            Solicitud recibida
+                                          </div>
+                                        </div>
+
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 6,
+                                            flexWrap: "wrap",
+                                          }}
+                                        >
+                                          <span style={styles.subtle}>
+                                            Comprador:
+                                          </span>
+                                          {renderUserLink(req.buyerId)}
+                                        </div>
+
+                                        <div
+                                          style={{
+                                            ...statusStyle,
+                                            borderRadius: 999,
+                                            padding: "5px 9px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            lineHeight: 1,
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            width: "fit-content",
+                                          }}
+                                        >
+                                          {getMeetGreetStatusLabel(req.status)}
+                                        </div>
+                                      </div>
+
+                                      {startingSoon ? (
+                                        <div
+                                          style={{
+                                            borderRadius: 10,
+                                            border:
+                                              "1px solid rgba(250,204,21,0.18)",
+                                            background: "rgba(250,204,21,0.08)",
+                                            padding: "7px 8px",
+                                            fontSize: 12,
+                                            lineHeight: 1.3,
+                                            color: "#fde68a",
+                                          }}
+                                        >
+                                          ⚠️ Este meet & greet está próximo a iniciar.
+                                        </div>
+                                      ) : null}
+
+                                      {canPrepare ? (
+                                        <div
+                                          style={{
+                                            borderRadius: 10,
+                                            border:
+                                              "1px solid rgba(96,165,250,0.18)",
+                                            background: "rgba(96,165,250,0.08)",
+                                            padding: "7px 8px",
+                                            fontSize: 12,
+                                            lineHeight: 1.3,
+                                            color: "#bfdbfe",
+                                          }}
+                                        >
+                                          🎥 Ya puedes entrar a preparación.
+                                        </div>
+                                      ) : null}
+
+                                      {(req.priceSnapshot != null ||
+                                        req.durationMinutes != null) && (
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            gap: 8,
+                                            flexWrap: "wrap",
+                                          }}
+                                        >
+                                          {req.priceSnapshot != null ? (
+                                            <span style={styles.subtle}>
+                                              Precio capturado:{" "}
+                                              {formatMoney(
+                                                req.priceSnapshot,
+                                                getRequestCurrency(req)
+                                              )}
+                                            </span>
+                                          ) : null}
+
+                                          {req.durationMinutes != null ? (
+                                            <span style={styles.subtle}>
+                                              Duración: {req.durationMinutes} min
+                                            </span>
+                                          ) : null}
+                                        </div>
+                                      )}
+
+                                      {req.buyerMessage ? (
+                                        <div
+                                          style={{
+                                            borderRadius: 10,
+                                            border:
+                                              "1px solid rgba(255,255,255,0.10)",
+                                            background: "rgba(0,0,0,0.18)",
+                                            padding: "7px 8px",
+                                            whiteSpace: "pre-wrap",
+                                            fontSize: 12,
+                                            lineHeight: 1.3,
+                                            color: "rgba(255,255,255,0.92)",
+                                          }}
+                                        >
+                                          {req.buyerMessage}
+                                        </div>
+                                      ) : null}
+
+                                      {req.rejectionReason ? (
+                                        <div
+                                          style={{
+                                            borderRadius: 10,
+                                            border:
+                                              "1px solid rgba(248,113,113,0.18)",
+                                            background: "rgba(248,113,113,0.08)",
+                                            padding: "7px 8px",
+                                            fontSize: 12,
+                                            lineHeight: 1.3,
+                                            color: "#fecaca",
+                                          }}
+                                        >
+                                          Motivo de rechazo: {req.rejectionReason}
+                                        </div>
+                                      ) : null}
+
+                                      {req.refundReason ? (
+                                        <div
+                                          style={{
+                                            borderRadius: 10,
+                                            border:
+                                              "1px solid rgba(250,204,21,0.18)",
+                                            background: "rgba(250,204,21,0.08)",
+                                            padding: "7px 8px",
+                                            fontSize: 12,
+                                            lineHeight: 1.3,
+                                            color: "#fde68a",
+                                          }}
+                                        >
+                                          Motivo de devolución: {req.refundReason}
+                                        </div>
+                                      ) : null}
+
+                                      {scheduledAtText ? (
+                                        <div style={styles.subtle}>
+                                          Fecha propuesta/agendada: {scheduledAtText}
+                                        </div>
+                                      ) : null}
+
+                                      {createdAtText ? (
+                                        <div style={styles.subtle}>
+                                          {createdAtText}
+                                        </div>
+                                      ) : null}
+
+                                      {canAccept || canReject || canSchedule || canPrepare ? (
+                                        <div
+                                          style={{
+                                            display: "flex",
+                                            gap: 8,
+                                            flexWrap: "wrap",
+                                          }}
+                                        >
+                                          {canAccept ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleCreatorAccept(r.id)}
+                                              disabled={busy}
+                                              style={{
+                                                ...styles.buttonPrimary,
+                                                opacity: busy ? 0.8 : 1,
+                                                cursor: busy
+                                                  ? "not-allowed"
+                                                  : "pointer",
+                                              }}
+                                            >
+                                              {busy ? "Procesando..." : "Aceptar"}
+                                            </button>
+                                          ) : null}
+
+                                          {canReject ? (
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                setRejectOpenMap((prev) => ({
+                                                  ...prev,
+                                                  [r.id]: !prev[r.id],
+                                                }))
+                                              }
+                                              disabled={busy}
+                                              style={{
+                                                ...styles.buttonSecondary,
+                                                opacity: busy ? 0.7 : 1,
+                                                cursor: busy
+                                                  ? "not-allowed"
+                                                  : "pointer",
+                                              }}
+                                            >
+                                              Rechazar
+                                            </button>
+                                          ) : null}
+
+                                          {canSchedule ? (
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                setScheduleOpenMap((prev) => ({
+                                                  ...prev,
+                                                  [r.id]: !prev[r.id],
+                                                }))
+                                              }
+                                              disabled={busy}
+                                              style={{
+                                                ...styles.buttonSecondary,
+                                                opacity: busy ? 0.7 : 1,
+                                                cursor: busy
+                                                  ? "not-allowed"
+                                                  : "pointer",
+                                              }}
+                                            >
+                                              {req.status === "accepted_pending_schedule"
+                                                ? "Poner fecha"
+                                                : "Proponer nueva fecha"}
+                                            </button>
+                                          ) : null}
+
+                                          {canPrepare ? (
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handlePrepare(r.id, "creator")
+                                              }
+                                              disabled={busy}
+                                              style={{
+                                                ...styles.buttonPrimary,
+                                                opacity: busy ? 0.8 : 1,
+                                                cursor: busy
+                                                  ? "not-allowed"
+                                                  : "pointer",
+                                              }}
+                                            >
+                                              {busy ? "Procesando..." : "Prepararse"}
+                                            </button>
+                                          ) : null}
+                                        </div>
+                                      ) : null}
+
+                                      {rejectOpenMap[r.id] ? (
+                                        <div style={{ display: "grid", gap: 8 }}>
+                                          <textarea
+                                            value={rejectReasonMap[r.id] ?? ""}
+                                            onChange={(e) =>
+                                              setRejectReasonMap((prev) => ({
+                                                ...prev,
+                                                [r.id]: e.target.value,
+                                              }))
+                                            }
+                                            placeholder="Explica por qué rechazas la solicitud."
+                                            style={{
+                                              ...styles.input,
+                                              height: 92,
+                                              resize: "vertical",
+                                            }}
+                                          />
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              gap: 8,
+                                              flexWrap: "wrap",
+                                            }}
+                                          >
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handleCreatorReject(r.id)
+                                              }
+                                              disabled={busy}
+                                              style={{
+                                                ...styles.buttonPrimary,
+                                                opacity: busy ? 0.8 : 1,
+                                                cursor: busy
+                                                  ? "not-allowed"
+                                                  : "pointer",
+                                              }}
+                                            >
+                                              {busy
+                                                ? "Procesando..."
+                                                : "Confirmar rechazo"}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                setRejectOpenMap((prev) => ({
+                                                  ...prev,
+                                                  [r.id]: false,
+                                                }))
+                                              }
+                                              disabled={busy}
+                                              style={{
+                                                ...styles.buttonSecondary,
+                                                opacity: busy ? 0.7 : 1,
+                                                cursor: busy
+                                                  ? "not-allowed"
+                                                  : "pointer",
+                                              }}
+                                            >
+                                              Cancelar
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : null}
+
+                                      {scheduleOpenMap[r.id] ? (
+                                        <div style={{ display: "grid", gap: 8 }}>
+                                          <input
+                                            type="datetime-local"
+                                            value={
+                                              scheduleDateMap[r.id] ||
+                                              toDateTimeLocalValue(req.scheduledAt)
+                                            }
+                                            onChange={(e) =>
+                                              setScheduleDateMap((prev) => ({
+                                                ...prev,
+                                                [r.id]: e.target.value,
+                                              }))
+                                            }
+                                            style={styles.input}
+                                          />
+                                          <textarea
+                                            value={scheduleNoteMap[r.id] ?? ""}
+                                            onChange={(e) =>
+                                              setScheduleNoteMap((prev) => ({
+                                                ...prev,
+                                                [r.id]: e.target.value,
+                                              }))
+                                            }
+                                            placeholder="Nota opcional sobre la fecha propuesta."
+                                            style={{
+                                              ...styles.input,
+                                              height: 92,
+                                              resize: "vertical",
+                                            }}
+                                          />
+                                          <div
+                                            style={{
+                                              display: "flex",
+                                              gap: 8,
+                                              flexWrap: "wrap",
+                                            }}
+                                          >
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                handleCreatorSchedule(r.id)
+                                              }
+                                              disabled={busy}
+                                              style={{
+                                                ...styles.buttonPrimary,
+                                                opacity: busy ? 0.8 : 1,
+                                                cursor: busy
+                                                  ? "not-allowed"
+                                                  : "pointer",
+                                              }}
+                                            >
+                                              {busy
+                                                ? "Procesando..."
+                                                : "Guardar fecha"}
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() =>
+                                                setScheduleOpenMap((prev) => ({
+                                                  ...prev,
+                                                  [r.id]: false,
+                                                }))
+                                              }
+                                              disabled={busy}
+                                              style={{
+                                                ...styles.buttonSecondary,
+                                                opacity: busy ? 0.7 : 1,
+                                                cursor: busy
+                                                  ? "not-allowed"
+                                                  : "pointer",
+                                              }}
+                                            >
+                                              Cancelar
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ) : null}
+
+                                      {renderMeetGreetFeedback(r.id)}
+
+                                      {renderPreparationPanel(
+                                        r.id,
+                                        req,
+                                        (preparationRoleMap[r.id] as "creator") ??
+                                          "creator"
+                                      )}
                                     </div>
                                   );
                                 })}

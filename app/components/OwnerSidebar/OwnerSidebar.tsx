@@ -29,7 +29,14 @@ import {
 } from "@/lib/groups/joinRequests.admin";
 import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
-
+import {
+  acceptMeetGreetRequest,
+  proposeMeetGreetSchedule,
+  rejectMeetGreetRequest,
+  requestMeetGreetRefund,
+  requestMeetGreetReschedule,
+  setMeetGreetPreparing,
+} from "@/lib/meetGreet/meetGreetRequests";
 import OwnerSidebarTabNav from "./OwnerSidebarTabNav";
 import OwnerSidebarMyGroups from "./OwnerSidebarMyGroups";
 import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
@@ -99,7 +106,6 @@ export type GroupDocLite = {
     currency?: Currency | null;
   }>;
 
-  // metadata de acceso/transición para communities tab
   membershipAccessType?: MembershipAccessTypeLite;
   requiresSubscription?: boolean | null;
   subscriptionActive?: boolean | null;
@@ -109,7 +115,6 @@ export type GroupDocLite = {
   canDismiss?: boolean | null;
   sidebarState?: HiddenSidebarStateLite;
 
-  // metadata extra para reminders de aumento de precio
   previousSubscriptionPriceMonthly?: number | null;
   nextSubscriptionPriceMonthly?: number | null;
   subscriptionPriceChangeCurrency?: Currency | string | null;
@@ -133,6 +138,90 @@ export type GreetingRequestDoc = {
   instructions: string;
   source: "group" | "profile" | string;
   status: GreetingStatus;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+};
+
+export type MeetGreetStatus =
+  | "pending_creator_response"
+  | "accepted_pending_schedule"
+  | "scheduled"
+  | "reschedule_requested"
+  | "rejected"
+  | "refund_requested"
+  | "refund_review"
+  | "ready_to_prepare"
+  | "in_preparation"
+  | "completed"
+  | "cancelled"
+  | string;
+
+export type MeetGreetRequestDoc = {
+  id?: string;
+  type?: "digital_meet_greet" | string;
+  flowVersion?: number;
+
+  groupId: string;
+  groupName?: string | null;
+
+  buyerId: string;
+  buyerDisplayName?: string | null;
+  buyerUsername?: string | null;
+  buyerAvatarUrl?: string | null;
+
+  creatorId: string;
+  creatorDisplayName?: string | null;
+  creatorUsername?: string | null;
+  creatorAvatarUrl?: string | null;
+
+  status: MeetGreetStatus;
+
+  buyerMessage?: string | null;
+  rejectionReason?: string | null;
+  refundReason?: string | null;
+  refundRequestedAt?: Timestamp | null;
+
+  priceSnapshot?: number | null;
+  currency?: Currency | string | null;
+  durationMinutes?: number | null;
+
+  serviceSnapshot?: {
+    type?: "meet_greet_digital" | string;
+    enabled?: boolean;
+    currency?: Currency | string | null;
+    price?: number | null;
+    durationMinutes?: number | null;
+  } | null;
+
+  acceptedAt?: Timestamp | null;
+  rejectedAt?: Timestamp | null;
+
+  scheduledAt?: Timestamp | null;
+  scheduledBy?: string | null;
+  scheduleProposedAt?: Timestamp | null;
+  scheduleHistory?: Array<{
+    proposedAt?: Timestamp | null;
+    proposedBy?: string | null;
+    startsAt?: Timestamp | null;
+    note?: string | null;
+  }>;
+
+  rescheduleRequestsUsed?: number;
+  rescheduleRequestedAt?: Timestamp | null;
+  rescheduleHistory?: Array<{
+    requestedAt?: Timestamp | null;
+    requestedBy?: string | null;
+    reason?: string | null;
+    countAfterRequest?: number | null;
+  }>;
+
+  preparingBuyerAt?: Timestamp | null;
+  preparingCreatorAt?: Timestamp | null;
+  preparationOpenedAt?: Timestamp | null;
+
+  paymentMode?: string | null;
+  paymentStatus?: string | null;
+
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 };
@@ -173,10 +262,11 @@ export function typeLabel(t: string) {
   if (t === "saludo") return "Saludo";
   if (t === "consejo") return "Consejo";
   if (t === "mensaje") return "Mensaje";
+  if (t === "meet_greet_digital") return "Meet & Greet";
   return t;
 }
 
-export function fmtDate(ts?: Timestamp) {
+export function fmtDate(ts?: Timestamp | null) {
   if (!ts) return "";
   return ts.toDate().toLocaleString("es-MX");
 }
@@ -466,6 +556,14 @@ export default function OwnerSidebar() {
     Array<{ id: string; data: GreetingRequestDoc }>
   >([]);
 
+  const [meetGreetsByGroup, setMeetGreetsByGroup] = useState<
+    Record<string, Array<{ id: string; data: MeetGreetRequestDoc }>>
+  >({});
+
+  const [buyerMeetGreets, setBuyerMeetGreets] = useState<
+    Array<{ id: string; data: MeetGreetRequestDoc }>
+  >([]);
+
   const [greetingSectionOpen, setGreetingSectionOpen] = useState<
     Record<string, boolean>
   >({});
@@ -752,7 +850,7 @@ export default function OwnerSidebar() {
                     )
                   : null;
 
-                                const memberData = memberSnap.exists()
+                const memberData = memberSnap.exists()
                   ? (memberSnap.data() as any)
                   : null;
 
@@ -767,8 +865,8 @@ export default function OwnerSidebar() {
                     memberData?.accessType === "legacy_free" ||
                     memberData?.accessType === "subscription_required" ||
                     memberData?.accessType === "unknown"
-                    ? memberData.accessType
-                    : null,
+                      ? memberData.accessType
+                      : null,
                   requiresSubscription:
                     memberData?.requiresSubscription === true,
                   subscriptionActive:
@@ -787,10 +885,10 @@ export default function OwnerSidebar() {
                     memberStatus === "banned" ? "banned" : "joined",
                 };
 
-                  const isJoined =
+                const isJoined =
                   isJoinedSidebarStatus(memberStatus) ||
                   memberStatus === "banned";
-                  const isExcluded = isExcludedSidebarStatus(memberStatus);
+                const isExcluded = isExcludedSidebarStatus(memberStatus);
 
                 return {
                   group: hydratedGroup,
@@ -890,119 +988,119 @@ export default function OwnerSidebar() {
   }, [viewer?.uid]);
 
   useEffect(() => {
-  let cancelled = false;
+    let cancelled = false;
 
-  async function loadHiddenJoinedGroups() {
-    if (!viewer?.uid) {
-      setHiddenJoinedGroups([]);
-      return;
-    }
-
-    try {
-      const rows = await getMyHiddenJoinedGroups();
-      if (cancelled) return;
-
-      const groups = (
-        await Promise.all(
-          rows.map(async (g) => {
-            let memberRole: GroupRoleLite = null;
-
-            try {
-              const memberSnap = await getDoc(
-                doc(db, "groups", g.id, "members", viewer.uid)
-              );
-              if (memberSnap.exists()) {
-                const memberData = memberSnap.data() as any;
-                memberRole = normalizeSidebarGroupRole(
-                  memberData?.roleInGroup ?? memberData?.role ?? "member"
-                );
-              }
-            } catch {
-              memberRole = null;
-            }
-
-            const normalizedSidebarState =
-              g.sidebarState === "joined" ||
-              g.sidebarState === "legacy_free" ||
-              g.sidebarState === "requires_subscription" ||
-              g.sidebarState === "banned"
-                ? g.sidebarState
-                : null;
-
-            return {
-              id: g.id,
-              name: g.name ?? undefined,
-              ownerId: g.ownerId ?? undefined,
-              visibility: g.visibility ?? undefined,
-              avatarUrl: g.avatarUrl ?? null,
-              memberStatus: normalizeSidebarMemberStatus(g.memberStatus ?? null),
-              memberRole,
-              monetization: g.monetization ?? undefined,
-              offerings: g.offerings ?? [],
-
-              membershipAccessType:
-                g.membershipAccessType === "subscription" ||
-                g.membershipAccessType === "subscribed" ||
-                g.membershipAccessType === "standard" ||
-                g.membershipAccessType === "legacy_free" ||
-                g.membershipAccessType === "subscription_required" ||
-                g.membershipAccessType === "unknown"
-                  ? g.membershipAccessType
-                  : null,
-              requiresSubscription: g.requiresSubscription ?? null,
-              subscriptionActive: g.subscriptionActive ?? null,
-              legacyComplimentary: g.legacyComplimentary ?? null,
-              transitionPendingAction: g.transitionPendingAction ?? null,
-              transitionReason: g.transitionReason ?? null,
-              canDismiss: g.canDismiss === true,
-              sidebarState: normalizedSidebarState,
-
-              previousSubscriptionPriceMonthly:
-                typeof (g as any).previousSubscriptionPriceMonthly === "number"
-                  ? (g as any).previousSubscriptionPriceMonthly
-                  : null,
-              nextSubscriptionPriceMonthly:
-                typeof (g as any).nextSubscriptionPriceMonthly === "number"
-                  ? (g as any).nextSubscriptionPriceMonthly
-                  : null,
-              subscriptionPriceChangeCurrency:
-                typeof (g as any).subscriptionPriceChangeCurrency === "string"
-                  ? (g as any).subscriptionPriceChangeCurrency
-                  : null,
-            } as GroupDocLite;
-          })
-        )
-      ) as GroupDocLite[];
-
-      if (cancelled) return;
-
-      setHiddenJoinedGroups(groups);
-
-      const meta: Record<string, GroupDocLite> = {};
-      groups.forEach((g) => {
-        meta[g.id] = g;
-      });
-
-      setGroupMetaMap((prev) => ({ ...prev, ...meta }));
-    } catch (e: any) {
-      console.error("getMyHiddenJoinedGroups error", e);
-      if (!cancelled) {
+    async function loadHiddenJoinedGroups() {
+      if (!viewer?.uid) {
         setHiddenJoinedGroups([]);
+        return;
+      }
+
+      try {
+        const rows = await getMyHiddenJoinedGroups();
+        if (cancelled) return;
+
+        const groups = (
+          await Promise.all(
+            rows.map(async (g) => {
+              let memberRole: GroupRoleLite = null;
+
+              try {
+                const memberSnap = await getDoc(
+                  doc(db, "groups", g.id, "members", viewer.uid)
+                );
+                if (memberSnap.exists()) {
+                  const memberData = memberSnap.data() as any;
+                  memberRole = normalizeSidebarGroupRole(
+                    memberData?.roleInGroup ?? memberData?.role ?? "member"
+                  );
+                }
+              } catch {
+                memberRole = null;
+              }
+
+              const normalizedSidebarState =
+                g.sidebarState === "joined" ||
+                g.sidebarState === "legacy_free" ||
+                g.sidebarState === "requires_subscription" ||
+                g.sidebarState === "banned"
+                  ? g.sidebarState
+                  : null;
+
+              return {
+                id: g.id,
+                name: g.name ?? undefined,
+                ownerId: g.ownerId ?? undefined,
+                visibility: g.visibility ?? undefined,
+                avatarUrl: g.avatarUrl ?? null,
+                memberStatus: normalizeSidebarMemberStatus(g.memberStatus ?? null),
+                memberRole,
+                monetization: g.monetization ?? undefined,
+                offerings: g.offerings ?? [],
+
+                membershipAccessType:
+                  g.membershipAccessType === "subscription" ||
+                  g.membershipAccessType === "subscribed" ||
+                  g.membershipAccessType === "standard" ||
+                  g.membershipAccessType === "legacy_free" ||
+                  g.membershipAccessType === "subscription_required" ||
+                  g.membershipAccessType === "unknown"
+                    ? g.membershipAccessType
+                    : null,
+                requiresSubscription: g.requiresSubscription ?? null,
+                subscriptionActive: g.subscriptionActive ?? null,
+                legacyComplimentary: g.legacyComplimentary ?? null,
+                transitionPendingAction: g.transitionPendingAction ?? null,
+                transitionReason: g.transitionReason ?? null,
+                canDismiss: g.canDismiss === true,
+                sidebarState: normalizedSidebarState,
+
+                previousSubscriptionPriceMonthly:
+                  typeof (g as any).previousSubscriptionPriceMonthly === "number"
+                    ? (g as any).previousSubscriptionPriceMonthly
+                    : null,
+                nextSubscriptionPriceMonthly:
+                  typeof (g as any).nextSubscriptionPriceMonthly === "number"
+                    ? (g as any).nextSubscriptionPriceMonthly
+                    : null,
+                subscriptionPriceChangeCurrency:
+                  typeof (g as any).subscriptionPriceChangeCurrency === "string"
+                    ? (g as any).subscriptionPriceChangeCurrency
+                    : null,
+              } as GroupDocLite;
+            })
+          )
+        ) as GroupDocLite[];
+
+        if (cancelled) return;
+
+        setHiddenJoinedGroups(groups);
+
+        const meta: Record<string, GroupDocLite> = {};
+        groups.forEach((g) => {
+          meta[g.id] = g;
+        });
+
+        setGroupMetaMap((prev) => ({ ...prev, ...meta }));
+      } catch (e: any) {
+        console.error("getMyHiddenJoinedGroups error", e);
+        if (!cancelled) {
+          setHiddenJoinedGroups([]);
+        }
       }
     }
-  }
 
-  loadHiddenJoinedGroups();
+    loadHiddenJoinedGroups();
 
-  const refreshInterval = window.setInterval(() => {
-    void loadHiddenJoinedGroups();
-  }, 10000);
+    const refreshInterval = window.setInterval(() => {
+      void loadHiddenJoinedGroups();
+    }, 10000);
 
-  return () => {
-    cancelled = true;
-    window.clearInterval(refreshInterval);
-  };
-}, [viewer?.uid]);
+    return () => {
+      cancelled = true;
+      window.clearInterval(refreshInterval);
+    };
+  }, [viewer?.uid]);
 
   const hiddenSidebarMembershipGroups = useMemo(() => {
     return hiddenJoinedGroups.filter(
@@ -1016,7 +1114,7 @@ export default function OwnerSidebar() {
     );
   }, [hiddenJoinedGroups]);
 
-    const moderatedGroups = useMemo(() => {
+  const moderatedGroups = useMemo(() => {
     const mergedMap = new Map<string, GroupDocLite>();
 
     [...joinedGroups, ...hiddenSidebarMembershipGroups].forEach((g) => {
@@ -1204,6 +1302,114 @@ export default function OwnerSidebar() {
   }, [viewer?.uid, groupMetaMap]);
 
   useEffect(() => {
+    if (!viewer?.uid) {
+      setMeetGreetsByGroup({});
+      setBuyerMeetGreets([]);
+      return;
+    }
+
+    const creatorQ = query(
+      collection(db, "meetGreetRequests"),
+      where("creatorId", "==", viewer.uid),
+      limit(100)
+    );
+
+    const buyerQ = query(
+      collection(db, "meetGreetRequests"),
+      where("buyerId", "==", viewer.uid),
+      limit(100)
+    );
+
+    const unsubCreator = onSnapshot(
+      creatorQ,
+      (snap) => {
+        const grouped: Record<
+          string,
+          Array<{ id: string; data: MeetGreetRequestDoc }>
+        > = {};
+
+        snap.docs.forEach((d) => {
+          const data = d.data() as MeetGreetRequestDoc;
+          const gid = data.groupId;
+          if (!gid) return;
+          if (!grouped[gid]) grouped[gid] = [];
+          grouped[gid].push({
+            id: d.id,
+            data: {
+              ...data,
+              id: d.id,
+            },
+          });
+        });
+
+        setMeetGreetsByGroup(grouped);
+      },
+      (e: any) => {
+        setGroupsErr(
+          e?.message ?? "No se pudieron cargar solicitudes de meet & greet."
+        );
+        setMeetGreetsByGroup({});
+      }
+    );
+
+    const unsubBuyer = onSnapshot(
+      buyerQ,
+      async (snap) => {
+        const rows = snap.docs.map((d) => ({
+          id: d.id,
+          data: {
+            ...(d.data() as MeetGreetRequestDoc),
+            id: d.id,
+          },
+        }));
+
+        setBuyerMeetGreets(rows);
+
+        const missingGroupIds = rows
+          .map((r) => r.data.groupId)
+          .filter(Boolean)
+          .filter((groupId) => !groupMetaMap[groupId]);
+
+        if (missingGroupIds.length > 0) {
+          const fetched = await Promise.all(
+            Array.from(new Set(missingGroupIds)).map(async (groupId) => {
+              try {
+                const groupSnap = await getDoc(doc(db, "groups", groupId));
+                if (!groupSnap.exists()) return null;
+
+                return {
+                  ...(groupSnap.data() as Omit<GroupDocLite, "id">),
+                  id: groupSnap.id,
+                };
+              } catch {
+                return null;
+              }
+            })
+          );
+
+          const meta: Record<string, GroupDocLite> = {};
+          fetched.filter(Boolean).forEach((g) => {
+            const gg = g as GroupDocLite;
+            meta[gg.id] = gg;
+          });
+
+          if (Object.keys(meta).length > 0) {
+            setGroupMetaMap((prev) => ({ ...prev, ...meta }));
+          }
+        }
+      },
+      () => {
+        setBuyerMeetGreets([]);
+      }
+    );
+
+    return () => {
+      unsubCreator();
+      unsubBuyer();
+    };
+  }, [viewer?.uid, groupMetaMap]);
+
+  useEffect(() => {
     const groupsForSeen = [...myGroups, ...moderatedGroups].map((g) => g.id);
 
     if (groupsForSeen.length === 0) return;
@@ -1213,7 +1419,9 @@ export default function OwnerSidebar() {
 
       for (const groupId of groupsForSeen) {
         const joinCount = (joinRequestsByGroup[groupId] ?? []).length;
-        const greetingCount = (greetingsByGroup[groupId] ?? []).length;
+        const greetingCount =
+          (greetingsByGroup[groupId] ?? []).length +
+          (meetGreetsByGroup[groupId] ?? []).length;
 
         if (!next[groupId]) {
           next[groupId] = { join: joinCount, greeting: greetingCount };
@@ -1222,7 +1430,13 @@ export default function OwnerSidebar() {
 
       return next;
     });
-  }, [myGroups, moderatedGroups, joinRequestsByGroup, greetingsByGroup]);
+  }, [
+    myGroups,
+    moderatedGroups,
+    joinRequestsByGroup,
+    greetingsByGroup,
+    meetGreetsByGroup,
+  ]);
 
   const relevantUserIds = useMemo(() => {
     const ids = new Set<string>();
@@ -1235,10 +1449,21 @@ export default function OwnerSidebar() {
       rows.forEach((r) => ids.add(r.data.buyerId));
     }
 
+    for (const rows of Object.values(meetGreetsByGroup)) {
+      rows.forEach((r) => ids.add(r.data.buyerId));
+    }
+
     buyerPending.forEach((r) => ids.add(r.data.creatorId));
+    buyerMeetGreets.forEach((r) => ids.add(r.data.creatorId));
 
     return Array.from(ids).filter(Boolean);
-  }, [joinRequestsByGroup, greetingsByGroup, buyerPending]);
+  }, [
+    joinRequestsByGroup,
+    greetingsByGroup,
+    meetGreetsByGroup,
+    buyerPending,
+    buyerMeetGreets,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1435,6 +1660,62 @@ export default function OwnerSidebar() {
     }
   }
 
+  async function handleMeetGreetAccept(requestId: string) {
+    await acceptMeetGreetRequest({ requestId });
+  }
+
+  async function handleMeetGreetReject(
+    requestId: string,
+    rejectionReason?: string | null
+  ) {
+    await rejectMeetGreetRequest({
+      requestId,
+      rejectionReason: rejectionReason ?? null,
+    });
+  }
+
+  async function handleMeetGreetSchedule(
+    requestId: string,
+    scheduledAt: string,
+    note?: string | null
+  ) {
+    await proposeMeetGreetSchedule({
+      requestId,
+      scheduledAt,
+      note: note ?? null,
+    });
+  }
+
+  async function handleMeetGreetRefund(
+    requestId: string,
+    refundReason?: string | null
+  ) {
+    await requestMeetGreetRefund({
+      requestId,
+      refundReason: refundReason ?? null,
+    });
+  }
+
+  async function handleMeetGreetReschedule(
+    requestId: string,
+    reason?: string | null
+  ) {
+    await requestMeetGreetReschedule({
+      requestId,
+      reason: reason ?? null,
+    });
+  }
+
+  async function handleMeetGreetPrepare(
+    requestId: string,
+    role: "buyer" | "creator"
+  ) {
+    await setMeetGreetPreparing({
+      requestId,
+      role,
+    });
+  }
+
   function renderUserLink(uid: string) {
     const u = userMiniMap[uid];
     const label = u?.displayName ?? buildDisplayName(null, uid);
@@ -1611,7 +1892,7 @@ export default function OwnerSidebar() {
     ].filter((section) => section.items.length > 0);
   }, [myGroups]);
 
-    const joinedGrouped = useMemo(() => {
+  const joinedGrouped = useMemo(() => {
     const mergedMap = new Map<string, GroupDocLite>();
 
     [...joinedGroups, ...hiddenSidebarMembershipGroups].forEach((g) => {
@@ -1983,10 +2264,11 @@ export default function OwnerSidebar() {
             onChange={setActiveView}
           />
 
-          {activeView === "owned" && (
+                    {activeView === "owned" && (
             <OwnerSidebarMyGroups
               loadingGroups={loadingGroups}
               myGroups={myGroups}
+              meetGreetsByGroup={meetGreetsByGroup}
               ownedGrouped={ownedGrouped}
               openCommunities={openCommunities}
               joinRequestsByGroup={joinRequestsByGroup}
@@ -2010,7 +2292,7 @@ export default function OwnerSidebar() {
             />
           )}
 
-                    {activeView === "communities" && (
+          {activeView === "communities" && (
             <OwnerSidebarOtherGroups
               loadingCommunities={loadingCommunities}
               joinedGroups={joinedGroups}
@@ -2035,7 +2317,7 @@ export default function OwnerSidebar() {
             />
           )}
 
-          {activeView === "greetings" && (
+            {activeView === "greetings" && (
             <OwnerSidebarGreetings
               buyerPending={buyerPending}
               groupMetaMap={groupMetaMap}
@@ -2044,6 +2326,8 @@ export default function OwnerSidebar() {
               fmtDate={fmtDate}
               renderUserLink={renderUserLink}
               router={router}
+              buyerMeetGreets={buyerMeetGreets}
+              meetGreetsByGroup={{}}
             />
           )}
 

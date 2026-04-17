@@ -1,6 +1,10 @@
 "use client";
 
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import {
+  doc,
+  onSnapshot,
+  updateDoc,
+} from "firebase/firestore";
 import {
   useEffect,
   useMemo,
@@ -35,6 +39,7 @@ import {
   createGreetingRequest,
   type GreetingType,
 } from "@/lib/greetings/greetingRequests";
+import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import {
   mergeMonetizationWithCatalog,
   mergeWithDefaultCatalog,
@@ -94,7 +99,7 @@ type GroupDoc = {
   commentsEnabled?: boolean | null;
   greetingsEnabled?: boolean | null;
   welcomeMessage?: string | null;
-   monetization?: {
+  monetization?: {
     isPaid?: boolean;
     priceMonthly?: number | null;
     currency?: string | Currency | null;
@@ -168,15 +173,6 @@ type GroupDoc = {
 
 type CropMode = "avatar" | "cover";
 type Area = { x: number; y: number; width: number; height: number };
-
-function labelForOfferingType(t: string) {
-  if (t === "suscripcion") return "Suscripción";
-  if (t === "saludo") return "Saludo";
-  if (t === "consejo") return "Consejo";
-  if (t === "meet_greet_digital") return "Meet & Greet";
-  if (t === "clase_personalizada") return "Clase personalizada";
-  return "Mensaje";
-}
 
 function isGreetingType(t: string): t is GreetingType {
   return t === "saludo" || t === "consejo" || t === "mensaje";
@@ -464,6 +460,12 @@ function formatMoney(value: number, currency: Currency) {
   }
 }
 
+function readMetaNumber(meta: LocalServiceMeta, key: string): number | null {
+  if (!meta || typeof meta !== "object") return null;
+  const value = (meta as Record<string, unknown>)[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 export default function GroupPage() {
   const params = useParams<{ groupId: string }>();
   const groupId = params.groupId;
@@ -507,8 +509,27 @@ export default function GroupPage() {
     return memberRole === "mod" && isJoinedStatus(memberStatus);
   }, [isOwner, memberRole, memberStatus]);
 
-  const effectiveIsMember =
-    isOwner || (isMember && isJoinedStatus(memberStatus));
+  const hasJoinedMembership =
+  isMember && isJoinedStatus(memberStatus);
+
+const hasLegacyServiceAccess =
+  membershipAccessType === "legacy_free" || membershipLegacyComplimentary;
+
+const effectiveIsMember = isOwner || hasJoinedMembership;
+
+const canRequestCreatorServices =
+  isOwner ||
+  hasJoinedMembership ||
+  (isMember &&
+    memberStatus !== "banned" &&
+    memberStatus !== "removed" &&
+    hasLegacyServiceAccess);
+
+const canRequestMeetGreet =
+  !isOwner &&
+  canRequestCreatorServices &&
+  memberStatus !== "banned" &&
+  memberStatus !== "removed";
 
   const currentPostingMode = useMemo(
     () =>
@@ -576,7 +597,52 @@ export default function GroupPage() {
     );
   }, [normalizedCurrentMonetization]);
 
-      const removedBySubscriptionTransition = useMemo(() => {
+  const meetGreetOffering = useMemo(() => {
+    return (
+      normalizedCurrentOfferings.find(
+        (offering) => offering.type === "meet_greet_digital"
+      ) ?? null
+    );
+  }, [normalizedCurrentOfferings]);
+
+  const meetGreetPrice = useMemo(() => {
+    if (!meetGreetOffering) return null;
+
+    if (typeof meetGreetOffering.memberPrice === "number") {
+      return meetGreetOffering.memberPrice;
+    }
+
+    if (typeof meetGreetOffering.publicPrice === "number") {
+      return meetGreetOffering.publicPrice;
+    }
+
+    if (typeof meetGreetOffering.price === "number") {
+      return meetGreetOffering.price;
+    }
+
+    return null;
+  }, [meetGreetOffering]);
+
+  const meetGreetCurrency = useMemo<Currency>(() => {
+    return meetGreetOffering?.currency ?? subscriptionCurrency ?? "MXN";
+  }, [meetGreetOffering, subscriptionCurrency]);
+
+  const meetGreetDurationMinutes = useMemo(() => {
+  const meta = meetGreetOffering?.meta as Record<string, any> | null;
+  const meetGreetMeta = meta?.meetGreet ?? null;
+
+  if (
+    meetGreetMeta &&
+    typeof meetGreetMeta.durationMinutes === "number" &&
+    Number.isFinite(meetGreetMeta.durationMinutes)
+  ) {
+    return meetGreetMeta.durationMinutes;
+  }
+
+  return null;
+}, [meetGreetOffering]);
+
+  const removedBySubscriptionTransition = useMemo(() => {
     return (
       membershipTransitionPendingAction &&
       (membershipTransitionReason === "subscription_required_after_transition" ||
@@ -584,14 +650,14 @@ export default function GroupPage() {
     );
   }, [membershipTransitionPendingAction, membershipTransitionReason]);
 
-    const requiresSubscriptionFromMembership = useMemo(() => {
+  const requiresSubscriptionFromMembership = useMemo(() => {
     return (
       membershipRequiresSubscription ||
       membershipAccessType === "subscription"
     );
   }, [membershipRequiresSubscription, membershipAccessType]);
 
-    const shouldShowSubscriptionRecovery =
+  const shouldShowSubscriptionRecovery =
     !isOwner &&
     !effectiveIsMember &&
     subscriptionEnabled &&
@@ -600,7 +666,7 @@ export default function GroupPage() {
       removedBySubscriptionTransition ||
       searchParams.get("service") === "suscripcion");
 
-    const isSubscriptionGroup =
+  const isSubscriptionGroup =
     !isOwner &&
     !effectiveIsMember &&
     (group?.visibility === "private" || group?.visibility === "hidden") &&
@@ -613,6 +679,12 @@ export default function GroupPage() {
   const [greetSubmitting, setGreetSubmitting] = useState(false);
   const [greetError, setGreetError] = useState<string | null>(null);
   const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
+
+  const [meetGreetOpen, setMeetGreetOpen] = useState(false);
+  const [meetGreetMessage, setMeetGreetMessage] = useState("");
+  const [meetGreetSubmitting, setMeetGreetSubmitting] = useState(false);
+  const [meetGreetError, setMeetGreetError] = useState<string | null>(null);
+
   const [serviceToast, setServiceToast] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -654,7 +726,7 @@ export default function GroupPage() {
     router.replace(nextHref, { scroll: false });
   }
 
-    function openSubscriptionModal() {
+  function openSubscriptionModal() {
     if (!user) {
       redirectToLogin();
       return;
@@ -1108,7 +1180,7 @@ export default function GroupPage() {
   }, [groupId, user]);
 
   useEffect(() => {
-    if (!greetOpen && !subscriptionOpen) return;
+    if (!greetOpen && !subscriptionOpen && !meetGreetOpen) return;
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -1117,6 +1189,9 @@ export default function GroupPage() {
         }
         if (subscriptionOpen && !subscriptionSubmitting) {
           closeSubscriptionModal();
+        }
+        if (meetGreetOpen && !meetGreetSubmitting) {
+          closeMeetGreetForm();
         }
       }
     }
@@ -1136,7 +1211,14 @@ export default function GroupPage() {
       document.body.style.touchAction = previousBodyTouchAction;
       document.documentElement.style.overflow = previousHtmlOverflow;
     };
-  }, [greetOpen, greetSubmitting, subscriptionOpen, subscriptionSubmitting]);
+  }, [
+    greetOpen,
+    greetSubmitting,
+    subscriptionOpen,
+    subscriptionSubmitting,
+    meetGreetOpen,
+    meetGreetSubmitting,
+  ]);
 
   async function handleJoinPublic() {
     if (!user) {
@@ -1245,6 +1327,13 @@ export default function GroupPage() {
       return;
     }
 
+    if (!canRequestCreatorServices) {
+  setGreetError(
+    "No tienes una membresía válida para solicitar este servicio."
+  );
+  return;
+}
+
     if (!toName.trim()) {
       setGreetError(
         "Escribe el nombre de la persona a quien va dirigido el saludo."
@@ -1291,26 +1380,140 @@ export default function GroupPage() {
     }
   }
 
+  function openMeetGreetForm() {
+    setMeetGreetError(null);
+    setServiceToast(null);
+    setMeetGreetMessage("");
+    setMeetGreetOpen(true);
+  }
+
+  function closeMeetGreetForm() {
+    if (meetGreetSubmitting) return;
+    setMeetGreetOpen(false);
+    setMeetGreetSubmitting(false);
+    setMeetGreetError(null);
+    setMeetGreetMessage("");
+    clearServiceQuery();
+  }
+
+  async function submitMeetGreetRequest() {
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
+
+    if (isOwner) {
+      setMeetGreetError(
+        "No puedes solicitar/comprar un meet & greet en tu propia comunidad."
+      );
+      return;
+    }
+
+    if (!canRequestMeetGreet) {
+  setMeetGreetError(
+    "No tienes una membresía válida para solicitar este meet & greet."
+  );
+  return;
+}
+
+    setMeetGreetSubmitting(true);
+    setMeetGreetError(null);
+
+    try {
+      const result = await createMeetGreetRequest({
+        groupId,
+        buyerMessage: meetGreetMessage.trim() || null,
+        priceSnapshot: meetGreetPrice,
+        durationMinutes: meetGreetDurationMinutes,
+      });
+
+      const successMessage = `✅ Meet & Greet solicitado correctamente. ID: ${result.requestId}`;
+
+      setMeetGreetOpen(false);
+      setMeetGreetMessage("");
+      setServiceToast(successMessage);
+      clearServiceQuery();
+
+      window.setTimeout(() => {
+        setServiceToast((current) =>
+          current === successMessage ? null : current
+        );
+      }, 4000);
+    } catch (e: any) {
+      setMeetGreetError(
+        e?.message ?? "No se pudo crear la solicitud de meet & greet."
+      );
+    } finally {
+      setMeetGreetSubmitting(false);
+    }
+  }
+
   useEffect(() => {
     const requestedService = searchParams.get("service");
 
     if (!requestedService) return;
-    if (!user || effectiveIsMember || isOwner) return;
 
-    if (requestedService === "suscripcion" && isSubscriptionGroup) {
-      openSubscriptionModal();
+    if (requestedService === "suscripcion") {
+      if (!user) {
+        redirectToLogin();
+        return;
+      }
+
+      if (isSubscriptionGroup && !effectiveIsMember && !isOwner) {
+        openSubscriptionModal();
+      }
+
       return;
     }
 
     if (isGreetingType(requestedService)) {
+      if (!user) {
+        redirectToLogin();
+        return;
+      }
+
+      if (isOwner) {
+        setServiceToast(
+          "No puedes solicitar este servicio dentro de tu propia comunidad."
+        );
+        clearServiceQuery();
+        return;
+      }
+
+      if (!canRequestMeetGreet) {
+  setServiceToast(
+    "No tienes una membresía válida para solicitar el meet & greet."
+  );
+  clearServiceQuery();
+  return;
+}
+
+      openGreetingForm(requestedService);
       return;
     }
 
     if (requestedService === "meet_greet_digital") {
-      setServiceToast(
-        "Meet & Greet digital aún no está conectado al flujo completo. Ya quedó visible en el menú."
-      );
-      clearServiceQuery();
+      if (!user) {
+        redirectToLogin();
+        return;
+      }
+
+      if (isOwner) {
+        setServiceToast(
+          "No puedes solicitar/comprar un meet & greet en tu propia comunidad."
+        );
+        clearServiceQuery();
+        return;
+      }
+
+      if (!canRequestCreatorServices) {
+  setServiceToast(
+    "No tienes una membresía válida para solicitar este servicio."
+  );
+  clearServiceQuery();
+  return;
+}
+      openMeetGreetForm();
       return;
     }
 
@@ -1321,12 +1524,13 @@ export default function GroupPage() {
       clearServiceQuery();
     }
   }, [
-    searchParams,
-    user,
-    effectiveIsMember,
-    isOwner,
-    isSubscriptionGroup,
-  ]);
+  searchParams,
+  user,
+  canRequestMeetGreet,
+  effectiveIsMember,
+  isOwner,
+  isSubscriptionGroup,
+]);
 
   useEffect(() => {
     if (!serviceToast) return;
@@ -1366,7 +1570,7 @@ export default function GroupPage() {
   }
 
   const onCropComplete = useCallback(
-    (_croppedArea: any, croppedAreaPixelsArg: any) => {
+    (_croppedArea: unknown, croppedAreaPixelsArg: unknown) => {
       setCroppedAreaPixels(croppedAreaPixelsArg as Area);
     },
     []
@@ -1890,6 +2094,159 @@ export default function GroupPage() {
         )
       : null;
 
+  const meetGreetModal =
+    mounted && meetGreetOpen
+      ? createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="group-meet-greet-modal-title"
+            style={serviceModalBackdropStyle}
+            onClick={() => {
+              if (!meetGreetSubmitting) closeMeetGreetForm();
+            }}
+          >
+            <div
+              style={serviceModalCardStyle}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <div id="group-meet-greet-modal-title" style={subtitleStyle}>
+                  Solicitar Meet & Greet
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeMeetGreetForm}
+                  disabled={meetGreetSubmitting}
+                  style={{
+                    ...secondaryButton,
+                    opacity: meetGreetSubmitting ? 0.75 : 1,
+                    cursor: meetGreetSubmitting ? "not-allowed" : "pointer",
+                  }}
+                >
+                  Cerrar
+                </button>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "grid",
+                  gap: 12,
+                }}
+              >
+                <div style={textStyle}>
+                  Envía tu solicitud de meet & greet. El creador podrá aceptarla,
+                  rechazarla y después proponerte fecha y hora.
+                </div>
+
+                <div style={panelStyle}>
+                  <div style={labelStyle}>Resumen del servicio</div>
+
+                  <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+                    <div style={microText}>
+                      Precio:{" "}
+                      <strong style={{ color: "#fff" }}>
+                        {meetGreetPrice != null
+                          ? formatMoney(meetGreetPrice, meetGreetCurrency)
+                          : "Por definir"}
+                      </strong>
+                    </div>
+
+                    <div style={microText}>
+                      Duración:{" "}
+                      <strong style={{ color: "#fff" }}>
+                        {meetGreetDurationMinutes != null
+                          ? `${meetGreetDurationMinutes} minutos`
+                          : "Por definir"}
+                      </strong>
+                    </div>
+
+                    <div style={microText}>
+                      Pago:{" "}
+                      <strong style={{ color: "#fff" }}>
+                        Simulado por ahora
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span style={labelStyle}>
+                    Cuéntale al creador cualquier detalle importante
+                  </span>
+                  <textarea
+                    value={meetGreetMessage}
+                    onChange={(e) => setMeetGreetMessage(e.target.value)}
+                    placeholder="Ej. horarios preferidos, zona horaria, motivo del meet & greet o cualquier contexto útil."
+                    disabled={meetGreetSubmitting}
+                    rows={5}
+                    style={{
+                      ...inputStyle,
+                      resize: "vertical",
+                      minHeight: 110,
+                    }}
+                  />
+                </label>
+
+                {meetGreetError && <div style={messageBox}>{meetGreetError}</div>}
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 10,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={submitMeetGreetRequest}
+                    disabled={meetGreetSubmitting}
+                    style={{
+                      ...primaryButton,
+                      opacity: meetGreetSubmitting ? 0.75 : 1,
+                      cursor: meetGreetSubmitting ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {meetGreetSubmitting
+                      ? "Enviando..."
+                      : "Solicitar meet & greet"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={closeMeetGreetForm}
+                    disabled={meetGreetSubmitting}
+                    style={{
+                      ...secondaryButton,
+                      opacity: meetGreetSubmitting ? 0.75 : 1,
+                      cursor: meetGreetSubmitting ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+
+                <div style={microText}>
+                  El flujo de agenda, aceptación, rechazo, cambio de fecha y
+                  preparación se mostrará después en OwnerSidebar.
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
   const toastNode =
     mounted && serviceToast
       ? createPortal(
@@ -2224,7 +2581,7 @@ export default function GroupPage() {
   const isPublicGroup = group.visibility === "public";
   const canViewPublicFeed = isPublicGroup || effectiveIsMember || isOwner;
 
-    const canCreatePosts =
+  const canCreatePosts =
     isOwner ||
     (effectiveIsMember &&
       (memberStatus === "active" || memberStatus === "subscribed") &&
@@ -2506,18 +2863,18 @@ export default function GroupPage() {
                   </div>
 
                   {!isOwner &&
-                    effectiveIsMember &&
-                    normalizedCurrentOfferings.length > 0 && (
-                      <div className="group-services-wrap">
-                        <CreatorServicesMenu
-                          services={normalizedCurrentOfferings}
-                          contextType="group"
-                          groupId={groupId}
-                          viewerMembershipStatus={memberStatus}
-                          viewerCanRequest={!isOwner && effectiveIsMember}
-                        />
-                      </div>
-                    )}
+  canRequestCreatorServices &&
+  normalizedCurrentOfferings.length > 0 && (
+    <div className="group-services-wrap">
+      <CreatorServicesMenu
+        services={normalizedCurrentOfferings}
+        contextType="group"
+        groupId={groupId}
+        viewerMembershipStatus={memberStatus}
+        viewerCanRequest={!isOwner && canRequestCreatorServices}
+      />
+    </div>
+  )}
 
                   {effectiveIsMember && (
                     <div className="group-subnav-wrap">
@@ -2679,6 +3036,7 @@ export default function GroupPage() {
 
       {greetingModal}
       {subscriptionModal}
+      {meetGreetModal}
       {toastNode}
 
       {!cropOpen ? null : (
