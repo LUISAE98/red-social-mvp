@@ -92,30 +92,18 @@ function WalletHeaderButton({
       color="#000000"
       border="1px solid rgba(255,255,255,0.95)"
     >
-      <svg
-        width={size >= 40 ? "20" : "18"}
-        height={size >= 40 ? "20" : "18"}
-        viewBox="0 0 24 24"
-        fill="none"
+      <span
+        style={{
+          fontSize: size >= 40 ? 18 : 16,
+          lineHeight: 1,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
         aria-hidden="true"
       >
-        <path
-          d="M4.75 8.25C4.75 7.14543 5.64543 6.25 6.75 6.25H17.25C18.3546 6.25 19.25 7.14543 19.25 8.25V15.75C19.25 16.8546 18.3546 17.75 17.25 17.75H6.75C5.64543 17.75 4.75 16.8546 4.75 15.75V8.25Z"
-          stroke="currentColor"
-          strokeWidth="1.9"
-        />
-        <path
-          d="M15.75 12C15.75 11.3096 16.3096 10.75 17 10.75H19.25V13.25H17C16.3096 13.25 15.75 12.6904 15.75 12Z"
-          stroke="currentColor"
-          strokeWidth="1.9"
-        />
-        <path
-          d="M7.5 6.25V5.75C7.5 4.92157 8.17157 4.25 9 4.25H15"
-          stroke="currentColor"
-          strokeWidth="1.9"
-          strokeLinecap="round"
-        />
-      </svg>
+        💼
+      </span>
     </HeaderIconButton>
   );
 }
@@ -139,69 +127,31 @@ function WalletDesktopRail({
     key: WalletRailTab;
     label: string;
     href: string;
-    icon: React.ReactNode;
+    emoji: string;
   }> = [
     {
       key: "finances",
       label: "Finanzas",
       href: "/wallet/finanzas",
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M4 7.75C4 6.7835 4.7835 6 5.75 6H18.25C19.2165 6 20 6.7835 20 7.75V16.25C20 17.2165 19.2165 18 18.25 18H5.75C4.7835 18 4 17.2165 4 16.25V7.75Z"
-            stroke="currentColor"
-            strokeWidth="1.8"
-          />
-          <path
-            d="M15.5 12C15.5 11.1716 16.1716 10.5 17 10.5H20V13.5H17C16.1716 13.5 15.5 12.8284 15.5 12Z"
-            stroke="currentColor"
-            strokeWidth="1.8"
-          />
-        </svg>
-      ),
+      emoji: "📈",
     },
     {
       key: "calendar",
       label: "Calendario",
       href: "/wallet/calendario",
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="4" y="5.5" width="16" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
-          <path d="M8 4V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          <path d="M16 4V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          <path d="M4 9.5H20" stroke="currentColor" strokeWidth="1.8" />
-        </svg>
-      ),
+      emoji: "📅",
     },
     {
       key: "pending",
       label: "Pendientes",
       href: "/wallet/pendientes",
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="5" y="4.5" width="14" height="15" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
-          <path d="M9 9H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          <path d="M9 13H15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          <path d="M8 4.5H16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-      ),
+      emoji: "⏳",
     },
     {
       key: "history",
       label: "Historial",
       href: "/wallet/historial",
-      icon: (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M12 6.25A5.75 5.75 0 1 1 6.25 12"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-          />
-          <path d="M12 8.5V12L14.5 13.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          <path d="M8 4.75H4.75V8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-      ),
+      emoji: "🧾",
     },
   ];
 
@@ -215,28 +165,11 @@ function WalletDesktopRail({
           top: calc(env(safe-area-inset-top) + 96px);
         }
 
-        .walletCard {
-          border-radius: 22px;
-          border: 1px solid rgba(255, 255, 255, 0.11);
-          background: rgba(255, 255, 255, 0.035);
-          padding: 16px;
-        }
-
-        .walletEyebrow {
-          font-size: 11px;
-          line-height: 1;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: rgba(255, 255, 255, 0.52);
-          margin-bottom: 8px;
-          font-weight: 600;
-        }
-
         .walletTitle {
-          margin: 0 0 14px;
-          font-size: 16px;
+          margin: 0 0 18px;
+          font-size: 17px;
           line-height: 1.2;
-          font-weight: 600;
+          font-weight: 700;
           letter-spacing: -0.02em;
           color: #fff;
         }
@@ -244,100 +177,87 @@ function WalletDesktopRail({
         .walletNav {
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 14px;
         }
 
         .walletLink {
+          position: relative;
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          padding: 11px 12px;
-          border-radius: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(255, 255, 255, 0.02);
-          color: rgba(255, 255, 255, 0.86);
+          gap: 12px;
+          min-height: 46px;
+          padding: 6px 0 6px 14px;
+          color: rgba(255, 255, 255, 0.74);
           text-decoration: none;
-          font-size: 14px;
+          font-size: 15px;
           line-height: 1.2;
           font-weight: 500;
           transition:
-            background 0.18s ease,
-            border-color 0.18s ease;
+            color 0.18s ease,
+            transform 0.18s ease,
+            opacity 0.18s ease;
         }
 
         .walletLink:hover {
-          background: rgba(255, 255, 255, 0.06);
-          border-color: rgba(255, 255, 255, 0.14);
+          color: #ffffff;
+          transform: translateX(2px);
         }
 
         .walletLinkActive {
+          color: #ffffff;
+          font-weight: 700;
+        }
+
+        .walletLinkActive::before {
+          content: "";
+          position: absolute;
+          left: 0;
+          top: 4px;
+          bottom: 4px;
+          width: 3px;
+          border-radius: 999px;
           background: #ffffff;
-          color: #000000;
-          border-color: rgba(255, 255, 255, 0.96);
         }
 
-        .walletLinkLeft {
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          min-width: 0;
-        }
-
-        .walletIcon {
+        .walletEmoji {
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          width: 22px;
+          min-width: 22px;
           flex-shrink: 0;
+          font-size: 17px;
+          line-height: 1;
+          margin-right: 6px;
         }
 
         .walletLabel {
+          min-width: 0;
           white-space: nowrap;
-        }
-
-        .walletArrow {
-          opacity: 0.8;
-          font-size: 13px;
-          flex-shrink: 0;
-        }
-
-        .walletHint {
-          margin-top: 12px;
-          color: rgba(255, 255, 255, 0.52);
-          font-size: 12px;
-          line-height: 1.45;
         }
       `}</style>
 
       <aside className="walletRail" aria-label="Acceso directo wallet">
-        <div className="walletCard">
-          <div className="walletEyebrow">Panel</div>
-          <h3 className="walletTitle">Wallet</h3>
+        <h3 className="walletTitle">Wallet</h3>
 
-          <nav className="walletNav">
-            {items.map((item) => {
-              const isActive = activeTab === item.key;
+        <nav className="walletNav">
+          {items.map((item) => {
+            const isActive = activeTab === item.key;
 
-              return (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
-                >
-                  <span className="walletLinkLeft">
-                    <span className="walletIcon">{item.icon}</span>
-                    <span className="walletLabel">{item.label}</span>
-                  </span>
-                  <span className="walletArrow">→</span>
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="walletHint">
-            Acceso rápido a finanzas, calendario, pendientes e historial.
-          </div>
-        </div>
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
+              >
+                <span className="walletEmoji" aria-hidden="true">
+                  {item.emoji}
+                </span>
+                <span className="walletLabel">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
       </aside>
     </>
   );

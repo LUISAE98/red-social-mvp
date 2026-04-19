@@ -8,13 +8,14 @@ type WalletTabItem = {
   key: WalletTabKey;
   label: string;
   href: string;
+  emoji: string;
 };
 
 const TABS: WalletTabItem[] = [
-  { key: "finances", label: "Finanzas", href: "/wallet/finanzas" },
-  { key: "calendar", label: "Calendario", href: "/wallet/calendario" },
-  { key: "pending", label: "Pendientes", href: "/wallet/pendientes" },
-  { key: "history", label: "Historial", href: "/wallet/historial" },
+  { key: "finances", label: "Finanzas", href: "/wallet/finanzas", emoji: "📈" },
+  { key: "calendar", label: "Calendario", href: "/wallet/calendario", emoji: "📅" },
+  { key: "pending", label: "Pendientes", href: "/wallet/pendientes", emoji: "⏳" },
+  { key: "history", label: "Historial", href: "/wallet/historial", emoji: "🧾" },
 ];
 
 export default function WalletSubNav({
@@ -27,13 +28,7 @@ export default function WalletSubNav({
       <style jsx>{`
         .wrap {
           width: 100%;
-          overflow-x: auto;
-          scrollbar-width: none;
-          -ms-overflow-style: none;
-        }
-
-        .wrap::-webkit-scrollbar {
-          display: none;
+          overflow-x: hidden;
         }
 
         .nav {
@@ -56,7 +51,8 @@ export default function WalletSubNav({
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 0 10px 12px;
+          gap: 8px;
+          padding: 0 10px 10px;
           color: rgba(255, 255, 255, 0.72);
           font-size: 16px;
           font-weight: 500;
@@ -75,10 +71,24 @@ export default function WalletSubNav({
           font-weight: 700;
         }
 
+        .emoji {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          line-height: 1;
+          flex-shrink: 0;
+        }
+
+        .label {
+          display: inline-block;
+          min-width: 0;
+        }
+
         .indicator {
           position: absolute;
           left: 50%;
-          bottom: -1px;
+          bottom: 2px;
           transform: translateX(-50%);
           width: 72px;
           max-width: calc(100% - 20px);
@@ -88,19 +98,24 @@ export default function WalletSubNav({
         }
 
         @media (max-width: 900px) {
-          .nav {
-            min-width: 640px;
-          }
-
           .tabInner {
             min-height: 52px;
-            padding: 0 10px 11px;
-            font-size: 15px;
+            padding: 0 8px 8px;
+            gap: 0;
+          }
+
+          .emoji {
+            font-size: 19px;
+          }
+
+          .label {
+            display: none;
           }
 
           .indicator {
-            width: 62px;
-            max-width: calc(100% - 18px);
+            width: 34px;
+            max-width: calc(100% - 16px);
+            bottom: 3px;
           }
         }
       `}</style>
@@ -118,7 +133,10 @@ export default function WalletSubNav({
                 aria-current={isActive ? "page" : undefined}
               >
                 <span className={`tabInner ${isActive ? "tabInnerActive" : ""}`}>
-                  {tab.label}
+                  <span className="emoji" aria-hidden="true">
+                    {tab.emoji}
+                  </span>
+                  <span className="label">{tab.label}</span>
                   {isActive ? <span className="indicator" /> : null}
                 </span>
               </Link>

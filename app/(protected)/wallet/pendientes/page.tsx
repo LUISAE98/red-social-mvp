@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useAuth } from "@/app/providers";
 import { useOwnerWalletData } from "@/lib/wallet/ownerWallet";
 import WalletSectionShell from "../components/WalletSectionShell";
@@ -8,19 +8,29 @@ import {
   EmptyRows,
   WalletCard,
   WalletErrorBox,
-  WalletInlineTabs,
+  WalletFilterMenu,
   WalletList,
 } from "../components/WalletUi";
+
+type PendingFilter = "all" | "meet_greet" | "saludo" | "consejo" | "mensaje";
+
+const FILTER_OPTIONS: Array<{ value: PendingFilter; label: string; emoji?: string }> = [
+  { value: "all", label: "Todos", emoji: "📋" },
+  { value: "meet_greet", label: "Meet & Greet", emoji: "🤝" },
+  { value: "saludo", label: "Saludos", emoji: "👋" },
+  { value: "consejo", label: "Consejos", emoji: "💡" },
+  { value: "mensaje", label: "Mensajes", emoji: "💬" },
+];
 
 export default function WalletPendientesPage() {
   const { user } = useAuth();
   const walletData = useOwnerWalletData(user?.uid);
-  const [innerTab, setInnerTab] = useState<"current" | "rejected">("current");
+  const [filter, setFilter] = useState<PendingFilter>("all");
 
-  const activeItems =
-    innerTab === "current"
-      ? walletData.pendingCurrent
-      : walletData.pendingRejected;
+  const filteredItems = useMemo(() => {
+    if (filter === "all") return walletData.pendingCurrent;
+    return walletData.pendingCurrent.filter((item) => item.kind === filter);
+  }, [filter, walletData.pendingCurrent]);
 
   return (
     <WalletSectionShell activeTab="pending">
@@ -28,26 +38,27 @@ export default function WalletPendientesPage() {
 
       <WalletCard
         title="Pendientes"
-        description="Aquí concentramos tus solicitudes activas, operativas y rechazadas para sacar carga del Owner Sidebar."
+        headerRight={
+          <WalletFilterMenu
+            label="Filtro"
+            menuLabel="Filtrar pendientes"
+            value={filter}
+            options={FILTER_OPTIONS}
+            onChange={setFilter}
+          />
+        }
       >
-        <WalletInlineTabs current={innerTab} onChange={setInnerTab} />
-
         {walletData.loading ? (
           <EmptyRows
             title="Cargando pendientes"
             subtitle="Estamos leyendo tus solicitudes activas."
           />
-        ) : activeItems.length > 0 ? (
-          <WalletList items={activeItems} />
-        ) : innerTab === "current" ? (
-          <EmptyRows
-            title="Sin pendientes actuales"
-            subtitle="No tienes solicitudes activas por atender en este momento."
-          />
+        ) : filteredItems.length > 0 ? (
+          <WalletList items={filteredItems} />
         ) : (
           <EmptyRows
-            title="Sin rechazados"
-            subtitle="No tienes solicitudes rechazadas, canceladas o con devolución para mostrar."
+            title="Sin pendientes actuales"
+            subtitle="No hay solicitudes activas para el filtro seleccionado."
           />
         )}
       </WalletCard>

@@ -99,13 +99,20 @@ export type WalletServiceItem = {
   updatedAt: Date | null;
 };
 
+export type WalletHistoryFilter =
+  | "all"
+  | "rejected"
+  | "meet_greet"
+  | "saludo"
+  | "consejo"
+  | "mensaje";
+
 export type OwnerWalletDataResult = {
   loading: boolean;
   error: string | null;
   all: WalletServiceItem[];
   calendar: WalletServiceItem[];
   pendingCurrent: WalletServiceItem[];
-  pendingRejected: WalletServiceItem[];
   history: WalletServiceItem[];
 };
 
@@ -197,7 +204,8 @@ function normalizeMeetGreetRow(
     description: data.buyerMessage ?? null,
     rejectionReason: data.rejectionReason ?? null,
     refundReason: data.refundReason ?? null,
-    priceSnapshot: typeof data.priceSnapshot === "number" ? data.priceSnapshot : null,
+    priceSnapshot:
+      typeof data.priceSnapshot === "number" ? data.priceSnapshot : null,
     durationMinutes:
       typeof data.durationMinutes === "number" ? data.durationMinutes : null,
     source: "meet_greet",
@@ -263,8 +271,9 @@ function isPendingCurrentMeetGreetStatus(status: string): boolean {
   );
 }
 
-function isPendingRejectedMeetGreetStatus(status: string): boolean {
+function isHistoryMeetGreetStatus(status: string): boolean {
   return (
+    status === "completed" ||
     status === "rejected" ||
     status === "refund_requested" ||
     status === "refund_review" ||
@@ -272,20 +281,42 @@ function isPendingRejectedMeetGreetStatus(status: string): boolean {
   );
 }
 
-function isHistoryMeetGreetStatus(status: string): boolean {
-  return status === "completed";
-}
-
 function isPendingCurrentGreetingStatus(status: string): boolean {
   return status === "pending";
 }
 
-function isPendingRejectedGreetingStatus(status: string): boolean {
-  return status === "rejected";
+function isHistoryGreetingStatus(status: string): boolean {
+  return status === "accepted" || status === "rejected";
 }
 
-function isHistoryGreetingStatus(status: string): boolean {
-  return status === "accepted";
+export function filterWalletHistoryItems(
+  rows: WalletServiceItem[],
+  filter: WalletHistoryFilter
+): WalletServiceItem[] {
+  switch (filter) {
+    case "all":
+      return rows;
+    case "rejected":
+      return rows.filter((row) => {
+        if (row.source === "meet_greet") {
+          return (
+            row.status === "rejected" ||
+            row.status === "refund_requested" ||
+            row.status === "refund_review" ||
+            row.status === "cancelled"
+          );
+        }
+
+        return row.status === "rejected";
+      });
+    case "meet_greet":
+    case "saludo":
+    case "consejo":
+    case "mensaje":
+      return rows.filter((row) => row.kind === filter);
+    default:
+      return rows;
+  }
 }
 
 export function useOwnerWalletData(
@@ -367,7 +398,8 @@ export function useOwnerWalletData(
       (err: any) => {
         setGreetingRows([]);
         setGreetingError(
-          err?.message ?? "No se pudieron cargar los saludos y consejos de la wallet."
+          err?.message ??
+            "No se pudieron cargar los saludos y consejos de la wallet."
         );
         setLoadingGreetings(false);
       }
@@ -377,19 +409,20 @@ export function useOwnerWalletData(
   }, [creatorId]);
 
   const derived = useMemo(() => {
-    const all = [...meetGreetRows, ...greetingRows].sort((a, b) =>
-      compareDesc(a.createdAt, b.createdAt)
-    );
+    const combined = [...meetGreetRows, ...greetingRows];
+
+    const all = [...combined].sort((a, b) => compareDesc(a.createdAt, b.createdAt));
 
     const calendar = meetGreetRows
       .filter((row) => isCalendarMeetGreetStatus(row.status))
       .sort((a, b) => compareAsc(a.scheduledAt, b.scheduledAt));
 
-    const pendingCurrent = [...meetGreetRows, ...greetingRows]
+    const pendingCurrent = [...combined]
       .filter((row) => {
         if (row.source === "meet_greet") {
           return isPendingCurrentMeetGreetStatus(row.status);
         }
+
         return isPendingCurrentGreetingStatus(row.status);
       })
       .sort((a, b) => {
@@ -398,20 +431,12 @@ export function useOwnerWalletData(
         return compareAsc(aPrimary, bPrimary);
       });
 
-    const pendingRejected = [...meetGreetRows, ...greetingRows]
-      .filter((row) => {
-        if (row.source === "meet_greet") {
-          return isPendingRejectedMeetGreetStatus(row.status);
-        }
-        return isPendingRejectedGreetingStatus(row.status);
-      })
-      .sort((a, b) => compareDesc(a.updatedAt, b.updatedAt));
-
-    const history = [...meetGreetRows, ...greetingRows]
+    const history = [...combined]
       .filter((row) => {
         if (row.source === "meet_greet") {
           return isHistoryMeetGreetStatus(row.status);
         }
+
         return isHistoryGreetingStatus(row.status);
       })
       .sort((a, b) => compareDesc(a.updatedAt, b.updatedAt));
@@ -420,7 +445,6 @@ export function useOwnerWalletData(
       all,
       calendar,
       pendingCurrent,
-      pendingRejected,
       history,
     };
   }, [greetingRows, meetGreetRows]);

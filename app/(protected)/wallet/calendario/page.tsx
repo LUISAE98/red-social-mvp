@@ -1,11 +1,9 @@
-"use client";
+ "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/app/providers";
 import {
-  formatWalletMoney,
-  formatWalletDateTime,
   useOwnerWalletData,
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
@@ -16,8 +14,6 @@ import {
   WalletErrorBox,
   WalletList,
 } from "../components/WalletUi";
-
-const MEET_GREET_ACCENT = "#EA580C";
 
 type CalendarViewMode = "calendar" | "list";
 
@@ -311,64 +307,6 @@ function EventsOverlay({
           gap: 12px;
         }
 
-        .walletCalendarOverlayEvent {
-          position: relative;
-          border-radius: 18px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(255, 255, 255, 0.028);
-          overflow: hidden;
-        }
-
-        .walletCalendarOverlayEvent::before {
-          content: "";
-          position: absolute;
-          inset: 0 auto 0 0;
-          width: 4px;
-          background: ${MEET_GREET_ACCENT};
-        }
-
-        .walletCalendarOverlayEventInner {
-          padding: 16px 16px 16px 20px;
-        }
-
-        .walletCalendarOverlayEventHeader {
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 12px;
-        }
-
-        .walletCalendarOverlayEventTitle {
-          margin: 0;
-          font-size: 16px;
-          line-height: 1.2;
-          font-weight: 800;
-          color: #fff;
-        }
-
-        .walletCalendarOverlayEventTime {
-          flex-shrink: 0;
-          display: inline-flex;
-          align-items: center;
-          min-height: 30px;
-          padding: 0 12px;
-          border-radius: 999px;
-          background: rgba(234, 88, 12, 0.1);
-          border: 1px solid rgba(234, 88, 12, 0.22);
-          color: #fdba74;
-          font-size: 11px;
-          font-weight: 700;
-          line-height: 1;
-          white-space: nowrap;
-        }
-
-        .walletCalendarOverlayEventMeta {
-          margin-top: 10px;
-          font-size: 13px;
-          line-height: 1.65;
-          color: rgba(255, 255, 255, 0.72);
-        }
-
         @media (max-width: 720px) {
           .walletCalendarOverlay {
             padding: 12px;
@@ -379,15 +317,6 @@ function EventsOverlay({
             width: 100%;
             max-height: 88vh;
             border-radius: 22px 22px 0 0;
-          }
-
-          .walletCalendarOverlayEventHeader {
-            flex-direction: column;
-            align-items: stretch;
-          }
-
-          .walletCalendarOverlayEventTime {
-            width: fit-content;
           }
         }
       `}</style>
@@ -420,25 +349,7 @@ function EventsOverlay({
           </div>
 
           <div className="walletCalendarOverlayContent">
-            {items.map((item) => (
-              <div key={`${item.source}-${item.id}`} className="walletCalendarOverlayEvent">
-                <div className="walletCalendarOverlayEventInner">
-                  <div className="walletCalendarOverlayEventHeader">
-                    <h4 className="walletCalendarOverlayEventTitle">{item.title}</h4>
-                    <div className="walletCalendarOverlayEventTime">
-                      {formatWalletDateTime(item.scheduledAt)}
-                    </div>
-                  </div>
-
-                  <div className="walletCalendarOverlayEventMeta">
-                    {item.groupName ? `${item.groupName} · ` : ""}
-                    {item.statusLabel}
-                    {item.priceSnapshot != null ? ` · ${formatWalletMoney(item.priceSnapshot)}` : ""}
-                    {item.description ? ` · ${item.description}` : ""}
-                  </div>
-                </div>
-              </div>
-            ))}
+            <WalletList items={items} />
           </div>
         </div>
       </div>

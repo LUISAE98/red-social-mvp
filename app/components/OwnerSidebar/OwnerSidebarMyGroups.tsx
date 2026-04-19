@@ -530,8 +530,7 @@ export default function OwnerSidebarMyGroups({
           {section.items.map((g) => {
             const isOpen = openCommunities[g.id] === true;
             const isPublic = g.visibility === "public";
-            const isInviteEligible =
-              g.visibility === "hidden" || g.visibility === "private";
+            const isInviteEligible = g.visibility === "hidden";
 
             const joinRequests = joinRequestsByGroup[g.id] ?? [];
             const greetings = greetingsByGroup[g.id] ?? [];
@@ -1637,9 +1636,7 @@ export default function OwnerSidebarMyGroups({
                           padding: "0 2px 2px",
                         }}
                       >
-                        La configuración de suscripción y servicios ahora se maneja
-                        desde la pestaña Servicios dentro del panel de administración
-                        de la comunidad.
+                       
                       </div>
                     </div>
                   )}
