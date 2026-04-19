@@ -142,10 +142,23 @@ function canBuyerRequestByMembership(
   if (!memberData) return false;
 
   const status = normalizeMemberStatus(memberData.status);
+  const accessType = normalizeMemberStatus(memberData.accessType);
+  const legacyComplimentary = memberData.legacyComplimentary === true;
 
   if (!status) return false;
 
-  return status === "active";
+  const joinedStatuses = new Set(["active", "subscribed", "muted"]);
+  const blockedStatuses = new Set(["banned", "removed", "kicked", "expelled"]);
+
+  if (blockedStatuses.has(status)) {
+    return false;
+  }
+
+  const hasJoinedMembership = joinedStatuses.has(status);
+  const hasLegacyAccess =
+    accessType === "legacy_free" || legacyComplimentary === true;
+
+  return hasJoinedMembership || hasLegacyAccess;
 }
 
 // 1) Crear solicitud de saludo/consejo/mensaje
