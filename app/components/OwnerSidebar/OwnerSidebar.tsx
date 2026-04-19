@@ -266,6 +266,25 @@ export function typeLabel(t: string) {
   return t;
 }
 
+function isMeetGreetOwnerAlert(status?: MeetGreetStatus | null) {
+  return (
+    status === "pending_creator_response" ||
+    status === "reschedule_requested" ||
+    status === "ready_to_prepare"
+  );
+}
+
+function isMeetGreetPendingItem(status?: MeetGreetStatus | null) {
+  return (
+    status === "pending_creator_response" ||
+    status === "accepted_pending_schedule" ||
+    status === "scheduled" ||
+    status === "reschedule_requested" ||
+    status === "ready_to_prepare" ||
+    status === "in_preparation"
+  );
+}
+
 export function fmtDate(ts?: Timestamp | null) {
   if (!ts) return "";
   return ts.toDate().toLocaleString("es-MX");
@@ -1465,7 +1484,7 @@ export default function OwnerSidebar() {
     buyerMeetGreets,
   ]);
 
-  useEffect(() => {
+    useEffect(() => {
     let cancelled = false;
 
     async function loadUserMiniMap() {
@@ -1528,6 +1547,68 @@ export default function OwnerSidebar() {
       cancelled = true;
     };
   }, [relevantUserIds, userMiniMap]);
+
+    const ownerSidebarServiceCounts = useMemo(() => {
+    let greetingAlerts = 0;
+    let consejoAlerts = 0;
+    let mensajeAlerts = 0;
+    let meetGreetAlerts = 0;
+    let meetGreetPreparingAlerts = 0;
+
+    for (const rows of Object.values(greetingsByGroup)) {
+      for (const row of rows) {
+        const type = row.data.type;
+        if (type === "saludo") greetingAlerts += 1;
+        else if (type === "consejo") consejoAlerts += 1;
+        else if (type === "mensaje") mensajeAlerts += 1;
+      }
+    }
+
+    for (const rows of Object.values(meetGreetsByGroup)) {
+      for (const row of rows) {
+        const status = row.data.status;
+        if (!isMeetGreetOwnerAlert(status)) continue;
+
+        if (status === "ready_to_prepare") {
+          meetGreetPreparingAlerts += 1;
+        } else {
+          meetGreetAlerts += 1;
+        }
+      }
+    }
+
+    return {
+      saludo: greetingAlerts,
+      consejo: consejoAlerts,
+      mensaje: mensajeAlerts,
+      meetGreet: meetGreetAlerts,
+      preparing: meetGreetPreparingAlerts,
+      total:
+        greetingAlerts +
+        consejoAlerts +
+        mensajeAlerts +
+        meetGreetAlerts +
+        meetGreetPreparingAlerts,
+    };
+  }, [greetingsByGroup, meetGreetsByGroup]);
+
+  const pendingCount = useMemo(() => {
+    let total = buyerPending.length;
+
+    for (const row of buyerMeetGreets) {
+      if (isMeetGreetPendingItem(row.data.status)) {
+        total += 1;
+      }
+    }
+
+    return total;
+  }, [buyerPending, buyerMeetGreets]);
+
+    useEffect(() => {
+    if (pendingCount === 0 && activeView === "greetings") {
+      setActiveView("owned");
+    }
+  }, [pendingCount, activeView]);
 
   async function saveProfileGreeting() {
     if (!viewer?.uid || !userDoc) return;
@@ -2259,12 +2340,13 @@ export default function OwnerSidebar() {
             )}
           </div>
 
-          <OwnerSidebarTabNav
+                     <OwnerSidebarTabNav
             activeView={activeView}
             onChange={setActiveView}
+            requestedCount={pendingCount}
           />
 
-                    {activeView === "owned" && (
+                        {activeView === "owned" && (
             <OwnerSidebarMyGroups
               loadingGroups={loadingGroups}
               myGroups={myGroups}
@@ -2317,7 +2399,7 @@ export default function OwnerSidebar() {
             />
           )}
 
-            {activeView === "greetings" && (
+            {activeView === "greetings" && pendingCount > 0 && (
             <OwnerSidebarGreetings
               buyerPending={buyerPending}
               groupMetaMap={groupMetaMap}

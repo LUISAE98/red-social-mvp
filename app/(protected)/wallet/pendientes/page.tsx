@@ -14,7 +14,11 @@ import {
 
 type PendingFilter = "all" | "meet_greet" | "saludo" | "consejo" | "mensaje";
 
-const FILTER_OPTIONS: Array<{ value: PendingFilter; label: string; emoji?: string }> = [
+const FILTER_OPTIONS: Array<{
+  value: PendingFilter;
+  label: string;
+  emoji?: string;
+}> = [
   { value: "all", label: "Todos", emoji: "📋" },
   { value: "meet_greet", label: "Meet & Greet", emoji: "🤝" },
   { value: "saludo", label: "Saludos", emoji: "👋" },
@@ -27,17 +31,21 @@ export default function WalletPendientesPage() {
   const walletData = useOwnerWalletData(user?.uid);
   const [filter, setFilter] = useState<PendingFilter>("all");
 
+  const totalPendingCount = walletData.pendingCurrent.length;
+
   const filteredItems = useMemo(() => {
     if (filter === "all") return walletData.pendingCurrent;
     return walletData.pendingCurrent.filter((item) => item.kind === filter);
   }, [filter, walletData.pendingCurrent]);
+
+  const filteredCount = filteredItems.length;
 
   return (
     <WalletSectionShell activeTab="pending">
       {walletData.error ? <WalletErrorBox message={walletData.error} /> : null}
 
       <WalletCard
-        title="Pendientes"
+        title={`Pendientes (${totalPendingCount})`}
         headerRight={
           <WalletFilterMenu
             label="Filtro"
@@ -51,14 +59,22 @@ export default function WalletPendientesPage() {
         {walletData.loading ? (
           <EmptyRows
             title="Cargando pendientes"
-            subtitle="Estamos leyendo tus solicitudes activas."
+            subtitle="Estamos leyendo tus servicios y solicitudes activas."
           />
-        ) : filteredItems.length > 0 ? (
+        ) : filteredCount > 0 ? (
           <WalletList items={filteredItems} />
         ) : (
           <EmptyRows
-            title="Sin pendientes actuales"
-            subtitle="No hay solicitudes activas para el filtro seleccionado."
+            title={
+              totalPendingCount > 0
+                ? "No hay resultados para este filtro"
+                : "Sin pendientes actuales"
+            }
+            subtitle={
+              totalPendingCount > 0
+                ? "Cambia el filtro para ver otros pendientes activos."
+                : "No tienes servicios pendientes por atender en este momento."
+            }
           />
         )}
       </WalletCard>

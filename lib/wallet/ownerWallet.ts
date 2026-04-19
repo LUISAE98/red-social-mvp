@@ -84,6 +84,8 @@ export type WalletServiceItem = {
   buyerDisplayName: string | null;
   buyerUsername: string | null;
   buyerAvatarUrl: string | null;
+  targetName: string | null;
+  requestText: string | null;
   status: string;
   statusLabel: string;
   description: string | null;
@@ -199,6 +201,8 @@ function normalizeMeetGreetRow(
     buyerDisplayName: data.buyerDisplayName ?? null,
     buyerUsername: data.buyerUsername ?? null,
     buyerAvatarUrl: data.buyerAvatarUrl ?? null,
+    targetName: null,
+    requestText: data.buyerMessage ?? null,
     status,
     statusLabel: getMeetGreetStatusLabel(status),
     description: data.buyerMessage ?? null,
@@ -224,7 +228,7 @@ function normalizeGreetingRow(
   const type = (data.type ?? "saludo") as GreetingType;
   const status = (data.status ?? "pending") as GreetingStatus;
 
-  return {
+    return {
     id,
     kind: type,
     title: getGreetingTypeLabel(type),
@@ -234,11 +238,11 @@ function normalizeGreetingRow(
     buyerDisplayName: null,
     buyerUsername: null,
     buyerAvatarUrl: null,
+    targetName: data.toName?.trim() || null,
+    requestText: data.instructions?.trim() || null,
     status,
     statusLabel: getGreetingStatusLabel(status),
-    description:
-      data.instructions?.trim() ||
-      (data.toName ? `Para: ${data.toName}` : null),
+    description: data.instructions?.trim() || null,
     rejectionReason: null,
     refundReason: null,
     priceSnapshot: null,

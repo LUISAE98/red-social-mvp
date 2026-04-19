@@ -48,7 +48,7 @@ type Props = {
   >;
   handleApproveJoin: (groupId: string, userId: string) => Promise<void>;
   handleRejectJoin: (groupId: string, userId: string) => Promise<void>;
-  handleGreetingAction: (
+    handleGreetingAction: (
     requestId: string,
     action: "accept" | "reject"
   ) => Promise<void>;
@@ -281,6 +281,26 @@ function toDateTimeLocalValue(value: unknown): string {
   return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
+function isMeetGreetOwnerAlert(
+  status?: string | null,
+  scheduledAt?: unknown
+): boolean {
+  return (
+    status === "pending_creator_response" ||
+    status === "reschedule_requested" ||
+    status === "ready_to_prepare" ||
+    isPrepareWindowOpen(scheduledAt)
+  );
+}
+
+function getServiceEmoji(type: string): string {
+  if (type === "saludo") return "👋";
+  if (type === "consejo") return "💡";
+  if (type === "mensaje") return "💬";
+  if (type === "meet_greet_digital") return "🤝";
+  return "✨";
+}
+
 export default function OwnerSidebarMyGroups({
   loadingGroups,
   myGroups,
@@ -318,6 +338,16 @@ export default function OwnerSidebarMyGroups({
   const [rejectReasonMap, setRejectReasonMap] = useState<TextMap>({});
   const [scheduleNoteMap, setScheduleNoteMap] = useState<TextMap>({});
   const [scheduleDateMap, setScheduleDateMap] = useState<DateMap>({});
+  const emojiAlertStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 15,
+    lineHeight: 1,
+    color: "#fff",
+    animation: "ownerSidebarBuzz 4.8s infinite",
+  };
+
 
   function setMeetGreetBusy(requestId: string, value: boolean) {
     setMeetGreetBusyMap((prev) => ({ ...prev, [requestId]: value }));
@@ -509,8 +539,9 @@ export default function OwnerSidebarMyGroups({
     );
   }
 
-  return (
+    return (
     <>
+
       {!loadingGroups && myGroups.length === 0 && (
         <div
           style={{
@@ -537,10 +568,29 @@ export default function OwnerSidebarMyGroups({
             const meetGreets = meetGreetsByGroup[g.id] ?? [];
             const communityName = g.name ?? "(Sin nombre)";
             const avatarFallback = getInitials(communityName);
+            const meetGreetsForAlert = meetGreets.filter((row) =>
+              isMeetGreetOwnerAlert(row.data.status, row.data.scheduledAt)
+            );
 
+            const meetGreetCount = meetGreetsForAlert.length;
+            const greetingServiceCount = greetings.length;
+            const scheduledServiceCount = meetGreetsForAlert.length;
+            const totalServiceCount =
+              greetingServiceCount + scheduledServiceCount;
+            const sortedGreetings = [...greetings].sort((a, b) => {
+            const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
+            const bTime = toDateSafe(b.data.createdAt)?.getTime() ?? 0;
+              return aTime - bTime;
+            });
+
+            const sortedMeetGreets = [...meetGreetsForAlert].sort((a, b) => {
+            const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
+            const bTime = toDateSafe(b.data.createdAt)?.getTime() ?? 0;
+              return aTime - bTime;
+            });
             const showJoinSection = !isPublic && joinRequests.length > 0;
             const showGreetingsSection =
-              greetings.length > 0 || meetGreets.length > 0;
+              greetings.length > 0 || meetGreetsForAlert.length > 0;
             const greetingListOpen = greetingSectionOpen[g.id] === true;
             const joinListOpen = joinSectionOpen[g.id] === true;
 
@@ -550,11 +600,10 @@ export default function OwnerSidebarMyGroups({
             const consejoCount = greetings.filter(
               (row) => row.data.type === "consejo"
             ).length;
-            const meetGreetCount = meetGreets.length;
 
             const currentJoinCount = showJoinSection ? joinRequests.length : 0;
             const currentGreetingCount = showGreetingsSection
-              ? greetings.length + meetGreets.length
+              ? greetings.length + meetGreetsForAlert.length
               : 0;
 
             const seen = seenCountsByGroup[g.id] ?? {
@@ -569,58 +618,18 @@ export default function OwnerSidebarMyGroups({
             const hasConsejoAlert = greetings.some(
               (row) => row.data.type === "consejo"
             );
-            const hasMeetGreetAlert = meetGreets.length > 0;
-
-            const hasAlert = !isOpen && (hasNewJoin || hasNewGreeting);
-
-            const borderBackground =
-              hasAlert &&
-              hasNewJoin &&
-              hasSaludoAlert &&
-              hasConsejoAlert &&
-              hasMeetGreetAlert
-                ? "linear-gradient(90deg, rgba(47,140,255,0.95) 0%, rgba(47,140,255,0.95) 25%, rgba(34,197,94,0.95) 25%, rgba(34,197,94,0.95) 50%, rgba(250,204,21,0.95) 50%, rgba(250,204,21,0.95) 75%, rgba(96,165,250,0.95) 75%, rgba(96,165,250,0.95) 100%)"
-                : hasAlert && hasNewJoin && hasMeetGreetAlert
-                ? "linear-gradient(90deg, rgba(47,140,255,0.95) 0%, rgba(47,140,255,0.95) 50%, rgba(96,165,250,0.95) 50%, rgba(96,165,250,0.95) 100%)"
-                : hasAlert && hasSaludoAlert && hasMeetGreetAlert
-                ? "linear-gradient(90deg, rgba(34,197,94,0.95) 0%, rgba(34,197,94,0.95) 50%, rgba(96,165,250,0.95) 50%, rgba(96,165,250,0.95) 100%)"
-                : hasAlert && hasConsejoAlert && hasMeetGreetAlert
-                ? "linear-gradient(90deg, rgba(250,204,21,0.95) 0%, rgba(250,204,21,0.95) 50%, rgba(96,165,250,0.95) 50%, rgba(96,165,250,0.95) 100%)"
-                : hasAlert && hasMeetGreetAlert
-                ? "linear-gradient(90deg, rgba(96,165,250,0.95), rgba(96,165,250,0.95))"
-                : hasAlert && hasNewJoin && hasSaludoAlert && hasConsejoAlert
-                ? "linear-gradient(90deg, rgba(47,140,255,0.95) 0%, rgba(47,140,255,0.95) 33.33%, rgba(34,197,94,0.95) 33.33%, rgba(34,197,94,0.95) 66.66%, rgba(250,204,21,0.95) 66.66%, rgba(250,204,21,0.95) 100%)"
-                : hasAlert && hasNewJoin && hasSaludoAlert
-                ? "linear-gradient(90deg, rgba(47,140,255,0.95) 0%, rgba(47,140,255,0.95) 50%, rgba(34,197,94,0.95) 50%, rgba(34,197,94,0.95) 100%)"
-                : hasAlert && hasNewJoin && hasConsejoAlert
-                ? "linear-gradient(90deg, rgba(47,140,255,0.95) 0%, rgba(47,140,255,0.95) 50%, rgba(250,204,21,0.95) 50%, rgba(250,204,21,0.95) 100%)"
-                : hasAlert && hasNewJoin
-                ? "linear-gradient(90deg, rgba(47,140,255,0.95), rgba(47,140,255,0.95))"
-                : hasAlert && hasSaludoAlert && hasConsejoAlert
-                ? "linear-gradient(90deg, rgba(34,197,94,0.95) 0%, rgba(34,197,94,0.95) 50%, rgba(250,204,21,0.95) 50%, rgba(250,204,21,0.95) 100%)"
-                : hasAlert && hasSaludoAlert
-                ? "linear-gradient(90deg, rgba(34,197,94,0.95), rgba(34,197,94,0.95))"
-                : hasAlert && hasConsejoAlert
-                ? "linear-gradient(90deg, rgba(250,204,21,0.95), rgba(250,204,21,0.95))"
-                : null;
+            const hasMeetGreetAlert = meetGreetsForAlert.length > 0;
+            const hasPreparingAlert = meetGreets.some(
+              (row) =>
+                row.data.status === "ready_to_prepare" ||
+                isPrepareWindowOpen(row.data.scheduledAt)
+            );
 
             return (
-              <div
+                            <div
                 key={g.id}
                 style={{
                   borderRadius: 16,
-                  padding: hasAlert ? 1 : 0,
-                  background: borderBackground ?? "transparent",
-                  boxShadow: hasAlert
-                    ? hasNewJoin
-                      ? "0 0 0 1px rgba(47,140,255,0.14), 0 10px 28px rgba(0,0,0,0.18)"
-                      : hasMeetGreetAlert
-                      ? "0 0 0 1px rgba(96,165,250,0.16), 0 10px 28px rgba(0,0,0,0.18)"
-                      : hasConsejoAlert
-                      ? "0 0 0 1px rgba(250,204,21,0.14), 0 10px 28px rgba(0,0,0,0.18)"
-                      : "0 0 0 1px rgba(34,197,94,0.14), 0 10px 28px rgba(0,0,0,0.18)"
-                    : undefined,
-                  animation: hasAlert ? "ownerSidebarBuzz 4.8s infinite" : undefined,
                 }}
               >
                 <div
@@ -691,26 +700,57 @@ export default function OwnerSidebarMyGroups({
                         </div>
                       )}
 
-                      <div
+                                            <div
                         style={{
                           minWidth: 0,
                           display: "grid",
-                          gap: 2,
+                          gap: 4,
                           flex: 1,
                         }}
                       >
-                        <span
+                        <div
                           style={{
-                            fontSize: 13,
-                            fontWeight: 700,
-                            color: "#fff",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            minWidth: 0,
+                            flexWrap: "wrap",
                           }}
                         >
-                          {communityName}
-                        </span>
+                          <span
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              color: "#fff",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              maxWidth: "100%",
+                            }}
+                          >
+                            {communityName}
+                          </span>
+
+                          {hasNewJoin ? (
+                            <span style={emojiAlertStyle}>🔵</span>
+                          ) : null}
+
+                          {hasSaludoAlert ? (
+                            <span style={emojiAlertStyle}>👋</span>
+                          ) : null}
+
+                          {hasConsejoAlert ? (
+                            <span style={emojiAlertStyle}>💡</span>
+                          ) : null}
+
+                          {hasMeetGreetAlert ? (
+                            <span style={emojiAlertStyle}>🤝</span>
+                          ) : null}
+
+                          {hasPreparingAlert ? (
+                            <span style={emojiAlertStyle}>⚠️</span>
+                          ) : null}
+                        </div>
                       </div>
                     </Link>
 
@@ -967,7 +1007,7 @@ export default function OwnerSidebarMyGroups({
 
                       {showGreetingsSection && (
                         <div style={styles.sectionPanel}>
-                          <button
+                                                    <button
                             type="button"
                             onClick={() =>
                               setGreetingSectionOpen((prev) => ({
@@ -994,7 +1034,7 @@ export default function OwnerSidebarMyGroups({
                                 display: "flex",
                                 alignItems: "center",
                                 gap: 8,
-                                flexWrap: "wrap",
+                                minWidth: 0,
                               }}
                             >
                               <span
@@ -1007,25 +1047,49 @@ export default function OwnerSidebarMyGroups({
                                 Solicitudes de servicios
                               </span>
 
-                              {saludoCount > 0 && (
-                                <CountBadge count={saludoCount} tone="green" />
-                              )}
-
-                              {consejoCount > 0 && (
-                                <CountBadge count={consejoCount} tone="yellow" />
-                              )}
-
-                              {meetGreetCount > 0 && (
-                                <CountBadge count={meetGreetCount} tone="blue" />
-                              )}
+                              {totalServiceCount > 0 ? (
+                                <span
+                                  style={{
+                                    width: 18,
+                                    height: 18,
+                                    minWidth: 18,
+                                    borderRadius: "50%",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    background: "#ef4444",
+                                    color: "#fff",
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    lineHeight: 1,
+                                    boxShadow: "0 4px 12px rgba(0,0,0,0.22)",
+                                  }}
+                                >
+                                  {totalServiceCount}
+                                </span>
+                              ) : null}
                             </div>
                             <Chevron open={greetingListOpen} />
                           </button>
 
-                          {greetingListOpen && (
+                                                    {greetingListOpen && (
                             <div className="mini-vertical-scroll">
-                              <div style={{ display: "grid", gap: 7 }}>
-                                {greetings.map((r) => {
+                              <div style={{ display: "grid", gap: 10 }}>
+                                {sortedGreetings.length > 0 ? (
+                                  <div
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      color: "rgba(255,255,255,0.42)",
+                                      textTransform: "uppercase",
+                                      letterSpacing: 0.5,
+                                      padding: "2px 2px 0",
+                                    }}
+                                  >
+                                    Saludos, consejos y mensajes
+                                  </div>
+                                ) : null}
+                                  {sortedGreetings.map((r) => {
                                   const req = r.data;
                                   const busy = greetingBusyId === r.id;
                                   const chipStyle = getTypeChipStyle(req.type);
@@ -1054,7 +1118,7 @@ export default function OwnerSidebarMyGroups({
                                               justifyContent: "center",
                                             }}
                                           >
-                                            {typeLabel(req.type)}
+                                    {getServiceEmoji(req.type)} {typeLabel(req.type)}
                                           </span>
 
                                           <div
@@ -1094,15 +1158,15 @@ export default function OwnerSidebarMyGroups({
                                       {req.instructions ? (
                                         <div
                                           style={{
-                                            borderRadius: 10,
+                                            borderRadius: 12,
                                             border:
-                                              "1px solid rgba(255,255,255,0.10)",
-                                            background: "rgba(0,0,0,0.18)",
-                                            padding: "7px 8px",
+                                              "1px solid rgba(255,255,255,0.08)",
+                                            background: "rgba(255,255,255,0.03)",
+                                            padding: "8px 10px",
                                             whiteSpace: "pre-wrap",
                                             fontSize: 12,
-                                            lineHeight: 1.3,
-                                            color: "rgba(255,255,255,0.92)",
+                                            lineHeight: 1.35,
+                                            color: "rgba(255,255,255,0.9)",
                                           }}
                                         >
                                           {req.instructions}
@@ -1150,7 +1214,22 @@ export default function OwnerSidebarMyGroups({
                                   );
                                 })}
 
-                                {meetGreets.map((r) => {
+                                {sortedMeetGreets.length > 0 ? (
+                                  <div
+                                    style={{
+                                      fontSize: 11,
+                                      fontWeight: 700,
+                                      color: "rgba(255,255,255,0.42)",
+                                      textTransform: "uppercase",
+                                      letterSpacing: 0.5,
+                                      padding: "4px 2px 0",
+                                    }}
+                                  >
+                                    Meet & Greet y clases personalizadas
+                                  </div>
+                                ) : null}
+
+                                {sortedMeetGreets.map((r) => {
                                   const req = r.data;
                                   const statusStyle = getMeetGreetStatusStyle(
                                     req.status
@@ -1180,7 +1259,16 @@ export default function OwnerSidebarMyGroups({
                                     prepareWindowOpen;
 
                                   return (
-                                    <div key={r.id} style={styles.miniItem}>
+                                    <div
+                                      key={r.id}
+                                      style={{
+                                      ...styles.miniItem,
+                                      background: "rgba(255,255,255,0.02)",
+                                      border: "1px solid rgba(255,255,255,0.07)",
+                                      borderRadius: 16,
+                                      padding: 10,
+                                      }}
+                                     >
                                       <div style={{ display: "grid", gap: 6 }}>
                                         <div
                                           style={{
@@ -1203,7 +1291,7 @@ export default function OwnerSidebarMyGroups({
                                               justifyContent: "center",
                                             }}
                                           >
-                                            Meet & Greet
+                                        🤝 Meet & Greet
                                           </span>
 
                                           <div
@@ -1214,7 +1302,11 @@ export default function OwnerSidebarMyGroups({
                                               lineHeight: 1.25,
                                             }}
                                           >
-                                            Solicitud recibida
+                                            {req.status === "ready_to_prepare"
+                                              ? "Preparación próxima"
+                                              : req.status === "reschedule_requested"
+                                              ? "Cambio de fecha solicitado"
+                                              : "Solicitud recibida"}
                                           </div>
                                         </div>
 

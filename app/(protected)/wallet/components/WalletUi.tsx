@@ -7,6 +7,15 @@ import {
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
 
+import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
+import {
+  acceptMeetGreetRequest,
+  proposeMeetGreetSchedule,
+  rejectMeetGreetRequest,
+  setMeetGreetPreparing,
+} from "@/lib/meetGreet/meetGreetRequests";
+import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
+
 function getServiceEmoji(row: WalletServiceItem): string {
   if (row.status === "rejected" || row.status === "cancelled") {
     return "❌";
@@ -30,7 +39,9 @@ function getServiceEmoji(row: WalletServiceItem): string {
   }
 }
 
-function getStatusTone(row: WalletServiceItem): "default" | "danger" | "warning" {
+function getStatusTone(
+  row: WalletServiceItem
+): "default" | "danger" | "warning" {
   if (row.status === "rejected" || row.status === "cancelled") {
     return "danger";
   }
@@ -40,6 +51,56 @@ function getStatusTone(row: WalletServiceItem): "default" | "danger" | "warning"
   }
 
   return "default";
+}
+
+function toDateTimeLocalValue(value: Date | null): string {
+  if (!value) return "";
+
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  const hour = String(value.getHours()).padStart(2, "0");
+  const minute = String(value.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+}
+
+function isPrepareWindowOpen(value: Date | null): boolean {
+  if (!value) return false;
+  const now = Date.now();
+  const startsAt = value.getTime();
+  const prepareFrom = startsAt - 10 * 60 * 1000;
+  return now >= prepareFrom;
+}
+
+function isStartingSoon(value: Date | null): boolean {
+  if (!value) return false;
+  const now = Date.now();
+  const diff = value.getTime() - now;
+  return diff > 0 && diff <= 24 * 60 * 60 * 1000;
+}
+
+function getMeetGreetActionFlags(row: WalletServiceItem) {
+  const canAccept = row.status === "pending_creator_response";
+
+  const canReject =
+    row.status === "pending_creator_response" ||
+    row.status === "accepted_pending_schedule" ||
+    row.status === "reschedule_requested";
+
+  const canSchedule =
+    row.status === "accepted_pending_schedule" ||
+    row.status === "reschedule_requested" ||
+    row.status === "scheduled" ||
+    row.status === "ready_to_prepare";
+
+  const canPrepare =
+    (row.status === "scheduled" ||
+      row.status === "ready_to_prepare" ||
+      row.status === "in_preparation") &&
+    isPrepareWindowOpen(row.scheduledAt);
+
+  return { canAccept, canReject, canSchedule, canPrepare };
 }
 
 export function WalletCard({
@@ -337,12 +398,16 @@ function buildRowSubtitle(row: WalletServiceItem): string {
 
   chunks.push(row.statusLabel);
 
-  if (row.priceSnapshot != null) {
-    chunks.push(formatWalletMoney(row.priceSnapshot));
+  if (row.targetName) {
+    chunks.push(`Para ${row.targetName}`);
   }
 
-  if (row.description) {
-    chunks.push(row.description);
+  if (row.buyerDisplayName) {
+    chunks.push(`Comprador: ${row.buyerDisplayName}`);
+  }
+
+  if (row.priceSnapshot != null) {
+    chunks.push(formatWalletMoney(row.priceSnapshot));
   }
 
   if (row.rejectionReason) {
@@ -358,17 +423,659 @@ function buildRowSubtitle(row: WalletServiceItem): string {
 
 export function WalletServiceRow({
   row,
+  open,
+  onToggle,
 }: {
   row: WalletServiceItem;
+  open: boolean;
+  onToggle: () => void;
 }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [preparationOpen, setPreparationOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [scheduleNote, setScheduleNote] = useState("");
+  const [scheduleDate, setScheduleDate] = useState(
+    toDateTimeLocalValue(row.scheduledAt)
+  );
+
+  const statusTone = getStatusTone(row);
+  const subtitle = buildRowSubtitle(row);
+  const meta = getWalletServiceRowMeta(row);
+  const emoji = getServiceEmoji(row);
+
+  const isGreeting = row.source === "greeting";
+  const isMeetGreet = row.source === "meet_greet";
+
+  const { canAccept, canReject, canSchedule, canPrepare } =
+    isMeetGreet
+      ? getMeetGreetActionFlags(row)
+      : {
+          canAccept: row.status === "pending",
+          canReject: row.status === "pending",
+          canSchedule: false,
+          canPrepare: false,
+        };
+
+  async function handleGreeting(action: "accept" | "reject") {
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await respondGreetingRequest({
+        requestId: row.id,
+        action,
+      });
+
+      setSuccess(
+        action === "accept"
+          ? "✅ Solicitud aceptada."
+          : "✅ Solicitud rechazada."
+      );
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo actualizar la solicitud.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleMeetGreetAccept() {
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await acceptMeetGreetRequest({ requestId: row.id });
+      setSuccess("✅ Meet & Greet aceptado. Ahora puedes poner fecha.");
+      setScheduleOpen(true);
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo aceptar el Meet & Greet.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleMeetGreetReject() {
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await rejectMeetGreetRequest({
+        requestId: row.id,
+        rejectionReason: rejectReason || null,
+      });
+      setSuccess("✅ Meet & Greet rechazado.");
+      setRejectOpen(false);
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo rechazar el Meet & Greet.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleMeetGreetSchedule() {
+    if (!scheduleDate.trim()) {
+      setError("Selecciona fecha y hora.");
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await proposeMeetGreetSchedule({
+        requestId: row.id,
+        scheduledAt: new Date(scheduleDate).toISOString(),
+        note: scheduleNote || null,
+      });
+
+      setSuccess("✅ Fecha guardada correctamente.");
+      setScheduleOpen(false);
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo guardar la fecha.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handlePrepare() {
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      await setMeetGreetPreparing({
+        requestId: row.id,
+        role: "creator",
+      });
+
+      setPreparationOpen(true);
+      setSuccess(null);
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo abrir la preparación.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <PlaceholderRow
-      title={row.title}
-      subtitle={buildRowSubtitle(row)}
-      meta={getWalletServiceRowMeta(row)}
-      emoji={getServiceEmoji(row)}
-      statusTone={getStatusTone(row)}
-    />
+    <>
+      <style jsx>{`
+        .walletServiceCard {
+          border-radius: 18px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.03);
+          overflow: hidden;
+          transition:
+            border-color 0.18s ease,
+            background 0.18s ease,
+            box-shadow 0.18s ease;
+        }
+
+        .walletServiceCardOpen {
+          border-color: rgba(255, 255, 255, 0.14);
+          background: rgba(255, 255, 255, 0.045);
+          box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+        }
+
+        .walletServiceHeader {
+          width: 100%;
+          background: transparent;
+          border: none;
+          padding: 14px 15px;
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 14px;
+          text-align: left;
+          cursor: pointer;
+        }
+
+        .walletServiceMain {
+          min-width: 0;
+          flex: 1;
+          display: grid;
+          gap: 6px;
+        }
+
+        .walletServiceTopRow {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-width: 0;
+          flex-wrap: wrap;
+        }
+
+        .walletServiceEmoji {
+          font-size: 16px;
+          line-height: 1;
+          flex-shrink: 0;
+        }
+
+        .walletServiceTitle {
+          font-size: 14px;
+          font-weight: 700;
+          line-height: 1.3;
+          letter-spacing: -0.01em;
+          color: #fff;
+        }
+
+        .walletServiceSubline {
+          color: rgba(255, 255, 255, 0.68);
+          font-size: 12px;
+          line-height: 1.5;
+          white-space: pre-wrap;
+        }
+
+        .walletServiceSublineDanger {
+          color: #fca5a5;
+          font-size: 12px;
+          line-height: 1.5;
+          white-space: pre-wrap;
+        }
+
+        .walletServiceSublineWarning {
+          color: #fde68a;
+          font-size: 12px;
+          line-height: 1.5;
+          white-space: pre-wrap;
+        }
+
+        .walletServiceRight {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-shrink: 0;
+        }
+
+        .walletServiceMeta {
+          border-radius: 999px;
+          padding: 7px 10px;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.10);
+          color: rgba(255, 255, 255, 0.82);
+          font-size: 11px;
+          font-weight: 500;
+          line-height: 1;
+        }
+
+        .walletChevron {
+          color: rgba(255, 255, 255, 0.64);
+          font-size: 14px;
+          line-height: 1;
+        }
+
+        .walletServiceBody {
+          padding: 0 15px 15px;
+          border-top: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .walletServiceBodyInner {
+          padding-top: 12px;
+          display: grid;
+          gap: 10px;
+        }
+
+        .walletServiceChip {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: fit-content;
+          border-radius: 999px;
+          padding: 5px 9px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.05);
+          color: #fff;
+          font-size: 11px;
+          font-weight: 700;
+          line-height: 1;
+        }
+
+        .walletServiceInfoBox {
+          border-radius: 12px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(0, 0, 0, 0.16);
+          padding: 10px;
+          white-space: pre-wrap;
+          font-size: 12px;
+          line-height: 1.4;
+          color: rgba(255, 255, 255, 0.92);
+        }
+
+        .walletServiceWarningBox {
+          border-radius: 12px;
+          border: 1px solid rgba(250, 204, 21, 0.18);
+          background: rgba(250, 204, 21, 0.08);
+          padding: 10px;
+          font-size: 12px;
+          line-height: 1.4;
+          color: #fde68a;
+        }
+
+        .walletServiceErrorBox {
+          border-radius: 12px;
+          border: 1px solid rgba(248, 113, 113, 0.18);
+          background: rgba(248, 113, 113, 0.08);
+          padding: 10px;
+          font-size: 12px;
+          line-height: 1.4;
+          color: #fecaca;
+        }
+
+        .walletServiceSuccessBox {
+          border-radius: 12px;
+          border: 1px solid rgba(34, 197, 94, 0.18);
+          background: rgba(34, 197, 94, 0.08);
+          padding: 10px;
+          font-size: 12px;
+          line-height: 1.4;
+          color: #bbf7d0;
+        }
+
+        .walletServiceActions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .walletPrimaryBtn {
+          padding: 8px 12px;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.16);
+          background: #fff;
+          color: #000;
+          font-size: 13px;
+          font-weight: 700;
+          line-height: 1.1;
+          cursor: pointer;
+        }
+
+        .walletSecondaryBtn {
+          padding: 8px 12px;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.10);
+          background: rgba(255, 255, 255, 0.05);
+          color: #fff;
+          font-size: 13px;
+          font-weight: 600;
+          line-height: 1.1;
+          cursor: pointer;
+        }
+
+        .walletField {
+          padding: 10px 11px;
+          border-radius: 10px;
+          border: 1px solid rgba(255, 255, 255, 0.10);
+          background: rgba(255, 255, 255, 0.04);
+          color: #fff;
+          outline: none;
+          font-size: 12px;
+          box-sizing: border-box;
+          width: 100%;
+        }
+
+        .walletMiniMeta {
+          color: rgba(255, 255, 255, 0.72);
+          font-size: 12px;
+          line-height: 1.45;
+        }
+
+        @media (max-width: 900px) {
+          .walletServiceHeader {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .walletServiceRight {
+            width: 100%;
+            justify-content: space-between;
+          }
+        }
+      `}</style>
+
+      <div className={`walletServiceCard ${open ? "walletServiceCardOpen" : ""}`}>
+        <button type="button" className="walletServiceHeader" onClick={onToggle}>
+          <div className="walletServiceMain">
+            <div className="walletServiceTopRow">
+              <span className="walletServiceEmoji">{emoji}</span>
+              <div className="walletServiceTitle">{row.title}</div>
+            </div>
+
+            <div
+              className={
+                statusTone === "danger"
+                  ? "walletServiceSublineDanger"
+                  : statusTone === "warning"
+                    ? "walletServiceSublineWarning"
+                    : "walletServiceSubline"
+              }
+            >
+              {subtitle}
+            </div>
+          </div>
+
+          <div className="walletServiceRight">
+            <div className="walletServiceMeta">{meta}</div>
+            <div className="walletChevron">{open ? "▴" : "▾"}</div>
+          </div>
+        </button>
+
+        {open ? (
+          <div className="walletServiceBody">
+            <div className="walletServiceBodyInner">
+              <div className="walletServiceChip">{row.statusLabel}</div>
+
+              {row.priceSnapshot != null ? (
+                <div className="walletMiniMeta">
+                  Precio: {formatWalletMoney(row.priceSnapshot)}
+                </div>
+              ) : null}
+
+              {row.durationMinutes != null ? (
+                <div className="walletMiniMeta">
+                  Duración: {row.durationMinutes} min
+                </div>
+              ) : null}
+
+              {isMeetGreet && isStartingSoon(row.scheduledAt) ? (
+                <div className="walletServiceWarningBox">
+                  ⚠️ Este Meet & Greet está próximo a iniciar.
+                </div>
+              ) : null}
+
+                            {row.targetName ? (
+                <div className="walletMiniMeta">Para: {row.targetName}</div>
+              ) : null}
+
+              {row.buyerDisplayName ? (
+                <div className="walletMiniMeta">
+                  Comprador: {row.buyerDisplayName}
+                </div>
+              ) : null}
+
+              {row.requestText ? (
+                <div className="walletServiceInfoBox">{row.requestText}</div>
+              ) : row.description ? (
+                <div className="walletServiceInfoBox">{row.description}</div>
+              ) : null}
+
+              {row.rejectionReason ? (
+                <div className="walletServiceErrorBox">
+                  Motivo: {row.rejectionReason}
+                </div>
+              ) : null}
+
+              {row.refundReason ? (
+                <div className="walletServiceWarningBox">
+                  Devolución: {row.refundReason}
+                </div>
+              ) : null}
+
+              {canAccept || canReject || canSchedule || canPrepare ? (
+                <div className="walletServiceActions">
+                  {canAccept ? (
+                    <button
+                      type="button"
+                      className="walletPrimaryBtn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isGreeting) {
+                          void handleGreeting("accept");
+                        } else {
+                          void handleMeetGreetAccept();
+                        }
+                      }}
+                      disabled={busy}
+                      style={{
+                        opacity: busy ? 0.8 : 1,
+                        cursor: busy ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {busy ? "Procesando..." : "Aceptar"}
+                    </button>
+                  ) : null}
+
+                  {canReject ? (
+                    <button
+                      type="button"
+                      className="walletSecondaryBtn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isGreeting) {
+                          void handleGreeting("reject");
+                        } else {
+                          setRejectOpen((prev) => !prev);
+                        }
+                      }}
+                      disabled={busy}
+                      style={{
+                        opacity: busy ? 0.7 : 1,
+                        cursor: busy ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      Rechazar
+                    </button>
+                  ) : null}
+
+                  {canSchedule ? (
+                    <button
+                      type="button"
+                      className="walletSecondaryBtn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setScheduleOpen((prev) => !prev);
+                      }}
+                      disabled={busy}
+                      style={{
+                        opacity: busy ? 0.7 : 1,
+                        cursor: busy ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {row.status === "accepted_pending_schedule"
+                        ? "Poner fecha"
+                        : "Proponer nueva fecha"}
+                    </button>
+                  ) : null}
+
+                  {canPrepare ? (
+                    <button
+                      type="button"
+                      className="walletPrimaryBtn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handlePrepare();
+                      }}
+                      disabled={busy}
+                      style={{
+                        opacity: busy ? 0.8 : 1,
+                        cursor: busy ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {busy ? "Procesando..." : "Prepararse"}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+
+              {rejectOpen ? (
+                <div style={{ display: "grid", gap: 8 }}>
+                  <textarea
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder="Explica por qué rechazas la solicitud."
+                    className="walletField"
+                    style={{ minHeight: 92, resize: "vertical" }}
+                  />
+                  <div className="walletServiceActions">
+                    <button
+                      type="button"
+                      className="walletPrimaryBtn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleMeetGreetReject();
+                      }}
+                      disabled={busy}
+                      style={{
+                        opacity: busy ? 0.8 : 1,
+                        cursor: busy ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {busy ? "Procesando..." : "Confirmar rechazo"}
+                    </button>
+                    <button
+                      type="button"
+                      className="walletSecondaryBtn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRejectOpen(false);
+                      }}
+                      disabled={busy}
+                      style={{
+                        opacity: busy ? 0.7 : 1,
+                        cursor: busy ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {scheduleOpen ? (
+                <div style={{ display: "grid", gap: 8 }}>
+                  <input
+                    type="datetime-local"
+                    value={scheduleDate}
+                    onChange={(e) => setScheduleDate(e.target.value)}
+                    className="walletField"
+                  />
+                  <textarea
+                    value={scheduleNote}
+                    onChange={(e) => setScheduleNote(e.target.value)}
+                    placeholder="Nota opcional sobre la fecha propuesta."
+                    className="walletField"
+                    style={{ minHeight: 92, resize: "vertical" }}
+                  />
+                  <div className="walletServiceActions">
+                    <button
+                      type="button"
+                      className="walletPrimaryBtn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleMeetGreetSchedule();
+                      }}
+                      disabled={busy}
+                      style={{
+                        opacity: busy ? 0.8 : 1,
+                        cursor: busy ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {busy ? "Procesando..." : "Guardar fecha"}
+                    </button>
+                    <button
+                      type="button"
+                      className="walletSecondaryBtn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setScheduleOpen(false);
+                      }}
+                      disabled={busy}
+                      style={{
+                        opacity: busy ? 0.7 : 1,
+                        cursor: busy ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              {error ? <div className="walletServiceErrorBox">{error}</div> : null}
+              {success ? (
+                <div className="walletServiceSuccessBox">{success}</div>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      {isMeetGreet ? (
+        <MeetGreetPreparationFullscreen
+          open={preparationOpen}
+          onClose={() => setPreparationOpen(false)}
+          role="creator"
+          scheduledAtLabel={row.scheduledAt ? getWalletServiceRowMeta(row) : null}
+          durationMinutes={row.durationMinutes ?? null}
+        />
+      ) : null}
+    </>
   );
 }
 
@@ -377,11 +1084,25 @@ export function WalletList({
 }: {
   items: WalletServiceItem[];
 }) {
+  const [openRowKey, setOpenRowKey] = useState<string | null>(null);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {items.map((row) => (
-        <WalletServiceRow key={`${row.source}-${row.id}`} row={row} />
-      ))}
+      {items.map((row) => {
+        const rowKey = `${row.source}-${row.id}`;
+        const isOpen = openRowKey === rowKey;
+
+        return (
+          <WalletServiceRow
+            key={rowKey}
+            row={row}
+            open={isOpen}
+            onToggle={() =>
+              setOpenRowKey((prev) => (prev === rowKey ? null : rowKey))
+            }
+          />
+        );
+      })}
     </div>
   );
 }

@@ -10,96 +10,27 @@ type GroupSubnavProps = {
   canManage?: boolean;
 };
 
-function IconFeed({ active }: { active: boolean }) {
+function EmojiIcon({
+  emoji,
+  active,
+}: {
+  emoji: string;
+  active: boolean;
+}) {
   return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ display: "block" }}
+    <span
+      aria-hidden="true"
+      style={{
+        display: "block",
+        fontSize: active ? 22 : 20,
+        lineHeight: 1,
+        transform: active ? "scale(1.03)" : "scale(1)",
+        transition: "transform 0.15s ease, opacity 0.2s ease",
+        opacity: active ? 1 : 0.78,
+      }}
     >
-      <path
-        d="M5 7H19"
-        stroke="currentColor"
-        strokeWidth={active ? "2.2" : "1.9"}
-        strokeLinecap="round"
-      />
-      <path
-        d="M5 12H19"
-        stroke="currentColor"
-        strokeWidth={active ? "2.2" : "1.9"}
-        strokeLinecap="round"
-      />
-      <path
-        d="M5 17H19"
-        stroke="currentColor"
-        strokeWidth={active ? "2.2" : "1.9"}
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconMembers({ active }: { active: boolean }) {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ display: "block" }}
-    >
-      <path
-        d="M8 12C9.65685 12 11 10.6569 11 9C11 7.34315 9.65685 6 8 6C6.34315 6 5 7.34315 5 9C5 10.6569 6.34315 12 8 12Z"
-        stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
-      />
-      <path
-        d="M16 11C17.3807 11 18.5 9.88071 18.5 8.5C18.5 7.11929 17.3807 6 16 6C14.6193 6 13.5 7.11929 13.5 8.5C13.5 9.88071 14.6193 11 16 11Z"
-        stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
-      />
-      <path
-        d="M3.8 17.8C4.65 15.85 6.23 14.8 8 14.8C9.77 14.8 11.35 15.85 12.2 17.8"
-        stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
-        strokeLinecap="round"
-      />
-      <path
-        d="M12.8 17.2C13.45 15.7 14.72 14.9 16.15 14.9C17.58 14.9 18.85 15.7 19.5 17.2"
-        stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconSettings({ active }: { active: boolean }) {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ display: "block" }}
-    >
-      <path
-        d="M12 8.9C10.2889 8.9 8.9 10.2889 8.9 12C8.9 13.7111 10.2889 15.1 12 15.1C13.7111 15.1 15.1 13.7111 15.1 12C15.1 10.2889 13.7111 8.9 12 8.9Z"
-        stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
-      />
-      <path
-        d="M19 12C19 11.53 18.95 11.08 18.84 10.64L20.45 9.39L18.61 6.19L16.67 6.97C15.98 6.38 15.17 5.92 14.28 5.66L14 3.6H10L9.72 5.66C8.83 5.92 8.02 6.38 7.33 6.97L5.39 6.19L3.55 9.39L5.16 10.64C5.05 11.08 5 11.53 5 12C5 12.47 5.05 12.92 5.16 13.36L3.55 14.61L5.39 17.81L7.33 17.03C8.02 17.62 8.83 18.08 9.72 18.34L10 20.4H14L14.28 18.34C15.17 18.08 15.98 17.62 16.67 17.03L18.61 17.81L20.45 14.61L18.84 13.36C18.95 12.92 19 12.47 19 12Z"
-        stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
-        strokeLinejoin="round"
-      />
-    </svg>
+      {emoji}
+    </span>
   );
 }
 
@@ -176,13 +107,13 @@ export default function GroupSubnav({
       key: "feed" as const,
       label: "Posts",
       title: "Publicaciones",
-      icon: IconFeed,
+      emoji: "📰",
     },
     {
       key: "members" as const,
       label: "Integrantes",
       title: "Integrantes",
-      icon: IconMembers,
+      emoji: "👥",
     },
     ...(canManage
       ? [
@@ -190,7 +121,7 @@ export default function GroupSubnav({
             key: "settings" as const,
             label: "Config",
             title: "Configuración",
-            icon: IconSettings,
+            emoji: "⚙️",
           },
         ]
       : []),
@@ -200,7 +131,6 @@ export default function GroupSubnav({
     <div style={wrapStyle}>
       {tabs.map((tab) => {
         const active = activeTab === tab.key;
-        const Icon = tab.icon;
 
         return (
           <button
@@ -226,7 +156,7 @@ export default function GroupSubnav({
               }}
             />
             <span style={itemInner}>
-              <Icon active={active} />
+              <EmojiIcon emoji={tab.emoji} active={active} />
               <span style={labelStyle}>{tab.label}</span>
             </span>
           </button>

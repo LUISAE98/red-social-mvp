@@ -13,100 +13,27 @@ type ProfileSubnavProps = {
   showSettingsTab?: boolean;
 };
 
-function IconPosts({ active }: { active: boolean }) {
+function EmojiIcon({
+  emoji,
+  active,
+}: {
+  emoji: string;
+  active: boolean;
+}) {
   return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ display: "block" }}
+    <span
       aria-hidden="true"
+      style={{
+        display: "block",
+        fontSize: active ? 22 : 20,
+        lineHeight: 1,
+        transform: active ? "scale(1.03)" : "scale(1)",
+        transition: "transform 0.15s ease, opacity 0.2s ease",
+        opacity: active ? 1 : 0.78,
+      }}
     >
-      <path
-        d="M5 7H19"
-        stroke="currentColor"
-        strokeWidth={active ? "2.2" : "1.9"}
-        strokeLinecap="round"
-      />
-      <path
-        d="M5 12H19"
-        stroke="currentColor"
-        strokeWidth={active ? "2.2" : "1.9"}
-        strokeLinecap="round"
-      />
-      <path
-        d="M5 17H19"
-        stroke="currentColor"
-        strokeWidth={active ? "2.2" : "1.9"}
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconGroups({ active }: { active: boolean }) {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ display: "block" }}
-      aria-hidden="true"
-    >
-      <path
-        d="M7 8.2C7 7.53726 7.53726 7 8.2 7H15.8C16.4627 7 17 7.53726 17 8.2V15.8C17 16.4627 16.4627 17 15.8 17H8.2C7.53726 17 7 16.4627 7 15.8V8.2Z"
-        stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
-      />
-      <path
-        d="M9.5 10H14.5"
-        stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
-        strokeLinecap="round"
-      />
-      <path
-        d="M9.5 12H14.5"
-        stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
-        strokeLinecap="round"
-      />
-      <path
-        d="M9.5 14H12.8"
-        stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconSettings({ active }: { active: boolean }) {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ display: "block" }}
-      aria-hidden="true"
-    >
-      <path
-        d="M12 8.9C10.2889 8.9 8.9 10.2889 8.9 12C8.9 13.7111 10.2889 15.1 12 15.1C13.7111 15.1 15.1 13.7111 15.1 12C15.1 10.2889 13.7111 8.9 12 8.9Z"
-        stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
-      />
-      <path
-        d="M19 12C19 11.53 18.95 11.08 18.84 10.64L20.45 9.39L18.61 6.19L16.67 6.97C15.98 6.38 15.17 5.92 14.28 5.66L14 3.6H10L9.72 5.66C8.83 5.92 8.02 6.38 7.33 6.97L5.39 6.19L3.55 9.39L5.16 10.64C5.05 11.08 5 11.53 5 12C5 12.47 5.05 12.92 5.16 13.36L3.55 14.61L5.39 17.81L7.33 17.03C8.02 17.62 8.83 18.08 9.72 18.34L10 20.4H14L14.28 18.34C15.17 18.08 15.98 17.62 16.67 17.03L18.61 17.81L20.45 14.61L18.84 13.36C18.95 12.92 19 12.47 19 12Z"
-        stroke="currentColor"
-        strokeWidth={active ? "2.05" : "1.85"}
-        strokeLinejoin="round"
-      />
-    </svg>
+      {emoji}
+    </span>
   );
 }
 
@@ -128,7 +55,7 @@ export default function ProfileSubnav({
             key: "posts" as const,
             label: "Posts",
             title: "Publicaciones",
-            icon: IconPosts,
+            emoji: "📰",
           },
         ]
       : []),
@@ -138,7 +65,7 @@ export default function ProfileSubnav({
             key: "groups" as const,
             label: isOwner ? "Mis comunidades" : "Sus comunidades",
             title: isOwner ? "Mis comunidades" : "Las comunidades de este perfil",
-            icon: IconGroups,
+            emoji: "🫂",
           },
         ]
       : []),
@@ -148,7 +75,7 @@ export default function ProfileSubnav({
             key: "settings" as const,
             label: "Config",
             title: "Configuración del perfil",
-            icon: IconSettings,
+            emoji: "⚙️",
           },
         ]
       : []),
@@ -218,7 +145,6 @@ export default function ProfileSubnav({
     <div style={wrapStyle}>
       {tabs.map((tab) => {
         const active = activeTab === tab.key;
-        const Icon = tab.icon;
 
         return (
           <button
@@ -245,7 +171,7 @@ export default function ProfileSubnav({
               }}
             />
             <span style={itemInner}>
-              <Icon active={active} />
+              <EmojiIcon emoji={tab.emoji} active={active} />
               <span style={labelStyle}>{tab.label}</span>
             </span>
           </button>
