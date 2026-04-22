@@ -352,12 +352,58 @@ export type CreatorServiceType =
 export type ServiceSourceScope = "group" | "profile" | "both";
 export type ServiceVisibility = "hidden" | "members" | "public";
 
+export type WeeklyAvailabilityDay =
+  | "monday"
+  | "tuesday"
+  | "wednesday"
+  | "thursday"
+  | "friday"
+  | "saturday"
+  | "sunday";
+
+export type TimeSlot = {
+  start: string; // "09:00"
+  end: string;   // "10:00"
+};
+
+export type WeeklyAvailabilitySlot = TimeSlot & {
+  enabled?: boolean;
+};
+
+export type CustomClassWeeklyAvailability = Partial<
+  Record<WeeklyAvailabilityDay, WeeklyAvailabilitySlot[]>
+>;
+
+export type ScheduledServiceKind = "meet_greet_digital" | "clase_personalizada";
+
+export type ScheduledServiceCalendarItemStatus =
+  | "scheduled"
+  | "confirmed"
+  | "completed"
+  | "cancelled";
+
+export type ScheduledServiceCalendarItem = {
+  id: string;
+  kind: ScheduledServiceKind;
+  title?: string | null;
+  startsAt: any;
+  endsAt: any;
+  status: ScheduledServiceCalendarItemStatus;
+  buyerUserId?: string | null;
+  creatorUserId?: string | null;
+  groupId?: string | null;
+};
+
 export type MeetGreetServiceMeta = {
   durationMinutes: number | null;
 };
 
 export type CustomClassServiceMeta = {
-  durationMinutes?: number | null;
+  durationMinutes: number | null;
+  availability: CustomClassWeeklyAvailability;
+  bufferMinutes?: number | null;
+  advanceBookingHours?: number | null;
+  maxBookingsPerDay?: number | null;
 };
 
 export type CreatorServiceMeta = {

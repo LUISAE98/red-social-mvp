@@ -2,12 +2,15 @@ import type {
   Currency,
   CreatorServiceMeta,
   CreatorServiceType,
+  CustomClassWeeklyAvailability,
   GroupDonationSettings,
   GroupMonetizationSettings,
   GroupOffering,
   GroupServiceCatalog,
   ServiceSourceScope,
   ServiceVisibility,
+  WeeklyAvailabilityDay,
+  WeeklyAvailabilitySlot,
 } from "@/types/group";
 
 type PartialMonetization = Partial<GroupMonetizationSettings> | null | undefined;
@@ -30,6 +33,16 @@ const ALL_SUPPORTED_SERVICE_TYPES: CreatorServiceType[] = [
   "meet_greet_digital",
   "clase_personalizada",
   "mensaje",
+];
+
+const WEEKLY_AVAILABILITY_DAYS: WeeklyAvailabilityDay[] = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
 ];
 
 export function isValidCurrency(value: unknown): value is Currency {
@@ -99,6 +112,85 @@ export function getDefaultDisplayOrder(type: CreatorServiceType): number {
   return DEFAULT_SERVICE_ORDER[type];
 }
 
+function normalizeTimeString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(trimmed);
+  if (!match) return null;
+
+  return trimmed;
+}
+
+function timeToMinutes(value: string): number {
+  const [hours, minutes] = value.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function normalizeWeeklyAvailabilitySlot(
+  raw: unknown
+): WeeklyAvailabilitySlot | null {
+  const slot = (raw ?? {}) as Record<string, unknown>;
+
+  const start = normalizeTimeString(slot.start);
+  const end = normalizeTimeString(slot.end);
+
+  if (!start || !end) return null;
+  if (timeToMinutes(end) <= timeToMinutes(start)) return null;
+
+  const enabled =
+    typeof slot.enabled === "boolean" ? slot.enabled : true;
+
+  return {
+    start,
+    end,
+    enabled,
+  };
+}
+
+function sortAndDeduplicateSlots(
+  slots: WeeklyAvailabilitySlot[]
+): WeeklyAvailabilitySlot[] {
+  const sorted = [...slots].sort(
+    (a, b) => timeToMinutes(a.start) - timeToMinutes(b.start)
+  );
+
+  const deduped: WeeklyAvailabilitySlot[] = [];
+  const seen = new Set<string>();
+
+  for (const slot of sorted) {
+    const key = `${slot.start}-${slot.end}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(slot);
+  }
+
+  return deduped;
+}
+
+export function normalizeCustomClassAvailability(
+  rawAvailability: unknown
+): CustomClassWeeklyAvailability {
+  const availability = (rawAvailability ?? {}) as Record<string, unknown>;
+  const normalized: CustomClassWeeklyAvailability = {};
+
+  for (const day of WEEKLY_AVAILABILITY_DAYS) {
+    const rawDaySlots = Array.isArray(availability[day]) ? availability[day] : [];
+
+    const normalizedSlots = sortAndDeduplicateSlots(
+      rawDaySlots
+        .map((slot) => normalizeWeeklyAvailabilitySlot(slot))
+        .filter((slot): slot is WeeklyAvailabilitySlot => !!slot)
+        .filter((slot) => slot.enabled !== false)
+    );
+
+    normalized[day] = normalizedSlots;
+  }
+
+  return normalized;
+}
+
 export function normalizeServiceMeta(
   type: CreatorServiceType,
   rawMeta: unknown
@@ -120,13 +212,34 @@ export function normalizeServiceMeta(
 
   if (type === "clase_personalizada") {
     const customClass = (meta.customClass ?? {}) as Record<string, unknown>;
+
     const durationMinutes = normalizePositiveNullableNumber(
       customClass.durationMinutes
+    );
+
+    const availability = normalizeCustomClassAvailability(
+      customClass.availability
+    );
+
+    const bufferMinutes = normalizePositiveNullableNumber(
+      customClass.bufferMinutes
+    );
+
+    const advanceBookingHours = normalizePositiveNullableNumber(
+      customClass.advanceBookingHours
+    );
+
+    const maxBookingsPerDay = normalizePositiveNullableNumber(
+      customClass.maxBookingsPerDay
     );
 
     return {
       customClass: {
         durationMinutes,
+        availability,
+        bufferMinutes,
+        advanceBookingHours,
+        maxBookingsPerDay,
       },
     };
   }
@@ -154,15 +267,10 @@ export function normalizeSingleService(
   const raw = (offering ?? {}) as Record<string, unknown>;
   const rawType = raw.type;
 
-  // Compatibilidad legacy:
-  // si todavía viene "suscripcion" dentro de offerings, la ignoramos
-  // porque ahora la suscripción vive en monetization.
   if (rawType === "suscripcion") {
     return null;
   }
 
-  // Si llega cualquier otro tipo inválido legacy, lo ignoramos
-  // para no romper runtime en grupos existentes.
   if (!isValidServiceType(rawType)) {
     return null;
   }
@@ -322,6 +430,18 @@ export function buildDefaultGroupServiceCatalog(params?: {
       meta: {
         customClass: {
           durationMinutes: null,
+          availability: {
+            monday: [],
+            tuesday: [],
+            wednesday: [],
+            thursday: [],
+            friday: [],
+            saturday: [],
+            sunday: [],
+          },
+          bufferMinutes: null,
+          advanceBookingHours: null,
+          maxBookingsPerDay: null,
         },
       },
       price: null,

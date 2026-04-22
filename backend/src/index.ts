@@ -20,7 +20,8 @@ export const healthcheck = onRequest(
     });
   }
 );
-
+// Custom class requests
+export { createCustomClassRequest } from "./customClassRequests";
 // Join requests
 export { approveJoinRequest, rejectJoinRequest } from "./joinRequests";
 

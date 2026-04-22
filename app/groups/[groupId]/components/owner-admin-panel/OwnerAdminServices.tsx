@@ -23,6 +23,13 @@ import type {
   CreatorServiceMeta,
 } from "@/types/group";
 
+import Subscription from "./services/Subscription";
+import Greetings from "./services/Greetings";
+import Advice from "./services/Advice";
+import MeetGreet from "./services/MeetGreet";
+import CustomClass from "./services/CustomClass";
+import Donation from "./services/Donation";
+
 type Visibility = "public" | "private" | "hidden" | string | null;
 
 type FreeToSubscriptionPolicy = "legacy_free" | "require_subscription" | "";
@@ -155,14 +162,6 @@ type ServiceDraft = {
   subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;
 };
 
-type OverlayMode =
-  | null
-  | "subscription"
-  | "saludo"
-  | "consejo"
-  | "meetGreet"
-  | "customClass";
-
 const WEEKDAY_OPTIONS: Array<{
   key: keyof WeeklyAvailabilityDraft;
   label: string;
@@ -201,6 +200,41 @@ function createEmptyWeeklyAvailability(): WeeklyAvailabilityDraft {
     saturday: [],
     sunday: [],
   };
+}
+
+function isValidTimeValue(value: unknown): value is string {
+  return typeof value === "string" && /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
+}
+
+function normalizeWeeklyAvailabilityFromMeta(
+  meta: CreatorServiceMeta | null | undefined
+): WeeklyAvailabilityDraft {
+  const rawAvailability = meta?.customClass?.availability;
+  const next = createEmptyWeeklyAvailability();
+
+  if (!rawAvailability) return next;
+
+  for (const day of WEEKDAY_OPTIONS) {
+    const rawSlots = Array.isArray(rawAvailability[day.key])
+      ? (rawAvailability[day.key] as Array<{
+          start?: unknown;
+          end?: unknown;
+        }>)
+      : [];
+
+    next[day.key] = rawSlots
+      .map((slot) => {
+        const start = isValidTimeValue(slot?.start) ? slot.start : "";
+        const end = isValidTimeValue(slot?.end) ? slot.end : "";
+
+        if (!start || !end) return null;
+
+        return { start, end };
+      })
+      .filter((slot): slot is AvailabilitySlotDraft => slot !== null);
+  }
+
+  return next;
 }
 
 function pickSubscription(monetization: MonetizationInput) {
@@ -760,9 +794,111 @@ function parseTimeValue(value: string): { hour: string; minute: string } {
   };
 }
 
-function buildTimeValue(hour: string, minute: string) {
-  if (!hour || !minute) return "";
-  return `${hour}:${minute}`;
+function DarkSelect({
+  value,
+  placeholder,
+  options,
+  onChange,
+}: {
+  value: string;
+  placeholder: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!rootRef.current) return;
+      if (!rootRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div
+      ref={rootRef}
+      style={{
+        position: "relative",
+        width: 110,
+        minWidth: 110,
+      }}
+    >
+      <button
+        type="button"
+        onClick={() => setOpen((prev) => !prev)}
+        style={{
+          width: "100%",
+          minHeight: 42,
+          padding: "10px 12px",
+          borderRadius: 10,
+          border: "1px solid rgba(255,255,255,0.10)",
+          background: "rgba(255,255,255,0.04)",
+          color: "#fff",
+          textAlign: "left",
+          cursor: "pointer",
+          fontSize: 12,
+          fontWeight: 500,
+          lineHeight: 1.2,
+          boxSizing: "border-box",
+        }}
+      >
+        {value || placeholder}
+      </button>
+
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            left: 0,
+            width: "100%",
+            maxHeight: 220,
+            overflowY: "auto",
+            background: "#0B0B0C",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 12,
+            zIndex: 999999,
+            boxShadow: "0 20px 50px rgba(0,0,0,0.45)",
+          }}
+        >
+          {options.map((opt) => {
+            const isSelected = value === opt;
+
+            return (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => {
+                  onChange(opt);
+                  setOpen(false);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  border: "none",
+                  borderBottom: "1px solid rgba(255,255,255,0.05)",
+                  background: isSelected ? "rgba(255,255,255,0.08)" : "#0B0B0C",
+                  color: "#FFFFFF",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  lineHeight: 1.2,
+                }}
+              >
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function TimeSelectRow({
@@ -776,6 +912,20 @@ function TimeSelectRow({
 }) {
   const parsed = parseTimeValue(value);
 
+  const [localHour, setLocalHour] = useState(parsed.hour);
+  const [localMinute, setLocalMinute] = useState(parsed.minute);
+
+  useEffect(() => {
+    setLocalHour(parsed.hour);
+    setLocalMinute(parsed.minute);
+  }, [parsed.hour, parsed.minute]);
+
+  function commitNext(nextHour: string, nextMinute: string) {
+    if (nextHour && nextMinute) {
+      onChange(`${nextHour}:${nextMinute}`);
+    }
+  }
+
   return (
     <div
       style={{
@@ -785,488 +935,25 @@ function TimeSelectRow({
         alignItems: "center",
       }}
     >
-      <select
-        value={parsed.hour}
-        onChange={(e) => onChange(buildTimeValue(e.target.value, parsed.minute))}
-        style={{ ...inputStyle, width: 110, flex: "1 1 110px" }}
-      >
-        <option value="">Hora</option>
-        {HOUR_OPTIONS.map((hour) => (
-          <option key={hour} value={hour}>
-            {hour}
-          </option>
-        ))}
-      </select>
+      <DarkSelect
+        value={localHour}
+        placeholder="Hora"
+        options={HOUR_OPTIONS}
+        onChange={(nextHour) => {
+          setLocalHour(nextHour);
+          commitNext(nextHour, localMinute);
+        }}
+      />
 
-      <select
-        value={parsed.minute}
-        onChange={(e) => onChange(buildTimeValue(parsed.hour, e.target.value))}
-        style={{ ...inputStyle, width: 110, flex: "1 1 110px" }}
-      >
-        <option value="">Minuto</option>
-        {MINUTE_OPTIONS.map((minute) => (
-          <option key={minute} value={minute}>
-            {minute}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
-function ServiceEditorBlock<TDraft extends ServiceBlockDraft>({
-  title,
-  draft,
-  onChange,
-  saving,
-  showDuration = false,
-  durationLabel = "Duración (minutos)",
-  netText,
-}: {
-  title: string;
-  draft: TDraft;
-  onChange: (
-    updater: Partial<TDraft> | ((prev: TDraft) => TDraft)
-  ) => void;
-  saving: boolean;
-  showDuration?: boolean;
-  durationLabel?: string;
-  netText?: string | null;
-}) {
-  const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
-
-  const panelStyle: React.CSSProperties = {
-    padding: "10px",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.02)",
-    display: "grid",
-    gap: 9,
-  };
-
-  const rowBetweenStyle: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  };
-
-  const titleStyle: React.CSSProperties = {
-    fontSize: 12,
-    color: "#fff",
-    fontWeight: 700,
-  };
-
-  const subtleStyle: React.CSSProperties = {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.56)",
-    lineHeight: 1.35,
-  };
-
-  const inputStyle: React.CSSProperties = {
-    padding: "8px 10px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.04)",
-    color: "#fff",
-    outline: "none",
-    fontSize: 12,
-    fontFamily: fontStack,
-    boxSizing: "border-box",
-    appearance: "none",
-    WebkitAppearance: "none",
-    minHeight: 42,
-  };
-
-  const applyChange = (
-    updater: Partial<TDraft> | ((prev: TDraft) => TDraft)
-  ) => {
-    onChange(updater);
-  };
-
-  const hasDurationField = "durationMinutes" in draft;
-  const durationDraft = hasDurationField
-    ? (draft as TDraft & { durationMinutes: string })
-    : null;
-
-  return (
-    <div style={panelStyle}>
-      <div style={rowBetweenStyle}>
-        <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-          <span style={titleStyle}>{title}</span>
-        </div>
-
-        <Switch
-          checked={draft.enabled}
-          disabled={saving}
-          onChange={(next) =>
-            applyChange((prev) => ({
-              ...prev,
-              enabled: next,
-              price: next ? prev.price : "",
-              visible: next ? true : false,
-              visibility: next ? prev.visibility : "members",
-            }))
-          }
-          label={`Activar ${title}`}
-        />
-      </div>
-
-      {draft.enabled && (
-        <>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <input
-              type="number"
-              min="1"
-              step="0.01"
-              value={draft.price}
-              onChange={(e) =>
-                applyChange((prev) => ({
-                  ...prev,
-                  price: e.target.value,
-                }))
-              }
-              placeholder="Precio"
-              style={{ ...inputStyle, width: 110 }}
-            />
-
-            <select
-              value={draft.currency}
-              onChange={(e) =>
-                applyChange((prev) => ({
-                  ...prev,
-                  currency: e.target.value as Currency,
-                }))
-              }
-              style={{ ...inputStyle, width: 92 }}
-            >
-              <option value="MXN">MXN</option>
-              <option value="USD">USD</option>
-            </select>
-          </div>
-
-          {showDuration && durationDraft && (
-            <input
-              type="number"
-              min="1"
-              step="1"
-              value={durationDraft.durationMinutes}
-              onChange={(e) =>
-                applyChange((prev) => ({
-                  ...prev,
-                  durationMinutes: e.target.value,
-                }))
-              }
-              placeholder={durationLabel}
-              style={{ ...inputStyle, width: 180 }}
-            />
-          )}
-
-          {netText ? <div style={subtleStyle}>{netText}</div> : null}
-        </>
-      )}
-    </div>
-  );
-}
-
-function SubscriptionEditorBlock({
-  draft,
-  saving,
-  disabledByVisibility,
-  onChange,
-  netText,
-}: {
-  draft: SubscriptionDraft;
-  saving: boolean;
-  disabledByVisibility: boolean;
-  onChange: (
-    updater:
-      | Partial<SubscriptionDraft>
-      | ((prev: SubscriptionDraft) => SubscriptionDraft)
-  ) => void;
-  netText?: string | null;
-}) {
-  const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
-
-  const panelStyle: React.CSSProperties = {
-    padding: "10px",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.02)",
-    display: "grid",
-    gap: 9,
-  };
-
-  const rowBetweenStyle: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-  };
-
-  const titleStyle: React.CSSProperties = {
-    fontSize: 12,
-    color: "#fff",
-    fontWeight: 700,
-  };
-
-  const subtleStyle: React.CSSProperties = {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.56)",
-    lineHeight: 1.35,
-  };
-
-  const inputStyle: React.CSSProperties = {
-    padding: "8px 10px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.04)",
-    color: "#fff",
-    outline: "none",
-    fontSize: 12,
-    fontFamily: fontStack,
-    boxSizing: "border-box",
-    appearance: "none",
-    WebkitAppearance: "none",
-    minHeight: 42,
-  };
-
-  const applyChange = (
-    updater:
-      | Partial<SubscriptionDraft>
-      | ((prev: SubscriptionDraft) => SubscriptionDraft)
-  ) => {
-    onChange(updater);
-  };
-
-  return (
-    <div style={panelStyle}>
-      <div style={rowBetweenStyle}>
-        <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-          <span style={titleStyle}>
-            {SERVICE_EMOJIS.subscription} Suscripción mensual
-          </span>
-        </div>
-
-        <Switch
-          checked={draft.enabled}
-          disabled={saving || disabledByVisibility}
-          onChange={(next) =>
-            applyChange((prev) => ({
-              ...prev,
-              enabled: next,
-              price: next ? prev.price : "",
-            }))
-          }
-          label="Activar suscripción mensual"
-        />
-      </div>
-
-      {draft.enabled && !disabledByVisibility && (
-        <>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <input
-              type="number"
-              min="1"
-              step="0.01"
-              value={draft.price}
-              onChange={(e) =>
-                applyChange((prev) => ({
-                  ...prev,
-                  price: e.target.value,
-                }))
-              }
-              placeholder="Precio mensual"
-              style={{ ...inputStyle, width: 140 }}
-            />
-
-            <select
-              value={draft.currency}
-              onChange={(e) =>
-                applyChange((prev) => ({
-                  ...prev,
-                  currency: e.target.value as Currency,
-                }))
-              }
-              style={{ ...inputStyle, width: 92 }}
-            >
-              <option value="MXN">MXN</option>
-              <option value="USD">USD</option>
-            </select>
-          </div>
-
-          {netText ? <div style={subtleStyle}>{netText}</div> : null}
-        </>
-      )}
-
-      {disabledByVisibility && (
-        <div style={subtleStyle}>
-          Para activar suscripción mensual, la comunidad debe ser privada u oculta.
-        </div>
-      )}
-    </div>
-  );
-}
-
-function TransitionPolicyPanel({
-  mode,
-  value,
-  onChange,
-  saving,
-}: {
-  mode:
-    | "free_to_subscription"
-    | "subscription_to_free"
-    | "subscription_price_increase";
-  value: string;
-  onChange: (next: string) => void;
-  saving: boolean;
-}) {
-  const panelStyle: React.CSSProperties = {
-    padding: "10px",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.02)",
-    display: "grid",
-    gap: 10,
-  };
-
-  const titleStyle: React.CSSProperties = {
-    fontSize: 12,
-    color: "#fff",
-    fontWeight: 700,
-  };
-
-  const subtleStyle: React.CSSProperties = {
-    fontSize: 11,
-    color: "rgba(255,255,255,0.56)",
-    lineHeight: 1.35,
-  };
-
-  const optionCard = (active: boolean): React.CSSProperties => ({
-    borderRadius: 12,
-    border: active
-      ? "1px solid rgba(255,255,255,0.9)"
-      : "1px solid rgba(255,255,255,0.1)",
-    background: active ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.03)",
-    padding: "10px 12px",
-    display: "grid",
-    gap: 4,
-    cursor: saving ? "not-allowed" : "pointer",
-    opacity: saving ? 0.6 : 1,
-    textAlign: "left",
-  });
-
-  if (mode === "free_to_subscription") {
-    return (
-      <div style={panelStyle}>
-        <div style={{ display: "grid", gap: 2 }}>
-          <span style={titleStyle}>Transición: gratis → suscripción</span>
-          <span style={subtleStyle}>
-            Debes decidir qué pasa con los miembros actuales al volver la comunidad de suscripción.
-          </span>
-        </div>
-
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => onChange("legacy_free")}
-          style={optionCard(value === "legacy_free")}
-        >
-          <span style={titleStyle}>Dejar a los miembros actuales gratis</span>
-          <span style={subtleStyle}>
-            Los miembros que ya estaban dentro conservan acceso legado sin pagar.
-          </span>
-        </button>
-
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => onChange("require_subscription")}
-          style={optionCard(value === "require_subscription")}
-        >
-          <span style={titleStyle}>Pedir suscripción a los miembros actuales</span>
-          <span style={subtleStyle}>
-            Los miembros existentes deberán suscribirse para continuar con acceso.
-          </span>
-        </button>
-      </div>
-    );
-  }
-
-  if (mode === "subscription_price_increase") {
-    return (
-      <div style={panelStyle}>
-        <div style={{ display: "grid", gap: 2 }}>
-          <span style={titleStyle}>Cambio: aumento de precio de suscripción</span>
-          <span style={subtleStyle}>
-            Como el nuevo precio es mayor al anterior, debes decidir qué pasa con los miembros que ya estaban dentro.
-          </span>
-        </div>
-
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => onChange("keep_legacy_price")}
-          style={optionCard(value === "keep_legacy_price")}
-        >
-          <span style={titleStyle}>Mantener a cada quien como ya estaba</span>
-          <span style={subtleStyle}>
-            Los suscriptores de pago actuales conservan su precio anterior. Los integrantes que ya eran gratis por legado siguen gratis por legado. El nuevo precio solo aplica a nuevas suscripciones.
-          </span>
-        </button>
-
-        <button
-          type="button"
-          disabled={saving}
-          onClick={() => onChange("require_resubscribe_new_price")}
-          style={optionCard(value === "require_resubscribe_new_price")}
-        >
-          <span style={titleStyle}>
-            Sacar a los suscriptores de pago actuales y pedir nueva suscripción
-          </span>
-          <span style={subtleStyle}>
-            Los suscriptores de pago actuales deberán suscribirse otra vez con el nuevo precio. Los integrantes gratis por legado se mantienen como gratis por legado.
-          </span>
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div style={panelStyle}>
-      <div style={{ display: "grid", gap: 2 }}>
-        <span style={titleStyle}>Transición: suscripción → gratis</span>
-        <span style={subtleStyle}>
-          Debes decidir qué pasa con los integrantes cuando la comunidad deje de ser de suscripción.
-        </span>
-      </div>
-
-      <button
-        type="button"
-        disabled={saving}
-        onClick={() => onChange("keep_members_free")}
-        style={optionCard(value === "keep_members_free")}
-      >
-        <span style={titleStyle}>Mantener a todos dentro y volverla gratuita</span>
-        <span style={subtleStyle}>
-          La comunidad deja de cobrar y quienes están dentro permanecen con acceso normal.
-        </span>
-      </button>
-
-      <button
-        type="button"
-        disabled={saving}
-        onClick={() => onChange("remove_all_members")}
-        style={optionCard(value === "remove_all_members")}
-      >
-        <span style={titleStyle}>Sacar a todos al quitar la suscripción</span>
-        <span style={subtleStyle}>
-          La comunidad vuelve a ser gratuita, pero sin conservar automáticamente a los miembros actuales.
-        </span>
-      </button>
+      <DarkSelect
+        value={localMinute}
+        placeholder="Minuto"
+        options={MINUTE_OPTIONS}
+        onChange={(nextMinute) => {
+          setLocalMinute(nextMinute);
+          commitNext(localHour, nextMinute);
+        }}
+      />
     </div>
   );
 }
@@ -1580,7 +1267,7 @@ function OverlayModal({
   );
 }
 
-export default function OwnerAdminServices({
+export default function OwnerSidebar({
   groupId,
   ownerId,
   currentUserId,
@@ -1602,13 +1289,8 @@ export default function OwnerAdminServices({
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [activeOverlay, setActiveOverlay] = useState<OverlayMode>(null);
-  const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(createEmptyDraft());
-  const [preOverlayDraft, setPreOverlayDraft] = useState<ServiceDraft | null>(null);
 
   const [removingLegacyMembers, setRemovingLegacyMembers] = useState(false);
-  const [showRemoveLegacyMembersModal, setShowRemoveLegacyMembersModal] =
-    useState(false);
   const [activeLegacyFreeMembersCount, setActiveLegacyFreeMembersCount] =
     useState(0);
 
@@ -1677,7 +1359,7 @@ export default function OwnerAdminServices({
           customClass.meta,
           "customClass"
         ),
-        availability: createEmptyWeeklyAvailability(),
+        availability: normalizeWeeklyAvailabilityFromMeta(customClass.meta),
       },
       donationMode: donation.mode,
       donationCurrency: donation.currency ?? "MXN",
@@ -1695,8 +1377,6 @@ export default function OwnerAdminServices({
       lastHydratedGroupIdRef.current = groupId;
       setDraft(nextDraft);
       setSavedDraft(nextDraft);
-      setOverlayDraft(nextDraft);
-      setPreOverlayDraft(null);
       setMsg(null);
       setErr(null);
       return;
@@ -1882,69 +1562,6 @@ export default function OwnerAdminServices({
     width: "100%",
   };
 
-  const subscriptionCalc =
-    draft.subscription.enabled ? calcNetAmount(draft.subscription.price) : null;
-  const saludoCalc =
-    draft.saludo.enabled ? calcNetAmount(draft.saludo.price) : null;
-  const consejoCalc =
-    draft.consejo.enabled ? calcNetAmount(draft.consejo.price) : null;
-  const meetGreetCalc =
-    draft.meetGreet.enabled ? calcNetAmount(draft.meetGreet.price) : null;
-  const customClassCalc =
-    draft.customClass.enabled ? calcNetAmount(draft.customClass.price) : null;
-  const donationMinimumCalc =
-    draft.donationMode !== "none"
-      ? calcNetAmount(draft.donationMinimumAmount)
-      : null;
-
-  const hasUnsavedDonationChanges =
-    draft.donationMode !== savedDraft.donationMode ||
-    draft.donationCurrency !== savedDraft.donationCurrency ||
-    draft.donationMinimumAmount !== savedDraft.donationMinimumAmount ||
-    draft.donationGoalLabel !== savedDraft.donationGoalLabel;
-
-  function openOverlay(
-    mode: OverlayMode,
-    nextDraft?: ServiceDraft,
-    previousDraft?: ServiceDraft
-  ) {
-    if (!mode) return;
-    const baseDraft = previousDraft ?? draft;
-    setErr(null);
-    setMsg(null);
-    setPreOverlayDraft(baseDraft);
-    setOverlayDraft(nextDraft ?? draft);
-    setActiveOverlay(mode);
-  }
-
-  function closeOverlay() {
-    if (saving || removingLegacyMembers) return;
-
-    if (preOverlayDraft) {
-      setDraft(preOverlayDraft);
-      setOverlayDraft(preOverlayDraft);
-    }
-
-    setActiveOverlay(null);
-    setPreOverlayDraft(null);
-  }
-
-  async function saveOverlayChanges(nextDraft: ServiceDraft) {
-    setDraft(nextDraft);
-    setOverlayDraft(nextDraft);
-    setActiveOverlay(null);
-    setPreOverlayDraft(null);
-
-    setTimeout(() => {
-      void saveServicesFromDraft(nextDraft);
-    }, 0);
-  }
-
-  function openRemoveLegacyMembersModal() {
-    if (!canRemoveLegacyFreeMembersLater || saving || removingLegacyMembers) return;
-    setShowRemoveLegacyMembersModal(true);
-  }
-
   async function handleConfirmRemoveLegacyFreeMembersLater() {
     if (!canRemoveLegacyFreeMembersLater) return;
 
@@ -1958,7 +1575,6 @@ export default function OwnerAdminServices({
           groupId,
         });
 
-      setShowRemoveLegacyMembersModal(false);
       setMsg(
         buildManualLegacyRemovalSuccessMessage({
           removedMembers: response.removedMembers,
@@ -2122,7 +1738,13 @@ export default function OwnerAdminServices({
             return;
           }
 
-          if (slot.start >= slot.end) {
+          const [startHour, startMinute] = slot.start.split(":").map(Number);
+          const [endHour, endMinute] = slot.end.split(":").map(Number);
+
+          const startTotal = startHour * 60 + startMinute;
+          const endTotal = endHour * 60 + endMinute;
+
+          if (startTotal >= endTotal) {
             setErr(
               `❌ En ${day.label.toLowerCase()} la hora inicial debe ser menor a la final.`
             );
@@ -2140,7 +1762,9 @@ export default function OwnerAdminServices({
 
       const savedWasSubscriptionEnabled = savedDraft.subscription.enabled;
       const localWillEnableSubscription =
-        !savedWasSubscriptionEnabled && workingDraft.subscription.enabled && !isPublic;
+        !savedWasSubscriptionEnabled &&
+        workingDraft.subscription.enabled &&
+        !isPublic;
       const localWillDisableSubscription =
         savedWasSubscriptionEnabled && !workingDraft.subscription.enabled;
 
@@ -2484,8 +2108,6 @@ export default function OwnerAdminServices({
 
           setDraft(nextSavedAfterPartialSuccess);
           setSavedDraft(nextSavedAfterPartialSuccess);
-          setOverlayDraft(nextSavedAfterPartialSuccess);
-          setPreOverlayDraft(null);
           setErr(
             `⚠️ La configuración del grupo sí se guardó, pero la transición de miembros no terminó correctamente: ${transitionMessage}`
           );
@@ -2553,979 +2175,128 @@ export default function OwnerAdminServices({
 
       setDraft(nextSaved);
       setSavedDraft(nextSaved);
-      setOverlayDraft(nextSaved);
-      setPreOverlayDraft(null);
       setMsg(successMessage);
     } catch (e: any) {
-      skipHydrationWhileSavingRef.current = false;
       setErr(e?.message ?? "❌ No se pudieron guardar los servicios.");
     } finally {
+      skipHydrationWhileSavingRef.current = false;
       setSaving(false);
     }
   }
 
-  async function saveServices() {
-    await saveServicesFromDraft(draft);
-  }
-
   return (
     <div style={contentStyle}>
-      <div style={{ display: "grid", gap: 10 }}>
-        <SubscriptionEditorBlock
-          draft={draft.subscription}
-          saving={saving || removingLegacyMembers}
-          disabledByVisibility={isPublic}
-          onChange={(updater) => {
-            const currentDraft = draft;
-            const nextValue =
-              typeof updater === "function"
-                ? updater(currentDraft.subscription)
-                : { ...currentDraft.subscription, ...updater };
-
-            const nextDraft = {
-              ...currentDraft,
-              subscription: nextValue,
-            };
-
-            const changingPolicy =
-              currentDraft.subscription.enabled !== nextValue.enabled ||
-              (currentDraft.subscription.enabled &&
-                nextValue.enabled &&
-                currentDraft.subscription.price !== nextValue.price);
-
-            setDraft(nextDraft);
-
-            if (changingPolicy) {
-              openOverlay("subscription", nextDraft, currentDraft);
-            }
-          }}
-          netText={
-            subscriptionCalc
-              ? `Por una suscripción de ${formatMoney(
-                  subscriptionCalc.gross,
-                  draft.subscription.currency
-                )}, tú cobras ${formatMoney(
-                  subscriptionCalc.net,
-                  draft.subscription.currency
-                )}.`
-              : isPublic
-                ? "Para activar suscripción mensual tu comunidad debe ser privada u oculta."
-                : null
-          }
-        />
-
-        {canRemoveLegacyFreeMembersLater && (
-          <div style={panelStyle}>
-            <div style={{ display: "grid", gap: 2 }}>
-              <span style={titleStyle}>Retirar miembros gratuitos</span>
-              <span style={subtleStyle}>
-                Esta acción aparece solo cuando la comunidad ya quedó guardada como comunidad de suscripción y todavía existen miembros activos con acceso gratuito heredado.
-              </span>
-            </div>
-
-            <div style={subtleStyle}>
-              Miembros gratuitos detectados actualmente:{" "}
-              <strong style={{ color: "#fff" }}>
-                {activeLegacyFreeMembersCount}
-              </strong>
-            </div>
-
-            <button
-              type="button"
-              onClick={openRemoveLegacyMembersModal}
-              disabled={saving || removingLegacyMembers}
-              style={{
-                ...buttonSecondaryStyle,
-                opacity: saving || removingLegacyMembers ? 0.7 : 1,
-                cursor:
-                  saving || removingLegacyMembers ? "not-allowed" : "pointer",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-              }}
-            >
-              {removingLegacyMembers ? (
-                <>
-                  <SpinningGear />
-                  Retirando miembros gratuitos...
-                </>
-              ) : (
-                "Sacar a los miembros gratuitos"
-              )}
-            </button>
-
-            <div style={subtleStyle}>
-              Solo afectará a miembros activos con acceso gratuito heredado. No toca owner, moderadores protegidos, miembros removidos ni suscriptores de pago.
-            </div>
-          </div>
-        )}
-      </div>
-
-      <ServiceEditorBlock
-        title={`${SERVICE_EMOJIS.saludo} Saludos`}
-        draft={draft.saludo}
+      <Subscription
+        draft={draft}
+        savedDraft={savedDraft}
+        isPublic={isPublic}
         saving={saving}
-        onChange={(updater) => {
-          const currentDraft = draft;
-          const nextValue =
-            typeof updater === "function"
-              ? updater(currentDraft.saludo)
-              : { ...currentDraft.saludo, ...updater };
-
-          const normalizedNext = {
-            ...nextValue,
-            visible: nextValue.enabled,
-            visibility: "members" as EditableServiceVisibility,
-          };
-
-          const nextDraft = {
-            ...currentDraft,
-            saludo: normalizedNext,
-          };
-
-          setDraft(nextDraft);
-
-          if (currentDraft.saludo.enabled && !normalizedNext.enabled) {
-            void saveServicesFromDraft(nextDraft);
-            return;
-          }
-
-          if (!currentDraft.saludo.enabled && normalizedNext.enabled) {
-            openOverlay("saludo", nextDraft, currentDraft);
-          }
-        }}
-        netText={
-          saludoCalc
-            ? `Por un saludo de ${formatMoney(
-                saludoCalc.gross,
-                draft.saludo.currency
-              )}, tú cobras ${formatMoney(
-                saludoCalc.net,
-                draft.saludo.currency
-              )}.`
-            : null
-        }
+        removingLegacyMembers={removingLegacyMembers}
+        activeLegacyFreeMembersCount={activeLegacyFreeMembersCount}
+        canRemoveLegacyFreeMembersLater={canRemoveLegacyFreeMembersLater}
+        subscriptionEmoji={SERVICE_EMOJIS.subscription}
+        panelStyle={panelStyle}
+        titleStyle={titleStyle}
+        subtleStyle={subtleStyle}
+        inputStyle={inputStyle}
+        buttonSecondaryStyle={buttonSecondaryStyle}
+        calcNetAmount={calcNetAmount}
+        formatMoney={formatMoney}
+        SwitchComponent={Switch}
+        OverlayModalComponent={OverlayModal}
+        ConfirmModalComponent={ConfirmModal}
+        SpinningGearComponent={SpinningGear}
+        onSaveDraft={saveServicesFromDraft}
+       onRemoveLegacyMembers={handleConfirmRemoveLegacyFreeMembersLater}
       />
 
-      <ServiceEditorBlock
-        title={`${SERVICE_EMOJIS.consejo} Consejos`}
-        draft={draft.consejo}
+      <Greetings
+        draft={draft}
         saving={saving}
-        onChange={(updater) => {
-          const currentDraft = draft;
-          const nextValue =
-            typeof updater === "function"
-              ? updater(currentDraft.consejo)
-              : { ...currentDraft.consejo, ...updater };
-
-          const normalizedNext = {
-            ...nextValue,
-            visible: nextValue.enabled,
-            visibility: "members" as EditableServiceVisibility,
-          };
-
-          const nextDraft = {
-            ...currentDraft,
-            consejo: normalizedNext,
-          };
-
-          setDraft(nextDraft);
-
-          if (currentDraft.consejo.enabled && !normalizedNext.enabled) {
-            void saveServicesFromDraft(nextDraft);
-            return;
-          }
-
-          if (!currentDraft.consejo.enabled && normalizedNext.enabled) {
-            openOverlay("consejo", nextDraft, currentDraft);
-          }
-        }}
-        netText={
-          consejoCalc
-            ? `Por un consejo de ${formatMoney(
-                consejoCalc.gross,
-                draft.consejo.currency
-              )}, tú cobras ${formatMoney(
-                consejoCalc.net,
-                draft.consejo.currency
-              )}.`
-            : null
-        }
+        saludoEmoji={SERVICE_EMOJIS.saludo}
+        panelStyle={panelStyle}
+        titleStyle={titleStyle}
+        subtleStyle={subtleStyle}
+        inputStyle={inputStyle}
+        buttonSecondaryStyle={buttonSecondaryStyle}
+        calcNetAmount={calcNetAmount}
+        formatMoney={formatMoney}
+        SwitchComponent={Switch}
+        OverlayModalComponent={OverlayModal}
+        onSaveDraft={saveServicesFromDraft}
       />
 
-      <ServiceEditorBlock
-        title={`${SERVICE_EMOJIS.meetGreet} Meet & Greet digital`}
-        draft={draft.meetGreet}
+      <Advice
+        draft={draft}
         saving={saving}
-        onChange={(updater) => {
-          const currentDraft = draft;
-          const nextValue =
-            typeof updater === "function"
-              ? updater(currentDraft.meetGreet)
-              : { ...currentDraft.meetGreet, ...updater };
-
-          const normalizedNext = {
-            ...nextValue,
-            visible: nextValue.enabled,
-            visibility: "members" as EditableServiceVisibility,
-          };
-
-          const nextDraft = {
-            ...currentDraft,
-            meetGreet: normalizedNext,
-          };
-
-          setDraft(nextDraft);
-
-          if (currentDraft.meetGreet.enabled && !normalizedNext.enabled) {
-            void saveServicesFromDraft(nextDraft);
-            return;
-          }
-
-          if (!currentDraft.meetGreet.enabled && normalizedNext.enabled) {
-            openOverlay("meetGreet", nextDraft, currentDraft);
-          }
-        }}
-        showDuration
-        durationLabel="Duración en minutos"
-        netText={
-          meetGreetCalc
-            ? `Por un meet & greet de ${formatMoney(
-                meetGreetCalc.gross,
-                draft.meetGreet.currency
-              )}, tú cobras ${formatMoney(
-                meetGreetCalc.net,
-                draft.meetGreet.currency
-              )}.`
-            : null
-        }
+        consejoEmoji={SERVICE_EMOJIS.consejo}
+        panelStyle={panelStyle}
+        titleStyle={titleStyle}
+        subtleStyle={subtleStyle}
+        inputStyle={inputStyle}
+        buttonSecondaryStyle={buttonSecondaryStyle}
+        calcNetAmount={calcNetAmount}
+        formatMoney={formatMoney}
+        SwitchComponent={Switch}
+        OverlayModalComponent={OverlayModal}
+        onSaveDraft={saveServicesFromDraft}
       />
 
-      <ServiceEditorBlock
-        title={`${SERVICE_EMOJIS.customClass} Clase personalizada`}
-        draft={draft.customClass}
+      <MeetGreet
+        draft={draft}
         saving={saving}
-        onChange={(updater) => {
-          const currentDraft = draft;
-          const nextValue =
-            typeof updater === "function"
-              ? updater(currentDraft.customClass)
-              : { ...currentDraft.customClass, ...updater };
-
-          const normalizedNext = {
-            ...nextValue,
-            visible: nextValue.enabled,
-            visibility: "members" as EditableServiceVisibility,
-          };
-
-          const nextDraft = {
-            ...currentDraft,
-            customClass: normalizedNext,
-          };
-
-          setDraft(nextDraft);
-
-          if (currentDraft.customClass.enabled && !normalizedNext.enabled) {
-            void saveServicesFromDraft(nextDraft);
-            return;
-          }
-
-          if (!currentDraft.customClass.enabled && normalizedNext.enabled) {
-            openOverlay("customClass", nextDraft, currentDraft);
-          }
-        }}
-        showDuration
-        durationLabel="Duración en minutos"
-        netText={
-          customClassCalc
-            ? `Por una clase de ${formatMoney(
-                customClassCalc.gross,
-                draft.customClass.currency
-              )}, tú cobras ${formatMoney(
-                customClassCalc.net,
-                draft.customClass.currency
-              )}.`
-            : null
-        }
+        meetGreetEmoji={SERVICE_EMOJIS.meetGreet}
+        panelStyle={panelStyle}
+        titleStyle={titleStyle}
+        subtleStyle={subtleStyle}
+        inputStyle={inputStyle}
+        buttonSecondaryStyle={buttonSecondaryStyle}
+        calcNetAmount={calcNetAmount}
+        formatMoney={formatMoney}
+        SwitchComponent={Switch}
+        OverlayModalComponent={OverlayModal}
+        onSaveDraft={saveServicesFromDraft}
       />
 
-      <div style={panelStyle}>
-        <div style={{ display: "grid", gap: 2 }}>
-          <span style={titleStyle}>{SERVICE_EMOJIS.donation} Donación</span>
-          <span style={subtleStyle}>
-            Elige una sola modalidad. Si activas donación o donación para boda,
-            se mostrará el monto mínimo. Si eliges sin donación, debe quedar
-            totalmente desactivada.
-          </span>
-        </div>
+      <CustomClass
+        draft={draft}
+        saving={saving}
+        customClassEmoji={SERVICE_EMOJIS.customClass}
+        panelStyle={panelStyle}
+        titleStyle={titleStyle}
+        subtleStyle={subtleStyle}
+        inputStyle={inputStyle}
+        buttonSecondaryStyle={buttonSecondaryStyle}
+        calcNetAmount={calcNetAmount}
+        formatMoney={formatMoney}
+        SwitchComponent={Switch}
+        OverlayModalComponent={OverlayModal}
+        TimeSelectRowComponent={TimeSelectRow}
+        weekdayOptions={WEEKDAY_OPTIONS}
+        createEmptyWeeklyAvailability={createEmptyWeeklyAvailability}
+        onSaveDraft={saveServicesFromDraft}
+      />
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: 8,
-          }}
-        >
-          <DonationModeButton
-            active={draft.donationMode === "none"}
-            disabled={saving}
-            label="Sin donación"
-            onClick={() =>
-              setDraft((prev) => ({
-                ...prev,
-                donationMode: "none",
-                donationCurrency: "MXN",
-                donationMinimumAmount: "",
-                donationGoalLabel: "",
-              }))
-            }
-          />
-
-          <DonationModeButton
-            active={draft.donationMode === "general"}
-            disabled={saving}
-            label="Donación"
-            onClick={() =>
-              setDraft((prev) => ({
-                ...prev,
-                donationMode: "general",
-                donationGoalLabel: "",
-              }))
-            }
-          />
-
-          <DonationModeButton
-            active={draft.donationMode === "wedding"}
-            disabled={saving}
-            label="Donación para boda"
-            onClick={() =>
-              setDraft((prev) => ({
-                ...prev,
-                donationMode: "wedding",
-              }))
-            }
-          />
-        </div>
-
-        {draft.donationMode !== "none" && (
-          <>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <input
-                type="number"
-                min="1"
-                step="0.01"
-                value={draft.donationMinimumAmount}
-                onChange={(e) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    donationMinimumAmount: e.target.value,
-                  }))
-                }
-                placeholder="Monto mínimo"
-                style={{ ...inputStyle, width: 130 }}
-              />
-
-              <select
-                value={draft.donationCurrency}
-                onChange={(e) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    donationCurrency: e.target.value as Currency,
-                  }))
-                }
-                style={{ ...inputStyle, flex: 1, minWidth: 82 }}
-              >
-                <option value="MXN">MXN</option>
-                <option value="USD">USD</option>
-              </select>
-            </div>
-
-            {draft.donationMode === "wedding" && (
-              <input
-                type="text"
-                value={draft.donationGoalLabel}
-                onChange={(e) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    donationGoalLabel: e.target.value,
-                  }))
-                }
-                placeholder="Texto visible (ej. Apoyo para nuestra boda)"
-                style={{ ...inputStyle, width: "100%" }}
-              />
-            )}
-
-            {donationMinimumCalc && (
-              <div style={subtleStyle}>
-                Monto mínimo configurado:{" "}
-                {formatMoney(
-                  donationMinimumCalc.gross,
-                  draft.donationCurrency
-                )}
-                . El usuario podrá donar ese monto o uno mayor.
-              </div>
-            )}
-
-            <div style={subtleStyle}>
-              El video de agradecimiento o presentación de la donación queda
-              pendiente para el hito donde integremos video/live.
-            </div>
-          </>
-        )}
-
-        <button
-          type="button"
-          onClick={() => void saveServices()}
-          disabled={saving || removingLegacyMembers || !hasUnsavedDonationChanges}
-          style={{
-            ...buttonSecondaryStyle,
-            opacity:
-              saving || removingLegacyMembers || !hasUnsavedDonationChanges
-                ? 0.6
-                : 1,
-            cursor:
-              saving || removingLegacyMembers || !hasUnsavedDonationChanges
-                ? "not-allowed"
-                : "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-          }}
-        >
-          {saving ? (
-            <>
-              <SpinningGear />
-              Guardando donación...
-            </>
-          ) : (
-            "Guardar donación"
-          )}
-        </button>
-      </div>
+      <Donation
+        draft={draft}
+        savedDraft={savedDraft}
+        saving={saving}
+        removingLegacyMembers={removingLegacyMembers}
+        donationEmoji={SERVICE_EMOJIS.donation}
+        panelStyle={panelStyle}
+        titleStyle={titleStyle}
+        subtleStyle={subtleStyle}
+        inputStyle={inputStyle}
+        buttonSecondaryStyle={buttonSecondaryStyle}
+        calcNetAmount={calcNetAmount}
+        formatMoney={formatMoney}
+        OverlayModalComponent={OverlayModal}
+        DonationModeButtonComponent={DonationModeButton}
+        onSaveDraft={saveServicesFromDraft}
+      />
 
       {err && <div style={noticeStyle}>{err}</div>}
       {msg && <div style={noticeStyle}>{msg}</div>}
-
-      <OverlayModal
-        open={activeOverlay === "saludo"}
-        title={`${SERVICE_EMOJIS.saludo} Configurar saludos`}
-        loading={saving}
-        onCancel={closeOverlay}
-        onConfirm={() => void saveOverlayChanges(overlayDraft)}
-      >
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input
-            type="number"
-            min="1"
-            step="0.01"
-            value={overlayDraft.saludo.price}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                saludo: {
-                  ...prev.saludo,
-                  price: e.target.value,
-                  currency: prev.saludo.currency,
-                  visible: true,
-                  visibility: "members",
-                },
-              }))
-            }
-            placeholder="Precio"
-            style={{ ...inputStyle, width: 130, flex: "1 1 180px" }}
-          />
-          <select
-            value={overlayDraft.saludo.currency}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                saludo: {
-                  ...prev.saludo,
-                  currency: e.target.value as Currency,
-                  visible: true,
-                  visibility: "members",
-                },
-              }))
-            }
-            style={{ ...inputStyle, width: 100, flex: "1 1 120px" }}
-          >
-            <option value="MXN">MXN</option>
-            <option value="USD">USD</option>
-          </select>
-        </div>
-      </OverlayModal>
-
-      <OverlayModal
-        open={activeOverlay === "consejo"}
-        title={`${SERVICE_EMOJIS.consejo} Configurar consejos`}
-        loading={saving}
-        onCancel={closeOverlay}
-        onConfirm={() => void saveOverlayChanges(overlayDraft)}
-      >
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input
-            type="number"
-            min="1"
-            step="0.01"
-            value={overlayDraft.consejo.price}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                consejo: {
-                  ...prev.consejo,
-                  price: e.target.value,
-                  currency: prev.consejo.currency,
-                  visible: true,
-                  visibility: "members",
-                },
-              }))
-            }
-            placeholder="Precio"
-            style={{ ...inputStyle, width: 130, flex: "1 1 180px" }}
-          />
-          <select
-            value={overlayDraft.consejo.currency}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                consejo: {
-                  ...prev.consejo,
-                  currency: e.target.value as Currency,
-                  visible: true,
-                  visibility: "members",
-                },
-              }))
-            }
-            style={{ ...inputStyle, width: 100, flex: "1 1 120px" }}
-          >
-            <option value="MXN">MXN</option>
-            <option value="USD">USD</option>
-          </select>
-        </div>
-      </OverlayModal>
-
-      <OverlayModal
-        open={activeOverlay === "meetGreet"}
-        title={`${SERVICE_EMOJIS.meetGreet} Configurar Meet & Greet digital`}
-        loading={saving}
-        onCancel={closeOverlay}
-        onConfirm={() => void saveOverlayChanges(overlayDraft)}
-      >
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input
-            type="number"
-            min="1"
-            step="0.01"
-            value={overlayDraft.meetGreet.price}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                meetGreet: {
-                  ...prev.meetGreet,
-                  price: e.target.value,
-                  visible: true,
-                  visibility: "members",
-                },
-              }))
-            }
-            placeholder="Precio"
-            style={{ ...inputStyle, width: 130, flex: "1 1 180px" }}
-          />
-          <select
-            value={overlayDraft.meetGreet.currency}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                meetGreet: {
-                  ...prev.meetGreet,
-                  currency: e.target.value as Currency,
-                  visible: true,
-                  visibility: "members",
-                },
-              }))
-            }
-            style={{ ...inputStyle, width: 100, flex: "1 1 120px" }}
-          >
-            <option value="MXN">MXN</option>
-            <option value="USD">USD</option>
-          </select>
-          <input
-            type="number"
-            min="1"
-            step="1"
-            value={overlayDraft.meetGreet.durationMinutes}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                meetGreet: {
-                  ...prev.meetGreet,
-                  durationMinutes: e.target.value,
-                  visible: true,
-                  visibility: "members",
-                },
-              }))
-            }
-            placeholder="Duración (min)"
-            style={{ ...inputStyle, width: 160, flex: "1 1 180px" }}
-          />
-        </div>
-      </OverlayModal>
-
-      <OverlayModal
-        open={activeOverlay === "subscription"}
-        title={`${SERVICE_EMOJIS.subscription} Configurar suscripción mensual`}
-        loading={saving}
-        onCancel={closeOverlay}
-        onConfirm={() => void saveOverlayChanges(overlayDraft)}
-      >
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input
-            type="number"
-            min="1"
-            step="0.01"
-            value={overlayDraft.subscription.price}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                subscription: {
-                  ...prev.subscription,
-                  price: e.target.value,
-                },
-              }))
-            }
-            placeholder="Precio mensual"
-            style={{ ...inputStyle, width: 160, flex: "1 1 200px" }}
-          />
-          <select
-            value={overlayDraft.subscription.currency}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                subscription: {
-                  ...prev.subscription,
-                  currency: e.target.value as Currency,
-                },
-              }))
-            }
-            style={{ ...inputStyle, width: 100, flex: "1 1 120px" }}
-          >
-            <option value="MXN">MXN</option>
-            <option value="USD">USD</option>
-          </select>
-        </div>
-
-        {(!savedDraft.subscription.enabled &&
-          overlayDraft.subscription.enabled &&
-          !isPublic) ? (
-          <TransitionPolicyPanel
-            mode="free_to_subscription"
-            value={overlayDraft.freeToSubscriptionPolicy}
-            onChange={(next) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                freeToSubscriptionPolicy: next as FreeToSubscriptionPolicy,
-              }))
-            }
-            saving={saving}
-          />
-        ) : null}
-
-        {(savedDraft.subscription.enabled &&
-          !overlayDraft.subscription.enabled) ? (
-          <TransitionPolicyPanel
-            mode="subscription_to_free"
-            value={overlayDraft.subscriptionToFreePolicy}
-            onChange={(next) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                subscriptionToFreePolicy:
-                  next as SubscriptionToFreePolicy,
-              }))
-            }
-            saving={saving}
-          />
-        ) : null}
-
-        {(!isPublic &&
-          savedDraft.subscription.enabled &&
-          overlayDraft.subscription.enabled &&
-          savedDraft.subscription.currency === overlayDraft.subscription.currency &&
-          savedDraft.subscription.price.trim() !== "" &&
-          overlayDraft.subscription.price.trim() !== "" &&
-          Number(overlayDraft.subscription.price) >
-            Number(savedDraft.subscription.price)) ? (
-          <TransitionPolicyPanel
-            mode="subscription_price_increase"
-            value={overlayDraft.subscriptionPriceIncreasePolicy}
-            onChange={(next) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                subscriptionPriceIncreasePolicy:
-                  next as SubscriptionPriceIncreasePolicy,
-              }))
-            }
-            saving={saving}
-          />
-        ) : null}
-      </OverlayModal>
-
-      <OverlayModal
-        open={activeOverlay === "customClass"}
-        title={`${SERVICE_EMOJIS.customClass} Configurar clase personalizada`}
-        loading={saving}
-        onCancel={closeOverlay}
-        onConfirm={() => void saveOverlayChanges(overlayDraft)}
-      >
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          <input
-            type="number"
-            min="1"
-            step="0.01"
-            value={overlayDraft.customClass.price}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                customClass: {
-                  ...prev.customClass,
-                  price: e.target.value,
-                  visible: true,
-                  visibility: "members",
-                },
-              }))
-            }
-            placeholder="Precio"
-            style={{ ...inputStyle, width: 130, flex: "1 1 180px" }}
-          />
-          <select
-            value={overlayDraft.customClass.currency}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                customClass: {
-                  ...prev.customClass,
-                  currency: e.target.value as Currency,
-                  visible: true,
-                  visibility: "members",
-                },
-              }))
-            }
-            style={{ ...inputStyle, width: 100, flex: "1 1 120px" }}
-          >
-            <option value="MXN">MXN</option>
-            <option value="USD">USD</option>
-          </select>
-          <input
-            type="number"
-            min="1"
-            step="1"
-            value={overlayDraft.customClass.durationMinutes}
-            onChange={(e) =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                customClass: {
-                  ...prev.customClass,
-                  durationMinutes: e.target.value,
-                  visible: true,
-                  visibility: "members",
-                },
-              }))
-            }
-            placeholder="Duración (min)"
-            style={{ ...inputStyle, width: 160, flex: "1 1 180px" }}
-          />
-        </div>
-
-        <div style={{ display: "grid", gap: 10 }}>
-          <div style={titleStyle}>Disponibilidad semanal</div>
-
-          {WEEKDAY_OPTIONS.map((day) => {
-            const slots = overlayDraft.customClass.availability[day.key];
-
-            return (
-              <div
-                key={day.key}
-                style={{
-                  padding: "10px",
-                  borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  background: "rgba(255,255,255,0.02)",
-                  display: "grid",
-                  gap: 8,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <span style={titleStyle}>{day.label}</span>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOverlayDraft((prev) => ({
-                        ...prev,
-                        customClass: {
-                          ...prev.customClass,
-                          availability: {
-                            ...prev.customClass.availability,
-                            [day.key]: [
-                              ...prev.customClass.availability[day.key],
-                              { start: "", end: "" },
-                            ],
-                          },
-                        },
-                      }))
-                    }
-                    style={{
-                      ...buttonSecondaryStyle,
-                      width: "auto",
-                      padding: "6px 10px",
-                      fontSize: 12,
-                    }}
-                  >
-                    Agregar horario
-                  </button>
-                </div>
-
-                {slots.length === 0 ? (
-                  <div style={subtleStyle}>Sin horarios configurados.</div>
-                ) : (
-                  <div style={{ display: "grid", gap: 8 }}>
-                    {slots.map((slot, index) => (
-                      <div
-                        key={`${day.key}-${index}`}
-                        style={{
-                          display: "grid",
-                          gap: 8,
-                          padding: "8px",
-                          borderRadius: 10,
-                          background: "rgba(255,255,255,0.03)",
-                          border: "1px solid rgba(255,255,255,0.06)",
-                        }}
-                      >
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <div style={{ display: "grid", gap: 6, flex: "1 1 220px" }}>
-                            <span style={subtleStyle}>Desde</span>
-                            <TimeSelectRow
-                              value={slot.start}
-                              onChange={(nextValue) =>
-                                setOverlayDraft((prev) => {
-                                  const nextSlots = [...prev.customClass.availability[day.key]];
-                                  nextSlots[index] = {
-                                    ...nextSlots[index],
-                                    start: nextValue,
-                                  };
-
-                                  return {
-                                    ...prev,
-                                    customClass: {
-                                      ...prev.customClass,
-                                      availability: {
-                                        ...prev.customClass.availability,
-                                        [day.key]: nextSlots,
-                                      },
-                                    },
-                                  };
-                                })
-                              }
-                              inputStyle={inputStyle}
-                            />
-                          </div>
-
-                          <div style={{ display: "grid", gap: 6, flex: "1 1 220px" }}>
-                            <span style={subtleStyle}>Hasta</span>
-                            <TimeSelectRow
-                              value={slot.end}
-                              onChange={(nextValue) =>
-                                setOverlayDraft((prev) => {
-                                  const nextSlots = [...prev.customClass.availability[day.key]];
-                                  nextSlots[index] = {
-                                    ...nextSlots[index],
-                                    end: nextValue,
-                                  };
-
-                                  return {
-                                    ...prev,
-                                    customClass: {
-                                      ...prev.customClass,
-                                      availability: {
-                                        ...prev.customClass.availability,
-                                        [day.key]: nextSlots,
-                                      },
-                                    },
-                                  };
-                                })
-                              }
-                              inputStyle={inputStyle}
-                            />
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOverlayDraft((prev) => ({
-                              ...prev,
-                              customClass: {
-                                ...prev.customClass,
-                                availability: {
-                                  ...prev.customClass.availability,
-                                  [day.key]: prev.customClass.availability[day.key].filter(
-                                    (_, i) => i !== index
-                                  ),
-                                },
-                              },
-                            }))
-                          }
-                          style={{
-                            ...buttonSecondaryStyle,
-                            width: "auto",
-                            padding: "6px 10px",
-                            fontSize: 12,
-                            justifySelf: "flex-start",
-                          }}
-                        >
-                          Quitar
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </OverlayModal>
-
-      <ConfirmModal
-        open={showRemoveLegacyMembersModal}
-        title="Retirar miembros gratuitos"
-        description={
-          <>
-            Vas a retirar a todos los miembros que siguen dentro con acceso gratuito
-            heredado en esta comunidad. Después de esto, deberán suscribirse o
-            quitar/olvidar el grupo.
-            <br />
-            <br />
-            <strong style={{ color: "#fff" }}>
-              Miembros detectados para esta acción: {activeLegacyFreeMembersCount}
-            </strong>
-          </>
-        }
-        confirmLabel="Sí, retirar miembros gratuitos"
-        loading={removingLegacyMembers}
-        onCancel={() => {
-          if (removingLegacyMembers) return;
-          setShowRemoveLegacyMembersModal(false);
-        }}
-        onConfirm={handleConfirmRemoveLegacyFreeMembersLater}
-      />
     </div>
   );
 }
