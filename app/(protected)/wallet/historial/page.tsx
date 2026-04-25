@@ -27,6 +27,7 @@ const FILTER_OPTIONS: Array<{ value: HistoryFilter; label: string; emoji?: strin
   { value: "rejected", label: "Rechazados", emoji: "❌" },
   { value: "refund_in_progress", label: "En devolución", emoji: "💸" },
   { value: "meet_greet", label: "Meet & Greet", emoji: "🤝" },
+  { value: "exclusive_session", label: "Sesión exclusiva", emoji: "👑" },
   { value: "saludo", label: "Saludos", emoji: "👋" },
   { value: "consejo", label: "Consejos", emoji: "💡" },
   { value: "mensaje", label: "Mensajes", emoji: "💬" },

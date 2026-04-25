@@ -37,6 +37,7 @@ import {
   type GreetingType,
 } from "@/lib/greetings/greetingRequests";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
+import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import {
   mergeMonetizationWithCatalog,
   mergeWithDefaultCatalog,
@@ -279,6 +280,12 @@ const canRequestMeetGreet =
   memberStatus !== "banned" &&
   memberStatus !== "removed";
 
+  const canRequestExclusiveSession =
+  !isOwner &&
+  canRequestCreatorServices &&
+  memberStatus !== "banned" &&
+  memberStatus !== "removed";
+
   const currentPostingMode = useMemo(
     () =>
       normalizePostingMode(
@@ -390,6 +397,51 @@ const canRequestMeetGreet =
   return null;
 }, [meetGreetOffering]);
 
+  const exclusiveSessionOffering = useMemo(() => {
+    return (
+      normalizedCurrentOfferings.find(
+        (offering) => offering.type === "clase_personalizada"
+      ) ?? null
+    );
+  }, [normalizedCurrentOfferings]);
+
+  const exclusiveSessionPrice = useMemo(() => {
+    if (!exclusiveSessionOffering) return null;
+
+    if (typeof exclusiveSessionOffering.memberPrice === "number") {
+      return exclusiveSessionOffering.memberPrice;
+    }
+
+    if (typeof exclusiveSessionOffering.publicPrice === "number") {
+      return exclusiveSessionOffering.publicPrice;
+    }
+
+    if (typeof exclusiveSessionOffering.price === "number") {
+      return exclusiveSessionOffering.price;
+    }
+
+    return null;
+  }, [exclusiveSessionOffering]);
+
+  const exclusiveSessionCurrency = useMemo<Currency>(() => {
+    return exclusiveSessionOffering?.currency ?? subscriptionCurrency ?? "MXN";
+  }, [exclusiveSessionOffering, subscriptionCurrency]);
+
+  const exclusiveSessionDurationMinutes = useMemo(() => {
+    const meta = exclusiveSessionOffering?.meta as Record<string, any> | null;
+    const customClassMeta = meta?.customClass ?? null;
+
+    if (
+      customClassMeta &&
+      typeof customClassMeta.durationMinutes === "number" &&
+      Number.isFinite(customClassMeta.durationMinutes)
+    ) {
+      return customClassMeta.durationMinutes;
+    }
+
+    return null;
+  }, [exclusiveSessionOffering]);
+
   const removedBySubscriptionTransition = useMemo(() => {
     return (
       membershipTransitionPendingAction &&
@@ -432,6 +484,11 @@ const canRequestMeetGreet =
   const [meetGreetMessage, setMeetGreetMessage] = useState("");
   const [meetGreetSubmitting, setMeetGreetSubmitting] = useState(false);
   const [meetGreetError, setMeetGreetError] = useState<string | null>(null);
+
+  const [exclusiveSessionOpen, setExclusiveSessionOpen] = useState(false);
+  const [exclusiveSessionMessage, setExclusiveSessionMessage] = useState("");
+  const [exclusiveSessionSubmitting, setExclusiveSessionSubmitting] = useState(false);
+  const [exclusiveSessionError, setExclusiveSessionError] = useState<string | null>(null);
 
   const [serviceToast, setServiceToast] = useState<string | null>(null);
 
@@ -770,6 +827,81 @@ const canRequestMeetGreet =
     }
   }
 
+
+  function openExclusiveSessionForm() {
+    setExclusiveSessionError(null);
+    setServiceToast(null);
+    setExclusiveSessionMessage("");
+    setExclusiveSessionOpen(true);
+  }
+
+  function closeExclusiveSessionForm() {
+    if (exclusiveSessionSubmitting) return;
+    setExclusiveSessionOpen(false);
+    setExclusiveSessionSubmitting(false);
+    setExclusiveSessionError(null);
+    setExclusiveSessionMessage("");
+    clearServiceQuery();
+  }
+
+  async function submitExclusiveSessionRequest() {
+    if (!user) {
+      redirectToLogin();
+      return;
+    }
+
+    if (isOwner) {
+      setExclusiveSessionError(
+        "No puedes solicitar/comprar una sesión exclusiva en tu propia comunidad."
+      );
+      return;
+    }
+
+        if (!canRequestExclusiveSession) {
+      setExclusiveSessionError(
+        "No tienes una membresía válida para solicitar esta sesión exclusiva."
+      );
+      return;
+    }
+    setExclusiveSessionSubmitting(true);
+    setExclusiveSessionError(null);
+
+    try {
+      const result = await createExclusiveSessionRequest({
+        groupId,
+        buyerMessage: exclusiveSessionMessage.trim() || null,
+        priceSnapshot: exclusiveSessionPrice,
+        durationMinutes: exclusiveSessionDurationMinutes,
+      });
+
+      const requestId =
+        result && typeof result === "object" && "requestId" in result
+          ? String((result as { requestId?: unknown }).requestId ?? "")
+          : "";
+
+      const successMessage = requestId
+        ? `✅ Sesión exclusiva solicitada correctamente. ID: ${requestId}`
+        : "✅ Sesión exclusiva solicitada correctamente.";
+
+      setExclusiveSessionOpen(false);
+      setExclusiveSessionMessage("");
+      setServiceToast(successMessage);
+      clearServiceQuery();
+
+      window.setTimeout(() => {
+        setServiceToast((current) =>
+          current === successMessage ? null : current
+        );
+      }, 4000);
+    } catch (e: any) {
+      setExclusiveSessionError(
+        e?.message ?? "No se pudo crear la solicitud de sesión exclusiva."
+      );
+    } finally {
+      setExclusiveSessionSubmitting(false);
+    }
+  }
+
   useEffect(() => {
     const requestedService = searchParams.get("service");
 
@@ -802,9 +934,9 @@ const canRequestMeetGreet =
         return;
       }
 
-      if (!canRequestMeetGreet) {
+      if (!canRequestCreatorServices) {
   setServiceToast(
-    "No tienes una membresía válida para solicitar el meet & greet."
+    "No tienes una membresía válida para solicitar este servicio."
   );
   clearServiceQuery();
   return;
@@ -840,15 +972,36 @@ const canRequestMeetGreet =
     }
 
     if (requestedService === "clase_personalizada") {
-      setServiceToast(
-        "Clase personalizada ya quedó preparada en el catálogo, pero su flujo operativo se conecta después."
-      );
-      clearServiceQuery();
+      if (!user) {
+        redirectToLogin();
+        return;
+      }
+
+      if (isOwner) {
+        setServiceToast(
+          "No puedes solicitar/comprar una sesión exclusiva en tu propia comunidad."
+        );
+        clearServiceQuery();
+        return;
+      }
+
+      if (!canRequestCreatorServices) {
+        setServiceToast(
+          "No tienes una membresía válida para solicitar este servicio."
+        );
+        clearServiceQuery();
+        return;
+      }
+
+      openExclusiveSessionForm();
+      return;
     }
   }, [
   searchParams,
   user,
   canRequestMeetGreet,
+  canRequestExclusiveSession,
+  canRequestCreatorServices,
   effectiveIsMember,
   isOwner,
   isSubscriptionGroup,
@@ -1452,6 +1605,23 @@ const canRequestMeetGreet =
           onCloseMeetGreet={closeMeetGreetForm}
           onSubmitMeetGreet={submitMeetGreetRequest}
           onChangeMeetGreetMessage={setMeetGreetMessage}
+          exclusiveSessionOpen={false}
+          exclusiveSessionSubmitting={exclusiveSessionSubmitting}
+          exclusiveSessionMessage={exclusiveSessionMessage}
+          exclusiveSessionError={exclusiveSessionError}
+          exclusiveSessionPriceLabel={
+            exclusiveSessionPrice != null
+              ? formatMoney(exclusiveSessionPrice, exclusiveSessionCurrency)
+              : "Por definir"
+          }
+          exclusiveSessionDurationLabel={
+            exclusiveSessionDurationMinutes != null
+              ? `${exclusiveSessionDurationMinutes} minutos`
+              : "Por definir"
+          }
+          onCloseExclusiveSession={closeExclusiveSessionForm}
+          onSubmitExclusiveSession={submitExclusiveSessionRequest}
+          onChangeExclusiveSessionMessage={setExclusiveSessionMessage}
           serviceToast={serviceToast}
           subtitleStyle={subtitleStyle}
           textStyle={textStyle}
@@ -1963,6 +2133,23 @@ const canRequestMeetGreet =
         onCloseMeetGreet={closeMeetGreetForm}
         onSubmitMeetGreet={submitMeetGreetRequest}
         onChangeMeetGreetMessage={setMeetGreetMessage}
+        exclusiveSessionOpen={exclusiveSessionOpen}
+        exclusiveSessionSubmitting={exclusiveSessionSubmitting}
+        exclusiveSessionMessage={exclusiveSessionMessage}
+        exclusiveSessionError={exclusiveSessionError}
+        exclusiveSessionPriceLabel={
+          exclusiveSessionPrice != null
+            ? formatMoney(exclusiveSessionPrice, exclusiveSessionCurrency)
+            : "Por definir"
+        }
+        exclusiveSessionDurationLabel={
+          exclusiveSessionDurationMinutes != null
+            ? `${exclusiveSessionDurationMinutes} minutos`
+            : "Por definir"
+        }
+        onCloseExclusiveSession={closeExclusiveSessionForm}
+        onSubmitExclusiveSession={submitExclusiveSessionRequest}
+        onChangeExclusiveSessionMessage={setExclusiveSessionMessage}
         serviceToast={serviceToast}
         subtitleStyle={subtitleStyle}
         textStyle={textStyle}

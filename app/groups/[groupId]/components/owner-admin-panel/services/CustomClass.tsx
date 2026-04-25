@@ -114,14 +114,6 @@ type Props = {
 
   SwitchComponent: React.ComponentType<SwitchProps>;
   OverlayModalComponent: React.ComponentType<OverlayModalProps>;
-  TimeSelectRowComponent: React.ComponentType<TimeSelectRowProps>;
-
-  weekdayOptions: Array<{
-    key: keyof WeeklyAvailabilityDraft;
-    label: string;
-  }>;
-
-  createEmptyWeeklyAvailability: () => WeeklyAvailabilityDraft;
 
   onSaveDraft: (nextDraft: ServiceDraft) => Promise<void>;
 };
@@ -141,9 +133,6 @@ export default function CustomClass({
   formatMoney,
   SwitchComponent,
   OverlayModalComponent,
-  TimeSelectRowComponent,
-  weekdayOptions,
-  createEmptyWeeklyAvailability,
   onSaveDraft,
 }: Props) {
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
@@ -177,7 +166,6 @@ export default function CustomClass({
         visible: false,
         visibility: "members" as const,
         durationMinutes: "",
-        availability: createEmptyWeeklyAvailability(),
       },
     };
   }
@@ -223,16 +211,8 @@ export default function CustomClass({
     openOverlay("edit", buildEnabledDraft(draft));
   }
 
-  function countAvailabilitySlots() {
-    return weekdayOptions.reduce((total, day) => {
-      return total + draft.customClass.availability[day.key].length;
-    }, 0);
-  }
-
   function renderSummary() {
     if (!draft.customClass.enabled) return null;
-
-    const totalSlots = countAvailabilitySlots();
 
     return (
       <div
@@ -266,16 +246,9 @@ export default function CustomClass({
           </div>
         </div>
 
-        <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>Disponibilidad configurada</div>
-          <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
-            {totalSlots > 0 ? `${totalSlots} horario(s)` : "Sin horarios"}
-          </div>
-        </div>
-
         {customClassCalc ? (
           <div style={subtleStyle}>
-            Por una clase de{" "}
+            Por una sesión exclusiva de{" "}
             {formatMoney(customClassCalc.gross, draft.customClass.currency)}, tú cobras{" "}
             {formatMoney(customClassCalc.net, draft.customClass.currency)}.
           </div>
@@ -297,7 +270,7 @@ export default function CustomClass({
             cursor: isBusy ? "not-allowed" : "pointer",
           }}
         >
-          Modify
+          Modificar
         </button>
       </div>
     );
@@ -315,7 +288,7 @@ export default function CustomClass({
           }}
         >
           <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
-            <span style={titleStyle}>{customClassEmoji} Clase personalizada</span>
+            <span style={titleStyle}>{customClassEmoji} Sesión exclusiva</span>
           </div>
 
           <SwitchComponent
@@ -324,7 +297,7 @@ export default function CustomClass({
             onChange={(next) => {
               void handleToggle(next);
             }}
-            label="Activar clase personalizada"
+            label="Activar sesión exclusiva"
           />
         </div>
 
@@ -333,7 +306,7 @@ export default function CustomClass({
 
       <OverlayModalComponent
         open={overlayMode !== null}
-        title={`${customClassEmoji} Configurar clase personalizada`}
+        title={`${customClassEmoji} Configurar sesión exclusiva`}
         loading={saving}
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
@@ -401,175 +374,9 @@ export default function CustomClass({
             style={{ ...inputStyle, width: 160, flex: "1 1 180px" }}
           />
         </div>
-
-        <div style={{ display: "grid", gap: 10 }}>
-          <div style={titleStyle}>Weekly availability</div>
-
-          {weekdayOptions.map((day) => {
-            const slots = overlayDraft.customClass.availability[day.key];
-
-            return (
-              <div
-                key={day.key}
-                style={{
-                  padding: "10px",
-                  borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  background: "rgba(255,255,255,0.02)",
-                  display: "grid",
-                  gap: 8,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <span style={titleStyle}>{day.label}</span>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOverlayDraft((prev) => ({
-                        ...prev,
-                        customClass: {
-                          ...prev.customClass,
-                          availability: {
-                            ...prev.customClass.availability,
-                            [day.key]: [
-                              ...prev.customClass.availability[day.key],
-                              { start: "", end: "" },
-                            ],
-                          },
-                        },
-                      }))
-                    }
-                    style={{
-                      ...buttonSecondaryStyle,
-                      width: "auto",
-                      padding: "6px 10px",
-                      fontSize: 12,
-                    }}
-                  >
-                    Add time
-                  </button>
-                </div>
-
-                {slots.length === 0 ? (
-                  <div style={subtleStyle}>Sin horarios configurados.</div>
-                ) : (
-                  <div style={{ display: "grid", gap: 8 }}>
-                    {slots.map((slot, index) => (
-                      <div
-                        key={`${day.key}-${index}`}
-                        style={{
-                          display: "grid",
-                          gap: 8,
-                          padding: "8px",
-                          borderRadius: 10,
-                          background: "rgba(255,255,255,0.03)",
-                          border: "1px solid rgba(255,255,255,0.06)",
-                        }}
-                      >
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                          <div style={{ display: "grid", gap: 6, flex: "1 1 220px" }}>
-                            <span style={subtleStyle}>From</span>
-                            <TimeSelectRowComponent
-                              value={slot.start}
-                              onChange={(nextValue) =>
-                                setOverlayDraft((prev) => {
-                                  const nextSlots = [
-                                    ...prev.customClass.availability[day.key],
-                                  ];
-                                  nextSlots[index] = {
-                                    ...nextSlots[index],
-                                    start: nextValue,
-                                  };
-
-                                  return {
-                                    ...prev,
-                                    customClass: {
-                                      ...prev.customClass,
-                                      availability: {
-                                        ...prev.customClass.availability,
-                                        [day.key]: nextSlots,
-                                      },
-                                    },
-                                  };
-                                })
-                              }
-                              inputStyle={inputStyle}
-                            />
-                          </div>
-
-                          <div style={{ display: "grid", gap: 6, flex: "1 1 220px" }}>
-                            <span style={subtleStyle}>To</span>
-                            <TimeSelectRowComponent
-                              value={slot.end}
-                              onChange={(nextValue) =>
-                                setOverlayDraft((prev) => {
-                                  const nextSlots = [
-                                    ...prev.customClass.availability[day.key],
-                                  ];
-                                  nextSlots[index] = {
-                                    ...nextSlots[index],
-                                    end: nextValue,
-                                  };
-
-                                  return {
-                                    ...prev,
-                                    customClass: {
-                                      ...prev.customClass,
-                                      availability: {
-                                        ...prev.customClass.availability,
-                                        [day.key]: nextSlots,
-                                      },
-                                    },
-                                  };
-                                })
-                              }
-                              inputStyle={inputStyle}
-                            />
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setOverlayDraft((prev) => ({
-                              ...prev,
-                              customClass: {
-                                ...prev.customClass,
-                                availability: {
-                                  ...prev.customClass.availability,
-                                  [day.key]: prev.customClass.availability[
-                                    day.key
-                                  ].filter((_, i) => i !== index),
-                                },
-                              },
-                            }))
-                          }
-                          style={{
-                            ...buttonSecondaryStyle,
-                            width: "auto",
-                            padding: "6px 10px",
-                            fontSize: 12,
-                            justifySelf: "flex-start",
-                          }}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <div style={subtleStyle}>
+  Este servicio queda visible solo para miembros.
+</div>
       </OverlayModalComponent>
     </>
   );

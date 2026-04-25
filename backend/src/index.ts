@@ -20,8 +20,6 @@ export const healthcheck = onRequest(
     });
   }
 );
-// Custom class requests
-export { createCustomClassRequest } from "./customClassRequests";
 // Join requests
 export { approveJoinRequest, rejectJoinRequest } from "./joinRequests";
 
@@ -50,7 +48,20 @@ export {
   requestMeetGreetReschedule,
   requestMeetGreetRefund,
   setMeetGreetPreparing,
+  expireMeetGreetNoShows,
 } from "./meetGreetRequests";
+
+// Exclusive session requests
+export {
+  createExclusiveSessionRequest,
+  acceptExclusiveSessionRequest,
+  rejectExclusiveSessionRequest,
+  proposeExclusiveSessionSchedule,
+  requestExclusiveSessionReschedule,
+  requestExclusiveSessionRefund,
+  setExclusiveSessionPreparing,
+  expireExclusiveSessionNoShows,
+} from "./exclusiveSessionRequests";
 
 // Group moderation
 export {

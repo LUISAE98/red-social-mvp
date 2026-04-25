@@ -14,6 +14,12 @@ import {
   rejectMeetGreetRequest,
   setMeetGreetPreparing,
 } from "@/lib/meetGreet/meetGreetRequests";
+import {
+  acceptExclusiveSessionRequest,
+  proposeExclusiveSessionSchedule,
+  rejectExclusiveSessionRequest,
+  setExclusiveSessionPreparing,
+} from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
 
 function getServiceEmoji(row: WalletServiceItem): string {
@@ -35,7 +41,7 @@ function getServiceEmoji(row: WalletServiceItem): string {
     case "mensaje":
       return "💬";
     default:
-      return "✨";
+      return "👑";
   }
 }
 
@@ -73,6 +79,14 @@ function isPrepareWindowOpen(value: Date | null): boolean {
   return now >= prepareFrom;
 }
 
+function isNoShowExpired(value: Date | null): boolean {
+  if (!value) return false;
+
+  const rejectAt = value.getTime() + 15 * 60 * 1000;
+
+  return Date.now() >= rejectAt;
+}
+
 function isStartingSoon(value: Date | null): boolean {
   if (!value) return false;
   const now = Date.now();
@@ -80,7 +94,7 @@ function isStartingSoon(value: Date | null): boolean {
   return diff > 0 && diff <= 24 * 60 * 60 * 1000;
 }
 
-function getMeetGreetActionFlags(row: WalletServiceItem) {
+function getScheduledServiceActionFlags(row: WalletServiceItem) {
   const canAccept = row.status === "pending_creator_response";
 
   const canReject =
@@ -94,11 +108,15 @@ function getMeetGreetActionFlags(row: WalletServiceItem) {
     row.status === "scheduled" ||
     row.status === "ready_to_prepare";
 
+  const noShowExpired =
+    !row.preparingCreatorAt && isNoShowExpired(row.scheduledAt);
+
   const canPrepare =
     (row.status === "scheduled" ||
       row.status === "ready_to_prepare" ||
       row.status === "in_preparation") &&
-    isPrepareWindowOpen(row.scheduledAt);
+    isPrepareWindowOpen(row.scheduledAt) &&
+    !noShowExpired;
 
   return { canAccept, canReject, canSchedule, canPrepare };
 }
@@ -449,16 +467,18 @@ export function WalletServiceRow({
 
   const isGreeting = row.source === "greeting";
   const isMeetGreet = row.source === "meet_greet";
+  const isExclusiveSession = row.source === "exclusive_session";
+  const isScheduledService = isMeetGreet || isExclusiveSession;
 
   const { canAccept, canReject, canSchedule, canPrepare } =
-    isMeetGreet
-      ? getMeetGreetActionFlags(row)
-      : {
-          canAccept: row.status === "pending",
-          canReject: row.status === "pending",
-          canSchedule: false,
-          canPrepare: false,
-        };
+  isScheduledService
+    ? getScheduledServiceActionFlags(row)
+    : {
+        canAccept: row.status === "pending",
+        canReject: row.status === "pending",
+        canSchedule: false,
+        canPrepare: false,
+      };
 
   async function handleGreeting(action: "accept" | "reject") {
     setBusy(true);
@@ -483,42 +503,57 @@ export function WalletServiceRow({
     }
   }
 
-  async function handleMeetGreetAccept() {
+    async function handleScheduledServiceAccept() {
     setBusy(true);
     setError(null);
     setSuccess(null);
 
     try {
-      await acceptMeetGreetRequest({ requestId: row.id });
-      setSuccess("✅ Meet & Greet aceptado. Ahora puedes poner fecha.");
+      if (isExclusiveSession) {
+        await acceptExclusiveSessionRequest({ requestId: row.id });
+        setSuccess("✅ Sesión exclusiva aceptada. Ahora puedes poner fecha.");
+      } else {
+        await acceptMeetGreetRequest({ requestId: row.id });
+        setSuccess("✅ Meet & Greet aceptado. Ahora puedes poner fecha.");
+      }
+
       setScheduleOpen(true);
     } catch (e: any) {
-      setError(e?.message ?? "No se pudo aceptar el Meet & Greet.");
+      setError(e?.message ?? "No se pudo aceptar la solicitud.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function handleMeetGreetReject() {
+    async function handleScheduledServiceReject() {
     setBusy(true);
     setError(null);
     setSuccess(null);
 
     try {
-      await rejectMeetGreetRequest({
-        requestId: row.id,
-        rejectionReason: rejectReason || null,
-      });
-      setSuccess("✅ Meet & Greet rechazado.");
+      if (isExclusiveSession) {
+        await rejectExclusiveSessionRequest({
+          requestId: row.id,
+          rejectionReason: rejectReason || null,
+        });
+        setSuccess("✅ Sesión exclusiva rechazada.");
+      } else {
+        await rejectMeetGreetRequest({
+          requestId: row.id,
+          rejectionReason: rejectReason || null,
+        });
+        setSuccess("✅ Meet & Greet rechazado.");
+      }
+
       setRejectOpen(false);
     } catch (e: any) {
-      setError(e?.message ?? "No se pudo rechazar el Meet & Greet.");
+      setError(e?.message ?? "No se pudo rechazar la solicitud.");
     } finally {
       setBusy(false);
     }
   }
 
-  async function handleMeetGreetSchedule() {
+    async function handleScheduledServiceSchedule() {
     if (!scheduleDate.trim()) {
       setError("Selecciona fecha y hora.");
       return;
@@ -529,11 +564,17 @@ export function WalletServiceRow({
     setSuccess(null);
 
     try {
-      await proposeMeetGreetSchedule({
+      const payload = {
         requestId: row.id,
         scheduledAt: new Date(scheduleDate).toISOString(),
         note: scheduleNote || null,
-      });
+      };
+
+      if (isExclusiveSession) {
+        await proposeExclusiveSessionSchedule(payload);
+      } else {
+        await proposeMeetGreetSchedule(payload);
+      }
 
       setSuccess("✅ Fecha guardada correctamente.");
       setScheduleOpen(false);
@@ -544,16 +585,23 @@ export function WalletServiceRow({
     }
   }
 
-  async function handlePrepare() {
+    async function handlePrepare() {
     setBusy(true);
     setError(null);
     setSuccess(null);
 
     try {
-      await setMeetGreetPreparing({
-        requestId: row.id,
-        role: "creator",
-      });
+      if (isExclusiveSession) {
+        await setExclusiveSessionPreparing({
+          requestId: row.id,
+          role: "creator",
+        });
+      } else {
+        await setMeetGreetPreparing({
+          requestId: row.id,
+          role: "creator",
+        });
+      }
 
       setPreparationOpen(true);
       setSuccess(null);
@@ -843,11 +891,22 @@ export function WalletServiceRow({
                 </div>
               ) : null}
 
-              {isMeetGreet && isStartingSoon(row.scheduledAt) ? (
-                <div className="walletServiceWarningBox">
-                  ⚠️ Este Meet & Greet está próximo a iniciar.
-                </div>
-              ) : null}
+              {isMeetGreet &&
+isStartingSoon(row.scheduledAt) &&
+!isNoShowExpired(row.scheduledAt) ? (
+  <div className="walletServiceWarningBox">
+    ⚠️ Este Meet & Greet está próximo a iniciar.
+  </div>
+) : null}
+
+{isScheduledService &&
+row.status !== "rejected" &&
+!row.preparingCreatorAt &&
+isNoShowExpired(row.scheduledAt) ? (
+  <div className="walletServiceErrorBox">
+    Este servicio ya superó los 15 minutos de tolerancia. Se actualizará como rechazado automáticamente.
+  </div>
+) : null}
 
                             {row.targetName ? (
                 <div className="walletMiniMeta">Para: {row.targetName}</div>
@@ -888,7 +947,7 @@ export function WalletServiceRow({
                         if (isGreeting) {
                           void handleGreeting("accept");
                         } else {
-                          void handleMeetGreetAccept();
+                          void handleScheduledServiceAccept();
                         }
                       }}
                       disabled={busy}
@@ -978,7 +1037,7 @@ export function WalletServiceRow({
                       className="walletPrimaryBtn"
                       onClick={(e) => {
                         e.stopPropagation();
-                        void handleMeetGreetReject();
+                        void handleScheduledServiceReject();
                       }}
                       disabled={busy}
                       style={{
@@ -1028,7 +1087,7 @@ export function WalletServiceRow({
                       className="walletPrimaryBtn"
                       onClick={(e) => {
                         e.stopPropagation();
-                        void handleMeetGreetSchedule();
+                        void handleScheduledServiceSchedule();
                       }}
                       disabled={busy}
                       style={{
@@ -1066,7 +1125,7 @@ export function WalletServiceRow({
         ) : null}
       </div>
 
-      {isMeetGreet ? (
+            {isScheduledService ? (
         <MeetGreetPreparationFullscreen
           open={preparationOpen}
           onClose={() => setPreparationOpen(false)}

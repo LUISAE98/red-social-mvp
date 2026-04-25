@@ -37,6 +37,16 @@ type GroupServiceModalsProps = {
   onSubmitMeetGreet: () => void;
   onChangeMeetGreetMessage: (value: string) => void;
 
+  exclusiveSessionOpen: boolean;
+  exclusiveSessionSubmitting: boolean;
+  exclusiveSessionMessage: string;
+  exclusiveSessionError: string | null;
+  exclusiveSessionPriceLabel: string;
+  exclusiveSessionDurationLabel: string;
+  onCloseExclusiveSession: () => void;
+  onSubmitExclusiveSession: () => void;
+  onChangeExclusiveSessionMessage: (value: string) => void;
+
   serviceToast: string | null;
 
   subtitleStyle: CSSProperties;
@@ -134,6 +144,16 @@ export default function GroupServiceModals({
   onSubmitMeetGreet,
   onChangeMeetGreetMessage,
 
+  exclusiveSessionOpen,
+  exclusiveSessionSubmitting,
+  exclusiveSessionMessage,
+  exclusiveSessionError,
+  exclusiveSessionPriceLabel,
+  exclusiveSessionDurationLabel,
+  onCloseExclusiveSession,
+  onSubmitExclusiveSession,
+  onChangeExclusiveSessionMessage,
+
   serviceToast,
 
   subtitleStyle,
@@ -157,13 +177,18 @@ export default function GroupServiceModals({
   }, []);
 
   useEffect(() => {
-    if (!greetOpen && !subscriptionOpen && !meetGreetOpen) return;
+    const anyOpen =
+      greetOpen || subscriptionOpen || meetGreetOpen || exclusiveSessionOpen;
+
+    if (!anyOpen) return;
 
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        if (greetOpen && !greetSubmitting) onCloseGreeting();
-        if (subscriptionOpen && !subscriptionSubmitting) onCloseSubscription();
-        if (meetGreetOpen && !meetGreetSubmitting) onCloseMeetGreet();
+      if (event.key !== "Escape") return;
+      if (greetOpen && !greetSubmitting) onCloseGreeting();
+      if (subscriptionOpen && !subscriptionSubmitting) onCloseSubscription();
+      if (meetGreetOpen && !meetGreetSubmitting) onCloseMeetGreet();
+      if (exclusiveSessionOpen && !exclusiveSessionSubmitting) {
+        onCloseExclusiveSession();
       }
     }
 
@@ -189,9 +214,12 @@ export default function GroupServiceModals({
     subscriptionSubmitting,
     meetGreetOpen,
     meetGreetSubmitting,
+    exclusiveSessionOpen,
+    exclusiveSessionSubmitting,
     onCloseGreeting,
     onCloseSubscription,
     onCloseMeetGreet,
+    onCloseExclusiveSession,
   ]);
 
   const greetingUi = getGreetingUi(greetType);
@@ -287,13 +315,7 @@ export default function GroupServiceModals({
                 {greetError && <div style={messageBox}>{greetError}</div>}
                 {greetSuccess && <div style={messageBox}>{greetSuccess}</div>}
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    flexWrap: "wrap",
-                  }}
-                >
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <button
                     type="button"
                     onClick={onSubmitGreeting}
@@ -372,13 +394,7 @@ export default function GroupServiceModals({
                 </button>
               </div>
 
-              <div
-                style={{
-                  marginTop: 10,
-                  display: "grid",
-                  gap: 12,
-                }}
-              >
+              <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
                 <div style={textStyle}>
                   Esta comunidad requiere suscripción para unirte.
                 </div>
@@ -408,13 +424,7 @@ export default function GroupServiceModals({
                   <div style={messageBox}>{subscriptionError}</div>
                 )}
 
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    flexWrap: "wrap",
-                  }}
-                >
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <button
                     type="button"
                     onClick={onSubmitSubscription}
@@ -448,154 +458,183 @@ export default function GroupServiceModals({
         )
       : null;
 
-  const meetGreetModal =
-    mounted && meetGreetOpen
-      ? createPortal(
+  function renderScheduledRequestModal(params: {
+    open: boolean;
+    submitting: boolean;
+    title: string;
+    description: string;
+    priceLabel: string;
+    durationLabel: string;
+    message: string;
+    error: string | null;
+    textareaLabel: string;
+    textareaPlaceholder: string;
+    submitLabel: string;
+    helperText: string;
+    titleId: string;
+    onClose: () => void;
+    onSubmit: () => void;
+    onChangeMessage: (value: string) => void;
+  }) {
+    if (!mounted || !params.open) return null;
+
+    return createPortal(
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={params.titleId}
+        style={serviceModalBackdropStyle}
+        onClick={() => {
+          if (!params.submitting) params.onClose();
+        }}
+      >
+        <div style={serviceModalCardStyle} onClick={(e) => e.stopPropagation()}>
           <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="group-meet-greet-modal-title"
-            style={serviceModalBackdropStyle}
-            onClick={() => {
-              if (!meetGreetSubmitting) onCloseMeetGreet();
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              alignItems: "center",
+              flexWrap: "wrap",
             }}
           >
-            <div
-              style={serviceModalCardStyle}
-              onClick={(e) => e.stopPropagation()}
+            <div id={params.titleId} style={subtitleStyle}>
+              {params.title}
+            </div>
+
+            <button
+              type="button"
+              onClick={params.onClose}
+              disabled={params.submitting}
+              style={{
+                ...secondaryButton,
+                opacity: params.submitting ? 0.75 : 1,
+                cursor: params.submitting ? "not-allowed" : "pointer",
+              }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                }}
-              >
-                <div id="group-meet-greet-modal-title" style={subtitleStyle}>
-                  Solicitar Meet & Greet
-                </div>
+              Cerrar
+            </button>
+          </div>
 
-                <button
-                  type="button"
-                  onClick={onCloseMeetGreet}
-                  disabled={meetGreetSubmitting}
-                  style={{
-                    ...secondaryButton,
-                    opacity: meetGreetSubmitting ? 0.75 : 1,
-                    cursor: meetGreetSubmitting ? "not-allowed" : "pointer",
-                  }}
-                >
-                  Cerrar
-                </button>
-              </div>
+          <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
+            <div style={textStyle}>{params.description}</div>
 
-              <div
-                style={{
-                  marginTop: 10,
-                  display: "grid",
-                  gap: 12,
-                }}
-              >
-                <div style={textStyle}>
-                  Envía tu solicitud de meet & greet. El creador podrá aceptarla,
-                  rechazarla y después proponerte fecha y hora.
-                </div>
+            <div style={panelStyle}>
+              <div style={labelStyle}>Resumen del servicio</div>
 
-                <div style={panelStyle}>
-                  <div style={labelStyle}>Resumen del servicio</div>
-
-                  <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
-                    <div style={microText}>
-                      Precio:{" "}
-                      <strong style={{ color: "#fff" }}>
-                        {meetGreetPriceLabel}
-                      </strong>
-                    </div>
-
-                    <div style={microText}>
-                      Duración:{" "}
-                      <strong style={{ color: "#fff" }}>
-                        {meetGreetDurationLabel}
-                      </strong>
-                    </div>
-
-                    <div style={microText}>
-                      Pago:{" "}
-                      <strong style={{ color: "#fff" }}>
-                        Simulado por ahora
-                      </strong>
-                    </div>
-                  </div>
-                </div>
-
-                <label style={{ display: "grid", gap: 6 }}>
-                  <span style={labelStyle}>
-                    Cuéntale al creador cualquier detalle importante
-                  </span>
-                  <textarea
-                    value={meetGreetMessage}
-                    onChange={(e) => onChangeMeetGreetMessage(e.target.value)}
-                    placeholder="Ej. horarios preferidos, zona horaria, motivo del meet & greet o cualquier contexto útil."
-                    disabled={meetGreetSubmitting}
-                    rows={5}
-                    style={{
-                      ...inputStyle,
-                      resize: "vertical",
-                      minHeight: 110,
-                    }}
-                  />
-                </label>
-
-                {meetGreetError && <div style={messageBox}>{meetGreetError}</div>}
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <button
-                    type="button"
-                    onClick={onSubmitMeetGreet}
-                    disabled={meetGreetSubmitting}
-                    style={{
-                      ...primaryButton,
-                      opacity: meetGreetSubmitting ? 0.75 : 1,
-                      cursor: meetGreetSubmitting ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {meetGreetSubmitting
-                      ? "Enviando..."
-                      : "Solicitar meet & greet"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={onCloseMeetGreet}
-                    disabled={meetGreetSubmitting}
-                    style={{
-                      ...secondaryButton,
-                      opacity: meetGreetSubmitting ? 0.75 : 1,
-                      cursor: meetGreetSubmitting ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    Cancelar
-                  </button>
+              <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+                <div style={microText}>
+                  Precio: <strong style={{ color: "#fff" }}>{params.priceLabel}</strong>
                 </div>
 
                 <div style={microText}>
-                  El flujo de agenda, aceptación, rechazo, cambio de fecha y
-                  preparación se mostrará después en OwnerSidebar.
+                  Duración:{" "}
+                  <strong style={{ color: "#fff" }}>{params.durationLabel}</strong>
+                </div>
+
+                <div style={microText}>
+                  Pago: <strong style={{ color: "#fff" }}>Simulado por ahora</strong>
                 </div>
               </div>
             </div>
-          </div>,
-          document.body
-        )
-      : null;
+
+            <label style={{ display: "grid", gap: 6 }}>
+              <span style={labelStyle}>{params.textareaLabel}</span>
+              <textarea
+                value={params.message}
+                onChange={(e) => params.onChangeMessage(e.target.value)}
+                placeholder={params.textareaPlaceholder}
+                disabled={params.submitting}
+                rows={5}
+                style={{
+                  ...inputStyle,
+                  resize: "vertical",
+                  minHeight: 110,
+                }}
+              />
+            </label>
+
+            {params.error && <div style={messageBox}>{params.error}</div>}
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={params.onSubmit}
+                disabled={params.submitting}
+                style={{
+                  ...primaryButton,
+                  opacity: params.submitting ? 0.75 : 1,
+                  cursor: params.submitting ? "not-allowed" : "pointer",
+                }}
+              >
+                {params.submitting ? "Enviando..." : params.submitLabel}
+              </button>
+
+              <button
+                type="button"
+                onClick={params.onClose}
+                disabled={params.submitting}
+                style={{
+                  ...secondaryButton,
+                  opacity: params.submitting ? 0.75 : 1,
+                  cursor: params.submitting ? "not-allowed" : "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+
+            <div style={microText}>{params.helperText}</div>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  const meetGreetModal = renderScheduledRequestModal({
+    open: meetGreetOpen,
+    submitting: meetGreetSubmitting,
+    title: "Solicitar Meet & Greet",
+    description:
+      "Envía tu solicitud de meet & greet. El creador podrá aceptarla, rechazarla y después proponerte fecha y hora.",
+    priceLabel: meetGreetPriceLabel,
+    durationLabel: meetGreetDurationLabel,
+    message: meetGreetMessage,
+    error: meetGreetError,
+    textareaLabel: "Cuéntale al creador cualquier detalle importante",
+    textareaPlaceholder:
+      "Ej. horarios preferidos, zona horaria, motivo del meet & greet o cualquier contexto útil.",
+    submitLabel: "Solicitar meet & greet",
+    helperText:
+      "El flujo de agenda, aceptación, rechazo, cambio de fecha y preparación se mostrará después en OwnerSidebar.",
+    titleId: "group-meet-greet-modal-title",
+    onClose: onCloseMeetGreet,
+    onSubmit: onSubmitMeetGreet,
+    onChangeMessage: onChangeMeetGreetMessage,
+  });
+
+  const exclusiveSessionModal = renderScheduledRequestModal({
+    open: exclusiveSessionOpen,
+    submitting: exclusiveSessionSubmitting,
+    title: "Solicitar sesión exclusiva",
+    description:
+      "Envía tu solicitud de sesión exclusiva. El creador podrá aceptarla, rechazarla y después proponerte fecha y hora.",
+    priceLabel: exclusiveSessionPriceLabel,
+    durationLabel: exclusiveSessionDurationLabel,
+    message: exclusiveSessionMessage,
+    error: exclusiveSessionError,
+    textareaLabel: "Cuéntale al creador cualquier detalle importante",
+    textareaPlaceholder:
+      "Ej. tema de la sesión, horarios preferidos, zona horaria o cualquier contexto útil.",
+    submitLabel: "Solicitar sesión exclusiva",
+    helperText:
+      "El flujo de agenda, aceptación, rechazo, cambio de fecha y preparación usa la misma mecánica que Meet & Greet.",
+    titleId: "group-exclusive-session-modal-title",
+    onClose: onCloseExclusiveSession,
+    onSubmit: onSubmitExclusiveSession,
+    onChangeMessage: onChangeExclusiveSessionMessage,
+  });
 
   const toastNode =
     mounted && serviceToast
@@ -612,6 +651,7 @@ export default function GroupServiceModals({
       {greetingModal}
       {subscriptionModal}
       {meetGreetModal}
+      {exclusiveSessionModal}
       {toastNode}
     </>
   );

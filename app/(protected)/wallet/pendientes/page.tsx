@@ -12,7 +12,7 @@ import {
   WalletList,
 } from "../components/WalletUi";
 
-type PendingFilter = "all" | "meet_greet" | "saludo" | "consejo" | "mensaje";
+type PendingFilter = "all" | "meet_greet" | "exclusive_session" | "saludo" | "consejo" | "mensaje";
 
 const FILTER_OPTIONS: Array<{
   value: PendingFilter;
@@ -21,6 +21,7 @@ const FILTER_OPTIONS: Array<{
 }> = [
   { value: "all", label: "Todos", emoji: "📋" },
   { value: "meet_greet", label: "Meet & Greet", emoji: "🤝" },
+  { value: "exclusive_session", label: "Sesión exclusiva", emoji: "👑" },
   { value: "saludo", label: "Saludos", emoji: "👋" },
   { value: "consejo", label: "Consejos", emoji: "💡" },
   { value: "mensaje", label: "Mensajes", emoji: "💬" },

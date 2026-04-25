@@ -186,7 +186,7 @@ const SERVICE_EMOJIS = {
   saludo: "👋",
   consejo: "💡",
   meetGreet: "🤝",
-  customClass: "🎓",
+  customClass: "👑",
   donation: "🎁",
 };
 
@@ -1686,7 +1686,7 @@ export default function OwnerSidebar({
           Number.isNaN(customClassPriceNum) ||
           customClassPriceNum <= 0)
       ) {
-        setErr("❌ Precio inválido para clase personalizada.");
+        "❌ Precio inválido para sesión exclusiva."
         return;
       }
 
@@ -1711,46 +1711,9 @@ export default function OwnerSidebar({
           !Number.isInteger(customClassDurationNum))
       ) {
         setErr(
-          "❌ Debes definir una duración válida en minutos para la clase personalizada."
+          "❌ Debes definir una duración válida en minutos para la sesión exclusiva."
         );
         return;
-      }
-
-      const hasAnyAvailability =
-        WEEKDAY_OPTIONS.some(
-          (day) => workingDraft.customClass.availability[day.key].length > 0
-        );
-
-      if (workingDraft.customClass.enabled && !hasAnyAvailability) {
-        setErr(
-          "❌ Debes definir al menos un día y horario disponible para la clase personalizada."
-        );
-        return;
-      }
-
-      for (const day of WEEKDAY_OPTIONS) {
-        const slots = workingDraft.customClass.availability[day.key];
-        for (const slot of slots) {
-          if (!slot.start || !slot.end) {
-            setErr(
-              `❌ Completa todos los horarios de ${day.label.toLowerCase()}.`
-            );
-            return;
-          }
-
-          const [startHour, startMinute] = slot.start.split(":").map(Number);
-          const [endHour, endMinute] = slot.end.split(":").map(Number);
-
-          const startTotal = startHour * 60 + startMinute;
-          const endTotal = endHour * 60 + endMinute;
-
-          if (startTotal >= endTotal) {
-            setErr(
-              `❌ En ${day.label.toLowerCase()} la hora inicial debe ser menor a la final.`
-            );
-            return;
-          }
-        }
       }
 
       if (isPublic && workingDraft.subscription.enabled) {
@@ -1863,9 +1826,7 @@ export default function OwnerSidebar({
               durationMinutes: workingDraft.customClass.enabled
                 ? customClassDurationNum
                 : null,
-              availability: workingDraft.customClass.enabled
-                ? workingDraft.customClass.availability
-                : createEmptyWeeklyAvailability(),
+              availability: createEmptyWeeklyAvailability(),
             } as any,
           },
         }),
@@ -2085,9 +2046,7 @@ export default function OwnerSidebar({
               durationMinutes: workingDraft.customClass.enabled
                 ? workingDraft.customClass.durationMinutes
                 : "",
-              availability: workingDraft.customClass.enabled
-                ? workingDraft.customClass.availability
-                : createEmptyWeeklyAvailability(),
+              availability: createEmptyWeeklyAvailability(),
             },
             donationMode: workingDraft.donationMode,
             donationCurrency:
@@ -2156,9 +2115,7 @@ export default function OwnerSidebar({
           durationMinutes: workingDraft.customClass.enabled
             ? workingDraft.customClass.durationMinutes
             : "",
-          availability: workingDraft.customClass.enabled
-            ? workingDraft.customClass.availability
-            : createEmptyWeeklyAvailability(),
+          availability: createEmptyWeeklyAvailability(),
         },
         donationMode: workingDraft.donationMode,
         donationCurrency:
@@ -2271,9 +2228,6 @@ export default function OwnerSidebar({
         formatMoney={formatMoney}
         SwitchComponent={Switch}
         OverlayModalComponent={OverlayModal}
-        TimeSelectRowComponent={TimeSelectRow}
-        weekdayOptions={WEEKDAY_OPTIONS}
-        createEmptyWeeklyAvailability={createEmptyWeeklyAvailability}
         onSaveDraft={saveServicesFromDraft}
       />
 

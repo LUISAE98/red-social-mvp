@@ -31,12 +31,14 @@ import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import {
   acceptMeetGreetRequest,
+  expireMeetGreetNoShows,
   proposeMeetGreetSchedule,
   rejectMeetGreetRequest,
   requestMeetGreetRefund,
   requestMeetGreetReschedule,
   setMeetGreetPreparing,
 } from "@/lib/meetGreet/meetGreetRequests";
+import { expireExclusiveSessionNoShows } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import OwnerSidebarTabNav from "./OwnerSidebarTabNav";
 import OwnerSidebarMyGroups from "./OwnerSidebarMyGroups";
 import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
@@ -226,6 +228,10 @@ export type MeetGreetRequestDoc = {
   updatedAt?: Timestamp;
 };
 
+export type ExclusiveSessionRequestDoc = MeetGreetRequestDoc & {
+  type?: "digital_exclusive_session" | string;
+};
+
 export type JoinRequestRow = {
   id: string;
   userId: string;
@@ -263,14 +269,29 @@ export function typeLabel(t: string) {
   if (t === "consejo") return "Consejo";
   if (t === "mensaje") return "Mensaje";
   if (t === "meet_greet_digital") return "Meet & Greet";
+  if (t === "clase_personalizada") return "Sesión exclusiva";
+  if (t === "exclusive_session") return "Sesión exclusiva";
+  if (t === "digital_exclusive_session") return "Sesión exclusiva";
   return t;
 }
 
 function isMeetGreetOwnerAlert(status?: MeetGreetStatus | null) {
   return (
     status === "pending_creator_response" ||
+    status === "accepted_pending_schedule" ||
     status === "reschedule_requested" ||
     status === "ready_to_prepare"
+  );
+}
+
+function isMeetGreetCreatorActiveItem(status?: MeetGreetStatus | null) {
+  return (
+    status === "pending_creator_response" ||
+    status === "accepted_pending_schedule" ||
+    status === "scheduled" ||
+    status === "reschedule_requested" ||
+    status === "ready_to_prepare" ||
+    status === "in_preparation"
   );
 }
 
@@ -579,9 +600,17 @@ export default function OwnerSidebar() {
     Record<string, Array<{ id: string; data: MeetGreetRequestDoc }>>
   >({});
 
+  const [exclusiveSessionsByGroup, setExclusiveSessionsByGroup] = useState<
+  Record<string, Array<{ id: string; data: ExclusiveSessionRequestDoc }>>
+>({});
+
   const [buyerMeetGreets, setBuyerMeetGreets] = useState<
     Array<{ id: string; data: MeetGreetRequestDoc }>
   >([]);
+
+  const [buyerExclusiveSessions, setBuyerExclusiveSessions] = useState<
+  Array<{ id: string; data: ExclusiveSessionRequestDoc }>
+>([]);
 
   const [greetingSectionOpen, setGreetingSectionOpen] = useState<
     Record<string, boolean>
@@ -709,6 +738,36 @@ export default function OwnerSidebar() {
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+  if (!viewer?.uid) return;
+
+  let cancelled = false;
+
+  async function expireNoShows() {
+  try {
+    await Promise.all([
+      expireMeetGreetNoShows(),
+      expireExclusiveSessionNoShows(),
+    ]);
+  } catch (error) {
+    if (!cancelled) {
+      console.error("expireScheduledServiceNoShows error", error);
+    }
+  }
+}
+
+  void expireNoShows();
+
+  const interval = window.setInterval(() => {
+    void expireNoShows();
+  }, 60_000);
+
+  return () => {
+    cancelled = true;
+    window.clearInterval(interval);
+  };
+}, [viewer?.uid]);
 
   useEffect(() => {
     async function loadCurrentUser() {
@@ -1253,6 +1312,7 @@ export default function OwnerSidebar() {
           const data = d.data() as GreetingRequestDoc;
           const gid = data.groupId;
           if (!gid) return;
+          if (!isMeetGreetCreatorActiveItem(data.status)) return;
           if (!grouped[gid]) grouped[gid] = [];
           grouped[gid].push({ id: d.id, data });
         });
@@ -1348,9 +1408,10 @@ export default function OwnerSidebar() {
         > = {};
 
         snap.docs.forEach((d) => {
-          const data = d.data() as MeetGreetRequestDoc;
+          const data = d.data() as ExclusiveSessionRequestDoc;
           const gid = data.groupId;
           if (!gid) return;
+          if (!isMeetGreetCreatorActiveItem(data.status)) return;
           if (!grouped[gid]) grouped[gid] = [];
           grouped[gid].push({
             id: d.id,
@@ -1427,6 +1488,119 @@ export default function OwnerSidebar() {
       unsubBuyer();
     };
   }, [viewer?.uid, groupMetaMap]);
+  useEffect(() => {
+  if (!viewer?.uid) {
+    setExclusiveSessionsByGroup({});
+    setBuyerExclusiveSessions([]);
+    return;
+  }
+
+  const creatorQ = query(
+    collection(db, "exclusiveSessionRequests"),
+    where("creatorId", "==", viewer.uid),
+    limit(100)
+  );
+
+  const buyerQ = query(
+    collection(db, "exclusiveSessionRequests"),
+    where("buyerId", "==", viewer.uid),
+    limit(100)
+  );
+
+  const unsubCreator = onSnapshot(
+    creatorQ,
+    (snap) => {
+            const grouped: Record<
+        string,
+        Array<{ id: string; data: ExclusiveSessionRequestDoc }>
+      > = {};
+
+      snap.docs.forEach((d) => {
+        const data = d.data() as ExclusiveSessionRequestDoc;
+        const gid = data.groupId;
+        if (!gid) return;
+        if (!isMeetGreetCreatorActiveItem(data.status)) return;
+
+        if (!grouped[gid]) grouped[gid] = [];
+
+        grouped[gid].push({
+          id: d.id,
+          data: {
+            ...data,
+            id: d.id,
+            type: "digital_exclusive_session",
+          },
+        });
+      });
+
+      setExclusiveSessionsByGroup(grouped);
+    },
+    (e: any) => {
+      setGroupsErr(
+        e?.message ?? "No se pudieron cargar solicitudes de sesión exclusiva."
+      );
+      setExclusiveSessionsByGroup({});
+    }
+  );
+
+  const unsubBuyer = onSnapshot(
+    buyerQ,
+    async (snap) => {
+      const rows = snap.docs.map((d) => ({
+        id: d.id,
+                data: {
+          ...(d.data() as ExclusiveSessionRequestDoc),
+          id: d.id,
+          type: "digital_exclusive_session",
+        },
+      }));
+
+      setBuyerExclusiveSessions(rows);
+
+      const missingGroupIds = rows
+        .map((r) => r.data.groupId)
+        .filter(Boolean)
+        .filter((groupId) => !groupMetaMap[groupId]);
+
+      if (missingGroupIds.length > 0) {
+        const fetched = await Promise.all(
+          Array.from(new Set(missingGroupIds)).map(async (groupId) => {
+            try {
+              const groupSnap = await getDoc(doc(db, "groups", groupId));
+              if (!groupSnap.exists()) return null;
+
+              return {
+                ...(groupSnap.data() as Omit<GroupDocLite, "id">),
+                id: groupSnap.id,
+              };
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        const meta: Record<string, GroupDocLite> = {};
+
+        fetched.filter(Boolean).forEach((g) => {
+          const gg = g as GroupDocLite;
+          meta[gg.id] = gg;
+        });
+
+        if (Object.keys(meta).length > 0) {
+          setGroupMetaMap((prev) => ({ ...prev, ...meta }));
+        }
+      }
+    },
+    () => {
+      setBuyerExclusiveSessions([]);
+    }
+  );
+
+  return () => {
+    unsubCreator();
+    unsubBuyer();
+  };
+}, [viewer?.uid, groupMetaMap]);
 
   useEffect(() => {
     const groupsForSeen = [...myGroups, ...moderatedGroups].map((g) => g.id);
@@ -1439,8 +1613,9 @@ export default function OwnerSidebar() {
       for (const groupId of groupsForSeen) {
         const joinCount = (joinRequestsByGroup[groupId] ?? []).length;
         const greetingCount =
-          (greetingsByGroup[groupId] ?? []).length +
-          (meetGreetsByGroup[groupId] ?? []).length;
+  (greetingsByGroup[groupId] ?? []).length +
+  (meetGreetsByGroup[groupId] ?? []).length +
+  (exclusiveSessionsByGroup[groupId] ?? []).length;
 
         if (!next[groupId]) {
           next[groupId] = { join: joinCount, greeting: greetingCount };
@@ -1454,6 +1629,7 @@ export default function OwnerSidebar() {
     moderatedGroups,
     joinRequestsByGroup,
     greetingsByGroup,
+    exclusiveSessionsByGroup,
     meetGreetsByGroup,
   ]);
 
@@ -1472,8 +1648,13 @@ export default function OwnerSidebar() {
       rows.forEach((r) => ids.add(r.data.buyerId));
     }
 
+    for (const rows of Object.values(exclusiveSessionsByGroup)) {
+  rows.forEach((r) => ids.add(r.data.buyerId));
+}
+
     buyerPending.forEach((r) => ids.add(r.data.creatorId));
     buyerMeetGreets.forEach((r) => ids.add(r.data.creatorId));
+    buyerExclusiveSessions.forEach((r) => ids.add(r.data.creatorId));
 
     return Array.from(ids).filter(Boolean);
   }, [
@@ -1482,6 +1663,8 @@ export default function OwnerSidebar() {
     meetGreetsByGroup,
     buyerPending,
     buyerMeetGreets,
+    exclusiveSessionsByGroup,
+buyerExclusiveSessions,
   ]);
 
     useEffect(() => {
@@ -1577,6 +1760,19 @@ export default function OwnerSidebar() {
       }
     }
 
+    for (const rows of Object.values(exclusiveSessionsByGroup)) {
+  for (const row of rows) {
+    const status = row.data.status;
+    if (!isMeetGreetOwnerAlert(status)) continue;
+
+    if (status === "ready_to_prepare") {
+      meetGreetPreparingAlerts += 1;
+    } else {
+      meetGreetAlerts += 1;
+    }
+  }
+}
+
     return {
       saludo: greetingAlerts,
       consejo: consejoAlerts,
@@ -1590,7 +1786,7 @@ export default function OwnerSidebar() {
         meetGreetAlerts +
         meetGreetPreparingAlerts,
     };
-  }, [greetingsByGroup, meetGreetsByGroup]);
+  }, [greetingsByGroup, meetGreetsByGroup, exclusiveSessionsByGroup]);
 
   const pendingCount = useMemo(() => {
     let total = buyerPending.length;
@@ -1601,8 +1797,14 @@ export default function OwnerSidebar() {
       }
     }
 
+    for (const row of buyerExclusiveSessions) {
+  if (isMeetGreetPendingItem(row.data.status)) {
+    total += 1;
+  }
+}
+
     return total;
-  }, [buyerPending, buyerMeetGreets]);
+  }, [buyerPending, buyerMeetGreets, buyerExclusiveSessions]);
 
     useEffect(() => {
     if (pendingCount === 0 && activeView === "greetings") {
@@ -2351,6 +2553,7 @@ export default function OwnerSidebar() {
               loadingGroups={loadingGroups}
               myGroups={myGroups}
               meetGreetsByGroup={meetGreetsByGroup}
+              exclusiveSessionsByGroup={exclusiveSessionsByGroup}
               ownedGrouped={ownedGrouped}
               openCommunities={openCommunities}
               joinRequestsByGroup={joinRequestsByGroup}
@@ -2401,16 +2604,18 @@ export default function OwnerSidebar() {
 
             {activeView === "greetings" && pendingCount > 0 && (
             <OwnerSidebarGreetings
-              buyerPending={buyerPending}
-              groupMetaMap={groupMetaMap}
-              styles={styles}
-              typeLabel={typeLabel}
-              fmtDate={fmtDate}
-              renderUserLink={renderUserLink}
-              router={router}
-              buyerMeetGreets={buyerMeetGreets}
-              meetGreetsByGroup={{}}
-            />
+  buyerPending={buyerPending}
+  buyerExclusiveSessions={buyerExclusiveSessions}
+  exclusiveSessionsByGroup={{}}
+  groupMetaMap={groupMetaMap}
+  styles={styles}
+  typeLabel={typeLabel}
+  fmtDate={fmtDate}
+  renderUserLink={renderUserLink}
+  router={router}
+  buyerMeetGreets={buyerMeetGreets}
+  meetGreetsByGroup={{}}
+/>
           )}
 
           {(loadingGroups || loadingCommunities) && (

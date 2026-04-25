@@ -1,4 +1,4 @@
- "use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -167,6 +167,12 @@ function ViewModeIconButton({
         .button:active {
           transform: scale(0.98);
         }
+
+        .emojiIcon {
+          font-size: 24px;
+          line-height: 1;
+          transform: translateY(3px);
+        }
       `}</style>
 
       <button
@@ -176,20 +182,9 @@ function ViewModeIconButton({
         title={isList ? "Ver calendario" : "Ver lista"}
         aria-label={isList ? "Ver calendario" : "Ver lista"}
       >
-        {isList ? (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <rect x="4" y="5.5" width="16" height="14" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
-            <path d="M8 4V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <path d="M16 4V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <path d="M4 9.5H20" stroke="currentColor" strokeWidth="1.8" />
-          </svg>
-        ) : (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M6 7H18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <path d="M6 12H18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <path d="M6 17H18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-        )}
+        <span className="emojiIcon" aria-hidden="true">
+          {isList ? "📅" : "🗒️"}
+        </span>
       </button>
     </>
   );
@@ -379,13 +374,17 @@ function MonthCard({
         .monthCard {
           width: 100%;
           border: 1px solid ${hasMonthEvents
-            ? "rgba(255, 255, 255, 0.1)"
+            ? "rgba(59, 130, 246, 0.72)"
             : "rgba(255, 255, 255, 0.06)"};
-          background: rgba(255, 255, 255, 0.025);
+          background: ${hasMonthEvents
+            ? "linear-gradient(180deg, rgba(59, 130, 246, 0.08), rgba(255, 255, 255, 0.025))"
+            : "rgba(255, 255, 255, 0.025)"};
           border-radius: 20px;
           padding: 16px;
           box-sizing: border-box;
-          box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+          box-shadow: ${hasMonthEvents
+            ? "0 0 0 1px rgba(59, 130, 246, 0.12), 0 14px 30px rgba(59, 130, 246, 0.12)"
+            : "0 10px 22px rgba(0, 0, 0, 0.12)"};
         }
 
         .monthHeader {
@@ -414,9 +413,9 @@ function MonthCard({
           height: 28px;
           padding: 0 8px;
           border-radius: 999px;
-          background: rgba(234, 88, 12, 0.1);
-          border: 1px solid rgba(234, 88, 12, 0.2);
-          color: #fdba74;
+          background: rgba(59, 130, 246, 0.16);
+          border: 1px solid rgba(59, 130, 246, 0.42);
+          color: #93c5fd;
           font-size: 11px;
           font-weight: 700;
           line-height: 1;
@@ -469,8 +468,8 @@ function MonthCard({
         }
 
         .dayButton {
-          border: 1px solid rgba(234, 88, 12, 0.34);
-          background: rgba(234, 88, 12, 0.24);
+          border: 1px solid rgba(59, 130, 246, 0.52);
+          background: rgba(59, 130, 246, 0.28);
           color: #fff;
           font-size: 12px;
           font-weight: 700;
@@ -481,13 +480,15 @@ function MonthCard({
             background 0.18s ease,
             border-color 0.18s ease,
             box-shadow 0.18s ease;
-          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.08),
+            0 0 0 1px rgba(59, 130, 246, 0.08);
         }
 
         .dayButton:hover {
           transform: translateY(-1px);
-          background: rgba(234, 88, 12, 0.34);
-          border-color: rgba(234, 88, 12, 0.5);
+          background: rgba(59, 130, 246, 0.4);
+          border-color: rgba(59, 130, 246, 0.72);
         }
       `}</style>
 
@@ -586,21 +587,17 @@ export default function WalletCalendarioPage() {
     <WalletSectionShell activeTab="calendar">
       {walletData.error ? <WalletErrorBox message={walletData.error} /> : null}
 
-      <WalletCard
-        title="Calendario"
-        description="Visualiza tus Meet & Greet programados en lista o por meses."
-      >
+      <WalletCard title="Calendario">
         <style jsx>{`
-          .cardToolsAnchor {
-            position: relative;
-            height: 0;
-            z-index: 3;
+          .cardButtonSlot {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: -50px;
+            margin-bottom: 20px;
           }
 
-          .cardTools {
-            position: absolute;
-            top: -74px;
-            right: 0;
+          .calendarContentOffset {
+            padding-top: 0;
           }
 
           .monthsGrid {
@@ -616,8 +613,9 @@ export default function WalletCalendarioPage() {
           }
 
           @media (max-width: 720px) {
-            .cardTools {
-              top: -70px;
+            .cardButtonSlot {
+              margin-top: -46px;
+              margin-bottom: 18px;
             }
 
             .monthsGrid {
@@ -626,36 +624,36 @@ export default function WalletCalendarioPage() {
           }
         `}</style>
 
-        <div className="cardToolsAnchor">
-          <div className="cardTools">
-            <ViewModeIconButton mode={viewMode} onClick={toggleViewMode} />
-          </div>
+        <div className="cardButtonSlot">
+          <ViewModeIconButton mode={viewMode} onClick={toggleViewMode} />
         </div>
 
-        {walletData.loading ? (
-          <EmptyRows
-            title="Cargando calendario"
-            subtitle="Estamos leyendo tus Meet & Greet programados."
-          />
-        ) : calendarItems.length === 0 ? (
-          <EmptyRows
-            title="Sin eventos programados"
-            subtitle="Todavía no tienes Meet & Greet programados para mostrar en calendario."
-          />
-        ) : viewMode === "list" ? (
-  <WalletList items={calendarItems} />
-) : (
-          <div className="monthsGrid">
-            {monthsWindow.map((month) => (
-              <MonthCard
-                key={month.key}
-                month={month}
-                eventsByDay={eventsByDay}
-                onSelectDay={handleSelectDay}
-              />
-            ))}
-          </div>
-        )}
+        <div className="calendarContentOffset">
+          {walletData.loading ? (
+            <EmptyRows
+              title="Cargando calendario"
+              subtitle="Estamos leyendo tus Meet & Greet programados."
+            />
+          ) : calendarItems.length === 0 ? (
+            <EmptyRows
+              title="Sin eventos programados"
+              subtitle="Todavía no tienes Meet & Greet programados para mostrar en calendario."
+            />
+          ) : viewMode === "list" ? (
+            <WalletList items={calendarItems} />
+          ) : (
+            <div className="monthsGrid">
+              {monthsWindow.map((month) => (
+                <MonthCard
+                  key={month.key}
+                  month={month}
+                  eventsByDay={eventsByDay}
+                  onSelectDay={handleSelectDay}
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
         <EventsOverlay
           open={overlayOpen}

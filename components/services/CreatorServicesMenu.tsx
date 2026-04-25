@@ -39,7 +39,7 @@ function getServiceLabel(type: CreatorServiceType): string {
     case "meet_greet_digital":
       return "Meet & Greet";
     case "clase_personalizada":
-      return "Clase personalizada";
+      return "Sesión exclusiva";
     case "mensaje":
       return "Mensaje";
     default:
@@ -56,11 +56,11 @@ function getServiceIcon(type: CreatorServiceType): string {
     case "meet_greet_digital":
       return "🎥";
     case "clase_personalizada":
-      return "🎓";
+      return "👑";
     case "mensaje":
       return "✉️";
     default:
-      return "✨";
+      return "👑";
   }
 }
 

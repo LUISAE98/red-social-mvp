@@ -9,6 +9,7 @@ import type {
   GreetingRequestDoc,
   JoinRequestRow,
   MeetGreetRequestDoc,
+  ExclusiveSessionRequestDoc,
   UserMini,
 } from "./OwnerSidebar";
 import { Chevron, CountBadge, typeLabel } from "./OwnerSidebar";
@@ -18,6 +19,14 @@ import {
   rejectMeetGreetRequest,
   setMeetGreetPreparing,
 } from "@/lib/meetGreet/meetGreetRequests";
+import {
+  acceptExclusiveSessionRequest,
+  proposeExclusiveSessionSchedule,
+  rejectExclusiveSessionRequest,
+  setExclusiveSessionPreparing,
+} from "@/lib/exclusiveSession/exclusiveSessionRequests";
+
+type ScheduledServiceKind = "meet_greet" | "exclusive_session";
 
 type Props = {
   loadingGroups: boolean;
@@ -27,6 +36,7 @@ type Props = {
   joinRequestsByGroup: Record<string, JoinRequestRow[]>;
   greetingsByGroup: Record<string, Array<{ id: string; data: GreetingRequestDoc }>>;
   meetGreetsByGroup: Record<string, Array<{ id: string; data: MeetGreetRequestDoc }>>;
+  exclusiveSessionsByGroup: Record<string, Array<{ id: string; data: ExclusiveSessionRequestDoc }>>;
   greetingSectionOpen: Record<string, boolean>;
   joinSectionOpen: Record<string, boolean>;
   seenCountsByGroup: Record<string, { join: number; greeting: number }>;
@@ -48,7 +58,7 @@ type Props = {
   >;
   handleApproveJoin: (groupId: string, userId: string) => Promise<void>;
   handleRejectJoin: (groupId: string, userId: string) => Promise<void>;
-    handleGreetingAction: (
+  handleGreetingAction: (
     requestId: string,
     action: "accept" | "reject"
   ) => Promise<void>;
@@ -83,6 +93,18 @@ function getTypeChipStyle(type: string): React.CSSProperties {
       border: "1px solid rgba(96,165,250,0.30)",
       background: "rgba(96,165,250,0.16)",
       color: "#93c5fd",
+    };
+  }
+
+  if (
+    type === "digital_exclusive_session" ||
+    type === "exclusive_session" ||
+    type === "clase_personalizada"
+  ) {
+    return {
+      border: "1px solid rgba(168,85,247,0.32)",
+      background: "rgba(168,85,247,0.16)",
+      color: "#d8b4fe",
     };
   }
 
@@ -214,7 +236,7 @@ function formatMoney(value: number, currency?: string | null): string {
   }
 }
 
-function getRequestCurrency(req: MeetGreetRequestDoc): string {
+function getRequestCurrency(req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc): string {
   return req.currency ?? req.serviceSnapshot?.currency ?? "MXN";
 }
 
@@ -257,6 +279,14 @@ function isPrepareWindowOpen(value: unknown): boolean {
 
   return now >= prepareFrom;
 }
+function isNoShowExpired(value: unknown): boolean {
+  const date = toDateSafe(value);
+  if (!date) return false;
+
+  const rejectAt = date.getTime() + 15 * 60 * 1000;
+
+  return Date.now() >= rejectAt;
+}
 
 function isStartingSoon(value: unknown): boolean {
   const date = toDateSafe(value);
@@ -283,13 +313,30 @@ function toDateTimeLocalValue(value: unknown): string {
 
 function isMeetGreetOwnerAlert(
   status?: string | null,
-  scheduledAt?: unknown
+  scheduledAt?: unknown,
+  preparingCreatorAt?: unknown
 ): boolean {
+  if (!status) return false;
+
+  if (
+    (status === "scheduled" ||
+      status === "ready_to_prepare" ||
+      status === "in_preparation") &&
+    !preparingCreatorAt &&
+    isNoShowExpired(scheduledAt)
+  ) {
+    return false;
+  }
+
   return (
     status === "pending_creator_response" ||
+    status === "accepted_pending_schedule" ||
     status === "reschedule_requested" ||
     status === "ready_to_prepare" ||
-    isPrepareWindowOpen(scheduledAt)
+    (
+      (status === "scheduled" || status === "in_preparation") &&
+      isPrepareWindowOpen(scheduledAt)
+    )
   );
 }
 
@@ -298,7 +345,12 @@ function getServiceEmoji(type: string): string {
   if (type === "consejo") return "💡";
   if (type === "mensaje") return "💬";
   if (type === "meet_greet_digital") return "🤝";
-  return "✨";
+  if (
+    type === "digital_exclusive_session" ||
+    type === "exclusive_session" ||
+    type === "clase_personalizada"
+  ) return "👑";
+  return "👑";
 }
 
 export default function OwnerSidebarMyGroups({
@@ -309,6 +361,7 @@ export default function OwnerSidebarMyGroups({
   joinRequestsByGroup,
   greetingsByGroup,
   meetGreetsByGroup,
+  exclusiveSessionsByGroup,
   greetingSectionOpen,
   joinSectionOpen,
   seenCountsByGroup,
@@ -348,7 +401,6 @@ export default function OwnerSidebarMyGroups({
     animation: "ownerSidebarBuzz 4.8s infinite",
   };
 
-
   function setMeetGreetBusy(requestId: string, value: boolean) {
     setMeetGreetBusyMap((prev) => ({ ...prev, [requestId]: value }));
   }
@@ -367,13 +419,21 @@ export default function OwnerSidebarMyGroups({
     }));
   }
 
-  async function handleCreatorAccept(requestId: string) {
+  async function handleCreatorAccept(
+    requestId: string,
+    kind: ScheduledServiceKind
+  ) {
     setMeetGreetBusy(requestId, true);
     setMeetGreetError(requestId, null);
     setMeetGreetSuccess(requestId, null);
 
     try {
-      await acceptMeetGreetRequest({ requestId });
+      if (kind === "exclusive_session") {
+        await acceptExclusiveSessionRequest({ requestId });
+      } else {
+        await acceptMeetGreetRequest({ requestId });
+      }
+
       setMeetGreetSuccess(
         requestId,
         "✅ Solicitud aceptada. Ahora puedes proponer fecha y hora."
@@ -389,16 +449,27 @@ export default function OwnerSidebarMyGroups({
     }
   }
 
-  async function handleCreatorReject(requestId: string) {
+  async function handleCreatorReject(
+    requestId: string,
+    kind: ScheduledServiceKind
+  ) {
     setMeetGreetBusy(requestId, true);
     setMeetGreetError(requestId, null);
     setMeetGreetSuccess(requestId, null);
 
     try {
-      await rejectMeetGreetRequest({
-        requestId,
-        rejectionReason: rejectReasonMap[requestId] ?? null,
-      });
+      if (kind === "exclusive_session") {
+        await rejectExclusiveSessionRequest({
+          requestId,
+          rejectionReason: rejectReasonMap[requestId] ?? null,
+        });
+      } else {
+        await rejectMeetGreetRequest({
+          requestId,
+          rejectionReason: rejectReasonMap[requestId] ?? null,
+        });
+      }
+
       setMeetGreetSuccess(requestId, "✅ Solicitud rechazada.");
       setRejectOpenMap((prev) => ({ ...prev, [requestId]: false }));
     } catch (e: any) {
@@ -411,7 +482,10 @@ export default function OwnerSidebarMyGroups({
     }
   }
 
-  async function handleCreatorSchedule(requestId: string) {
+  async function handleCreatorSchedule(
+    requestId: string,
+    kind: ScheduledServiceKind
+  ) {
     const scheduledAt = (scheduleDateMap[requestId] ?? "").trim();
 
     if (!scheduledAt) {
@@ -424,11 +498,17 @@ export default function OwnerSidebarMyGroups({
     setMeetGreetSuccess(requestId, null);
 
     try {
-      await proposeMeetGreetSchedule({
+      const payload = {
         requestId,
         scheduledAt: new Date(scheduledAt).toISOString(),
         note: scheduleNoteMap[requestId] ?? null,
-      });
+      };
+
+      if (kind === "exclusive_session") {
+        await proposeExclusiveSessionSchedule(payload);
+      } else {
+        await proposeMeetGreetSchedule(payload);
+      }
 
       setMeetGreetSuccess(
         requestId,
@@ -438,7 +518,7 @@ export default function OwnerSidebarMyGroups({
     } catch (e: any) {
       setMeetGreetError(
         requestId,
-        e?.message ?? "No se pudo guardar la fecha del meet & greet."
+        e?.message ?? "No se pudo guardar la fecha."
       );
     } finally {
       setMeetGreetBusy(requestId, false);
@@ -447,14 +527,19 @@ export default function OwnerSidebarMyGroups({
 
   async function handlePrepare(
     requestId: string,
-    role: "creator"
+    role: "creator",
+    kind: ScheduledServiceKind
   ) {
     setMeetGreetBusy(requestId, true);
     setMeetGreetError(requestId, null);
     setMeetGreetSuccess(requestId, null);
 
     try {
-      await setMeetGreetPreparing({ requestId, role });
+      if (kind === "exclusive_session") {
+        await setExclusiveSessionPreparing({ requestId, role });
+      } else {
+        await setMeetGreetPreparing({ requestId, role });
+      }
 
       setPreparationRoleMap((prev) => ({
         ...prev,
@@ -518,9 +603,9 @@ export default function OwnerSidebarMyGroups({
     );
   }
 
-    function renderPreparationPanel(
+  function renderPreparationPanel(
     requestId: string,
-    req: MeetGreetRequestDoc,
+    req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc,
     role: "creator"
   ) {
     return (
@@ -539,9 +624,8 @@ export default function OwnerSidebarMyGroups({
     );
   }
 
-    return (
+  return (
     <>
-
       {!loadingGroups && myGroups.length === 0 && (
         <div
           style={{
@@ -566,44 +650,90 @@ export default function OwnerSidebarMyGroups({
             const joinRequests = joinRequestsByGroup[g.id] ?? [];
             const greetings = greetingsByGroup[g.id] ?? [];
             const meetGreets = meetGreetsByGroup[g.id] ?? [];
+            const exclusiveSessions = exclusiveSessionsByGroup[g.id] ?? [];
             const communityName = g.name ?? "(Sin nombre)";
             const avatarFallback = getInitials(communityName);
+
             const meetGreetsForAlert = meetGreets.filter((row) =>
-              isMeetGreetOwnerAlert(row.data.status, row.data.scheduledAt)
+              isMeetGreetOwnerAlert(
+                row.data.status,
+                row.data.scheduledAt,
+                row.data.preparingCreatorAt
+              )
             );
 
-            const meetGreetCount = meetGreetsForAlert.length;
+            const exclusiveSessionsForAlert = exclusiveSessions.filter((row) =>
+              isMeetGreetOwnerAlert(
+                row.data.status,
+                row.data.scheduledAt,
+                row.data.preparingCreatorAt
+              )
+            );
+
+            const scheduledServicesForAlert = [
+              ...meetGreetsForAlert.map((row) => ({
+                ...row,
+                serviceKind: "meet_greet" as const,
+              })),
+              ...exclusiveSessionsForAlert.map((row) => ({
+                ...row,
+                serviceKind: "exclusive_session" as const,
+              })),
+            ];
+
             const greetingServiceCount = greetings.length;
-            const scheduledServiceCount = meetGreetsForAlert.length;
+            const scheduledServiceCount = scheduledServicesForAlert.length;
             const totalServiceCount =
               greetingServiceCount + scheduledServiceCount;
+
             const sortedGreetings = [...greetings].sort((a, b) => {
-            const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
-            const bTime = toDateSafe(b.data.createdAt)?.getTime() ?? 0;
+              const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
+              const bTime = toDateSafe(b.data.createdAt)?.getTime() ?? 0;
               return aTime - bTime;
             });
 
-            const sortedMeetGreets = [...meetGreetsForAlert].sort((a, b) => {
-            const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
-            const bTime = toDateSafe(b.data.createdAt)?.getTime() ?? 0;
+            const sortedScheduledServices = [...scheduledServicesForAlert].sort((a, b) => {
+              const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
+              const bTime = toDateSafe(b.data.createdAt)?.getTime() ?? 0;
               return aTime - bTime;
             });
+
             const showJoinSection = !isPublic && joinRequests.length > 0;
             const showGreetingsSection =
-              greetings.length > 0 || meetGreetsForAlert.length > 0;
+              greetings.length > 0 || scheduledServicesForAlert.length > 0;
             const greetingListOpen = greetingSectionOpen[g.id] === true;
             const joinListOpen = joinSectionOpen[g.id] === true;
 
-            const saludoCount = greetings.filter(
-              (row) => row.data.type === "saludo"
-            ).length;
-            const consejoCount = greetings.filter(
+            const hasSaludoAlert = greetings.some((row) => row.data.type === "saludo");
+            const hasConsejoAlert = greetings.some(
               (row) => row.data.type === "consejo"
-            ).length;
+            );
+            const hasMeetGreetAlert = scheduledServicesForAlert.length > 0;
+            const hasPreparingAlert = scheduledServicesForAlert.some((row) => {
+              const status = row.data.status;
+
+              if (
+                (status === "scheduled" ||
+                  status === "ready_to_prepare" ||
+                  status === "in_preparation") &&
+                !row.data.preparingCreatorAt &&
+                isNoShowExpired(row.data.scheduledAt)
+              ) {
+                return false;
+              }
+
+              return (
+                status === "ready_to_prepare" ||
+                (
+                  (status === "scheduled" || status === "in_preparation") &&
+                  isPrepareWindowOpen(row.data.scheduledAt)
+                )
+              );
+            });
 
             const currentJoinCount = showJoinSection ? joinRequests.length : 0;
             const currentGreetingCount = showGreetingsSection
-              ? greetings.length + meetGreetsForAlert.length
+              ? greetings.length + scheduledServicesForAlert.length
               : 0;
 
             const seen = seenCountsByGroup[g.id] ?? {
@@ -614,19 +744,8 @@ export default function OwnerSidebarMyGroups({
             const hasNewJoin = currentJoinCount > seen.join;
             const hasNewGreeting = currentGreetingCount > seen.greeting;
 
-            const hasSaludoAlert = greetings.some((row) => row.data.type === "saludo");
-            const hasConsejoAlert = greetings.some(
-              (row) => row.data.type === "consejo"
-            );
-            const hasMeetGreetAlert = meetGreetsForAlert.length > 0;
-            const hasPreparingAlert = meetGreets.some(
-              (row) =>
-                row.data.status === "ready_to_prepare" ||
-                isPrepareWindowOpen(row.data.scheduledAt)
-            );
-
             return (
-                            <div
+              <div
                 key={g.id}
                 style={{
                   borderRadius: 16,
@@ -700,7 +819,7 @@ export default function OwnerSidebarMyGroups({
                         </div>
                       )}
 
-                                            <div
+                      <div
                         style={{
                           minWidth: 0,
                           display: "grid",
@@ -735,11 +854,11 @@ export default function OwnerSidebarMyGroups({
                             <span style={emojiAlertStyle}>🔵</span>
                           ) : null}
 
-                          {hasSaludoAlert ? (
+                          {hasNewGreeting && hasSaludoAlert ? (
                             <span style={emojiAlertStyle}>👋</span>
                           ) : null}
 
-                          {hasConsejoAlert ? (
+                          {hasNewGreeting && hasConsejoAlert ? (
                             <span style={emojiAlertStyle}>💡</span>
                           ) : null}
 
@@ -1007,7 +1126,7 @@ export default function OwnerSidebarMyGroups({
 
                       {showGreetingsSection && (
                         <div style={styles.sectionPanel}>
-                                                    <button
+                          <button
                             type="button"
                             onClick={() =>
                               setGreetingSectionOpen((prev) => ({
@@ -1072,7 +1191,7 @@ export default function OwnerSidebarMyGroups({
                             <Chevron open={greetingListOpen} />
                           </button>
 
-                                                    {greetingListOpen && (
+                          {greetingListOpen && (
                             <div className="mini-vertical-scroll">
                               <div style={{ display: "grid", gap: 10 }}>
                                 {sortedGreetings.length > 0 ? (
@@ -1089,7 +1208,7 @@ export default function OwnerSidebarMyGroups({
                                     Saludos, consejos y mensajes
                                   </div>
                                 ) : null}
-                                  {sortedGreetings.map((r) => {
+                                {sortedGreetings.map((r) => {
                                   const req = r.data;
                                   const busy = greetingBusyId === r.id;
                                   const chipStyle = getTypeChipStyle(req.type);
@@ -1118,7 +1237,7 @@ export default function OwnerSidebarMyGroups({
                                               justifyContent: "center",
                                             }}
                                           >
-                                    {getServiceEmoji(req.type)} {typeLabel(req.type)}
+                                            {getServiceEmoji(req.type)} {typeLabel(req.type)}
                                           </span>
 
                                           <div
@@ -1214,7 +1333,7 @@ export default function OwnerSidebarMyGroups({
                                   );
                                 })}
 
-                                {sortedMeetGreets.length > 0 ? (
+                                {sortedScheduledServices.length > 0 ? (
                                   <div
                                     style={{
                                       fontSize: 11,
@@ -1229,8 +1348,10 @@ export default function OwnerSidebarMyGroups({
                                   </div>
                                 ) : null}
 
-                                {sortedMeetGreets.map((r) => {
+                                {sortedScheduledServices.map((r) => {
                                   const req = r.data;
+                                  const isExclusiveSession = r.serviceKind === "exclusive_session";
+                                  const chipType = isExclusiveSession ? "digital_exclusive_session" : "meet_greet_digital";
                                   const statusStyle = getMeetGreetStatusStyle(
                                     req.status
                                   );
@@ -1240,6 +1361,8 @@ export default function OwnerSidebarMyGroups({
                                   const prepareWindowOpen = isPrepareWindowOpen(
                                     req.scheduledAt
                                   );
+                                  const noShowExpired =
+                                    !req.preparingCreatorAt && isNoShowExpired(req.scheduledAt);
                                   const busy = !!meetGreetBusyMap[r.id];
                                   const canAccept =
                                     req.status === "pending_creator_response";
@@ -1256,19 +1379,20 @@ export default function OwnerSidebarMyGroups({
                                     (req.status === "scheduled" ||
                                       req.status === "ready_to_prepare" ||
                                       req.status === "in_preparation") &&
-                                    prepareWindowOpen;
+                                    prepareWindowOpen &&
+                                    !noShowExpired;
 
                                   return (
                                     <div
-                                      key={r.id}
+                                      key={`${r.serviceKind}-${r.id}`}
                                       style={{
-                                      ...styles.miniItem,
-                                      background: "rgba(255,255,255,0.02)",
-                                      border: "1px solid rgba(255,255,255,0.07)",
-                                      borderRadius: 16,
-                                      padding: 10,
+                                        ...styles.miniItem,
+                                        background: "rgba(255,255,255,0.02)",
+                                        border: "1px solid rgba(255,255,255,0.07)",
+                                        borderRadius: 16,
+                                        padding: 10,
                                       }}
-                                     >
+                                    >
                                       <div style={{ display: "grid", gap: 6 }}>
                                         <div
                                           style={{
@@ -1280,7 +1404,7 @@ export default function OwnerSidebarMyGroups({
                                         >
                                           <span
                                             style={{
-                                              ...getTypeChipStyle("meet_greet_digital"),
+                                              ...getTypeChipStyle(chipType),
                                               borderRadius: 999,
                                               padding: "4px 8px",
                                               fontSize: 11,
@@ -1291,7 +1415,7 @@ export default function OwnerSidebarMyGroups({
                                               justifyContent: "center",
                                             }}
                                           >
-                                        🤝 Meet & Greet
+                                            {isExclusiveSession ? "👑 Sesión exclusiva" : "🤝 Meet & Greet"}
                                           </span>
 
                                           <div
@@ -1355,7 +1479,7 @@ export default function OwnerSidebarMyGroups({
                                             color: "#fde68a",
                                           }}
                                         >
-                                          ⚠️ Este meet & greet está próximo a iniciar.
+                                          ⚠️ Este servicio está próximo a iniciar.
                                         </div>
                                       ) : null}
 
@@ -1478,7 +1602,7 @@ export default function OwnerSidebarMyGroups({
                                           {canAccept ? (
                                             <button
                                               type="button"
-                                              onClick={() => handleCreatorAccept(r.id)}
+                                              onClick={() => handleCreatorAccept(r.id, r.serviceKind)}
                                               disabled={busy}
                                               style={{
                                                 ...styles.buttonPrimary,
@@ -1542,7 +1666,7 @@ export default function OwnerSidebarMyGroups({
                                             <button
                                               type="button"
                                               onClick={() =>
-                                                handlePrepare(r.id, "creator")
+                                                handlePrepare(r.id, "creator", r.serviceKind)
                                               }
                                               disabled={busy}
                                               style={{
@@ -1586,7 +1710,7 @@ export default function OwnerSidebarMyGroups({
                                             <button
                                               type="button"
                                               onClick={() =>
-                                                handleCreatorReject(r.id)
+                                                handleCreatorReject(r.id, r.serviceKind)
                                               }
                                               disabled={busy}
                                               style={{
@@ -1665,7 +1789,7 @@ export default function OwnerSidebarMyGroups({
                                             <button
                                               type="button"
                                               onClick={() =>
-                                                handleCreatorSchedule(r.id)
+                                                handleCreatorSchedule(r.id, r.serviceKind)
                                               }
                                               disabled={busy}
                                               style={{
@@ -1728,7 +1852,6 @@ export default function OwnerSidebarMyGroups({
                           padding: "0 2px 2px",
                         }}
                       >
-                       
                       </div>
                     </div>
                   )}

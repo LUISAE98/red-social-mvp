@@ -12,6 +12,10 @@ import {
   getMeetGreetStatusLabel,
   type MeetGreetStatus,
 } from "@/lib/meetGreet/types";
+import {
+  getExclusiveSessionStatusLabel,
+  type ExclusiveSessionStatus,
+} from "@/lib/exclusiveSession/types";
 
 type FirestoreTimestampLike =
   | Timestamp
@@ -22,7 +26,9 @@ type FirestoreTimestampLike =
   | null
   | undefined;
 
-export type WalletMeetGreetDoc = {
+type ScheduledStatus = MeetGreetStatus | ExclusiveSessionStatus;
+
+type WalletScheduledDoc = {
   id: string;
   groupId: string;
   groupName: string | null;
@@ -34,11 +40,12 @@ export type WalletMeetGreetDoc = {
   creatorDisplayName: string | null;
   creatorUsername: string | null;
   creatorAvatarUrl: string | null;
-  status: MeetGreetStatus;
+  status: ScheduledStatus;
   buyerMessage: string | null;
   rejectionReason: string | null;
   refundReason: string | null;
   priceSnapshot: number | null;
+  currency?: "MXN" | "USD" | null;
   durationMinutes: number | null;
   acceptedAt: FirestoreTimestampLike;
   rejectedAt: FirestoreTimestampLike;
@@ -52,6 +59,14 @@ export type WalletMeetGreetDoc = {
   preparationOpenedAt: FirestoreTimestampLike;
   createdAt: FirestoreTimestampLike;
   updatedAt: FirestoreTimestampLike;
+};
+
+export type WalletMeetGreetDoc = WalletScheduledDoc & {
+  status: MeetGreetStatus;
+};
+
+export type WalletExclusiveSessionDoc = WalletScheduledDoc & {
+  status: ExclusiveSessionStatus;
 };
 
 export type GreetingType = "saludo" | "consejo" | "mensaje";
@@ -72,7 +87,12 @@ export type WalletGreetingDoc = {
   updatedAt: FirestoreTimestampLike;
 };
 
-export type WalletServiceKind = "meet_greet" | "saludo" | "consejo" | "mensaje";
+export type WalletServiceKind =
+  | "meet_greet"
+  | "exclusive_session"
+  | "saludo"
+  | "consejo"
+  | "mensaje";
 
 export type WalletServiceItem = {
   id: string;
@@ -92,11 +112,15 @@ export type WalletServiceItem = {
   rejectionReason: string | null;
   refundReason: string | null;
   priceSnapshot: number | null;
+  currency?: "MXN" | "USD" | null;
   durationMinutes: number | null;
-  source: "meet_greet" | "greeting";
+  source: "meet_greet" | "exclusive_session" | "greeting";
   scheduledAt: Date | null;
   acceptedAt: Date | null;
   rejectedAt: Date | null;
+  preparingBuyerAt: Date | null;
+  preparingCreatorAt: Date | null;
+  preparationOpenedAt: Date | null;
   createdAt: Date | null;
   updatedAt: Date | null;
 };
@@ -105,6 +129,7 @@ export type WalletHistoryFilter =
   | "all"
   | "rejected"
   | "meet_greet"
+  | "exclusive_session"
   | "saludo"
   | "consejo"
   | "mensaje";
@@ -121,9 +146,7 @@ export type OwnerWalletDataResult = {
 function toDateSafe(value: FirestoreTimestampLike): Date | null {
   if (!value) return null;
 
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value;
-  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
 
   if (
     typeof value === "object" &&
@@ -132,69 +155,54 @@ function toDateSafe(value: FirestoreTimestampLike): Date | null {
     typeof (value as { toDate?: unknown }).toDate === "function"
   ) {
     const date = (value as { toDate: () => Date }).toDate();
-    if (date instanceof Date && !Number.isNaN(date.getTime())) {
-      return date;
-    }
+    return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
   }
 
   if (typeof value === "string" || typeof value === "number") {
     const date = new Date(value);
-    if (!Number.isNaN(date.getTime())) {
-      return date;
-    }
+    return !Number.isNaN(date.getTime()) ? date : null;
   }
 
   return null;
 }
 
 function compareDesc(a: Date | null, b: Date | null): number {
-  const aTime = a?.getTime() ?? 0;
-  const bTime = b?.getTime() ?? 0;
-  return bTime - aTime;
+  return (b?.getTime() ?? 0) - (a?.getTime() ?? 0);
 }
 
 function compareAsc(a: Date | null, b: Date | null): number {
-  const aTime = a?.getTime() ?? Number.MAX_SAFE_INTEGER;
-  const bTime = b?.getTime() ?? Number.MAX_SAFE_INTEGER;
-  return aTime - bTime;
+  return (
+    (a?.getTime() ?? Number.MAX_SAFE_INTEGER) -
+    (b?.getTime() ?? Number.MAX_SAFE_INTEGER)
+  );
 }
 
 function getGreetingTypeLabel(type: GreetingType): string {
-  switch (type) {
-    case "saludo":
-      return "Saludo";
-    case "consejo":
-      return "Consejo";
-    case "mensaje":
-      return "Mensaje";
-    default:
-      return "Solicitud";
-  }
+  if (type === "saludo") return "Saludo";
+  if (type === "consejo") return "Consejo";
+  if (type === "mensaje") return "Mensaje";
+  return "Solicitud";
 }
 
 function getGreetingStatusLabel(status: GreetingStatus): string {
-  switch (status) {
-    case "pending":
-      return "Pendiente";
-    case "accepted":
-      return "Aceptado";
-    case "rejected":
-      return "Rechazado";
-    default:
-      return status;
-  }
+  if (status === "pending") return "Pendiente";
+  if (status === "accepted") return "Aceptado";
+  if (status === "rejected") return "Rechazado";
+  return status;
 }
 
-function normalizeMeetGreetRow(
+function normalizeScheduledRow(
   id: string,
-  data: Partial<WalletMeetGreetDoc>
+  data: Partial<WalletScheduledDoc>,
+  source: "meet_greet" | "exclusive_session"
 ): WalletServiceItem {
-  const status = (data.status ?? "pending_creator_response") as MeetGreetStatus;
+  const status = (data.status ?? "pending_creator_response") as ScheduledStatus;
+  const isExclusive = source === "exclusive_session";
 
   return {
     id,
-    kind: "meet_greet",
-    title: "Meet & Greet",
+    kind: isExclusive ? "exclusive_session" : "meet_greet",
+    title: isExclusive ? "Sesión exclusiva" : "Meet & Greet",
     groupId: data.groupId ?? "",
     groupName: data.groupName ?? null,
     buyerId: data.buyerId ?? "",
@@ -204,18 +212,27 @@ function normalizeMeetGreetRow(
     targetName: null,
     requestText: data.buyerMessage ?? null,
     status,
-    statusLabel: getMeetGreetStatusLabel(status),
+    statusLabel: isExclusive
+      ? getExclusiveSessionStatusLabel(status as ExclusiveSessionStatus)
+      : getMeetGreetStatusLabel(status as MeetGreetStatus),
     description: data.buyerMessage ?? null,
     rejectionReason: data.rejectionReason ?? null,
     refundReason: data.refundReason ?? null,
-    priceSnapshot:
+        priceSnapshot:
       typeof data.priceSnapshot === "number" ? data.priceSnapshot : null,
+    currency:
+      data.currency === "MXN" || data.currency === "USD"
+        ? data.currency
+        : "MXN",
     durationMinutes:
       typeof data.durationMinutes === "number" ? data.durationMinutes : null,
-    source: "meet_greet",
+    source,
     scheduledAt: toDateSafe(data.scheduledAt),
     acceptedAt: toDateSafe(data.acceptedAt),
     rejectedAt: toDateSafe(data.rejectedAt),
+    preparingBuyerAt: toDateSafe(data.preparingBuyerAt),
+    preparingCreatorAt: toDateSafe(data.preparingCreatorAt),
+    preparationOpenedAt: toDateSafe(data.preparationOpenedAt),
     createdAt: toDateSafe(data.createdAt),
     updatedAt: toDateSafe(data.updatedAt),
   };
@@ -228,7 +245,7 @@ function normalizeGreetingRow(
   const type = (data.type ?? "saludo") as GreetingType;
   const status = (data.status ?? "pending") as GreetingStatus;
 
-    return {
+  return {
     id,
     kind: type,
     title: getGreetingTypeLabel(type),
@@ -251,12 +268,15 @@ function normalizeGreetingRow(
     scheduledAt: null,
     acceptedAt: status === "accepted" ? toDateSafe(data.updatedAt) : null,
     rejectedAt: status === "rejected" ? toDateSafe(data.updatedAt) : null,
+    preparingBuyerAt: null,
+    preparingCreatorAt: null,
+    preparationOpenedAt: null,
     createdAt: toDateSafe(data.createdAt),
     updatedAt: toDateSafe(data.updatedAt),
   };
 }
 
-function isCalendarMeetGreetStatus(status: string): boolean {
+function isCalendarScheduledStatus(status: string): boolean {
   return (
     status === "scheduled" ||
     status === "ready_to_prepare" ||
@@ -264,88 +284,73 @@ function isCalendarMeetGreetStatus(status: string): boolean {
   );
 }
 
-function isPendingCurrentMeetGreetStatus(status: string): boolean {
-  return (
-    status === "pending_creator_response" ||
-    status === "accepted_pending_schedule" ||
-    status === "scheduled" ||
-    status === "reschedule_requested" ||
-    status === "ready_to_prepare" ||
-    status === "in_preparation"
-  );
+function isPendingCurrentScheduledStatus(status: string): boolean {
+  return [
+    "pending_creator_response",
+    "accepted_pending_schedule",
+    "scheduled",
+    "reschedule_requested",
+    "ready_to_prepare",
+    "in_preparation",
+  ].includes(status);
 }
 
-function isHistoryMeetGreetStatus(status: string): boolean {
-  return (
-    status === "completed" ||
-    status === "rejected" ||
-    status === "refund_requested" ||
-    status === "refund_review" ||
-    status === "cancelled"
-  );
-}
-
-function isPendingCurrentGreetingStatus(status: string): boolean {
-  return status === "pending";
-}
-
-function isHistoryGreetingStatus(status: string): boolean {
-  return status === "accepted" || status === "rejected";
+function isHistoryScheduledStatus(status: string): boolean {
+  return [
+    "completed",
+    "rejected",
+    "refund_requested",
+    "refund_review",
+    "cancelled",
+  ].includes(status);
 }
 
 export function filterWalletHistoryItems(
   rows: WalletServiceItem[],
   filter: WalletHistoryFilter
 ): WalletServiceItem[] {
-  switch (filter) {
-    case "all":
-      return rows;
-    case "rejected":
-      return rows.filter((row) => {
-        if (row.source === "meet_greet") {
-          return (
-            row.status === "rejected" ||
-            row.status === "refund_requested" ||
-            row.status === "refund_review" ||
-            row.status === "cancelled"
-          );
-        }
+  if (filter === "all") return rows;
 
-        return row.status === "rejected";
-      });
-    case "meet_greet":
-    case "saludo":
-    case "consejo":
-    case "mensaje":
-      return rows.filter((row) => row.kind === filter);
-    default:
-      return rows;
+  if (filter === "rejected") {
+    return rows.filter((row) => {
+      if (row.source === "meet_greet" || row.source === "exclusive_session") {
+        return [
+          "rejected",
+          "refund_requested",
+          "refund_review",
+          "cancelled",
+        ].includes(row.status);
+      }
+
+      return row.status === "rejected";
+    });
   }
+
+  return rows.filter((row) => row.kind === filter);
 }
 
-export function useOwnerWalletData(
-  creatorId: string | null | undefined
-): OwnerWalletDataResult {
-  const [loadingMeetGreets, setLoadingMeetGreets] = useState(true);
-  const [loadingGreetings, setLoadingGreetings] = useState(true);
-  const [meetGreetError, setMeetGreetError] = useState<string | null>(null);
-  const [greetingError, setGreetingError] = useState<string | null>(null);
-  const [meetGreetRows, setMeetGreetRows] = useState<WalletServiceItem[]>([]);
-  const [greetingRows, setGreetingRows] = useState<WalletServiceItem[]>([]);
+function useScheduledRows(
+  creatorId: string | null | undefined,
+  collectionName: "meetGreetRequests" | "exclusiveSessionRequests",
+  source: "meet_greet" | "exclusive_session"
+) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [rows, setRows] = useState<WalletServiceItem[]>([]);
 
   useEffect(() => {
     if (!creatorId) {
-      setMeetGreetRows([]);
-      setMeetGreetError(null);
-      setLoadingMeetGreets(false);
+      setRows([]);
+      setError(null);
+      setLoading(false);
       return;
     }
 
-    setLoadingMeetGreets(true);
-    setMeetGreetError(null);
+    setLoading(true);
+    setError(null);
 
     const q = query(
-      collection(db, "meetGreetRequests"),
+      collection(db, collectionName),
       where("creatorId", "==", creatorId),
       limit(100)
     );
@@ -353,24 +358,49 @@ export function useOwnerWalletData(
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const next = snap.docs.map((d) =>
-          normalizeMeetGreetRow(d.id, d.data() as Partial<WalletMeetGreetDoc>)
+        setRows(
+          snap.docs.map((d) =>
+            normalizeScheduledRow(
+              d.id,
+              d.data() as Partial<WalletScheduledDoc>,
+              source
+            )
+          )
         );
-        setMeetGreetRows(next);
-        setMeetGreetError(null);
-        setLoadingMeetGreets(false);
+        setError(null);
+        setLoading(false);
       },
       (err: any) => {
-        setMeetGreetRows([]);
-        setMeetGreetError(
-          err?.message ?? "No se pudieron cargar los Meet & Greet de la wallet."
-        );
-        setLoadingMeetGreets(false);
+        setRows([]);
+        setError(err?.message ?? `No se pudo cargar ${collectionName}.`);
+        setLoading(false);
       }
     );
 
     return () => unsub();
-  }, [creatorId]);
+  }, [collectionName, creatorId, source]);
+
+  return { loading, error, rows };
+}
+
+export function useOwnerWalletData(
+  creatorId: string | null | undefined
+): OwnerWalletDataResult {
+  const meet = useScheduledRows(
+    creatorId,
+    "meetGreetRequests",
+    "meet_greet"
+  );
+
+  const exclusive = useScheduledRows(
+    creatorId,
+    "exclusiveSessionRequests",
+    "exclusive_session"
+  );
+
+  const [loadingGreetings, setLoadingGreetings] = useState(true);
+  const [greetingError, setGreetingError] = useState<string | null>(null);
+  const [greetingRows, setGreetingRows] = useState<WalletServiceItem[]>([]);
 
   useEffect(() => {
     if (!creatorId) {
@@ -392,10 +422,11 @@ export function useOwnerWalletData(
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const next = snap.docs.map((d) =>
-          normalizeGreetingRow(d.id, d.data() as Partial<WalletGreetingDoc>)
+        setGreetingRows(
+          snap.docs.map((d) =>
+            normalizeGreetingRow(d.id, d.data() as Partial<WalletGreetingDoc>)
+          )
         );
-        setGreetingRows(next);
         setGreetingError(null);
         setLoadingGreetings(false);
       },
@@ -413,53 +444,45 @@ export function useOwnerWalletData(
   }, [creatorId]);
 
   const derived = useMemo(() => {
-    const combined = [...meetGreetRows, ...greetingRows];
+    const scheduledRows = [...meet.rows, ...exclusive.rows];
+    const combined = [...scheduledRows, ...greetingRows];
 
-    const all = [...combined].sort((a, b) => compareDesc(a.createdAt, b.createdAt));
+    const all = [...combined].sort((a, b) =>
+      compareDesc(a.createdAt, b.createdAt)
+    );
 
-    const calendar = meetGreetRows
-      .filter((row) => isCalendarMeetGreetStatus(row.status))
+    const calendar = scheduledRows
+      .filter((row) => isCalendarScheduledStatus(row.status))
       .sort((a, b) => compareAsc(a.scheduledAt, b.scheduledAt));
 
-    const pendingCurrent = [...combined]
-      .filter((row) => {
-        if (row.source === "meet_greet") {
-          return isPendingCurrentMeetGreetStatus(row.status);
-        }
+    const pendingCurrent = combined
+      .filter((row) =>
+        row.source === "greeting"
+          ? row.status === "pending"
+          : isPendingCurrentScheduledStatus(row.status)
+      )
+      .sort((a, b) =>
+        compareAsc(a.scheduledAt ?? a.createdAt, b.scheduledAt ?? b.createdAt)
+      );
 
-        return isPendingCurrentGreetingStatus(row.status);
-      })
-      .sort((a, b) => {
-        const aPrimary = a.scheduledAt ?? a.createdAt;
-        const bPrimary = b.scheduledAt ?? b.createdAt;
-        return compareAsc(aPrimary, bPrimary);
-      });
-
-    const history = [...combined]
-      .filter((row) => {
-        if (row.source === "meet_greet") {
-          return isHistoryMeetGreetStatus(row.status);
-        }
-
-        return isHistoryGreetingStatus(row.status);
-      })
+    const history = combined
+      .filter((row) =>
+        row.source === "greeting"
+          ? row.status === "accepted" || row.status === "rejected"
+          : isHistoryScheduledStatus(row.status)
+      )
       .sort((a, b) => compareDesc(a.updatedAt, b.updatedAt));
 
-    return {
-      all,
-      calendar,
-      pendingCurrent,
-      history,
-    };
-  }, [greetingRows, meetGreetRows]);
+    return { all, calendar, pendingCurrent, history };
+  }, [exclusive.rows, greetingRows, meet.rows]);
 
-  const error = useMemo(() => {
-    const parts = [meetGreetError, greetingError].filter(Boolean);
-    return parts.length > 0 ? parts.join(" ") : null;
-  }, [greetingError, meetGreetError]);
+    const error =
+    [meet.error, exclusive.error, greetingError]
+      .filter(Boolean)
+      .join(" ") || null;
 
   return {
-    loading: loadingMeetGreets || loadingGreetings,
+    loading: meet.loading || exclusive.loading || loadingGreetings,
     error,
     ...derived,
   };
@@ -493,21 +516,16 @@ export function formatWalletMoney(value: number | null): string {
 }
 
 export function getWalletServiceRowMeta(row: WalletServiceItem): string {
-  if (row.source === "meet_greet" && row.status === "accepted_pending_schedule") {
+  if (
+    (row.source === "meet_greet" || row.source === "exclusive_session") &&
+    row.status === "accepted_pending_schedule"
+  ) {
     return "Pendiente de asignar fecha";
   }
 
-  if (row.scheduledAt) {
-    return formatWalletDateTime(row.scheduledAt);
-  }
-
-  if (row.updatedAt) {
-    return formatWalletDateTime(row.updatedAt);
-  }
-
-  if (row.createdAt) {
-    return formatWalletDateTime(row.createdAt);
-  }
+  if (row.scheduledAt) return formatWalletDateTime(row.scheduledAt);
+  if (row.updatedAt) return formatWalletDateTime(row.updatedAt);
+  if (row.createdAt) return formatWalletDateTime(row.createdAt);
 
   return "Sin fecha";
 }

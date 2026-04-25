@@ -8,16 +8,15 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 const REGION = "us-central1";
-const MEET_GREET_COLLECTION = "meetGreetRequests";
+const EXCLUSIVE_SESSION_COLLECTION = "exclusiveSessionRequests";
 const MAX_RESCHEDULE_REQUESTS = 2;
 const PREPARE_WINDOW_MINUTES = 10;
 const CREATOR_JOIN_GRACE_MINUTES = 15;
 
-type MeetGreetStatus =
+type ExclusiveSessionStatus =
   | "pending_creator_response"
   | "accepted_pending_schedule"
   | "scheduled"
-  | "auto_rejected_no_show"
   | "reschedule_requested"
   | "rejected"
   | "refund_requested"
@@ -151,20 +150,26 @@ function normalizeCurrency(value: unknown): "MXN" | "USD" | null {
   return null;
 }
 
-function getMeetGreetOffering(groupData: FirebaseFirestore.DocumentData) {
+function getExclusiveSessionOffering(groupData: FirebaseFirestore.DocumentData) {
   const offerings = Array.isArray(groupData.offerings) ? groupData.offerings : [];
 
   const offering = offerings.find(
-    (item) => item && item.type === "meet_greet_digital"
+    (item) =>
+      item &&
+      (
+        item.type === "clase_personalizada" ||
+        item.type === "custom_class" ||
+        item.type === "exclusive_session"
+      )
   );
 
   return offering ?? null;
 }
 
-function assertMeetGreetEnabled(groupData: FirebaseFirestore.DocumentData) {
+function assertExclusiveSessionEnabled(groupData: FirebaseFirestore.DocumentData) {
   const monetization = groupData.monetization ?? {};
-  const legacyFlag = monetization.digitalMeetGreetEnabled === true;
-  const offering = getMeetGreetOffering(groupData);
+  const legacyFlag = monetization.customClassEnabled === true || monetization.exclusiveSessionEnabled === true;
+  const offering = getExclusiveSessionOffering(groupData);
 
   const offeringEnabled =
     offering &&
@@ -175,21 +180,21 @@ function assertMeetGreetEnabled(groupData: FirebaseFirestore.DocumentData) {
   if (!legacyFlag && !offeringEnabled) {
     throw new HttpsError(
       "failed-precondition",
-      "Este grupo no tiene activo el servicio de meet & greet digital."
+      "Este grupo no tiene activo el servicio de sesión exclusiva."
     );
   }
 
   return offering;
 }
 
-async function assertMeetGreetEligibleMembership(groupId: string, uid: string) {
+async function assertExclusiveSessionEligibleMembership(groupId: string, uid: string) {
   const memberRef = db.collection("groups").doc(groupId).collection("members").doc(uid);
   const memberSnap = await memberRef.get();
 
   if (!memberSnap.exists) {
     throw new HttpsError(
       "permission-denied",
-      "Debes tener una membresía válida para solicitar este meet & greet."
+      "Debes tener una membresía válida para solicitar esta sesión exclusiva."
     );
   }
 
@@ -204,7 +209,7 @@ async function assertMeetGreetEligibleMembership(groupId: string, uid: string) {
   if (blockedStatuses.has(status)) {
     throw new HttpsError(
       "permission-denied",
-      "Tu membresía no permite solicitar este meet & greet."
+      "Tu membresía no permite solicitar esta sesión exclusiva."
     );
   }
 
@@ -215,7 +220,7 @@ async function assertMeetGreetEligibleMembership(groupId: string, uid: string) {
   if (!hasJoinedMembership && !hasLegacyAccess) {
     throw new HttpsError(
       "permission-denied",
-      "Debes tener una membresía válida para solicitar este meet & greet."
+      "Debes tener una membresía válida para solicitar esta sesión exclusiva."
     );
   }
 
@@ -238,33 +243,33 @@ async function getUserProfile(uid: string) {
   };
 }
 
-async function getMeetGreetOrThrow(requestId: string) {
-  const ref = db.collection(MEET_GREET_COLLECTION).doc(requestId);
+async function getExclusiveSessionOrThrow(requestId: string) {
+  const ref = db.collection(EXCLUSIVE_SESSION_COLLECTION).doc(requestId);
   const snap = await ref.get();
 
   if (!snap.exists) {
-    throw new HttpsError("not-found", "La solicitud de meet & greet no existe.");
+    throw new HttpsError("not-found", "La solicitud de sesión exclusiva no existe.");
   }
 
   const data = snap.data() ?? {};
   return { ref, data };
 }
 
-function ensureBuyer(meetGreetData: FirebaseFirestore.DocumentData, uid: string) {
-  if (meetGreetData.buyerId !== uid) {
+function ensureBuyer(exclusiveSessionData: FirebaseFirestore.DocumentData, uid: string) {
+  if (exclusiveSessionData.buyerId !== uid) {
     throw new HttpsError("permission-denied", "Solo el comprador puede hacer esta acción.");
   }
 }
 
-function ensureCreator(meetGreetData: FirebaseFirestore.DocumentData, uid: string) {
-  if (meetGreetData.creatorId !== uid) {
+function ensureCreator(exclusiveSessionData: FirebaseFirestore.DocumentData, uid: string) {
+  if (exclusiveSessionData.creatorId !== uid) {
     throw new HttpsError("permission-denied", "Solo el creador puede hacer esta acción.");
   }
 }
 
 function ensureStatusAllowed(
-  currentStatus: MeetGreetStatus,
-  allowedStatuses: MeetGreetStatus[],
+  currentStatus: ExclusiveSessionStatus,
+  allowedStatuses: ExclusiveSessionStatus[],
   actionLabel: string
 ) {
   if (!allowedStatuses.includes(currentStatus)) {
@@ -275,7 +280,7 @@ function ensureStatusAllowed(
   }
 }
 
-function buildPreparationStatus(scheduleAt: TimestampLike): MeetGreetStatus {
+function buildPreparationStatus(scheduleAt: TimestampLike): ExclusiveSessionStatus {
   const now = Date.now();
   const scheduleMs = scheduleAt.toDate().getTime();
   const prepareStartMs = scheduleMs - PREPARE_WINDOW_MINUTES * 60 * 1000;
@@ -286,6 +291,7 @@ function buildPreparationStatus(scheduleAt: TimestampLike): MeetGreetStatus {
 
   return "scheduled";
 }
+
 function getNoShowRejectAt(scheduleAt: TimestampLike): TimestampLike {
   const scheduleDate = scheduleAt.toDate();
   const rejectDate = new Date(
@@ -307,7 +313,7 @@ function isCreatorNoShowExpired(
   return Date.now() >= rejectAtMs;
 }
 
-export const createMeetGreetRequest = onCall(
+export const createExclusiveSessionRequest = onCall(
   {
     region: REGION,
     cors: true,
@@ -334,8 +340,8 @@ const durationMinutes = asOptionalFiniteNumber(
 );
 
 const groupData = await getGroupOrThrow(groupId);
-await assertMeetGreetEligibleMembership(groupId, uid);
-const meetGreetOffering = assertMeetGreetEnabled(groupData.data);
+await assertExclusiveSessionEligibleMembership(groupId, uid);
+const exclusiveSessionOffering = assertExclusiveSessionEnabled(groupData.data);
 
     const creatorId = groupData.data.ownerId as string | undefined;
     if (!creatorId) {
@@ -345,46 +351,46 @@ const meetGreetOffering = assertMeetGreetEnabled(groupData.data);
     if (creatorId === uid) {
       throw new HttpsError(
         "failed-precondition",
-        "El creador no puede comprarse a sí mismo un meet & greet."
+        "El creador no puede comprarse a sí mismo una sesión exclusiva."
       );
     }
 
     const buyerProfile = await getUserProfile(uid);
     const creatorProfile = await getUserProfile(creatorId);
 
-    const docRef = db.collection(MEET_GREET_COLLECTION).doc();
+    const docRef = db.collection(EXCLUSIVE_SESSION_COLLECTION).doc();
 const offeringCurrency =
-  normalizeCurrency(meetGreetOffering?.currency) ??
+  normalizeCurrency(exclusiveSessionOffering?.currency) ??
   normalizeCurrency(groupData.data?.monetization?.currency) ??
   "MXN";
 
 const offeringPrice =
-  typeof meetGreetOffering?.memberPrice === "number"
-    ? meetGreetOffering.memberPrice
-    : typeof meetGreetOffering?.publicPrice === "number"
-    ? meetGreetOffering.publicPrice
-    : typeof meetGreetOffering?.price === "number"
-    ? meetGreetOffering.price
+  typeof exclusiveSessionOffering?.memberPrice === "number"
+    ? exclusiveSessionOffering.memberPrice
+    : typeof exclusiveSessionOffering?.publicPrice === "number"
+    ? exclusiveSessionOffering.publicPrice
+    : typeof exclusiveSessionOffering?.price === "number"
+    ? exclusiveSessionOffering.price
     : null;
 
 const offeringDuration =
-  typeof meetGreetOffering?.meta?.meetGreet?.durationMinutes === "number" &&
-  Number.isFinite(meetGreetOffering.meta.meetGreet.durationMinutes)
-    ? meetGreetOffering.meta.meetGreet.durationMinutes
+  typeof exclusiveSessionOffering?.meta?.customClass?.durationMinutes === "number" &&
+  Number.isFinite(exclusiveSessionOffering.meta.customClass.durationMinutes)
+    ? exclusiveSessionOffering.meta.customClass.durationMinutes
     : null;
 
 const resolvedPriceSnapshot = priceSnapshot ?? offeringPrice ?? null;
 const resolvedDurationMinutes = durationMinutes ?? offeringDuration ?? null;
     const payload = {
       id: docRef.id,
-      type: "digital_meet_greet",
+      type: "digital_exclusive_session",
       flowVersion: 1,
 
       groupId,
       groupName: groupData.data.name ?? null,
 
       serviceSnapshot: {
-  type: "meet_greet_digital",
+  type: "exclusive_session",
   enabled: true,
   currency: offeringCurrency,
   price: resolvedPriceSnapshot,
@@ -401,7 +407,7 @@ const resolvedDurationMinutes = durationMinutes ?? offeringDuration ?? null;
       creatorUsername: creatorProfile.username,
       creatorAvatarUrl: creatorProfile.avatarUrl,
 
-      status: "pending_creator_response" as MeetGreetStatus,
+      status: "pending_creator_response" as ExclusiveSessionStatus,
 
       buyerMessage,
       rejectionReason: null,
@@ -447,7 +453,7 @@ durationMinutes: resolvedDurationMinutes,
 
     await docRef.set(payload);
 
-    logger.info("meet_greet_request_created", {
+    logger.info("exclusive_session_request_created", {
       requestId: docRef.id,
       groupId,
       buyerId: uid,
@@ -463,7 +469,7 @@ durationMinutes: resolvedDurationMinutes,
   }
 );
 
-export const acceptMeetGreetRequest = onCall(
+export const acceptExclusiveSessionRequest = onCall(
   {
     region: REGION,
     cors: true,
@@ -472,10 +478,10 @@ export const acceptMeetGreetRequest = onCall(
     const uid = requireAuth(request.auth?.uid);
     const requestId = asTrimmedString(request.data?.requestId, "requestId", 120);
 
-    const { ref, data } = await getMeetGreetOrThrow(requestId);
+    const { ref, data } = await getExclusiveSessionOrThrow(requestId);
     ensureCreator(data, uid);
     ensureStatusAllowed(
-      data.status as MeetGreetStatus,
+      data.status as ExclusiveSessionStatus,
       ["pending_creator_response"],
       "aceptar la solicitud"
     );
@@ -486,7 +492,7 @@ export const acceptMeetGreetRequest = onCall(
       updatedAt: nowTs(),
     });
 
-    logger.info("meet_greet_request_accepted", {
+    logger.info("exclusive_session_request_accepted", {
       requestId,
       creatorId: uid,
       buyerId: data.buyerId,
@@ -500,7 +506,7 @@ export const acceptMeetGreetRequest = onCall(
   }
 );
 
-export const rejectMeetGreetRequest = onCall(
+export const rejectExclusiveSessionRequest = onCall(
   {
     region: REGION,
     cors: true,
@@ -514,10 +520,10 @@ export const rejectMeetGreetRequest = onCall(
       1000
     );
 
-    const { ref, data } = await getMeetGreetOrThrow(requestId);
+    const { ref, data } = await getExclusiveSessionOrThrow(requestId);
     ensureCreator(data, uid);
     ensureStatusAllowed(
-      data.status as MeetGreetStatus,
+      data.status as ExclusiveSessionStatus,
       ["pending_creator_response", "accepted_pending_schedule", "reschedule_requested"],
       "rechazar la solicitud"
     );
@@ -529,7 +535,7 @@ export const rejectMeetGreetRequest = onCall(
       updatedAt: nowTs(),
     });
 
-    logger.info("meet_greet_request_rejected", {
+    logger.info("exclusive_session_request_rejected", {
       requestId,
       creatorId: uid,
       buyerId: data.buyerId,
@@ -543,7 +549,7 @@ export const rejectMeetGreetRequest = onCall(
   }
 );
 
-export const proposeMeetGreetSchedule = onCall(
+export const proposeExclusiveSessionSchedule = onCall(
   {
     region: REGION,
     cors: true,
@@ -554,10 +560,10 @@ export const proposeMeetGreetSchedule = onCall(
     const scheduledAtIso = asIsoDateString(request.data?.scheduledAt, "scheduledAt");
     const note = asOptionalTrimmedString(request.data?.note, "note", 1000);
 
-    const { ref, data } = await getMeetGreetOrThrow(requestId);
+    const { ref, data } = await getExclusiveSessionOrThrow(requestId);
     ensureCreator(data, uid);
     ensureStatusAllowed(
-      data.status as MeetGreetStatus,
+      data.status as ExclusiveSessionStatus,
       ["accepted_pending_schedule", "reschedule_requested", "scheduled", "ready_to_prepare"],
       "proponer fecha"
     );
@@ -570,7 +576,7 @@ export const proposeMeetGreetSchedule = onCall(
 
     const nextStatus = buildPreparationStatus(scheduledAt);
 
-    await ref.update({
+  await ref.update({
   status: nextStatus,
   scheduledAt,
   scheduledBy: uid,
@@ -588,7 +594,7 @@ export const proposeMeetGreetSchedule = onCall(
   rescheduleRequestedAt: null,
 });
 
-    logger.info("meet_greet_schedule_proposed", {
+    logger.info("exclusive_session_schedule_proposed", {
       requestId,
       creatorId: uid,
       buyerId: data.buyerId,
@@ -605,7 +611,7 @@ export const proposeMeetGreetSchedule = onCall(
   }
 );
 
-export const requestMeetGreetReschedule = onCall(
+export const requestExclusiveSessionReschedule = onCall(
   {
     region: REGION,
     cors: true,
@@ -615,10 +621,10 @@ export const requestMeetGreetReschedule = onCall(
     const requestId = asTrimmedString(request.data?.requestId, "requestId", 120);
     const reason = asOptionalTrimmedString(request.data?.reason, "reason", 1000);
 
-    const { ref, data } = await getMeetGreetOrThrow(requestId);
+    const { ref, data } = await getExclusiveSessionOrThrow(requestId);
     ensureBuyer(data, uid);
     ensureStatusAllowed(
-      data.status as MeetGreetStatus,
+      data.status as ExclusiveSessionStatus,
       ["scheduled", "ready_to_prepare"],
       "solicitar cambio de fecha"
     );
@@ -644,7 +650,7 @@ export const requestMeetGreetReschedule = onCall(
       }),
     });
 
-    logger.info("meet_greet_reschedule_requested", {
+    logger.info("exclusive_session_reschedule_requested", {
       requestId,
       buyerId: uid,
       creatorId: data.creatorId,
@@ -661,7 +667,7 @@ export const requestMeetGreetReschedule = onCall(
   }
 );
 
-export const requestMeetGreetRefund = onCall(
+export const requestExclusiveSessionRefund = onCall(
   {
     region: REGION,
     cors: true,
@@ -675,10 +681,10 @@ export const requestMeetGreetRefund = onCall(
       1000
     );
 
-    const { ref, data } = await getMeetGreetOrThrow(requestId);
+    const { ref, data } = await getExclusiveSessionOrThrow(requestId);
     ensureBuyer(data, uid);
     ensureStatusAllowed(
-      data.status as MeetGreetStatus,
+      data.status as ExclusiveSessionStatus,
       ["rejected"],
       "solicitar devolución"
     );
@@ -690,7 +696,7 @@ export const requestMeetGreetRefund = onCall(
       updatedAt: nowTs(),
     });
 
-    logger.info("meet_greet_refund_requested", {
+    logger.info("exclusive_session_refund_requested", {
       requestId,
       buyerId: uid,
       creatorId: data.creatorId,
@@ -704,7 +710,7 @@ export const requestMeetGreetRefund = onCall(
   }
 );
 
-export const setMeetGreetPreparing = onCall(
+export const setExclusiveSessionPreparing = onCall(
   {
     region: REGION,
     cors: true,
@@ -718,8 +724,8 @@ export const setMeetGreetPreparing = onCall(
       throw new HttpsError("invalid-argument", "El role debe ser buyer o creator.");
     }
 
-    const { ref, data } = await getMeetGreetOrThrow(requestId);
-    const status = data.status as MeetGreetStatus;
+    const { ref, data } = await getExclusiveSessionOrThrow(requestId);
+    const status = data.status as ExclusiveSessionStatus;
 
     ensureStatusAllowed(
       status,
@@ -732,7 +738,7 @@ export const setMeetGreetPreparing = onCall(
       throw new HttpsError("failed-precondition", "La solicitud todavía no tiene fecha agendada.");
     }
 
-    if (
+if (
   role === "creator" &&
   isCreatorNoShowExpired(scheduledAt, data.preparingCreatorAt ?? null)
 ) {
@@ -748,7 +754,7 @@ export const setMeetGreetPreparing = onCall(
 
   throw new HttpsError(
     "failed-precondition",
-    "Este meet & greet fue rechazado automáticamente porque el creador no se conectó a tiempo."
+    "Esta sesión exclusiva fue rechazada automáticamente porque el creador no se conectó a tiempo."
   );
 }
 
@@ -759,7 +765,7 @@ export const setMeetGreetPreparing = onCall(
     if (now < prepareStartMs) {
       throw new HttpsError(
         "failed-precondition",
-        "La preparación solo se habilita 10 minutos antes del meet & greet."
+        "La preparación solo se habilita 10 minutos antes de la sesión exclusiva."
       );
     }
 
@@ -783,7 +789,7 @@ export const setMeetGreetPreparing = onCall(
 
     await ref.update(updates);
 
-    logger.info("meet_greet_preparation_opened", {
+    logger.info("exclusive_session_preparation_opened", {
       requestId,
       role,
       actorId: uid,
@@ -797,8 +803,7 @@ export const setMeetGreetPreparing = onCall(
     };
   }
 );
-
-export const expireMeetGreetNoShows = onCall(
+export const expireExclusiveSessionNoShows = onCall(
   {
     region: REGION,
     cors: true,
@@ -809,7 +814,7 @@ export const expireMeetGreetNoShows = onCall(
     const now = nowTs();
 
     const expiredSnap = await db
-      .collection(MEET_GREET_COLLECTION)
+      .collection(EXCLUSIVE_SESSION_COLLECTION)
       .where("creatorId", "==", uid)
       .where("status", "in", ["scheduled", "ready_to_prepare", "in_preparation"])
       .where("noShowRejectAt", "<=", now)
@@ -841,7 +846,7 @@ export const expireMeetGreetNoShows = onCall(
       await batch.commit();
     }
 
-    logger.info("meet_greet_no_shows_expired", {
+    logger.info("exclusive_session_no_shows_expired", {
       actorId: uid,
       expiredCount,
     });
