@@ -15,9 +15,12 @@ import {
 
 type HistoryFilter =
   | "all"
-  | "rejected"
+  | "payment"
+  | "refund"
   | "refund_in_progress"
+  | "rejected"
   | "meet_greet"
+  | "exclusive_session"
   | "saludo"
   | "consejo"
   | "mensaje";
@@ -61,6 +64,7 @@ function filterHistoryItems(
       });
 
     case "meet_greet":
+case "exclusive_session":
 case "saludo":
 case "consejo":
 case "mensaje":
