@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { orderBy } from "firebase/firestore";
 import {
   collection,
   limit,
@@ -448,10 +449,11 @@ function useScheduledRows(
     setError(null);
 
     const q = query(
-      collection(db, collectionName),
-      where("creatorId", "==", creatorId),
-      limit(100)
-    );
+  collection(db, collectionName),
+  where("creatorId", "==", creatorId),
+  orderBy("updatedAt", "desc"),
+  limit(100)
+);
 
     const unsub = onSnapshot(
       q,

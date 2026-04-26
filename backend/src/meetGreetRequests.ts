@@ -658,7 +658,7 @@ export const proposeMeetGreetSchedule = onCall(
     const uid = requireAuth(request.auth?.uid);
     const requestId = asTrimmedString(request.data?.requestId, "requestId", 120);
     const scheduledAtIso = asIsoDateString(request.data?.scheduledAt, "scheduledAt");
-    const note = asOptionalTrimmedString(request.data?.note, "note", 1000);
+    const note = asOptionalTrimmedString(request.data?.note, "note", 1000) ?? null;
 
     const { ref, data } = await getMeetGreetOrThrow(requestId);
     ensureCreator(data, uid);
@@ -681,7 +681,7 @@ export const proposeMeetGreetSchedule = onCall(
       scheduledAt,
       scheduledBy: uid,
       scheduleProposedAt: nowTs(),
-      creatorScheduleNote: note,
+      creatorScheduleNote: note ?? null,
       creatorScheduleNoteUpdatedAt: nowTs(),
       noShowRejectAt: getNoShowRejectAt(scheduledAt),
       autoRejectedAt: null,
@@ -693,7 +693,7 @@ export const proposeMeetGreetSchedule = onCall(
         proposedAt: nowTs(),
         proposedBy: uid,
         startsAt: scheduledAt,
-        note,
+        note: note ?? null,
       }),
       rescheduleRequestedAt: null,
     });
