@@ -35,15 +35,21 @@ export default function MeetGreetPreparationFullscreen({
 
     const previousBodyOverflow = document.body.style.overflow;
     const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverscroll = document.body.style.overscrollBehavior;
+    const previousHtmlOverscroll = document.documentElement.style.overscrollBehavior;
 
     document.addEventListener("keydown", handleEscape);
     document.body.style.overflow = "hidden";
     document.documentElement.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
+    document.documentElement.style.overscrollBehavior = "none";
 
     return () => {
       document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = previousBodyOverflow;
       document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overscrollBehavior = previousBodyOverscroll;
+      document.documentElement.style.overscrollBehavior = previousHtmlOverscroll;
     };
   }, [open, onClose]);
 
@@ -58,6 +64,18 @@ export default function MeetGreetPreparationFullscreen({
     WebkitBackdropFilter: "blur(10px)",
     display: "flex",
     flexDirection: "column",
+    width: "100dvw",
+    height: "100dvh",
+    maxWidth: "100dvw",
+    maxHeight: "100dvh",
+    overflow: "hidden",
+    paddingTop: "env(safe-area-inset-top)",
+    paddingRight: "env(safe-area-inset-right)",
+    paddingBottom: "env(safe-area-inset-bottom)",
+    paddingLeft: "env(safe-area-inset-left)",
+    boxSizing: "border-box",
+    overscrollBehavior: "none",
+    touchAction: "none",
   };
 
   const topBar: CSSProperties = {
@@ -65,14 +83,17 @@ export default function MeetGreetPreparationFullscreen({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    padding: "14px 16px",
+    padding: "max(12px, 1.8dvh) 16px 12px",
     borderBottom: "1px solid rgba(255,255,255,0.10)",
     background: "rgba(255,255,255,0.03)",
     color: "#fff",
     flexShrink: 0,
+    minHeight: 60,
+    boxSizing: "border-box",
   };
 
   const closeButton: CSSProperties = {
+    minHeight: 42,
     padding: "10px 14px",
     borderRadius: 12,
     border: "1px solid rgba(255,255,255,0.14)",
@@ -82,16 +103,20 @@ export default function MeetGreetPreparationFullscreen({
     fontSize: 13,
     fontWeight: 700,
     lineHeight: 1.1,
+    flexShrink: 0,
+    WebkitTapHighlightColor: "transparent",
   };
 
   const body: CSSProperties = {
     flex: 1,
     minHeight: 0,
     display: "grid",
-    gridTemplateRows: "1fr auto",
+    gridTemplateRows: "minmax(0, 1fr) auto",
     gap: 12,
-    padding: 16,
+    padding: "12px 16px max(12px, env(safe-area-inset-bottom))",
     color: "#fff",
+    overflow: "hidden",
+    boxSizing: "border-box",
   };
 
   const videoArea: CSSProperties = {
@@ -103,7 +128,9 @@ export default function MeetGreetPreparationFullscreen({
     display: "grid",
     placeItems: "center",
     textAlign: "center",
-    padding: 24,
+    padding: "clamp(16px, 4dvw, 24px)",
+    overflow: "hidden",
+    boxSizing: "border-box",
   };
 
   const footerPanel: CSSProperties = {
@@ -114,15 +141,20 @@ export default function MeetGreetPreparationFullscreen({
     display: "grid",
     gap: 10,
     flexShrink: 0,
+    maxHeight: "38dvh",
+    overflowY: "auto",
+    WebkitOverflowScrolling: "touch",
+    boxSizing: "border-box",
   };
 
   const controlsRow: CSSProperties = {
-    display: "flex",
-    flexWrap: "wrap",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(128px, 1fr))",
     gap: 10,
   };
 
   const ghostButton: CSSProperties = {
+    minHeight: 44,
     padding: "10px 14px",
     borderRadius: 12,
     border: "1px solid rgba(255,255,255,0.14)",
@@ -132,9 +164,11 @@ export default function MeetGreetPreparationFullscreen({
     fontSize: 13,
     fontWeight: 700,
     lineHeight: 1.1,
+    WebkitTapHighlightColor: "transparent",
   };
 
   const primaryButton: CSSProperties = {
+    minHeight: 44,
     padding: "10px 14px",
     borderRadius: 12,
     border: "1px solid rgba(255,255,255,0.20)",
@@ -144,13 +178,24 @@ export default function MeetGreetPreparationFullscreen({
     fontSize: 13,
     fontWeight: 800,
     lineHeight: 1.1,
+    WebkitTapHighlightColor: "transparent",
   };
 
   return createPortal(
     <div role="dialog" aria-modal="true" style={backdrop}>
       <div style={topBar}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1.15 }}>
+          <div
+            style={{
+              fontSize: "clamp(14px, 4dvw, 16px)",
+              fontWeight: 800,
+              lineHeight: 1.15,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              maxWidth: "calc(100dvw - 130px - env(safe-area-inset-left) - env(safe-area-inset-right))",
+            }}
+          >
             Meet & Greet — Sala de preparación
           </div>
 
@@ -160,6 +205,11 @@ export default function MeetGreetPreparationFullscreen({
               fontSize: 12,
               lineHeight: 1.35,
               color: "rgba(255,255,255,0.70)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
             }}
           >
             Rol: {role === "buyer" ? "Comprador" : "Creador"}
@@ -175,10 +225,10 @@ export default function MeetGreetPreparationFullscreen({
 
       <div style={body}>
         <div style={videoArea}>
-          <div style={{ maxWidth: 720 }}>
+          <div style={{ maxWidth: 720, width: "100%" }}>
             <div
               style={{
-                fontSize: 22,
+                fontSize: "clamp(18px, 5dvw, 22px)",
                 fontWeight: 900,
                 lineHeight: 1.1,
                 color: "#fff",
@@ -190,7 +240,7 @@ export default function MeetGreetPreparationFullscreen({
             <div
               style={{
                 marginTop: 10,
-                fontSize: 14,
+                fontSize: "clamp(13px, 3.5dvw, 14px)",
                 lineHeight: 1.5,
                 color: "rgba(255,255,255,0.80)",
               }}

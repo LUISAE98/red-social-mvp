@@ -86,11 +86,38 @@ function buildMonthWindow(baseDate: Date): CalendarMonthItem[] {
   });
 }
 
+function isSafeCalendarItem(item: WalletServiceItem): boolean {
+  if (!item.scheduledAt) return false;
+
+  if (
+  (!item.preparingCreatorAt || !item.preparingBuyerAt) &&
+  isNoShowExpired(item.scheduledAt)
+) {
+  return false;
+}
+
+  if (
+    item.status === "rejected" ||
+    item.status === "refund_requested" ||
+    item.status === "refund_review" ||
+    item.status === "cancelled" ||
+    item.status === "completed"
+  ) {
+    return false;
+  }
+
+  return (
+    item.status === "scheduled" ||
+    item.status === "ready_to_prepare" ||
+    item.status === "in_preparation"
+  );
+}
+
 function groupEventsByDay(items: WalletServiceItem[]): Map<string, WalletServiceItem[]> {
   const map = new Map<string, WalletServiceItem[]>();
 
   items.forEach((item) => {
-    if (!item.scheduledAt) return;
+    if (!isSafeCalendarItem(item) || !item.scheduledAt) return;
     const key = getDayKey(item.scheduledAt);
     const existing = map.get(key) ?? [];
     existing.push(item);
@@ -101,11 +128,13 @@ function groupEventsByDay(items: WalletServiceItem[]): Map<string, WalletService
 }
 
 function sortEventsBySchedule(items: WalletServiceItem[]): WalletServiceItem[] {
-  return [...items].sort((a, b) => {
-    const aTime = a.scheduledAt?.getTime() ?? 0;
-    const bTime = b.scheduledAt?.getTime() ?? 0;
-    return aTime - bTime;
-  });
+  return [...items]
+    .filter(isSafeCalendarItem)
+    .sort((a, b) => {
+      const aTime = a.scheduledAt?.getTime() ?? 0;
+      const bTime = b.scheduledAt?.getTime() ?? 0;
+      return aTime - bTime;
+    });
 }
 
 function formatSelectedDayLabel(dayKey: string | null): string {
@@ -124,6 +153,14 @@ function formatSelectedDayLabel(dayKey: string | null): string {
 
 function getDayCountLabel(count: number): string {
   return count > 9 ? "9+" : String(count);
+}
+
+function isNoShowExpired(value: Date | null): boolean {
+  if (!value) return false;
+
+  const rejectAt = value.getTime() + 15 * 60 * 1000;
+
+  return Date.now() >= rejectAt;
 }
 
 function ViewModeIconButton({
@@ -344,7 +381,7 @@ function EventsOverlay({
           </div>
 
           <div className="walletCalendarOverlayContent">
-            <WalletList items={items} />
+            <WalletList items={items.filter(isSafeCalendarItem)} />
           </div>
         </div>
       </div>
@@ -632,12 +669,12 @@ export default function WalletCalendarioPage() {
           {walletData.loading ? (
             <EmptyRows
               title="Cargando calendario"
-              subtitle="Estamos leyendo tus Meet & Greet programados."
+              subtitle="Estamos leyendo tus Meet & Greet y sesiones exclusivas programadas."
             />
           ) : calendarItems.length === 0 ? (
             <EmptyRows
               title="Sin eventos programados"
-              subtitle="Todavía no tienes Meet & Greet programados para mostrar en calendario."
+              subtitle="Todavía no tienes Meet & Greet o sesiones exclusivas activas para mostrar en calendario."
             />
           ) : viewMode === "list" ? (
             <WalletList items={calendarItems} />

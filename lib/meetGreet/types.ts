@@ -1,5 +1,6 @@
 export const MEET_GREET_MAX_RESCHEDULE_REQUESTS = 2;
 export const MEET_GREET_PREPARE_WINDOW_MINUTES = 10;
+export const MEET_GREET_NO_SHOW_TOLERANCE_MINUTES = 15;
 
 export type MeetGreetStatus =
   | "pending_creator_response"
@@ -66,6 +67,8 @@ export type MeetGreetRequestRecord = {
   scheduledAt: string | null;
   scheduledBy: string | null;
   scheduleProposedAt: string | null;
+  creatorScheduleNote: string | null;
+  creatorScheduleNoteUpdatedAt: string | null;
   scheduleHistory: MeetGreetScheduleHistoryItem[];
 
   rescheduleRequestsUsed: number;
@@ -157,6 +160,36 @@ export function canEnterMeetGreetPreparation(
     record.status === "ready_to_prepare" ||
     record.status === "in_preparation"
   );
+}
+
+export function getMeetGreetAutoRejectAt(scheduledAt: string | null): Date | null {
+  if (!scheduledAt) return null;
+
+  const scheduledDate = new Date(scheduledAt);
+
+  if (Number.isNaN(scheduledDate.getTime())) return null;
+
+  return new Date(
+    scheduledDate.getTime() + MEET_GREET_NO_SHOW_TOLERANCE_MINUTES * 60 * 1000
+  );
+}
+
+export function isMeetGreetPastAutoRejectTolerance(
+  record: Pick<MeetGreetRequestRecord, "scheduledAt">,
+  now: Date = new Date()
+): boolean {
+  const autoRejectAt = getMeetGreetAutoRejectAt(record.scheduledAt);
+
+  if (!autoRejectAt) return false;
+
+  return now.getTime() >= autoRejectAt.getTime();
+}
+
+export function shouldKeepMeetGreetPreparationAvailable(
+  record: Pick<MeetGreetRequestRecord, "status" | "scheduledAt">,
+  now: Date = new Date()
+): boolean {
+  return canEnterMeetGreetPreparation(record) && !isMeetGreetPastAutoRejectTolerance(record, now);
 }
 
 export function getMeetGreetRemainingRescheduleRequests(

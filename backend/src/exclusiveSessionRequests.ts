@@ -11,7 +11,13 @@ const REGION = "us-central1";
 const EXCLUSIVE_SESSION_COLLECTION = "exclusiveSessionRequests";
 const MAX_RESCHEDULE_REQUESTS = 2;
 const PREPARE_WINDOW_MINUTES = 10;
-const CREATOR_JOIN_GRACE_MINUTES = 15;
+const JOIN_GRACE_MINUTES = 15;
+
+const ACTIVE_SCHEDULED_STATUSES: ExclusiveSessionStatus[] = [
+  "scheduled",
+  "ready_to_prepare",
+  "in_preparation",
+];
 
 type ExclusiveSessionStatus =
   | "pending_creator_response"
@@ -101,6 +107,7 @@ function toTimestamp(value: string): TimestampLike {
 function nowTs(): TimestampLike {
   return admin.firestore.Timestamp.now();
 }
+
 function asOptionalFiniteNumber(
   value: unknown,
   fieldName: string,
@@ -145,6 +152,7 @@ async function getGroupOrThrow(groupId: string) {
   const data = snap.data() ?? {};
   return { ref: groupRef, data };
 }
+
 function normalizeCurrency(value: unknown): "MXN" | "USD" | null {
   if (value === "MXN" || value === "USD") return value;
   return null;
@@ -156,11 +164,9 @@ function getExclusiveSessionOffering(groupData: FirebaseFirestore.DocumentData) 
   const offering = offerings.find(
     (item) =>
       item &&
-      (
-        item.type === "clase_personalizada" ||
+      (item.type === "clase_personalizada" ||
         item.type === "custom_class" ||
-        item.type === "exclusive_session"
-      )
+        item.type === "exclusive_session")
   );
 
   return offering ?? null;
@@ -168,7 +174,9 @@ function getExclusiveSessionOffering(groupData: FirebaseFirestore.DocumentData) 
 
 function assertExclusiveSessionEnabled(groupData: FirebaseFirestore.DocumentData) {
   const monetization = groupData.monetization ?? {};
-  const legacyFlag = monetization.customClassEnabled === true || monetization.exclusiveSessionEnabled === true;
+  const legacyFlag =
+    monetization.customClassEnabled === true ||
+    monetization.exclusiveSessionEnabled === true;
   const offering = getExclusiveSessionOffering(groupData);
 
   const offeringEnabled =
@@ -294,23 +302,56 @@ function buildPreparationStatus(scheduleAt: TimestampLike): ExclusiveSessionStat
 
 function getNoShowRejectAt(scheduleAt: TimestampLike): TimestampLike {
   const scheduleDate = scheduleAt.toDate();
-  const rejectDate = new Date(
-    scheduleDate.getTime() + CREATOR_JOIN_GRACE_MINUTES * 60 * 1000
-  );
+  const rejectDate = new Date(scheduleDate.getTime() + JOIN_GRACE_MINUTES * 60 * 1000);
 
   return admin.firestore.Timestamp.fromDate(rejectDate);
 }
 
-function isCreatorNoShowExpired(
-  scheduledAt: TimestampLike,
-  preparingCreatorAt?: TimestampLike | null
-): boolean {
-  if (preparingCreatorAt) return false;
-
-  const rejectAtMs =
-    scheduledAt.toDate().getTime() + CREATOR_JOIN_GRACE_MINUTES * 60 * 1000;
-
+function isNoShowExpired(scheduledAt: TimestampLike): boolean {
+  const rejectAtMs = scheduledAt.toDate().getTime() + JOIN_GRACE_MINUTES * 60 * 1000;
   return Date.now() >= rejectAtMs;
+}
+
+function getAutoRejectFields(data: FirebaseFirestore.DocumentData, now: TimestampLike) {
+  const creatorJoined = !!data.preparingCreatorAt;
+  const buyerJoined = !!data.preparingBuyerAt;
+
+  if (!creatorJoined && !buyerJoined) {
+    return {
+      status: "rejected" as ExclusiveSessionStatus,
+      rejectedAt: now,
+      autoRejectedAt: now,
+      autoRejectReason: "both_no_show_after_15_minutes",
+      noShowRole: "both",
+      rejectionReason:
+        "La sesión exclusiva fue rechazada automáticamente porque nadie se conectó dentro de los 15 minutos posteriores a la hora agendada.",
+      updatedAt: now,
+    };
+  }
+
+  if (!creatorJoined) {
+    return {
+      status: "rejected" as ExclusiveSessionStatus,
+      rejectedAt: now,
+      autoRejectedAt: now,
+      autoRejectReason: "creator_no_show_after_15_minutes",
+      noShowRole: "creator",
+      rejectionReason:
+        "El creador no se conectó dentro de los 15 minutos posteriores a la hora agendada.",
+      updatedAt: now,
+    };
+  }
+
+  return {
+    status: "rejected" as ExclusiveSessionStatus,
+    rejectedAt: now,
+    autoRejectedAt: now,
+    autoRejectReason: "buyer_no_show_after_15_minutes",
+    noShowRole: "buyer",
+    rejectionReason:
+      "El comprador no se conectó dentro de los 15 minutos posteriores a la hora agendada.",
+    updatedAt: now,
+  };
 }
 
 export const createExclusiveSessionRequest = onCall(
@@ -328,20 +369,20 @@ export const createExclusiveSessionRequest = onCall(
       1000
     );
     const priceSnapshot = asOptionalFiniteNumber(
-  request.data?.priceSnapshot,
-  "priceSnapshot",
-  { min: 0, max: 1000000 }
-);
+      request.data?.priceSnapshot,
+      "priceSnapshot",
+      { min: 0, max: 1000000 }
+    );
 
-const durationMinutes = asOptionalFiniteNumber(
-  request.data?.durationMinutes,
-  "durationMinutes",
-  { min: 1, max: 600 }
-);
+    const durationMinutes = asOptionalFiniteNumber(
+      request.data?.durationMinutes,
+      "durationMinutes",
+      { min: 1, max: 600 }
+    );
 
-const groupData = await getGroupOrThrow(groupId);
-await assertExclusiveSessionEligibleMembership(groupId, uid);
-const exclusiveSessionOffering = assertExclusiveSessionEnabled(groupData.data);
+    const groupData = await getGroupOrThrow(groupId);
+    await assertExclusiveSessionEligibleMembership(groupId, uid);
+    const exclusiveSessionOffering = assertExclusiveSessionEnabled(groupData.data);
 
     const creatorId = groupData.data.ownerId as string | undefined;
     if (!creatorId) {
@@ -359,28 +400,28 @@ const exclusiveSessionOffering = assertExclusiveSessionEnabled(groupData.data);
     const creatorProfile = await getUserProfile(creatorId);
 
     const docRef = db.collection(EXCLUSIVE_SESSION_COLLECTION).doc();
-const offeringCurrency =
-  normalizeCurrency(exclusiveSessionOffering?.currency) ??
-  normalizeCurrency(groupData.data?.monetization?.currency) ??
-  "MXN";
+    const offeringCurrency =
+      normalizeCurrency(exclusiveSessionOffering?.currency) ??
+      normalizeCurrency(groupData.data?.monetization?.currency) ??
+      "MXN";
 
-const offeringPrice =
-  typeof exclusiveSessionOffering?.memberPrice === "number"
-    ? exclusiveSessionOffering.memberPrice
-    : typeof exclusiveSessionOffering?.publicPrice === "number"
-    ? exclusiveSessionOffering.publicPrice
-    : typeof exclusiveSessionOffering?.price === "number"
-    ? exclusiveSessionOffering.price
-    : null;
+    const offeringPrice =
+      typeof exclusiveSessionOffering?.memberPrice === "number"
+        ? exclusiveSessionOffering.memberPrice
+        : typeof exclusiveSessionOffering?.publicPrice === "number"
+          ? exclusiveSessionOffering.publicPrice
+          : typeof exclusiveSessionOffering?.price === "number"
+            ? exclusiveSessionOffering.price
+            : null;
 
-const offeringDuration =
-  typeof exclusiveSessionOffering?.meta?.customClass?.durationMinutes === "number" &&
-  Number.isFinite(exclusiveSessionOffering.meta.customClass.durationMinutes)
-    ? exclusiveSessionOffering.meta.customClass.durationMinutes
-    : null;
+    const offeringDuration =
+      typeof exclusiveSessionOffering?.meta?.customClass?.durationMinutes === "number" &&
+      Number.isFinite(exclusiveSessionOffering.meta.customClass.durationMinutes)
+        ? exclusiveSessionOffering.meta.customClass.durationMinutes
+        : null;
 
-const resolvedPriceSnapshot = priceSnapshot ?? offeringPrice ?? null;
-const resolvedDurationMinutes = durationMinutes ?? offeringDuration ?? null;
+    const resolvedPriceSnapshot = priceSnapshot ?? offeringPrice ?? null;
+    const resolvedDurationMinutes = durationMinutes ?? offeringDuration ?? null;
     const payload = {
       id: docRef.id,
       type: "digital_exclusive_session",
@@ -390,12 +431,12 @@ const resolvedDurationMinutes = durationMinutes ?? offeringDuration ?? null;
       groupName: groupData.data.name ?? null,
 
       serviceSnapshot: {
-  type: "exclusive_session",
-  enabled: true,
-  currency: offeringCurrency,
-  price: resolvedPriceSnapshot,
-  durationMinutes: resolvedDurationMinutes,
-},
+        type: "exclusive_session",
+        enabled: true,
+        currency: offeringCurrency,
+        price: resolvedPriceSnapshot,
+        durationMinutes: resolvedDurationMinutes,
+      },
 
       buyerId: uid,
       buyerDisplayName: buyerProfile.displayName,
@@ -415,8 +456,8 @@ const resolvedDurationMinutes = durationMinutes ?? offeringDuration ?? null;
       refundRequestedAt: null,
 
       priceSnapshot: resolvedPriceSnapshot,
-currency: offeringCurrency,
-durationMinutes: resolvedDurationMinutes,
+      currency: offeringCurrency,
+      durationMinutes: resolvedDurationMinutes,
 
       acceptedAt: null,
       rejectedAt: null,
@@ -424,6 +465,12 @@ durationMinutes: resolvedDurationMinutes,
       scheduledAt: null,
       scheduledBy: null,
       scheduleProposedAt: null,
+      creatorScheduleNote: null,
+      creatorScheduleNoteUpdatedAt: null,
+      noShowRejectAt: null,
+      autoRejectedAt: null,
+      autoRejectReason: null,
+      noShowRole: null,
       scheduleHistory: [] as Array<{
         proposedAt: TimestampLike;
         proposedBy: string;
@@ -576,23 +623,26 @@ export const proposeExclusiveSessionSchedule = onCall(
 
     const nextStatus = buildPreparationStatus(scheduledAt);
 
-  await ref.update({
-  status: nextStatus,
-  scheduledAt,
-  scheduledBy: uid,
-  scheduleProposedAt: nowTs(),
-  noShowRejectAt: getNoShowRejectAt(scheduledAt),
-  autoRejectedAt: null,
-  autoRejectReason: null,
-  updatedAt: nowTs(),
-  scheduleHistory: admin.firestore.FieldValue.arrayUnion({
-    proposedAt: nowTs(),
-    proposedBy: uid,
-    startsAt: scheduledAt,
-    note,
-  }),
-  rescheduleRequestedAt: null,
-});
+    await ref.update({
+      status: nextStatus,
+      scheduledAt,
+      scheduledBy: uid,
+      scheduleProposedAt: nowTs(),
+      creatorScheduleNote: note,
+      creatorScheduleNoteUpdatedAt: nowTs(),
+      noShowRejectAt: getNoShowRejectAt(scheduledAt),
+      autoRejectedAt: null,
+      autoRejectReason: null,
+      noShowRole: null,
+      updatedAt: nowTs(),
+      scheduleHistory: admin.firestore.FieldValue.arrayUnion({
+        proposedAt: nowTs(),
+        proposedBy: uid,
+        startsAt: scheduledAt,
+        note,
+      }),
+      rescheduleRequestedAt: null,
+    });
 
     logger.info("exclusive_session_schedule_proposed", {
       requestId,
@@ -738,25 +788,15 @@ export const setExclusiveSessionPreparing = onCall(
       throw new HttpsError("failed-precondition", "La solicitud todavía no tiene fecha agendada.");
     }
 
-if (
-  role === "creator" &&
-  isCreatorNoShowExpired(scheduledAt, data.preparingCreatorAt ?? null)
-) {
-  await ref.update({
-    status: "rejected",
-    rejectedAt: nowTs(),
-    autoRejectedAt: nowTs(),
-    autoRejectReason: "creator_no_show_after_15_minutes",
-    rejectionReason:
-      "El creador no se conectó dentro de los 15 minutos posteriores a la hora agendada.",
-    updatedAt: nowTs(),
-  });
+    if (isNoShowExpired(scheduledAt)) {
+      const now = nowTs();
+      await ref.update(getAutoRejectFields(data, now));
 
-  throw new HttpsError(
-    "failed-precondition",
-    "Esta sesión exclusiva fue rechazada automáticamente porque el creador no se conectó a tiempo."
-  );
-}
+      throw new HttpsError(
+        "failed-precondition",
+        "Esta sesión exclusiva fue rechazada automáticamente porque no se completó la conexión a tiempo."
+      );
+    }
 
     const now = Date.now();
     const startsAtMs = scheduledAt.toDate().getTime();
@@ -803,6 +843,61 @@ if (
     };
   }
 );
+
+export async function expireExclusiveSessionNoShowsHandler() {
+  const now = nowTs();
+
+  const [byRejectAtSnap, byScheduledAtSnap] = await Promise.all([
+    db
+      .collection(EXCLUSIVE_SESSION_COLLECTION)
+      .where("status", "in", ACTIVE_SCHEDULED_STATUSES)
+      .where("noShowRejectAt", "<=", now)
+      .limit(100)
+      .get(),
+
+    db
+      .collection(EXCLUSIVE_SESSION_COLLECTION)
+      .where("status", "in", ACTIVE_SCHEDULED_STATUSES)
+      .where("scheduledAt", "<=", now)
+      .limit(100)
+      .get(),
+  ]);
+
+  const docsById = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+
+  byRejectAtSnap.docs.forEach((doc) => docsById.set(doc.id, doc));
+  byScheduledAtSnap.docs.forEach((doc) => docsById.set(doc.id, doc));
+
+  const batch = db.batch();
+  let expiredCount = 0;
+
+  docsById.forEach((doc) => {
+    const data = doc.data();
+    const scheduledAt = data.scheduledAt as TimestampLike | null | undefined;
+
+    if (!scheduledAt) return;
+    if (!isNoShowExpired(scheduledAt)) return;
+    if (data.preparingCreatorAt && data.preparingBuyerAt) return;
+
+    batch.update(doc.ref, {
+      ...getAutoRejectFields(data, now),
+      noShowRejectAt: data.noShowRejectAt ?? getNoShowRejectAt(scheduledAt),
+    });
+
+    expiredCount += 1;
+  });
+
+  if (expiredCount > 0) {
+    await batch.commit();
+  }
+
+  logger.info("exclusive_session_no_shows_expired_handler", {
+    expiredCount,
+  });
+
+  return expiredCount;
+}
+
 export const expireExclusiveSessionNoShows = onCall(
   {
     region: REGION,
@@ -810,46 +905,9 @@ export const expireExclusiveSessionNoShows = onCall(
   },
   async (request) => {
     const uid = requireAuth(request.auth?.uid);
+    void uid;
 
-    const now = nowTs();
-
-    const expiredSnap = await db
-      .collection(EXCLUSIVE_SESSION_COLLECTION)
-      .where("creatorId", "==", uid)
-      .where("status", "in", ["scheduled", "ready_to_prepare", "in_preparation"])
-      .where("noShowRejectAt", "<=", now)
-      .limit(20)
-      .get();
-
-    const batch = db.batch();
-    let expiredCount = 0;
-
-    expiredSnap.docs.forEach((doc) => {
-      const data = doc.data();
-
-      if (data.preparingCreatorAt) return;
-
-      batch.update(doc.ref, {
-        status: "rejected",
-        rejectedAt: now,
-        autoRejectedAt: now,
-        autoRejectReason: "creator_no_show_after_15_minutes",
-        rejectionReason:
-          "El creador no se conectó dentro de los 15 minutos posteriores a la hora agendada.",
-        updatedAt: now,
-      });
-
-      expiredCount += 1;
-    });
-
-    if (expiredCount > 0) {
-      await batch.commit();
-    }
-
-    logger.info("exclusive_session_no_shows_expired", {
-      actorId: uid,
-      expiredCount,
-    });
+    const expiredCount = await expireExclusiveSessionNoShowsHandler();
 
     return {
       ok: true,

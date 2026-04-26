@@ -240,6 +240,13 @@ function getRequestCurrency(req: MeetGreetRequestDoc | ExclusiveSessionRequestDo
   return req.currency ?? req.serviceSnapshot?.currency ?? "MXN";
 }
 
+function getCreatorScheduleNote(
+  req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc
+): string | null {
+  const note = (req as any).creatorScheduleNote;
+  return typeof note === "string" && note.trim() ? note.trim() : null;
+}
+
 function toDateSafe(value: unknown): Date | null {
   if (!value) return null;
 
@@ -295,7 +302,19 @@ function isStartingSoon(value: unknown): boolean {
   const now = Date.now();
   const diff = date.getTime() - now;
 
-  return diff > 0 && diff <= 24 * 60 * 60 * 1000;
+  return diff > 0 && diff <= 15 * 60 * 1000;
+}
+
+function isPreparationVisibleWindow(value: unknown): boolean {
+  const date = toDateSafe(value);
+  if (!date) return false;
+
+  const now = Date.now();
+  const startsAt = date.getTime();
+  const prepareFrom = startsAt - 10 * 60 * 1000;
+  const rejectAt = startsAt + 15 * 60 * 1000;
+
+  return now >= prepareFrom && now < rejectAt;
 }
 
 function toDateTimeLocalValue(value: unknown): string {
@@ -311,32 +330,31 @@ function toDateTimeLocalValue(value: unknown): string {
   return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
-function isMeetGreetOwnerAlert(
-  status?: string | null,
-  scheduledAt?: unknown,
-  preparingCreatorAt?: unknown
-): boolean {
-  if (!status) return false;
-
-  if (
-    (status === "scheduled" ||
-      status === "ready_to_prepare" ||
-      status === "in_preparation") &&
-    !preparingCreatorAt &&
-    isNoShowExpired(scheduledAt)
-  ) {
-    return false;
-  }
-
+function isServiceRequestAlertStatus(status?: string | null): boolean {
   return (
     status === "pending_creator_response" ||
     status === "accepted_pending_schedule" ||
-    status === "reschedule_requested" ||
+    status === "reschedule_requested"
+  );
+}
+
+function isUpcomingServiceStatus(status?: string | null): boolean {
+  return (
+    status === "scheduled" ||
     status === "ready_to_prepare" ||
-    (
-      (status === "scheduled" || status === "in_preparation") &&
-      isPrepareWindowOpen(scheduledAt)
-    )
+    status === "in_preparation"
+  );
+}
+
+function shouldHideExpiredPreparationAlert(
+  status?: string | null,
+  scheduledAt?: unknown
+): boolean {
+  return (
+    (status === "scheduled" ||
+      status === "ready_to_prepare" ||
+      status === "in_preparation") &&
+    isNoShowExpired(scheduledAt)
   );
 }
 
@@ -654,37 +672,54 @@ export default function OwnerSidebarMyGroups({
             const communityName = g.name ?? "(Sin nombre)";
             const avatarFallback = getInitials(communityName);
 
-            const meetGreetsForAlert = meetGreets.filter((row) =>
-              isMeetGreetOwnerAlert(
-                row.data.status,
-                row.data.scheduledAt,
-                row.data.preparingCreatorAt
-              )
-            );
+            const meetGreetServiceRequests = meetGreets
+              .filter((row) => isServiceRequestAlertStatus(row.data.status))
+              .map((row) => ({
+                ...row,
+                serviceKind: "meet_greet" as const,
+              }));
 
-            const exclusiveSessionsForAlert = exclusiveSessions.filter((row) =>
-              isMeetGreetOwnerAlert(
-                row.data.status,
-                row.data.scheduledAt,
-                row.data.preparingCreatorAt
-              )
-            );
+            const exclusiveSessionServiceRequests = exclusiveSessions
+              .filter((row) => isServiceRequestAlertStatus(row.data.status))
+              .map((row) => ({
+                ...row,
+                serviceKind: "exclusive_session" as const,
+              }));
 
-            const scheduledServicesForAlert = [
-              ...meetGreetsForAlert.map((row) => ({
+            const scheduledServiceRequests = [
+              ...meetGreetServiceRequests,
+              ...exclusiveSessionServiceRequests,
+            ];
+
+            const upcomingScheduledServices = [
+              ...meetGreets.map((row) => ({
                 ...row,
                 serviceKind: "meet_greet" as const,
               })),
-              ...exclusiveSessionsForAlert.map((row) => ({
+              ...exclusiveSessions.map((row) => ({
                 ...row,
                 serviceKind: "exclusive_session" as const,
               })),
-            ];
+            ].filter((row) => {
+              if (!isUpcomingServiceStatus(row.data.status)) return false;
+
+              if (
+                shouldHideExpiredPreparationAlert(
+  row.data.status,
+  row.data.scheduledAt
+)
+              ) {
+                return false;
+              }
+
+              return isPreparationVisibleWindow(row.data.scheduledAt);
+            });
 
             const greetingServiceCount = greetings.length;
-            const scheduledServiceCount = scheduledServicesForAlert.length;
+            const scheduledServiceRequestCount = scheduledServiceRequests.length;
+            const upcomingServiceCount = upcomingScheduledServices.length;
             const totalServiceCount =
-              greetingServiceCount + scheduledServiceCount;
+            greetingServiceCount + scheduledServiceRequestCount + upcomingServiceCount;
 
             const sortedGreetings = [...greetings].sort((a, b) => {
               const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
@@ -692,15 +727,21 @@ export default function OwnerSidebarMyGroups({
               return aTime - bTime;
             });
 
-            const sortedScheduledServices = [...scheduledServicesForAlert].sort((a, b) => {
+            const sortedScheduledServiceRequests = [...scheduledServiceRequests].sort((a, b) => {
               const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
               const bTime = toDateSafe(b.data.createdAt)?.getTime() ?? 0;
               return aTime - bTime;
             });
 
+            const sortedUpcomingScheduledServices = [...upcomingScheduledServices].sort((a, b) => {
+              const aTime = toDateSafe(a.data.scheduledAt)?.getTime() ?? 0;
+              const bTime = toDateSafe(b.data.scheduledAt)?.getTime() ?? 0;
+              return aTime - bTime;
+            });
+
             const showJoinSection = !isPublic && joinRequests.length > 0;
-            const showGreetingsSection =
-              greetings.length > 0 || scheduledServicesForAlert.length > 0;
+            const showGreetingsSection = totalServiceCount > 0;
+            const showUpcomingSection = upcomingServiceCount > 0;
             const greetingListOpen = greetingSectionOpen[g.id] === true;
             const joinListOpen = joinSectionOpen[g.id] === true;
 
@@ -708,32 +749,17 @@ export default function OwnerSidebarMyGroups({
             const hasConsejoAlert = greetings.some(
               (row) => row.data.type === "consejo"
             );
-            const hasMeetGreetAlert = scheduledServicesForAlert.length > 0;
-            const hasPreparingAlert = scheduledServicesForAlert.some((row) => {
-              const status = row.data.status;
-
-              if (
-                (status === "scheduled" ||
-                  status === "ready_to_prepare" ||
-                  status === "in_preparation") &&
-                !row.data.preparingCreatorAt &&
-                isNoShowExpired(row.data.scheduledAt)
-              ) {
-                return false;
-              }
-
-              return (
-                status === "ready_to_prepare" ||
-                (
-                  (status === "scheduled" || status === "in_preparation") &&
-                  isPrepareWindowOpen(row.data.scheduledAt)
-                )
-              );
-            });
+            const hasMeetGreetServiceRequestAlert = scheduledServiceRequests.some(
+              (row) => row.serviceKind === "meet_greet"
+            );
+            const hasExclusiveSessionServiceRequestAlert = scheduledServiceRequests.some(
+              (row) => row.serviceKind === "exclusive_session"
+            );
+            const hasPreparingAlert = upcomingServiceCount > 0;
 
             const currentJoinCount = showJoinSection ? joinRequests.length : 0;
             const currentGreetingCount = showGreetingsSection
-              ? greetings.length + scheduledServicesForAlert.length
+              ? greetings.length + scheduledServiceRequests.length
               : 0;
 
             const seen = seenCountsByGroup[g.id] ?? {
@@ -862,8 +888,12 @@ export default function OwnerSidebarMyGroups({
                             <span style={emojiAlertStyle}>💡</span>
                           ) : null}
 
-                          {hasMeetGreetAlert ? (
+                          {hasNewGreeting && hasMeetGreetServiceRequestAlert ? (
                             <span style={emojiAlertStyle}>🤝</span>
+                          ) : null}
+
+                          {hasNewGreeting && hasExclusiveSessionServiceRequestAlert ? (
+                            <span style={emojiAlertStyle}>👑</span>
                           ) : null}
 
                           {hasPreparingAlert ? (
@@ -1333,7 +1363,7 @@ export default function OwnerSidebarMyGroups({
                                   );
                                 })}
 
-                                {sortedScheduledServices.length > 0 ? (
+                                {sortedScheduledServiceRequests.length > 0 ? (
                                   <div
                                     style={{
                                       fontSize: 11,
@@ -1344,11 +1374,11 @@ export default function OwnerSidebarMyGroups({
                                       padding: "4px 2px 0",
                                     }}
                                   >
-                                    Meet & Greet y clases personalizadas
+                                    Meet & Greet y sesiones exclusivas
                                   </div>
                                 ) : null}
 
-                                {sortedScheduledServices.map((r) => {
+                                {sortedScheduledServiceRequests.map((r) => {
                                   const req = r.data;
                                   const isExclusiveSession = r.serviceKind === "exclusive_session";
                                   const chipType = isExclusiveSession ? "digital_exclusive_session" : "meet_greet_digital";
@@ -1357,13 +1387,12 @@ export default function OwnerSidebarMyGroups({
                                   );
                                   const createdAtText = formatUnknownDate(req.createdAt);
                                   const scheduledAtText = formatUnknownDate(req.scheduledAt);
-                                  const startingSoon = isStartingSoon(req.scheduledAt);
                                   const prepareWindowOpen = isPrepareWindowOpen(
                                     req.scheduledAt
                                   );
-                                  const noShowExpired =
-                                    !req.preparingCreatorAt && isNoShowExpired(req.scheduledAt);
+                                  const noShowExpired = isNoShowExpired(req.scheduledAt);
                                   const busy = !!meetGreetBusyMap[r.id];
+                                  const creatorScheduleNote = getCreatorScheduleNote(req);
                                   const canAccept =
                                     req.status === "pending_creator_response";
                                   const canReject =
@@ -1372,9 +1401,7 @@ export default function OwnerSidebarMyGroups({
                                     req.status === "reschedule_requested";
                                   const canSchedule =
                                     req.status === "accepted_pending_schedule" ||
-                                    req.status === "reschedule_requested" ||
-                                    req.status === "scheduled" ||
-                                    req.status === "ready_to_prepare";
+                                    req.status === "reschedule_requested";
                                   const canPrepare =
                                     (req.status === "scheduled" ||
                                       req.status === "ready_to_prepare" ||
@@ -1426,9 +1453,7 @@ export default function OwnerSidebarMyGroups({
                                               lineHeight: 1.25,
                                             }}
                                           >
-                                            {req.status === "ready_to_prepare"
-                                              ? "Preparación próxima"
-                                              : req.status === "reschedule_requested"
+                                            {req.status === "reschedule_requested"
                                               ? "Cambio de fecha solicitado"
                                               : "Solicitud recibida"}
                                           </div>
@@ -1465,23 +1490,6 @@ export default function OwnerSidebarMyGroups({
                                           {getMeetGreetStatusLabel(req.status)}
                                         </div>
                                       </div>
-
-                                      {startingSoon ? (
-                                        <div
-                                          style={{
-                                            borderRadius: 10,
-                                            border:
-                                              "1px solid rgba(250,204,21,0.18)",
-                                            background: "rgba(250,204,21,0.08)",
-                                            padding: "7px 8px",
-                                            fontSize: 12,
-                                            lineHeight: 1.3,
-                                            color: "#fde68a",
-                                          }}
-                                        >
-                                          ⚠️ Este servicio está próximo a iniciar.
-                                        </div>
-                                      ) : null}
 
                                       {canPrepare ? (
                                         <div
@@ -1526,6 +1534,23 @@ export default function OwnerSidebarMyGroups({
                                           ) : null}
                                         </div>
                                       )}
+
+                                      {creatorScheduleNote ? (
+                                             <div
+                                               style={{
+                                                 borderRadius: 10,
+                                                 border: "1px solid rgba(96,165,250,0.18)",
+                                                 background: "rgba(96,165,250,0.08)",
+                                                 padding: "7px 8px",
+                                                 whiteSpace: "pre-wrap",
+                                                 fontSize: 12,
+                                                 lineHeight: 1.3,
+                                                 color: "#bfdbfe",
+                                                 }}
+                                                   >
+                                          Mensaje al comprador: {creatorScheduleNote}
+                                        </div>
+                                        ) : null}
 
                                       {req.buyerMessage ? (
                                         <div
@@ -1765,14 +1790,14 @@ export default function OwnerSidebarMyGroups({
                                             style={styles.input}
                                           />
                                           <textarea
-                                            value={scheduleNoteMap[r.id] ?? ""}
+                                            value={scheduleNoteMap[r.id] ?? getCreatorScheduleNote(req) ?? ""}
                                             onChange={(e) =>
                                               setScheduleNoteMap((prev) => ({
                                                 ...prev,
                                                 [r.id]: e.target.value,
                                               }))
                                             }
-                                            placeholder="Nota opcional sobre la fecha propuesta."
+                                            placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
                                             style={{
                                               ...styles.input,
                                               height: 92,
@@ -1841,6 +1866,205 @@ export default function OwnerSidebarMyGroups({
                               </div>
                             </div>
                           )}
+                        </div>
+                      )}
+
+                      {showUpcomingSection && (
+                        <div style={styles.sectionPanel}>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 10,
+                              width: "100%",
+                              color: "#fff",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                minWidth: 0,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: 12,
+                                  color: "#fff",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                Próximo a iniciar
+                              </span>
+
+                              <span
+                                style={{
+                                  width: 18,
+                                  height: 18,
+                                  minWidth: 18,
+                                  borderRadius: "50%",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  background: "#f59e0b",
+                                  color: "#111827",
+                                  fontSize: 10,
+                                  fontWeight: 900,
+                                  lineHeight: 1,
+                                  boxShadow: "0 4px 12px rgba(0,0,0,0.22)",
+                                }}
+                              >
+                                {upcomingServiceCount}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="mini-vertical-scroll">
+                            <div style={{ display: "grid", gap: 10 }}>
+                              {sortedUpcomingScheduledServices.map((r) => {
+                                const req = r.data;
+                                const isExclusiveSession = r.serviceKind === "exclusive_session";
+                                const chipType = isExclusiveSession ? "digital_exclusive_session" : "meet_greet_digital";
+                                const statusStyle = getMeetGreetStatusStyle(req.status);
+                                const scheduledAtText = formatUnknownDate(req.scheduledAt);
+                                const prepareWindowOpen = isPrepareWindowOpen(req.scheduledAt);
+                                const noShowExpired = isNoShowExpired(req.scheduledAt);
+                                const busy = !!meetGreetBusyMap[r.id];
+                                const canPrepare =
+                                  (req.status === "scheduled" ||
+                                    req.status === "ready_to_prepare" ||
+                                    req.status === "in_preparation") &&
+                                  prepareWindowOpen &&
+                                  !noShowExpired;
+
+                                return (
+                                  <div
+                                    key={`upcoming-${r.serviceKind}-${r.id}`}
+                                    style={{
+                                      ...styles.miniItem,
+                                      background: "rgba(250,204,21,0.06)",
+                                      border: "1px solid rgba(250,204,21,0.16)",
+                                      borderRadius: 16,
+                                      padding: 10,
+                                    }}
+                                  >
+                                    <div style={{ display: "grid", gap: 6 }}>
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 8,
+                                          flexWrap: "wrap",
+                                        }}
+                                      >
+                                        <span
+                                          style={{
+                                            ...getTypeChipStyle(chipType),
+                                            borderRadius: 999,
+                                            padding: "4px 8px",
+                                            fontSize: 11,
+                                            fontWeight: 700,
+                                            lineHeight: 1,
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                          }}
+                                        >
+                                          {isExclusiveSession ? "👑 Sesión exclusiva" : "🤝 Meet & Greet"}
+                                        </span>
+
+                                        <div
+                                          style={{
+                                            fontSize: 12,
+                                            fontWeight: 700,
+                                            color: "#fff",
+                                            lineHeight: 1.25,
+                                          }}
+                                        >
+                                          ⚠️ Próximo a iniciar
+                                        </div>
+                                      </div>
+
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 6,
+                                          flexWrap: "wrap",
+                                        }}
+                                      >
+                                        <span style={styles.subtle}>Comprador:</span>
+                                        {renderUserLink(req.buyerId)}
+                                      </div>
+
+                                      <div
+                                        style={{
+                                          ...statusStyle,
+                                          borderRadius: 999,
+                                          padding: "5px 9px",
+                                          fontSize: 11,
+                                          fontWeight: 700,
+                                          lineHeight: 1,
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          justifyContent: "center",
+                                          width: "fit-content",
+                                        }}
+                                      >
+                                        {getMeetGreetStatusLabel(req.status)}
+                                      </div>
+                                    </div>
+
+                                    <div
+                                      style={{
+                                        borderRadius: 10,
+                                        border: "1px solid rgba(250,204,21,0.18)",
+                                        background: "rgba(250,204,21,0.08)",
+                                        padding: "7px 8px",
+                                        fontSize: 12,
+                                        lineHeight: 1.3,
+                                        color: "#fde68a",
+                                      }}
+                                    >
+                                      ⚠️ Este servicio empieza en menos de 15 minutos.
+                                    </div>
+
+                                    {scheduledAtText ? (
+                                      <div style={styles.subtle}>
+                                        Fecha agendada: {scheduledAtText}
+                                      </div>
+                                    ) : null}
+
+                                    {canPrepare ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handlePrepare(r.id, "creator", r.serviceKind)}
+                                        disabled={busy}
+                                        style={{
+                                          ...styles.buttonPrimary,
+                                          opacity: busy ? 0.8 : 1,
+                                          cursor: busy ? "not-allowed" : "pointer",
+                                          width: "fit-content",
+                                        }}
+                                      >
+                                        {busy ? "Procesando..." : "Prepararse"}
+                                      </button>
+                                    ) : null}
+
+                                    {renderMeetGreetFeedback(r.id)}
+
+                                    {renderPreparationPanel(
+                                      r.id,
+                                      req,
+                                      (preparationRoleMap[r.id] as "creator") ?? "creator"
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
                         </div>
                       )}
 

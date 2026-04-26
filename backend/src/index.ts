@@ -1,5 +1,9 @@
 import { onRequest } from "firebase-functions/v2/https";
+import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
+
+import { expireMeetGreetNoShowsHandler } from "./meetGreetRequests";
+import { expireExclusiveSessionNoShowsHandler } from "./exclusiveSessionRequests";
 
 // Healthcheck público
 export const healthcheck = onRequest(
@@ -20,6 +24,25 @@ export const healthcheck = onRequest(
     });
   }
 );
+
+export const expireScheduledServiceNoShows = onSchedule(
+  {
+    schedule: "every 5 minutes",
+    timeZone: "America/Mexico_City",
+    region: "us-central1",
+  },
+  async () => {
+    logger.info("expireScheduledServiceNoShows started");
+
+    await Promise.all([
+      expireMeetGreetNoShowsHandler(),
+      expireExclusiveSessionNoShowsHandler(),
+    ]);
+
+    logger.info("expireScheduledServiceNoShows finished");
+  }
+);
+
 // Join requests
 export { approveJoinRequest, rejectJoinRequest } from "./joinRequests";
 

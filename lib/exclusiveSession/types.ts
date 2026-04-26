@@ -67,6 +67,8 @@ export type ExclusiveSessionRequestRecord = {
   scheduledAt: string | null;
   scheduledBy: string | null;
   scheduleProposedAt: string | null;
+  creatorScheduleNote: string | null;
+  creatorScheduleNoteUpdatedAt: string | null;
   scheduleHistory: ExclusiveSessionScheduleHistoryItem[];
 
   rescheduleRequestsUsed: number;

@@ -52,11 +52,17 @@ type WalletScheduledDoc = {
   scheduledAt: FirestoreTimestampLike;
   scheduledBy: string | null;
   scheduleProposedAt: FirestoreTimestampLike;
-  rescheduleRequestsUsed: number;
+creatorScheduleNote?: string | null;
+creatorScheduleNoteUpdatedAt?: FirestoreTimestampLike;
+rescheduleRequestsUsed: number;
   rescheduleRequestedAt: FirestoreTimestampLike;
   preparingBuyerAt: FirestoreTimestampLike;
   preparingCreatorAt: FirestoreTimestampLike;
   preparationOpenedAt: FirestoreTimestampLike;
+  noShowRejectAt?: FirestoreTimestampLike;
+  autoRejectedAt?: FirestoreTimestampLike;
+  autoRejectReason?: string | null;
+  noShowRole?: "buyer" | "creator" | "both" | null;
   createdAt: FirestoreTimestampLike;
   updatedAt: FirestoreTimestampLike;
 };
@@ -109,7 +115,9 @@ export type WalletServiceItem = {
   status: string;
   statusLabel: string;
   description: string | null;
-  rejectionReason: string | null;
+creatorScheduleNote: string | null;
+creatorScheduleNoteUpdatedAt: Date | null;
+rejectionReason: string | null;
   refundReason: string | null;
   priceSnapshot: number | null;
   currency?: "MXN" | "USD" | null;
@@ -121,6 +129,10 @@ export type WalletServiceItem = {
   preparingBuyerAt: Date | null;
   preparingCreatorAt: Date | null;
   preparationOpenedAt: Date | null;
+  noShowRejectAt: Date | null;
+  autoRejectedAt: Date | null;
+  autoRejectReason: string | null;
+  noShowRole: "buyer" | "creator" | "both" | null;
   createdAt: Date | null;
   updatedAt: Date | null;
 };
@@ -191,13 +203,87 @@ function getGreetingStatusLabel(status: GreetingStatus): string {
   return status;
 }
 
+function getAutoRejectedFallbackReason(noShowRole: WalletServiceItem["noShowRole"]): string {
+  if (noShowRole === "buyer") {
+    return "El comprador no se conectó dentro de los 15 minutos posteriores a la hora agendada.";
+  }
+
+  if (noShowRole === "both") {
+    return "Ni el creador ni el comprador se conectaron dentro de los 15 minutos posteriores a la hora agendada.";
+  }
+
+  return "El creador no se conectó dentro de los 15 minutos posteriores a la hora agendada.";
+}
+
+function shouldTreatAsAutoRejected(
+  row: Pick<
+    WalletServiceItem,
+    | "status"
+    | "noShowRejectAt"
+    | "autoRejectedAt"
+    | "preparingCreatorAt"
+    | "preparingBuyerAt"
+  >
+): boolean {
+  if (row.status === "rejected") return true;
+  if (row.autoRejectedAt) return true;
+  if (!isCalendarScheduledStatus(row.status)) return false;
+  if (!row.noShowRejectAt) return false;
+  if (row.noShowRejectAt.getTime() > Date.now()) return false;
+
+  return !row.preparingCreatorAt || !row.preparingBuyerAt;
+}
+
 function normalizeScheduledRow(
   id: string,
   data: Partial<WalletScheduledDoc>,
   source: "meet_greet" | "exclusive_session"
 ): WalletServiceItem {
-  const status = (data.status ?? "pending_creator_response") as ScheduledStatus;
+  const rawStatus = (data.status ?? "pending_creator_response") as ScheduledStatus;
   const isExclusive = source === "exclusive_session";
+  const scheduledAt = toDateSafe(data.scheduledAt);
+  const acceptedAt = toDateSafe(data.acceptedAt);
+  const rejectedAt = toDateSafe(data.rejectedAt);
+  const preparingBuyerAt = toDateSafe(data.preparingBuyerAt);
+  const preparingCreatorAt = toDateSafe(data.preparingCreatorAt);
+  const preparationOpenedAt = toDateSafe(data.preparationOpenedAt);
+  const noShowRejectAt =
+  toDateSafe(data.noShowRejectAt) ??
+  (scheduledAt ? new Date(scheduledAt.getTime() + 15 * 60 * 1000) : null);
+  const autoRejectedAt = toDateSafe(data.autoRejectedAt);
+  const createdAt = toDateSafe(data.createdAt);
+  const updatedAt = toDateSafe(data.updatedAt);
+  const creatorScheduleNoteUpdatedAt = toDateSafe(data.creatorScheduleNoteUpdatedAt);
+const creatorScheduleNote =
+  typeof data.creatorScheduleNote === "string" && data.creatorScheduleNote.trim()
+    ? data.creatorScheduleNote.trim()
+    : null;
+  const noShowRole =
+    data.noShowRole === "buyer" ||
+    data.noShowRole === "creator" ||
+    data.noShowRole === "both"
+      ? data.noShowRole
+      : !preparingCreatorAt
+      ? "creator"
+      : !preparingBuyerAt
+      ? "buyer"
+      : null;
+
+  const normalizedStatus = shouldTreatAsAutoRejected({
+    status: rawStatus,
+    noShowRejectAt,
+    autoRejectedAt,
+    preparingCreatorAt,
+    preparingBuyerAt,
+  })
+    ? "rejected"
+    : rawStatus;
+
+  const normalizedRejectionReason =
+    data.rejectionReason ??
+    (normalizedStatus === "rejected" && (autoRejectedAt || noShowRejectAt)
+      ? data.autoRejectReason ?? getAutoRejectedFallbackReason(noShowRole)
+      : null);
 
   return {
     id,
@@ -211,14 +297,16 @@ function normalizeScheduledRow(
     buyerAvatarUrl: data.buyerAvatarUrl ?? null,
     targetName: null,
     requestText: data.buyerMessage ?? null,
-    status,
+    status: normalizedStatus,
     statusLabel: isExclusive
-      ? getExclusiveSessionStatusLabel(status as ExclusiveSessionStatus)
-      : getMeetGreetStatusLabel(status as MeetGreetStatus),
+      ? getExclusiveSessionStatusLabel(normalizedStatus as ExclusiveSessionStatus)
+      : getMeetGreetStatusLabel(normalizedStatus as MeetGreetStatus),
     description: data.buyerMessage ?? null,
-    rejectionReason: data.rejectionReason ?? null,
+creatorScheduleNote,
+creatorScheduleNoteUpdatedAt,
+rejectionReason: normalizedRejectionReason,
     refundReason: data.refundReason ?? null,
-        priceSnapshot:
+    priceSnapshot:
       typeof data.priceSnapshot === "number" ? data.priceSnapshot : null,
     currency:
       data.currency === "MXN" || data.currency === "USD"
@@ -227,14 +315,18 @@ function normalizeScheduledRow(
     durationMinutes:
       typeof data.durationMinutes === "number" ? data.durationMinutes : null,
     source,
-    scheduledAt: toDateSafe(data.scheduledAt),
-    acceptedAt: toDateSafe(data.acceptedAt),
-    rejectedAt: toDateSafe(data.rejectedAt),
-    preparingBuyerAt: toDateSafe(data.preparingBuyerAt),
-    preparingCreatorAt: toDateSafe(data.preparingCreatorAt),
-    preparationOpenedAt: toDateSafe(data.preparationOpenedAt),
-    createdAt: toDateSafe(data.createdAt),
-    updatedAt: toDateSafe(data.updatedAt),
+    scheduledAt,
+    acceptedAt,
+    rejectedAt: rejectedAt ?? autoRejectedAt ?? (normalizedStatus === "rejected" ? noShowRejectAt : null),
+    preparingBuyerAt,
+    preparingCreatorAt,
+    preparationOpenedAt,
+    noShowRejectAt,
+    autoRejectedAt,
+    autoRejectReason: data.autoRejectReason ?? null,
+    noShowRole,
+    createdAt,
+    updatedAt: updatedAt ?? autoRejectedAt ?? rejectedAt ?? noShowRejectAt,
   };
 }
 
@@ -260,6 +352,8 @@ function normalizeGreetingRow(
     status,
     statusLabel: getGreetingStatusLabel(status),
     description: data.instructions?.trim() || null,
+    creatorScheduleNote: null,
+creatorScheduleNoteUpdatedAt: null,
     rejectionReason: null,
     refundReason: null,
     priceSnapshot: null,
@@ -271,6 +365,10 @@ function normalizeGreetingRow(
     preparingBuyerAt: null,
     preparingCreatorAt: null,
     preparationOpenedAt: null,
+    noShowRejectAt: null,
+    autoRejectedAt: null,
+    autoRejectReason: null,
+    noShowRole: null,
     createdAt: toDateSafe(data.createdAt),
     updatedAt: toDateSafe(data.updatedAt),
   };
@@ -452,14 +550,18 @@ export function useOwnerWalletData(
     );
 
     const calendar = scheduledRows
-      .filter((row) => isCalendarScheduledStatus(row.status))
+      .filter((row) =>
+        isCalendarScheduledStatus(row.status) &&
+        !shouldTreatAsAutoRejected(row)
+      )
       .sort((a, b) => compareAsc(a.scheduledAt, b.scheduledAt));
 
     const pendingCurrent = combined
       .filter((row) =>
         row.source === "greeting"
           ? row.status === "pending"
-          : isPendingCurrentScheduledStatus(row.status)
+          : isPendingCurrentScheduledStatus(row.status) &&
+            !shouldTreatAsAutoRejected(row)
       )
       .sort((a, b) =>
         compareAsc(a.scheduledAt ?? a.createdAt, b.scheduledAt ?? b.createdAt)
@@ -469,14 +571,14 @@ export function useOwnerWalletData(
       .filter((row) =>
         row.source === "greeting"
           ? row.status === "accepted" || row.status === "rejected"
-          : isHistoryScheduledStatus(row.status)
+          : isHistoryScheduledStatus(row.status) || shouldTreatAsAutoRejected(row)
       )
       .sort((a, b) => compareDesc(a.updatedAt, b.updatedAt));
 
     return { all, calendar, pendingCurrent, history };
   }, [exclusive.rows, greetingRows, meet.rows]);
 
-    const error =
+  const error =
     [meet.error, exclusive.error, greetingError]
       .filter(Boolean)
       .join(" ") || null;

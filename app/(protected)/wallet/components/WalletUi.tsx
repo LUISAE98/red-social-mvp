@@ -94,7 +94,45 @@ function isStartingSoon(value: Date | null): boolean {
   return diff > 0 && diff <= 24 * 60 * 60 * 1000;
 }
 
+function isClosedStatus(status: string): boolean {
+  return [
+    "rejected",
+    "refund_requested",
+    "refund_review",
+    "cancelled",
+    "completed",
+  ].includes(status);
+}
+
+function getNoShowMessage(row: WalletServiceItem): string | null {
+  if (!row.rejectionReason) return null;
+
+  const lower = row.rejectionReason.toLowerCase();
+
+  if (lower.includes("comprador") || lower.includes("buyer")) {
+    return "El comprador no se conectó dentro de los 15 minutos de tolerancia.";
+  }
+
+  if (lower.includes("creador") || lower.includes("creator")) {
+    return "El creador no se conectó dentro de los 15 minutos de tolerancia.";
+  }
+
+  return row.rejectionReason;
+}
+
 function getScheduledServiceActionFlags(row: WalletServiceItem) {
+  const noShowExpired =
+    !row.preparingCreatorAt && isNoShowExpired(row.scheduledAt);
+
+  if (isClosedStatus(row.status) || noShowExpired) {
+    return {
+      canAccept: false,
+      canReject: false,
+      canSchedule: false,
+      canPrepare: false,
+    };
+  }
+
   const canAccept = row.status === "pending_creator_response";
 
   const canReject =
@@ -108,15 +146,11 @@ function getScheduledServiceActionFlags(row: WalletServiceItem) {
     row.status === "scheduled" ||
     row.status === "ready_to_prepare";
 
-  const noShowExpired =
-    !row.preparingCreatorAt && isNoShowExpired(row.scheduledAt);
-
   const canPrepare =
     (row.status === "scheduled" ||
       row.status === "ready_to_prepare" ||
       row.status === "in_preparation") &&
-    isPrepareWindowOpen(row.scheduledAt) &&
-    !noShowExpired;
+    isPrepareWindowOpen(row.scheduledAt);
 
   return { canAccept, canReject, canSchedule, canPrepare };
 }
@@ -428,7 +462,11 @@ function buildRowSubtitle(row: WalletServiceItem): string {
     chunks.push(formatWalletMoney(row.priceSnapshot));
   }
 
-  if (row.rejectionReason) {
+  const noShowMessage = getNoShowMessage(row);
+
+  if (noShowMessage) {
+    chunks.push(`Motivo: ${noShowMessage}`);
+  } else if (row.rejectionReason) {
     chunks.push(`Motivo: ${row.rejectionReason}`);
   }
 
@@ -455,10 +493,17 @@ export function WalletServiceRow({
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [preparationOpen, setPreparationOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
-  const [scheduleNote, setScheduleNote] = useState("");
+  const [scheduleNote, setScheduleNote] = useState(
+  row.creatorScheduleNote ?? ""
+);
   const [scheduleDate, setScheduleDate] = useState(
     toDateTimeLocalValue(row.scheduledAt)
   );
+
+  useEffect(() => {
+  setScheduleDate(toDateTimeLocalValue(row.scheduledAt));
+  setScheduleNote(row.creatorScheduleNote ?? "");
+}, [row.scheduledAt, row.creatorScheduleNote]);
 
   const statusTone = getStatusTone(row);
   const subtitle = buildRowSubtitle(row);
@@ -469,16 +514,21 @@ export function WalletServiceRow({
   const isMeetGreet = row.source === "meet_greet";
   const isExclusiveSession = row.source === "exclusive_session";
   const isScheduledService = isMeetGreet || isExclusiveSession;
+  const noShowExpired =
+    isScheduledService &&
+    !row.preparingCreatorAt &&
+    isNoShowExpired(row.scheduledAt);
+  const noShowMessage = getNoShowMessage(row);
 
   const { canAccept, canReject, canSchedule, canPrepare } =
-  isScheduledService
-    ? getScheduledServiceActionFlags(row)
-    : {
-        canAccept: row.status === "pending",
-        canReject: row.status === "pending",
-        canSchedule: false,
-        canPrepare: false,
-      };
+    isScheduledService
+      ? getScheduledServiceActionFlags(row)
+      : {
+          canAccept: row.status === "pending",
+          canReject: row.status === "pending",
+          canSchedule: false,
+          canPrepare: false,
+        };
 
   async function handleGreeting(action: "accept" | "reject") {
     setBusy(true);
@@ -503,7 +553,7 @@ export function WalletServiceRow({
     }
   }
 
-    async function handleScheduledServiceAccept() {
+  async function handleScheduledServiceAccept() {
     setBusy(true);
     setError(null);
     setSuccess(null);
@@ -525,7 +575,7 @@ export function WalletServiceRow({
     }
   }
 
-    async function handleScheduledServiceReject() {
+  async function handleScheduledServiceReject() {
     setBusy(true);
     setError(null);
     setSuccess(null);
@@ -553,7 +603,7 @@ export function WalletServiceRow({
     }
   }
 
-    async function handleScheduledServiceSchedule() {
+  async function handleScheduledServiceSchedule() {
     if (!scheduleDate.trim()) {
       setError("Selecciona fecha y hora.");
       return;
@@ -585,7 +635,7 @@ export function WalletServiceRow({
     }
   }
 
-    async function handlePrepare() {
+  async function handlePrepare() {
     setBusy(true);
     setError(null);
     setSuccess(null);
@@ -891,24 +941,27 @@ export function WalletServiceRow({
                 </div>
               ) : null}
 
-              {isMeetGreet &&
-isStartingSoon(row.scheduledAt) &&
-!isNoShowExpired(row.scheduledAt) ? (
-  <div className="walletServiceWarningBox">
-    ⚠️ Este Meet & Greet está próximo a iniciar.
-  </div>
-) : null}
+              {isScheduledService &&
+              isStartingSoon(row.scheduledAt) &&
+              !isNoShowExpired(row.scheduledAt) ? (
+                <div className="walletServiceWarningBox">
+                  ⚠️ Este servicio está próximo a iniciar.
+                </div>
+              ) : null}
 
-{isScheduledService &&
-row.status !== "rejected" &&
-!row.preparingCreatorAt &&
-isNoShowExpired(row.scheduledAt) ? (
-  <div className="walletServiceErrorBox">
-    Este servicio ya superó los 15 minutos de tolerancia. Se actualizará como rechazado automáticamente.
-  </div>
-) : null}
+              {isScheduledService &&
+              row.status !== "rejected" &&
+              noShowExpired ? (
+                <div className="walletServiceErrorBox">
+                  Este servicio ya superó los 15 minutos de tolerancia. Se actualizará como rechazado automáticamente.
+                </div>
+              ) : null}
 
-                            {row.targetName ? (
+              {isScheduledService && row.status === "rejected" && noShowMessage ? (
+                <div className="walletServiceErrorBox">{noShowMessage}</div>
+              ) : null}
+
+              {row.targetName ? (
                 <div className="walletMiniMeta">Para: {row.targetName}</div>
               ) : null}
 
@@ -919,12 +972,18 @@ isNoShowExpired(row.scheduledAt) ? (
               ) : null}
 
               {row.requestText ? (
-                <div className="walletServiceInfoBox">{row.requestText}</div>
-              ) : row.description ? (
-                <div className="walletServiceInfoBox">{row.description}</div>
-              ) : null}
+  <div className="walletServiceInfoBox">{row.requestText}</div>
+) : row.description ? (
+  <div className="walletServiceInfoBox">{row.description}</div>
+) : null}
 
-              {row.rejectionReason ? (
+{row.creatorScheduleNote ? (
+  <div className="walletServiceInfoBox">
+    <strong>Instrucciones del creador:</strong> {row.creatorScheduleNote}
+  </div>
+) : null}
+
+              {row.rejectionReason && !noShowMessage ? (
                 <div className="walletServiceErrorBox">
                   Motivo: {row.rejectionReason}
                 </div>
@@ -1077,7 +1136,7 @@ isNoShowExpired(row.scheduledAt) ? (
                   <textarea
                     value={scheduleNote}
                     onChange={(e) => setScheduleNote(e.target.value)}
-                    placeholder="Nota opcional sobre la fecha propuesta."
+                    placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
                     className="walletField"
                     style={{ minHeight: 92, resize: "vertical" }}
                   />
@@ -1125,7 +1184,7 @@ isNoShowExpired(row.scheduledAt) ? (
         ) : null}
       </div>
 
-            {isScheduledService ? (
+      {isScheduledService ? (
         <MeetGreetPreparationFullscreen
           open={preparationOpen}
           onClose={() => setPreparationOpen(false)}

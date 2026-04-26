@@ -15,8 +15,6 @@ import {
 
 type HistoryFilter =
   | "all"
-  | "payment"
-  | "refund"
   | "refund_in_progress"
   | "rejected"
   | "meet_greet"
@@ -36,6 +34,28 @@ const FILTER_OPTIONS: Array<{ value: HistoryFilter; label: string; emoji?: strin
   { value: "mensaje", label: "Mensajes", emoji: "💬" },
 ];
 
+function isScheduledService(row: WalletServiceItem): boolean {
+  return row.source === "meet_greet" || row.source === "exclusive_session";
+}
+
+function isNoShowExpired(value: Date | null): boolean {
+  if (!value) return false;
+
+  const rejectAt = value.getTime() + 15 * 60 * 1000;
+
+  return Date.now() >= rejectAt;
+}
+
+function isExpiredScheduledService(row: WalletServiceItem): boolean {
+  return (
+    isScheduledService(row) &&
+    row.status !== "rejected" &&
+    row.status !== "cancelled" &&
+    !row.preparingCreatorAt &&
+    isNoShowExpired(row.scheduledAt)
+  );
+}
+
 function filterHistoryItems(
   rows: WalletServiceItem[],
   filter: HistoryFilter
@@ -46,7 +66,7 @@ function filterHistoryItems(
 
     case "rejected":
       return rows.filter((row) => {
-        if (row.source === "meet_greet") {
+        if (isScheduledService(row)) {
           return row.status === "rejected" || row.status === "cancelled";
         }
 
@@ -55,7 +75,7 @@ function filterHistoryItems(
 
     case "refund_in_progress":
       return rows.filter((row) => {
-        if (row.source !== "meet_greet") return false;
+        if (!isScheduledService(row)) return false;
 
         return (
           row.status === "refund_requested" ||
@@ -64,24 +84,11 @@ function filterHistoryItems(
       });
 
     case "meet_greet":
-case "exclusive_session":
-case "saludo":
-case "consejo":
-case "mensaje":
-  return rows.filter((row) => {
-    if (row.kind !== filter) return false;
-
-    if (row.source === "meet_greet") {
-      return (
-        row.status !== "rejected" &&
-        row.status !== "cancelled" &&
-        row.status !== "refund_requested" &&
-        row.status !== "refund_review"
-      );
-    }
-
-    return row.status !== "rejected";
-  });
+    case "exclusive_session":
+    case "saludo":
+    case "consejo":
+    case "mensaje":
+      return rows.filter((row) => row.kind === filter);
 
     default:
       return rows;
@@ -92,10 +99,32 @@ export default function WalletHistorialPage() {
   const { user } = useAuth();
   const walletData = useOwnerWalletData(user?.uid);
   const [filter, setFilter] = useState<HistoryFilter>("all");
+  const historyItems = useMemo(() => {
+  const expiredItems = walletData.pendingCurrent
+    .filter(isExpiredScheduledService)
+    .map((row) => ({
+      ...row,
+      status: "rejected",
+      statusLabel: "Rechazado",
+      rejectionReason:
+        row.rejectionReason ||
+        "No se conectó dentro de los 15 minutos de tolerancia.",
+    }));
 
-  const filteredItems = useMemo(() => {
-    return filterHistoryItems(walletData.history, filter);
-  }, [filter, walletData.history]);
+  const existingKeys = new Set(
+    walletData.history.map((row) => `${row.source}-${row.id}`)
+  );
+
+  const mergedExpiredItems = expiredItems.filter(
+    (row) => !existingKeys.has(`${row.source}-${row.id}`)
+  );
+
+  return [...mergedExpiredItems, ...walletData.history];
+}, [walletData.history, walletData.pendingCurrent]);
+
+const filteredItems = useMemo(() => {
+  return filterHistoryItems(historyItems, filter);
+}, [filter, historyItems]);
 
   return (
     <WalletSectionShell activeTab="history">

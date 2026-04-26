@@ -23,6 +23,7 @@ import type {
   MeetGreetRequestDoc,
   ExclusiveSessionRequestDoc,
 } from "./OwnerSidebar";
+import { Chevron } from "./OwnerSidebar";
 import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
 
 type ScheduledServiceKind = "meet_greet" | "exclusive_session";
@@ -60,9 +61,30 @@ type DateMap = Record<string, string>;
 type ToggleMap = Record<string, boolean>;
 type ServiceSectionKey = "requested" | "rejected" | "refund";
 
+type BuyerGreetingRow = {
+  rowType: "buyer_greeting";
+  id: string;
+  row: { id: string; data: GreetingRequestDoc };
+};
+
+type BuyerScheduledRow = {
+  rowType: "buyer_scheduled";
+  id: string;
+  row: ScheduledRow;
+};
+
+type IncomingScheduledRow = {
+  rowType: "incoming_scheduled";
+  id: string;
+  row: ScheduledRow;
+};
+
+type DisplayRow = BuyerGreetingRow | BuyerScheduledRow | IncomingScheduledRow;
+
 function getServiceEmoji(type: string): string {
   if (type === "saludo") return "👋";
   if (type === "consejo") return "💡";
+  if (type === "mensaje") return "💬";
   if (type === "meet_greet_digital") return "🤝";
   if (
     type === "digital_exclusive_session" ||
@@ -86,51 +108,11 @@ function getServiceName(type: string, typeLabel: (t: string) => string): string 
   return typeLabel(type);
 }
 
-function getServiceTone(type: string): {
-  border: string;
-  background: string;
-  color: string;
-} {
-  if (type === "saludo") {
-    return {
-      border: "rgba(34,197,94,0.24)",
-      background: "rgba(34,197,94,0.08)",
-      color: "#86efac",
-    };
-  }
-
-  if (type === "consejo") {
-    return {
-      border: "rgba(250,204,21,0.26)",
-      background: "rgba(250,204,21,0.08)",
-      color: "#fde047",
-    };
-  }
-
-  if (type === "meet_greet_digital") {
-    return {
-      border: "rgba(96,165,250,0.28)",
-      background: "rgba(96,165,250,0.08)",
-      color: "#93c5fd",
-    };
-  }
-
-  if (
-    type === "digital_exclusive_session" ||
-    type === "exclusive_session" ||
-    type === "clase_personalizada"
-  ) {
-    return {
-      border: "rgba(168,85,247,0.32)",
-      background: "rgba(168,85,247,0.10)",
-      color: "#d8b4fe",
-    };
-  }
-
+function getTypeChipStyle(_type: string): React.CSSProperties {
   return {
-    border: "rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.05)",
-    color: "#fff",
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.035)",
+    color: "rgba(255,255,255,0.92)",
   };
 }
 
@@ -259,6 +241,13 @@ function isPrepareWindowOpen(value: unknown): boolean {
   return now >= prepareFrom;
 }
 
+function isNoShowExpired(value: unknown): boolean {
+  const date = toDateSafe(value);
+  if (!date) return false;
+  const rejectAt = date.getTime() + 15 * 60 * 1000;
+  return Date.now() >= rejectAt;
+}
+
 function isStartingSoon(value: unknown): boolean {
   const date = toDateSafe(value);
   if (!date) return false;
@@ -267,6 +256,36 @@ function isStartingSoon(value: unknown): boolean {
   const diff = date.getTime() - now;
 
   return diff > 0 && diff <= 24 * 60 * 60 * 1000;
+}
+
+function getSortDate(row: DisplayRow): Date | null {
+  if (row.rowType === "buyer_greeting") {
+    return toDateSafe(row.row.data.createdAt) ?? toDateSafe(row.row.data.updatedAt);
+  }
+
+  const data = row.row.data;
+  return (
+    toDateSafe(data.scheduledAt) ??
+    toDateSafe(data.updatedAt) ??
+    toDateSafe(data.createdAt)
+  );
+}
+
+function sortDisplayRows(a: DisplayRow, b: DisplayRow): number {
+  const aScheduled = a.rowType !== "buyer_greeting" ? a.row.data.scheduledAt : null;
+  const bScheduled = b.rowType !== "buyer_greeting" ? b.row.data.scheduledAt : null;
+  const aSoon = isStartingSoon(aScheduled);
+  const bSoon = isStartingSoon(bScheduled);
+
+  if (aSoon !== bSoon) return aSoon ? -1 : 1;
+
+  const aDate = getSortDate(a);
+  const bDate = getSortDate(b);
+
+  return (
+    (aDate?.getTime() ?? Number.MAX_SAFE_INTEGER) -
+    (bDate?.getTime() ?? Number.MAX_SAFE_INTEGER)
+  );
 }
 
 function remainingReschedules(req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc): number {
@@ -301,10 +320,51 @@ function getRequestCurrency(req: MeetGreetRequestDoc | ExclusiveSessionRequestDo
   return reqWithExtras.currency ?? reqWithExtras.serviceSnapshot?.currency ?? "MXN";
 }
 
+function getCreatorScheduleNote(
+  req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc
+): string | null {
+  const note = (req as any).creatorScheduleNote;
+  return typeof note === "string" && note.trim() ? note.trim() : null;
+}
+
 function getSectionForMeetGreetStatus(status: string): ServiceSectionKey {
   if (status === "rejected" || status === "cancelled") return "rejected";
   if (status === "refund_requested" || status === "refund_review") return "refund";
   return "requested";
+}
+
+function getSectionVisual(key: ServiceSectionKey): {
+  icon: string;
+  title: string;
+  countTone: React.CSSProperties;
+} {
+  if (key === "rejected") {
+    return {
+      icon: "❌",
+      title: "Servicios rechazados",
+      countTone: {
+        color: "#f43f5e",
+      },
+    };
+  }
+
+  if (key === "refund") {
+    return {
+      icon: "💸",
+      title: "Devolución en proceso",
+      countTone: {
+        color: "#f43f5e",
+      },
+    };
+  }
+
+  return {
+    icon: "🧾",
+    title: "Servicios solicitados",
+    countTone: {
+      color: "#f43f5e",
+    },
+  };
 }
 
 function StatusPill({ children, style }: { children: ReactNode; style: React.CSSProperties }) {
@@ -315,7 +375,7 @@ function StatusPill({ children, style }: { children: ReactNode; style: React.CSS
         borderRadius: 999,
         padding: "5px 9px",
         fontSize: 11,
-        fontWeight: 800,
+        fontWeight: 700,
         lineHeight: 1,
         display: "inline-flex",
         alignItems: "center",
@@ -325,6 +385,23 @@ function StatusPill({ children, style }: { children: ReactNode; style: React.CSS
     >
       {children}
     </span>
+  );
+}
+
+function SectionHeading({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        fontSize: 11,
+        fontWeight: 700,
+        color: "rgba(255,255,255,0.42)",
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+        padding: "2px 2px 0",
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -349,16 +426,14 @@ function CleanServiceCard({
   styles: Record<string, React.CSSProperties>;
   children: ReactNode;
 }) {
-  const tone = getServiceTone(type);
-
   return (
     <div
       style={{
+        ...styles.miniItem,
+        background: expanded ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.02)",
+        border: expanded ? "1px solid rgba(255,255,255,0.09)" : "1px solid rgba(255,255,255,0.07)",
         borderRadius: 16,
-        border: `1px solid ${expanded ? tone.border : "rgba(255,255,255,0.08)"}`,
-        background: expanded
-          ? `linear-gradient(180deg, ${tone.background}, rgba(255,255,255,0.025))`
-          : "rgba(255,255,255,0.035)",
+        padding: 0,
         overflow: "hidden",
       }}
     >
@@ -371,7 +446,7 @@ function CleanServiceCard({
           width: "100%",
           border: "none",
           background: "transparent",
-          padding: 12,
+          padding: 10,
           margin: 0,
           cursor: "pointer",
           textAlign: "left",
@@ -391,49 +466,80 @@ function CleanServiceCard({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 9,
+              gap: 8,
               minWidth: 0,
+              flexWrap: "wrap",
             }}
           >
-            <span style={{ fontSize: 18, lineHeight: 1 }}>{getServiceEmoji(type)}</span>
             <span
               style={{
-                color: "#fff",
-                fontSize: 14,
-                fontWeight: 850,
-                lineHeight: 1.15,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                minWidth: 0,
+                flexShrink: 0,
               }}
             >
-              {title}
+              <span
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 12,
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  background: "rgba(255,255,255,0.045)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 18,
+                  lineHeight: 1,
+                  boxShadow: "0 6px 16px rgba(0,0,0,0.20)",
+                  flexShrink: 0,
+                }}
+              >
+                {getServiceEmoji(type)}
+              </span>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 750,
+                  color: "#fff",
+                  lineHeight: 1.2,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {title}
+              </span>
             </span>
+            {meta}
           </div>
 
           <span
             style={{
-              color: "rgba(255,255,255,0.46)",
-              fontSize: 16,
-              lineHeight: 1,
-              transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
-              transition: "transform 160ms ease",
+              width: 28,
+              height: 28,
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.02)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
             }}
           >
-            ⌄
+            <Chevron open={expanded} />
           </span>
         </div>
 
         <div style={{ ...styles.subtle, lineHeight: 1.35 }}>{subtitle}</div>
-        {meta ? <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{meta}</div> : null}
       </button>
 
       {expanded ? (
         <div
           id={`service-details-${id}`}
+          className="mini-vertical-scroll"
           style={{
-            borderTop: "1px solid rgba(255,255,255,0.07)",
-            padding: "0 12px 12px",
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+            padding: 10,
             display: "grid",
             gap: 8,
           }}
@@ -446,57 +552,133 @@ function CleanServiceCard({
 }
 
 function SectionBlock({
-  title,
-  icon,
+  sectionKey,
   count,
-  empty,
+  open,
+  onToggle,
   children,
   styles,
 }: {
-  title: string;
-  icon: string;
+  sectionKey: ServiceSectionKey;
   count: number;
-  empty: string;
+  open: boolean;
+  onToggle: () => void;
   children: ReactNode;
   styles: Record<string, React.CSSProperties>;
 }) {
+  const visual = getSectionVisual(sectionKey);
+
+  if (count <= 0) return null;
+
   return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <div
+    <div
+      style={{
+        ...styles.card,
+        border: "none",
+        margin: 0,
+        borderRadius: 16,
+        background: "rgba(0,0,0,0.96)",
+      }}
+    >
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
         style={{
-          ...styles.sectionTitle,
+          width: "100%",
+          border: "none",
+          background: "transparent",
+          color: "#fff",
+          cursor: "pointer",
+          padding: 0,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           gap: 10,
-          paddingTop: 6,
+          textAlign: "left",
         }}
       >
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-          <span>{icon}</span>
-          <span>{title}</span>
-        </span>
-        {count > 0 ? (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            minWidth: 0,
+          }}
+        >
           <span
             style={{
-              borderRadius: 999,
+              width: 30,
+              height: 30,
+              borderRadius: "50%",
+              background: "rgba(255,255,255,0.06)",
               border: "1px solid rgba(255,255,255,0.10)",
-              background: "rgba(255,255,255,0.05)",
-              padding: "3px 7px",
-              fontSize: 11,
-              color: "rgba(255,255,255,0.70)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 15,
+              flexShrink: 0,
+            }}
+          >
+            {visual.icon}
+          </span>
+          <span style={{ display: "grid", gap: 4, minWidth: 0 }}>
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: "#fff",
+                lineHeight: 1.15,
+              }}
+            >
+              {visual.title}
+            </span>
+          </span>
+        </span>
+
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+          <span
+            style={{
+              ...visual.countTone,
+              fontSize: 13,
+              fontWeight: 800,
+              lineHeight: 1,
+              minWidth: 10,
+              textAlign: "center",
             }}
           >
             {count}
           </span>
-        ) : null}
-      </div>
+          <span
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.02)",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Chevron open={open} />
+          </span>
+        </span>
+      </button>
 
-      {count === 0 ? (
-        <div style={{ ...styles.subtle, padding: "2px 2px 4px" }}>{empty}</div>
-      ) : (
-        <div style={{ display: "grid", gap: 8 }}>{children}</div>
-      )}
+      {open ? (
+        <div
+          style={{
+            marginTop: 9,
+            paddingTop: 9,
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+            display: "grid",
+            gap: 8,
+          }}
+        >
+          {children}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -517,7 +699,8 @@ export default function OwnerSidebarGreetings({
   const [busyMap, setBusyMap] = useState<BusyMap>({});
   const [errorMap, setErrorMap] = useState<TextMap>({});
   const [successMap, setSuccessMap] = useState<TextMap>({});
-  const [expandedMap, setExpandedMap] = useState<ToggleMap>({});
+  const [openSectionKey, setOpenSectionKey] = useState<ServiceSectionKey | null>("requested");
+  const [openItemKey, setOpenItemKey] = useState<string | null>(null);
   const [rejectOpenMap, setRejectOpenMap] = useState<ToggleMap>({});
   const [scheduleOpenMap, setScheduleOpenMap] = useState<ToggleMap>({});
   const [refundOpenMap, setRefundOpenMap] = useState<ToggleMap>({});
@@ -559,21 +742,60 @@ export default function OwnerSidebarGreetings({
     [incomingMeetGreets, incomingExclusiveSessions]
   );
 
-  const requestedCount =
-    buyerPending.length +
-    buyerScheduledServices.filter((row) => getSectionForMeetGreetStatus(row.data.status) === "requested").length +
-    incomingScheduledServices.filter((row) => getSectionForMeetGreetStatus(row.data.status) === "requested").length;
+  const requestedRows = useMemo<DisplayRow[]>(() => {
+    const rows: DisplayRow[] = [
+      ...buyerPending.map((row) => ({ rowType: "buyer_greeting" as const, id: `buyer-greeting-${row.id}`, row })),
+      ...buyerScheduledServices
+        .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "requested")
+        .map((row) => ({ rowType: "buyer_scheduled" as const, id: `buyer-${row.serviceKind}-${row.id}`, row })),
+      ...incomingScheduledServices
+        .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "requested")
+        .map((row) => ({ rowType: "incoming_scheduled" as const, id: `incoming-${row.serviceKind}-${row.id}`, row })),
+    ];
 
-  const rejectedCount =
-    buyerScheduledServices.filter((row) => getSectionForMeetGreetStatus(row.data.status) === "rejected").length +
-    incomingScheduledServices.filter((row) => getSectionForMeetGreetStatus(row.data.status) === "rejected").length;
+    return rows.sort(sortDisplayRows);
+  }, [buyerPending, buyerScheduledServices, incomingScheduledServices]);
 
-  const refundCount =
-    buyerScheduledServices.filter((row) => getSectionForMeetGreetStatus(row.data.status) === "refund").length +
-    incomingScheduledServices.filter((row) => getSectionForMeetGreetStatus(row.data.status) === "refund").length;
+  const rejectedRows = useMemo<DisplayRow[]>(() => {
+    const rows: DisplayRow[] = [
+      ...buyerScheduledServices
+        .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "rejected")
+        .map((row) => ({ rowType: "buyer_scheduled" as const, id: `buyer-${row.serviceKind}-${row.id}`, row })),
+      ...incomingScheduledServices
+        .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "rejected")
+        .map((row) => ({ rowType: "incoming_scheduled" as const, id: `incoming-${row.serviceKind}-${row.id}`, row })),
+    ];
 
-  function toggleExpanded(requestId: string) {
-    setExpandedMap((prev) => ({ ...prev, [requestId]: !prev[requestId] }));
+    return rows.sort(sortDisplayRows);
+  }, [buyerScheduledServices, incomingScheduledServices]);
+
+  const refundRows = useMemo<DisplayRow[]>(() => {
+    const rows: DisplayRow[] = [
+      ...buyerScheduledServices
+        .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "refund")
+        .map((row) => ({ rowType: "buyer_scheduled" as const, id: `buyer-${row.serviceKind}-${row.id}`, row })),
+      ...incomingScheduledServices
+        .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "refund")
+        .map((row) => ({ rowType: "incoming_scheduled" as const, id: `incoming-${row.serviceKind}-${row.id}`, row })),
+    ];
+
+    return rows.sort(sortDisplayRows);
+  }, [buyerScheduledServices, incomingScheduledServices]);
+
+  function closeInlinePanels(requestId: string, except?: "reject" | "schedule" | "refund" | "reschedule") {
+    if (except !== "reject") setRejectOpenMap((prev) => ({ ...prev, [requestId]: false }));
+    if (except !== "schedule") setScheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
+    if (except !== "refund") setRefundOpenMap((prev) => ({ ...prev, [requestId]: false }));
+    if (except !== "reschedule") setRescheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
+  }
+
+  function toggleSection(sectionKey: ServiceSectionKey) {
+    setOpenSectionKey((prev) => (prev === sectionKey ? null : sectionKey));
+    setOpenItemKey(null);
+  }
+
+  function toggleItem(itemKey: string) {
+    setOpenItemKey((prev) => (prev === itemKey ? null : itemKey));
   }
 
   function setBusy(requestId: string, value: boolean) {
@@ -600,8 +822,9 @@ export default function OwnerSidebarGreetings({
         await acceptMeetGreetRequest({ requestId });
       }
       setSuccess(requestId, "✅ Solicitud aceptada. Ahora puedes proponer fecha y hora.");
+      closeInlinePanels(requestId, "schedule");
       setScheduleOpenMap((prev) => ({ ...prev, [requestId]: true }));
-      setExpandedMap((prev) => ({ ...prev, [requestId]: true }));
+      setOpenItemKey(`incoming-${kind}-${requestId}`);
     } catch (e: any) {
       setError(requestId, e?.message ?? "No se pudo aceptar la solicitud.");
     } finally {
@@ -810,26 +1033,25 @@ export default function OwnerSidebarGreetings({
         type="button"
         onClick={() => router.push(`/groups/${group.id}`)}
         style={{
-          background: "transparent",
-          border: "none",
-          padding: 0,
+          background: "rgba(255,255,255,0.05)",
+          border: "1px solid rgba(255,255,255,0.09)",
+          borderRadius: 999,
+          padding: "6px 9px",
           margin: 0,
           textAlign: "left",
           cursor: "pointer",
           color: "#fff",
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: 700,
-          textDecoration: "underline",
-          textUnderlineOffset: 2,
           width: "fit-content",
         }}
       >
-        {group.name ?? "Ir a la comunidad"}
+        Comunidad: {group.name ?? "Ir a la comunidad"}
       </button>
     );
   }
 
-  function renderTextBox(text: string, tone: "default" | "warning" | "danger" = "default") {
+  function renderTextBox(text: string, tone: "default" | "warning" | "danger" | "info" = "default") {
     const visual =
       tone === "danger"
         ? {
@@ -843,11 +1065,17 @@ export default function OwnerSidebarGreetings({
               background: "rgba(250,204,21,0.08)",
               color: "#fde68a",
             }
-          : {
-              border: "rgba(255,255,255,0.10)",
-              background: "rgba(0,0,0,0.18)",
-              color: "rgba(255,255,255,0.92)",
-            };
+          : tone === "info"
+            ? {
+                border: "rgba(96,165,250,0.18)",
+                background: "rgba(96,165,250,0.08)",
+                color: "#bfdbfe",
+              }
+            : {
+                border: "rgba(255,255,255,0.10)",
+                background: "rgba(0,0,0,0.18)",
+                color: "rgba(255,255,255,0.92)",
+              };
 
     return (
       <div
@@ -858,7 +1086,7 @@ export default function OwnerSidebarGreetings({
           padding: "7px 8px",
           whiteSpace: "pre-wrap",
           fontSize: 12,
-          lineHeight: 1.35,
+          lineHeight: 1.3,
           color: visual.color,
         }}
       >
@@ -867,14 +1095,14 @@ export default function OwnerSidebarGreetings({
     );
   }
 
-  function renderBuyerGreetingCard(row: { id: string; data: GreetingRequestDoc }) {
+  function renderBuyerGreetingCard(row: { id: string; data: GreetingRequestDoc }, itemKey: string) {
     const req = row.data;
     const group = groupMetaMap[req.groupId] ?? null;
 
     return (
       <CleanServiceCard
-        key={row.id}
-        id={row.id}
+        key={itemKey}
+        id={itemKey}
         type={req.type}
         title={getServiceName(req.type, typeLabel)}
         subtitle={
@@ -883,59 +1111,67 @@ export default function OwnerSidebarGreetings({
             {req.toName ? <> · Para {req.toName}</> : null}
           </>
         }
-        meta={<StatusPill style={{ border: "1px solid " + getServiceTone(req.type).border, background: getServiceTone(req.type).background, color: getServiceTone(req.type).color }}>Solicitado</StatusPill>}
-        expanded={!!expandedMap[row.id]}
-        onToggle={() => toggleExpanded(row.id)}
+        meta={
+          <StatusPill style={getTypeChipStyle(req.type)}>
+            Solicitado
+          </StatusPill>
+        }
+        expanded={openItemKey === itemKey}
+        onToggle={() => toggleItem(itemKey)}
         styles={styles}
       >
         {renderGroupLink(group)}
         {req.instructions ? renderTextBox(req.instructions) : null}
-        {req.createdAt ? <div style={styles.subtle}>{fmtDate(req.createdAt)}</div> : null}
+        {req.createdAt ? <div style={styles.subtle}>Solicitado: {fmtDate(req.createdAt)}</div> : null}
         {renderRequestFeedback(row.id)}
       </CleanServiceCard>
     );
   }
 
-  function renderBuyerScheduledServiceCard(row: ScheduledRow) {
+  function renderBuyerScheduledServiceCard(row: ScheduledRow, itemKey: string) {
     const req = row.data;
     const group = groupMetaMap[req.groupId] ?? null;
     const busy = !!busyMap[row.id];
     const isExclusiveSession = row.serviceKind === "exclusive_session";
     const serviceType = isExclusiveSession ? "digital_exclusive_session" : "meet_greet_digital";
     const serviceTitle = isExclusiveSession ? "Sesión exclusiva" : "Meet & Greet";
+    const noShowExpired = isNoShowExpired(req.scheduledAt);
     const canRequestRefund = req.status === "rejected" && req.paymentStatus !== "refunded";
     const canRetry = req.status === "rejected" && !!group?.id;
     const canRequestReschedule =
       (req.status === "scheduled" || req.status === "ready_to_prepare") &&
-      remainingReschedules(req) > 0;
+      remainingReschedules(req) > 0 &&
+      !noShowExpired;
     const canPrepare =
       (req.status === "scheduled" ||
         req.status === "ready_to_prepare" ||
         req.status === "in_preparation") &&
-      isPrepareWindowOpen(req.scheduledAt);
+      isPrepareWindowOpen(req.scheduledAt) &&
+      !noShowExpired;
+const creatorScheduleNote = getCreatorScheduleNote(req);
 
     return (
       <CleanServiceCard
-        key={`${row.serviceKind}-${row.id}`}
-        id={`${row.serviceKind}-${row.id}`}
+        key={itemKey}
+        id={itemKey}
         type={serviceType}
         title={serviceTitle}
         subtitle={<>Comprado a {renderUserLink(req.creatorId)}</>}
         meta={<StatusPill style={getMeetGreetStatusStyle(req.status)}>{getMeetGreetStatusLabel(req.status)}</StatusPill>}
-        expanded={!!expandedMap[row.id]}
-        onToggle={() => toggleExpanded(row.id)}
+        expanded={openItemKey === itemKey}
+        onToggle={() => toggleItem(itemKey)}
         styles={styles}
       >
         {renderGroupLink(group)}
 
-        {isStartingSoon(req.scheduledAt)
+        {isStartingSoon(req.scheduledAt) && !noShowExpired
           ? renderTextBox(`⚠️ Tu ${serviceTitle.toLowerCase()} está próximo a iniciar.`, "warning")
           : null}
 
-        {canPrepare ? renderTextBox("🎥 Ya puedes entrar a preparación.", "default") : null}
+        {canPrepare ? renderTextBox("🎥 Ya puedes entrar a preparación.", "info") : null}
 
         {(req.priceSnapshot != null || req.durationMinutes != null) ? (
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             {req.priceSnapshot != null ? (
               <span style={styles.subtle}>
                 Precio capturado: {formatMoney(req.priceSnapshot, getRequestCurrency(req))}
@@ -948,21 +1184,37 @@ export default function OwnerSidebarGreetings({
         ) : null}
 
         {req.buyerMessage ? renderTextBox(req.buyerMessage) : null}
-        {req.rejectionReason ? renderTextBox(`Motivo de rechazo: ${req.rejectionReason}`, "danger") : null}
+
+        {creatorScheduleNote
+          ? renderTextBox(`Mensaje del creador: ${creatorScheduleNote}`, "info")
+          : null}
+
+{req.rejectionReason ? renderTextBox(`Motivo de rechazo: ${req.rejectionReason}`, "danger") : null}
         {(req as any).autoRejectReason === "creator_no_show_after_15_minutes" ? (
           renderTextBox(
             "El creador no se conectó dentro de los 15 minutos posteriores a la hora agendada. Puedes volver a intentarlo o solicitar devolución.",
             "danger"
           )
         ) : null}
+        {(req as any).autoRejectReason === "buyer_no_show_after_15_minutes" ? (
+          renderTextBox(
+            "No te conectaste dentro de los 15 minutos posteriores a la hora agendada. Revisa el estado antes de solicitar una devolución.",
+            "danger"
+          )
+        ) : null}
         {req.refundReason ? renderTextBox(`Motivo de devolución: ${req.refundReason}`, "warning") : null}
         {req.scheduledAt ? <div style={styles.subtle}>Fecha propuesta/agendada: {fmtDate(req.scheduledAt)}</div> : null}
+        {req.createdAt ? <div style={styles.subtle}>Solicitado: {fmtDate(req.createdAt)}</div> : null}
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {canRequestRefund ? (
             <button
               type="button"
-              onClick={() => setRefundOpenMap((prev) => ({ ...prev, [row.id]: !prev[row.id] }))}
+              onClick={() => {
+                const nextOpen = !refundOpenMap[row.id];
+                closeInlinePanels(row.id, "refund");
+                setRefundOpenMap((prev) => ({ ...prev, [row.id]: nextOpen }));
+              }}
               disabled={busy}
               style={{ ...styles.buttonSecondary, opacity: busy ? 0.7 : 1, cursor: busy ? "not-allowed" : "pointer" }}
             >
@@ -984,7 +1236,11 @@ export default function OwnerSidebarGreetings({
           {canRequestReschedule ? (
             <button
               type="button"
-              onClick={() => setRescheduleOpenMap((prev) => ({ ...prev, [row.id]: !prev[row.id] }))}
+              onClick={() => {
+                const nextOpen = !rescheduleOpenMap[row.id];
+                closeInlinePanels(row.id, "reschedule");
+                setRescheduleOpenMap((prev) => ({ ...prev, [row.id]: nextOpen }));
+              }}
               disabled={busy}
               style={{ ...styles.buttonSecondary, opacity: busy ? 0.7 : 1, cursor: busy ? "not-allowed" : "pointer" }}
             >
@@ -1055,55 +1311,58 @@ export default function OwnerSidebarGreetings({
 
         {renderRequestFeedback(row.id)}
         {renderPreparationPanel(row.id, req, (preparationRoleMap[row.id] as "buyer" | "creator") ?? "buyer")}
-        {req.createdAt ? <div style={styles.subtle}>{fmtDate(req.createdAt)}</div> : null}
       </CleanServiceCard>
     );
   }
 
-  function renderIncomingScheduledServiceCard(row: ScheduledRow) {
+  function renderIncomingScheduledServiceCard(row: ScheduledRow, itemKey: string) {
     const req = row.data;
     const group = groupMetaMap[row.groupId ?? req.groupId] ?? null;
     const busy = !!busyMap[row.id];
     const isExclusiveSession = row.serviceKind === "exclusive_session";
     const serviceType = isExclusiveSession ? "digital_exclusive_session" : "meet_greet_digital";
     const serviceTitle = isExclusiveSession ? "Sesión exclusiva" : "Meet & Greet";
+    const noShowExpired = isNoShowExpired(req.scheduledAt);
     const canAccept = req.status === "pending_creator_response";
     const canReject =
       req.status === "pending_creator_response" ||
       req.status === "accepted_pending_schedule" ||
       req.status === "reschedule_requested";
     const canSchedule =
-      req.status === "accepted_pending_schedule" ||
-      req.status === "reschedule_requested" ||
-      req.status === "scheduled" ||
-      req.status === "ready_to_prepare";
+      (req.status === "accepted_pending_schedule" ||
+        req.status === "reschedule_requested" ||
+        req.status === "scheduled" ||
+        req.status === "ready_to_prepare") &&
+      !noShowExpired;
+      const creatorScheduleNote = getCreatorScheduleNote(req);
     const canPrepare =
       (req.status === "scheduled" ||
         req.status === "ready_to_prepare" ||
         req.status === "in_preparation") &&
-      isPrepareWindowOpen(req.scheduledAt);
+      isPrepareWindowOpen(req.scheduledAt) &&
+      !noShowExpired;
 
     return (
       <CleanServiceCard
-        key={`${row.serviceKind}-${row.id}`}
-        id={`${row.serviceKind}-${row.id}`}
+        key={itemKey}
+        id={itemKey}
         type={serviceType}
         title={serviceTitle}
         subtitle={<>Solicitado por {renderUserLink(req.buyerId)}</>}
         meta={<StatusPill style={getMeetGreetStatusStyle(req.status)}>{getMeetGreetStatusLabel(req.status)}</StatusPill>}
-        expanded={!!expandedMap[row.id]}
-        onToggle={() => toggleExpanded(row.id)}
+        expanded={openItemKey === itemKey}
+        onToggle={() => toggleItem(itemKey)}
         styles={styles}
       >
         {renderGroupLink(group)}
 
-        {isStartingSoon(req.scheduledAt)
+        {isStartingSoon(req.scheduledAt) && !noShowExpired
           ? renderTextBox(`⚠️ Este ${serviceTitle.toLowerCase()} está próximo a iniciar.`, "warning")
           : null}
-        {canPrepare ? renderTextBox("🎥 Ya puedes entrar a preparación.") : null}
+        {canPrepare ? renderTextBox("🎥 Ya puedes entrar a preparación.", "info") : null}
 
         {(req.priceSnapshot != null || req.durationMinutes != null) ? (
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             {req.priceSnapshot != null ? (
               <span style={styles.subtle}>
                 Precio capturado: {formatMoney(req.priceSnapshot, getRequestCurrency(req))}
@@ -1114,9 +1373,25 @@ export default function OwnerSidebarGreetings({
         ) : null}
 
         {req.buyerMessage ? renderTextBox(req.buyerMessage) : null}
+        {creatorScheduleNote
+         ? renderTextBox(`Mensaje del creador: ${creatorScheduleNote}`, "info")
+         : null}
         {req.rejectionReason ? renderTextBox(`Motivo de rechazo: ${req.rejectionReason}`, "danger") : null}
+        {(req as any).autoRejectReason === "buyer_no_show_after_15_minutes" ? (
+          renderTextBox(
+            "El comprador no se conectó dentro de los 15 minutos posteriores a la hora agendada.",
+            "danger"
+          )
+        ) : null}
+        {(req as any).autoRejectReason === "creator_no_show_after_15_minutes" ? (
+          renderTextBox(
+            "No te conectaste dentro de los 15 minutos posteriores a la hora agendada.",
+            "danger"
+          )
+        ) : null}
         {req.refundReason ? renderTextBox(`Motivo de devolución: ${req.refundReason}`, "warning") : null}
         {req.scheduledAt ? <div style={styles.subtle}>Fecha propuesta/agendada: {fmtDate(req.scheduledAt)}</div> : null}
+        {req.createdAt ? <div style={styles.subtle}>Solicitado: {fmtDate(req.createdAt)}</div> : null}
 
         {canAccept || canReject || canSchedule || canPrepare ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1127,13 +1402,31 @@ export default function OwnerSidebarGreetings({
             ) : null}
 
             {canReject ? (
-              <button type="button" onClick={() => setRejectOpenMap((prev) => ({ ...prev, [row.id]: !prev[row.id] }))} disabled={busy} style={{ ...styles.buttonSecondary, opacity: busy ? 0.7 : 1, cursor: busy ? "not-allowed" : "pointer" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextOpen = !rejectOpenMap[row.id];
+                  closeInlinePanels(row.id, "reject");
+                  setRejectOpenMap((prev) => ({ ...prev, [row.id]: nextOpen }));
+                }}
+                disabled={busy}
+                style={{ ...styles.buttonSecondary, opacity: busy ? 0.7 : 1, cursor: busy ? "not-allowed" : "pointer" }}
+              >
                 Rechazar
               </button>
             ) : null}
 
             {canSchedule ? (
-              <button type="button" onClick={() => setScheduleOpenMap((prev) => ({ ...prev, [row.id]: !prev[row.id] }))} disabled={busy} style={{ ...styles.buttonSecondary, opacity: busy ? 0.7 : 1, cursor: busy ? "not-allowed" : "pointer" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextOpen = !scheduleOpenMap[row.id];
+                  closeInlinePanels(row.id, "schedule");
+                  setScheduleOpenMap((prev) => ({ ...prev, [row.id]: nextOpen }));
+                }}
+                disabled={busy}
+                style={{ ...styles.buttonSecondary, opacity: busy ? 0.7 : 1, cursor: busy ? "not-allowed" : "pointer" }}
+              >
                 {req.status === "accepted_pending_schedule" ? "Poner fecha" : "Proponer nueva fecha"}
               </button>
             ) : null}
@@ -1174,9 +1467,9 @@ export default function OwnerSidebarGreetings({
               style={styles.input}
             />
             <textarea
-              value={scheduleNoteMap[row.id] ?? ""}
+              value={scheduleNoteMap[row.id] ?? getCreatorScheduleNote(req) ?? ""}
               onChange={(e) => setScheduleNoteMap((prev) => ({ ...prev, [row.id]: e.target.value }))}
-              placeholder="Nota opcional sobre la fecha propuesta."
+              placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
               style={{ ...styles.input, height: 92, resize: "vertical" }}
             />
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -1192,57 +1485,60 @@ export default function OwnerSidebarGreetings({
 
         {renderRequestFeedback(row.id)}
         {renderPreparationPanel(row.id, req, (preparationRoleMap[row.id] as "buyer" | "creator") ?? "creator")}
-        {req.createdAt ? <div style={styles.subtle}>{fmtDate(req.createdAt)}</div> : null}
       </CleanServiceCard>
     );
   }
 
+  function renderDisplayRow(row: DisplayRow) {
+    if (row.rowType === "buyer_greeting") {
+      return renderBuyerGreetingCard(row.row, row.id);
+    }
+
+    if (row.rowType === "buyer_scheduled") {
+      return renderBuyerScheduledServiceCard(row.row, row.id);
+    }
+
+    return renderIncomingScheduledServiceCard(row.row, row.id);
+  }
+
   return (
-    <div style={{ display: "grid", gap: 14 }}>
+    <div style={{ display: "grid", gap: 8 }}>
+      <SectionHeading>Mis servicios</SectionHeading>
+
       <SectionBlock
-        title="Servicios solicitados"
-        icon="🧾"
-        count={requestedCount}
-        empty="No tienes servicios solicitados por ahora."
+        sectionKey="requested"
+        count={requestedRows.length}
+        open={openSectionKey === "requested"}
+        onToggle={() => toggleSection("requested")}
         styles={styles}
       >
-        {buyerPending.map(renderBuyerGreetingCard)}
-        {buyerScheduledServices
-          .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "requested")
-          .map(renderBuyerScheduledServiceCard)}
-        {incomingScheduledServices
-          .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "requested")
-          .map(renderIncomingScheduledServiceCard)}
+        <div className="mini-vertical-scroll" style={{ display: "grid", gap: 8 }}>
+          {requestedRows.map(renderDisplayRow)}
+        </div>
       </SectionBlock>
 
       <SectionBlock
-        title="Servicios rechazados"
-        icon="❌"
-        count={rejectedCount}
-        empty="No tienes servicios rechazados."
+        sectionKey="rejected"
+        count={rejectedRows.length}
+        open={openSectionKey === "rejected"}
+        onToggle={() => toggleSection("rejected")}
         styles={styles}
       >
-        {buyerScheduledServices
-          .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "rejected")
-          .map(renderBuyerScheduledServiceCard)}
-        {incomingScheduledServices
-          .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "rejected")
-          .map(renderIncomingScheduledServiceCard)}
+        <div className="mini-vertical-scroll" style={{ display: "grid", gap: 8 }}>
+          {rejectedRows.map(renderDisplayRow)}
+        </div>
       </SectionBlock>
 
       <SectionBlock
-        title="Servicios en proceso de devolución"
-        icon="💸"
-        count={refundCount}
-        empty="No tienes servicios en proceso de devolución."
+        sectionKey="refund"
+        count={refundRows.length}
+        open={openSectionKey === "refund"}
+        onToggle={() => toggleSection("refund")}
         styles={styles}
       >
-        {buyerScheduledServices
-          .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "refund")
-          .map(renderBuyerScheduledServiceCard)}
-        {incomingScheduledServices
-          .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "refund")
-          .map(renderIncomingScheduledServiceCard)}
+        <div className="mini-vertical-scroll" style={{ display: "grid", gap: 8 }}>
+          {refundRows.map(renderDisplayRow)}
+        </div>
       </SectionBlock>
     </div>
   );

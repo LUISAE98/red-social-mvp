@@ -201,6 +201,8 @@ export type MeetGreetRequestDoc = {
   scheduledAt?: Timestamp | null;
   scheduledBy?: string | null;
   scheduleProposedAt?: Timestamp | null;
+    creatorScheduleNote?: string | null;
+  creatorScheduleNoteUpdatedAt?: Timestamp | null;
   scheduleHistory?: Array<{
     proposedAt?: Timestamp | null;
     proposedBy?: string | null;
@@ -306,6 +308,16 @@ function isMeetGreetPendingItem(status?: MeetGreetStatus | null) {
   );
 }
 
+function isBuyerRequestedVisibleItem(status?: MeetGreetStatus | null) {
+  return (
+    isMeetGreetPendingItem(status) ||
+    status === "rejected" ||
+    status === "refund_requested" ||
+    status === "refund_review" ||
+    status === "cancelled"
+  );
+}
+
 export function fmtDate(ts?: Timestamp | null) {
   if (!ts) return "";
   return ts.toDate().toLocaleString("es-MX");
@@ -344,6 +356,43 @@ export function buildDisplayName(user?: Partial<UserDoc> | null, uid?: string) {
   if (full) return full;
   if (uid) return `Usuario ${uid.slice(0, 6)}`;
   return "Usuario";
+}
+
+const OWNER_SIDEBAR_NO_SHOW_GRACE_MS = 15 * 60 * 1000;
+
+function shouldOwnerSidebarTreatAsNoShowRejected(
+  item?: Pick<MeetGreetRequestDoc, "status" | "scheduledAt"> | null,
+  nowMs = Date.now()
+) {
+  if (!item?.scheduledAt) return false;
+
+  if (
+    item.status !== "scheduled" &&
+    item.status !== "ready_to_prepare" &&
+    item.status !== "in_preparation"
+  ) {
+    return false;
+  }
+
+  return (
+    nowMs >=
+    item.scheduledAt.toDate().getTime() + OWNER_SIDEBAR_NO_SHOW_GRACE_MS
+  );
+}
+
+function normalizeOwnerSidebarNoShowStatus<T extends MeetGreetRequestDoc>(
+  item: T,
+  nowMs = Date.now()
+): T {
+  if (!shouldOwnerSidebarTreatAsNoShowRejected(item, nowMs)) return item;
+
+  return {
+    ...item,
+    status: "rejected",
+    rejectionReason:
+      item.rejectionReason ??
+      "Rechazado automáticamente por no iniciar la sesión dentro de los 15 minutos de tolerancia.",
+  };
 }
 
 function normalizeSidebarMemberStatus(raw: unknown): SidebarMemberStatus {
@@ -768,6 +817,16 @@ export default function OwnerSidebar() {
     window.clearInterval(interval);
   };
 }, [viewer?.uid]);
+
+  const [ownerSidebarNowMs, setOwnerSidebarNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setOwnerSidebarNowMs(Date.now());
+    }, 30_000);
+
+    return () => window.clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     async function loadCurrentUser() {
@@ -1309,13 +1368,13 @@ export default function OwnerSidebar() {
         > = {};
 
         snap.docs.forEach((d) => {
-          const data = d.data() as GreetingRequestDoc;
-          const gid = data.groupId;
-          if (!gid) return;
-          if (!isMeetGreetCreatorActiveItem(data.status)) return;
-          if (!grouped[gid]) grouped[gid] = [];
-          grouped[gid].push({ id: d.id, data });
-        });
+           const data = d.data() as GreetingRequestDoc;
+           const gid = data.groupId;
+           if (!gid) return;
+           if (data.status !== "pending") return;
+           if (!grouped[gid]) grouped[gid] = [];
+           grouped[gid].push({ id: d.id, data });
+          });
 
         setGreetingsByGroup(grouped);
       },
@@ -1408,17 +1467,20 @@ export default function OwnerSidebar() {
         > = {};
 
         snap.docs.forEach((d) => {
-          const data = d.data() as ExclusiveSessionRequestDoc;
+          const data = normalizeOwnerSidebarNoShowStatus(
+            {
+              ...(d.data() as MeetGreetRequestDoc),
+              id: d.id,
+            },
+            ownerSidebarNowMs
+          );
           const gid = data.groupId;
           if (!gid) return;
           if (!isMeetGreetCreatorActiveItem(data.status)) return;
           if (!grouped[gid]) grouped[gid] = [];
           grouped[gid].push({
             id: d.id,
-            data: {
-              ...data,
-              id: d.id,
-            },
+            data,
           });
         });
 
@@ -1437,10 +1499,13 @@ export default function OwnerSidebar() {
       async (snap) => {
         const rows = snap.docs.map((d) => ({
           id: d.id,
-          data: {
-            ...(d.data() as MeetGreetRequestDoc),
-            id: d.id,
-          },
+          data: normalizeOwnerSidebarNoShowStatus(
+            {
+              ...(d.data() as MeetGreetRequestDoc),
+              id: d.id,
+            },
+            ownerSidebarNowMs
+          ),
         }));
 
         setBuyerMeetGreets(rows);
@@ -1487,7 +1552,7 @@ export default function OwnerSidebar() {
       unsubCreator();
       unsubBuyer();
     };
-  }, [viewer?.uid, groupMetaMap]);
+  }, [viewer?.uid, groupMetaMap, ownerSidebarNowMs]);
   useEffect(() => {
   if (!viewer?.uid) {
     setExclusiveSessionsByGroup({});
@@ -1516,7 +1581,14 @@ export default function OwnerSidebar() {
       > = {};
 
       snap.docs.forEach((d) => {
-        const data = d.data() as ExclusiveSessionRequestDoc;
+        const data = normalizeOwnerSidebarNoShowStatus(
+          {
+            ...(d.data() as ExclusiveSessionRequestDoc),
+            id: d.id,
+            type: "digital_exclusive_session",
+          },
+          ownerSidebarNowMs
+        ) as ExclusiveSessionRequestDoc;
         const gid = data.groupId;
         if (!gid) return;
         if (!isMeetGreetCreatorActiveItem(data.status)) return;
@@ -1525,11 +1597,7 @@ export default function OwnerSidebar() {
 
         grouped[gid].push({
           id: d.id,
-          data: {
-            ...data,
-            id: d.id,
-            type: "digital_exclusive_session",
-          },
+          data,
         });
       });
 
@@ -1548,11 +1616,14 @@ export default function OwnerSidebar() {
     async (snap) => {
       const rows = snap.docs.map((d) => ({
         id: d.id,
-                data: {
-          ...(d.data() as ExclusiveSessionRequestDoc),
-          id: d.id,
-          type: "digital_exclusive_session",
-        },
+        data: normalizeOwnerSidebarNoShowStatus(
+          {
+            ...(d.data() as ExclusiveSessionRequestDoc),
+            id: d.id,
+            type: "digital_exclusive_session",
+          },
+          ownerSidebarNowMs
+        ) as ExclusiveSessionRequestDoc,
       }));
 
       setBuyerExclusiveSessions(rows);
@@ -1600,7 +1671,7 @@ export default function OwnerSidebar() {
     unsubCreator();
     unsubBuyer();
   };
-}, [viewer?.uid, groupMetaMap]);
+}, [viewer?.uid, groupMetaMap, ownerSidebarNowMs]);
 
   useEffect(() => {
     const groupsForSeen = [...myGroups, ...moderatedGroups].map((g) => g.id);
@@ -1613,13 +1684,19 @@ export default function OwnerSidebar() {
       for (const groupId of groupsForSeen) {
         const joinCount = (joinRequestsByGroup[groupId] ?? []).length;
         const greetingCount =
-  (greetingsByGroup[groupId] ?? []).length +
-  (meetGreetsByGroup[groupId] ?? []).length +
-  (exclusiveSessionsByGroup[groupId] ?? []).length;
+          (greetingsByGroup[groupId] ?? []).length +
+          (meetGreetsByGroup[groupId] ?? []).length +
+          (exclusiveSessionsByGroup[groupId] ?? []).length;
 
         if (!next[groupId]) {
-          next[groupId] = { join: joinCount, greeting: greetingCount };
+          next[groupId] = { join: 0, greeting: 0 };
+          continue;
         }
+
+        next[groupId] = {
+          join: Math.min(next[groupId].join, joinCount),
+          greeting: Math.min(next[groupId].greeting, greetingCount),
+        };
       }
 
       return next;
@@ -1792,16 +1869,16 @@ buyerExclusiveSessions,
     let total = buyerPending.length;
 
     for (const row of buyerMeetGreets) {
-      if (isMeetGreetPendingItem(row.data.status)) {
+      if (isBuyerRequestedVisibleItem(row.data.status)) {
         total += 1;
       }
     }
 
     for (const row of buyerExclusiveSessions) {
-  if (isMeetGreetPendingItem(row.data.status)) {
-    total += 1;
-  }
-}
+      if (isBuyerRequestedVisibleItem(row.data.status)) {
+        total += 1;
+      }
+    }
 
     return total;
   }, [buyerPending, buyerMeetGreets, buyerExclusiveSessions]);

@@ -13,6 +13,12 @@ const MAX_RESCHEDULE_REQUESTS = 2;
 const PREPARE_WINDOW_MINUTES = 10;
 const CREATOR_JOIN_GRACE_MINUTES = 15;
 
+const ACTIVE_SCHEDULED_STATUSES: MeetGreetStatus[] = [
+  "scheduled",
+  "ready_to_prepare",
+  "in_preparation",
+];
+
 type MeetGreetStatus =
   | "pending_creator_response"
   | "accepted_pending_schedule"
@@ -30,6 +36,14 @@ type MeetGreetStatus =
 type UserRole = "buyer" | "creator";
 
 type TimestampLike = admin.firestore.Timestamp;
+
+type NoShowExpiration = {
+  shouldReject: boolean;
+  missingCreator: boolean;
+  missingBuyer: boolean;
+  reasonCode: string | null;
+  reasonText: string | null;
+};
 
 function requireAuth(uid?: string): string {
   if (!uid) {
@@ -102,6 +116,7 @@ function toTimestamp(value: string): TimestampLike {
 function nowTs(): TimestampLike {
   return admin.firestore.Timestamp.now();
 }
+
 function asOptionalFiniteNumber(
   value: unknown,
   fieldName: string,
@@ -146,6 +161,7 @@ async function getGroupOrThrow(groupId: string) {
   const data = snap.data() ?? {};
   return { ref: groupRef, data };
 }
+
 function normalizeCurrency(value: unknown): "MXN" | "USD" | null {
   if (value === "MXN" || value === "USD") return value;
   return null;
@@ -286,6 +302,7 @@ function buildPreparationStatus(scheduleAt: TimestampLike): MeetGreetStatus {
 
   return "scheduled";
 }
+
 function getNoShowRejectAt(scheduleAt: TimestampLike): TimestampLike {
   const scheduleDate = scheduleAt.toDate();
   const rejectDate = new Date(
@@ -295,16 +312,97 @@ function getNoShowRejectAt(scheduleAt: TimestampLike): TimestampLike {
   return admin.firestore.Timestamp.fromDate(rejectDate);
 }
 
-function isCreatorNoShowExpired(
-  scheduledAt: TimestampLike,
-  preparingCreatorAt?: TimestampLike | null
-): boolean {
-  if (preparingCreatorAt) return false;
+function getNoShowExpiration(data: FirebaseFirestore.DocumentData): NoShowExpiration {
+  const scheduledAt = data.scheduledAt as TimestampLike | null | undefined;
 
-  const rejectAtMs =
-    scheduledAt.toDate().getTime() + CREATOR_JOIN_GRACE_MINUTES * 60 * 1000;
+  if (!scheduledAt) {
+    return {
+      shouldReject: false,
+      missingCreator: false,
+      missingBuyer: false,
+      reasonCode: null,
+      reasonText: null,
+    };
+  }
 
-  return Date.now() >= rejectAtMs;
+  const rejectAtMs = scheduledAt.toDate().getTime() + CREATOR_JOIN_GRACE_MINUTES * 60 * 1000;
+
+  if (Date.now() < rejectAtMs) {
+    return {
+      shouldReject: false,
+      missingCreator: false,
+      missingBuyer: false,
+      reasonCode: null,
+      reasonText: null,
+    };
+  }
+
+  const missingCreator = !data.preparingCreatorAt;
+  const missingBuyer = !data.preparingBuyerAt;
+
+  if (!missingCreator && !missingBuyer) {
+    return {
+      shouldReject: false,
+      missingCreator: false,
+      missingBuyer: false,
+      reasonCode: null,
+      reasonText: null,
+    };
+  }
+
+  if (missingCreator && missingBuyer) {
+    return {
+      shouldReject: true,
+      missingCreator,
+      missingBuyer,
+      reasonCode: "both_no_show_after_15_minutes",
+      reasonText:
+        "El creador y el comprador no se conectaron dentro de los 15 minutos posteriores a la hora agendada.",
+    };
+  }
+
+  if (missingCreator) {
+    return {
+      shouldReject: true,
+      missingCreator,
+      missingBuyer,
+      reasonCode: "creator_no_show_after_15_minutes",
+      reasonText:
+        "El creador no se conectó dentro de los 15 minutos posteriores a la hora agendada.",
+    };
+  }
+
+  return {
+    shouldReject: true,
+    missingCreator,
+    missingBuyer,
+    reasonCode: "buyer_no_show_after_15_minutes",
+    reasonText:
+      "El comprador no se conectó dentro de los 15 minutos posteriores a la hora agendada.",
+  };
+}
+
+async function rejectNoShowIfExpired(
+  ref: FirebaseFirestore.DocumentReference,
+  data: FirebaseFirestore.DocumentData,
+  now: TimestampLike
+): Promise<boolean> {
+  const expiration = getNoShowExpiration(data);
+
+  if (!expiration.shouldReject) return false;
+
+  await ref.update({
+    status: "rejected",
+    rejectedAt: now,
+    autoRejectedAt: now,
+    autoRejectReason: expiration.reasonCode,
+    noShowMissingCreator: expiration.missingCreator,
+    noShowMissingBuyer: expiration.missingBuyer,
+    rejectionReason: expiration.reasonText,
+    updatedAt: now,
+  });
+
+  return true;
 }
 
 export const createMeetGreetRequest = onCall(
@@ -322,20 +420,20 @@ export const createMeetGreetRequest = onCall(
       1000
     );
     const priceSnapshot = asOptionalFiniteNumber(
-  request.data?.priceSnapshot,
-  "priceSnapshot",
-  { min: 0, max: 1000000 }
-);
+      request.data?.priceSnapshot,
+      "priceSnapshot",
+      { min: 0, max: 1000000 }
+    );
 
-const durationMinutes = asOptionalFiniteNumber(
-  request.data?.durationMinutes,
-  "durationMinutes",
-  { min: 1, max: 600 }
-);
+    const durationMinutes = asOptionalFiniteNumber(
+      request.data?.durationMinutes,
+      "durationMinutes",
+      { min: 1, max: 600 }
+    );
 
-const groupData = await getGroupOrThrow(groupId);
-await assertMeetGreetEligibleMembership(groupId, uid);
-const meetGreetOffering = assertMeetGreetEnabled(groupData.data);
+    const groupData = await getGroupOrThrow(groupId);
+    await assertMeetGreetEligibleMembership(groupId, uid);
+    const meetGreetOffering = assertMeetGreetEnabled(groupData.data);
 
     const creatorId = groupData.data.ownerId as string | undefined;
     if (!creatorId) {
@@ -353,28 +451,28 @@ const meetGreetOffering = assertMeetGreetEnabled(groupData.data);
     const creatorProfile = await getUserProfile(creatorId);
 
     const docRef = db.collection(MEET_GREET_COLLECTION).doc();
-const offeringCurrency =
-  normalizeCurrency(meetGreetOffering?.currency) ??
-  normalizeCurrency(groupData.data?.monetization?.currency) ??
-  "MXN";
+    const offeringCurrency =
+      normalizeCurrency(meetGreetOffering?.currency) ??
+      normalizeCurrency(groupData.data?.monetization?.currency) ??
+      "MXN";
 
-const offeringPrice =
-  typeof meetGreetOffering?.memberPrice === "number"
-    ? meetGreetOffering.memberPrice
-    : typeof meetGreetOffering?.publicPrice === "number"
-    ? meetGreetOffering.publicPrice
-    : typeof meetGreetOffering?.price === "number"
-    ? meetGreetOffering.price
-    : null;
+    const offeringPrice =
+      typeof meetGreetOffering?.memberPrice === "number"
+        ? meetGreetOffering.memberPrice
+        : typeof meetGreetOffering?.publicPrice === "number"
+        ? meetGreetOffering.publicPrice
+        : typeof meetGreetOffering?.price === "number"
+        ? meetGreetOffering.price
+        : null;
 
-const offeringDuration =
-  typeof meetGreetOffering?.meta?.meetGreet?.durationMinutes === "number" &&
-  Number.isFinite(meetGreetOffering.meta.meetGreet.durationMinutes)
-    ? meetGreetOffering.meta.meetGreet.durationMinutes
-    : null;
+    const offeringDuration =
+      typeof meetGreetOffering?.meta?.meetGreet?.durationMinutes === "number" &&
+      Number.isFinite(meetGreetOffering.meta.meetGreet.durationMinutes)
+        ? meetGreetOffering.meta.meetGreet.durationMinutes
+        : null;
 
-const resolvedPriceSnapshot = priceSnapshot ?? offeringPrice ?? null;
-const resolvedDurationMinutes = durationMinutes ?? offeringDuration ?? null;
+    const resolvedPriceSnapshot = priceSnapshot ?? offeringPrice ?? null;
+    const resolvedDurationMinutes = durationMinutes ?? offeringDuration ?? null;
     const payload = {
       id: docRef.id,
       type: "digital_meet_greet",
@@ -384,12 +482,12 @@ const resolvedDurationMinutes = durationMinutes ?? offeringDuration ?? null;
       groupName: groupData.data.name ?? null,
 
       serviceSnapshot: {
-  type: "meet_greet_digital",
-  enabled: true,
-  currency: offeringCurrency,
-  price: resolvedPriceSnapshot,
-  durationMinutes: resolvedDurationMinutes,
-},
+        type: "meet_greet_digital",
+        enabled: true,
+        currency: offeringCurrency,
+        price: resolvedPriceSnapshot,
+        durationMinutes: resolvedDurationMinutes,
+      },
 
       buyerId: uid,
       buyerDisplayName: buyerProfile.displayName,
@@ -409,8 +507,8 @@ const resolvedDurationMinutes = durationMinutes ?? offeringDuration ?? null;
       refundRequestedAt: null,
 
       priceSnapshot: resolvedPriceSnapshot,
-currency: offeringCurrency,
-durationMinutes: resolvedDurationMinutes,
+      currency: offeringCurrency,
+      durationMinutes: resolvedDurationMinutes,
 
       acceptedAt: null,
       rejectedAt: null,
@@ -418,6 +516,8 @@ durationMinutes: resolvedDurationMinutes,
       scheduledAt: null,
       scheduledBy: null,
       scheduleProposedAt: null,
+      creatorScheduleNote: null,
+      creatorScheduleNoteUpdatedAt: null,
       scheduleHistory: [] as Array<{
         proposedAt: TimestampLike;
         proposedBy: string;
@@ -437,6 +537,12 @@ durationMinutes: resolvedDurationMinutes,
       preparingBuyerAt: null,
       preparingCreatorAt: null,
       preparationOpenedAt: null,
+
+      noShowRejectAt: null,
+      autoRejectedAt: null,
+      autoRejectReason: null,
+      noShowMissingCreator: false,
+      noShowMissingBuyer: false,
 
       paymentMode: "simulated_no_real_payment",
       paymentStatus: "simulated_paid",
@@ -571,22 +677,26 @@ export const proposeMeetGreetSchedule = onCall(
     const nextStatus = buildPreparationStatus(scheduledAt);
 
     await ref.update({
-  status: nextStatus,
-  scheduledAt,
-  scheduledBy: uid,
-  scheduleProposedAt: nowTs(),
-  noShowRejectAt: getNoShowRejectAt(scheduledAt),
-  autoRejectedAt: null,
-  autoRejectReason: null,
-  updatedAt: nowTs(),
-  scheduleHistory: admin.firestore.FieldValue.arrayUnion({
-    proposedAt: nowTs(),
-    proposedBy: uid,
-    startsAt: scheduledAt,
-    note,
-  }),
-  rescheduleRequestedAt: null,
-});
+      status: nextStatus,
+      scheduledAt,
+      scheduledBy: uid,
+      scheduleProposedAt: nowTs(),
+      creatorScheduleNote: note,
+      creatorScheduleNoteUpdatedAt: nowTs(),
+      noShowRejectAt: getNoShowRejectAt(scheduledAt),
+      autoRejectedAt: null,
+      autoRejectReason: null,
+      noShowMissingCreator: false,
+      noShowMissingBuyer: false,
+      updatedAt: nowTs(),
+      scheduleHistory: admin.firestore.FieldValue.arrayUnion({
+        proposedAt: nowTs(),
+        proposedBy: uid,
+        startsAt: scheduledAt,
+        note,
+      }),
+      rescheduleRequestedAt: null,
+    });
 
     logger.info("meet_greet_schedule_proposed", {
       requestId,
@@ -723,7 +833,7 @@ export const setMeetGreetPreparing = onCall(
 
     ensureStatusAllowed(
       status,
-      ["scheduled", "ready_to_prepare", "in_preparation"],
+      ACTIVE_SCHEDULED_STATUSES,
       "abrir preparación"
     );
 
@@ -732,25 +842,13 @@ export const setMeetGreetPreparing = onCall(
       throw new HttpsError("failed-precondition", "La solicitud todavía no tiene fecha agendada.");
     }
 
-    if (
-  role === "creator" &&
-  isCreatorNoShowExpired(scheduledAt, data.preparingCreatorAt ?? null)
-) {
-  await ref.update({
-    status: "rejected",
-    rejectedAt: nowTs(),
-    autoRejectedAt: nowTs(),
-    autoRejectReason: "creator_no_show_after_15_minutes",
-    rejectionReason:
-      "El creador no se conectó dentro de los 15 minutos posteriores a la hora agendada.",
-    updatedAt: nowTs(),
-  });
-
-  throw new HttpsError(
-    "failed-precondition",
-    "Este meet & greet fue rechazado automáticamente porque el creador no se conectó a tiempo."
-  );
-}
+    const rejectedByNoShow = await rejectNoShowIfExpired(ref, data, nowTs());
+    if (rejectedByNoShow) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Este meet & greet fue rechazado automáticamente porque una de las partes no se conectó a tiempo."
+      );
+    }
 
     const now = Date.now();
     const startsAtMs = scheduledAt.toDate().getTime();
@@ -797,6 +895,65 @@ export const setMeetGreetPreparing = onCall(
     };
   }
 );
+export async function expireMeetGreetNoShowsHandler() {
+  const now = nowTs();
+
+  const [byRejectAtSnap, byScheduledAtSnap] = await Promise.all([
+    db
+      .collection(MEET_GREET_COLLECTION)
+      .where("status", "in", ACTIVE_SCHEDULED_STATUSES)
+      .where("noShowRejectAt", "<=", now)
+      .limit(100)
+      .get(),
+
+    db
+      .collection(MEET_GREET_COLLECTION)
+      .where("status", "in", ACTIVE_SCHEDULED_STATUSES)
+      .where("scheduledAt", "<=", now)
+      .limit(100)
+      .get(),
+  ]);
+
+  const docsById = new Map<string, FirebaseFirestore.QueryDocumentSnapshot>();
+
+  byRejectAtSnap.docs.forEach((doc) => docsById.set(doc.id, doc));
+  byScheduledAtSnap.docs.forEach((doc) => docsById.set(doc.id, doc));
+
+  const batch = db.batch();
+  let expiredCount = 0;
+
+  docsById.forEach((doc) => {
+    const data = doc.data();
+    const expiration = getNoShowExpiration(data);
+
+    if (!expiration.shouldReject) return;
+
+    batch.update(doc.ref, {
+      status: "rejected",
+      rejectedAt: now,
+      autoRejectedAt: now,
+      autoRejectReason: expiration.reasonCode,
+      noShowMissingCreator: expiration.missingCreator,
+      noShowMissingBuyer: expiration.missingBuyer,
+      noShowRejectAt:
+        data.noShowRejectAt ?? getNoShowRejectAt(data.scheduledAt as TimestampLike),
+      rejectionReason: expiration.reasonText,
+      updatedAt: now,
+    });
+
+    expiredCount += 1;
+  });
+
+  if (expiredCount > 0) {
+    await batch.commit();
+  }
+
+  logger.info("meet_greet_no_shows_expired_handler", {
+    expiredCount,
+  });
+
+  return expiredCount;
+}
 
 export const expireMeetGreetNoShows = onCall(
   {
@@ -805,46 +962,9 @@ export const expireMeetGreetNoShows = onCall(
   },
   async (request) => {
     const uid = requireAuth(request.auth?.uid);
+    void uid;
 
-    const now = nowTs();
-
-    const expiredSnap = await db
-      .collection(MEET_GREET_COLLECTION)
-      .where("creatorId", "==", uid)
-      .where("status", "in", ["scheduled", "ready_to_prepare", "in_preparation"])
-      .where("noShowRejectAt", "<=", now)
-      .limit(20)
-      .get();
-
-    const batch = db.batch();
-    let expiredCount = 0;
-
-    expiredSnap.docs.forEach((doc) => {
-      const data = doc.data();
-
-      if (data.preparingCreatorAt) return;
-
-      batch.update(doc.ref, {
-        status: "rejected",
-        rejectedAt: now,
-        autoRejectedAt: now,
-        autoRejectReason: "creator_no_show_after_15_minutes",
-        rejectionReason:
-          "El creador no se conectó dentro de los 15 minutos posteriores a la hora agendada.",
-        updatedAt: now,
-      });
-
-      expiredCount += 1;
-    });
-
-    if (expiredCount > 0) {
-      await batch.commit();
-    }
-
-    logger.info("meet_greet_no_shows_expired", {
-      actorId: uid,
-      expiredCount,
-    });
+    const expiredCount = await expireMeetGreetNoShowsHandler();
 
     return {
       ok: true,

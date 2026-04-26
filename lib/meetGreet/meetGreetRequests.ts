@@ -50,6 +50,7 @@ export type ProposeMeetGreetScheduleResult = {
   status: string;
   scheduledAt: string;
   prepareWindowStartsAt: string;
+  noShowAutoRejectAt?: string;
 };
 
 export type RequestMeetGreetRescheduleInput = {

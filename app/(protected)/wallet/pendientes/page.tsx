@@ -12,7 +12,13 @@ import {
   WalletList,
 } from "../components/WalletUi";
 
-type PendingFilter = "all" | "meet_greet" | "exclusive_session" | "saludo" | "consejo" | "mensaje";
+type PendingFilter =
+  | "all"
+  | "meet_greet"
+  | "exclusive_session"
+  | "saludo"
+  | "consejo"
+  | "mensaje";
 
 const FILTER_OPTIONS: Array<{
   value: PendingFilter;
@@ -27,17 +33,60 @@ const FILTER_OPTIONS: Array<{
   { value: "mensaje", label: "Mensajes", emoji: "💬" },
 ];
 
+function isSafePendingStatus(status: string): boolean {
+  return ![
+    "rejected",
+    "refund_requested",
+    "refund_review",
+    "cancelled",
+    "completed",
+  ].includes(status);
+}
+
+function isNoShowExpired(value: Date | null): boolean {
+  if (!value) return false;
+
+  const rejectAt = value.getTime() + 15 * 60 * 1000;
+
+  return Date.now() >= rejectAt;
+}
+
+function isExpiredScheduledService(item: {
+  kind: string;
+  scheduledAt: Date | null;
+  preparingCreatorAt?: Date | null;
+  preparingBuyerAt?: Date | null;
+}): boolean {
+  const isScheduledService =
+    item.kind === "meet_greet" || item.kind === "exclusive_session";
+
+  return (
+    isScheduledService &&
+    (!item.preparingCreatorAt || !item.preparingBuyerAt) &&
+    isNoShowExpired(item.scheduledAt)  
+  );
+}
+
 export default function WalletPendientesPage() {
   const { user } = useAuth();
   const walletData = useOwnerWalletData(user?.uid);
   const [filter, setFilter] = useState<PendingFilter>("all");
 
-  const totalPendingCount = walletData.pendingCurrent.length;
+  const safePendingItems = useMemo(() => {
+  return walletData.pendingCurrent.filter((item) => {
+    if (!isSafePendingStatus(item.status)) return false;
+    if (isExpiredScheduledService(item)) return false;
+
+    return true;
+  });
+}, [walletData.pendingCurrent]);
+
+  const totalPendingCount = safePendingItems.length;
 
   const filteredItems = useMemo(() => {
-    if (filter === "all") return walletData.pendingCurrent;
-    return walletData.pendingCurrent.filter((item) => item.kind === filter);
-  }, [filter, walletData.pendingCurrent]);
+    if (filter === "all") return safePendingItems;
+    return safePendingItems.filter((item) => item.kind === filter);
+  }, [filter, safePendingItems]);
 
   const filteredCount = filteredItems.length;
 
