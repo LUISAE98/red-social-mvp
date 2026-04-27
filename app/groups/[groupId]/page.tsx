@@ -1872,16 +1872,17 @@ const canRequestMeetGreet =
               />
 
               <DonationEntryPoint
-                donation={normalizedCurrentDonation}
-                isLoggedIn={!!user}
-                onRequireLogin={redirectToLogin}
-                videoEnabled={false}
-                videoUrl={null}
-                buttonStyle={coverDonationButton}
-                onDonateIntent={(payload) => {
-                  console.log("donation_intent", payload);
-                }}
-              />
+  donation={normalizedCurrentDonation}
+  isLoggedIn={!!user}
+  onRequireLogin={redirectToLogin}
+  viewerCanDonate={!isOwner}
+  videoEnabled={false}
+  videoUrl={null}
+  buttonStyle={coverDonationButton}
+  onDonateIntent={(payload) => {
+    console.log("donation_intent", payload);
+  }}
+/>
 
               {isOwner && (
                 <button
@@ -1925,16 +1926,15 @@ const canRequestMeetGreet =
                     {visibilityLabel(String(group.visibility ?? ""))}
                   </div>
 
-                  {!isOwner &&
-  canRequestCreatorServices &&
+                  {canRequestCreatorServices &&
   normalizedCurrentOfferings.length > 0 && (
     <div className="group-services-wrap">
       <CreatorServicesMenu
         services={normalizedCurrentOfferings}
         contextType="group"
         groupId={groupId}
-        viewerMembershipStatus={memberStatus}
-        viewerCanRequest={!isOwner && canRequestCreatorServices}
+        viewerMembershipStatus={isOwner ? "active" : memberStatus}
+        viewerCanRequest={canRequestCreatorServices}
       />
     </div>
   )}

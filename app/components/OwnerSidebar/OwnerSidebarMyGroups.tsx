@@ -1749,7 +1749,7 @@ const scheduleConflictMessage = scheduleConflict.message;
                                             color: "#bfdbfe",
                                           }}
                                         >
-                                          🎥 Ya puedes entrar a preparación.
+                                          🤝 Ya puedes entrar a preparación.
                                         </div>
                                       ) : null}
                                                                             {(req.priceSnapshot != null ||

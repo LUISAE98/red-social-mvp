@@ -1165,7 +1165,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
           ? renderTextBox(`⚠️ Tu ${serviceTitle.toLowerCase()} está próximo a iniciar.`, "warning")
           : null}
 
-        {canPrepare ? renderTextBox("🎥 Ya puedes entrar a preparación.", "info") : null}
+        {canPrepare ? renderTextBox("🤝 Ya puedes entrar a preparación.", "info") : null}
 
         {(req.priceSnapshot != null || req.durationMinutes != null) ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
@@ -1417,7 +1417,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
         {isStartingSoon(req.scheduledAt) && !noShowExpired
           ? renderTextBox(`⚠️ Este ${serviceTitle.toLowerCase()} está próximo a iniciar.`, "warning")
           : null}
-        {canPrepare ? renderTextBox("🎥 Ya puedes entrar a preparación.", "info") : null}
+        {canPrepare ? renderTextBox("🤝 Ya puedes entrar a preparación.", "info") : null}
 
         {(req.priceSnapshot != null || req.durationMinutes != null) ? (
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
