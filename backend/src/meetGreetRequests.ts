@@ -9,9 +9,12 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 const REGION = "us-central1";
 const MEET_GREET_COLLECTION = "meetGreetRequests";
+const EXCLUSIVE_SESSION_COLLECTION = "exclusiveSessionRequests";
 const MAX_RESCHEDULE_REQUESTS = 2;
 const PREPARE_WINDOW_MINUTES = 10;
 const CREATOR_JOIN_GRACE_MINUTES = 15;
+const SCHEDULE_SEPARATION_MARGIN_MINUTES = 15;
+const DEFAULT_MEET_GREET_DURATION_MINUTES = 30;
 
 const ACTIVE_SCHEDULED_STATUSES: MeetGreetStatus[] = [
   "scheduled",
@@ -310,6 +313,73 @@ function getNoShowRejectAt(scheduleAt: TimestampLike): TimestampLike {
   );
 
   return admin.firestore.Timestamp.fromDate(rejectDate);
+}
+
+function getSafeDurationMinutes(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+
+  return DEFAULT_MEET_GREET_DURATION_MINUTES;
+}
+
+async function assertNoCreatorScheduleConflict(params: {
+  creatorId: string;
+  requestId: string;
+  scheduledAt: TimestampLike;
+  durationMinutes: number;
+}) {
+  const marginMs = SCHEDULE_SEPARATION_MARGIN_MINUTES * 60 * 1000;
+  const newStartMs = params.scheduledAt.toDate().getTime();
+  const newEndMs = newStartMs + params.durationMinutes * 60 * 1000;
+
+  const collectionsToCheck = [
+    {
+      name: MEET_GREET_COLLECTION,
+      currentRequestBelongsHere: true,
+      conflictLabel: "otro Meet & Greet",
+    },
+    {
+      name: EXCLUSIVE_SESSION_COLLECTION,
+      currentRequestBelongsHere: false,
+      conflictLabel: "una sesión exclusiva",
+    },
+  ];
+
+  for (const collectionConfig of collectionsToCheck) {
+    const snap = await db
+      .collection(collectionConfig.name)
+      .where("creatorId", "==", params.creatorId)
+      .where("status", "in", ACTIVE_SCHEDULED_STATUSES)
+      .limit(100)
+      .get();
+
+    for (const doc of snap.docs) {
+      if (collectionConfig.currentRequestBelongsHere && doc.id === params.requestId) {
+        continue;
+      }
+
+      const data = doc.data();
+      const existingScheduledAt = data.scheduledAt as TimestampLike | null | undefined;
+
+      if (!existingScheduledAt) continue;
+
+      const existingDurationMinutes = getSafeDurationMinutes(data.durationMinutes);
+      const existingStartMs = existingScheduledAt.toDate().getTime();
+      const existingEndMs = existingStartMs + existingDurationMinutes * 60 * 1000;
+
+      const hasConflict =
+        newStartMs < existingEndMs + marginMs &&
+        newEndMs + marginMs > existingStartMs;
+
+      if (hasConflict) {
+        throw new HttpsError(
+          "failed-precondition",
+          `Ese horario se cruza con ${collectionConfig.conflictLabel} del creador. Debe existir al menos 15 minutos de separación.`
+        );
+      }
+    }
+  }
 }
 
 function getNoShowExpiration(data: FirebaseFirestore.DocumentData): NoShowExpiration {
@@ -673,6 +743,13 @@ export const proposeMeetGreetSchedule = onCall(
     if (scheduleDate.getTime() <= Date.now()) {
       throw new HttpsError("failed-precondition", "La fecha propuesta debe ser futura.");
     }
+
+    await assertNoCreatorScheduleConflict({
+      creatorId: uid,
+      requestId,
+      scheduledAt,
+      durationMinutes: getSafeDurationMinutes(data.durationMinutes),
+    });
 
     const nextStatus = buildPreparationStatus(scheduledAt);
 
