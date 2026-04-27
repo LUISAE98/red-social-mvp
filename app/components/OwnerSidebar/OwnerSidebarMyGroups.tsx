@@ -2,8 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
+
 import InviteLinkModal from "./InviteLinkModal";
 import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
+import ScheduleCalendarOverlay from "@/app/(protected)/wallet/components/ScheduleCalendarOverlay";
+import { WalletServiceRow } from "@/app/(protected)/wallet/components/WalletUi";
+
+import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
+
 import type {
   GroupDocLite,
   GreetingRequestDoc,
@@ -12,19 +18,28 @@ import type {
   ExclusiveSessionRequestDoc,
   UserMini,
 } from "./OwnerSidebar";
+
 import { Chevron, CountBadge, typeLabel } from "./OwnerSidebar";
+
 import {
   acceptMeetGreetRequest,
   proposeMeetGreetSchedule,
   rejectMeetGreetRequest,
   setMeetGreetPreparing,
 } from "@/lib/meetGreet/meetGreetRequests";
+
 import {
   acceptExclusiveSessionRequest,
   proposeExclusiveSessionSchedule,
   rejectExclusiveSessionRequest,
   setExclusiveSessionPreparing,
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
+
+import ScheduleDateTimeSelector, {
+  getSchedulePartsFromDate,
+  schedulePartsToIso,
+  type ScheduleParts,
+} from "@/app/(protected)/wallet/components/ScheduleDateTimeSelector";
 
 type ScheduledServiceKind = "meet_greet" | "exclusive_session";
 
@@ -33,44 +48,46 @@ type Props = {
   myGroups: GroupDocLite[];
   ownedGrouped: Array<{ key: string; title: string; items: GroupDocLite[] }>;
   openCommunities: Record<string, boolean>;
+
   joinRequestsByGroup: Record<string, JoinRequestRow[]>;
   greetingsByGroup: Record<string, Array<{ id: string; data: GreetingRequestDoc }>>;
   meetGreetsByGroup: Record<string, Array<{ id: string; data: MeetGreetRequestDoc }>>;
   exclusiveSessionsByGroup: Record<string, Array<{ id: string; data: ExclusiveSessionRequestDoc }>>;
+
   greetingSectionOpen: Record<string, boolean>;
   joinSectionOpen: Record<string, boolean>;
+
   seenCountsByGroup: Record<string, { join: number; greeting: number }>;
   userMiniMap: Record<string, UserMini>;
+
   styles: Record<string, React.CSSProperties>;
+
   getInitials: (name?: string | null) => string;
   renderUserLink: (uid: string) => React.ReactNode;
-  setOpenCommunities: React.Dispatch<
-    React.SetStateAction<Record<string, boolean>>
-  >;
+
+  setOpenCommunities: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   setSeenCountsByGroup: React.Dispatch<
     React.SetStateAction<Record<string, { join: number; greeting: number }>>
   >;
-  setJoinSectionOpen: React.Dispatch<
-    React.SetStateAction<Record<string, boolean>>
-  >;
-  setGreetingSectionOpen: React.Dispatch<
-    React.SetStateAction<Record<string, boolean>>
-  >;
+
+  setJoinSectionOpen: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  setGreetingSectionOpen: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+
   handleApproveJoin: (groupId: string, userId: string) => Promise<void>;
   handleRejectJoin: (groupId: string, userId: string) => Promise<void>;
+
   handleGreetingAction: (
     requestId: string,
     action: "accept" | "reject"
   ) => Promise<void>;
+
   joinBusyKey: string | null;
   greetingBusyId: string | null;
 };
 
 type BusyMap = Record<string, boolean>;
 type TextMap = Record<string, string>;
-type DateMap = Record<string, string>;
 type ToggleMap = Record<string, boolean>;
-
 function getTypeChipStyle(type: string): React.CSSProperties {
   if (type === "saludo") {
     return {
@@ -79,7 +96,6 @@ function getTypeChipStyle(type: string): React.CSSProperties {
       color: "#86efac",
     };
   }
-
   if (type === "consejo") {
     return {
       border: "1px solid rgba(250,204,21,0.30)",
@@ -87,7 +103,6 @@ function getTypeChipStyle(type: string): React.CSSProperties {
       color: "#fde047",
     };
   }
-
   if (type === "meet_greet_digital") {
     return {
       border: "1px solid rgba(96,165,250,0.30)",
@@ -95,7 +110,6 @@ function getTypeChipStyle(type: string): React.CSSProperties {
       color: "#93c5fd",
     };
   }
-
   if (
     type === "digital_exclusive_session" ||
     type === "exclusive_session" ||
@@ -107,7 +121,6 @@ function getTypeChipStyle(type: string): React.CSSProperties {
       color: "#d8b4fe",
     };
   }
-
   return {
     border: "1px solid rgba(255,255,255,0.14)",
     background: "rgba(255,255,255,0.06)",
@@ -156,7 +169,6 @@ function getMeetGreetStatusStyle(status: string): React.CSSProperties {
       color: "#86efac",
     };
   }
-
   if (status === "in_preparation") {
     return {
       border: "1px solid rgba(96,165,250,0.30)",
@@ -164,7 +176,6 @@ function getMeetGreetStatusStyle(status: string): React.CSSProperties {
       color: "#93c5fd",
     };
   }
-
   if (
     status === "reschedule_requested" ||
     status === "ready_to_prepare" ||
@@ -177,7 +188,6 @@ function getMeetGreetStatusStyle(status: string): React.CSSProperties {
       color: "#fde047",
     };
   }
-
   if (status === "rejected" || status === "cancelled") {
     return {
       border: "1px solid rgba(248,113,113,0.28)",
@@ -185,7 +195,6 @@ function getMeetGreetStatusStyle(status: string): React.CSSProperties {
       color: "#fca5a5",
     };
   }
-
   return {
     border: "1px solid rgba(255,255,255,0.14)",
     background: "rgba(255,255,255,0.06)",
@@ -221,10 +230,8 @@ function formatUnknownDate(value: unknown): string | null {
 
   return null;
 }
-
 function formatMoney(value: number, currency?: string | null): string {
   const safeCurrency = currency === "USD" ? "USD" : "MXN";
-
   try {
     return new Intl.NumberFormat("es-MX", {
       style: "currency",
@@ -236,7 +243,9 @@ function formatMoney(value: number, currency?: string | null): string {
   }
 }
 
-function getRequestCurrency(req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc): string {
+function getRequestCurrency(
+  req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc
+): string {
   return req.currency ?? req.serviceSnapshot?.currency ?? "MXN";
 }
 
@@ -286,12 +295,12 @@ function isPrepareWindowOpen(value: unknown): boolean {
 
   return now >= prepareFrom;
 }
+
 function isNoShowExpired(value: unknown): boolean {
   const date = toDateSafe(value);
   if (!date) return false;
 
   const rejectAt = date.getTime() + 15 * 60 * 1000;
-
   return Date.now() >= rejectAt;
 }
 
@@ -311,23 +320,11 @@ function isPreparationVisibleWindow(value: unknown): boolean {
 
   const now = Date.now();
   const startsAt = date.getTime();
+
   const prepareFrom = startsAt - 10 * 60 * 1000;
   const rejectAt = startsAt + 15 * 60 * 1000;
 
   return now >= prepareFrom && now < rejectAt;
-}
-
-function toDateTimeLocalValue(value: unknown): string {
-  const date = toDateSafe(value);
-  if (!date) return "";
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hour = String(date.getHours()).padStart(2, "0");
-  const minute = String(date.getMinutes()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
 function isServiceRequestAlertStatus(status?: string | null): boolean {
@@ -367,10 +364,46 @@ function getServiceEmoji(type: string): string {
     type === "digital_exclusive_session" ||
     type === "exclusive_session" ||
     type === "clase_personalizada"
-  ) return "👑";
+  )
+    return "👑";
   return "👑";
 }
 
+function getScheduleConflictMessage({
+  selectedDate,
+  items,
+  excludeId,
+}: {
+  selectedDate: Date | null;
+  items: WalletServiceItem[];
+  excludeId?: string;
+}): string | null {
+  if (!selectedDate) return null;
+
+  const selectedTime = selectedDate.getTime();
+  const minimumGapMs = 15 * 60 * 1000;
+
+  const conflict = items.find((item) => {
+    if (!item.scheduledAt) return false;
+    if (excludeId && item.id === excludeId) return false;
+
+    if (
+      item.status !== "scheduled" &&
+      item.status !== "ready_to_prepare" &&
+      item.status !== "in_preparation"
+    ) {
+      return false;
+    }
+
+    const eventTime = item.scheduledAt.getTime();
+
+    return Math.abs(selectedTime - eventTime) < minimumGapMs;
+  });
+
+  if (!conflict) return null;
+
+  return "Ese horario se cruza con otro Meet & Greet o sesión exclusiva del creador. Debe existir al menos 15 minutos de separación.";
+}
 export default function OwnerSidebarMyGroups({
   loadingGroups,
   myGroups,
@@ -402,13 +435,22 @@ export default function OwnerSidebarMyGroups({
   const [meetGreetBusyMap, setMeetGreetBusyMap] = useState<BusyMap>({});
   const [meetGreetErrorMap, setMeetGreetErrorMap] = useState<TextMap>({});
   const [meetGreetSuccessMap, setMeetGreetSuccessMap] = useState<TextMap>({});
+
   const [rejectOpenMap, setRejectOpenMap] = useState<ToggleMap>({});
   const [scheduleOpenMap, setScheduleOpenMap] = useState<ToggleMap>({});
+  const [calendarOpenMap, setCalendarOpenMap] = useState<ToggleMap>({});
+  const [calendarEventOpenKey, setCalendarEventOpenKey] =
+    useState<string | null>(null);
+
   const [preparationOpenMap, setPreparationOpenMap] = useState<ToggleMap>({});
   const [preparationRoleMap, setPreparationRoleMap] = useState<TextMap>({});
+
   const [rejectReasonMap, setRejectReasonMap] = useState<TextMap>({});
   const [scheduleNoteMap, setScheduleNoteMap] = useState<TextMap>({});
-  const [scheduleDateMap, setScheduleDateMap] = useState<DateMap>({});
+  const [schedulePartsMap, setSchedulePartsMap] = useState<
+    Record<string, ScheduleParts>
+  >({});
+
   const emojiAlertStyle: React.CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
@@ -420,7 +462,10 @@ export default function OwnerSidebarMyGroups({
   };
 
   function setMeetGreetBusy(requestId: string, value: boolean) {
-    setMeetGreetBusyMap((prev) => ({ ...prev, [requestId]: value }));
+    setMeetGreetBusyMap((prev) => ({
+      ...prev,
+      [requestId]: value,
+    }));
   }
 
   function setMeetGreetError(requestId: string, value: string | null) {
@@ -456,7 +501,11 @@ export default function OwnerSidebarMyGroups({
         requestId,
         "✅ Solicitud aceptada. Ahora puedes proponer fecha y hora."
       );
-      setScheduleOpenMap((prev) => ({ ...prev, [requestId]: true }));
+
+      setScheduleOpenMap((prev) => ({
+        ...prev,
+        [requestId]: true,
+      }));
     } catch (e: any) {
       setMeetGreetError(
         requestId,
@@ -466,8 +515,7 @@ export default function OwnerSidebarMyGroups({
       setMeetGreetBusy(requestId, false);
     }
   }
-
-  async function handleCreatorReject(
+    async function handleCreatorReject(
     requestId: string,
     kind: ScheduledServiceKind
   ) {
@@ -489,7 +537,11 @@ export default function OwnerSidebarMyGroups({
       }
 
       setMeetGreetSuccess(requestId, "✅ Solicitud rechazada.");
-      setRejectOpenMap((prev) => ({ ...prev, [requestId]: false }));
+
+      setRejectOpenMap((prev) => ({
+        ...prev,
+        [requestId]: false,
+      }));
     } catch (e: any) {
       setMeetGreetError(
         requestId,
@@ -504,10 +556,11 @@ export default function OwnerSidebarMyGroups({
     requestId: string,
     kind: ScheduledServiceKind
   ) {
-    const scheduledAt = (scheduleDateMap[requestId] ?? "").trim();
+    const parts = schedulePartsMap[requestId];
+    const scheduledAt = parts ? schedulePartsToIso(parts) : null;
 
     if (!scheduledAt) {
-      setMeetGreetError(requestId, "Selecciona fecha y hora.");
+      setMeetGreetError(requestId, "Selecciona día, mes, año, hora y minuto.");
       return;
     }
 
@@ -518,7 +571,7 @@ export default function OwnerSidebarMyGroups({
     try {
       const payload = {
         requestId,
-        scheduledAt: new Date(scheduledAt).toISOString(),
+        scheduledAt,
         note: scheduleNoteMap[requestId] ?? null,
       };
 
@@ -532,7 +585,11 @@ export default function OwnerSidebarMyGroups({
         requestId,
         "✅ Fecha propuesta/agendada correctamente."
       );
-      setScheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
+
+      setScheduleOpenMap((prev) => ({
+        ...prev,
+        [requestId]: false,
+      }));
     } catch (e: any) {
       setMeetGreetError(
         requestId,
@@ -579,8 +636,7 @@ export default function OwnerSidebarMyGroups({
       setMeetGreetBusy(requestId, false);
     }
   }
-
-  function renderMeetGreetFeedback(requestId: string) {
+    function renderMeetGreetFeedback(requestId: string) {
     const error = meetGreetErrorMap[requestId];
     const success = meetGreetSuccessMap[requestId];
 
@@ -642,6 +698,111 @@ export default function OwnerSidebarMyGroups({
     );
   }
 
+  function buildOwnerCalendarItems(): WalletServiceItem[] {
+    const groupNameById = new Map(
+      myGroups.map((group) => [group.id, group.name ?? null])
+    );
+
+    const meetGreetItems: WalletServiceItem[] = Object.entries(
+      meetGreetsByGroup
+    ).flatMap(([groupId, rows]) =>
+      rows.map((row) => ({
+        id: row.id,
+        kind: "meet_greet",
+        title: "Meet & Greet",
+        groupId,
+        groupName: groupNameById.get(groupId) ?? null,
+        buyerId: row.data.buyerId ?? "",
+        buyerDisplayName: (row.data as any).buyerDisplayName ?? null,
+        buyerUsername: (row.data as any).buyerUsername ?? null,
+        buyerAvatarUrl: (row.data as any).buyerAvatarUrl ?? null,
+        targetName: null,
+        requestText: row.data.buyerMessage ?? null,
+        status: row.data.status,
+        statusLabel: getMeetGreetStatusLabel(row.data.status),
+        description: row.data.buyerMessage ?? null,
+        creatorScheduleNote: getCreatorScheduleNote(row.data),
+        creatorScheduleNoteUpdatedAt: toDateSafe(
+          (row.data as any).creatorScheduleNoteUpdatedAt
+        ),
+        rejectionReason: row.data.rejectionReason ?? null,
+        refundReason: row.data.refundReason ?? null,
+        priceSnapshot:
+          typeof row.data.priceSnapshot === "number"
+            ? row.data.priceSnapshot
+            : null,
+        currency: getRequestCurrency(row.data) === "USD" ? "USD" : "MXN",
+        durationMinutes:
+          typeof row.data.durationMinutes === "number"
+            ? row.data.durationMinutes
+            : null,
+        source: "meet_greet",
+        scheduledAt: toDateSafe(row.data.scheduledAt),
+        acceptedAt: toDateSafe((row.data as any).acceptedAt),
+        rejectedAt: toDateSafe((row.data as any).rejectedAt),
+        preparingBuyerAt: toDateSafe((row.data as any).preparingBuyerAt),
+        preparingCreatorAt: toDateSafe((row.data as any).preparingCreatorAt),
+        preparationOpenedAt: toDateSafe((row.data as any).preparationOpenedAt),
+        noShowRejectAt: toDateSafe((row.data as any).noShowRejectAt),
+        autoRejectedAt: toDateSafe((row.data as any).autoRejectedAt),
+        autoRejectReason: (row.data as any).autoRejectReason ?? null,
+        noShowRole: (row.data as any).noShowRole ?? null,
+        createdAt: toDateSafe(row.data.createdAt),
+        updatedAt: toDateSafe(row.data.updatedAt),
+      }))
+    );
+        const exclusiveSessionItems: WalletServiceItem[] = Object.entries(
+      exclusiveSessionsByGroup
+    ).flatMap(([groupId, rows]) =>
+      rows.map((row) => ({
+        id: row.id,
+        kind: "exclusive_session",
+        title: "Sesión exclusiva",
+        groupId,
+        groupName: groupNameById.get(groupId) ?? null,
+        buyerId: row.data.buyerId ?? "",
+        buyerDisplayName: (row.data as any).buyerDisplayName ?? null,
+        buyerUsername: (row.data as any).buyerUsername ?? null,
+        buyerAvatarUrl: (row.data as any).buyerAvatarUrl ?? null,
+        targetName: null,
+        requestText: row.data.buyerMessage ?? null,
+        status: row.data.status,
+        statusLabel: getMeetGreetStatusLabel(row.data.status),
+        description: row.data.buyerMessage ?? null,
+        creatorScheduleNote: getCreatorScheduleNote(row.data),
+        creatorScheduleNoteUpdatedAt: toDateSafe(
+          (row.data as any).creatorScheduleNoteUpdatedAt
+        ),
+        rejectionReason: row.data.rejectionReason ?? null,
+        refundReason: row.data.refundReason ?? null,
+        priceSnapshot:
+          typeof row.data.priceSnapshot === "number"
+            ? row.data.priceSnapshot
+            : null,
+        currency: getRequestCurrency(row.data) === "USD" ? "USD" : "MXN",
+        durationMinutes:
+          typeof row.data.durationMinutes === "number"
+            ? row.data.durationMinutes
+            : null,
+        source: "exclusive_session",
+        scheduledAt: toDateSafe(row.data.scheduledAt),
+        acceptedAt: toDateSafe((row.data as any).acceptedAt),
+        rejectedAt: toDateSafe((row.data as any).rejectedAt),
+        preparingBuyerAt: toDateSafe((row.data as any).preparingBuyerAt),
+        preparingCreatorAt: toDateSafe((row.data as any).preparingCreatorAt),
+        preparationOpenedAt: toDateSafe((row.data as any).preparationOpenedAt),
+        noShowRejectAt: toDateSafe((row.data as any).noShowRejectAt),
+        autoRejectedAt: toDateSafe((row.data as any).autoRejectedAt),
+        autoRejectReason: (row.data as any).autoRejectReason ?? null,
+        noShowRole: (row.data as any).noShowRole ?? null,
+        createdAt: toDateSafe(row.data.createdAt),
+        updatedAt: toDateSafe(row.data.updatedAt),
+      }))
+    );
+
+    return [...meetGreetItems, ...exclusiveSessionItems];
+  }
+
   return (
     <>
       {!loadingGroups && myGroups.length === 0 && (
@@ -669,6 +830,7 @@ export default function OwnerSidebarMyGroups({
             const greetings = greetingsByGroup[g.id] ?? [];
             const meetGreets = meetGreetsByGroup[g.id] ?? [];
             const exclusiveSessions = exclusiveSessionsByGroup[g.id] ?? [];
+
             const communityName = g.name ?? "(Sin nombre)";
             const avatarFallback = getInitials(communityName);
 
@@ -705,21 +867,23 @@ export default function OwnerSidebarMyGroups({
 
               if (
                 shouldHideExpiredPreparationAlert(
-  row.data.status,
-  row.data.scheduledAt
-)
+                  row.data.status,
+                  row.data.scheduledAt
+                )
               ) {
                 return false;
               }
 
               return isPreparationVisibleWindow(row.data.scheduledAt);
             });
-
-            const greetingServiceCount = greetings.length;
+                        const greetingServiceCount = greetings.length;
             const scheduledServiceRequestCount = scheduledServiceRequests.length;
             const upcomingServiceCount = upcomingScheduledServices.length;
+
             const totalServiceCount =
-            greetingServiceCount + scheduledServiceRequestCount + upcomingServiceCount;
+              greetingServiceCount +
+              scheduledServiceRequestCount +
+              upcomingServiceCount;
 
             const sortedGreetings = [...greetings].sort((a, b) => {
               const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
@@ -727,13 +891,17 @@ export default function OwnerSidebarMyGroups({
               return aTime - bTime;
             });
 
-            const sortedScheduledServiceRequests = [...scheduledServiceRequests].sort((a, b) => {
+            const sortedScheduledServiceRequests = [
+              ...scheduledServiceRequests,
+            ].sort((a, b) => {
               const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
               const bTime = toDateSafe(b.data.createdAt)?.getTime() ?? 0;
               return aTime - bTime;
             });
 
-            const sortedUpcomingScheduledServices = [...upcomingScheduledServices].sort((a, b) => {
+            const sortedUpcomingScheduledServices = [
+              ...upcomingScheduledServices,
+            ].sort((a, b) => {
               const aTime = toDateSafe(a.data.scheduledAt)?.getTime() ?? 0;
               const bTime = toDateSafe(b.data.scheduledAt)?.getTime() ?? 0;
               return aTime - bTime;
@@ -742,22 +910,32 @@ export default function OwnerSidebarMyGroups({
             const showJoinSection = !isPublic && joinRequests.length > 0;
             const showGreetingsSection = totalServiceCount > 0;
             const showUpcomingSection = upcomingServiceCount > 0;
+
             const greetingListOpen = greetingSectionOpen[g.id] === true;
             const joinListOpen = joinSectionOpen[g.id] === true;
 
-            const hasSaludoAlert = greetings.some((row) => row.data.type === "saludo");
+            const hasSaludoAlert = greetings.some(
+              (row) => row.data.type === "saludo"
+            );
+
             const hasConsejoAlert = greetings.some(
               (row) => row.data.type === "consejo"
             );
-            const hasMeetGreetServiceRequestAlert = scheduledServiceRequests.some(
-              (row) => row.serviceKind === "meet_greet"
-            );
-            const hasExclusiveSessionServiceRequestAlert = scheduledServiceRequests.some(
-              (row) => row.serviceKind === "exclusive_session"
-            );
+
+            const hasMeetGreetServiceRequestAlert =
+              scheduledServiceRequests.some(
+                (row) => row.serviceKind === "meet_greet"
+              );
+
+            const hasExclusiveSessionServiceRequestAlert =
+              scheduledServiceRequests.some(
+                (row) => row.serviceKind === "exclusive_session"
+              );
+
             const hasPreparingAlert = upcomingServiceCount > 0;
 
             const currentJoinCount = showJoinSection ? joinRequests.length : 0;
+
             const currentGreetingCount = showGreetingsSection
               ? greetings.length + scheduledServiceRequests.length
               : 0;
@@ -844,8 +1022,7 @@ export default function OwnerSidebarMyGroups({
                           {avatarFallback}
                         </div>
                       )}
-
-                      <div
+                                            <div
                         style={{
                           minWidth: 0,
                           display: "grid",
@@ -892,7 +1069,8 @@ export default function OwnerSidebarMyGroups({
                             <span style={emojiAlertStyle}>🤝</span>
                           ) : null}
 
-                          {hasNewGreeting && hasExclusiveSessionServiceRequestAlert ? (
+                          {hasNewGreeting &&
+                          hasExclusiveSessionServiceRequestAlert ? (
                             <span style={emojiAlertStyle}>👑</span>
                           ) : null}
 
@@ -907,6 +1085,7 @@ export default function OwnerSidebarMyGroups({
                       type="button"
                       onClick={() => {
                         const nextOpen = !openCommunities[g.id];
+
                         setOpenCommunities((prev) => ({
                           ...prev,
                           [g.id]: nextOpen,
@@ -967,9 +1146,10 @@ export default function OwnerSidebarMyGroups({
                               >
                                 Link de invitación
                               </span>
+
                               <span style={styles.subtle}>
-                                Genera un link con vigencia personalizada y copia
-                                automática al portapapeles.
+                                Genera un link con vigencia personalizada y
+                                copia automática al portapapeles.
                               </span>
                             </div>
 
@@ -986,8 +1166,7 @@ export default function OwnerSidebarMyGroups({
                           </div>
                         </div>
                       )}
-
-                      {showJoinSection && (
+                                            {showJoinSection && (
                         <div style={styles.sectionPanel}>
                           <button
                             type="button"
@@ -1027,8 +1206,10 @@ export default function OwnerSidebarMyGroups({
                               >
                                 Solicitudes de acceso
                               </span>
+
                               <CountBadge count={joinRequests.length} tone="blue" />
                             </div>
+
                             <Chevron open={joinListOpen} />
                           </button>
 
@@ -1041,8 +1222,11 @@ export default function OwnerSidebarMyGroups({
                                   const busy =
                                     joinBusyKey === approveKey ||
                                     joinBusyKey === rejectKey;
+
                                   const requester = userMiniMap[r.userId] ?? null;
-                                  const letter = getInitials(requester?.displayName);
+                                  const letter = getInitials(
+                                    requester?.displayName
+                                  );
 
                                   return (
                                     <div key={r.id} style={styles.miniItem}>
@@ -1074,7 +1258,8 @@ export default function OwnerSidebarMyGroups({
                                               width: 28,
                                               height: 28,
                                               borderRadius: 10,
-                                              background: "rgba(255,255,255,0.05)",
+                                              background:
+                                                "rgba(255,255,255,0.05)",
                                               border:
                                                 "1px solid rgba(255,255,255,0.12)",
                                               display: "flex",
@@ -1102,6 +1287,7 @@ export default function OwnerSidebarMyGroups({
                                           >
                                             {renderUserLink(r.userId)}
                                           </div>
+
                                           <div style={styles.subtle}>
                                             Solicitud pendiente
                                           </div>
@@ -1124,7 +1310,9 @@ export default function OwnerSidebarMyGroups({
                                           style={{
                                             ...styles.buttonPrimary,
                                             opacity: busy ? 0.8 : 1,
-                                            cursor: busy ? "not-allowed" : "pointer",
+                                            cursor: busy
+                                              ? "not-allowed"
+                                              : "pointer",
                                           }}
                                         >
                                           {busy ? "Procesando..." : "Aprobar"}
@@ -1139,7 +1327,9 @@ export default function OwnerSidebarMyGroups({
                                           style={{
                                             ...styles.buttonSecondary,
                                             opacity: busy ? 0.7 : 1,
-                                            cursor: busy ? "not-allowed" : "pointer",
+                                            cursor: busy
+                                              ? "not-allowed"
+                                              : "pointer",
                                           }}
                                         >
                                           {busy ? "Procesando..." : "Rechazar"}
@@ -1153,8 +1343,7 @@ export default function OwnerSidebarMyGroups({
                           )}
                         </div>
                       )}
-
-                      {showGreetingsSection && (
+                                            {showGreetingsSection && (
                         <div style={styles.sectionPanel}>
                           <button
                             type="button"
@@ -1218,6 +1407,7 @@ export default function OwnerSidebarMyGroups({
                                 </span>
                               ) : null}
                             </div>
+
                             <Chevron open={greetingListOpen} />
                           </button>
 
@@ -1238,6 +1428,7 @@ export default function OwnerSidebarMyGroups({
                                     Saludos, consejos y mensajes
                                   </div>
                                 ) : null}
+
                                 {sortedGreetings.map((r) => {
                                   const req = r.data;
                                   const busy = greetingBusyId === r.id;
@@ -1267,7 +1458,8 @@ export default function OwnerSidebarMyGroups({
                                               justifyContent: "center",
                                             }}
                                           >
-                                            {getServiceEmoji(req.type)} {typeLabel(req.type)}
+                                            {getServiceEmoji(req.type)}{" "}
+                                            {typeLabel(req.type)}
                                           </span>
 
                                           <div
@@ -1303,8 +1495,7 @@ export default function OwnerSidebarMyGroups({
                                           {renderUserLink(req.buyerId)}
                                         </div>
                                       </div>
-
-                                      {req.instructions ? (
+                                                                            {req.instructions ? (
                                         <div
                                           style={{
                                             borderRadius: 12,
@@ -1338,7 +1529,9 @@ export default function OwnerSidebarMyGroups({
                                           style={{
                                             ...styles.buttonPrimary,
                                             opacity: busy ? 0.8 : 1,
-                                            cursor: busy ? "not-allowed" : "pointer",
+                                            cursor: busy
+                                              ? "not-allowed"
+                                              : "pointer",
                                           }}
                                         >
                                           {busy ? "Procesando..." : "Aceptar"}
@@ -1353,7 +1546,9 @@ export default function OwnerSidebarMyGroups({
                                           style={{
                                             ...styles.buttonSecondary,
                                             opacity: busy ? 0.7 : 1,
-                                            cursor: busy ? "not-allowed" : "pointer",
+                                            cursor: busy
+                                              ? "not-allowed"
+                                              : "pointer",
                                           }}
                                         >
                                           {busy ? "Procesando..." : "Rechazar"}
@@ -1380,34 +1575,81 @@ export default function OwnerSidebarMyGroups({
 
                                 {sortedScheduledServiceRequests.map((r) => {
                                   const req = r.data;
-                                  const isExclusiveSession = r.serviceKind === "exclusive_session";
-                                  const chipType = isExclusiveSession ? "digital_exclusive_session" : "meet_greet_digital";
+                                  const isExclusiveSession =
+                                    r.serviceKind === "exclusive_session";
+
+                                  const chipType = isExclusiveSession
+                                    ? "digital_exclusive_session"
+                                    : "meet_greet_digital";
+
                                   const statusStyle = getMeetGreetStatusStyle(
                                     req.status
                                   );
-                                  const createdAtText = formatUnknownDate(req.createdAt);
-                                  const scheduledAtText = formatUnknownDate(req.scheduledAt);
+
+                                  const createdAtText = formatUnknownDate(
+                                    req.createdAt
+                                  );
+
+                                  const scheduledAtText = formatUnknownDate(
+                                    req.scheduledAt
+                                  );
+
                                   const prepareWindowOpen = isPrepareWindowOpen(
                                     req.scheduledAt
                                   );
-                                  const noShowExpired = isNoShowExpired(req.scheduledAt);
+
+                                  const noShowExpired = isNoShowExpired(
+                                    req.scheduledAt
+                                  );
+
                                   const busy = !!meetGreetBusyMap[r.id];
-                                  const creatorScheduleNote = getCreatorScheduleNote(req);
+                                  const creatorScheduleNote =
+                                    getCreatorScheduleNote(req);
+
                                   const canAccept =
                                     req.status === "pending_creator_response";
+
                                   const canReject =
                                     req.status === "pending_creator_response" ||
                                     req.status === "accepted_pending_schedule" ||
                                     req.status === "reschedule_requested";
+
                                   const canSchedule =
                                     req.status === "accepted_pending_schedule" ||
                                     req.status === "reschedule_requested";
+
                                   const canPrepare =
                                     (req.status === "scheduled" ||
                                       req.status === "ready_to_prepare" ||
                                       req.status === "in_preparation") &&
                                     prepareWindowOpen &&
                                     !noShowExpired;
+                                                                      const scheduleParts =
+                                    schedulePartsMap[r.id] ??
+                                    getSchedulePartsFromDate(
+                                      toDateSafe(req.scheduledAt)
+                                    );
+
+                                  const updateScheduleParts = (
+                                    nextParts: ScheduleParts
+                                  ) => {
+                                    setSchedulePartsMap((prev) => ({
+                                      ...prev,
+                                      [r.id]: nextParts,
+                                    }));
+                                  };
+
+                                  const selectedScheduleIso =
+                                    schedulePartsToIso(scheduleParts);
+
+                                  const selectedScheduleDate = selectedScheduleIso
+                                    ? new Date(selectedScheduleIso)
+                                    : null;
+                                    const scheduleConflictMessage = getScheduleConflictMessage({
+  selectedDate: selectedScheduleDate,
+  items: buildOwnerCalendarItems(),
+  excludeId: r.id,
+});
 
                                   return (
                                     <div
@@ -1415,7 +1657,8 @@ export default function OwnerSidebarMyGroups({
                                       style={{
                                         ...styles.miniItem,
                                         background: "rgba(255,255,255,0.02)",
-                                        border: "1px solid rgba(255,255,255,0.07)",
+                                        border:
+                                          "1px solid rgba(255,255,255,0.07)",
                                         borderRadius: 16,
                                         padding: 10,
                                       }}
@@ -1442,7 +1685,9 @@ export default function OwnerSidebarMyGroups({
                                               justifyContent: "center",
                                             }}
                                           >
-                                            {isExclusiveSession ? "👑 Sesión exclusiva" : "🤝 Meet & Greet"}
+                                            {isExclusiveSession
+                                              ? "👑 Sesión exclusiva"
+                                              : "🤝 Meet & Greet"}
                                           </span>
 
                                           <div
@@ -1507,8 +1752,7 @@ export default function OwnerSidebarMyGroups({
                                           🎥 Ya puedes entrar a preparación.
                                         </div>
                                       ) : null}
-
-                                      {(req.priceSnapshot != null ||
+                                                                            {(req.priceSnapshot != null ||
                                         req.durationMinutes != null) && (
                                         <div
                                           style={{
@@ -1536,21 +1780,23 @@ export default function OwnerSidebarMyGroups({
                                       )}
 
                                       {creatorScheduleNote ? (
-                                             <div
-                                               style={{
-                                                 borderRadius: 10,
-                                                 border: "1px solid rgba(96,165,250,0.18)",
-                                                 background: "rgba(96,165,250,0.08)",
-                                                 padding: "7px 8px",
-                                                 whiteSpace: "pre-wrap",
-                                                 fontSize: 12,
-                                                 lineHeight: 1.3,
-                                                 color: "#bfdbfe",
-                                                 }}
-                                                   >
-                                          Mensaje al comprador: {creatorScheduleNote}
+                                        <div
+                                          style={{
+                                            borderRadius: 10,
+                                            border:
+                                              "1px solid rgba(96,165,250,0.18)",
+                                            background: "rgba(96,165,250,0.08)",
+                                            padding: "7px 8px",
+                                            whiteSpace: "pre-wrap",
+                                            fontSize: 12,
+                                            lineHeight: 1.3,
+                                            color: "#bfdbfe",
+                                          }}
+                                        >
+                                          Mensaje al comprador:{" "}
+                                          {creatorScheduleNote}
                                         </div>
-                                        ) : null}
+                                      ) : null}
 
                                       {req.buyerMessage ? (
                                         <div
@@ -1583,7 +1829,8 @@ export default function OwnerSidebarMyGroups({
                                             color: "#fecaca",
                                           }}
                                         >
-                                          Motivo de rechazo: {req.rejectionReason}
+                                          Motivo de rechazo:{" "}
+                                          {req.rejectionReason}
                                         </div>
                                       ) : null}
 
@@ -1600,13 +1847,15 @@ export default function OwnerSidebarMyGroups({
                                             color: "#fde68a",
                                           }}
                                         >
-                                          Motivo de devolución: {req.refundReason}
+                                          Motivo de devolución:{" "}
+                                          {req.refundReason}
                                         </div>
                                       ) : null}
 
                                       {scheduledAtText ? (
                                         <div style={styles.subtle}>
-                                          Fecha propuesta/agendada: {scheduledAtText}
+                                          Fecha propuesta/agendada:{" "}
+                                          {scheduledAtText}
                                         </div>
                                       ) : null}
 
@@ -1615,8 +1864,10 @@ export default function OwnerSidebarMyGroups({
                                           {createdAtText}
                                         </div>
                                       ) : null}
-
-                                      {canAccept || canReject || canSchedule || canPrepare ? (
+                                                                            {canAccept ||
+                                      canReject ||
+                                      canSchedule ||
+                                      canPrepare ? (
                                         <div
                                           style={{
                                             display: "flex",
@@ -1627,7 +1878,12 @@ export default function OwnerSidebarMyGroups({
                                           {canAccept ? (
                                             <button
                                               type="button"
-                                              onClick={() => handleCreatorAccept(r.id, r.serviceKind)}
+                                              onClick={() =>
+                                                handleCreatorAccept(
+                                                  r.id,
+                                                  r.serviceKind
+                                                )
+                                              }
                                               disabled={busy}
                                               style={{
                                                 ...styles.buttonPrimary,
@@ -1637,7 +1893,9 @@ export default function OwnerSidebarMyGroups({
                                                   : "pointer",
                                               }}
                                             >
-                                              {busy ? "Procesando..." : "Aceptar"}
+                                              {busy
+                                                ? "Procesando..."
+                                                : "Aceptar"}
                                             </button>
                                           ) : null}
 
@@ -1681,7 +1939,8 @@ export default function OwnerSidebarMyGroups({
                                                   : "pointer",
                                               }}
                                             >
-                                              {req.status === "accepted_pending_schedule"
+                                              {req.status ===
+                                              "accepted_pending_schedule"
                                                 ? "Poner fecha"
                                                 : "Proponer nueva fecha"}
                                             </button>
@@ -1691,7 +1950,11 @@ export default function OwnerSidebarMyGroups({
                                             <button
                                               type="button"
                                               onClick={() =>
-                                                handlePrepare(r.id, "creator", r.serviceKind)
+                                                handlePrepare(
+                                                  r.id,
+                                                  "creator",
+                                                  r.serviceKind
+                                                )
                                               }
                                               disabled={busy}
                                               style={{
@@ -1702,14 +1965,21 @@ export default function OwnerSidebarMyGroups({
                                                   : "pointer",
                                               }}
                                             >
-                                              {busy ? "Procesando..." : "Prepararse"}
+                                              {busy
+                                                ? "Procesando..."
+                                                : "Prepararse"}
                                             </button>
                                           ) : null}
                                         </div>
                                       ) : null}
 
                                       {rejectOpenMap[r.id] ? (
-                                        <div style={{ display: "grid", gap: 8 }}>
+                                        <div
+                                          style={{
+                                            display: "grid",
+                                            gap: 8,
+                                          }}
+                                        >
                                           <textarea
                                             value={rejectReasonMap[r.id] ?? ""}
                                             onChange={(e) =>
@@ -1725,6 +1995,7 @@ export default function OwnerSidebarMyGroups({
                                               resize: "vertical",
                                             }}
                                           />
+
                                           <div
                                             style={{
                                               display: "flex",
@@ -1735,7 +2006,10 @@ export default function OwnerSidebarMyGroups({
                                             <button
                                               type="button"
                                               onClick={() =>
-                                                handleCreatorReject(r.id, r.serviceKind)
+                                                handleCreatorReject(
+                                                  r.id,
+                                                  r.serviceKind
+                                                )
                                               }
                                               disabled={busy}
                                               style={{
@@ -1750,6 +2024,7 @@ export default function OwnerSidebarMyGroups({
                                                 ? "Procesando..."
                                                 : "Confirmar rechazo"}
                                             </button>
+
                                             <button
                                               type="button"
                                               onClick={() =>
@@ -1772,93 +2047,192 @@ export default function OwnerSidebarMyGroups({
                                           </div>
                                         </div>
                                       ) : null}
+                                                                          {scheduleOpenMap[r.id] ? (
+  <div style={{ display: "grid", gap: 8 }}>
+    <button
+      type="button"
+      onClick={() =>
+        setCalendarOpenMap((prev) => ({
+          ...prev,
+          [r.id]: true,
+        }))
+      }
+      disabled={busy}
+      style={{
+        ...styles.buttonSecondary,
+        opacity: busy ? 0.7 : 1,
+        cursor: busy ? "not-allowed" : "pointer",
+        width: "fit-content",
+      }}
+    >
+      Ver calendario
+    </button>
 
-                                      {scheduleOpenMap[r.id] ? (
-                                        <div style={{ display: "grid", gap: 8 }}>
-                                          <input
-                                            type="datetime-local"
-                                            value={
-                                              scheduleDateMap[r.id] ||
-                                              toDateTimeLocalValue(req.scheduledAt)
-                                            }
-                                            onChange={(e) =>
-                                              setScheduleDateMap((prev) => ({
-                                                ...prev,
-                                                [r.id]: e.target.value,
-                                              }))
-                                            }
-                                            style={styles.input}
-                                          />
-                                          <textarea
-                                            value={scheduleNoteMap[r.id] ?? getCreatorScheduleNote(req) ?? ""}
-                                            onChange={(e) =>
-                                              setScheduleNoteMap((prev) => ({
-                                                ...prev,
-                                                [r.id]: e.target.value,
-                                              }))
-                                            }
-                                            placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
-                                            style={{
-                                              ...styles.input,
-                                              height: 92,
-                                              resize: "vertical",
-                                            }}
-                                          />
-                                          <div
-                                            style={{
-                                              display: "flex",
-                                              gap: 8,
-                                              flexWrap: "wrap",
-                                            }}
-                                          >
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                handleCreatorSchedule(r.id, r.serviceKind)
-                                              }
-                                              disabled={busy}
-                                              style={{
-                                                ...styles.buttonPrimary,
-                                                opacity: busy ? 0.8 : 1,
-                                                cursor: busy
-                                                  ? "not-allowed"
-                                                  : "pointer",
-                                              }}
-                                            >
-                                              {busy
-                                                ? "Procesando..."
-                                                : "Guardar fecha"}
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                setScheduleOpenMap((prev) => ({
-                                                  ...prev,
-                                                  [r.id]: false,
-                                                }))
-                                              }
-                                              disabled={busy}
-                                              style={{
-                                                ...styles.buttonSecondary,
-                                                opacity: busy ? 0.7 : 1,
-                                                cursor: busy
-                                                  ? "not-allowed"
-                                                  : "pointer",
-                                              }}
-                                            >
-                                              Cancelar
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ) : null}
+    <ScheduleDateTimeSelector
+      value={scheduleParts}
+      onChange={updateScheduleParts}
+      disabled={busy}
+    />
+
+    <textarea
+      value={scheduleNoteMap[r.id] ?? getCreatorScheduleNote(req) ?? ""}
+      onChange={(e) =>
+        setScheduleNoteMap((prev) => ({
+          ...prev,
+          [r.id]: e.target.value,
+        }))
+      }
+      placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
+      style={{
+        ...styles.input,
+        height: 92,
+        resize: "vertical",
+      }}
+    />
+
+    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <button
+        type="button"
+        onClick={() => handleCreatorSchedule(r.id, r.serviceKind)}
+        disabled={busy}
+        style={{
+          ...styles.buttonPrimary,
+          opacity: busy ? 0.8 : 1,
+          cursor: busy ? "not-allowed" : "pointer",
+        }}
+      >
+        {busy ? "Procesando..." : "Guardar fecha"}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => {
+          setScheduleOpenMap((prev) => ({
+            ...prev,
+            [r.id]: false,
+          }));
+          setCalendarOpenMap((prev) => ({
+            ...prev,
+            [r.id]: false,
+          }));
+          setCalendarEventOpenKey(null);
+        }}
+        disabled={busy}
+        style={{
+          ...styles.buttonSecondary,
+          opacity: busy ? 0.7 : 1,
+          cursor: busy ? "not-allowed" : "pointer",
+        }}
+      >
+        Cancelar
+      </button>
+    </div>
+
+   <ScheduleCalendarOverlay
+  open={!!calendarOpenMap[r.id]}
+  title="Calendario del creador"
+  items={buildOwnerCalendarItems()}
+  excludeId={r.id}
+  selectedDate={selectedScheduleDate}
+  conflictMessage={scheduleConflictMessage}
+  onSelectDate={(date) => {
+    updateScheduleParts(getSchedulePartsFromDate(date));
+  }}
+  onClose={() => {
+    setCalendarOpenMap((prev) => ({
+      ...prev,
+      [r.id]: false,
+    }));
+    setCalendarEventOpenKey(null);
+  }}
+  renderItem={(calendarRow) => {
+    const calendarRowKey = `${calendarRow.source}-${calendarRow.id}`;
+    const isCalendarRowOpen = calendarEventOpenKey === calendarRowKey;
+
+    return (
+      <WalletServiceRow
+        row={calendarRow}
+        open={isCalendarRowOpen}
+        calendarItems={buildOwnerCalendarItems()}
+        onToggle={() =>
+          setCalendarEventOpenKey((prev) =>
+            prev === calendarRowKey ? null : calendarRowKey
+          )
+        }
+      />
+    );
+  }}
+  footer={
+    <div style={{ display: "grid", gap: 8 }}>
+      <ScheduleDateTimeSelector
+        value={scheduleParts}
+        onChange={updateScheduleParts}
+        disabled={busy}
+      />
+
+      <textarea
+        value={scheduleNoteMap[r.id] ?? getCreatorScheduleNote(req) ?? ""}
+        onChange={(e) =>
+          setScheduleNoteMap((prev) => ({
+            ...prev,
+            [r.id]: e.target.value,
+          }))
+        }
+        placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
+        style={{
+          ...styles.input,
+          height: 92,
+          resize: "vertical",
+        }}
+      />
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => handleCreatorSchedule(r.id, r.serviceKind)}
+          disabled={busy}
+          style={{
+            ...styles.buttonPrimary,
+            opacity: busy ? 0.8 : 1,
+            cursor: busy ? "not-allowed" : "pointer",
+          }}
+        >
+          {busy ? "Procesando..." : "Guardar fecha"}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setCalendarOpenMap((prev) => ({
+              ...prev,
+              [r.id]: false,
+            }));
+            setCalendarEventOpenKey(null);
+          }}
+          disabled={busy}
+          style={{
+            ...styles.buttonSecondary,
+            opacity: busy ? 0.7 : 1,
+            cursor: busy ? "not-allowed" : "pointer",
+          }}
+        >
+          Cerrar calendario
+        </button>
+      </div>
+    </div>
+  }
+/>
+  </div>
+) : null}
 
                                       {renderMeetGreetFeedback(r.id)}
 
                                       {renderPreparationPanel(
                                         r.id,
                                         req,
-                                        (preparationRoleMap[r.id] as "creator") ??
-                                          "creator"
+                                        (preparationRoleMap[
+                                          r.id
+                                        ] as "creator") ?? "creator"
                                       )}
                                     </div>
                                   );
@@ -1920,18 +2294,35 @@ export default function OwnerSidebarMyGroups({
                               </span>
                             </div>
                           </div>
-
-                          <div className="mini-vertical-scroll">
+                                                    <div className="mini-vertical-scroll">
                             <div style={{ display: "grid", gap: 10 }}>
                               {sortedUpcomingScheduledServices.map((r) => {
                                 const req = r.data;
-                                const isExclusiveSession = r.serviceKind === "exclusive_session";
-                                const chipType = isExclusiveSession ? "digital_exclusive_session" : "meet_greet_digital";
-                                const statusStyle = getMeetGreetStatusStyle(req.status);
-                                const scheduledAtText = formatUnknownDate(req.scheduledAt);
-                                const prepareWindowOpen = isPrepareWindowOpen(req.scheduledAt);
-                                const noShowExpired = isNoShowExpired(req.scheduledAt);
+                                const isExclusiveSession =
+                                  r.serviceKind === "exclusive_session";
+
+                                const chipType = isExclusiveSession
+                                  ? "digital_exclusive_session"
+                                  : "meet_greet_digital";
+
+                                const statusStyle = getMeetGreetStatusStyle(
+                                  req.status
+                                );
+
+                                const scheduledAtText = formatUnknownDate(
+                                  req.scheduledAt
+                                );
+
+                                const prepareWindowOpen = isPrepareWindowOpen(
+                                  req.scheduledAt
+                                );
+
+                                const noShowExpired = isNoShowExpired(
+                                  req.scheduledAt
+                                );
+
                                 const busy = !!meetGreetBusyMap[r.id];
+
                                 const canPrepare =
                                   (req.status === "scheduled" ||
                                     req.status === "ready_to_prepare" ||
@@ -1945,7 +2336,8 @@ export default function OwnerSidebarMyGroups({
                                     style={{
                                       ...styles.miniItem,
                                       background: "rgba(250,204,21,0.06)",
-                                      border: "1px solid rgba(250,204,21,0.16)",
+                                      border:
+                                        "1px solid rgba(250,204,21,0.16)",
                                       borderRadius: 16,
                                       padding: 10,
                                     }}
@@ -1972,7 +2364,9 @@ export default function OwnerSidebarMyGroups({
                                             justifyContent: "center",
                                           }}
                                         >
-                                          {isExclusiveSession ? "👑 Sesión exclusiva" : "🤝 Meet & Greet"}
+                                          {isExclusiveSession
+                                            ? "👑 Sesión exclusiva"
+                                            : "🤝 Meet & Greet"}
                                         </span>
 
                                         <div
@@ -1995,7 +2389,9 @@ export default function OwnerSidebarMyGroups({
                                           flexWrap: "wrap",
                                         }}
                                       >
-                                        <span style={styles.subtle}>Comprador:</span>
+                                        <span style={styles.subtle}>
+                                          Comprador:
+                                        </span>
                                         {renderUserLink(req.buyerId)}
                                       </div>
 
@@ -2016,11 +2412,11 @@ export default function OwnerSidebarMyGroups({
                                         {getMeetGreetStatusLabel(req.status)}
                                       </div>
                                     </div>
-
-                                    <div
+                                                                        <div
                                       style={{
                                         borderRadius: 10,
-                                        border: "1px solid rgba(250,204,21,0.18)",
+                                        border:
+                                          "1px solid rgba(250,204,21,0.18)",
                                         background: "rgba(250,204,21,0.08)",
                                         padding: "7px 8px",
                                         fontSize: 12,
@@ -2028,7 +2424,8 @@ export default function OwnerSidebarMyGroups({
                                         color: "#fde68a",
                                       }}
                                     >
-                                      ⚠️ Este servicio empieza en menos de 15 minutos.
+                                      ⚠️ Este servicio empieza en menos de 15
+                                      minutos.
                                     </div>
 
                                     {scheduledAtText ? (
@@ -2040,12 +2437,20 @@ export default function OwnerSidebarMyGroups({
                                     {canPrepare ? (
                                       <button
                                         type="button"
-                                        onClick={() => handlePrepare(r.id, "creator", r.serviceKind)}
+                                        onClick={() =>
+                                          handlePrepare(
+                                            r.id,
+                                            "creator",
+                                            r.serviceKind
+                                          )
+                                        }
                                         disabled={busy}
                                         style={{
                                           ...styles.buttonPrimary,
                                           opacity: busy ? 0.8 : 1,
-                                          cursor: busy ? "not-allowed" : "pointer",
+                                          cursor: busy
+                                            ? "not-allowed"
+                                            : "pointer",
                                           width: "fit-content",
                                         }}
                                       >
@@ -2058,7 +2463,9 @@ export default function OwnerSidebarMyGroups({
                                     {renderPreparationPanel(
                                       r.id,
                                       req,
-                                      (preparationRoleMap[r.id] as "creator") ?? "creator"
+                                      (preparationRoleMap[
+                                        r.id
+                                      ] as "creator") ?? "creator"
                                     )}
                                   </div>
                                 );
@@ -2075,8 +2482,7 @@ export default function OwnerSidebarMyGroups({
                           color: "rgba(255,255,255,0.36)",
                           padding: "0 2px 2px",
                         }}
-                      >
-                      </div>
+                      ></div>
                     </div>
                   )}
                 </div>

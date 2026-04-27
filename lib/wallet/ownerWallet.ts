@@ -53,9 +53,9 @@ type WalletScheduledDoc = {
   scheduledAt: FirestoreTimestampLike;
   scheduledBy: string | null;
   scheduleProposedAt: FirestoreTimestampLike;
-creatorScheduleNote?: string | null;
-creatorScheduleNoteUpdatedAt?: FirestoreTimestampLike;
-rescheduleRequestsUsed: number;
+  creatorScheduleNote?: string | null;
+  creatorScheduleNoteUpdatedAt?: FirestoreTimestampLike;
+  rescheduleRequestsUsed: number;
   rescheduleRequestedAt: FirestoreTimestampLike;
   preparingBuyerAt: FirestoreTimestampLike;
   preparingCreatorAt: FirestoreTimestampLike;
@@ -190,6 +190,59 @@ function compareAsc(a: Date | null, b: Date | null): number {
   );
 }
 
+export function getWalletServiceDurationMinutes(row: WalletServiceItem): number {
+  if (typeof row.durationMinutes === "number" && row.durationMinutes > 0) {
+    return row.durationMinutes;
+  }
+
+  if (row.source === "exclusive_session") return 60;
+  if (row.source === "meet_greet") return 30;
+
+  return 0;
+}
+
+export function hasWalletScheduleConflict(
+  target: {
+    id?: string;
+    source?: WalletServiceItem["source"];
+    scheduledAt: Date | null;
+    durationMinutes?: number | null;
+  },
+  existingRows: WalletServiceItem[],
+  marginMinutes = 15
+): boolean {
+  if (!target.scheduledAt) return false;
+
+  const targetDuration =
+    typeof target.durationMinutes === "number" && target.durationMinutes > 0
+      ? target.durationMinutes
+      : target.source === "exclusive_session"
+        ? 60
+        : 30;
+
+  const marginMs = marginMinutes * 60 * 1000;
+  const targetStart = target.scheduledAt.getTime();
+  const targetEnd = targetStart + targetDuration * 60 * 1000;
+
+  return existingRows.some((row) => {
+    if (target.id && row.id === target.id && row.source === target.source) {
+      return false;
+    }
+
+    if (!isCalendarScheduledStatus(row.status)) return false;
+    if (shouldTreatAsAutoRejected(row)) return false;
+    if (!row.scheduledAt) return false;
+
+    const rowDuration = getWalletServiceDurationMinutes(row);
+    if (rowDuration <= 0) return false;
+
+    const existingStart = row.scheduledAt.getTime();
+    const existingEnd = existingStart + rowDuration * 60 * 1000;
+
+    return targetStart < existingEnd + marginMs && targetEnd + marginMs > existingStart;
+  });
+}
+
 function getGreetingTypeLabel(type: GreetingType): string {
   if (type === "saludo") return "Saludo";
   if (type === "consejo") return "Consejo";
@@ -255,10 +308,10 @@ function normalizeScheduledRow(
   const createdAt = toDateSafe(data.createdAt);
   const updatedAt = toDateSafe(data.updatedAt);
   const creatorScheduleNoteUpdatedAt = toDateSafe(data.creatorScheduleNoteUpdatedAt);
-const creatorScheduleNote =
-  typeof data.creatorScheduleNote === "string" && data.creatorScheduleNote.trim()
-    ? data.creatorScheduleNote.trim()
-    : null;
+  const creatorScheduleNote =
+    typeof data.creatorScheduleNote === "string" && data.creatorScheduleNote.trim()
+      ? data.creatorScheduleNote.trim()
+      : null;
   const noShowRole =
     data.noShowRole === "buyer" ||
     data.noShowRole === "creator" ||

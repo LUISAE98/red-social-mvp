@@ -22,6 +22,13 @@ import {
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
 
+import ScheduleDateTimeSelector, {
+  getSchedulePartsFromDate,
+  schedulePartsToIso,
+  type ScheduleParts,
+} from "./ScheduleDateTimeSelector";
+import ScheduleCalendarOverlay from "./ScheduleCalendarOverlay";
+
 function getServiceEmoji(row: WalletServiceItem): string {
   if (row.status === "rejected" || row.status === "cancelled") {
     return "❌";
@@ -59,17 +66,6 @@ function getStatusTone(
   return "default";
 }
 
-function toDateTimeLocalValue(value: Date | null): string {
-  if (!value) return "";
-
-  const year = value.getFullYear();
-  const month = String(value.getMonth() + 1).padStart(2, "0");
-  const day = String(value.getDate()).padStart(2, "0");
-  const hour = String(value.getHours()).padStart(2, "0");
-  const minute = String(value.getMinutes()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hour}:${minute}`;
-}
 
 function isPrepareWindowOpen(value: Date | null): boolean {
   if (!value) return false;
@@ -481,11 +477,15 @@ export function WalletServiceRow({
   row,
   open,
   onToggle,
+  calendarItems = [],
 }: {
   row: WalletServiceItem;
   open: boolean;
   onToggle: () => void;
+  calendarItems?: WalletServiceItem[];
 }) {
+
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -493,17 +493,16 @@ export function WalletServiceRow({
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [preparationOpen, setPreparationOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
-  const [scheduleNote, setScheduleNote] = useState(
-  row.creatorScheduleNote ?? ""
-);
-  const [scheduleDate, setScheduleDate] = useState(
-    toDateTimeLocalValue(row.scheduledAt)
+  const [scheduleNote, setScheduleNote] = useState(row.creatorScheduleNote ?? "");
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [scheduleParts, setScheduleParts] = useState<ScheduleParts>(
+    getSchedulePartsFromDate(row.scheduledAt)
   );
 
-  useEffect(() => {
-  setScheduleDate(toDateTimeLocalValue(row.scheduledAt));
-  setScheduleNote(row.creatorScheduleNote ?? "");
-}, [row.scheduledAt, row.creatorScheduleNote]);
+    useEffect(() => {
+    setScheduleParts(getSchedulePartsFromDate(row.scheduledAt));
+    setScheduleNote(row.creatorScheduleNote ?? "");
+  }, [row.scheduledAt, row.creatorScheduleNote]);
 
   const statusTone = getStatusTone(row);
   const subtitle = buildRowSubtitle(row);
@@ -604,36 +603,39 @@ export function WalletServiceRow({
   }
 
   async function handleScheduledServiceSchedule() {
-    if (!scheduleDate.trim()) {
-      setError("Selecciona fecha y hora.");
-      return;
-    }
+  const scheduledAt = schedulePartsToIso(scheduleParts);
 
-    setBusy(true);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const payload = {
-        requestId: row.id,
-        scheduledAt: new Date(scheduleDate).toISOString(),
-        note: scheduleNote || null,
-      };
-
-      if (isExclusiveSession) {
-        await proposeExclusiveSessionSchedule(payload);
-      } else {
-        await proposeMeetGreetSchedule(payload);
-      }
-
-      setSuccess("✅ Fecha guardada correctamente.");
-      setScheduleOpen(false);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo guardar la fecha.");
-    } finally {
-      setBusy(false);
-    }
+  if (!scheduledAt) {
+    setError("Selecciona día, mes, año, hora y minuto.");
+    return;
   }
+
+  setBusy(true);
+  setError(null);
+  setSuccess(null);
+
+  try {
+    const payload = {
+      requestId: row.id,
+      scheduledAt,
+      note: scheduleNote || null,
+    };
+
+    if (isExclusiveSession) {
+      await proposeExclusiveSessionSchedule(payload);
+    } else {
+      await proposeMeetGreetSchedule(payload);
+    }
+
+    setSuccess("✅ Fecha guardada correctamente.");
+    setScheduleOpen(false);
+    setCalendarOpen(false);
+  } catch (e: any) {
+    setError(e?.message ?? "No se pudo guardar la fecha.");
+  } finally {
+    setBusy(false);
+  }
+}
 
   async function handlePrepare() {
     setBusy(true);
@@ -1042,24 +1044,32 @@ export function WalletServiceRow({
                   ) : null}
 
                   {canSchedule ? (
-                    <button
-                      type="button"
-                      className="walletSecondaryBtn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setScheduleOpen((prev) => !prev);
-                      }}
-                      disabled={busy}
-                      style={{
-                        opacity: busy ? 0.7 : 1,
-                        cursor: busy ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {row.status === "accepted_pending_schedule"
-                        ? "Poner fecha"
-                        : "Proponer nueva fecha"}
-                    </button>
-                  ) : null}
+  <button
+    type="button"
+    className="walletSecondaryBtn"
+    onClick={(e) => {
+      e.stopPropagation();
+      setScheduleOpen((prev) => {
+        const next = !prev;
+
+        if (!next) {
+          setCalendarOpen(false);
+        }
+
+        return next;
+      });
+    }}
+    disabled={busy}
+    style={{
+      opacity: busy ? 0.7 : 1,
+      cursor: busy ? "not-allowed" : "pointer",
+    }}
+  >
+    {row.status === "accepted_pending_schedule"
+      ? "Poner fecha"
+      : "Proponer nueva fecha"}
+  </button>
+) : null}
 
                   {canPrepare ? (
                     <button
@@ -1125,53 +1135,56 @@ export function WalletServiceRow({
                 </div>
               ) : null}
 
-              {scheduleOpen ? (
+                                         {scheduleOpen ? (
                 <div style={{ display: "grid", gap: 8 }}>
-                  <input
-                    type="datetime-local"
-                    value={scheduleDate}
-                    onChange={(e) => setScheduleDate(e.target.value)}
-                    className="walletField"
-                  />
-                  <textarea
-                    value={scheduleNote}
-                    onChange={(e) => setScheduleNote(e.target.value)}
-                    placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
-                    className="walletField"
-                    style={{ minHeight: 92, resize: "vertical" }}
-                  />
-                  <div className="walletServiceActions">
-                    <button
-                      type="button"
-                      className="walletPrimaryBtn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void handleScheduledServiceSchedule();
-                      }}
-                      disabled={busy}
-                      style={{
-                        opacity: busy ? 0.8 : 1,
-                        cursor: busy ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {busy ? "Procesando..." : "Guardar fecha"}
-                    </button>
-                    <button
-                      type="button"
-                      className="walletSecondaryBtn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setScheduleOpen(false);
-                      }}
-                      disabled={busy}
-                      style={{
-                        opacity: busy ? 0.7 : 1,
-                        cursor: busy ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
+                  <ScheduleDateTimeSelector
+  value={scheduleParts}
+  onChange={setScheduleParts}
+  disabled={busy}
+/>
+
+<textarea
+  value={scheduleNote}
+  onChange={(e) => setScheduleNote(e.target.value)}
+  placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
+  className="walletField"
+  style={{ minHeight: 92, resize: "vertical" }}
+/>
+
+<div className="walletServiceActions">
+  <button
+    type="button"
+    className="walletPrimaryBtn"
+    onClick={(e) => {
+      e.stopPropagation();
+      void handleScheduledServiceSchedule();
+    }}
+    disabled={busy}
+    style={{
+      opacity: busy ? 0.8 : 1,
+      cursor: busy ? "not-allowed" : "pointer",
+    }}
+  >
+    {busy ? "Procesando..." : "Guardar fecha"}
+  </button>
+
+  <button
+    type="button"
+    className="walletSecondaryBtn"
+    onClick={(e) => {
+      e.stopPropagation();
+      setScheduleOpen(false);
+      setCalendarOpen(false);
+    }}
+    disabled={busy}
+    style={{
+      opacity: busy ? 0.7 : 1,
+      cursor: busy ? "not-allowed" : "pointer",
+    }}
+  >
+    Cancelar
+  </button>
+</div>
                 </div>
               ) : null}
 
@@ -1199,8 +1212,10 @@ export function WalletServiceRow({
 
 export function WalletList({
   items,
+  calendarItems,
 }: {
   items: WalletServiceItem[];
+  calendarItems?: WalletServiceItem[];
 }) {
   const [openRowKey, setOpenRowKey] = useState<string | null>(null);
 
@@ -1212,13 +1227,14 @@ export function WalletList({
 
         return (
           <WalletServiceRow
-            key={rowKey}
-            row={row}
-            open={isOpen}
-            onToggle={() =>
-              setOpenRowKey((prev) => (prev === rowKey ? null : rowKey))
-            }
-          />
+  key={rowKey}
+  row={row}
+  open={isOpen}
+  calendarItems={calendarItems ?? items}
+  onToggle={() =>
+    setOpenRowKey((prev) => (prev === rowKey ? null : rowKey))
+  }
+/>
         );
       })}
     </div>

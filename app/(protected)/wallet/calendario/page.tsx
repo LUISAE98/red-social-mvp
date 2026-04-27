@@ -89,12 +89,12 @@ function buildMonthWindow(baseDate: Date): CalendarMonthItem[] {
 function isSafeCalendarItem(item: WalletServiceItem): boolean {
   if (!item.scheduledAt) return false;
 
-  if (
-  (!item.preparingCreatorAt || !item.preparingBuyerAt) &&
-  isNoShowExpired(item.scheduledAt)
-) {
-  return false;
-}
+    if (
+    (!item.preparingCreatorAt || !item.preparingBuyerAt) &&
+    isNoShowExpired(item.scheduledAt)
+  ) {
+    return false;
+  }
 
   if (
     item.status === "rejected" ||
@@ -381,8 +381,8 @@ function EventsOverlay({
           </div>
 
           <div className="walletCalendarOverlayContent">
-            <WalletList items={items.filter(isSafeCalendarItem)} />
-          </div>
+  <WalletList items={items.filter(isSafeCalendarItem)} calendarItems={items} />
+</div>
         </div>
       </div>
     </>,
@@ -590,7 +590,7 @@ export default function WalletCalendarioPage() {
   const { user } = useAuth();
   const walletData = useOwnerWalletData(user?.uid);
 
-  const [viewMode, setViewMode] = useState<CalendarViewMode>("list");
+  const [viewMode, setViewMode] = useState<CalendarViewMode>("calendar");
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
 
   const calendarItems = useMemo(

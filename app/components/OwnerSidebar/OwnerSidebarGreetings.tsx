@@ -25,6 +25,14 @@ import type {
 } from "./OwnerSidebar";
 import { Chevron } from "./OwnerSidebar";
 import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
+import ScheduleDateTimeSelector, {
+  getSchedulePartsFromDate,
+  schedulePartsToIso,
+  type ScheduleParts,
+} from "@/app/(protected)/wallet/components/ScheduleDateTimeSelector";
+import ScheduleCalendarOverlay from "@/app/(protected)/wallet/components/ScheduleCalendarOverlay";
+import { WalletServiceRow } from "@/app/(protected)/wallet/components/WalletUi";
+import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
 
 type ScheduledServiceKind = "meet_greet" | "exclusive_session";
 
@@ -57,7 +65,6 @@ type Props = {
 
 type BusyMap = Record<string, boolean>;
 type TextMap = Record<string, string>;
-type DateMap = Record<string, string>;
 type ToggleMap = Record<string, boolean>;
 type ServiceSectionKey = "requested" | "rejected" | "refund";
 
@@ -215,19 +222,6 @@ function toDateSafe(value: unknown): Date | null {
   }
 
   return null;
-}
-
-function toDateTimeLocalValue(value: unknown): string {
-  const date = toDateSafe(value);
-  if (!date) return "";
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hour = String(date.getHours()).padStart(2, "0");
-  const minute = String(date.getMinutes()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hour}:${minute}`;
 }
 
 function isPrepareWindowOpen(value: unknown): boolean {
@@ -711,7 +705,8 @@ export default function OwnerSidebarGreetings({
   const [refundReasonMap, setRefundReasonMap] = useState<TextMap>({});
   const [rescheduleReasonMap, setRescheduleReasonMap] = useState<TextMap>({});
   const [scheduleNoteMap, setScheduleNoteMap] = useState<TextMap>({});
-  const [scheduleDateMap, setScheduleDateMap] = useState<DateMap>({});
+  const [calendarOpenMap, setCalendarOpenMap] = useState<ToggleMap>({});
+  const [schedulePartsMap, setSchedulePartsMap] = useState<Record<string, ScheduleParts>>({});
 
   const incomingMeetGreets = useMemo<ScheduledRow[]>(
     () =>
@@ -858,39 +853,41 @@ export default function OwnerSidebarGreetings({
     }
   }
 
-  async function handleCreatorSchedule(requestId: string, kind: ScheduledServiceKind) {
-    const scheduledAt = (scheduleDateMap[requestId] ?? "").trim();
+ async function handleCreatorSchedule(requestId: string, kind: ScheduledServiceKind) {
+  const parts = schedulePartsMap[requestId];
+  const scheduledAt = parts ? schedulePartsToIso(parts) : null;
 
-    if (!scheduledAt) {
-      setError(requestId, "Selecciona fecha y hora.");
-      return;
-    }
-
-    setBusy(requestId, true);
-    setError(requestId, null);
-    setSuccess(requestId, null);
-
-    try {
-      const payload = {
-        requestId,
-        scheduledAt: new Date(scheduledAt).toISOString(),
-        note: scheduleNoteMap[requestId] ?? null,
-      };
-
-      if (kind === "exclusive_session") {
-        await proposeExclusiveSessionSchedule(payload);
-      } else {
-        await proposeMeetGreetSchedule(payload);
-      }
-
-      setSuccess(requestId, "✅ Fecha propuesta/agendada correctamente.");
-      setScheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
-    } catch (e: any) {
-      setError(requestId, e?.message ?? "No se pudo guardar la fecha.");
-    } finally {
-      setBusy(requestId, false);
-    }
+  if (!scheduledAt) {
+    setError(requestId, "Selecciona día, mes, año, hora y minuto.");
+    return;
   }
+
+  setBusy(requestId, true);
+  setError(requestId, null);
+  setSuccess(requestId, null);
+
+  try {
+    const payload = {
+      requestId,
+      scheduledAt,
+      note: scheduleNoteMap[requestId] ?? null,
+    };
+
+    if (kind === "exclusive_session") {
+      await proposeExclusiveSessionSchedule(payload);
+    } else {
+      await proposeMeetGreetSchedule(payload);
+    }
+
+    setSuccess(requestId, "✅ Fecha propuesta/agendada correctamente.");
+    setScheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
+    setCalendarOpenMap((prev) => ({ ...prev, [requestId]: false }));
+  } catch (e: any) {
+    setError(requestId, e?.message ?? "No se pudo guardar la fecha.");
+  } finally {
+    setBusy(requestId, false);
+  }
+}
 
   async function handleBuyerRefund(requestId: string, kind: ScheduledServiceKind) {
     setBusy(requestId, true);
@@ -1315,6 +1312,57 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
     );
   }
 
+    function buildCalendarItems(): WalletServiceItem[] {
+    return incomingScheduledServices
+      .filter((item) => !!item.data.scheduledAt)
+      .map((item) => {
+        const group = groupMetaMap[item.groupId ?? item.data.groupId] ?? null;
+        const scheduledAt = toDateSafe(item.data.scheduledAt);
+        const createdAt = toDateSafe(item.data.createdAt);
+        const updatedAt = toDateSafe(item.data.updatedAt);
+        const isExclusive = item.serviceKind === "exclusive_session";
+
+        return {
+          id: item.id,
+          kind: isExclusive ? "exclusive_session" : "meet_greet",
+          title: isExclusive ? "Sesión exclusiva" : "Meet & Greet",
+          groupId: item.groupId ?? item.data.groupId ?? "",
+          groupName: group?.name ?? null,
+          buyerId: item.data.buyerId ?? "",
+          buyerDisplayName: (item.data as any).buyerDisplayName ?? null,
+          buyerUsername: (item.data as any).buyerUsername ?? null,
+          buyerAvatarUrl: (item.data as any).buyerAvatarUrl ?? null,
+          targetName: null,
+          requestText: item.data.buyerMessage ?? null,
+          status: item.data.status,
+          statusLabel: getMeetGreetStatusLabel(item.data.status),
+          description: item.data.buyerMessage ?? null,
+          creatorScheduleNote: getCreatorScheduleNote(item.data),
+          creatorScheduleNoteUpdatedAt: toDateSafe((item.data as any).creatorScheduleNoteUpdatedAt),
+          rejectionReason: item.data.rejectionReason ?? null,
+          refundReason: item.data.refundReason ?? null,
+          priceSnapshot:
+            typeof item.data.priceSnapshot === "number" ? item.data.priceSnapshot : null,
+          currency: ((item.data as any).currency === "USD" ? "USD" : "MXN") as "MXN" | "USD",
+          durationMinutes:
+            typeof item.data.durationMinutes === "number" ? item.data.durationMinutes : null,
+          source: isExclusive ? "exclusive_session" : "meet_greet",
+          scheduledAt,
+          acceptedAt: toDateSafe((item.data as any).acceptedAt),
+          rejectedAt: toDateSafe((item.data as any).rejectedAt),
+          preparingBuyerAt: toDateSafe((item.data as any).preparingBuyerAt),
+          preparingCreatorAt: toDateSafe((item.data as any).preparingCreatorAt),
+          preparationOpenedAt: toDateSafe((item.data as any).preparationOpenedAt),
+          noShowRejectAt: toDateSafe((item.data as any).noShowRejectAt),
+          autoRejectedAt: toDateSafe((item.data as any).autoRejectedAt),
+          autoRejectReason: (item.data as any).autoRejectReason ?? null,
+          noShowRole: (item.data as any).noShowRole ?? null,
+          createdAt,
+          updatedAt,
+        };
+      });
+  }
+
   function renderIncomingScheduledServiceCard(row: ScheduledRow, itemKey: string) {
     const req = row.data;
     const group = groupMetaMap[row.groupId ?? req.groupId] ?? null;
@@ -1341,6 +1389,16 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
         req.status === "in_preparation") &&
       isPrepareWindowOpen(req.scheduledAt) &&
       !noShowExpired;
+
+      const scheduleParts =
+      schedulePartsMap[row.id] ?? getSchedulePartsFromDate(toDateSafe(req.scheduledAt));
+
+        const updateScheduleParts = (nextParts: ScheduleParts) => {
+      setSchedulePartsMap((prev) => ({
+        ...prev,
+        [row.id]: nextParts,
+      }));
+    };
 
     return (
       <CleanServiceCard
@@ -1458,27 +1516,79 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
           </div>
         ) : null}
 
-        {scheduleOpenMap[row.id] ? (
+                {scheduleOpenMap[row.id] ? (
           <div style={{ display: "grid", gap: 8 }}>
-            <input
-              type="datetime-local"
-              value={scheduleDateMap[row.id] || toDateTimeLocalValue(req.scheduledAt)}
-              onChange={(e) => setScheduleDateMap((prev) => ({ ...prev, [row.id]: e.target.value }))}
-              style={styles.input}
-            />
+           <button
+  type="button"
+  onClick={() =>
+    setCalendarOpenMap((prev) => ({
+      ...prev,
+      [row.id]: true,
+    }))
+  }
+  disabled={busy}
+  style={{
+    ...styles.buttonSecondary,
+    opacity: busy ? 0.7 : 1,
+    cursor: busy ? "not-allowed" : "pointer",
+  }}
+>
+  Ver calendario
+</button>
+
+<ScheduleCalendarOverlay
+  open={!!calendarOpenMap[row.id]}
+  title="Calendario del creador"
+  items={buildCalendarItems()}
+  excludeId={row.id}
+  onClose={() =>
+    setCalendarOpenMap((prev) => ({
+      ...prev,
+      [row.id]: false,
+    }))
+  }
+  renderItem={(calendarRow) => (
+    <WalletServiceRow
+      row={calendarRow}
+      open={false}
+      calendarItems={buildCalendarItems()}
+      onToggle={() => {}}
+    />
+  )}
+/>
+
+<ScheduleDateTimeSelector
+  value={scheduleParts}
+  onChange={updateScheduleParts}
+  disabled={busy}
+/>
+
             <textarea
               value={scheduleNoteMap[row.id] ?? getCreatorScheduleNote(req) ?? ""}
               onChange={(e) => setScheduleNoteMap((prev) => ({ ...prev, [row.id]: e.target.value }))}
               placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
               style={{ ...styles.input, height: 92, resize: "vertical" }}
             />
+
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
               <button type="button" onClick={() => handleCreatorSchedule(row.id, row.serviceKind)} disabled={busy} style={{ ...styles.buttonPrimary, opacity: busy ? 0.8 : 1, cursor: busy ? "not-allowed" : "pointer" }}>
                 {busy ? "Procesando..." : "Guardar fecha"}
               </button>
-              <button type="button" onClick={() => setScheduleOpenMap((prev) => ({ ...prev, [row.id]: false }))} disabled={busy} style={{ ...styles.buttonSecondary, opacity: busy ? 0.7 : 1, cursor: busy ? "not-allowed" : "pointer" }}>
-                Cancelar
-              </button>
+              <button
+  type="button"
+  onClick={() => {
+    setScheduleOpenMap((prev) => ({ ...prev, [row.id]: false }));
+    setCalendarOpenMap((prev) => ({ ...prev, [row.id]: false }));
+  }}
+  disabled={busy}
+  style={{
+    ...styles.buttonSecondary,
+    opacity: busy ? 0.7 : 1,
+    cursor: busy ? "not-allowed" : "pointer",
+  }}
+>
+  Cancelar
+</button>
             </div>
           </div>
         ) : null}
