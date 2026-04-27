@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
   formatWalletMoney,
+  getWalletScheduleConflictResult,
+  getWalletServiceDurationMinutes,
   getWalletServiceRowMeta,
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
@@ -513,6 +515,26 @@ export function WalletServiceRow({
   const isMeetGreet = row.source === "meet_greet";
   const isExclusiveSession = row.source === "exclusive_session";
   const isScheduledService = isMeetGreet || isExclusiveSession;
+  const selectedScheduledAtIso = schedulePartsToIso(scheduleParts);
+const selectedScheduledAt = selectedScheduledAtIso
+  ? new Date(selectedScheduledAtIso)
+  : null;
+
+const scheduleConflict = isScheduledService
+  ? getWalletScheduleConflictResult(
+      {
+        id: row.id,
+        source: row.source,
+        scheduledAt: selectedScheduledAt,
+        durationMinutes: getWalletServiceDurationMinutes(row),
+      },
+      calendarItems
+    )
+  : {
+      hasConflict: false,
+      conflictItem: null,
+      message: null,
+    };
   const noShowExpired =
     isScheduledService &&
     !row.preparingCreatorAt &&
@@ -609,6 +631,13 @@ export function WalletServiceRow({
     setError("Selecciona día, mes, año, hora y minuto.");
     return;
   }
+  if (scheduleConflict.hasConflict) {
+  setError(
+    scheduleConflict.message ??
+      "Ese horario ya está ocupado. Selecciona otra hora disponible."
+  );
+  return;
+}
 
   setBusy(true);
   setError(null);
@@ -1139,9 +1168,17 @@ export function WalletServiceRow({
                 <div style={{ display: "grid", gap: 8 }}>
                   <ScheduleDateTimeSelector
   value={scheduleParts}
-  onChange={setScheduleParts}
+  onChange={(nextParts) => {
+    setScheduleParts(nextParts);
+    setError(null);
+    setSuccess(null);
+  }}
   disabled={busy}
 />
+
+{scheduleConflict.message ? (
+  <div className="walletServiceErrorBox">{scheduleConflict.message}</div>
+) : null}
 
 <textarea
   value={scheduleNote}
@@ -1153,20 +1190,20 @@ export function WalletServiceRow({
 
 <div className="walletServiceActions">
   <button
-    type="button"
-    className="walletPrimaryBtn"
-    onClick={(e) => {
-      e.stopPropagation();
-      void handleScheduledServiceSchedule();
-    }}
-    disabled={busy}
-    style={{
-      opacity: busy ? 0.8 : 1,
-      cursor: busy ? "not-allowed" : "pointer",
-    }}
-  >
-    {busy ? "Procesando..." : "Guardar fecha"}
-  </button>
+  type="button"
+  className="walletPrimaryBtn"
+  onClick={(e) => {
+    e.stopPropagation();
+    void handleScheduledServiceSchedule();
+  }}
+  disabled={busy || scheduleConflict.hasConflict}
+  style={{
+    opacity: busy || scheduleConflict.hasConflict ? 0.55 : 1,
+    cursor: busy || scheduleConflict.hasConflict ? "not-allowed" : "pointer",
+  }}
+>
+  {busy ? "Procesando..." : "Guardar fecha"}
+</button>
 
   <button
     type="button"

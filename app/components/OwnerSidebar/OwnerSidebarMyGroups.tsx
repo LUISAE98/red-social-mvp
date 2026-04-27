@@ -8,7 +8,11 @@ import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreet
 import ScheduleCalendarOverlay from "@/app/(protected)/wallet/components/ScheduleCalendarOverlay";
 import { WalletServiceRow } from "@/app/(protected)/wallet/components/WalletUi";
 
-import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
+import {
+  getWalletScheduleConflictResult,
+  getWalletServiceDurationMinutes,
+  type WalletServiceItem,
+} from "@/lib/wallet/ownerWallet";
 
 import type {
   GroupDocLite,
@@ -369,41 +373,6 @@ function getServiceEmoji(type: string): string {
   return "👑";
 }
 
-function getScheduleConflictMessage({
-  selectedDate,
-  items,
-  excludeId,
-}: {
-  selectedDate: Date | null;
-  items: WalletServiceItem[];
-  excludeId?: string;
-}): string | null {
-  if (!selectedDate) return null;
-
-  const selectedTime = selectedDate.getTime();
-  const minimumGapMs = 15 * 60 * 1000;
-
-  const conflict = items.find((item) => {
-    if (!item.scheduledAt) return false;
-    if (excludeId && item.id === excludeId) return false;
-
-    if (
-      item.status !== "scheduled" &&
-      item.status !== "ready_to_prepare" &&
-      item.status !== "in_preparation"
-    ) {
-      return false;
-    }
-
-    const eventTime = item.scheduledAt.getTime();
-
-    return Math.abs(selectedTime - eventTime) < minimumGapMs;
-  });
-
-  if (!conflict) return null;
-
-  return "Ese horario se cruza con otro Meet & Greet o sesión exclusiva del creador. Debe existir al menos 15 minutos de separación.";
-}
 export default function OwnerSidebarMyGroups({
   loadingGroups,
   myGroups,
@@ -563,6 +532,27 @@ export default function OwnerSidebarMyGroups({
       setMeetGreetError(requestId, "Selecciona día, mes, año, hora y minuto.");
       return;
     }
+    const selectedScheduleDate = new Date(scheduledAt);
+const calendarItems = buildOwnerCalendarItems();
+
+const scheduleConflict = getWalletScheduleConflictResult(
+  {
+    id: requestId,
+    source: kind,
+    scheduledAt: selectedScheduleDate,
+    durationMinutes: kind === "exclusive_session" ? 60 : 30,
+  },
+  calendarItems
+);
+
+if (scheduleConflict.hasConflict) {
+  setMeetGreetError(
+    requestId,
+    scheduleConflict.message ??
+      "Ese horario ya está ocupado. Selecciona otra hora disponible."
+  );
+  return;
+}
 
     setMeetGreetBusy(requestId, true);
     setMeetGreetError(requestId, null);
@@ -1630,14 +1620,15 @@ export default function OwnerSidebarMyGroups({
                                       toDateSafe(req.scheduledAt)
                                     );
 
-                                  const updateScheduleParts = (
-                                    nextParts: ScheduleParts
-                                  ) => {
-                                    setSchedulePartsMap((prev) => ({
-                                      ...prev,
-                                      [r.id]: nextParts,
-                                    }));
-                                  };
+                                  const updateScheduleParts = (nextParts: ScheduleParts) => {
+  setSchedulePartsMap((prev) => ({
+    ...prev,
+    [r.id]: nextParts,
+  }));
+
+  setMeetGreetError(r.id, null);
+  setMeetGreetSuccess(r.id, null);
+};
 
                                   const selectedScheduleIso =
                                     schedulePartsToIso(scheduleParts);
@@ -1645,11 +1636,20 @@ export default function OwnerSidebarMyGroups({
                                   const selectedScheduleDate = selectedScheduleIso
                                     ? new Date(selectedScheduleIso)
                                     : null;
-                                    const scheduleConflictMessage = getScheduleConflictMessage({
-  selectedDate: selectedScheduleDate,
-  items: buildOwnerCalendarItems(),
-  excludeId: r.id,
-});
+                                    const scheduleConflict = getWalletScheduleConflictResult(
+  {
+    id: r.id,
+    source: r.serviceKind,
+    scheduledAt: selectedScheduleDate,
+    durationMinutes:
+  typeof req.durationMinutes === "number" && req.durationMinutes > 0
+    ? req.durationMinutes
+    : null,
+  },
+  buildOwnerCalendarItems()
+);
+
+const scheduleConflictMessage = scheduleConflict.message;
 
                                   return (
                                     <div
@@ -2074,6 +2074,22 @@ export default function OwnerSidebarMyGroups({
       disabled={busy}
     />
 
+    {scheduleConflictMessage ? (
+  <div
+    style={{
+      borderRadius: 10,
+      border: "1px solid rgba(248,113,113,0.18)",
+      background: "rgba(248,113,113,0.08)",
+      padding: "7px 8px",
+      fontSize: 12,
+      lineHeight: 1.3,
+      color: "#fecaca",
+    }}
+  >
+    {scheduleConflictMessage}
+  </div>
+) : null}
+
     <textarea
       value={scheduleNoteMap[r.id] ?? getCreatorScheduleNote(req) ?? ""}
       onChange={(e) =>
@@ -2092,17 +2108,17 @@ export default function OwnerSidebarMyGroups({
 
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
       <button
-        type="button"
-        onClick={() => handleCreatorSchedule(r.id, r.serviceKind)}
-        disabled={busy}
-        style={{
-          ...styles.buttonPrimary,
-          opacity: busy ? 0.8 : 1,
-          cursor: busy ? "not-allowed" : "pointer",
-        }}
-      >
-        {busy ? "Procesando..." : "Guardar fecha"}
-      </button>
+  type="button"
+  onClick={() => handleCreatorSchedule(r.id, r.serviceKind)}
+  disabled={busy || scheduleConflict.hasConflict}
+  style={{
+    ...styles.buttonPrimary,
+    opacity: busy || scheduleConflict.hasConflict ? 0.55 : 1,
+    cursor: busy || scheduleConflict.hasConflict ? "not-allowed" : "pointer",
+  }}
+>
+  {busy ? "Procesando..." : "Guardar fecha"}
+</button>
 
       <button
         type="button"
@@ -2169,6 +2185,21 @@ export default function OwnerSidebarMyGroups({
         onChange={updateScheduleParts}
         disabled={busy}
       />
+      {scheduleConflictMessage ? (
+  <div
+    style={{
+      borderRadius: 10,
+      border: "1px solid rgba(248,113,113,0.18)",
+      background: "rgba(248,113,113,0.08)",
+      padding: "7px 8px",
+      fontSize: 12,
+      lineHeight: 1.3,
+      color: "#fecaca",
+    }}
+  >
+    {scheduleConflictMessage}
+  </div>
+) : null}
 
       <textarea
         value={scheduleNoteMap[r.id] ?? getCreatorScheduleNote(req) ?? ""}
@@ -2188,17 +2219,17 @@ export default function OwnerSidebarMyGroups({
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button
-          type="button"
-          onClick={() => handleCreatorSchedule(r.id, r.serviceKind)}
-          disabled={busy}
-          style={{
-            ...styles.buttonPrimary,
-            opacity: busy ? 0.8 : 1,
-            cursor: busy ? "not-allowed" : "pointer",
-          }}
-        >
-          {busy ? "Procesando..." : "Guardar fecha"}
-        </button>
+  type="button"
+  onClick={() => handleCreatorSchedule(r.id, r.serviceKind)}
+  disabled={busy || scheduleConflict.hasConflict}
+  style={{
+    ...styles.buttonPrimary,
+    opacity: busy || scheduleConflict.hasConflict ? 0.55 : 1,
+    cursor: busy || scheduleConflict.hasConflict ? "not-allowed" : "pointer",
+  }}
+>
+  {busy ? "Procesando..." : "Guardar fecha"}
+</button>
 
         <button
           type="button"

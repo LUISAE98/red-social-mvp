@@ -144,13 +144,15 @@ function assertIsoDateString(value: string, fieldName: string): string {
 }
 
 function normalizeCallableError(error: any): Error {
-  const message =
-    error?.message ||
+  const rawMessage =
     error?.details?.message ||
     error?.details ||
+    error?.message ||
     "Ocurrió un error al ejecutar la operación.";
 
-  return message instanceof Error ? message : new Error(String(message));
+  const message = String(rawMessage).replace(/^FirebaseError:\s*/i, "");
+
+  return new Error(message);
 }
 
 export async function createMeetGreetRequest(

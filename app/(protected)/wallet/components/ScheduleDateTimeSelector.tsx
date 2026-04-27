@@ -36,23 +36,57 @@ export function getSchedulePartsFromDate(value: Date | null): ScheduleParts {
     day: String(date.getDate()).padStart(2, "0"),
     month: String(date.getMonth() + 1).padStart(2, "0"),
     year: String(date.getFullYear()),
-    hour: String(date.getHours()).padStart(2, "0"),
-    minute: String(date.getMinutes()).padStart(2, "0"),
+    hour: value
+      ? String(date.getHours()).padStart(2, "0")
+      : "00",
+    minute: value
+      ? String(date.getMinutes()).padStart(2, "0")
+      : "00",
   };
 }
 
 export function schedulePartsToIso(parts: ScheduleParts): string | null {
-  const date = new Date(
-    Number(parts.year),
-    Number(parts.month) - 1,
-    Number(parts.day),
-    Number(parts.hour),
-    Number(parts.minute),
-    0,
-    0
-  );
+  const year = Number(parts.year);
+  const month = Number(parts.month);
+  const day = Number(parts.day);
+  const hour = Number(parts.hour);
+  const minute = Number(parts.minute);
 
-  if (Number.isNaN(date.getTime())) return null;
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute)
+  ) {
+    return null;
+  }
+
+  if (
+    month < 1 ||
+    month > 12 ||
+    day < 1 ||
+    day > 31 ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+
+  const date = new Date(year, month - 1, day, hour, minute, 0, 0);
+
+  if (
+    Number.isNaN(date.getTime()) ||
+    date.getFullYear() !== year ||
+    date.getMonth() !== month - 1 ||
+    date.getDate() !== day ||
+    date.getHours() !== hour ||
+    date.getMinutes() !== minute
+  ) {
+    return null;
+  }
 
   return date.toISOString();
 }
@@ -68,9 +102,20 @@ export default function ScheduleDateTimeSelector({
     String(currentYear + index)
   );
 
-  const dayOptions = Array.from({ length: 31 }, (_, index) =>
-    String(index + 1).padStart(2, "0")
-  );
+  const selectedYear = Number(value.year);
+const selectedMonth = Number(value.month);
+
+const daysInSelectedMonth =
+  Number.isInteger(selectedYear) &&
+  Number.isInteger(selectedMonth) &&
+  selectedMonth >= 1 &&
+  selectedMonth <= 12
+    ? new Date(selectedYear, selectedMonth, 0).getDate()
+    : 31;
+
+const dayOptions = Array.from({ length: daysInSelectedMonth }, (_, index) =>
+  String(index + 1).padStart(2, "0")
+);
 
   const hourOptions = Array.from({ length: 24 }, (_, index) =>
     String(index).padStart(2, "0")
@@ -79,11 +124,31 @@ export default function ScheduleDateTimeSelector({
   const minuteOptions = ["00", "15", "30", "45"];
 
   function updatePart(key: keyof ScheduleParts, nextValue: string) {
-    onChange({
-      ...value,
-      [key]: nextValue,
-    });
+  const nextParts = {
+    ...value,
+    [key]: nextValue,
+  };
+
+  const nextYear = Number(nextParts.year);
+  const nextMonth = Number(nextParts.month);
+  const nextDay = Number(nextParts.day);
+
+  if (
+    (key === "month" || key === "year") &&
+    Number.isInteger(nextYear) &&
+    Number.isInteger(nextMonth) &&
+    nextMonth >= 1 &&
+    nextMonth <= 12
+  ) {
+    const maxDay = new Date(nextYear, nextMonth, 0).getDate();
+
+    if (Number.isInteger(nextDay) && nextDay > maxDay) {
+      nextParts.day = String(maxDay).padStart(2, "0");
+    }
   }
+
+  onChange(nextParts);
+}
 
   return (
     <>

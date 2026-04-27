@@ -112,7 +112,10 @@ export default function WalletPendientesPage() {
             subtitle="Estamos leyendo tus servicios y solicitudes activas."
           />
         ) : filteredCount > 0 ? (
-          <WalletList items={filteredItems} />
+          <WalletList
+  items={filteredItems}
+  calendarItems={walletData.calendar}
+/>
         ) : (
           <EmptyRows
             title={

@@ -627,11 +627,20 @@ export default function ScheduleCalendarOverlay({
                               .join(" ")}
                             disabled={!inMonth}
                             onClick={() => {
-                              if (!inMonth) return;
+  if (!inMonth) return;
 
-                              onSelectDate?.(day);
-                              setSelectedEventDayKey(hasEvents ? dayKey : null);
-                            }}
+  const nextDate =
+    selectedDate instanceof Date && !Number.isNaN(selectedDate.getTime())
+      ? new Date(selectedDate)
+      : new Date();
+
+  nextDate.setFullYear(day.getFullYear());
+  nextDate.setMonth(day.getMonth());
+  nextDate.setDate(day.getDate());
+
+  onSelectDate?.(nextDate);
+  setSelectedEventDayKey(hasEvents ? dayKey : null);
+}}
                             title={
                               hasEvents
                                 ? `${dayItems.length} evento${dayItems.length === 1 ? "" : "s"}`

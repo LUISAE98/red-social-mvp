@@ -4,6 +4,18 @@ import type { ExclusiveSessionUserRole } from "./types";
 
 type CallablePayload = Record<string, unknown>;
 
+function normalizeCallableError(error: any): Error {
+  const rawMessage =
+    error?.details?.message ||
+    error?.details ||
+    error?.message ||
+    "Ocurrió un error al ejecutar la operación.";
+
+  const message = String(rawMessage).replace(/^FirebaseError:\s*/i, "");
+
+  return new Error(message);
+}
+
 export type ExpireExclusiveSessionNoShowsResult = {
   ok: boolean;
   expiredCount: number;
@@ -13,9 +25,13 @@ async function callExclusiveSessionFunction<T = unknown>(
   name: string,
   payload: CallablePayload
 ): Promise<T> {
-  const callable = httpsCallable<CallablePayload, T>(functions, name);
-  const result = await callable(payload);
-  return result.data;
+  try {
+    const callable = httpsCallable<CallablePayload, T>(functions, name);
+    const result = await callable(payload);
+    return result.data;
+  } catch (error: any) {
+    throw normalizeCallableError(error);
+  }
 }
 
 export function createExclusiveSessionRequest(payload: {

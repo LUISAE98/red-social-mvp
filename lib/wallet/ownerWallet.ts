@@ -201,17 +201,51 @@ export function getWalletServiceDurationMinutes(row: WalletServiceItem): number 
   return 0;
 }
 
-export function hasWalletScheduleConflict(
+export type WalletScheduleConflictResult = {
+  hasConflict: boolean;
+  conflictItem: WalletServiceItem | null;
+  message: string | null;
+};
+
+function formatWalletTimeOnly(value: Date): string {
+  try {
+    return new Intl.DateTimeFormat("es-MX", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(value);
+  } catch {
+    return value.toLocaleTimeString("es-MX", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+}
+
+export function getWalletScheduleEndAt(
+  scheduledAt: Date | null,
+  durationMinutes: number
+): Date | null {
+  if (!scheduledAt || durationMinutes <= 0) return null;
+
+  return new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
+}
+
+export function getWalletScheduleConflictResult(
   target: {
     id?: string;
     source?: WalletServiceItem["source"];
     scheduledAt: Date | null;
     durationMinutes?: number | null;
   },
-  existingRows: WalletServiceItem[],
-  marginMinutes = 15
-): boolean {
-  if (!target.scheduledAt) return false;
+  existingRows: WalletServiceItem[]
+): WalletScheduleConflictResult {
+  if (!target.scheduledAt) {
+    return {
+      hasConflict: false,
+      conflictItem: null,
+      message: null,
+    };
+  }
 
   const targetDuration =
     typeof target.durationMinutes === "number" && target.durationMinutes > 0
@@ -220,27 +254,78 @@ export function hasWalletScheduleConflict(
         ? 60
         : 30;
 
-  const marginMs = marginMinutes * 60 * 1000;
   const targetStart = target.scheduledAt.getTime();
   const targetEnd = targetStart + targetDuration * 60 * 1000;
 
-  return existingRows.some((row) => {
-    if (target.id && row.id === target.id && row.source === target.source) {
-      return false;
-    }
+  const conflictItem =
+    existingRows.find((row) => {
+      if (target.id && row.id === target.id && row.source === target.source) {
+        return false;
+      }
 
-    if (!isCalendarScheduledStatus(row.status)) return false;
-    if (shouldTreatAsAutoRejected(row)) return false;
-    if (!row.scheduledAt) return false;
+      if (!isCalendarScheduledStatus(row.status)) return false;
+      if (shouldTreatAsAutoRejected(row)) return false;
+      if (!row.scheduledAt) return false;
 
-    const rowDuration = getWalletServiceDurationMinutes(row);
-    if (rowDuration <= 0) return false;
+      const existingDuration = getWalletServiceDurationMinutes(row);
+      if (existingDuration <= 0) return false;
 
-    const existingStart = row.scheduledAt.getTime();
-    const existingEnd = existingStart + rowDuration * 60 * 1000;
+      const existingStart = row.scheduledAt.getTime();
+      const existingEnd = existingStart + existingDuration * 60 * 1000;
 
-    return targetStart < existingEnd + marginMs && targetEnd + marginMs > existingStart;
-  });
+      return targetStart < existingEnd && targetEnd > existingStart;
+    }) ?? null;
+
+  if (!conflictItem || !conflictItem.scheduledAt) {
+    return {
+      hasConflict: false,
+      conflictItem: null,
+      message: null,
+    };
+  }
+
+  const conflictDuration = getWalletServiceDurationMinutes(conflictItem);
+  const conflictEndAt = getWalletScheduleEndAt(
+    conflictItem.scheduledAt,
+    conflictDuration
+  );
+
+  const serviceLabel =
+    conflictItem.source === "exclusive_session"
+      ? "sesión exclusiva"
+      : "Meet & Greet";
+
+  const startLabel = formatWalletTimeOnly(conflictItem.scheduledAt);
+  const endLabel = conflictEndAt ? formatWalletTimeOnly(conflictEndAt) : null;
+
+  const targetEndAt = getWalletScheduleEndAt(
+  target.scheduledAt,
+  targetDuration
+);
+
+const targetStartLabel = formatWalletTimeOnly(target.scheduledAt);
+const targetEndLabel = targetEndAt ? formatWalletTimeOnly(targetEndAt) : null;
+
+return {
+  hasConflict: true,
+  conflictItem,
+  message:
+    endLabel && targetEndLabel
+      ? `No puedes agendar este evento de ${targetDuration} minutos de ${targetStartLabel} a ${targetEndLabel}, porque ya tienes una ${serviceLabel} que inicia a las ${startLabel}, dura ${conflictDuration} minutos y termina a las ${endLabel}. Los horarios se cruzan.`
+      : `No puedes agendar este evento porque se cruza con una ${serviceLabel} existente.`,
+};
+}
+
+export function hasWalletScheduleConflict(
+  target: {
+    id?: string;
+    source?: WalletServiceItem["source"];
+    scheduledAt: Date | null;
+    durationMinutes?: number | null;
+  },
+  existingRows: WalletServiceItem[]
+): boolean {
+  return getWalletScheduleConflictResult(target, existingRows).hasConflict;
 }
 
 function getGreetingTypeLabel(type: GreetingType): string {

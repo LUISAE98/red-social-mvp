@@ -13,8 +13,6 @@ const EXCLUSIVE_SESSION_COLLECTION = "exclusiveSessionRequests";
 const MAX_RESCHEDULE_REQUESTS = 2;
 const PREPARE_WINDOW_MINUTES = 10;
 const CREATOR_JOIN_GRACE_MINUTES = 15;
-const SCHEDULE_SEPARATION_MARGIN_MINUTES = 15;
-const DEFAULT_MEET_GREET_DURATION_MINUTES = 30;
 
 const ACTIVE_SCHEDULED_STATUSES: MeetGreetStatus[] = [
   "scheduled",
@@ -315,12 +313,46 @@ function getNoShowRejectAt(scheduleAt: TimestampLike): TimestampLike {
   return admin.firestore.Timestamp.fromDate(rejectDate);
 }
 
-function getSafeDurationMinutes(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value) && value > 0) {
-    return value;
+function getRequiredDurationMinutes(data: FirebaseFirestore.DocumentData): number {
+  const directDuration = data.durationMinutes;
+
+  if (
+    typeof directDuration === "number" &&
+    Number.isFinite(directDuration) &&
+    directDuration > 0
+  ) {
+    return directDuration;
   }
 
-  return DEFAULT_MEET_GREET_DURATION_MINUTES;
+  const snapshotDuration = data.serviceSnapshot?.durationMinutes;
+
+  if (
+    typeof snapshotDuration === "number" &&
+    Number.isFinite(snapshotDuration) &&
+    snapshotDuration > 0
+  ) {
+    return snapshotDuration;
+  }
+
+  throw new HttpsError(
+    "failed-precondition",
+    "No se puede validar la agenda porque este servicio no tiene duración configurada."
+  );
+}
+
+function formatScheduleTime(date: Date): string {
+  try {
+    return new Intl.DateTimeFormat("es-MX", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "America/Mexico_City",
+    }).format(date);
+  } catch {
+    return date.toLocaleTimeString("es-MX", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
 }
 
 async function assertNoCreatorScheduleConflict(params: {
@@ -329,7 +361,6 @@ async function assertNoCreatorScheduleConflict(params: {
   scheduledAt: TimestampLike;
   durationMinutes: number;
 }) {
-  const marginMs = SCHEDULE_SEPARATION_MARGIN_MINUTES * 60 * 1000;
   const newStartMs = params.scheduledAt.toDate().getTime();
   const newEndMs = newStartMs + params.durationMinutes * 60 * 1000;
 
@@ -364,18 +395,23 @@ async function assertNoCreatorScheduleConflict(params: {
 
       if (!existingScheduledAt) continue;
 
-      const existingDurationMinutes = getSafeDurationMinutes(data.durationMinutes);
-      const existingStartMs = existingScheduledAt.toDate().getTime();
-      const existingEndMs = existingStartMs + existingDurationMinutes * 60 * 1000;
+      const existingDurationMinutes = getRequiredDurationMinutes(data);
+      const existingStartDate = existingScheduledAt.toDate();
+      const existingStartMs = existingStartDate.getTime();
+      const existingEndDate = new Date(
+        existingStartMs + existingDurationMinutes * 60 * 1000
+      );
+      const existingEndMs = existingEndDate.getTime();
 
-      const hasConflict =
-        newStartMs < existingEndMs + marginMs &&
-        newEndMs + marginMs > existingStartMs;
+      const hasConflict = newStartMs < existingEndMs && newEndMs > existingStartMs;
 
       if (hasConflict) {
+        const startLabel = formatScheduleTime(existingStartDate);
+        const endLabel = formatScheduleTime(existingEndDate);
+
         throw new HttpsError(
           "failed-precondition",
-          `Ese horario se cruza con ${collectionConfig.conflictLabel} del creador. Debe existir al menos 15 minutos de separación.`
+          `Ya tienes ${collectionConfig.conflictLabel} que inicia a las ${startLabel}, dura ${existingDurationMinutes} minutos y termina a las ${endLabel}. No puedes agendar otro evento dentro de ese horario.`
         );
       }
     }
@@ -745,11 +781,11 @@ export const proposeMeetGreetSchedule = onCall(
     }
 
     await assertNoCreatorScheduleConflict({
-      creatorId: uid,
-      requestId,
-      scheduledAt,
-      durationMinutes: getSafeDurationMinutes(data.durationMinutes),
-    });
+  creatorId: uid,
+  requestId,
+  scheduledAt,
+  durationMinutes: getRequiredDurationMinutes(data),
+});
 
     const nextStatus = buildPreparationStatus(scheduledAt);
 
