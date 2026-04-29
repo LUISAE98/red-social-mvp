@@ -32,13 +32,8 @@ import ScheduleDateTimeSelector, {
 import ScheduleCalendarOverlay from "./ScheduleCalendarOverlay";
 
 function getServiceEmoji(row: WalletServiceItem): string {
-  if (row.status === "rejected" || row.status === "cancelled") {
-    return "❌";
-  }
-
-  if (row.status === "refund_requested" || row.status === "refund_review") {
-    return "💸";
-  }
+  if (row.status === "rejected" || row.status === "cancelled") return "❌";
+  if (row.status === "refund_requested" || row.status === "refund_review") return "💸";
 
   switch (row.kind) {
     case "saludo":
@@ -57,23 +52,18 @@ function getServiceEmoji(row: WalletServiceItem): string {
 function getStatusTone(
   row: WalletServiceItem
 ): "default" | "danger" | "warning" {
-  if (row.status === "rejected" || row.status === "cancelled") {
-    return "danger";
-  }
-
-  if (row.status === "refund_requested" || row.status === "refund_review") {
-    return "warning";
-  }
-
+  if (row.status === "rejected" || row.status === "cancelled") return "danger";
+  if (row.status === "refund_requested" || row.status === "refund_review") return "warning";
   return "default";
 }
 
-
 function isPrepareWindowOpen(value: Date | null): boolean {
   if (!value) return false;
+
   const now = Date.now();
   const startsAt = value.getTime();
   const prepareFrom = startsAt - 10 * 60 * 1000;
+
   return now >= prepareFrom;
 }
 
@@ -81,14 +71,15 @@ function isNoShowExpired(value: Date | null): boolean {
   if (!value) return false;
 
   const rejectAt = value.getTime() + 15 * 60 * 1000;
-
   return Date.now() >= rejectAt;
 }
 
 function isStartingSoon(value: Date | null): boolean {
   if (!value) return false;
+
   const now = Date.now();
   const diff = value.getTime() - now;
+
   return diff > 0 && diff <= 24 * 60 * 60 * 1000;
 }
 
@@ -151,6 +142,23 @@ function getScheduledServiceActionFlags(row: WalletServiceItem) {
     isPrepareWindowOpen(row.scheduledAt);
 
   return { canAccept, canReject, canSchedule, canPrepare };
+}
+
+function buildSourceLabel(row: WalletServiceItem): string | null {
+  if (row.requestSource === "profile") {
+    if (row.profileDisplayName && row.profileUsername) {
+      return `Perfil: ${row.profileDisplayName} · @${row.profileUsername}`;
+    }
+
+    if (row.profileDisplayName) return `Perfil: ${row.profileDisplayName}`;
+    if (row.profileUsername) return `Perfil: @${row.profileUsername}`;
+
+    return "Perfil del creador";
+  }
+
+  if (row.groupName) return `Comunidad: ${row.groupName}`;
+
+  return null;
 }
 
 export function WalletCard({
@@ -252,11 +260,7 @@ export function WalletCard({
   );
 }
 
-export function WalletErrorBox({
-  message,
-}: {
-  message: string;
-}) {
+export function WalletErrorBox({ message }: { message: string }) {
   return (
     <>
       <style jsx>{`
@@ -438,12 +442,13 @@ export function EmptyRows({
     </div>
   );
 }
-
 function buildRowSubtitle(row: WalletServiceItem): string {
   const chunks: string[] = [];
 
-  if (row.groupName) {
-    chunks.push(row.groupName);
+  const sourceLabel = buildSourceLabel(row);
+
+  if (sourceLabel) {
+    chunks.push(sourceLabel);
   }
 
   chunks.push(row.statusLabel);
@@ -457,8 +462,8 @@ function buildRowSubtitle(row: WalletServiceItem): string {
   }
 
   if (row.priceSnapshot != null) {
-    chunks.push(formatWalletMoney(row.priceSnapshot));
-  }
+  chunks.push(formatWalletMoney(row.priceSnapshot));
+}
 
   const noShowMessage = getNoShowMessage(row);
 
@@ -486,8 +491,6 @@ export function WalletServiceRow({
   onToggle: () => void;
   calendarItems?: WalletServiceItem[];
 }) {
-
-
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -497,11 +500,14 @@ export function WalletServiceRow({
   const [rejectReason, setRejectReason] = useState("");
   const [scheduleNote, setScheduleNote] = useState(row.creatorScheduleNote ?? "");
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarRowOpenKey, setCalendarRowOpenKey] = useState<string | null>(
+    null
+  );
   const [scheduleParts, setScheduleParts] = useState<ScheduleParts>(
     getSchedulePartsFromDate(row.scheduledAt)
   );
 
-    useEffect(() => {
+  useEffect(() => {
     setScheduleParts(getSchedulePartsFromDate(row.scheduledAt));
     setScheduleNote(row.creatorScheduleNote ?? "");
   }, [row.scheduledAt, row.creatorScheduleNote]);
@@ -515,30 +521,33 @@ export function WalletServiceRow({
   const isMeetGreet = row.source === "meet_greet";
   const isExclusiveSession = row.source === "exclusive_session";
   const isScheduledService = isMeetGreet || isExclusiveSession;
-  const selectedScheduledAtIso = schedulePartsToIso(scheduleParts);
-const selectedScheduledAt = selectedScheduledAtIso
-  ? new Date(selectedScheduledAtIso)
-  : null;
 
-const scheduleConflict = isScheduledService
-  ? getWalletScheduleConflictResult(
-      {
-        id: row.id,
-        source: row.source,
-        scheduledAt: selectedScheduledAt,
-        durationMinutes: getWalletServiceDurationMinutes(row),
-      },
-      calendarItems
-    )
-  : {
-      hasConflict: false,
-      conflictItem: null,
-      message: null,
-    };
+  const selectedScheduledAtIso = schedulePartsToIso(scheduleParts);
+  const selectedScheduledAt = selectedScheduledAtIso
+    ? new Date(selectedScheduledAtIso)
+    : null;
+
+  const scheduleConflict = isScheduledService
+    ? getWalletScheduleConflictResult(
+        {
+          id: row.id,
+          source: row.source,
+          scheduledAt: selectedScheduledAt,
+          durationMinutes: getWalletServiceDurationMinutes(row),
+        },
+        calendarItems
+      )
+    : {
+        hasConflict: false,
+        conflictItem: null,
+        message: null,
+      };
+
   const noShowExpired =
     isScheduledService &&
     !row.preparingCreatorAt &&
     isNoShowExpired(row.scheduledAt);
+
   const noShowMessage = getNoShowMessage(row);
 
   const { canAccept, canReject, canSchedule, canPrepare } =
@@ -625,46 +634,47 @@ const scheduleConflict = isScheduledService
   }
 
   async function handleScheduledServiceSchedule() {
-  const scheduledAt = schedulePartsToIso(scheduleParts);
+    const scheduledAt = schedulePartsToIso(scheduleParts);
 
-  if (!scheduledAt) {
-    setError("Selecciona día, mes, año, hora y minuto.");
-    return;
-  }
-  if (scheduleConflict.hasConflict) {
-  setError(
-    scheduleConflict.message ??
-      "Ese horario ya está ocupado. Selecciona otra hora disponible."
-  );
-  return;
-}
-
-  setBusy(true);
-  setError(null);
-  setSuccess(null);
-
-  try {
-    const payload = {
-      requestId: row.id,
-      scheduledAt,
-      note: scheduleNote || null,
-    };
-
-    if (isExclusiveSession) {
-      await proposeExclusiveSessionSchedule(payload);
-    } else {
-      await proposeMeetGreetSchedule(payload);
+    if (!scheduledAt) {
+      setError("Selecciona día, mes, año, hora y minuto.");
+      return;
     }
 
-    setSuccess("✅ Fecha guardada correctamente.");
-    setScheduleOpen(false);
-    setCalendarOpen(false);
-  } catch (e: any) {
-    setError(e?.message ?? "No se pudo guardar la fecha.");
-  } finally {
-    setBusy(false);
+    if (scheduleConflict.hasConflict) {
+      setError(
+        scheduleConflict.message ??
+          "Ese horario ya está ocupado. Selecciona otra hora disponible."
+      );
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const payload = {
+        requestId: row.id,
+        scheduledAt,
+        note: scheduleNote || null,
+      };
+
+      if (isExclusiveSession) {
+        await proposeExclusiveSessionSchedule(payload);
+      } else {
+        await proposeMeetGreetSchedule(payload);
+      }
+
+      setSuccess("✅ Fecha guardada correctamente.");
+      setScheduleOpen(false);
+      setCalendarOpen(false);
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo guardar la fecha.");
+    } finally {
+      setBusy(false);
+    }
   }
-}
 
   async function handlePrepare() {
     setBusy(true);
@@ -692,8 +702,7 @@ const scheduleConflict = isScheduledService
       setBusy(false);
     }
   }
-
-  return (
+    return (
     <>
       <style jsx>{`
         .walletServiceCard {
@@ -787,7 +796,7 @@ const scheduleConflict = isScheduledService
           border-radius: 999px;
           padding: 7px 10px;
           background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.10);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           color: rgba(255, 255, 255, 0.82);
           font-size: 11px;
           font-weight: 500;
@@ -888,7 +897,7 @@ const scheduleConflict = isScheduledService
         .walletSecondaryBtn {
           padding: 8px 12px;
           border-radius: 10px;
-          border: 1px solid rgba(255, 255, 255, 0.10);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           background: rgba(255, 255, 255, 0.05);
           color: #fff;
           font-size: 13px;
@@ -900,7 +909,7 @@ const scheduleConflict = isScheduledService
         .walletField {
           padding: 10px 11px;
           border-radius: 10px;
-          border: 1px solid rgba(255, 255, 255, 0.10);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           background: rgba(255, 255, 255, 0.04);
           color: #fff;
           outline: none;
@@ -960,6 +969,16 @@ const scheduleConflict = isScheduledService
             <div className="walletServiceBodyInner">
               <div className="walletServiceChip">{row.statusLabel}</div>
 
+{row.requestSource === "profile" ? (
+  <div className="walletMiniMeta">
+    Origen: Perfil del creador
+    {row.profileDisplayName ? ` · ${row.profileDisplayName}` : ""}
+    {row.profileUsername ? ` · @${row.profileUsername}` : ""}
+  </div>
+) : row.groupName ? (
+  <div className="walletMiniMeta">Origen: Comunidad · {row.groupName}</div>
+) : null}
+
               {row.priceSnapshot != null ? (
                 <div className="walletMiniMeta">
                   Precio: {formatWalletMoney(row.priceSnapshot)}
@@ -980,11 +999,10 @@ const scheduleConflict = isScheduledService
                 </div>
               ) : null}
 
-              {isScheduledService &&
-              row.status !== "rejected" &&
-              noShowExpired ? (
+              {isScheduledService && row.status !== "rejected" && noShowExpired ? (
                 <div className="walletServiceErrorBox">
-                  Este servicio ya superó los 15 minutos de tolerancia. Se actualizará como rechazado automáticamente.
+                  Este servicio ya superó los 15 minutos de tolerancia. Se
+                  actualizará como rechazado automáticamente.
                 </div>
               ) : null}
 
@@ -1003,16 +1021,17 @@ const scheduleConflict = isScheduledService
               ) : null}
 
               {row.requestText ? (
-  <div className="walletServiceInfoBox">{row.requestText}</div>
-) : row.description ? (
-  <div className="walletServiceInfoBox">{row.description}</div>
-) : null}
+                <div className="walletServiceInfoBox">{row.requestText}</div>
+              ) : row.description ? (
+                <div className="walletServiceInfoBox">{row.description}</div>
+              ) : null}
 
-{row.creatorScheduleNote ? (
-  <div className="walletServiceInfoBox">
-    <strong>Instrucciones del creador:</strong> {row.creatorScheduleNote}
-  </div>
-) : null}
+              {row.creatorScheduleNote ? (
+                <div className="walletServiceInfoBox">
+                  <strong>Instrucciones del creador:</strong>{" "}
+                  {row.creatorScheduleNote}
+                </div>
+              ) : null}
 
               {row.rejectionReason && !noShowMessage ? (
                 <div className="walletServiceErrorBox">
@@ -1073,32 +1092,32 @@ const scheduleConflict = isScheduledService
                   ) : null}
 
                   {canSchedule ? (
-  <button
-    type="button"
-    className="walletSecondaryBtn"
-    onClick={(e) => {
-      e.stopPropagation();
-      setScheduleOpen((prev) => {
-        const next = !prev;
+                    <button
+                      type="button"
+                      className="walletSecondaryBtn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setScheduleOpen((prev) => {
+                          const next = !prev;
 
-        if (!next) {
-          setCalendarOpen(false);
-        }
+                          if (!next) {
+                            setCalendarOpen(false);
+                          }
 
-        return next;
-      });
-    }}
-    disabled={busy}
-    style={{
-      opacity: busy ? 0.7 : 1,
-      cursor: busy ? "not-allowed" : "pointer",
-    }}
-  >
-    {row.status === "accepted_pending_schedule"
-      ? "Poner fecha"
-      : "Proponer nueva fecha"}
-  </button>
-) : null}
+                          return next;
+                        });
+                      }}
+                      disabled={busy}
+                      style={{
+                        opacity: busy ? 0.7 : 1,
+                        cursor: busy ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {row.status === "accepted_pending_schedule"
+                        ? "Poner fecha"
+                        : "Proponer nueva fecha"}
+                    </button>
+                  ) : null}
 
                   {canPrepare ? (
                     <button
@@ -1119,8 +1138,7 @@ const scheduleConflict = isScheduledService
                   ) : null}
                 </div>
               ) : null}
-
-              {rejectOpen ? (
+                            {rejectOpen ? (
                 <div style={{ display: "grid", gap: 8 }}>
                   <textarea
                     value={rejectReason}
@@ -1129,6 +1147,7 @@ const scheduleConflict = isScheduledService
                     className="walletField"
                     style={{ minHeight: 92, resize: "vertical" }}
                   />
+
                   <div className="walletServiceActions">
                     <button
                       type="button"
@@ -1145,6 +1164,7 @@ const scheduleConflict = isScheduledService
                     >
                       {busy ? "Procesando..." : "Confirmar rechazo"}
                     </button>
+
                     <button
                       type="button"
                       className="walletSecondaryBtn"
@@ -1164,68 +1184,181 @@ const scheduleConflict = isScheduledService
                 </div>
               ) : null}
 
-                                         {scheduleOpen ? (
+              {scheduleOpen ? (
                 <div style={{ display: "grid", gap: 8 }}>
+                  <button
+                    type="button"
+                    className="walletSecondaryBtn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCalendarOpen(true);
+                    }}
+                    disabled={busy}
+                    style={{
+                      width: "fit-content",
+                      opacity: busy ? 0.7 : 1,
+                      cursor: busy ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Ver calendario
+                  </button>
+
                   <ScheduleDateTimeSelector
-  value={scheduleParts}
-  onChange={(nextParts) => {
-    setScheduleParts(nextParts);
-    setError(null);
-    setSuccess(null);
-  }}
-  disabled={busy}
-/>
+                    value={scheduleParts}
+                    onChange={(nextParts) => {
+                      setScheduleParts(nextParts);
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    disabled={busy}
+                  />
 
-{scheduleConflict.message ? (
-  <div className="walletServiceErrorBox">{scheduleConflict.message}</div>
-) : null}
+                  {scheduleConflict.message ? (
+                    <div className="walletServiceErrorBox">
+                      {scheduleConflict.message}
+                    </div>
+                  ) : null}
 
-<textarea
-  value={scheduleNote}
-  onChange={(e) => setScheduleNote(e.target.value)}
-  placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
-  className="walletField"
-  style={{ minHeight: 92, resize: "vertical" }}
-/>
+                  <textarea
+                    value={scheduleNote}
+                    onChange={(e) => setScheduleNote(e.target.value)}
+                    placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
+                    className="walletField"
+                    style={{ minHeight: 92, resize: "vertical" }}
+                  />
 
-<div className="walletServiceActions">
-  <button
-  type="button"
-  className="walletPrimaryBtn"
-  onClick={(e) => {
-    e.stopPropagation();
-    void handleScheduledServiceSchedule();
-  }}
-  disabled={busy || scheduleConflict.hasConflict}
-  style={{
-    opacity: busy || scheduleConflict.hasConflict ? 0.55 : 1,
-    cursor: busy || scheduleConflict.hasConflict ? "not-allowed" : "pointer",
-  }}
->
-  {busy ? "Procesando..." : "Guardar fecha"}
-</button>
+                  <div className="walletServiceActions">
+                    <button
+                      type="button"
+                      className="walletPrimaryBtn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleScheduledServiceSchedule();
+                      }}
+                      disabled={busy || scheduleConflict.hasConflict}
+                      style={{
+                        opacity: busy || scheduleConflict.hasConflict ? 0.55 : 1,
+                        cursor:
+                          busy || scheduleConflict.hasConflict
+                            ? "not-allowed"
+                            : "pointer",
+                      }}
+                    >
+                      {busy ? "Procesando..." : "Guardar fecha"}
+                    </button>
 
-  <button
-    type="button"
-    className="walletSecondaryBtn"
-    onClick={(e) => {
-      e.stopPropagation();
-      setScheduleOpen(false);
-      setCalendarOpen(false);
-    }}
-    disabled={busy}
-    style={{
-      opacity: busy ? 0.7 : 1,
-      cursor: busy ? "not-allowed" : "pointer",
-    }}
-  >
-    Cancelar
-  </button>
-</div>
+                    <button
+                      type="button"
+                      className="walletSecondaryBtn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setScheduleOpen(false);
+                        setCalendarOpen(false);
+                      }}
+                      disabled={busy}
+                      style={{
+                        opacity: busy ? 0.7 : 1,
+                        cursor: busy ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+
+                  <ScheduleCalendarOverlay
+                    open={calendarOpen}
+                    title="Calendario del creador"
+                    items={calendarItems}
+                    excludeId={row.id}
+                    selectedDate={selectedScheduledAt}
+                    conflictMessage={scheduleConflict.message}
+                    onSelectDate={(date) => {
+                      setScheduleParts(getSchedulePartsFromDate(date));
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    onClose={() => setCalendarOpen(false)}
+                    renderItem={(calendarRow) => (
+                      <WalletServiceRow
+                        row={calendarRow}
+                        open={false}
+                        calendarItems={calendarItems}
+                        onToggle={() => {}}
+                      />
+                    )}
+                    footer={
+                      <div style={{ display: "grid", gap: 8 }}>
+                        <ScheduleDateTimeSelector
+                          value={scheduleParts}
+                          onChange={(nextParts) => {
+                            setScheduleParts(nextParts);
+                            setError(null);
+                            setSuccess(null);
+                          }}
+                          disabled={busy}
+                        />
+
+                        {scheduleConflict.message ? (
+                          <div className="walletServiceErrorBox">
+                            {scheduleConflict.message}
+                          </div>
+                        ) : null}
+
+                        <textarea
+                          value={scheduleNote}
+                          onChange={(e) => setScheduleNote(e.target.value)}
+                          placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
+                          className="walletField"
+                          style={{ minHeight: 92, resize: "vertical" }}
+                        />
+
+                        <div className="walletServiceActions">
+                          <button
+                            type="button"
+                            className="walletPrimaryBtn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleScheduledServiceSchedule();
+                            }}
+                            disabled={busy || scheduleConflict.hasConflict}
+                            style={{
+                              opacity:
+                                busy || scheduleConflict.hasConflict ? 0.55 : 1,
+                              cursor:
+                                busy || scheduleConflict.hasConflict
+                                  ? "not-allowed"
+                                  : "pointer",
+                            }}
+                          >
+                            {busy ? "Procesando..." : "Guardar fecha"}
+                          </button>
+
+                          <button
+                            type="button"
+                            className="walletSecondaryBtn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setCalendarOpen(false);
+                            }}
+                            disabled={busy}
+                            style={{
+                              opacity: busy ? 0.7 : 1,
+                              cursor: busy ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            Cerrar calendario
+                          </button>
+                        </div>
+                      </div>
+                    }
+                  />
                 </div>
               ) : null}
 
-              {error ? <div className="walletServiceErrorBox">{error}</div> : null}
+              {error ? (
+                <div className="walletServiceErrorBox">{error}</div>
+              ) : null}
+
               {success ? (
                 <div className="walletServiceSuccessBox">{success}</div>
               ) : null}
@@ -1264,14 +1397,14 @@ export function WalletList({
 
         return (
           <WalletServiceRow
-  key={rowKey}
-  row={row}
-  open={isOpen}
-  calendarItems={calendarItems ?? items}
-  onToggle={() =>
-    setOpenRowKey((prev) => (prev === rowKey ? null : rowKey))
-  }
-/>
+            key={rowKey}
+            row={row}
+            open={isOpen}
+            calendarItems={calendarItems ?? items}
+            onToggle={() =>
+              setOpenRowKey((prev) => (prev === rowKey ? null : rowKey))
+            }
+          />
         );
       })}
     </div>
@@ -1407,7 +1540,9 @@ export function WalletFilterMenu<T extends string>({
           font-size: 13px;
           font-weight: 500;
           text-align: left;
-          transition: background 0.18s ease, color 0.18s ease;
+          transition:
+            background 0.18s ease,
+            color 0.18s ease;
         }
 
         .filterMenuItem:hover {
@@ -1479,7 +1614,9 @@ export function WalletFilterMenu<T extends string>({
                       onChange(option.value);
                       setOpen(false);
                     }}
-                    className={`filterMenuItem ${isActive ? "filterMenuItemActive" : ""}`}
+                    className={`filterMenuItem ${
+                      isActive ? "filterMenuItemActive" : ""
+                    }`}
                   >
                     <span className="filterMenuItemLeft">
                       {option.emoji ? (

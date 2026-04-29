@@ -4,6 +4,13 @@ import type { ExclusiveSessionUserRole } from "./types";
 
 type CallablePayload = Record<string, unknown>;
 
+export type ExclusiveSessionSource = "group" | "profile";
+
+export type ExpireExclusiveSessionNoShowsResult = {
+  ok: boolean;
+  expiredCount: number;
+};
+
 function normalizeCallableError(error: any): Error {
   const rawMessage =
     error?.details?.message ||
@@ -16,10 +23,52 @@ function normalizeCallableError(error: any): Error {
   return new Error(message);
 }
 
-export type ExpireExclusiveSessionNoShowsResult = {
-  ok: boolean;
-  expiredCount: number;
-};
+function normalizeOptionalString(value?: string | null): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length ? trimmed : null;
+}
+
+function assertNonEmptyString(value: string, fieldName: string): string {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    throw new Error(`El campo ${fieldName} es obligatorio.`);
+  }
+
+  return trimmed;
+}
+
+function assertOptionalNumber(
+  value: number | null | undefined,
+  fieldName: string,
+  options?: { min?: number; max?: number }
+): number | null {
+  if (value == null) return null;
+
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`El campo ${fieldName} debe ser un número válido.`);
+  }
+
+  if (options?.min != null && value < options.min) {
+    throw new Error(`El campo ${fieldName} debe ser mayor o igual a ${options.min}.`);
+  }
+
+  if (options?.max != null && value > options.max) {
+    throw new Error(`El campo ${fieldName} debe ser menor o igual a ${options.max}.`);
+  }
+
+  return value;
+}
+
+function resolveSource(input: {
+  groupId?: string | null;
+  profileUserId?: string | null;
+  creatorId?: string | null;
+  source?: ExclusiveSessionSource;
+}): ExclusiveSessionSource {
+  return input.source ?? (input.profileUserId || input.creatorId ? "profile" : "group");
+}
 
 async function callExclusiveSessionFunction<T = unknown>(
   name: string,
@@ -35,23 +84,74 @@ async function callExclusiveSessionFunction<T = unknown>(
 }
 
 export function createExclusiveSessionRequest(payload: {
-  groupId: string;
+  groupId?: string | null;
+  profileUserId?: string | null;
+  creatorId?: string | null;
+  source?: ExclusiveSessionSource;
   buyerMessage?: string | null;
   priceSnapshot?: number | null;
   durationMinutes?: number | null;
 }) {
-  return callExclusiveSessionFunction("createExclusiveSessionRequest", payload);
+  const source = resolveSource(payload);
+
+  if (source === "group" && !payload.groupId) {
+    throw new Error("Falta el ID del grupo para crear la solicitud.");
+  }
+
+  if (source === "profile" && !payload.profileUserId && !payload.creatorId) {
+    throw new Error("Falta el ID del perfil para crear la solicitud.");
+  }
+
+  return callExclusiveSessionFunction("createExclusiveSessionRequest", {
+    groupId:
+      source === "group"
+        ? assertNonEmptyString(String(payload.groupId ?? ""), "groupId")
+        : null,
+    profileUserId:
+      source === "profile"
+        ? assertNonEmptyString(
+            String(payload.profileUserId ?? payload.creatorId ?? ""),
+            "profileUserId"
+          )
+        : null,
+    creatorId:
+      source === "profile"
+        ? assertNonEmptyString(
+            String(payload.creatorId ?? payload.profileUserId ?? ""),
+            "creatorId"
+          )
+        : null,
+    source,
+    buyerMessage: normalizeOptionalString(payload.buyerMessage),
+    priceSnapshot: assertOptionalNumber(payload.priceSnapshot, "priceSnapshot", {
+      min: 0,
+      max: 1000000,
+    }),
+    durationMinutes: assertOptionalNumber(
+      payload.durationMinutes,
+      "durationMinutes",
+      {
+        min: 1,
+        max: 600,
+      }
+    ),
+  });
 }
 
 export function acceptExclusiveSessionRequest(payload: { requestId: string }) {
-  return callExclusiveSessionFunction("acceptExclusiveSessionRequest", payload);
+  return callExclusiveSessionFunction("acceptExclusiveSessionRequest", {
+    requestId: assertNonEmptyString(payload.requestId, "requestId"),
+  });
 }
 
 export function rejectExclusiveSessionRequest(payload: {
   requestId: string;
   rejectionReason?: string | null;
 }) {
-  return callExclusiveSessionFunction("rejectExclusiveSessionRequest", payload);
+  return callExclusiveSessionFunction("rejectExclusiveSessionRequest", {
+    requestId: assertNonEmptyString(payload.requestId, "requestId"),
+    rejectionReason: normalizeOptionalString(payload.rejectionReason),
+  });
 }
 
 export function proposeExclusiveSessionSchedule(payload: {
@@ -59,28 +159,41 @@ export function proposeExclusiveSessionSchedule(payload: {
   scheduledAt: string;
   note?: string | null;
 }) {
-  return callExclusiveSessionFunction("proposeExclusiveSessionSchedule", payload);
+  return callExclusiveSessionFunction("proposeExclusiveSessionSchedule", {
+    requestId: assertNonEmptyString(payload.requestId, "requestId"),
+    scheduledAt: assertNonEmptyString(payload.scheduledAt, "scheduledAt"),
+    note: normalizeOptionalString(payload.note),
+  });
 }
 
 export function requestExclusiveSessionReschedule(payload: {
   requestId: string;
   reason?: string | null;
 }) {
-  return callExclusiveSessionFunction("requestExclusiveSessionReschedule", payload);
+  return callExclusiveSessionFunction("requestExclusiveSessionReschedule", {
+    requestId: assertNonEmptyString(payload.requestId, "requestId"),
+    reason: normalizeOptionalString(payload.reason),
+  });
 }
 
 export function requestExclusiveSessionRefund(payload: {
   requestId: string;
   refundReason?: string | null;
 }) {
-  return callExclusiveSessionFunction("requestExclusiveSessionRefund", payload);
+  return callExclusiveSessionFunction("requestExclusiveSessionRefund", {
+    requestId: assertNonEmptyString(payload.requestId, "requestId"),
+    refundReason: normalizeOptionalString(payload.refundReason),
+  });
 }
 
 export function setExclusiveSessionPreparing(payload: {
   requestId: string;
   role: ExclusiveSessionUserRole;
 }) {
-  return callExclusiveSessionFunction("setExclusiveSessionPreparing", payload);
+  return callExclusiveSessionFunction("setExclusiveSessionPreparing", {
+    requestId: assertNonEmptyString(payload.requestId, "requestId"),
+    role: payload.role,
+  });
 }
 
 export function expireExclusiveSessionNoShows() {

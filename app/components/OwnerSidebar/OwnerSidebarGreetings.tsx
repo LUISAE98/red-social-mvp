@@ -40,7 +40,7 @@ type ScheduledRow = {
   id: string;
   data: MeetGreetRequestDoc | ExclusiveSessionRequestDoc;
   serviceKind: ScheduledServiceKind;
-  groupId?: string;
+  groupId?: string | null;
 };
 
 type Props = {
@@ -113,6 +113,20 @@ function getServiceName(type: string, typeLabel: (t: string) => string): string 
     return "Sesión exclusiva";
   }
   return typeLabel(type);
+}
+
+function isProfileRequest(req: {
+  source?: string | null;
+  requestSource?: string | null;
+  groupId?: string | null;
+  profileUserId?: string | null;
+}) {
+  return (
+    req.source === "profile" ||
+    req.requestSource === "profile" ||
+    !!req.profileUserId ||
+    !req.groupId
+  );
 }
 
 function getTypeChipStyle(_type: string): React.CSSProperties {
@@ -1022,31 +1036,79 @@ export default function OwnerSidebarGreetings({
     );
   }
 
-  function renderGroupLink(group: GroupDocLite | null) {
-    if (!group) return null;
+  function renderContextLink(
+  group: GroupDocLite | null,
+  req?: {
+    source?: string | null;
+    requestSource?: string | null;
+    profileUserId?: string | null;
+    profileUsername?: string | null;
+    profileDisplayName?: string | null;
+    creatorUsername?: string | null;
+    creatorDisplayName?: string | null;
+    groupId?: string | null;
+  }
+) {
+  const baseStyle: React.CSSProperties = {
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.09)",
+    borderRadius: 999,
+    padding: "6px 9px",
+    margin: 0,
+    textAlign: "left",
+    cursor: "pointer",
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: 700,
+    width: "fit-content",
+  };
 
+  if (group) {
     return (
       <button
         type="button"
         onClick={() => router.push(`/groups/${group.id}`)}
-        style={{
-          background: "rgba(255,255,255,0.05)",
-          border: "1px solid rgba(255,255,255,0.09)",
-          borderRadius: 999,
-          padding: "6px 9px",
-          margin: 0,
-          textAlign: "left",
-          cursor: "pointer",
-          color: "#fff",
-          fontSize: 11,
-          fontWeight: 700,
-          width: "fit-content",
-        }}
+        style={baseStyle}
       >
         Comunidad: {group.name ?? "Ir a la comunidad"}
       </button>
     );
   }
+
+  if (req && isProfileRequest(req)) {
+    const username = req.profileUsername ?? req.creatorUsername ?? null;
+    const label =
+      req.profileDisplayName ??
+      req.creatorDisplayName ??
+      "Perfil del creador";
+
+    if (username) {
+      return (
+        <button
+          type="button"
+          onClick={() => router.push(`/u/${username}`)}
+          style={baseStyle}
+        >
+          Perfil: {label}
+        </button>
+      );
+    }
+
+    return (
+      <span
+        style={{
+          ...baseStyle,
+          cursor: "default",
+          display: "inline-flex",
+        }}
+      >
+        Perfil: {label}
+      </span>
+    );
+  }
+
+  return null;
+}
 
   function renderTextBox(text: string, tone: "default" | "warning" | "danger" | "info" = "default") {
     const visual =
@@ -1094,7 +1156,7 @@ export default function OwnerSidebarGreetings({
 
   function renderBuyerGreetingCard(row: { id: string; data: GreetingRequestDoc }, itemKey: string) {
     const req = row.data;
-    const group = groupMetaMap[req.groupId] ?? null;
+    const group = req.groupId ? groupMetaMap[req.groupId] ?? null : null;
 
     return (
       <CleanServiceCard
@@ -1117,7 +1179,7 @@ export default function OwnerSidebarGreetings({
         onToggle={() => toggleItem(itemKey)}
         styles={styles}
       >
-        {renderGroupLink(group)}
+        {renderContextLink(group, req)}
         {req.instructions ? renderTextBox(req.instructions) : null}
         {req.createdAt ? <div style={styles.subtle}>Solicitado: {fmtDate(req.createdAt)}</div> : null}
         {renderRequestFeedback(row.id)}
@@ -1127,14 +1189,16 @@ export default function OwnerSidebarGreetings({
 
   function renderBuyerScheduledServiceCard(row: ScheduledRow, itemKey: string) {
     const req = row.data;
-    const group = groupMetaMap[req.groupId] ?? null;
+    const group = req.groupId ? groupMetaMap[req.groupId] ?? null : null;
     const busy = !!busyMap[row.id];
     const isExclusiveSession = row.serviceKind === "exclusive_session";
     const serviceType = isExclusiveSession ? "digital_exclusive_session" : "meet_greet_digital";
     const serviceTitle = isExclusiveSession ? "Sesión exclusiva" : "Meet & Greet";
     const noShowExpired = isNoShowExpired(req.scheduledAt);
     const canRequestRefund = req.status === "rejected" && req.paymentStatus !== "refunded";
-    const canRetry = req.status === "rejected" && !!group?.id;
+    const canRetry =
+      req.status === "rejected" &&
+      (!!group?.id || !!req.profileUsername || !!req.creatorUsername);
     const canRequestReschedule =
       (req.status === "scheduled" || req.status === "ready_to_prepare") &&
       remainingReschedules(req) > 0 &&
@@ -1159,7 +1223,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
         onToggle={() => toggleItem(itemKey)}
         styles={styles}
       >
-        {renderGroupLink(group)}
+        {renderContextLink(group, req)}
 
         {isStartingSoon(req.scheduledAt) && !noShowExpired
           ? renderTextBox(`⚠️ Tu ${serviceTitle.toLowerCase()} está próximo a iniciar.`, "warning")
@@ -1222,7 +1286,17 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
           {canRetry ? (
             <button
               type="button"
-              onClick={() => router.push(`/groups/${group?.id}`)}
+              onClick={() => {
+             if (group?.id) {
+             router.push(`/groups/${group.id}`);
+             return;
+            }
+
+           const username = req.profileUsername ?? req.creatorUsername ?? null;
+             if (username) {
+             router.push(`/u/${username}`);
+              }
+             }}
               disabled={busy}
               style={{ ...styles.buttonSecondary, opacity: busy ? 0.7 : 1, cursor: busy ? "not-allowed" : "pointer" }}
             >
@@ -1312,60 +1386,92 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
     );
   }
 
-    function buildCalendarItems(): WalletServiceItem[] {
-    return incomingScheduledServices
-      .filter((item) => !!item.data.scheduledAt)
-      .map((item) => {
-        const group = groupMetaMap[item.groupId ?? item.data.groupId] ?? null;
-        const scheduledAt = toDateSafe(item.data.scheduledAt);
-        const createdAt = toDateSafe(item.data.createdAt);
-        const updatedAt = toDateSafe(item.data.updatedAt);
-        const isExclusive = item.serviceKind === "exclusive_session";
+const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
+  return incomingScheduledServices
+    .filter((item) => !!item.data.scheduledAt)
+    .map((item): WalletServiceItem => {
+      const resolvedGroupId = item.groupId ?? item.data.groupId ?? "";
+      const group = resolvedGroupId ? groupMetaMap[resolvedGroupId] ?? null : null;
 
-        return {
-          id: item.id,
-          kind: isExclusive ? "exclusive_session" : "meet_greet",
-          title: isExclusive ? "Sesión exclusiva" : "Meet & Greet",
-          groupId: item.groupId ?? item.data.groupId ?? "",
-          groupName: group?.name ?? null,
-          buyerId: item.data.buyerId ?? "",
-          buyerDisplayName: (item.data as any).buyerDisplayName ?? null,
-          buyerUsername: (item.data as any).buyerUsername ?? null,
-          buyerAvatarUrl: (item.data as any).buyerAvatarUrl ?? null,
-          targetName: null,
-          requestText: item.data.buyerMessage ?? null,
-          status: item.data.status,
-          statusLabel: getMeetGreetStatusLabel(item.data.status),
-          description: item.data.buyerMessage ?? null,
-          creatorScheduleNote: getCreatorScheduleNote(item.data),
-          creatorScheduleNoteUpdatedAt: toDateSafe((item.data as any).creatorScheduleNoteUpdatedAt),
-          rejectionReason: item.data.rejectionReason ?? null,
-          refundReason: item.data.refundReason ?? null,
-          priceSnapshot:
-            typeof item.data.priceSnapshot === "number" ? item.data.priceSnapshot : null,
-          currency: ((item.data as any).currency === "USD" ? "USD" : "MXN") as "MXN" | "USD",
-          durationMinutes:
-            typeof item.data.durationMinutes === "number" ? item.data.durationMinutes : null,
-          source: isExclusive ? "exclusive_session" : "meet_greet",
-          scheduledAt,
-          acceptedAt: toDateSafe((item.data as any).acceptedAt),
-          rejectedAt: toDateSafe((item.data as any).rejectedAt),
-          preparingBuyerAt: toDateSafe((item.data as any).preparingBuyerAt),
-          preparingCreatorAt: toDateSafe((item.data as any).preparingCreatorAt),
-          preparationOpenedAt: toDateSafe((item.data as any).preparationOpenedAt),
-          noShowRejectAt: toDateSafe((item.data as any).noShowRejectAt),
-          autoRejectedAt: toDateSafe((item.data as any).autoRejectedAt),
-          autoRejectReason: (item.data as any).autoRejectReason ?? null,
-          noShowRole: (item.data as any).noShowRole ?? null,
-          createdAt,
-          updatedAt,
-        };
+      const scheduledAt = toDateSafe(item.data.scheduledAt);
+      const createdAt = toDateSafe(item.data.createdAt);
+      const updatedAt = toDateSafe(item.data.updatedAt);
+      const isExclusive = item.serviceKind === "exclusive_session";
+
+      const kind: WalletServiceItem["kind"] = isExclusive
+        ? "exclusive_session"
+        : "meet_greet";
+
+      const source: WalletServiceItem["source"] = isExclusive
+        ? "exclusive_session"
+        : "meet_greet";
+
+      const rawNoShowRole = (item.data as any).noShowRole;
+      const noShowRole: WalletServiceItem["noShowRole"] =
+        rawNoShowRole === "buyer" ||
+        rawNoShowRole === "creator" ||
+        rawNoShowRole === "both"
+          ? rawNoShowRole
+          : null;
+
+      return {
+        id: item.id,
+        kind,
+        title: isExclusive ? "Sesión exclusiva" : "Meet & Greet",
+        groupId: resolvedGroupId,
+        groupName: group?.name ?? null,
+        buyerId: item.data.buyerId ?? "",
+        buyerDisplayName: (item.data as any).buyerDisplayName ?? null,
+        buyerUsername: (item.data as any).buyerUsername ?? null,
+        buyerAvatarUrl: (item.data as any).buyerAvatarUrl ?? null,
+        profileUserId: (item.data as any).profileUserId ?? null,
+        profileDisplayName: (item.data as any).profileDisplayName ?? null,
+        profileUsername: (item.data as any).profileUsername ?? null,
+        requestSource:
+         (item.data as any).requestSource ??
+         (item.data as any).source ??
+        null,
+        noShowRole,
+
+        targetName: null,
+        requestText: item.data.buyerMessage ?? null,
+        status: item.data.status,
+        statusLabel: getMeetGreetStatusLabel(item.data.status),
+        description: item.data.buyerMessage ?? null,
+        creatorScheduleNote: getCreatorScheduleNote(item.data),
+        creatorScheduleNoteUpdatedAt: toDateSafe(
+          (item.data as any).creatorScheduleNoteUpdatedAt
+        ),
+        rejectionReason: item.data.rejectionReason ?? null,
+        refundReason: item.data.refundReason ?? null,
+        priceSnapshot:
+          typeof item.data.priceSnapshot === "number"
+            ? item.data.priceSnapshot
+            : null,
+        currency: (item.data as any).currency === "USD" ? "USD" : "MXN",
+        durationMinutes:
+          typeof item.data.durationMinutes === "number"
+            ? item.data.durationMinutes
+            : null,
+        source,
+        scheduledAt,
+        acceptedAt: toDateSafe((item.data as any).acceptedAt),
+        rejectedAt: toDateSafe((item.data as any).rejectedAt),
+        preparingBuyerAt: toDateSafe((item.data as any).preparingBuyerAt),
+        preparingCreatorAt: toDateSafe((item.data as any).preparingCreatorAt),
+        preparationOpenedAt: toDateSafe((item.data as any).preparationOpenedAt),
+        noShowRejectAt: toDateSafe((item.data as any).noShowRejectAt),
+        autoRejectedAt: toDateSafe((item.data as any).autoRejectedAt),
+        autoRejectReason: (item.data as any).autoRejectReason ?? null,
+        createdAt,
+        updatedAt,
+      };
       });
-  }
-
+}, [incomingScheduledServices, groupMetaMap]);
   function renderIncomingScheduledServiceCard(row: ScheduledRow, itemKey: string) {
     const req = row.data;
-    const group = groupMetaMap[row.groupId ?? req.groupId] ?? null;
+    const resolvedGroupId = row.groupId ?? req.groupId ?? "";
+    const group = resolvedGroupId ? groupMetaMap[resolvedGroupId] ?? null : null;
     const busy = !!busyMap[row.id];
     const isExclusiveSession = row.serviceKind === "exclusive_session";
     const serviceType = isExclusiveSession ? "digital_exclusive_session" : "meet_greet_digital";
@@ -1412,7 +1518,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
         onToggle={() => toggleItem(itemKey)}
         styles={styles}
       >
-        {renderGroupLink(group)}
+        {renderContextLink(group, req)}
 
         {isStartingSoon(req.scheduledAt) && !noShowExpired
           ? renderTextBox(`⚠️ Este ${serviceTitle.toLowerCase()} está próximo a iniciar.`, "warning")
@@ -1539,7 +1645,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
 <ScheduleCalendarOverlay
   open={!!calendarOpenMap[row.id]}
   title="Calendario del creador"
-  items={buildCalendarItems()}
+  items={buildCalendarItems}
   excludeId={row.id}
   onClose={() =>
     setCalendarOpenMap((prev) => ({
@@ -1551,7 +1657,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
     <WalletServiceRow
       row={calendarRow}
       open={false}
-      calendarItems={buildCalendarItems()}
+      calendarItems={buildCalendarItems}
       onToggle={() => {}}
     />
   )}

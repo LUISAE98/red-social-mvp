@@ -30,6 +30,13 @@ type Props = {
   className?: string;
 };
 
+const ALLOWED_SERVICE_TYPES: CreatorServiceType[] = [
+  "saludo",
+  "consejo",
+  "meet_greet_digital",
+  "clase_personalizada",
+];
+
 function getServiceLabel(type: CreatorServiceType): string {
   switch (type) {
     case "saludo":
@@ -129,13 +136,11 @@ export default function CreatorServicesMenu({
   viewerCanRequest = true,
   className,
 }: Props) {
-  const visibleServices = getVisibleServices(services);
+  const visibleServices = getVisibleServices(services, contextType);
 
   const allowedServices = visibleServices
     .filter((service) =>
-      ["saludo", "consejo", "meet_greet_digital", "clase_personalizada"].includes(
-        service.type
-      )
+      ALLOWED_SERVICE_TYPES.includes(service.type as CreatorServiceType)
     )
     .filter((service) =>
       canRenderAction({
@@ -156,21 +161,22 @@ export default function CreatorServicesMenu({
         width: "100%",
         display: "flex",
         justifyContent: "center",
-        padding: "4px 0 2px",
+        padding: "6px 0 4px",
       }}
     >
       <div
         style={{
           width: "100%",
-          maxWidth: 520,
+          maxWidth: 540,
           display: "flex",
           justifyContent: "center",
           alignItems: "flex-start",
-          gap: "clamp(14px, 4vw, 28px)",
+          gap: "clamp(14px, 4vw, 26px)",
           flexWrap: "wrap",
         }}
       >
         {allowedServices.map((service) => {
+          const accent = getServiceAccent(service.type);
           const href = buildHref({
             service,
             contextType,
@@ -186,31 +192,31 @@ export default function CreatorServicesMenu({
               href={href}
               aria-label={getServiceLabel(service.type)}
               style={{
-                width: "clamp(68px, 18vw, 96px)",
+                width: "clamp(72px, 18vw, 96px)",
                 color: "#fff",
                 textDecoration: "none",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: 7,
+                gap: 8,
                 textAlign: "center",
               }}
             >
               <span
                 aria-hidden="true"
                 style={{
-                  width: "clamp(48px, 13vw, 64px)",
-                  height: "clamp(48px, 13vw, 64px)",
-                  borderRadius: 999,
+                  width: "clamp(52px, 13vw, 64px)",
+                  height: "clamp(52px, 13vw, 64px)",
+                  borderRadius: "999px",
                   display: "grid",
                   placeItems: "center",
-                  background: "#000",
-                  border: `2.5px solid ${getServiceAccent(service.type)}`,
-                  fontSize: "clamp(21px, 5vw, 28px)",
+                  background:
+                    "radial-gradient(circle at 35% 25%, rgba(255,255,255,0.14), rgba(0,0,0,0.92) 58%, #000 100%)",
+                  border: `2px solid ${accent}`,
+                  fontSize: "clamp(22px, 5vw, 28px)",
                   lineHeight: 1,
-                  boxShadow: `0 8px 24px rgba(0,0,0,0.32), 0 0 18px ${getServiceAccent(
-  service.type
-)}33`,
+                  boxShadow: `0 8px 22px rgba(0,0,0,0.34), 0 0 16px ${accent}40`,
+                  boxSizing: "border-box",
                 }}
               >
                 {getServiceIcon(service.type)}

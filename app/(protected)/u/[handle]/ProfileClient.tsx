@@ -8,21 +8,37 @@ import {
   useRef,
   useState,
 } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 
 import {
   doc,
-  getDoc,
   getDocs,
   limit,
   query,
   updateDoc,
   where,
   collection,
+  onSnapshot,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { onAuthStateChanged } from "firebase/auth";
+import CreatorServicesMenu from "@/components/services/CreatorServicesMenu";
+import CreatorServiceModals from "@/components/services/CreatorServiceModals";
+import DonationAccessButton from "@/components/services/DonationAccessButton";
 
+import {
+  createGreetingRequest,
+  type GreetingType,
+} from "@/lib/greetings/greetingRequests";
+import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
+import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
+import { getServiceByType } from "@/lib/services/normalizeServices";
+import type { CreatorServiceType, Currency } from "@/types/group";
 import Cropper from "react-easy-crop";
 
 import { auth, db, storage } from "@/lib/firebase";
@@ -32,6 +48,7 @@ import ProfileSubnav, {
 } from "./components/ProfileSubnav/ProfileSubnav";
 import ProfileGroupsTab from "./components/ProfileSubnav/ProfileGroupsTab";
 import ProfileSettingsTab from "./components/ProfileSubnav/ProfileSettingsTab";
+import ProfileServicesTab from "./components/ProfileSubnav/ProfileServicesTab";
 
 type FirestoreDateLike =
   | string
@@ -62,6 +79,9 @@ type UserDoc = {
     price: number | null;
     currency: "MXN" | "USD" | null;
   };
+  offerings?: any[] | null;
+  donation?: any | null;
+  monetization?: any | null;
 };
 
 type CropMode = "avatar" | "cover";
@@ -153,6 +173,7 @@ export default function ProfileClient() {
   const params = useParams<{ handle: string }>();
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const handle = useMemo(
     () => String(params?.handle || "").toLowerCase(),
@@ -176,6 +197,25 @@ export default function ProfileClient() {
   const [coverRenderUrl, setCoverRenderUrl] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<ProfileTabKey>("posts");
+  const [greetOpen, setGreetOpen] = useState(false);
+const [greetSubmitting, setGreetSubmitting] = useState(false);
+const [greetType, setGreetType] = useState<GreetingType>("saludo");
+const [toName, setToName] = useState("");
+const [instructions, setInstructions] = useState("");
+const [greetError, setGreetError] = useState<string | null>(null);
+const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
+
+const [meetGreetOpen, setMeetGreetOpen] = useState(false);
+const [meetGreetSubmitting, setMeetGreetSubmitting] = useState(false);
+const [meetGreetMessage, setMeetGreetMessage] = useState("");
+const [meetGreetError, setMeetGreetError] = useState<string | null>(null);
+
+const [exclusiveSessionOpen, setExclusiveSessionOpen] = useState(false);
+const [exclusiveSessionSubmitting, setExclusiveSessionSubmitting] = useState(false);
+const [exclusiveSessionMessage, setExclusiveSessionMessage] = useState("");
+const [exclusiveSessionError, setExclusiveSessionError] = useState<string | null>(null);
+
+const [serviceToast, setServiceToast] = useState<string | null>(null);
 
   const [cropOpen, setCropOpen] = useState(false);
   const [cropMode, setCropMode] = useState<CropMode>("avatar");
@@ -215,6 +255,7 @@ export default function ProfileClient() {
       if (
         activeTab === "posts" ||
         activeTab === "groups" ||
+        activeTab === "services" ||
         activeTab === "settings"
       ) {
         return;
@@ -240,7 +281,7 @@ export default function ProfileClient() {
       return;
     }
 
-    if (activeTab === "settings") {
+    if (activeTab === "services" || activeTab === "settings") {
       setActiveTab(showPostsTab ? "posts" : "groups");
     }
   }, [activeTab, isOwner, showPostsTab, showGroupsTab, userDoc]);
@@ -382,6 +423,62 @@ export default function ProfileClient() {
     } as CSSProperties,
   };
 
+  function closeServiceQueryParam() {
+  router.replace(pathname || `/u/${handle}`, { scroll: false });
+}
+
+function formatMoney(value: number, currency: Currency) {
+  return new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function getProfileService(type: CreatorServiceType) {
+  return getServiceByType(userDoc?.offerings ?? null, type, "profile");
+}
+
+function getServicePriceLabel(type: CreatorServiceType) {
+  const service = getProfileService(type);
+  const price = service?.publicPrice ?? service?.memberPrice ?? null;
+  const currency = service?.currency ?? "MXN";
+
+  if (typeof price !== "number") return "Precio por confirmar";
+  return formatMoney(price, currency);
+}
+
+function getServiceDurationLabel(type: CreatorServiceType) {
+  const raw = getProfileService(type) as any;
+  const minutes = raw?.durationMinutes ?? raw?.duration ?? null;
+
+  if (typeof minutes !== "number") return "Duración por confirmar";
+  return `${minutes} min`;
+}
+
+function resetGreetingModal() {
+  setGreetOpen(false);
+  setGreetSubmitting(false);
+  setGreetError(null);
+  setGreetSuccess(null);
+  setToName("");
+  setInstructions("");
+}
+
+function resetMeetGreetModal() {
+  setMeetGreetOpen(false);
+  setMeetGreetSubmitting(false);
+  setMeetGreetError(null);
+  setMeetGreetMessage("");
+}
+
+function resetExclusiveSessionModal() {
+  setExclusiveSessionOpen(false);
+  setExclusiveSessionSubmitting(false);
+  setExclusiveSessionError(null);
+  setExclusiveSessionMessage("");
+}
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setViewer(u);
@@ -390,7 +487,13 @@ export default function ProfileClient() {
     return () => unsub();
   }, []);
 
-  const loadProfile = useCallback(async () => {
+  useEffect(() => {
+  if (!handle) return;
+
+  let unsubProfile: (() => void) | null = null;
+  let cancelled = false;
+
+  async function subscribeProfile() {
     setLoading(true);
     setMsg(null);
 
@@ -400,11 +503,15 @@ export default function ProfileClient() {
         where("__name__", "==", handle),
         limit(1)
       );
+
       const hs = await getDocs(hq);
+
+      if (cancelled) return;
 
       if (hs.empty) {
         setUserDoc(null);
         setMsg("No existe este usuario.");
+        setLoading(false);
         return;
       }
 
@@ -414,34 +521,88 @@ export default function ProfileClient() {
       if (!uid) {
         setUserDoc(null);
         setMsg("Handle inválido.");
+        setLoading(false);
         return;
       }
 
       const uref = doc(db, "users", uid);
-      const usnap = await getDoc(uref);
 
-      if (!usnap.exists()) {
-        setUserDoc(null);
-        setMsg("Perfil no encontrado.");
-        return;
-      }
+      unsubProfile = onSnapshot(
+        uref,
+        (usnap) => {
+          if (!usnap.exists()) {
+            setUserDoc(null);
+            setMsg("Perfil no encontrado.");
+            setLoading(false);
+            return;
+          }
 
-      setUserDoc({
-        uid,
-        ...(usnap.data() as Omit<UserDoc, "uid">),
-      });
+          setUserDoc({
+            uid,
+            ...(usnap.data() as Omit<UserDoc, "uid">),
+          });
+
+          setMsg(null);
+          setLoading(false);
+        },
+        (error) => {
+          setUserDoc(null);
+          setMsg(error?.message ?? "Error cargando perfil");
+          setLoading(false);
+        }
+      );
     } catch (e: any) {
+      if (cancelled) return;
+
       setMsg(e?.message ?? "Error cargando perfil");
       setUserDoc(null);
-    } finally {
       setLoading(false);
     }
-  }, [handle]);
+  }
+
+  subscribeProfile();
+
+  return () => {
+    cancelled = true;
+    if (unsubProfile) unsubProfile();
+  };
+}, [handle]);
 
   useEffect(() => {
-    if (!handle) return;
-    loadProfile();
-  }, [handle, loadProfile]);
+  if (!authReady || !userDoc) return;
+
+  const service = searchParams.get("service") as CreatorServiceType | null;
+  if (!service) return;
+
+  if (!viewer) {
+    redirectToLogin();
+    return;
+  }
+
+  if (viewer.uid === userDoc.uid) {
+    setServiceToast("No puedes solicitar tus propios servicios.");
+    closeServiceQueryParam();
+    return;
+  }
+
+  if (service === "saludo" || service === "consejo") {
+    setGreetType(service);
+    setGreetOpen(true);
+    closeServiceQueryParam();
+    return;
+  }
+
+  if (service === "meet_greet_digital") {
+    setMeetGreetOpen(true);
+    closeServiceQueryParam();
+    return;
+  }
+
+  if (service === "clase_personalizada") {
+    setExclusiveSessionOpen(true);
+    closeServiceQueryParam();
+  }
+}, [authReady, searchParams, userDoc, viewer]);
 
   useEffect(() => {
     setAvatarRenderUrl(userDoc?.photoURL ?? null);
@@ -571,7 +732,6 @@ export default function ProfileClient() {
       setCrop({ x: 0, y: 0 });
       setZoom(1);
 
-      await loadProfile();
     } catch (e: any) {
       setMsg(
         e?.code === "permission-denied"
@@ -582,6 +742,93 @@ export default function ProfileClient() {
       setUploading(false);
     }
   }
+
+async function handleSubmitGreeting() {
+  if (!userDoc || !viewer) return;
+
+  setGreetSubmitting(true);
+  setGreetError(null);
+  setGreetSuccess(null);
+
+  try {
+    await createGreetingRequest({
+      source: "profile",
+      profileUserId: userDoc.uid,
+      creatorId: userDoc.uid,
+      groupId: null,
+      type: greetType,
+      toName,
+      instructions,
+    });
+
+    setGreetOpen(false);
+    setToName("");
+    setInstructions("");
+    setGreetSuccess(null);
+    setServiceToast("Solicitud enviada al creador.");
+  } catch (e: any) {
+    setGreetError(e?.message ?? "No se pudo enviar la solicitud.");
+  } finally {
+    setGreetSubmitting(false);
+  }
+}
+async function handleSubmitMeetGreet() {
+  if (!userDoc || !viewer) return;
+
+  setMeetGreetSubmitting(true);
+  setMeetGreetError(null);
+
+  try {
+    const service = getProfileService("meet_greet_digital");
+
+    await createMeetGreetRequest({
+      source: "profile",
+      profileUserId: userDoc.uid,
+      creatorId: userDoc.uid,
+      groupId: null,
+      buyerMessage: meetGreetMessage,
+      priceSnapshot: service?.publicPrice ?? service?.memberPrice ?? null,
+      durationMinutes: (service as any)?.durationMinutes ?? null,
+    });
+
+    setMeetGreetOpen(false);
+    setMeetGreetMessage("");
+    setServiceToast("Solicitud de meet & greet enviada.");
+  } catch (e: any) {
+    setMeetGreetError(e?.message ?? "No se pudo enviar la solicitud.");
+  } finally {
+    setMeetGreetSubmitting(false);
+  }
+}
+
+async function handleSubmitExclusiveSession() {
+  if (!userDoc || !viewer) return;
+
+  setExclusiveSessionSubmitting(true);
+  setExclusiveSessionError(null);
+
+  try {
+    const service = getProfileService("clase_personalizada");
+
+    await createExclusiveSessionRequest({
+      source: "profile",
+      profileUserId: userDoc.uid,
+      creatorId: userDoc.uid,
+      groupId: null,
+      buyerMessage: exclusiveSessionMessage,
+      priceSnapshot: service?.publicPrice ?? service?.memberPrice ?? null,
+      durationMinutes: (service as any)?.durationMinutes ?? null,
+    });
+
+    setExclusiveSessionOpen(false);
+    setExclusiveSessionMessage("");
+    setServiceToast("Solicitud de sesión exclusiva enviada.");
+  } catch (e: any) {
+    setExclusiveSessionError(e?.message ?? "No se pudo enviar la solicitud.");
+  } finally {
+    setExclusiveSessionSubmitting(false);
+  }
+}
 
   if (loading) {
     return (
@@ -699,6 +946,20 @@ export default function ProfileClient() {
             color: rgba(255, 255, 255, 0.55);
             line-height: 1.3;
           }
+            .profile-services-menu {
+             margin-top: 18px;
+          }
+
+          .profile-services-menu-inline {
+             width: auto !important;
+             padding: 0 !important;
+            }
+
+            @media (max-width: 640px) {
+            .profile-services-menu {
+            margin-top: 16px;
+           }
+         }
 
           .profile-actions-wrap {
             margin-top: 18px;
@@ -794,7 +1055,29 @@ export default function ProfileClient() {
                     "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.52) 58%, rgba(0,0,0,0.88) 100%)",
                 }}
               />
+              <DonationAccessButton
+  donation={userDoc.donation ?? null}
+  disabled={!viewer}
+  onClick={() => {
+    if (!viewer) {
+      redirectToLogin();
+      return;
+    }
 
+    if (isOwner) {
+      setServiceToast("No puedes donar a tu propio perfil.");
+      return;
+    }
+
+    router.push(`/u/${userDoc.handle}?service=donacion`);
+  }}
+  style={{
+    position: "absolute",
+    left: 18,
+    top: 18,
+    zIndex: 30,
+  }}
+/>
               {isOwner && (
                 <button
                   onClick={handlePickCover}
@@ -933,6 +1216,29 @@ export default function ProfileClient() {
                   <div className="profile-handle">@{userDoc.handle}</div>
 
                   <div className="profile-visibility">{profileVisibilityLabel}</div>
+                 {!isProfileRestrictedForVisitor ? (
+  <div
+    className="profile-services-menu"
+    style={{
+      width: "100%",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "flex-start",
+      gap: "clamp(14px, 4vw, 28px)",
+      flexWrap: "wrap",
+    }}
+  >
+
+    <CreatorServicesMenu
+      services={userDoc.offerings ?? []}
+      contextType="profile"
+      profileUid={userDoc.uid}
+      creatorHandle={userDoc.handle}
+      viewerCanRequest={true}
+      className="profile-services-menu-inline"
+    />
+  </div>
+) : null}
                 </div>
               </div>
 
@@ -984,6 +1290,8 @@ export default function ProfileClient() {
                 isOwner={isOwner}
                 showPostsTab={showPostsTab}
                 showGroupsTab={showGroupsTab}
+                showServicesTab={isOwner}
+                showSettingsTab={isOwner}
               />
             </div>
           )}
@@ -1020,6 +1328,37 @@ export default function ProfileClient() {
                   }}
                 />
               </div>
+            )}
+
+            {activeTab === "services" && isOwner && (
+              <section
+                className="profile-tab-panel"
+                style={{ ...styles.tabPlaceholder, marginTop: 12 }}
+              >
+                <ProfileServicesTab
+  profileUserId={userDoc.uid}
+  currentUserId={viewer.uid}
+  currentOfferings={userDoc.offerings ?? null}
+  currentDonation={userDoc.donation ?? null}
+  onProfileServicesChanged={(payload) => {
+    setUserDoc((prev) =>
+      prev
+        ? {
+            ...prev,
+            offerings:
+              payload.offerings !== undefined
+                ? payload.offerings
+                : prev.offerings,
+            donation:
+              payload.donation !== undefined
+                ? payload.donation
+                : prev.donation,
+          }
+        : prev
+    );
+  }}
+/>
+              </section>
             )}
 
             {activeTab === "settings" && isOwner && (
@@ -1065,6 +1404,110 @@ export default function ProfileClient() {
           />
         </div>
       </main>
+
+<CreatorServiceModals
+  greetOpen={greetOpen}
+  greetSubmitting={greetSubmitting}
+  greetType={greetType}
+  toName={toName}
+  instructions={instructions}
+  greetError={greetError}
+  greetSuccess={greetSuccess}
+  onCloseGreeting={resetGreetingModal}
+  onSubmitGreeting={handleSubmitGreeting}
+  onChangeToName={setToName}
+  onChangeInstructions={setInstructions}
+  meetGreetOpen={meetGreetOpen}
+  meetGreetSubmitting={meetGreetSubmitting}
+  meetGreetMessage={meetGreetMessage}
+  meetGreetError={meetGreetError}
+  meetGreetPriceLabel={getServicePriceLabel("meet_greet_digital")}
+  meetGreetDurationLabel={getServiceDurationLabel("meet_greet_digital")}
+  onCloseMeetGreet={resetMeetGreetModal}
+  onSubmitMeetGreet={handleSubmitMeetGreet}
+  onChangeMeetGreetMessage={setMeetGreetMessage}
+  exclusiveSessionOpen={exclusiveSessionOpen}
+  exclusiveSessionSubmitting={exclusiveSessionSubmitting}
+  exclusiveSessionMessage={exclusiveSessionMessage}
+  exclusiveSessionError={exclusiveSessionError}
+  exclusiveSessionPriceLabel={getServicePriceLabel("clase_personalizada")}
+  exclusiveSessionDurationLabel={getServiceDurationLabel("clase_personalizada")}
+  onCloseExclusiveSession={resetExclusiveSessionModal}
+  onSubmitExclusiveSession={handleSubmitExclusiveSession}
+  onChangeExclusiveSessionMessage={setExclusiveSessionMessage}
+  serviceToast={serviceToast}
+  subtitleStyle={styles.subtitle}
+  textStyle={styles.microText}
+  microText={styles.microText}
+  labelStyle={styles.label}
+  primaryButton={styles.buttonPrimary}
+  secondaryButton={styles.buttonSecondary}
+  panelStyle={{
+  borderRadius: 18,
+  border: "1px solid rgba(255,255,255,0.14)",
+  background:
+    "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025))",
+  boxShadow: "0 18px 48px rgba(0,0,0,0.48)",
+  backdropFilter: "blur(12px)",
+  padding: 18,
+  width: "100%",
+  minWidth: 0,
+  overflow: "hidden",
+  boxSizing: "border-box",
+}}
+  inputStyle={{
+    width: "100%",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#fff",
+    padding: "10px 12px",
+    fontSize: 14,
+    fontFamily: fontStack,
+    boxSizing: "border-box",
+  }}
+  messageBox={styles.message}
+  serviceModalBackdropStyle={{
+    position: "fixed",
+    inset: 0,
+    zIndex: 10000,
+    background: "rgba(0,0,0,0.72)",
+    display: "grid",
+    placeItems: "center",
+    padding: 14,
+    fontFamily: fontStack,
+  }}
+  serviceModalCardStyle={{
+  width: "min(720px, calc(100vw - 28px))",
+  maxHeight: "calc(100dvh - 28px)",
+  background:
+    "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))",
+  border: "1px solid rgba(255,255,255,0.16)",
+  borderRadius: 18,
+  overflow: "hidden",
+  boxShadow: "0 24px 80px rgba(0,0,0,0.72)",
+  color: "#fff",
+  backdropFilter: "blur(14px)",
+}}
+  serviceToastStyle={{
+    position: "fixed",
+    left: "50%",
+    bottom: "calc(24px + env(safe-area-inset-bottom))",
+    transform: "translateX(-50%)",
+    zIndex: 11000,
+    maxWidth: "min(520px, calc(100vw - 28px))",
+    padding: "10px 12px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.16)",
+    background: "rgba(12,12,12,0.94)",
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: 600,
+    boxShadow: ui.shadow,
+    backdropFilter: "blur(10px)",
+  }}
+  formatMoney={formatMoney}
+/>
 
       {!cropOpen ? null : (
         <div

@@ -46,6 +46,16 @@ type GroupShape = {
   offerings?: GroupOfferingShape[] | null;
 };
 
+type UserShape = {
+  uid?: string;
+  handle?: string;
+  displayName?: string;
+  firstName?: string;
+  lastName?: string;
+  photoURL?: string | null;
+  offerings?: GroupOfferingShape[] | null;
+};
+
 function assertString(value: unknown, field: string, maxLen = 300): string {
   if (typeof value !== "string") {
     throw new HttpsError("invalid-argument", `${field} must be a string`);
@@ -130,6 +140,32 @@ function isGreetingServiceEnabled(group: GroupShape, type: GreetingType): boolea
   return false;
 }
 
+function isProfileGreetingServiceEnabled(user: UserShape, type: GreetingType): boolean {
+  const offerings = Array.isArray(user?.offerings) ? user.offerings : [];
+
+  return offerings.some((offering) => {
+    if (offering?.type !== type) return false;
+    if (offering?.enabled !== true) return false;
+
+    const scope = offering?.sourceScope;
+    return scope === "profile" || scope === "both" || !scope;
+  });
+}
+
+function buildUserDisplayName(user: UserShape, fallbackUid: string): string {
+  const displayName = user.displayName?.trim();
+  if (displayName) return displayName;
+
+  const fullName = [user.firstName?.trim(), user.lastName?.trim()]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  if (fullName) return fullName;
+
+  return `Usuario ${fallbackUid.slice(0, 6)}`;
+}
+
 function normalizeMemberStatus(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const value = raw.trim().toLowerCase();
@@ -175,7 +211,26 @@ export const createGreetingRequest = onCall(
 
     const buyerId = auth.uid;
 
-    const groupId = assertString(request.data?.groupId, "groupId", 120);
+    const rawSource = request.data?.source ?? "group";
+const source = assertOneOf<GreetingSource>(rawSource, "source", [
+  "group",
+  "profile",
+]);
+
+const groupId =
+  source === "group"
+    ? assertString(request.data?.groupId, "groupId", 120)
+    : typeof request.data?.groupId === "string" && request.data.groupId.trim()
+      ? request.data.groupId.trim()
+      : null;
+
+const profileUserId =
+  source === "profile"
+    ? assertString(request.data?.profileUserId, "profileUserId", 120)
+    : typeof request.data?.profileUserId === "string" &&
+        request.data.profileUserId.trim()
+      ? request.data.profileUserId.trim()
+      : null;
     const type = assertOneOf<GreetingType>(request.data?.type, "type", [
       "saludo",
       "consejo",
@@ -187,89 +242,140 @@ export const createGreetingRequest = onCall(
       "instructions",
       1000
     );
-    const source = (request.data?.source
-      ? assertOneOf<GreetingSource>(request.data.source, "source", [
-          "group",
-          "profile",
-        ])
-      : "group") as GreetingSource;
-
-    const groupRef = db.doc(`groups/${groupId}`);
-    const memberRef = db.doc(`groups/${groupId}/members/${buyerId}`);
 
     const result = await db.runTransaction(async (tx) => {
-      const [groupSnap, memberSnap] = await Promise.all([
-        tx.get(groupRef),
-        tx.get(memberRef),
-      ]);
+  const now = admin.firestore.FieldValue.serverTimestamp();
+  const requestRef = db.collection("greetingRequests").doc();
 
-      if (!groupSnap.exists) {
-        throw new HttpsError("not-found", "Group not found.");
-      }
+  if (source === "profile") {
+    if (!profileUserId) {
+      throw new HttpsError("invalid-argument", "profileUserId is required.");
+    }
 
-      const group = (groupSnap.data() ?? {}) as GroupShape;
-      const creatorId = group?.ownerId;
+    const profileRef = db.doc(`users/${profileUserId}`);
+    const profileSnap = await tx.get(profileRef);
 
-      if (!creatorId) {
-        throw new HttpsError("failed-precondition", "Group has no ownerId.");
-      }
+    if (!profileSnap.exists) {
+      throw new HttpsError("not-found", "Profile not found.");
+    }
 
-      if (buyerId === creatorId) {
-        throw new HttpsError(
-          "failed-precondition",
-          "Owner cannot purchase own greeting."
-        );
-      }
+    const profile = (profileSnap.data() ?? {}) as UserShape;
+    const creatorId = profileUserId;
 
-      if (!memberSnap.exists) {
-        throw new HttpsError(
-          "permission-denied",
-          "You must be a member of the group to request a greeting."
-        );
-      }
+    if (buyerId === creatorId) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Creator cannot request own service."
+      );
+    }
 
-      const memberData = memberSnap.data();
-      if (!canBuyerRequestByMembership(memberData)) {
-        throw new HttpsError(
-          "permission-denied",
-          "Your membership status does not allow requesting this service."
-        );
-      }
+    const serviceEnabled = isProfileGreetingServiceEnabled(profile, type);
+    if (!serviceEnabled) {
+      throw new HttpsError(
+        "failed-precondition",
+        "This service is not enabled for this profile."
+      );
+    }
 
-      const serviceEnabled = isGreetingServiceEnabled(group, type);
-      if (!serviceEnabled) {
-        throw new HttpsError(
-          "failed-precondition",
-          "This service is not enabled for this group."
-        );
-      }
-
-      const requestRef = db.collection("greetingRequests").doc();
-      const now = admin.firestore.FieldValue.serverTimestamp();
-
-      tx.set(requestRef, {
-        groupId,
-        creatorId,
-        buyerId,
-        type,
-        toName,
-        instructions,
-        source,
-        status: "pending" as GreetingStatus,
-        createdAt: now,
-        updatedAt: now,
-      });
-
-      return { requestId: requestRef.id, creatorId };
-    });
-
-    logger.info("createGreetingRequest created", {
-      groupId,
+    tx.set(requestRef, {
+      groupId: null,
+      profileUserId,
+      profileDisplayName: buildUserDisplayName(profile, profileUserId),
+      profileUsername: profile.handle ?? null,
+      creatorId,
       buyerId,
       type,
+      toName,
+      instructions,
       source,
-      requestId: result.requestId,
+      requestSource: "profile",
+      status: "pending" as GreetingStatus,
+      createdAt: now,
+      updatedAt: now,
     });
+
+    return { requestId: requestRef.id, creatorId };
+  }
+
+  if (!groupId) {
+    throw new HttpsError("invalid-argument", "groupId is required.");
+  }
+
+  const groupRef = db.doc(`groups/${groupId}`);
+  const memberRef = db.doc(`groups/${groupId}/members/${buyerId}`);
+
+  const [groupSnap, memberSnap] = await Promise.all([
+    tx.get(groupRef),
+    tx.get(memberRef),
+  ]);
+
+  if (!groupSnap.exists) {
+    throw new HttpsError("not-found", "Group not found.");
+  }
+
+  const group = (groupSnap.data() ?? {}) as GroupShape;
+  const creatorId = group?.ownerId;
+
+  if (!creatorId) {
+    throw new HttpsError("failed-precondition", "Group has no ownerId.");
+  }
+
+  if (buyerId === creatorId) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Owner cannot purchase own greeting."
+    );
+  }
+
+  if (!memberSnap.exists) {
+    throw new HttpsError(
+      "permission-denied",
+      "You must be a member of the group to request a greeting."
+    );
+  }
+
+  const memberData = memberSnap.data();
+  if (!canBuyerRequestByMembership(memberData)) {
+    throw new HttpsError(
+      "permission-denied",
+      "Your membership status does not allow requesting this service."
+    );
+  }
+
+  const serviceEnabled = isGreetingServiceEnabled(group, type);
+  if (!serviceEnabled) {
+    throw new HttpsError(
+      "failed-precondition",
+      "This service is not enabled for this group."
+    );
+  }
+
+  tx.set(requestRef, {
+    groupId,
+    profileUserId: null,
+    creatorId,
+    buyerId,
+    type,
+    toName,
+    instructions,
+    source,
+    requestSource: "group",
+    status: "pending" as GreetingStatus,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return { requestId: requestRef.id, creatorId };
+});
+
+  logger.info("createGreetingRequest created", {
+  groupId,
+  profileUserId,
+  buyerId,
+  type,
+  source,
+  requestId: result.requestId,
+});
 
     return {
       ok: true,

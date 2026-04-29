@@ -34,6 +34,7 @@ type ExclusiveSessionStatus =
   | "cancelled";
 
 type UserRole = "buyer" | "creator";
+type RequestSource = "group" | "profile";
 
 type TimestampLike = admin.firestore.Timestamp;
 
@@ -154,6 +155,18 @@ async function getGroupOrThrow(groupId: string) {
   return { ref: groupRef, data };
 }
 
+async function getProfileOrThrow(profileUserId: string) {
+  const profileRef = db.collection("users").doc(profileUserId);
+  const snap = await profileRef.get();
+
+  if (!snap.exists) {
+    throw new HttpsError("not-found", "El perfil no existe.");
+  }
+
+  const data = snap.data() ?? {};
+  return { ref: profileRef, data };
+}
+
 function normalizeCurrency(value: unknown): "MXN" | "USD" | null {
   if (value === "MXN" || value === "USD") return value;
   return null;
@@ -171,6 +184,41 @@ function getExclusiveSessionOffering(groupData: FirebaseFirestore.DocumentData) 
   );
 
   return offering ?? null;
+}
+
+function getProfileExclusiveSessionOffering(
+  userData: FirebaseFirestore.DocumentData
+) {
+  const offerings = Array.isArray(userData.offerings) ? userData.offerings : [];
+
+  return (
+    offerings.find(
+      (item) =>
+        item &&
+        (item.type === "clase_personalizada" ||
+          item.type === "custom_class" ||
+          item.type === "exclusive_session") &&
+        item.enabled === true &&
+        (item.sourceScope === "profile" ||
+          item.sourceScope === "both" ||
+          !item.sourceScope)
+    ) ?? null
+  );
+}
+
+function assertProfileExclusiveSessionEnabled(
+  userData: FirebaseFirestore.DocumentData
+) {
+  const offering = getProfileExclusiveSessionOffering(userData);
+
+  if (!offering) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Este perfil no tiene activo el servicio de sesión exclusiva."
+    );
+  }
+
+  return offering;
 }
 
 function assertExclusiveSessionEnabled(groupData: FirebaseFirestore.DocumentData) {
@@ -468,7 +516,17 @@ export const createExclusiveSessionRequest = onCall(
   async (request) => {
     const uid = requireAuth(request.auth?.uid);
 
-    const groupId = asTrimmedString(request.data?.groupId, "groupId", 120);
+    const source = (request.data?.source === "profile" ? "profile" : "group") as RequestSource;
+
+const groupId =
+  source === "group"
+    ? asTrimmedString(request.data?.groupId, "groupId", 120)
+    : asOptionalTrimmedString(request.data?.groupId, "groupId", 120);
+
+const profileUserId =
+  source === "profile"
+    ? asTrimmedString(request.data?.profileUserId, "profileUserId", 120)
+    : asOptionalTrimmedString(request.data?.profileUserId, "profileUserId", 120);
     const buyerMessage = asOptionalTrimmedString(
       request.data?.buyerMessage,
       "buyerMessage",
@@ -486,15 +544,33 @@ export const createExclusiveSessionRequest = onCall(
       { min: 1, max: 600 }
     );
 
-    const groupData = await getGroupOrThrow(groupId);
-    await assertExclusiveSessionEligibleMembership(groupId, uid);
-    const exclusiveSessionOffering = assertExclusiveSessionEnabled(groupData.data);
+    let creatorId: string | undefined;
+let groupData: Awaited<ReturnType<typeof getGroupOrThrow>> | null = null;
+let profileData: Awaited<ReturnType<typeof getProfileOrThrow>> | null = null;
+let exclusiveSessionOffering: any = null;
 
-    const creatorId = groupData.data.ownerId as string | undefined;
-    if (!creatorId) {
-      throw new HttpsError("failed-precondition", "El grupo no tiene owner configurado.");
-    }
+if (source === "profile") {
+  if (!profileUserId) {
+    throw new HttpsError("invalid-argument", "profileUserId es obligatorio.");
+  }
 
+  profileData = await getProfileOrThrow(profileUserId);
+  exclusiveSessionOffering = assertProfileExclusiveSessionEnabled(profileData.data);
+  creatorId = profileUserId;
+} else {
+  if (!groupId) {
+    throw new HttpsError("invalid-argument", "groupId es obligatorio.");
+  }
+
+  groupData = await getGroupOrThrow(groupId);
+  await assertExclusiveSessionEligibleMembership(groupId, uid);
+  exclusiveSessionOffering = assertExclusiveSessionEnabled(groupData.data);
+  creatorId = groupData.data.ownerId as string | undefined;
+
+  if (!creatorId) {
+    throw new HttpsError("failed-precondition", "El grupo no tiene owner configurado.");
+  }
+}
     if (creatorId === uid) {
       throw new HttpsError(
         "failed-precondition",
@@ -508,7 +584,7 @@ export const createExclusiveSessionRequest = onCall(
     const docRef = db.collection(EXCLUSIVE_SESSION_COLLECTION).doc();
     const offeringCurrency =
       normalizeCurrency(exclusiveSessionOffering?.currency) ??
-      normalizeCurrency(groupData.data?.monetization?.currency) ??
+      normalizeCurrency(groupData?.data?.monetization?.currency) ??
       "MXN";
 
     const offeringPrice =
@@ -533,8 +609,13 @@ export const createExclusiveSessionRequest = onCall(
       type: "digital_exclusive_session",
       flowVersion: 1,
 
-      groupId,
-      groupName: groupData.data.name ?? null,
+      groupId: source === "group" ? groupId : null,
+      groupName: source === "group" ? groupData?.data.name ?? null : null,
+      profileUserId: source === "profile" ? profileUserId : null,
+      profileDisplayName: source === "profile" ? creatorProfile.displayName : null,
+      profileUsername: source === "profile" ? creatorProfile.username : null,
+      source,
+      requestSource: source,
 
       serviceSnapshot: {
         type: "exclusive_session",
@@ -607,11 +688,13 @@ export const createExclusiveSessionRequest = onCall(
     await docRef.set(payload);
 
     logger.info("exclusive_session_request_created", {
-      requestId: docRef.id,
-      groupId,
-      buyerId: uid,
-      creatorId,
-    });
+  requestId: docRef.id,
+  groupId,
+  profileUserId,
+  source,
+  buyerId: uid,
+  creatorId,
+});
 
     return {
       ok: true,

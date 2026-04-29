@@ -102,10 +102,11 @@ export function normalizeServiceVisibility(
 }
 
 export function normalizeServiceSourceScope(
-  value: unknown
+  value: unknown,
+  fallback: ServiceSourceScope = "group"
 ): ServiceSourceScope {
   if (isValidServiceSourceScope(value)) return value;
-  return "group";
+  return fallback;
 }
 
 export function getDefaultDisplayOrder(type: CreatorServiceType): number {
@@ -262,7 +263,8 @@ function normalizePriceFields(raw: Record<string, unknown>) {
 
 export function normalizeSingleService(
   offering: PartialOffering,
-  fallbackIndex = 0
+  fallbackIndex = 0,
+  fallbackSourceScope: ServiceSourceScope = "group"
 ): GroupOffering | null {
   const raw = (offering ?? {}) as Record<string, unknown>;
   const rawType = raw.type;
@@ -293,12 +295,18 @@ export function normalizeSingleService(
       ? raw.requiresApproval
       : type !== "mensaje";
 
-  const sourceScope = normalizeServiceSourceScope(raw.sourceScope);
+  const sourceScope = normalizeServiceSourceScope(
+    raw.sourceScope,
+    fallbackSourceScope
+  );
+
   const visibility = normalizeServiceVisibility(raw.visibility, visible);
+
   const displayOrder = normalizeDisplayOrder(
     raw.displayOrder,
     getDefaultDisplayOrder(type) ?? fallbackIndex
   );
+
   const meta = normalizeServiceMeta(type, raw.meta);
 
   if (enabled && hasAnyPrice && !currency) {
@@ -330,15 +338,22 @@ export function normalizeSingleService(
 }
 
 export function normalizeServiceCatalog(
-  offerings: PartialOffering[] | null | undefined
+  offerings: PartialOffering[] | null | undefined,
+  fallbackSourceScope: ServiceSourceScope = "group"
 ): GroupServiceCatalog {
   const arr = Array.isArray(offerings) ? offerings : [];
 
   const deduped = new Map<CreatorServiceType, GroupOffering>();
 
   arr.forEach((offering, index) => {
-    const normalized = normalizeSingleService(offering, index);
+    const normalized = normalizeSingleService(
+      offering,
+      index,
+      fallbackSourceScope
+    );
+
     if (!normalized) return;
+
     deduped.set(normalized.type, normalized);
   });
 
@@ -363,11 +378,12 @@ export function hasEnabledService(
   return service?.enabled === true;
 }
 
-export function buildDefaultGroupServiceCatalog(params?: {
+export function buildDefaultServiceCatalog(params?: {
   currency?: Currency | null;
   includeLegacyMessage?: boolean;
+  sourceScope?: ServiceSourceScope;
 }): GroupServiceCatalog {
-  const includeLegacyMessage = params?.includeLegacyMessage ?? false;
+  const sourceScope = params?.sourceScope ?? "group";
 
   const base: GroupServiceCatalog = [
     {
@@ -380,7 +396,7 @@ export function buildDefaultGroupServiceCatalog(params?: {
       publicPrice: null,
       currency: null,
       requiresApproval: true,
-      sourceScope: "group",
+      sourceScope,
       meta: null,
       price: null,
     },
@@ -394,7 +410,7 @@ export function buildDefaultGroupServiceCatalog(params?: {
       publicPrice: null,
       currency: null,
       requiresApproval: true,
-      sourceScope: "group",
+      sourceScope,
       meta: null,
       price: null,
     },
@@ -408,7 +424,7 @@ export function buildDefaultGroupServiceCatalog(params?: {
       publicPrice: null,
       currency: null,
       requiresApproval: true,
-      sourceScope: "group",
+      sourceScope,
       meta: {
         meetGreet: {
           durationMinutes: null,
@@ -426,7 +442,7 @@ export function buildDefaultGroupServiceCatalog(params?: {
       publicPrice: null,
       currency: null,
       requiresApproval: true,
-      sourceScope: "group",
+      sourceScope,
       meta: {
         customClass: {
           durationMinutes: null,
@@ -448,7 +464,7 @@ export function buildDefaultGroupServiceCatalog(params?: {
     },
   ];
 
-  if (includeLegacyMessage) {
+  if (params?.includeLegacyMessage === true) {
     base.push({
       type: "mensaje",
       enabled: false,
@@ -459,13 +475,24 @@ export function buildDefaultGroupServiceCatalog(params?: {
       publicPrice: null,
       currency: null,
       requiresApproval: true,
-      sourceScope: "group",
+      sourceScope,
       meta: null,
       price: null,
     });
   }
 
   return base;
+}
+
+export function buildDefaultGroupServiceCatalog(params?: {
+  currency?: Currency | null;
+  includeLegacyMessage?: boolean;
+}): GroupServiceCatalog {
+  return buildDefaultServiceCatalog({
+    currency: params?.currency,
+    includeLegacyMessage: params?.includeLegacyMessage,
+    sourceScope: "group",
+  });
 }
 
 export function mergeWithDefaultCatalog(
@@ -477,7 +504,7 @@ export function mergeWithDefaultCatalog(
     includeLegacyMessage: true,
   });
 
-  const normalizedIncoming = normalizeServiceCatalog(offerings);
+  const normalizedIncoming = normalizeServiceCatalog(offerings, "group");
 
   const incomingMap = new Map(
     normalizedIncoming.map((item) => [item.type, item] as const)

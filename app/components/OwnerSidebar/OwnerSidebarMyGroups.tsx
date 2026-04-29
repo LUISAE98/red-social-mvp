@@ -10,7 +10,6 @@ import { WalletServiceRow } from "@/app/(protected)/wallet/components/WalletUi";
 
 import {
   getWalletScheduleConflictResult,
-  getWalletServiceDurationMinutes,
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
 
@@ -698,10 +697,14 @@ if (scheduleConflict.hasConflict) {
     ).flatMap(([groupId, rows]) =>
       rows.map((row) => ({
         id: row.id,
-        kind: "meet_greet",
+        kind: "meet_greet" as const,
         title: "Meet & Greet",
         groupId,
         groupName: groupNameById.get(groupId) ?? null,
+        profileUserId: null,
+        profileDisplayName: null,
+        profileUsername: null,
+        requestSource: "group" as const,
         buyerId: row.data.buyerId ?? "",
         buyerDisplayName: (row.data as any).buyerDisplayName ?? null,
         buyerUsername: (row.data as any).buyerUsername ?? null,
@@ -726,7 +729,7 @@ if (scheduleConflict.hasConflict) {
           typeof row.data.durationMinutes === "number"
             ? row.data.durationMinutes
             : null,
-        source: "meet_greet",
+        source: "meet_greet" as const,
         scheduledAt: toDateSafe(row.data.scheduledAt),
         acceptedAt: toDateSafe((row.data as any).acceptedAt),
         rejectedAt: toDateSafe((row.data as any).rejectedAt),
@@ -746,10 +749,14 @@ if (scheduleConflict.hasConflict) {
     ).flatMap(([groupId, rows]) =>
       rows.map((row) => ({
         id: row.id,
-        kind: "exclusive_session",
+        kind: "exclusive_session" as const,
         title: "Sesión exclusiva",
         groupId,
         groupName: groupNameById.get(groupId) ?? null,
+        profileUserId: null,
+        profileDisplayName: null,
+        profileUsername: null,
+        requestSource: "group" as const,
         buyerId: row.data.buyerId ?? "",
         buyerDisplayName: (row.data as any).buyerDisplayName ?? null,
         buyerUsername: (row.data as any).buyerUsername ?? null,
@@ -774,7 +781,7 @@ if (scheduleConflict.hasConflict) {
           typeof row.data.durationMinutes === "number"
             ? row.data.durationMinutes
             : null,
-        source: "exclusive_session",
+        source: "exclusive_session" as const,
         scheduledAt: toDateSafe(row.data.scheduledAt),
         acceptedAt: toDateSafe((row.data as any).acceptedAt),
         rejectedAt: toDateSafe((row.data as any).rejectedAt),
@@ -963,14 +970,14 @@ if (scheduleConflict.hasConflict) {
                     }}
                   >
                     <Link
-                      href={`/groups/${g.id}`}
+                      href={g.visibility === "profile" ? "#" : `/groups/${g.id}`}
                       style={{
                         background: "transparent",
                         border: "none",
                         padding: 0,
                         color: "#fff",
                         textAlign: "left",
-                        cursor: "pointer",
+                        cursor: g.visibility === "profile" ? "default" : "pointer",
                         display: "flex",
                         alignItems: "center",
                         gap: 10,

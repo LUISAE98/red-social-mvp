@@ -10,6 +10,7 @@ type DonationInput = {
   enabled?: boolean;
   visible?: boolean;
   currency?: Currency | null;
+  sourceScope?: "group" | "profile";
   suggestedAmounts?: number[] | null;
   goalLabel?: string | null;
 } | null;
@@ -33,9 +34,9 @@ export default function DonationAccessButton({
 
   const minimumAmount =
     Array.isArray(donation?.suggestedAmounts) &&
-    donation!.suggestedAmounts!.length > 0 &&
-    Number(donation!.suggestedAmounts![0]) > 0
-      ? Number(donation!.suggestedAmounts![0])
+    donation.suggestedAmounts.length > 0 &&
+    Number(donation.suggestedAmounts[0]) > 0
+      ? Number(donation.suggestedAmounts[0])
       : null;
 
   const shouldRender =
@@ -46,7 +47,9 @@ export default function DonationAccessButton({
 
   if (!shouldRender) return null;
 
-  const label = mode === "wedding" ? "Donación para boda" : "Donación";
+  const label = mode === "wedding" ? "Apoyar boda" : "Apoyar";
+  const icon = mode === "wedding" ? "💍" : "💗";
+  const accent = mode === "wedding" ? "#C084FC" : "#FB7185";
 
   return (
     <button
@@ -54,25 +57,64 @@ export default function DonationAccessButton({
       onClick={onClick}
       disabled={disabled}
       title={label}
+      aria-label={label}
       style={{
-        padding: "7px 10px",
-        borderRadius: 12,
-        border: "1px solid rgba(255,255,255,0.18)",
-        background: "rgba(0,0,0,0.92)",
+        width: 74,
+        minHeight: 86,
+        padding: "8px 7px",
+        borderRadius: 16,
+        border: "1px solid rgba(255,255,255,0.16)",
+        background: "rgba(0,0,0,0.82)",
         color: "#fff",
-        fontWeight: 600,
-        fontSize: 12,
-        lineHeight: 1.2,
         cursor: disabled ? "not-allowed" : "pointer",
         fontFamily:
           '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
         backdropFilter: "blur(10px)",
-        boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
+        WebkitBackdropFilter: "blur(10px)",
+        boxShadow: "0 16px 42px rgba(0,0,0,0.45)",
         opacity: disabled ? 0.7 : 1,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 6,
+        textAlign: "center",
+        boxSizing: "border-box",
         ...style,
       }}
     >
-      {label}
+      <span
+        aria-hidden="true"
+        style={{
+          width: 52,
+          height: 52,
+          borderRadius: 999,
+          display: "grid",
+          placeItems: "center",
+          background: "#000",
+          border: `2.5px solid ${accent}`,
+          fontSize: 23,
+          lineHeight: 1,
+          boxShadow: `0 8px 24px rgba(0,0,0,0.32), 0 0 18px ${accent}33`,
+          boxSizing: "border-box",
+        }}
+      >
+        {icon}
+      </span>
+
+      <span
+        style={{
+          maxWidth: "100%",
+          fontSize: 11,
+          fontWeight: 700,
+          lineHeight: 1.12,
+          color: "rgba(255,255,255,0.92)",
+          textAlign: "center",
+          textWrap: "balance",
+        }}
+      >
+        {label}
+      </span>
     </button>
   );
 }

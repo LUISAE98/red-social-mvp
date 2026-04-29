@@ -1,6 +1,7 @@
 import type {
   CreatorService,
   CreatorServiceType,
+  ServiceSourceScope,
 } from "@/types/group";
 
 /**
@@ -16,15 +17,28 @@ export type NormalizedService = {
   currency: "MXN" | "USD" | null;
 
   requiresApproval: boolean;
-  sourceScope: "group" | "profile" | "both";
+  sourceScope: ServiceSourceScope;
 };
+
+function isValidSourceScope(value: unknown): value is ServiceSourceScope {
+  return value === "group" || value === "profile" || value === "both";
+}
+
+function serviceMatchesContext(
+  service: NormalizedService,
+  context: ServiceSourceScope
+): boolean {
+  if (context === "both") return true;
+  return service.sourceScope === context || service.sourceScope === "both";
+}
 
 /**
  * Convierte cualquier arreglo de servicios (group o profile)
  * en un formato limpio y seguro para UI.
  */
 export function normalizeServices(
-  services: CreatorService[] | null | undefined
+  services: CreatorService[] | null | undefined,
+  fallbackSourceScope: ServiceSourceScope = "group"
 ): NormalizedService[] {
   if (!Array.isArray(services)) return [];
 
@@ -55,35 +69,41 @@ export function normalizeServices(
             ? s.requiresApproval
             : true,
 
-        sourceScope:
-          s.sourceScope === "group" ||
-          s.sourceScope === "profile" ||
-          s.sourceScope === "both"
-            ? s.sourceScope
-            : "group",
+        sourceScope: isValidSourceScope(s.sourceScope)
+          ? s.sourceScope
+          : fallbackSourceScope,
       };
     })
     .filter((s): s is NormalizedService => !!s);
 }
 
 /**
- * Devuelve solo servicios visibles para UI
+ * Devuelve solo servicios visibles para UI.
+ * Si context = "profile", acepta servicios profile o both.
+ * Si context = "group", acepta servicios group o both.
  */
 export function getVisibleServices(
-  services: CreatorService[] | null | undefined
+  services: CreatorService[] | null | undefined,
+  context: ServiceSourceScope = "group"
 ): NormalizedService[] {
-  return normalizeServices(services).filter(
-    (s) => s.enabled && s.visible
+  return normalizeServices(services, context).filter(
+    (s) => s.enabled && s.visible && serviceMatchesContext(s, context)
   );
 }
 
 /**
- * Busca un servicio específico por tipo
+ * Busca un servicio específico por tipo.
  */
 export function getServiceByType(
   services: CreatorService[] | null | undefined,
-  type: CreatorServiceType
+  type: CreatorServiceType,
+  context: ServiceSourceScope = "group"
 ): NormalizedService | null {
-  const normalized = normalizeServices(services);
-  return normalized.find((s) => s.type === type) ?? null;
+  const normalized = normalizeServices(services, context);
+
+  return (
+    normalized.find(
+      (s) => s.type === type && serviceMatchesContext(s, context)
+    ) ?? null
+  );
 }

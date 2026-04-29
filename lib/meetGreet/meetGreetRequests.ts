@@ -2,9 +2,13 @@ import { httpsCallable } from "firebase/functions";
 import { functions } from "@/lib/firebase";
 
 export type MeetGreetUserRole = "buyer" | "creator";
+export type MeetGreetSource = "group" | "profile";
 
 export type CreateMeetGreetRequestInput = {
-  groupId: string;
+  groupId?: string | null;
+  profileUserId?: string | null;
+  creatorId?: string | null;
+  source?: MeetGreetSource;
   buyerMessage?: string | null;
   priceSnapshot?: number | null;
   durationMinutes?: number | null;
@@ -15,6 +19,9 @@ export type CreateMeetGreetRequestResult = {
   requestId: string;
   status: string;
   creatorId: string;
+  source?: MeetGreetSource;
+  groupId?: string | null;
+  profileUserId?: string | null;
 };
 
 export type AcceptMeetGreetRequestInput = {
@@ -155,13 +162,30 @@ function normalizeCallableError(error: any): Error {
   return new Error(message);
 }
 
+function resolveSource(input: CreateMeetGreetRequestInput): MeetGreetSource {
+  return input.source ?? (input.profileUserId || input.creatorId ? "profile" : "group");
+}
+
 export async function createMeetGreetRequest(
   input: CreateMeetGreetRequestInput
 ): Promise<CreateMeetGreetRequestResult> {
   try {
+    const source = resolveSource(input);
+
+    if (source === "group" && !input.groupId) {
+      throw new Error("Falta el ID del grupo para crear la solicitud.");
+    }
+
+    if (source === "profile" && !input.profileUserId && !input.creatorId) {
+      throw new Error("Falta el ID del perfil para crear la solicitud.");
+    }
+
     const callable = httpsCallable<
       {
-        groupId: string;
+        groupId: string | null;
+        profileUserId: string | null;
+        creatorId: string | null;
+        source: MeetGreetSource;
         buyerMessage: string | null;
         priceSnapshot: number | null;
         durationMinutes: number | null;
@@ -170,7 +194,25 @@ export async function createMeetGreetRequest(
     >(functions, "createMeetGreetRequest");
 
     const payload = {
-      groupId: assertNonEmptyString(input.groupId, "groupId"),
+      groupId:
+        source === "group"
+          ? assertNonEmptyString(String(input.groupId ?? ""), "groupId")
+          : null,
+      profileUserId:
+        source === "profile"
+          ? assertNonEmptyString(
+              String(input.profileUserId ?? input.creatorId ?? ""),
+              "profileUserId"
+            )
+          : null,
+      creatorId:
+        source === "profile"
+          ? assertNonEmptyString(
+              String(input.creatorId ?? input.profileUserId ?? ""),
+              "creatorId"
+            )
+          : null,
+      source,
       buyerMessage: normalizeOptionalString(input.buyerMessage),
       priceSnapshot: assertOptionalNumber(input.priceSnapshot, "priceSnapshot", {
         min: 0,

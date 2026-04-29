@@ -264,7 +264,9 @@ export default function ProfileSettingsTab({
   };
 
   const resolvedDisplayName = displayName?.trim() || "No disponible";
-  const resolvedUsername = username?.trim() ? `@${username.trim()}` : "No disponible";
+  const resolvedUsername = username?.trim()
+    ? `@${username.trim()}`
+    : "No disponible";
   const resolvedBirthDate = formatDate(birthDate);
   const resolvedAppCreatedAt = formatDate(appCreatedAt);
 
@@ -304,7 +306,10 @@ export default function ProfileSettingsTab({
         <div className="profile-settings-info-grid" style={infoGrid}>
           <ProfileInfoItem label="Nombre" value={resolvedDisplayName} />
           <ProfileInfoItem label="Usuario" value={resolvedUsername} />
-          <ProfileInfoItem label="Fecha de nacimiento" value={resolvedBirthDate} />
+          <ProfileInfoItem
+            label="Fecha de nacimiento"
+            value={resolvedBirthDate}
+          />
           <ProfileInfoItem
             label="Fecha de creación"
             value={resolvedAppCreatedAt}
@@ -340,10 +345,7 @@ export default function ProfileSettingsTab({
       <span style={badge}>{statusText}</span>
 
       <p style={note}>
-        Siguiente paso técnico: persistir este valor en{" "}
-        <code>users/{"{uid}"}</code> y leer también desde ese documento el nombre,
-        username, fecha de nacimiento y fecha de creación para que este contenedor
-        quede completamente alimentado desde Firestore/Auth.
+        Esta configuración solo controla la privacidad general del perfil.
       </p>
     </section>
   );

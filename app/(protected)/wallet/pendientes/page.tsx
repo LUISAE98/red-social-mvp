@@ -56,15 +56,22 @@ function isExpiredScheduledService(item: {
   scheduledAt: Date | null;
   preparingCreatorAt?: Date | null;
   preparingBuyerAt?: Date | null;
+  status?: string;
 }): boolean {
   const isScheduledService =
     item.kind === "meet_greet" || item.kind === "exclusive_session";
 
-  return (
-    isScheduledService &&
-    (!item.preparingCreatorAt || !item.preparingBuyerAt) &&
-    isNoShowExpired(item.scheduledAt)  
-  );
+  if (!isScheduledService) return false;
+
+  if (
+    item.status !== "scheduled" &&
+    item.status !== "ready_to_prepare" &&
+    item.status !== "in_preparation"
+  ) {
+    return false;
+  }
+
+  return isNoShowExpired(item.scheduledAt);
 }
 
 export default function WalletPendientesPage() {

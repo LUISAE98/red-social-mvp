@@ -1267,7 +1267,7 @@ function OverlayModal({
   );
 }
 
-export default function OwnerSidebar({
+export default function OwnerAdminServices({
   groupId,
   ownerId,
   currentUserId,
@@ -1686,7 +1686,7 @@ export default function OwnerSidebar({
           Number.isNaN(customClassPriceNum) ||
           customClassPriceNum <= 0)
       ) {
-        "❌ Precio inválido para sesión exclusiva."
+        setErr("❌ Precio inválido para sesión exclusiva.");
         return;
       }
 
@@ -2164,7 +2164,7 @@ export default function OwnerSidebar({
         ConfirmModalComponent={ConfirmModal}
         SpinningGearComponent={SpinningGear}
         onSaveDraft={saveServicesFromDraft}
-       onRemoveLegacyMembers={handleConfirmRemoveLegacyFreeMembersLater}
+        onRemoveLegacyMembers={handleConfirmRemoveLegacyFreeMembersLater}
       />
 
       <Greetings

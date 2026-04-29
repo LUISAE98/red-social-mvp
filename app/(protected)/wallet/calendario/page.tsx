@@ -89,13 +89,6 @@ function buildMonthWindow(baseDate: Date): CalendarMonthItem[] {
 function isSafeCalendarItem(item: WalletServiceItem): boolean {
   if (!item.scheduledAt) return false;
 
-    if (
-    (!item.preparingCreatorAt || !item.preparingBuyerAt) &&
-    isNoShowExpired(item.scheduledAt)
-  ) {
-    return false;
-  }
-
   if (
     item.status === "rejected" ||
     item.status === "refund_requested" ||

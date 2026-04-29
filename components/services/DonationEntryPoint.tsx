@@ -11,6 +11,7 @@ export type DonationEntryDonation = {
   enabled?: boolean;
   visible?: boolean;
   currency?: Currency | null;
+  sourceScope?: "group" | "profile";
   suggestedAmounts?: number[] | null;
   goalLabel?: string | null;
 };

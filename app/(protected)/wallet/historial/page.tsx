@@ -47,13 +47,17 @@ function isNoShowExpired(value: Date | null): boolean {
 }
 
 function isExpiredScheduledService(row: WalletServiceItem): boolean {
-  return (
-    isScheduledService(row) &&
-    row.status !== "rejected" &&
-    row.status !== "cancelled" &&
-    !row.preparingCreatorAt &&
-    isNoShowExpired(row.scheduledAt)
-  );
+  if (!isScheduledService(row)) return false;
+
+  if (
+    row.status !== "scheduled" &&
+    row.status !== "ready_to_prepare" &&
+    row.status !== "in_preparation"
+  ) {
+    return false;
+  }
+
+  return isNoShowExpired(row.scheduledAt);
 }
 
 function filterHistoryItems(

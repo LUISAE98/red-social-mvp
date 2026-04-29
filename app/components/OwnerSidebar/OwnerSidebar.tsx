@@ -16,7 +16,7 @@ import {
   limit,
   onSnapshot,
   query,
-  updateDoc,
+
   where,
   Timestamp,
 } from "firebase/firestore";
@@ -134,7 +134,8 @@ export type GreetingType = "saludo" | "consejo" | "mensaje" | string;
 export type GreetingRequestDoc = {
   buyerId: string;
   creatorId: string;
-  groupId: string;
+  groupId?: string | null;
+  profileUserId?: string | null;
   type: GreetingType;
   toName: string;
   instructions: string;
@@ -163,8 +164,12 @@ export type MeetGreetRequestDoc = {
   type?: "digital_meet_greet" | string;
   flowVersion?: number;
 
-  groupId: string;
+  groupId?: string | null;
   groupName?: string | null;
+  profileUserId?: string | null;
+  profileDisplayName?: string | null;
+  profileUsername?: string | null;
+  source?: "group" | "profile" | string | null;
 
   buyerId: string;
   buyerDisplayName?: string | null;
@@ -201,7 +206,7 @@ export type MeetGreetRequestDoc = {
   scheduledAt?: Timestamp | null;
   scheduledBy?: string | null;
   scheduleProposedAt?: Timestamp | null;
-    creatorScheduleNote?: string | null;
+  creatorScheduleNote?: string | null;
   creatorScheduleNoteUpdatedAt?: Timestamp | null;
   scheduleHistory?: Array<{
     proposedAt?: Timestamp | null;
@@ -275,6 +280,19 @@ export function typeLabel(t: string) {
   if (t === "exclusive_session") return "Sesión exclusiva";
   if (t === "digital_exclusive_session") return "Sesión exclusiva";
   return t;
+}
+
+function getServiceBucketKey(data: {
+  source?: string | null;
+  profileUserId?: string | null;
+  creatorId?: string | null;
+  groupId?: string | null;
+}) {
+  if (data.source === "profile") {
+    return `profile:${data.profileUserId ?? data.creatorId ?? "unknown"}`;
+  }
+
+  return data.groupId ?? null;
 }
 
 function isMeetGreetOwnerAlert(status?: MeetGreetStatus | null) {
@@ -416,11 +434,7 @@ function normalizeSidebarGroupRole(raw: unknown): GroupRoleLite {
 }
 
 function isJoinedSidebarStatus(status: SidebarMemberStatus) {
-  return (
-    status === "active" ||
-    status === "subscribed" ||
-    status === "muted"
-  );
+  return status === "active" || status === "subscribed" || status === "muted";
 }
 
 function isExcludedSidebarStatus(status: SidebarMemberStatus) {
@@ -563,8 +577,8 @@ export function CountBadge({
     tone === "blue"
       ? "linear-gradient(180deg, #2f8cff 0%, #1f6fe5 100%)"
       : tone === "yellow"
-      ? "linear-gradient(180deg, #facc15 0%, #eab308 100%)"
-      : "linear-gradient(180deg, #22c55e 0%, #16a34a 100%)";
+        ? "linear-gradient(180deg, #facc15 0%, #eab308 100%)"
+        : "linear-gradient(180deg, #22c55e 0%, #16a34a 100%)";
 
   const color = tone === "yellow" ? "#111" : "#fff";
 
@@ -617,21 +631,18 @@ export default function OwnerSidebar() {
   const [loadingCommunities, setLoadingCommunities] = useState(false);
 
   const [groupsErr, setGroupsErr] = useState<string | null>(null);
-  const [savingProfileGreeting, setSavingProfileGreeting] = useState(false);
   const [joinBusyKey, setJoinBusyKey] = useState<string | null>(null);
   const [greetingBusyId, setGreetingBusyId] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
   const [activeView, setActiveView] = useState<TopView>("owned");
 
-  const [pgEnabled, setPgEnabled] = useState(false);
-  const [pgPrice, setPgPrice] = useState<string>("");
-  const [pgCurrency, setPgCurrency] = useState<Currency>("MXN");
-
   const [openCommunities, setOpenCommunities] = useState<
     Record<string, boolean>
   >({});
   const [profileOpen, setProfileOpen] = useState(false);
+
+  const profileBucketKey = viewer?.uid ? `profile:${viewer.uid}` : null;
 
   const [joinRequestsByGroup, setJoinRequestsByGroup] = useState<
     Record<string, JoinRequestRow[]>
@@ -650,16 +661,16 @@ export default function OwnerSidebar() {
   >({});
 
   const [exclusiveSessionsByGroup, setExclusiveSessionsByGroup] = useState<
-  Record<string, Array<{ id: string; data: ExclusiveSessionRequestDoc }>>
->({});
+    Record<string, Array<{ id: string; data: ExclusiveSessionRequestDoc }>>
+  >({});
 
   const [buyerMeetGreets, setBuyerMeetGreets] = useState<
     Array<{ id: string; data: MeetGreetRequestDoc }>
   >([]);
 
   const [buyerExclusiveSessions, setBuyerExclusiveSessions] = useState<
-  Array<{ id: string; data: ExclusiveSessionRequestDoc }>
->([]);
+    Array<{ id: string; data: ExclusiveSessionRequestDoc }>
+  >([]);
 
   const [greetingSectionOpen, setGreetingSectionOpen] = useState<
     Record<string, boolean>
@@ -673,9 +684,9 @@ export default function OwnerSidebar() {
   >({});
 
   const [userMiniMap, setUserMiniMap] = useState<Record<string, UserMini>>({});
-  const [groupMetaMap, setGroupMetaMap] = useState<
-    Record<string, GroupDocLite>
-  >({});
+  const [groupMetaMap, setGroupMetaMap] = useState<Record<string, GroupDocLite>>(
+    {}
+  );
   const joinUnsubsRef = useRef<Array<() => void>>([]);
 
   const fontStack =
@@ -789,34 +800,34 @@ export default function OwnerSidebar() {
   }, []);
 
   useEffect(() => {
-  if (!viewer?.uid) return;
+    if (!viewer?.uid) return;
 
-  let cancelled = false;
+    let cancelled = false;
 
-  async function expireNoShows() {
-  try {
-    await Promise.all([
-      expireMeetGreetNoShows(),
-      expireExclusiveSessionNoShows(),
-    ]);
-  } catch (error) {
-    if (!cancelled) {
-      console.error("expireScheduledServiceNoShows error", error);
+    async function expireNoShows() {
+      try {
+        await Promise.all([
+          expireMeetGreetNoShows(),
+          expireExclusiveSessionNoShows(),
+        ]);
+      } catch (error) {
+        if (!cancelled) {
+          console.error("expireScheduledServiceNoShows error", error);
+        }
+      }
     }
-  }
-}
 
-  void expireNoShows();
-
-  const interval = window.setInterval(() => {
     void expireNoShows();
-  }, 60_000);
 
-  return () => {
-    cancelled = true;
-    window.clearInterval(interval);
-  };
-}, [viewer?.uid]);
+    const interval = window.setInterval(() => {
+      void expireNoShows();
+    }, 60_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [viewer?.uid]);
 
   const [ownerSidebarNowMs, setOwnerSidebarNowMs] = useState(() => Date.now());
 
@@ -850,11 +861,6 @@ export default function OwnerSidebar() {
 
         const u = usnap.data() as UserDoc;
         setUserDoc(u);
-
-        const pg = u.profileGreeting;
-        setPgEnabled(pg?.enabled === true);
-        setPgPrice(pg?.price == null ? "" : String(pg.price));
-        setPgCurrency((pg?.currency ?? "MXN") as Currency);
 
         setUserMiniMap((prev) => ({
           ...prev,
@@ -1006,8 +1012,7 @@ export default function OwnerSidebar() {
                       : null,
                   requiresSubscription:
                     memberData?.requiresSubscription === true,
-                  subscriptionActive:
-                    memberData?.subscriptionActive === true,
+                  subscriptionActive: memberData?.subscriptionActive === true,
                   legacyComplimentary:
                     memberData?.legacyComplimentary === true ||
                     memberData?.accessType === "legacy_free",
@@ -1018,8 +1023,7 @@ export default function OwnerSidebar() {
                       ? memberData.removedReason
                       : null,
                   canDismiss: false,
-                  sidebarState:
-                    memberStatus === "banned" ? "banned" : "joined",
+                  sidebarState: memberStatus === "banned" ? "banned" : "joined",
                 };
 
                 const isJoined =
@@ -1037,9 +1041,7 @@ export default function OwnerSidebar() {
                     joinReqSnap.exists() &&
                     (joinReqSnap.data() as any)?.status === "pending",
                   joinCreatedAt:
-                    !isJoined &&
-                    !isExcluded &&
-                    joinReqSnap.exists()
+                    !isJoined && !isExcluded && joinReqSnap.exists()
                       ? ((joinReqSnap.data() as any)?.createdAt as
                           | Timestamp
                           | undefined)
@@ -1137,77 +1139,77 @@ export default function OwnerSidebar() {
         const rows = await getMyHiddenJoinedGroups();
         if (cancelled) return;
 
-        const groups = (
-          await Promise.all(
-            rows.map(async (g) => {
-              let memberRole: GroupRoleLite = null;
+        const groups = (await Promise.all(
+          rows.map(async (g) => {
+            let memberRole: GroupRoleLite = null;
 
-              try {
-                const memberSnap = await getDoc(
-                  doc(db, "groups", g.id, "members", viewer.uid)
+            try {
+              const memberSnap = await getDoc(
+                doc(db, "groups", g.id, "members", viewer.uid)
+              );
+              if (memberSnap.exists()) {
+                const memberData = memberSnap.data() as any;
+                memberRole = normalizeSidebarGroupRole(
+                  memberData?.roleInGroup ?? memberData?.role ?? "member"
                 );
-                if (memberSnap.exists()) {
-                  const memberData = memberSnap.data() as any;
-                  memberRole = normalizeSidebarGroupRole(
-                    memberData?.roleInGroup ?? memberData?.role ?? "member"
-                  );
-                }
-              } catch {
-                memberRole = null;
               }
+            } catch {
+              memberRole = null;
+            }
 
-              const normalizedSidebarState =
-                g.sidebarState === "joined" ||
-                g.sidebarState === "legacy_free" ||
-                g.sidebarState === "requires_subscription" ||
-                g.sidebarState === "banned"
-                  ? g.sidebarState
-                  : null;
+            const normalizedSidebarState =
+              g.sidebarState === "joined" ||
+              g.sidebarState === "legacy_free" ||
+              g.sidebarState === "requires_subscription" ||
+              g.sidebarState === "banned"
+                ? g.sidebarState
+                : null;
 
-              return {
-                id: g.id,
-                name: g.name ?? undefined,
-                ownerId: g.ownerId ?? undefined,
-                visibility: g.visibility ?? undefined,
-                avatarUrl: g.avatarUrl ?? null,
-                memberStatus: normalizeSidebarMemberStatus(g.memberStatus ?? null),
-                memberRole,
-                monetization: g.monetization ?? undefined,
-                offerings: g.offerings ?? [],
+            return {
+              id: g.id,
+              name: g.name ?? undefined,
+              ownerId: g.ownerId ?? undefined,
+              visibility: g.visibility ?? undefined,
+              avatarUrl: g.avatarUrl ?? null,
+              memberStatus: normalizeSidebarMemberStatus(
+                g.memberStatus ?? null
+              ),
+              memberRole,
+              monetization: g.monetization ?? undefined,
+              offerings: g.offerings ?? [],
 
-                membershipAccessType:
-                  g.membershipAccessType === "subscription" ||
-                  g.membershipAccessType === "subscribed" ||
-                  g.membershipAccessType === "standard" ||
-                  g.membershipAccessType === "legacy_free" ||
-                  g.membershipAccessType === "subscription_required" ||
-                  g.membershipAccessType === "unknown"
-                    ? g.membershipAccessType
-                    : null,
-                requiresSubscription: g.requiresSubscription ?? null,
-                subscriptionActive: g.subscriptionActive ?? null,
-                legacyComplimentary: g.legacyComplimentary ?? null,
-                transitionPendingAction: g.transitionPendingAction ?? null,
-                transitionReason: g.transitionReason ?? null,
-                canDismiss: g.canDismiss === true,
-                sidebarState: normalizedSidebarState,
+              membershipAccessType:
+                g.membershipAccessType === "subscription" ||
+                g.membershipAccessType === "subscribed" ||
+                g.membershipAccessType === "standard" ||
+                g.membershipAccessType === "legacy_free" ||
+                g.membershipAccessType === "subscription_required" ||
+                g.membershipAccessType === "unknown"
+                  ? g.membershipAccessType
+                  : null,
+              requiresSubscription: g.requiresSubscription ?? null,
+              subscriptionActive: g.subscriptionActive ?? null,
+              legacyComplimentary: g.legacyComplimentary ?? null,
+              transitionPendingAction: g.transitionPendingAction ?? null,
+              transitionReason: g.transitionReason ?? null,
+              canDismiss: g.canDismiss === true,
+              sidebarState: normalizedSidebarState,
 
-                previousSubscriptionPriceMonthly:
-                  typeof (g as any).previousSubscriptionPriceMonthly === "number"
-                    ? (g as any).previousSubscriptionPriceMonthly
-                    : null,
-                nextSubscriptionPriceMonthly:
-                  typeof (g as any).nextSubscriptionPriceMonthly === "number"
-                    ? (g as any).nextSubscriptionPriceMonthly
-                    : null,
-                subscriptionPriceChangeCurrency:
-                  typeof (g as any).subscriptionPriceChangeCurrency === "string"
-                    ? (g as any).subscriptionPriceChangeCurrency
-                    : null,
-              } as GroupDocLite;
-            })
-          )
-        ) as GroupDocLite[];
+              previousSubscriptionPriceMonthly:
+                typeof (g as any).previousSubscriptionPriceMonthly === "number"
+                  ? (g as any).previousSubscriptionPriceMonthly
+                  : null,
+              nextSubscriptionPriceMonthly:
+                typeof (g as any).nextSubscriptionPriceMonthly === "number"
+                  ? (g as any).nextSubscriptionPriceMonthly
+                  : null,
+              subscriptionPriceChangeCurrency:
+                typeof (g as any).subscriptionPriceChangeCurrency === "string"
+                  ? (g as any).subscriptionPriceChangeCurrency
+                  : null,
+            } as GroupDocLite;
+          })
+        )) as GroupDocLite[];
 
         if (cancelled) return;
 
@@ -1367,14 +1369,19 @@ export default function OwnerSidebar() {
           Array<{ id: string; data: GreetingRequestDoc }>
         > = {};
 
-        snap.docs.forEach((d) => {
-           const data = d.data() as GreetingRequestDoc;
-           const gid = data.groupId;
-           if (!gid) return;
-           if (data.status !== "pending") return;
-           if (!grouped[gid]) grouped[gid] = [];
-           grouped[gid].push({ id: d.id, data });
-          });
+                snap.docs.forEach((d) => {
+          const data = d.data() as GreetingRequestDoc;
+
+          if (data.status !== "pending") return;
+
+          const bucketKey = getServiceBucketKey(data);
+
+          if (!bucketKey) return;
+
+          if (!grouped[bucketKey]) grouped[bucketKey] = [];
+
+          grouped[bucketKey].push({ id: d.id, data });
+        });
 
         setGreetingsByGroup(grouped);
       },
@@ -1396,10 +1403,10 @@ export default function OwnerSidebar() {
 
         setBuyerPending(rows);
 
-        const missingGroupIds = rows
-          .map((r) => r.data.groupId)
-          .filter(Boolean)
-          .filter((groupId) => !groupMetaMap[groupId]);
+       const missingGroupIds = rows
+  .map((r) => r.data.groupId)
+  .filter((groupId): groupId is string => typeof groupId === "string" && groupId.trim().length > 0)
+  .filter((groupId) => !groupMetaMap[groupId]);
 
         if (missingGroupIds.length > 0) {
           const fetched = await Promise.all(
@@ -1439,7 +1446,7 @@ export default function OwnerSidebar() {
     };
   }, [viewer?.uid, groupMetaMap]);
 
-  useEffect(() => {
+    useEffect(() => {
     if (!viewer?.uid) {
       setMeetGreetsByGroup({});
       setBuyerMeetGreets([]);
@@ -1474,11 +1481,15 @@ export default function OwnerSidebar() {
             },
             ownerSidebarNowMs
           );
-          const gid = data.groupId;
-          if (!gid) return;
+
+          const bucketKey = getServiceBucketKey(data);
+
+          if (!bucketKey) return;
           if (!isMeetGreetCreatorActiveItem(data.status)) return;
-          if (!grouped[gid]) grouped[gid] = [];
-          grouped[gid].push({
+
+          if (!grouped[bucketKey]) grouped[bucketKey] = [];
+
+          grouped[bucketKey].push({
             id: d.id,
             data,
           });
@@ -1512,7 +1523,7 @@ export default function OwnerSidebar() {
 
         const missingGroupIds = rows
           .map((r) => r.data.groupId)
-          .filter(Boolean)
+          .filter((groupId): groupId is string => !!groupId)
           .filter((groupId) => !groupMetaMap[groupId]);
 
         if (missingGroupIds.length > 0) {
@@ -1553,128 +1564,139 @@ export default function OwnerSidebar() {
       unsubBuyer();
     };
   }, [viewer?.uid, groupMetaMap, ownerSidebarNowMs]);
-  useEffect(() => {
-  if (!viewer?.uid) {
-    setExclusiveSessionsByGroup({});
-    setBuyerExclusiveSessions([]);
-    return;
-  }
 
-  const creatorQ = query(
-    collection(db, "exclusiveSessionRequests"),
-    where("creatorId", "==", viewer.uid),
-    limit(100)
-  );
 
-  const buyerQ = query(
-    collection(db, "exclusiveSessionRequests"),
-    where("buyerId", "==", viewer.uid),
-    limit(100)
-  );
-
-  const unsubCreator = onSnapshot(
-    creatorQ,
-    (snap) => {
-            const grouped: Record<
-        string,
-        Array<{ id: string; data: ExclusiveSessionRequestDoc }>
-      > = {};
-
-      snap.docs.forEach((d) => {
-        const data = normalizeOwnerSidebarNoShowStatus(
-          {
-            ...(d.data() as ExclusiveSessionRequestDoc),
-            id: d.id,
-            type: "digital_exclusive_session",
-          },
-          ownerSidebarNowMs
-        ) as ExclusiveSessionRequestDoc;
-        const gid = data.groupId;
-        if (!gid) return;
-        if (!isMeetGreetCreatorActiveItem(data.status)) return;
-
-        if (!grouped[gid]) grouped[gid] = [];
-
-        grouped[gid].push({
-          id: d.id,
-          data,
-        });
-      });
-
-      setExclusiveSessionsByGroup(grouped);
-    },
-    (e: any) => {
-      setGroupsErr(
-        e?.message ?? "No se pudieron cargar solicitudes de sesión exclusiva."
-      );
+    useEffect(() => {
+    if (!viewer?.uid) {
       setExclusiveSessionsByGroup({});
+      setBuyerExclusiveSessions([]);
+      return;
     }
-  );
 
-  const unsubBuyer = onSnapshot(
-    buyerQ,
-    async (snap) => {
-      const rows = snap.docs.map((d) => ({
-        id: d.id,
-        data: normalizeOwnerSidebarNoShowStatus(
-          {
-            ...(d.data() as ExclusiveSessionRequestDoc),
+    const creatorQ = query(
+      collection(db, "exclusiveSessionRequests"),
+      where("creatorId", "==", viewer.uid),
+      limit(100)
+    );
+
+    const buyerQ = query(
+      collection(db, "exclusiveSessionRequests"),
+      where("buyerId", "==", viewer.uid),
+      limit(100)
+    );
+
+    const unsubCreator = onSnapshot(
+      creatorQ,
+      (snap) => {
+        const grouped: Record<
+          string,
+          Array<{ id: string; data: ExclusiveSessionRequestDoc }>
+        > = {};
+
+        snap.docs.forEach((d) => {
+          const data = normalizeOwnerSidebarNoShowStatus(
+            {
+              ...(d.data() as ExclusiveSessionRequestDoc),
+              id: d.id,
+              type: "digital_exclusive_session",
+            },
+            ownerSidebarNowMs
+          ) as ExclusiveSessionRequestDoc;
+
+          const bucketKey = getServiceBucketKey(data);
+
+          if (!bucketKey) return;
+          if (!isMeetGreetCreatorActiveItem(data.status)) return;
+
+          if (!grouped[bucketKey]) grouped[bucketKey] = [];
+
+          grouped[bucketKey].push({
             id: d.id,
-            type: "digital_exclusive_session",
-          },
-          ownerSidebarNowMs
-        ) as ExclusiveSessionRequestDoc,
-      }));
-
-      setBuyerExclusiveSessions(rows);
-
-      const missingGroupIds = rows
-        .map((r) => r.data.groupId)
-        .filter(Boolean)
-        .filter((groupId) => !groupMetaMap[groupId]);
-
-      if (missingGroupIds.length > 0) {
-        const fetched = await Promise.all(
-          Array.from(new Set(missingGroupIds)).map(async (groupId) => {
-            try {
-              const groupSnap = await getDoc(doc(db, "groups", groupId));
-              if (!groupSnap.exists()) return null;
-
-              return {
-                ...(groupSnap.data() as Omit<GroupDocLite, "id">),
-                id: groupSnap.id,
-              };
-            } catch {
-              return null;
-            }
-          })
-        );
-
-        const meta: Record<string, GroupDocLite> = {};
-
-        fetched.filter(Boolean).forEach((g) => {
-          const gg = g as GroupDocLite;
-          meta[gg.id] = gg;
+            data,
+          });
         });
 
-        if (Object.keys(meta).length > 0) {
-          setGroupMetaMap((prev) => ({ ...prev, ...meta }));
-        }
+        setExclusiveSessionsByGroup(grouped);
+      },
+      (e: any) => {
+        setGroupsErr(
+          e?.message ??
+            "No se pudieron cargar solicitudes de sesión exclusiva."
+        );
+        setExclusiveSessionsByGroup({});
       }
-    },
-    () => {
-      setBuyerExclusiveSessions([]);
-    }
-  );
+    );
 
-  return () => {
-    unsubCreator();
-    unsubBuyer();
-  };
-}, [viewer?.uid, groupMetaMap, ownerSidebarNowMs]);
+    const unsubBuyer = onSnapshot(
+      buyerQ,
+      async (snap) => {
+        const rows = snap.docs.map((d) => ({
+          id: d.id,
+          data: normalizeOwnerSidebarNoShowStatus(
+            {
+              ...(d.data() as ExclusiveSessionRequestDoc),
+              id: d.id,
+              type: "digital_exclusive_session",
+            },
+            ownerSidebarNowMs
+          ) as ExclusiveSessionRequestDoc,
+        }));
+
+        setBuyerExclusiveSessions(rows);
+
+        const missingGroupIds = rows
+          .map((r) => r.data.groupId)
+          .filter((groupId): groupId is string => !!groupId)
+          .filter((groupId) => !groupMetaMap[groupId]);
+
+        if (missingGroupIds.length > 0) {
+          const fetched = await Promise.all(
+            Array.from(new Set(missingGroupIds)).map(async (groupId) => {
+              try {
+                const groupSnap = await getDoc(doc(db, "groups", groupId));
+                if (!groupSnap.exists()) return null;
+
+                return {
+                  ...(groupSnap.data() as Omit<GroupDocLite, "id">),
+                  id: groupSnap.id,
+                };
+              } catch {
+                return null;
+              }
+            })
+          );
+
+          const meta: Record<string, GroupDocLite> = {};
+
+          fetched.filter(Boolean).forEach((g) => {
+            const gg = g as GroupDocLite;
+            meta[gg.id] = gg;
+          });
+
+          if (Object.keys(meta).length > 0) {
+            setGroupMetaMap((prev) => ({ ...prev, ...meta }));
+          }
+        }
+      },
+      () => {
+        setBuyerExclusiveSessions([]);
+      }
+    );
+
+    return () => {
+      unsubCreator();
+      unsubBuyer();
+    };
+  }, [viewer?.uid, groupMetaMap, ownerSidebarNowMs]);
 
   useEffect(() => {
-    const groupsForSeen = [...myGroups, ...moderatedGroups].map((g) => g.id);
+    const profileBucketKey = viewer?.uid ? `profile:${viewer.uid}` : null;
+
+const groupsForSeen = [
+  ...myGroups.map((g) => g.id),
+  ...moderatedGroups.map((g) => g.id),
+  ...(profileBucketKey ? [profileBucketKey] : []),
+];
 
     if (groupsForSeen.length === 0) return;
 
@@ -1726,8 +1748,8 @@ export default function OwnerSidebar() {
     }
 
     for (const rows of Object.values(exclusiveSessionsByGroup)) {
-  rows.forEach((r) => ids.add(r.data.buyerId));
-}
+      rows.forEach((r) => ids.add(r.data.buyerId));
+    }
 
     buyerPending.forEach((r) => ids.add(r.data.creatorId));
     buyerMeetGreets.forEach((r) => ids.add(r.data.creatorId));
@@ -1741,10 +1763,10 @@ export default function OwnerSidebar() {
     buyerPending,
     buyerMeetGreets,
     exclusiveSessionsByGroup,
-buyerExclusiveSessions,
+    buyerExclusiveSessions,
   ]);
 
-    useEffect(() => {
+  useEffect(() => {
     let cancelled = false;
 
     async function loadUserMiniMap() {
@@ -1808,7 +1830,7 @@ buyerExclusiveSessions,
     };
   }, [relevantUserIds, userMiniMap]);
 
-    const ownerSidebarServiceCounts = useMemo(() => {
+  const ownerSidebarServiceCounts = useMemo(() => {
     let greetingAlerts = 0;
     let consejoAlerts = 0;
     let mensajeAlerts = 0;
@@ -1838,17 +1860,17 @@ buyerExclusiveSessions,
     }
 
     for (const rows of Object.values(exclusiveSessionsByGroup)) {
-  for (const row of rows) {
-    const status = row.data.status;
-    if (!isMeetGreetOwnerAlert(status)) continue;
+      for (const row of rows) {
+        const status = row.data.status;
+        if (!isMeetGreetOwnerAlert(status)) continue;
 
-    if (status === "ready_to_prepare") {
-      meetGreetPreparingAlerts += 1;
-    } else {
-      meetGreetAlerts += 1;
+        if (status === "ready_to_prepare") {
+          meetGreetPreparingAlerts += 1;
+        } else {
+          meetGreetAlerts += 1;
+        }
+      }
     }
-  }
-}
 
     return {
       saludo: greetingAlerts,
@@ -1883,59 +1905,11 @@ buyerExclusiveSessions,
     return total;
   }, [buyerPending, buyerMeetGreets, buyerExclusiveSessions]);
 
-    useEffect(() => {
+  useEffect(() => {
     if (pendingCount === 0 && activeView === "greetings") {
       setActiveView("owned");
     }
   }, [pendingCount, activeView]);
-
-  async function saveProfileGreeting() {
-    if (!viewer?.uid || !userDoc) return;
-
-    setSavingProfileGreeting(true);
-    setMsg(null);
-
-    try {
-      const priceNum = pgPrice.trim() === "" ? null : Number(pgPrice);
-
-      if (
-        pgEnabled &&
-        (priceNum == null || Number.isNaN(priceNum) || priceNum < 0)
-      ) {
-        setMsg("❌ Precio inválido.");
-        return;
-      }
-
-      const uref = doc(db, "users", viewer.uid);
-
-      await updateDoc(uref, {
-        profileGreeting: {
-          enabled: pgEnabled,
-          price: pgEnabled ? priceNum : null,
-          currency: pgEnabled ? pgCurrency : null,
-        },
-      });
-
-      setUserDoc((prev) =>
-        prev
-          ? {
-              ...prev,
-              profileGreeting: {
-                enabled: pgEnabled,
-                price: pgEnabled ? priceNum : null,
-                currency: pgEnabled ? pgCurrency : null,
-              },
-            }
-          : prev
-      );
-
-      setMsg("✅ Configuración de saludos en perfil guardada.");
-    } catch (e: any) {
-      setMsg(e?.message ?? "❌ No se pudo guardar configuración.");
-    } finally {
-      setSavingProfileGreeting(false);
-    }
-  }
 
   async function handleApproveJoin(groupId: string, userId: string) {
     try {
@@ -2246,7 +2220,11 @@ buyerExclusiveSessions,
 
     return [
       { key: "public", title: visibilitySectionTitle("public"), items: publics },
-      { key: "private", title: visibilitySectionTitle("private"), items: privates },
+      {
+        key: "private",
+        title: visibilitySectionTitle("private"),
+        items: privates,
+      },
       { key: "hidden", title: visibilitySectionTitle("hidden"), items: hiddens },
       { key: "other", title: visibilitySectionTitle("other"), items: others },
     ].filter((section) => section.items.length > 0);
@@ -2281,7 +2259,11 @@ buyerExclusiveSessions,
 
     return [
       { key: "public", title: visibilitySectionTitle("public"), items: publics },
-      { key: "private", title: visibilitySectionTitle("private"), items: privates },
+      {
+        key: "private",
+        title: visibilitySectionTitle("private"),
+        items: privates,
+      },
       { key: "hidden", title: visibilitySectionTitle("hidden"), items: hiddens },
       { key: "other", title: visibilitySectionTitle("other"), items: others },
     ].filter((section) => section.items.length > 0);
@@ -2300,7 +2282,11 @@ buyerExclusiveSessions,
 
     return [
       { key: "public", title: visibilitySectionTitle("public"), items: publics },
-      { key: "private", title: visibilitySectionTitle("private"), items: privates },
+      {
+        key: "private",
+        title: visibilitySectionTitle("private"),
+        items: privates,
+      },
       { key: "other", title: visibilitySectionTitle("other"), items: others },
     ].filter((section) => section.items.length > 0);
   }, [browseGroups, joinedGroups]);
@@ -2434,198 +2420,66 @@ buyerExclusiveSessions,
           {msg && <div style={styles.message}>{msg}</div>}
           {groupsErr && <div style={styles.message}>{groupsErr}</div>}
 
-          <div style={{ ...styles.card, display: "grid", gap: 10 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  if (profileHref) router.push(profileHref);
-                }}
-                disabled={!profileHref || isProfileRoute}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: 0,
-                  color: "#fff",
-                  textAlign: "left",
-                  cursor: !profileHref || isProfileRoute ? "default" : "pointer",
-                  fontFamily: fontStack,
-                  opacity: !profileHref ? 0.55 : 1,
-                  flex: 1,
-                }}
-                title="Ir a mi perfil"
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    minWidth: 0,
-                  }}
-                >
-                  {currentUserAvatar ? (
-                    <img
-                      src={currentUserAvatar}
-                      alt={currentUserDisplayName}
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: "50%",
-                        objectFit: "cover",
-                        border: "1px solid rgba(255,255,255,0.10)",
-                        flexShrink: 0,
-                      }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: "50%",
-                        background: "rgba(255,255,255,0.06)",
-                        border: "1px solid rgba(255,255,255,0.10)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#fff",
-                        flexShrink: 0,
-                      }}
-                    >
-                      {getInitials(currentUserDisplayName)}
-                    </div>
-                  )}
+          {userDoc && profileBucketKey && (
+            <OwnerSidebarMyGroups
+              loadingGroups={false}
+              myGroups={[
+                {
+                  id: profileBucketKey,
+                  name: "Mi perfil",
+                  ownerId: viewer.uid,
+                  visibility: "profile",
+                  avatarUrl: currentUserAvatar,
+                  memberRole: "owner",
+                },
+              ]}
+              ownedGrouped={[
+                {
+                  key: "profile-top",
+                  title: "",
+                  items: [
+                    {
+                      id: profileBucketKey,
+                      name: "Mi perfil",
+                      ownerId: viewer.uid,
+                      visibility: "profile",
+                      avatarUrl: currentUserAvatar,
+                      memberRole: "owner",
+                    },
+                  ],
+                },
+              ]}
+              openCommunities={openCommunities}
+              joinRequestsByGroup={{}}
+              greetingsByGroup={greetingsByGroup}
+              meetGreetsByGroup={meetGreetsByGroup}
+              exclusiveSessionsByGroup={exclusiveSessionsByGroup}
+              greetingSectionOpen={greetingSectionOpen}
+              joinSectionOpen={joinSectionOpen}
+              seenCountsByGroup={seenCountsByGroup}
+              userMiniMap={userMiniMap}
+              styles={styles}
+              getInitials={getInitials}
+              renderUserLink={renderUserLink}
+              setOpenCommunities={setOpenCommunities}
+              setSeenCountsByGroup={setSeenCountsByGroup}
+              setJoinSectionOpen={setJoinSectionOpen}
+              setGreetingSectionOpen={setGreetingSectionOpen}
+              handleApproveJoin={handleApproveJoin}
+              handleRejectJoin={handleRejectJoin}
+              handleGreetingAction={handleGreetingAction}
+              joinBusyKey={joinBusyKey}
+              greetingBusyId={greetingBusyId}
+            />
+          )}
 
-                  <span
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 700,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    Mi perfil
-                  </span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setProfileOpen((prev) => !prev)}
-                aria-label={
-                  profileOpen ? "Cerrar opciones de perfil" : "Abrir opciones de perfil"
-                }
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 999,
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  background: "rgba(255,255,255,0.02)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  flexShrink: 0,
-                }}
-              >
-                <Chevron open={profileOpen} />
-              </button>
-            </div>
-
-            {profileOpen && (
-              <div
-                style={{
-                  paddingTop: 8,
-                  marginTop: 2,
-                  borderTop: "1px solid rgba(255,255,255,0.06)",
-                  display: "grid",
-                  gap: 9,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 10,
-                  }}
-                >
-                  <div style={{ display: "grid", gap: 2 }}>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>
-                      Saludos en perfil
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "rgba(255,255,255,0.56)",
-                      }}
-                    >
-                      Venta directa desde tu perfil
-                    </span>
-                  </div>
-
-                  <Switch
-                    checked={pgEnabled}
-                    disabled={savingProfileGreeting || loadingUser}
-                    onChange={(next) => setPgEnabled(next)}
-                    label="Vender saludos en mi perfil"
-                  />
-                </div>
-
-                {pgEnabled && (
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <input
-                      type="number"
-                      value={pgPrice}
-                      onChange={(e) => setPgPrice(e.target.value)}
-                      placeholder="Precio"
-                      style={{ ...styles.input, width: 106 }}
-                    />
-                    <select
-                      value={pgCurrency}
-                      onChange={(e) => setPgCurrency(e.target.value as Currency)}
-                      style={{ ...styles.input, flex: 1, minWidth: 88 }}
-                    >
-                      <option value="MXN">MXN</option>
-                      <option value="USD">USD</option>
-                    </select>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={saveProfileGreeting}
-                  disabled={savingProfileGreeting || loadingUser}
-                  style={{
-                    ...styles.buttonSecondary,
-                    width: "100%",
-                    opacity: savingProfileGreeting || loadingUser ? 0.7 : 1,
-                    cursor:
-                      savingProfileGreeting || loadingUser ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {savingProfileGreeting ? "Guardando..." : "Guardar perfil"}
-                </button>
-              </div>
-            )}
-          </div>
-
-                     <OwnerSidebarTabNav
+          <OwnerSidebarTabNav
             activeView={activeView}
             onChange={setActiveView}
             requestedCount={pendingCount}
           />
 
-                        {activeView === "owned" && (
+          {activeView === "owned" && (
             <OwnerSidebarMyGroups
               loadingGroups={loadingGroups}
               myGroups={myGroups}
@@ -2679,20 +2533,20 @@ buyerExclusiveSessions,
             />
           )}
 
-            {activeView === "greetings" && pendingCount > 0 && (
+          {activeView === "greetings" && pendingCount > 0 && (
             <OwnerSidebarGreetings
-  buyerPending={buyerPending}
-  buyerExclusiveSessions={buyerExclusiveSessions}
-  exclusiveSessionsByGroup={{}}
-  groupMetaMap={groupMetaMap}
-  styles={styles}
-  typeLabel={typeLabel}
-  fmtDate={fmtDate}
-  renderUserLink={renderUserLink}
-  router={router}
-  buyerMeetGreets={buyerMeetGreets}
-  meetGreetsByGroup={{}}
-/>
+              buyerPending={buyerPending}
+              buyerExclusiveSessions={buyerExclusiveSessions}
+              exclusiveSessionsByGroup={{}}
+              groupMetaMap={groupMetaMap}
+              styles={styles}
+              typeLabel={typeLabel}
+              fmtDate={fmtDate}
+              renderUserLink={renderUserLink}
+              router={router}
+              buyerMeetGreets={buyerMeetGreets}
+              meetGreetsByGroup={{}}
+            />
           )}
 
           {(loadingGroups || loadingCommunities) && (

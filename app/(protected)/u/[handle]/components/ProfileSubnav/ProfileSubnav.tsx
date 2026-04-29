@@ -2,7 +2,7 @@
 
 import { CSSProperties } from "react";
 
-export type ProfileTabKey = "posts" | "groups" | "settings";
+export type ProfileTabKey = "posts" | "groups" | "services" | "settings";
 
 type ProfileSubnavProps = {
   activeTab: ProfileTabKey;
@@ -10,6 +10,7 @@ type ProfileSubnavProps = {
   isOwner?: boolean;
   showGroupsTab?: boolean;
   showPostsTab?: boolean;
+  showServicesTab?: boolean;
   showSettingsTab?: boolean;
 };
 
@@ -43,6 +44,7 @@ export default function ProfileSubnav({
   isOwner = false,
   showGroupsTab = true,
   showPostsTab = true,
+  showServicesTab = true,
   showSettingsTab = true,
 }: ProfileSubnavProps) {
   const fontStack =
@@ -66,6 +68,16 @@ export default function ProfileSubnav({
             label: isOwner ? "Mis comunidades" : "Sus comunidades",
             title: isOwner ? "Mis comunidades" : "Las comunidades de este perfil",
             emoji: "🫂",
+          },
+        ]
+      : []),
+    ...(isOwner && showServicesTab
+      ? [
+          {
+            key: "services" as const,
+            label: "Servicios",
+            title: "Servicios del perfil",
+            emoji: "💸",
           },
         ]
       : []),

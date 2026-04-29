@@ -31,8 +31,12 @@ type ScheduledStatus = MeetGreetStatus | ExclusiveSessionStatus;
 
 type WalletScheduledDoc = {
   id: string;
-  groupId: string;
-  groupName: string | null;
+  groupId?: string | null;
+  groupName?: string | null;
+  profileUserId?: string | null;
+  profileDisplayName?: string | null;
+  profileUsername?: string | null;
+  source?: "group" | "profile" | null;
   buyerId: string;
   buyerDisplayName: string | null;
   buyerUsername: string | null;
@@ -82,7 +86,8 @@ export type GreetingStatus = "pending" | "accepted" | "rejected";
 
 export type WalletGreetingDoc = {
   id: string;
-  groupId: string;
+  groupId?: string | null;
+  profileUserId?: string | null;
   creatorId: string;
   buyerId: string;
   type: GreetingType;
@@ -105,8 +110,12 @@ export type WalletServiceItem = {
   id: string;
   kind: WalletServiceKind;
   title: string;
-  groupId: string;
+  groupId: string | null;
   groupName: string | null;
+  profileUserId: string | null;
+  profileDisplayName: string | null;
+  profileUsername: string | null;
+  requestSource: "group" | "profile" | null;
   buyerId: string;
   buyerDisplayName: string | null;
   buyerUsername: string | null;
@@ -428,8 +437,12 @@ function normalizeScheduledRow(
     id,
     kind: isExclusive ? "exclusive_session" : "meet_greet",
     title: isExclusive ? "Sesión exclusiva" : "Meet & Greet",
-    groupId: data.groupId ?? "",
+    groupId: data.groupId ?? null,
     groupName: data.groupName ?? null,
+    profileUserId: data.profileUserId ?? null,
+    profileDisplayName: data.profileDisplayName ?? null,
+    profileUsername: data.profileUsername ?? null,
+    requestSource: data.source === "profile" ? "profile" : "group",
     buyerId: data.buyerId ?? "",
     buyerDisplayName: data.buyerDisplayName ?? null,
     buyerUsername: data.buyerUsername ?? null,
@@ -441,9 +454,9 @@ function normalizeScheduledRow(
       ? getExclusiveSessionStatusLabel(normalizedStatus as ExclusiveSessionStatus)
       : getMeetGreetStatusLabel(normalizedStatus as MeetGreetStatus),
     description: data.buyerMessage ?? null,
-creatorScheduleNote,
-creatorScheduleNoteUpdatedAt,
-rejectionReason: normalizedRejectionReason,
+    creatorScheduleNote,
+    creatorScheduleNoteUpdatedAt,
+    rejectionReason: normalizedRejectionReason,
     refundReason: data.refundReason ?? null,
     priceSnapshot:
       typeof data.priceSnapshot === "number" ? data.priceSnapshot : null,
@@ -480,8 +493,12 @@ function normalizeGreetingRow(
     id,
     kind: type,
     title: getGreetingTypeLabel(type),
-    groupId: data.groupId ?? "",
+    groupId: data.groupId ?? null,
     groupName: null,
+    profileUserId: data.profileUserId ?? null,
+    profileDisplayName: null,
+    profileUsername: null,
+    requestSource: data.source === "profile" ? "profile" : "group",
     buyerId: data.buyerId ?? "",
     buyerDisplayName: null,
     buyerUsername: null,
@@ -492,7 +509,7 @@ function normalizeGreetingRow(
     statusLabel: getGreetingStatusLabel(status),
     description: data.instructions?.trim() || null,
     creatorScheduleNote: null,
-creatorScheduleNoteUpdatedAt: null,
+    creatorScheduleNoteUpdatedAt: null,
     rejectionReason: null,
     refundReason: null,
     priceSnapshot: null,
