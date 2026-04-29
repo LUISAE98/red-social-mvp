@@ -969,15 +969,19 @@ if (scheduleConflict.hasConflict) {
                       gap: 10,
                     }}
                   >
-                    <Link
-                      href={g.visibility === "profile" ? "#" : `/groups/${g.id}`}
+<Link
+  href={g.visibility === "profile" && g.handle ? `/u/${g.handle}` : `/groups/${g.id}`}
+  
                       style={{
                         background: "transparent",
                         border: "none",
                         padding: 0,
                         color: "#fff",
                         textAlign: "left",
-                        cursor: g.visibility === "profile" ? "default" : "pointer",
+                        cursor:
+                          g.visibility === "profile" && !g.profileHref
+                            ? "default"
+                            : "pointer",
                         display: "flex",
                         alignItems: "center",
                         gap: 10,

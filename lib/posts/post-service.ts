@@ -627,10 +627,31 @@ export async function fetchUserProfilePosts(
     return [];
   }
 
-  const visibleGroupIds =
-    viewerUid === profileUid
-      ? await fetchAccessibleGroupIds(profileUid)
-      : await fetchProfileVisibleGroupIds(viewerUid);
+  if (viewerUid === profileUid) {
+    const ownPostsSnap = await getDocs(
+      query(
+        collection(db, "posts"),
+        where("authorId", "==", profileUid),
+        where("isDeleted", "==", false),
+        orderBy("createdAt", "desc"),
+        limit(100)
+      )
+    );
+
+    const ownPosts = ownPostsSnap.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<Post, "id">),
+    })) as Post[];
+
+    const [userMap, groupMap] = await Promise.all([
+      fetchUsersByIds(ownPosts.map((post) => post.authorId)),
+      fetchGroupsByIds(ownPosts.map((post) => post.groupId)),
+    ]);
+
+    return ownPosts.map((post) => hydratePost(post, userMap, groupMap));
+  }
+
+  const visibleGroupIds = await fetchProfileVisibleGroupIds(viewerUid);
 
   const rawPosts = await fetchPostsByAccessibleGroups(visibleGroupIds);
   const filteredPosts = rawPosts.filter((post) => post.authorId === profileUid);

@@ -91,6 +91,8 @@ export type GroupDocLite = {
   ownerId?: string;
   visibility?: "public" | "private" | "hidden" | string;
   avatarUrl?: string | null;
+    profileHref?: string | null;
+      handle?: string | null;
   memberStatus?: SidebarMemberStatus;
   memberRole?: GroupRoleLite;
   monetization?: {
@@ -2424,14 +2426,15 @@ const groupsForSeen = [
             <OwnerSidebarMyGroups
               loadingGroups={false}
               myGroups={[
-                {
-                  id: profileBucketKey,
-                  name: "Mi perfil",
-                  ownerId: viewer.uid,
-                  visibility: "profile",
-                  avatarUrl: currentUserAvatar,
-                  memberRole: "owner",
-                },
+ {
+  id: profileBucketKey,
+  name: "Mi perfil",
+  ownerId: viewer.uid,
+  visibility: "profile",
+  avatarUrl: currentUserAvatar,
+  memberRole: "owner",
+  handle: userDoc.handle,
+},
               ]}
               ownedGrouped={[
                 {
@@ -2439,13 +2442,14 @@ const groupsForSeen = [
                   title: "",
                   items: [
                     {
-                      id: profileBucketKey,
-                      name: "Mi perfil",
-                      ownerId: viewer.uid,
-                      visibility: "profile",
-                      avatarUrl: currentUserAvatar,
-                      memberRole: "owner",
-                    },
+  id: profileBucketKey,
+  name: "Mi perfil",
+  ownerId: viewer.uid,
+  visibility: "profile",
+  avatarUrl: currentUserAvatar,
+  memberRole: "owner",
+  handle: userDoc.handle,
+},
                   ],
                 },
               ]}
