@@ -263,7 +263,7 @@ function isStartingSoon(value: unknown): boolean {
   const now = Date.now();
   const diff = date.getTime() - now;
 
-  return diff > 0 && diff <= 24 * 60 * 60 * 1000;
+  return diff > 0 && diff <= 15 * 60 * 1000;
 }
 
 function getSortDate(row: DisplayRow): Date | null {

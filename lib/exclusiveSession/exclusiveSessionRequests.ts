@@ -88,6 +88,7 @@ export function createExclusiveSessionRequest(payload: {
   profileUserId?: string | null;
   creatorId?: string | null;
   source?: ExclusiveSessionSource;
+  requestSource?: ExclusiveSessionSource;
   buyerMessage?: string | null;
   priceSnapshot?: number | null;
   durationMinutes?: number | null;
@@ -121,8 +122,9 @@ export function createExclusiveSessionRequest(payload: {
             "creatorId"
           )
         : null,
-    source,
-    buyerMessage: normalizeOptionalString(payload.buyerMessage),
+source,
+requestSource: payload.requestSource ?? source,
+buyerMessage: normalizeOptionalString(payload.buyerMessage),
     priceSnapshot: assertOptionalNumber(payload.priceSnapshot, "priceSnapshot", {
       min: 0,
       max: 1000000,

@@ -216,6 +216,15 @@ const [exclusiveSessionMessage, setExclusiveSessionMessage] = useState("");
 const [exclusiveSessionError, setExclusiveSessionError] = useState<string | null>(null);
 
 const [serviceToast, setServiceToast] = useState<string | null>(null);
+useEffect(() => {
+  if (!serviceToast) return;
+
+  const timeout = window.setTimeout(() => {
+    setServiceToast(null);
+  }, 3500);
+
+  return () => window.clearTimeout(timeout);
+}, [serviceToast]);
 
   const [cropOpen, setCropOpen] = useState(false);
   const [cropMode, setCropMode] = useState<CropMode>("avatar");
@@ -751,15 +760,16 @@ async function handleSubmitGreeting() {
   setGreetSuccess(null);
 
   try {
-    await createGreetingRequest({
-      source: "profile",
-      profileUserId: userDoc.uid,
-      creatorId: userDoc.uid,
-      groupId: null,
-      type: greetType,
-      toName,
-      instructions,
-    });
+await createGreetingRequest({
+  source: "profile",
+  requestSource: "profile",
+  profileUserId: userDoc.uid,
+  creatorId: userDoc.uid,
+  groupId: null,
+  type: greetType,
+  toName,
+  instructions,
+});
 
     setGreetOpen(false);
     setToName("");
@@ -781,15 +791,16 @@ async function handleSubmitMeetGreet() {
   try {
     const service = getProfileService("meet_greet_digital");
 
-    await createMeetGreetRequest({
-      source: "profile",
-      profileUserId: userDoc.uid,
-      creatorId: userDoc.uid,
-      groupId: null,
-      buyerMessage: meetGreetMessage,
-      priceSnapshot: service?.publicPrice ?? service?.memberPrice ?? null,
-      durationMinutes: (service as any)?.durationMinutes ?? null,
-    });
+await createMeetGreetRequest({
+  source: "profile",
+  requestSource: "profile",
+  profileUserId: userDoc.uid,
+  creatorId: userDoc.uid,
+  groupId: null,
+  buyerMessage: meetGreetMessage,
+  priceSnapshot: service?.publicPrice ?? service?.memberPrice ?? null,
+  durationMinutes: (service as any)?.durationMinutes ?? null,
+});
 
     setMeetGreetOpen(false);
     setMeetGreetMessage("");
@@ -810,15 +821,16 @@ async function handleSubmitExclusiveSession() {
   try {
     const service = getProfileService("clase_personalizada");
 
-    await createExclusiveSessionRequest({
-      source: "profile",
-      profileUserId: userDoc.uid,
-      creatorId: userDoc.uid,
-      groupId: null,
-      buyerMessage: exclusiveSessionMessage,
-      priceSnapshot: service?.publicPrice ?? service?.memberPrice ?? null,
-      durationMinutes: (service as any)?.durationMinutes ?? null,
-    });
+await createExclusiveSessionRequest({
+  source: "profile",
+  requestSource: "profile",
+  profileUserId: userDoc.uid,
+  creatorId: userDoc.uid,
+  groupId: null,
+  buyerMessage: exclusiveSessionMessage,
+  priceSnapshot: service?.publicPrice ?? service?.memberPrice ?? null,
+  durationMinutes: (service as any)?.durationMinutes ?? null,
+});
 
     setExclusiveSessionOpen(false);
     setExclusiveSessionMessage("");

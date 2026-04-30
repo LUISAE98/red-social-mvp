@@ -42,7 +42,13 @@ type GroupLookup = {
   visibility: GroupVisibility | null;
 };
 
-type GroupMemberStatus = "active" | "muted" | "banned" | "removed" | null;
+type GroupMemberStatus =
+  | "active"
+  | "subscribed"
+  | "muted"
+  | "banned"
+  | "removed"
+  | null;
 type PostingMode = "members" | "owner_only";
 
 type GroupWriteAccess = {
@@ -136,6 +142,7 @@ function resolveEffectiveMembershipStatus(
     return "muted";
   }
 
+  if (status === "subscribed") return "subscribed";
   if (status === "active") return "active";
 
   return "active";
@@ -358,7 +365,9 @@ async function fetchMemberGroupIds(userUid: string): Promise<string[]> {
           memberData.mutedUntil
         );
 
-        return status === "active" || status === "muted" ? group.id : null;
+        return status === "active" || status === "subscribed" || status === "muted"
+         ? group.id
+         : null;
       } catch {
         return null;
       }
@@ -529,9 +538,9 @@ function assertMembershipCanInteract(status: GroupMemberStatus) {
     );
   }
 
-  if (status !== "active") {
-    throw new Error("No puedes realizar esta acción en esta comunidad.");
-  }
+if (status !== "active" && status !== "subscribed") {
+  throw new Error("No puedes realizar esta acción en esta comunidad.");
+}
 }
 
 async function ensureUserCanCreatePostInGroup(groupId: string, userUid: string) {

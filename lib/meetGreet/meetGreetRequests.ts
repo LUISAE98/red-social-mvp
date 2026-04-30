@@ -9,6 +9,7 @@ export type CreateMeetGreetRequestInput = {
   profileUserId?: string | null;
   creatorId?: string | null;
   source?: MeetGreetSource;
+  requestSource?: MeetGreetSource;
   buyerMessage?: string | null;
   priceSnapshot?: number | null;
   durationMinutes?: number | null;
@@ -20,6 +21,7 @@ export type CreateMeetGreetRequestResult = {
   status: string;
   creatorId: string;
   source?: MeetGreetSource;
+  requestSource?: MeetGreetSource;
   groupId?: string | null;
   profileUserId?: string | null;
 };
@@ -186,6 +188,7 @@ export async function createMeetGreetRequest(
         profileUserId: string | null;
         creatorId: string | null;
         source: MeetGreetSource;
+        requestSource: MeetGreetSource;
         buyerMessage: string | null;
         priceSnapshot: number | null;
         durationMinutes: number | null;
@@ -212,8 +215,9 @@ export async function createMeetGreetRequest(
               "creatorId"
             )
           : null,
-      source,
-      buyerMessage: normalizeOptionalString(input.buyerMessage),
+source,
+requestSource: input.requestSource ?? source,
+buyerMessage: normalizeOptionalString(input.buyerMessage),
       priceSnapshot: assertOptionalNumber(input.priceSnapshot, "priceSnapshot", {
         min: 0,
         max: 1000000,

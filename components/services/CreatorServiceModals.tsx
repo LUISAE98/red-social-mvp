@@ -152,7 +152,6 @@ export default function CreatorServiceModals({
   serviceModalBackdropStyle,
   serviceModalCardStyle,
   serviceToastStyle,
-  formatMoney: _formatMoney,
 }: CreatorServiceModalsProps) {
   const [mounted, setMounted] = useState(false);
 

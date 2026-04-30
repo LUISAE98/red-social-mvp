@@ -14,6 +14,7 @@ export async function createGreetingRequest(input: {
   toName: string;
   instructions: string;
   source?: GreetingSource;
+  requestSource?: GreetingSource;
 }) {
   const source: GreetingSource = input.source ?? (input.profileUserId ? "profile" : "group");
 
@@ -27,21 +28,23 @@ export async function createGreetingRequest(input: {
 
   const fn = httpsCallable(functions, "createGreetingRequest");
 
-  const res = await fn({
-    groupId: input.groupId ?? null,
-    profileUserId: input.profileUserId ?? input.creatorId ?? null,
-    creatorId: input.creatorId ?? input.profileUserId ?? null,
-    type: input.type,
-    toName: input.toName,
-    instructions: input.instructions,
-    source,
-  });
+const res = await fn({
+  groupId: input.groupId ?? null,
+  profileUserId: input.profileUserId ?? input.creatorId ?? null,
+  creatorId: input.creatorId ?? input.profileUserId ?? null,
+  type: input.type,
+  toName: input.toName,
+  instructions: input.instructions,
+  source,
+  requestSource: input.requestSource ?? source,
+});
 
   return res.data as {
     ok: true;
     requestId: string;
     creatorId: string;
     source: GreetingSource;
+    requestSource?: GreetingSource;
     groupId?: string | null;
     profileUserId?: string | null;
   };

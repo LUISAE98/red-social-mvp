@@ -184,6 +184,8 @@ export default function CreatorServicesMenu({
             creatorHandle,
           });
 
+          if (href === "#") return null;
+
           return (
             <Link
               key={`${contextType}-${profileUid ?? "no-profile"}-${

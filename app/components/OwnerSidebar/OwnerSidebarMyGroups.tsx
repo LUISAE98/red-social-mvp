@@ -802,17 +802,21 @@ if (scheduleConflict.hasConflict) {
 
   return (
     <>
-      {!loadingGroups && myGroups.length === 0 && (
-        <div
-          style={{
-            fontSize: 12,
-            color: "rgba(255,255,255,0.58)",
-            padding: "2px 2px 0",
-          }}
-        >
-          No tienes comunidades como owner.
-        </div>
-      )}
+      {!loadingGroups &&
+  myGroups.length === 0 &&
+  !ownedGrouped.some((section) =>
+    section.items.some((item) => item.visibility === "profile")
+  ) && (
+    <div
+      style={{
+        fontSize: 12,
+        color: "rgba(255,255,255,0.58)",
+        padding: "2px 2px 0",
+      }}
+    >
+      No tienes comunidades como owner.
+    </div>
+  )}
 
       {ownedGrouped.map((section) => (
         <div key={section.key} style={{ display: "grid", gap: 8 }}>
@@ -878,9 +882,7 @@ if (scheduleConflict.hasConflict) {
             const upcomingServiceCount = upcomingScheduledServices.length;
 
             const totalServiceCount =
-              greetingServiceCount +
-              scheduledServiceRequestCount +
-              upcomingServiceCount;
+                  greetingServiceCount + scheduledServiceRequestCount;
 
             const sortedGreetings = [...greetings].sort((a, b) => {
               const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
@@ -970,16 +972,24 @@ if (scheduleConflict.hasConflict) {
                     }}
                   >
 <Link
-  href={g.visibility === "profile" && g.handle ? `/u/${g.handle}` : `/groups/${g.id}`}
-  
-                      style={{
+  href={
+    g.visibility === "profile"
+      ? g.profileHref ?? (g.handle ? `/u/${g.handle}` : "/")
+      : `/groups/${g.id}`
+  }
+  onClick={(e) => {
+    if (g.visibility === "profile" && !g.profileHref && !g.handle) {
+      e.preventDefault();
+    }
+  }}
+  style={{
                         background: "transparent",
                         border: "none",
                         padding: 0,
                         color: "#fff",
                         textAlign: "left",
                         cursor:
-                          g.visibility === "profile" && !g.profileHref
+                           g.visibility === "profile" && !g.profileHref && !g.handle
                             ? "default"
                             : "pointer",
                         display: "flex",

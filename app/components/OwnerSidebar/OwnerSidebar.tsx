@@ -642,9 +642,41 @@ export default function OwnerSidebar() {
   const [openCommunities, setOpenCommunities] = useState<
     Record<string, boolean>
   >({});
-  const [profileOpen, setProfileOpen] = useState(false);
 
   const profileBucketKey = viewer?.uid ? `profile:${viewer.uid}` : null;
+
+const profileSidebarGroup = useMemo<GroupDocLite | null>(() => {
+  if (!viewer?.uid || !userDoc?.handle || !profileBucketKey) return null;
+
+  const avatarUrl =
+    userDoc?.photoURL?.trim() || viewer?.photoURL?.trim() || null;
+
+  return {
+    id: profileBucketKey,
+    name: "Mi perfil",
+    ownerId: viewer.uid,
+    visibility: "profile",
+    avatarUrl,
+    memberRole: "owner",
+    handle: userDoc.handle,
+    profileHref: `/u/${userDoc.handle}`,
+  };
+}, [
+  viewer?.uid,
+  viewer?.photoURL,
+  userDoc?.handle,
+  userDoc?.photoURL,
+  profileBucketKey,
+]);
+
+useEffect(() => {
+  if (!profileSidebarGroup) return;
+
+  setGroupMetaMap((prev) => ({
+    ...prev,
+    [profileSidebarGroup.id]: profileSidebarGroup,
+  }));
+}, [profileSidebarGroup]);
 
   const [joinRequestsByGroup, setJoinRequestsByGroup] = useState<
     Record<string, JoinRequestRow[]>
@@ -1726,13 +1758,14 @@ const groupsForSeen = [
       return next;
     });
   }, [
-    myGroups,
-    moderatedGroups,
-    joinRequestsByGroup,
-    greetingsByGroup,
-    exclusiveSessionsByGroup,
-    meetGreetsByGroup,
-  ]);
+  viewer?.uid,
+  myGroups,
+  moderatedGroups,
+  joinRequestsByGroup,
+  greetingsByGroup,
+  exclusiveSessionsByGroup,
+  meetGreetsByGroup,
+]);
 
   const relevantUserIds = useMemo(() => {
     const ids = new Set<string>();
@@ -2293,11 +2326,6 @@ const groupsForSeen = [
     ].filter((section) => section.items.length > 0);
   }, [browseGroups, joinedGroups]);
 
-  const profileHref = userDoc?.handle ? `/u/${userDoc.handle}` : null;
-  const isProfileRoute =
-    !!profileHref &&
-    (pathname === profileHref || pathname?.startsWith(`${profileHref}/`));
-
   if (!authReady) return null;
   if (!viewer) return null;
 
@@ -2422,37 +2450,17 @@ const groupsForSeen = [
           {msg && <div style={styles.message}>{msg}</div>}
           {groupsErr && <div style={styles.message}>{groupsErr}</div>}
 
-          {userDoc && profileBucketKey && (
-            <OwnerSidebarMyGroups
-              loadingGroups={false}
-              myGroups={[
- {
-  id: profileBucketKey,
-  name: "Mi perfil",
-  ownerId: viewer.uid,
-  visibility: "profile",
-  avatarUrl: currentUserAvatar,
-  memberRole: "owner",
-  handle: userDoc.handle,
-},
-              ]}
-              ownedGrouped={[
-                {
-                  key: "profile-top",
-                  title: "",
-                  items: [
-                    {
-  id: profileBucketKey,
-  name: "Mi perfil",
-  ownerId: viewer.uid,
-  visibility: "profile",
-  avatarUrl: currentUserAvatar,
-  memberRole: "owner",
-  handle: userDoc.handle,
-},
-                  ],
-                },
-              ]}
+{profileSidebarGroup && (
+  <OwnerSidebarMyGroups
+    loadingGroups={false}
+    myGroups={[profileSidebarGroup]}
+    ownedGrouped={[
+      {
+        key: "profile-top",
+        title: "",
+        items: [profileSidebarGroup],
+      },
+    ]}
               openCommunities={openCommunities}
               joinRequestsByGroup={{}}
               greetingsByGroup={greetingsByGroup}

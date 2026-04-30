@@ -2,6 +2,7 @@
 
 import GroupServiceModals from "./components/GroupServiceModals";
 import GroupImageCropModal from "./components/GroupImageCropModal";
+import OwnerAdminServices from "./components/owner-admin-panel/OwnerAdminServices";
 
 import { doc, updateDoc } from "firebase/firestore";
 import {
@@ -496,9 +497,9 @@ const canRequestMeetGreet =
   const [subscriptionSubmitting, setSubscriptionSubmitting] = useState(false);
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<"feed" | "members" | "settings">(
-    "feed"
-  );
+  const [activeTab, setActiveTab] = useState<"feed" | "members" | "services" | "settings">(
+  "feed"
+);
 
   const [uploading, setUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
@@ -2048,24 +2049,32 @@ const canRequestMeetGreet =
                   />
                 )}
 
+                {activeTab === "services" && isOwner && user && group.ownerId && (
+  <OwnerAdminServices
+    groupId={groupId}
+    ownerId={group.ownerId}
+    currentUserId={user.uid}
+    currentMonetization={normalizedCurrentMonetization}
+    currentOfferings={normalizedCurrentOfferings}
+    currentDonation={normalizedCurrentDonation}
+  />
+)}
+
                 {activeTab === "settings" && isOwner && user && group.ownerId && (
-                  <OwnerAdminPanel
-                    groupId={groupId}
-                    ownerId={group.ownerId}
-                    currentUserId={user.uid}
-                    currentName={group.name ?? ""}
-                    currentDescription={group.description ?? ""}
-                    currentCategory={group.category ?? null}
-                    currentTags={group.tags ?? []}
-                    currentAvatarUrl={group.avatarUrl ?? null}
-                    currentCoverUrl={group.coverUrl ?? null}
-                    currentVisibility={normalizeVisibility(group.visibility)}
-                    currentMonetization={normalizedCurrentMonetization}
-                    currentOfferings={normalizedCurrentOfferings}
-                    currentDonation={normalizedCurrentDonation}
-                    currentPostingMode={currentPostingMode}
-                    currentCommentsEnabled={currentCommentsEnabled}
-                  />
+   <OwnerAdminPanel
+  groupId={groupId}
+  ownerId={group.ownerId}
+  currentUserId={user.uid}
+  currentName={group.name ?? ""}
+  currentDescription={group.description ?? ""}
+  currentCategory={group.category ?? null}
+  currentTags={group.tags ?? []}
+  currentAvatarUrl={group.avatarUrl ?? null}
+  currentCoverUrl={group.coverUrl ?? null}
+  currentVisibility={normalizeVisibility(group.visibility)}
+  currentPostingMode={currentPostingMode}
+  currentCommentsEnabled={currentCommentsEnabled}
+/>
                 )}
               </div>
             </div>

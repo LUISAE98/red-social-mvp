@@ -2,7 +2,7 @@
 
 import { CSSProperties } from "react";
 
-export type TabKey = "feed" | "members" | "settings";
+export type TabKey = "feed" | "members" | "services" | "settings";
 
 type GroupSubnavProps = {
   activeTab: TabKey;
@@ -42,6 +42,37 @@ export default function GroupSubnav({
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
+const tabs = [
+  {
+    key: "feed" as const,
+    label: "Posts",
+    title: "Publicaciones",
+    emoji: "📰",
+  },
+  {
+    key: "members" as const,
+    label: "Integrantes",
+    title: "Integrantes",
+    emoji: "👥",
+  },
+  ...(canManage
+    ? [
+        {
+          key: "services" as const,
+          label: "Servicios",
+          title: "Servicios del grupo",
+          emoji: "💸",
+        },
+        {
+          key: "settings" as const,
+          label: "Config",
+          title: "Configuración",
+          emoji: "⚙️",
+        },
+      ]
+    : []),
+];
+
   const wrapStyle: CSSProperties = {
     width: "100%",
     borderTop: "1px solid rgba(255,255,255,0.12)",
@@ -51,9 +82,7 @@ export default function GroupSubnav({
     boxShadow: "0 -8px 24px rgba(0,0,0,0.12)",
     padding: "10px 10px",
     display: "grid",
-    gridTemplateColumns: canManage
-      ? "repeat(3, minmax(0, 1fr))"
-      : "repeat(2, minmax(0, 1fr))",
+    gridTemplateColumns: `repeat(${Math.max(tabs.length, 1)}, minmax(0, 1fr))`,
     alignItems: "center",
     gap: 0,
     fontFamily: fontStack,
@@ -101,31 +130,6 @@ export default function GroupSubnav({
     lineHeight: 1,
     letterSpacing: -0.1,
   };
-
-  const tabs = [
-    {
-      key: "feed" as const,
-      label: "Posts",
-      title: "Publicaciones",
-      emoji: "📰",
-    },
-    {
-      key: "members" as const,
-      label: "Integrantes",
-      title: "Integrantes",
-      emoji: "👥",
-    },
-    ...(canManage
-      ? [
-          {
-            key: "settings" as const,
-            label: "Config",
-            title: "Configuración",
-            emoji: "⚙️",
-          },
-        ]
-      : []),
-  ];
 
   return (
     <div style={wrapStyle}>
