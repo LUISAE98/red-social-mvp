@@ -33,6 +33,7 @@ import GroupPostsFeed from "./components/posts/GroupPostsFeed";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import CreatorServicesMenu from "@/components/services/CreatorServicesMenu";
 import DonationEntryPoint from "@/components/services/DonationEntryPoint";
+import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import {
   createGreetingRequest,
   type GreetingType,
@@ -74,6 +75,7 @@ import {
 } from "@/lib/groups/groupAdapters";
 
 import { useGroupRealtime } from "@/lib/groups/useGroupRealtime";
+import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 
 import {
   groupPageFontStack,
@@ -516,11 +518,14 @@ const canRequestMeetGreet =
   const canMembersViewList =
     (group?.settings?.membersListVisibility ?? "owner_only") === "members";
 
-  function redirectToLogin() {
-    router.push(
-      `/login?next=${encodeURIComponent(pathname || `/groups/${groupId}`)}`
-    );
-  }
+function redirectToLogin() {
+  const nextPath = buildCurrentPathWithSearch(
+    pathname || `/groups/${groupId}`,
+    searchParams
+  );
+
+  router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+}
 
   function clearServiceQuery() {
     const nextParams = new URLSearchParams(searchParams.toString());
@@ -1148,6 +1153,9 @@ const canRequestMeetGreet =
       </svg>
     `);
 
+ const groupShareHref = `/groups/${groupId}`;
+ const canShareGroup = group.visibility !== "hidden";
+
   const avatarNode = (
     <div
       style={{
@@ -1398,6 +1406,19 @@ const canRequestMeetGreet =
                       "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.52) 58%, rgba(0,0,0,0.88) 100%)",
                   }}
                 />
+                {canShareGroup && (
+  <CopyLinkButton
+    href={groupShareHref}
+    copiedLabel="Link del grupo copiado correctamente"
+    title="Copiar link del grupo"
+    style={{
+      position: "absolute",
+      right: 18,
+      top: 18,
+      zIndex: 30,
+    }}
+  />
+)}
               </div>
 
               <div className="group-content">
@@ -1872,6 +1893,20 @@ const canRequestMeetGreet =
                 }}
               />
 
+              {canShareGroup && (
+  <CopyLinkButton
+    href={groupShareHref}
+    copiedLabel="Link del grupo copiado correctamente"
+    title="Copiar link del grupo"
+    style={{
+      position: "absolute",
+      right: 18,
+      top: 18,
+      zIndex: 30,
+    }}
+  />
+)}
+
               <DonationEntryPoint
   donation={normalizedCurrentDonation}
   isLoggedIn={!!user}
@@ -1893,8 +1928,8 @@ const canRequestMeetGreet =
                   style={{
                     ...tinyGhostButton,
                     position: "absolute",
-                    right: 12,
-                    top: 12,
+                    right: canShareGroup ? 62 : 12,
+                    top: 18,
                     opacity: uploading ? 0.7 : 1,
                     cursor: uploading ? "not-allowed" : "pointer",
                     zIndex: 3,

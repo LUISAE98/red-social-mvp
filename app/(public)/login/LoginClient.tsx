@@ -11,6 +11,10 @@ import {
 import { auth } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import {
+  appendSafeNextParam,
+  getNextFromSearchParams,
+} from "@/lib/auth-redirect";
 
 function friendlyAuthError(err: any) {
   const code = err?.code as string | undefined;
@@ -47,6 +51,8 @@ export default function LoginClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const registered = searchParams.get("registered") === "1";
+  const nextPath = getNextFromSearchParams(searchParams, "/");
+  const registerHref = appendSafeNextParam("/register", nextPath);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -82,9 +88,9 @@ export default function LoginClient() {
         throw new Error(data?.error || "No se pudo crear la sesión");
       }
 
-      router.replace("/");
+      router.replace(nextPath);
       router.refresh();
-        } catch (err: unknown) {
+    } catch (err: unknown) {
       if (err instanceof Error) {
         const maybeFirebaseError = err as Error & { code?: string };
 
@@ -247,13 +253,7 @@ export default function LoginClient() {
           </div>
         )}
 
-        <form
-          onSubmit={handleLogin}
-          style={{
-            display: "grid",
-            gap: 8,
-          }}
-        >
+        <form onSubmit={handleLogin} style={{ display: "grid", gap: 8 }}>
           <label style={{ display: "grid", gap: 4 }}>
             <span style={labelTextStyle}>Correo</span>
             <input
@@ -282,24 +282,10 @@ export default function LoginClient() {
 
           <div style={switchRowStyle}>
             <div style={{ minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 11.5,
-                  fontWeight: 600,
-                  lineHeight: 1.15,
-                  color: "rgba(255,255,255,0.93)",
-                }}
-              >
+              <div style={{ fontSize: 11.5, fontWeight: 600 }}>
                 Mantener sesión
               </div>
-              <div
-                style={{
-                  marginTop: 2,
-                  fontSize: 10,
-                  lineHeight: 1.25,
-                  color: "rgba(255,255,255,0.6)",
-                }}
-              >
+              <div style={{ marginTop: 2, fontSize: 10, color: "rgba(255,255,255,0.6)" }}>
                 Dispositivos personales
               </div>
             </div>
@@ -315,16 +301,8 @@ export default function LoginClient() {
             </button>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              gap: 8,
-              marginTop: 1,
-              flexWrap: "wrap",
-            }}
-          >
-            <Link href="/register" style={linkStyle}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 1, flexWrap: "wrap" }}>
+            <Link href={registerHref} style={linkStyle}>
               Crear cuenta
             </Link>
 

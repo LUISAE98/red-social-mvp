@@ -4,8 +4,12 @@ import { useMemo, useState } from "react";
 import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
 import { doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import {
+  appendSafeNextParam,
+  getNextFromSearchParams,
+} from "@/lib/auth-redirect";
 
 type Sex = "male" | "female" | "other" | "prefer_not_say";
 
@@ -140,8 +144,12 @@ export default function RegisterClient() {
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const router = useRouter();
-  const handle = useMemo(() => normalizeHandle(handleRaw), [handleRaw]);
+const router = useRouter();
+const searchParams = useSearchParams();
+const nextPath = getNextFromSearchParams(searchParams, "/");
+const loginHref = appendSafeNextParam("/login", nextPath);
+
+const handle = useMemo(() => normalizeHandle(handleRaw), [handleRaw]);
 
   const passwordsMatch = useMemo(() => {
     if (!password || !password2) return true;
@@ -246,7 +254,7 @@ export default function RegisterClient() {
       });
 
       await sendEmailVerification(cred.user);
-      router.replace("/login?registered=1");
+      router.replace(`/login?registered=1&next=${encodeURIComponent(nextPath)}`);
     } catch (err: any) {
       if (err?.code?.startsWith?.("auth/")) {
         setMsg(friendlyAuthError(err));
@@ -667,9 +675,9 @@ export default function RegisterClient() {
                 flexWrap: "wrap",
               }}
             >
-              <Link href="/login" style={linkStyle}>
-                Ya tengo cuenta
-              </Link>
+<Link href={loginHref} style={linkStyle}>
+  Ya tengo cuenta
+</Link>
             </div>
 
             <button

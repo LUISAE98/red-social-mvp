@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Cropper from "react-easy-crop";
 
 import { useAuth } from "@/app/providers";
@@ -23,6 +23,7 @@ import { doc, updateDoc } from "firebase/firestore";
 
 import { uploadFile } from "@/lib/storage/uploadFile";
 import { buildFileName } from "@/lib/storage/fileNaming";
+import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 
 function parseTags(raw: string): string[] {
   return normalizeGroupTags(raw.split(","));
@@ -207,8 +208,10 @@ function SelectField({
 }
 
 export default function NewGroupPage() {
-  const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+const router = useRouter();
+const pathname = usePathname();
+const searchParams = useSearchParams();
+const { user, loading: authLoading } = useAuth();
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -342,11 +345,16 @@ export default function NewGroupPage() {
 
   const cropAspect = cropMode === "avatar" ? AVATAR_ASPECT : COVER_ASPECT;
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace(`/login?next=${encodeURIComponent("/groups/new")}`);
-    }
-  }, [authLoading, user, router]);
+useEffect(() => {
+  if (!authLoading && !user) {
+    const nextPath = buildCurrentPathWithSearch(
+      pathname || "/groups/new",
+      searchParams
+    );
+
+    router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
+  }
+}, [authLoading, user, router, pathname, searchParams]);
 
   function validateImageFile(file: File, label: string): string | null {
     if (!isAllowedImageType(file.type)) {

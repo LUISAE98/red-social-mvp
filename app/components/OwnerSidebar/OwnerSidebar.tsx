@@ -43,6 +43,7 @@ import OwnerSidebarTabNav from "./OwnerSidebarTabNav";
 import OwnerSidebarMyGroups from "./OwnerSidebarMyGroups";
 import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
 import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
+import CopyLinkButton from "@/components/ui/CopyLinkButton";
 
 export type Currency = "MXN" | "USD";
 export type SidebarMemberStatus =
@@ -2135,8 +2136,14 @@ const groupsForSeen = [
     g: GroupDocLite,
     opts?: { compact?: boolean; subtitle?: React.ReactNode }
   ) {
-    const communityName = g.name ?? "(Sin nombre)";
-    const avatarFallback = getInitials(communityName);
+const communityName = g.name ?? "(Sin nombre)";
+const avatarFallback = getInitials(communityName);
+const isProfileCard = g.visibility === "profile" && !!g.profileHref;
+const canCopyLink = g.visibility !== "hidden";
+const copyHref = isProfileCard ? g.profileHref! : `/groups/${g.id}`;
+const copyTitle = isProfileCard
+  ? "Copiar link del perfil"
+  : "Copiar link del grupo";
 
     const autoSubscriptionSubtitle =
       !opts?.subtitle &&
@@ -2158,15 +2165,18 @@ const groupsForSeen = [
           })()
         : null;
 
-    return (
-      <div
-        key={g.id}
-        style={{
-          ...styles.card,
-          padding: opts?.compact ? "9px 11px" : "10px 12px",
-        }}
-      >
-        <button
+return (
+  <div
+    key={g.id}
+    style={{
+      ...styles.card,
+      padding: opts?.compact ? "9px 11px" : "10px 12px",
+      display: "flex",
+      alignItems: "center",
+      gap: 8,
+    }}
+  >
+    <button
           type="button"
           onClick={() => router.push(`/groups/${g.id}`)}
           style={{
@@ -2238,6 +2248,16 @@ const groupsForSeen = [
             ) : null}
           </div>
         </button>
+
+{canCopyLink && (
+  <CopyLinkButton
+    href={copyHref}
+    title={copyTitle}
+    style={{
+      flexShrink: 0,
+    }}
+  />
+)}
       </div>
     );
   }

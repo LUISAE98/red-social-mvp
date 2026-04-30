@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import CopyLinkButton from "@/components/ui/CopyLinkButton";
 
 import InviteLinkModal from "./InviteLinkModal";
 import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
@@ -832,8 +833,16 @@ if (scheduleConflict.hasConflict) {
             const meetGreets = meetGreetsByGroup[g.id] ?? [];
             const exclusiveSessions = exclusiveSessionsByGroup[g.id] ?? [];
 
-            const communityName = g.name ?? "(Sin nombre)";
-            const avatarFallback = getInitials(communityName);
+const communityName = g.name ?? "(Sin nombre)";
+const avatarFallback = getInitials(communityName);
+const isProfileCard = g.visibility === "profile";
+const canCopyLink = g.visibility !== "hidden";
+const copyHref = isProfileCard
+  ? g.profileHref ?? (g.handle ? `/u/${g.handle}` : "/")
+  : `/groups/${g.id}`;
+const copyTitle = isProfileCard
+  ? "Copiar link del perfil"
+  : "Copiar link del grupo";
 
             const meetGreetServiceRequests = meetGreets
               .filter((row) => isServiceRequestAlertStatus(row.data.status))
@@ -1091,7 +1100,15 @@ if (scheduleConflict.hasConflict) {
                         </div>
                       </div>
                     </Link>
-
+{canCopyLink && (
+  <CopyLinkButton
+    href={copyHref}
+    title={copyTitle}
+    style={{
+      flexShrink: 0,
+    }}
+  />
+)}
                     <button
                       type="button"
                       onClick={() => {

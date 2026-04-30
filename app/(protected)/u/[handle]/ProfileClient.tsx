@@ -31,7 +31,8 @@ import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName
 import CreatorServicesMenu from "@/components/services/CreatorServicesMenu";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import DonationAccessButton from "@/components/services/DonationAccessButton";
-
+import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
+import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import {
   createGreetingRequest,
   type GreetingType,
@@ -297,9 +298,14 @@ useEffect(() => {
     }
   }, [activeTab, isOwner, showPostsTab, showGroupsTab, userDoc]);
 
-  function redirectToLogin() {
-    router.push(`/login?next=${encodeURIComponent(pathname || `/u/${handle}`)}`);
-  }
+function redirectToLogin() {
+  const nextPath = buildCurrentPathWithSearch(
+    pathname || `/u/${handle}`,
+    searchParams
+  );
+
+  router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+}
 
   const ui = {
     pageMaxWidth: 1080,
@@ -935,6 +941,7 @@ await createExclusiveSessionRequest({
   const fallbackCoverBg = `data:image/svg+xml;base64,${btoa(coverSvg)}`;
   const coverSrc = coverRenderUrl || userDoc.coverUrl || fallbackCoverBg;
   const avatarSrc = avatarRenderUrl || userDoc.photoURL || "";
+  const profileShareHref = `/u/${userDoc.handle}`;
 
   return (
     <>
@@ -1098,6 +1105,7 @@ await createExclusiveSessionRequest({
                     "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.52) 58%, rgba(0,0,0,0.88) 100%)",
                 }}
               />
+
               <DonationAccessButton
   donation={userDoc.donation ?? null}
   disabled={!viewer}
@@ -1121,27 +1129,42 @@ await createExclusiveSessionRequest({
     zIndex: 30,
   }}
 />
-              {isOwner && (
-                <button
-                  onClick={handlePickCover}
-                  disabled={uploading}
-                  type="button"
-                  style={{
-                    ...styles.tinyGhostButton,
-                    position: "absolute",
-                    right: 12,
-                    top: 12,
-                    opacity: uploading ? 0.7 : 1,
-                    cursor: uploading ? "not-allowed" : "pointer",
-                    zIndex: 3,
-                  }}
-                  title="Elegir portada"
-                >
-                  {uploading && cropMode === "cover"
-                    ? "Subiendo..."
-                    : "Elegir portada"}
-                </button>
-              )}
+
+<div
+  style={{
+    position: "absolute",
+    right: 18,
+    top: 18,
+    zIndex: 40,
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+  }}
+>
+  {isOwner && (
+    <button
+      onClick={handlePickCover}
+      disabled={uploading}
+      type="button"
+      style={{
+        ...styles.tinyGhostButton,
+        opacity: uploading ? 0.7 : 1,
+        cursor: uploading ? "not-allowed" : "pointer",
+      }}
+      title="Elegir portada"
+    >
+      {uploading && cropMode === "cover"
+        ? "Subiendo..."
+        : "Elegir portada"}
+    </button>
+  )}
+
+  <CopyLinkButton
+    href={profileShareHref}
+    copiedLabel="Link del perfil copiado correctamente"
+    title="Copiar link del perfil"
+  />
+</div>
             </div>
 
             <div className="profile-content">

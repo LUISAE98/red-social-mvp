@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import {
+  useParams,
+  usePathname,
+  useRouter,
+  useSearchParams,
+} from "next/navigation";
 import {
   getInviteLinkPreview,
   consumeInviteLink,
 } from "@/lib/groups/inviteLinks";
 import { useAuth } from "@/app/providers";
+import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 
 type InvitePreview = {
   success: boolean;
@@ -38,9 +44,11 @@ function visibilityLabel(v: string | null | undefined) {
 }
 
 export default function InvitePage() {
-  const { token } = useParams<{ token: string }>();
-  const router = useRouter();
-  const { user } = useAuth();
+const { token } = useParams<{ token: string }>();
+const router = useRouter();
+const pathname = usePathname();
+const searchParams = useSearchParams();
+const { user } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<InvitePreview | null>(null);
@@ -205,9 +213,18 @@ export default function InvitePage() {
     load();
   }, [token]);
 
+  function redirectToLogin() {
+  const nextPath = buildCurrentPathWithSearch(
+    pathname || `/invite/${token}`,
+    searchParams
+  );
+
+  router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+}
+
   async function handleJoin() {
     if (!user) {
-      router.push(`/login?next=/invite/${token}`);
+      redirectToLogin();
       return;
     }
 
@@ -528,7 +545,7 @@ export default function InvitePage() {
                       {!user && (
                         <button
                           type="button"
-                          onClick={() => router.push(`/login?next=/invite/${token}`)}
+                          onClick={redirectToLogin}
                           style={secondaryButton}
                         >
                           Iniciar sesión

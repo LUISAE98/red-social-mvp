@@ -3,7 +3,7 @@
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import type { Comment, Post } from "@/lib/posts/types";
 import {
@@ -16,6 +16,7 @@ import {
 } from "@/lib/posts/post-service";
 import GroupPostCard from "./GroupPostCard";
 import GroupPostComposer from "./GroupPostComposer";
+import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 
@@ -160,8 +161,9 @@ export default function GroupPostsFeed({
   postBlockedReason = null,
   commentBlockedReason = null,
 }: GroupPostsFeedProps) {
-  const router = useRouter();
-  const pathname = usePathname();
+const router = useRouter();
+const pathname = usePathname();
+const searchParams = useSearchParams();
 
   const [posts, setPosts] = useState<PostWithAuthorState[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -223,11 +225,14 @@ export default function GroupPostsFeed({
     };
   }, [groupId]);
 
-  function redirectToLogin() {
-    router.push(
-      `/login?next=${encodeURIComponent(pathname || `/groups/${groupId}`)}`
-    );
-  }
+function redirectToLogin() {
+  const nextPath = buildCurrentPathWithSearch(
+    pathname || `/groups/${groupId}`,
+    searchParams
+  );
+
+  router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+}
 
   function guardCreatePost(): boolean {
     if (canCreatePosts) {
