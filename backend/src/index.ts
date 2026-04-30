@@ -104,3 +104,5 @@ export {
   removeLegacyFreeMembersAfterSubscriptionTransition,
   dismissHiddenGroupTransition,
 } from "./subscriptionTransitions";
+// Profile settings
+export { updateProfileDisplayName } from "./profileSettings";

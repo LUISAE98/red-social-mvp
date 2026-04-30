@@ -1,17 +1,131 @@
 "use client";
 
 import { CSSProperties, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 type ProfileSettingsTabProps = {
   isSaving?: boolean;
   isRestricted: boolean;
   onToggleRestricted: (nextValue: boolean) => Promise<void> | void;
 
+  uid?: string | null;
+  email?: string | null;
   displayName?: string | null;
   username?: string | null;
   birthDate?: string | Date | null;
   appCreatedAt?: string | Date | null;
+  displayNameLastChangedAt?: string | Date | null;
+
+  onUpdateDisplayName?: (nextName: string) => Promise<void> | void;
+  onSendPasswordReset?: () => Promise<void> | void;
 };
+
+function formatDate(value?: string | Date | null) {
+  if (!value) return "No disponible";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "No disponible";
+
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
+
+function daysUntilNameChange(value?: string | Date | null) {
+  if (!value) return 0;
+
+  const last = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(last.getTime())) return 0;
+
+  const nextAllowed = last.getTime() + 60 * 24 * 60 * 60 * 1000;
+  const diff = nextAllowed - Date.now();
+
+  if (diff <= 0) return 0;
+
+  return Math.ceil(diff / (24 * 60 * 60 * 1000));
+}
+
+function SpinningGear() {
+  return (
+    <>
+      <style jsx>{`
+        @keyframes profileSettingsGearSpin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
+      <span
+        aria-hidden="true"
+        style={{
+          display: "inline-block",
+          animation: "profileSettingsGearSpin 0.9s linear infinite",
+          transformOrigin: "50% 50%",
+        }}
+      >
+        ⚙
+      </span>
+    </>
+  );
+}
+
+function FullScreenModal({
+  open,
+  children,
+  onClose,
+}: {
+  open: boolean;
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
+
+  if (!open || !mounted || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 999999,
+        background: "rgba(0,0,0,0.76)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding:
+          "max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom))",
+        boxSizing: "border-box",
+      }}
+    >
+      {children}
+    </div>,
+    document.body
+  );
+}
 
 function Switch({
   checked,
@@ -62,277 +176,272 @@ function Switch({
   );
 }
 
-function formatDate(value?: string | Date | null) {
-  if (!value) return "No disponible";
-
-  const date = value instanceof Date ? value : new Date(value);
-
-  if (Number.isNaN(date.getTime())) return "No disponible";
-
-  return new Intl.DateTimeFormat("es-MX", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  }).format(date);
-}
-
-function ProfileInfoItem({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  const itemWrap: CSSProperties = {
-    display: "grid",
-    gap: 6,
-    padding: "12px 14px",
-    borderRadius: 14,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.04)",
-    minWidth: 0,
-  };
-
-  const itemLabel: CSSProperties = {
-    margin: 0,
-    color: "rgba(255,255,255,0.58)",
-    fontSize: 12,
-    fontWeight: 700,
-    lineHeight: 1.2,
-    textTransform: "uppercase",
-    letterSpacing: 0.4,
-  };
-
-  const itemValue: CSSProperties = {
-    margin: 0,
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: 600,
-    lineHeight: 1.35,
-    overflowWrap: "anywhere",
-  };
-
-  return (
-    <div style={itemWrap}>
-      <p style={itemLabel}>{label}</p>
-      <p style={itemValue}>{value}</p>
-    </div>
-  );
-}
-
 export default function ProfileSettingsTab({
   isSaving = false,
   isRestricted,
   onToggleRestricted,
+  uid = null,
+  email = null,
   displayName,
   username,
   birthDate,
   appCreatedAt,
+  displayNameLastChangedAt = null,
+  onUpdateDisplayName,
+  onSendPasswordReset,
 }: ProfileSettingsTabProps) {
   const [localRestricted, setLocalRestricted] = useState(isRestricted);
+  const [editNameOpen, setEditNameOpen] = useState(false);
+  const [draftName, setDraftName] = useState(displayName ?? "");
+  const [savingName, setSavingName] = useState(false);
+  const [sendingPassword, setSendingPassword] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     setLocalRestricted(isRestricted);
   }, [isRestricted]);
 
-  const saving = isSaving;
+  useEffect(() => {
+    setDraftName(displayName ?? "");
+  }, [displayName]);
 
-  const statusText = useMemo(() => {
-    if (saving) return "Guardando cambios...";
-    return localRestricted ? "Perfil reservado activado" : "Perfil público";
-  }, [localRestricted, saving]);
+  const fontStack =
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
 
-  async function handleChange(nextValue: boolean) {
-    if (saving) return;
-
-    setLocalRestricted(nextValue);
-
-    try {
-      await onToggleRestricted(nextValue);
-    } catch (error) {
-      setLocalRestricted(!nextValue);
-      console.error("No se pudo actualizar la restricción del perfil:", error);
-    }
-  }
-
-  const wrap: CSSProperties = {
-    width: "100%",
-    border: "1px solid rgba(255,255,255,0.10)",
-    borderRadius: 20,
-    background: "rgba(18,18,20,0.92)",
-    padding: 18,
-    display: "grid",
-    gap: 16,
-    boxSizing: "border-box",
-    overflow: "hidden",
-  };
-
-  const header: CSSProperties = {
-    display: "grid",
-    gap: 6,
-  };
-
-  const title: CSSProperties = {
-    margin: 0,
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: 700,
-    letterSpacing: -0.2,
-    lineHeight: 1.15,
-  };
-
-  const description: CSSProperties = {
-    margin: 0,
-    color: "rgba(255,255,255,0.72)",
-    fontSize: 14,
-    lineHeight: 1.5,
-  };
-
-  const sectionTitle: CSSProperties = {
-    margin: 0,
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: 700,
-    lineHeight: 1.2,
-  };
-
-  const infoGrid: CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: 12,
-  };
-
-  const row: CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 16,
-    padding: "14px 0",
-    borderTop: "1px solid rgba(255,255,255,0.08)",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    minWidth: 0,
-  };
-
-  const textCol: CSSProperties = {
-    display: "grid",
-    gap: 6,
-    minWidth: 0,
-    flex: 1,
-  };
-
-  const switchWrap: CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    flexShrink: 0,
-    minWidth: 40,
-  };
-
-  const rowTitle: CSSProperties = {
-    margin: 0,
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: 700,
-    lineHeight: 1.2,
-  };
-
-  const rowText: CSSProperties = {
-    margin: 0,
-    color: "rgba(255,255,255,0.68)",
-    fontSize: 13,
-    lineHeight: 1.45,
-  };
-
-  const badge: CSSProperties = {
-    justifySelf: "start",
-    padding: "8px 12px",
-    borderRadius: 999,
-    fontSize: 12,
-    fontWeight: 700,
-    color: localRestricted ? "#111214" : "#fff",
-    background: localRestricted ? "#fff" : "rgba(255,255,255,0.08)",
-    lineHeight: 1.2,
-    maxWidth: "100%",
-    boxSizing: "border-box",
-  };
-
-  const note: CSSProperties = {
-    margin: 0,
-    color: "rgba(255,255,255,0.58)",
-    fontSize: 12,
-    lineHeight: 1.45,
-  };
+  const remainingDays = daysUntilNameChange(displayNameLastChangedAt);
+  const canChangeName = remainingDays <= 0;
 
   const resolvedDisplayName = displayName?.trim() || "No disponible";
   const resolvedUsername = username?.trim()
     ? `@${username.trim()}`
     : "No disponible";
+  const resolvedEmail = email?.trim() || "No disponible";
   const resolvedBirthDate = formatDate(birthDate);
   const resolvedAppCreatedAt = formatDate(appCreatedAt);
+  const restrictedHelpText = localRestricted
+  ? "Reservado: nadie verá tus servicios, publicaciones ni comentarios desde tu perfil, incluyendo personas sin sesión."
+  : "Público: las personas, incluso sin sesión, podrán ver tus servicios activos y publicaciones públicas.";
+
+  async function handleRestrictedChange(nextValue: boolean) {
+    if (isSaving) return;
+
+    setLocalRestricted(nextValue);
+    setMsg(null);
+    setErr(null);
+
+    try {
+      await onToggleRestricted(nextValue);
+      setMsg(nextValue ? "Perfil reservado activado." : "Perfil público activado.");
+    } catch (error: any) {
+      setLocalRestricted(!nextValue);
+      setErr(error?.message ?? "No se pudo actualizar el perfil reservado.");
+    }
+  }
+
+  async function handleSaveName() {
+    if (!onUpdateDisplayName) {
+      setErr("Falta conectar la función para cambiar nombre.");
+      return;
+    }
+
+    const nextName = draftName.trim();
+
+    if (nextName.length < 3) {
+      setErr("El nombre debe tener al menos 3 caracteres.");
+      return;
+    }
+
+    if (!canChangeName) {
+      setErr(`Podrás cambiar tu nombre nuevamente en ${remainingDays} día(s).`);
+      return;
+    }
+
+    setSavingName(true);
+    setMsg(null);
+    setErr(null);
+
+    try {
+      await onUpdateDisplayName(nextName);
+      setMsg("Nombre actualizado.");
+      setEditNameOpen(false);
+    } catch (error: any) {
+      setErr(error?.message ?? "No se pudo actualizar el nombre.");
+    } finally {
+      setSavingName(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    if (!onSendPasswordReset) {
+      setErr("Falta conectar el envío de correo para cambiar contraseña.");
+      return;
+    }
+
+    setSendingPassword(true);
+    setMsg(null);
+    setErr(null);
+
+    try {
+      await onSendPasswordReset();
+      setMsg("Te enviamos un correo para cambiar tu contraseña.");
+    } catch (error: any) {
+      setErr(error?.message ?? "No se pudo enviar el correo de cambio de contraseña.");
+    } finally {
+      setSendingPassword(false);
+    }
+  }
+
+  const outer: CSSProperties = {
+    display: "grid",
+    gap: 12,
+    width: "100%",
+    minWidth: 0,
+  };
+
+  const titleStyle: CSSProperties = {
+    margin: 0,
+    fontSize: 16,
+    fontWeight: 700,
+    lineHeight: 1.2,
+    color: "#fff",
+  };
+
+  const panel: CSSProperties = {
+    borderRadius: 16,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.03)",
+    padding: 12,
+    display: "grid",
+    gap: 10,
+    width: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+  };
+
+  const item: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) auto",
+    gap: 10,
+    alignItems: "center",
+    padding: "12px 0",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+  };
+
+  const labelStyle: CSSProperties = {
+    fontSize: 11,
+    fontWeight: 600,
+    color: "rgba(255,255,255,0.58)",
+    lineHeight: 1.2,
+  };
+
+  const valueStyle: CSSProperties = {
+    marginTop: 4,
+    fontSize: 14,
+    color: "rgba(255,255,255,0.92)",
+    fontWeight: 600,
+    lineHeight: 1.4,
+    overflowWrap: "anywhere",
+  };
+
+  const buttonStyle: CSSProperties = {
+    minHeight: 36,
+    padding: "8px 12px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.07)",
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: 700,
+    fontFamily: fontStack,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+
+  const inputStyle: CSSProperties = {
+    width: "100%",
+    minHeight: 46,
+    padding: "0 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#fff",
+    outline: "none",
+    fontSize: 14,
+    fontFamily: fontStack,
+    boxSizing: "border-box",
+    WebkitAppearance: "none",
+    appearance: "none",
+  };
+
+  const noticeStyle: CSSProperties = {
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.05)",
+    padding: "9px 11px",
+    fontSize: 12,
+    lineHeight: 1.4,
+    color: "rgba(255,255,255,0.84)",
+  };
+
+  const modalCard: CSSProperties = {
+    width: "min(560px, calc(100vw - 32px))",
+    maxHeight: "calc(100dvh - 32px)",
+    overflowY: "auto",
+    borderRadius: 20,
+    border: "1px solid rgba(255,255,255,0.16)",
+    background:
+      "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))",
+    color: "#fff",
+    boxShadow: "0 24px 90px rgba(0,0,0,0.78)",
+    padding: 18,
+    display: "grid",
+    gap: 14,
+    fontFamily: fontStack,
+    boxSizing: "border-box",
+  };
 
   return (
-    <section style={wrap}>
+    <section style={outer}>
       <style jsx>{`
-        @media (max-width: 640px) {
-          .profile-settings-row {
-            flex-direction: column;
-            align-items: stretch;
+        @media (max-width: 520px) {
+          .profile-setting-item {
+            grid-template-columns: 1fr !important;
           }
 
-          .profile-settings-switch {
+          .profile-setting-button {
             width: 100%;
-            justify-content: flex-start;
-            padding-top: 2px;
-          }
-
-          .profile-settings-info-grid {
-            grid-template-columns: 1fr;
           }
         }
       `}</style>
 
-      <div style={header}>
-        <h3 style={title}>Configuración del perfil</h3>
-        <p style={description}>
-          Aquí vas a centralizar la configuración principal del perfil. Por ahora
-          dejamos visible la información base de la cuenta y el control de
-          privacidad del perfil.
-        </p>
-      </div>
+      <h3 style={titleStyle}>Configuración de perfil</h3>
 
-      <div style={{ display: "grid", gap: 12 }}>
-        <p style={sectionTitle}>Datos del perfil</p>
+      <div style={panel}>
+        <div className="profile-setting-item" style={item}>
+          <div>
+            <div style={labelStyle}>Perfil reservado</div>
+            <div style={valueStyle}>
+  {localRestricted ? "Activado" : "Desactivado"}
+</div>
 
-        <div className="profile-settings-info-grid" style={infoGrid}>
-          <ProfileInfoItem label="Nombre" value={resolvedDisplayName} />
-          <ProfileInfoItem label="Usuario" value={resolvedUsername} />
-          <ProfileInfoItem
-            label="Fecha de nacimiento"
-            value={resolvedBirthDate}
-          />
-          <ProfileInfoItem
-            label="Fecha de creación"
-            value={resolvedAppCreatedAt}
-          />
-        </div>
-      </div>
+<div
+  style={{
+    marginTop: 5,
+    fontSize: 11.5,
+    color: "rgba(255,255,255,0.58)",
+    lineHeight: 1.4,
+    maxWidth: 620,
+  }}
+>
+  {restrictedHelpText}
+</div>
+          </div>
 
-      <div className="profile-settings-row" style={row}>
-        <div style={textCol}>
-          <p style={rowTitle}>Perfil reservado</p>
-          <p style={rowText}>
-            Al activarlo, nadie podrá ver publicaciones desde tu perfil. Debe
-            mostrarse la leyenda “perfil reservado” tanto a usuarios logueados
-            como no logueados. Esto solo aplica dentro del perfil, no dentro de
-            las comunidades compartidas.
-          </p>
-        </div>
-
-        <div className="profile-settings-switch" style={switchWrap}>
           <Switch
             checked={localRestricted}
-            disabled={saving}
-            onChange={handleChange}
+            disabled={isSaving}
+            onChange={handleRestrictedChange}
             label={
               localRestricted
                 ? "Desactivar perfil reservado"
@@ -340,13 +449,145 @@ export default function ProfileSettingsTab({
             }
           />
         </div>
+
+        <div className="profile-setting-item" style={item}>
+          <div>
+            <div style={labelStyle}>Nombre</div>
+            <div style={valueStyle}>{resolvedDisplayName}</div>
+            {!canChangeName && (
+              <div style={{ marginTop: 4, fontSize: 11, color: "rgba(255,255,255,0.50)" }}>
+                Disponible en {remainingDays} día(s).
+              </div>
+            )}
+          </div>
+
+          <button
+            className="profile-setting-button"
+            type="button"
+            style={{
+              ...buttonStyle,
+              opacity: canChangeName ? 1 : 0.55,
+              cursor: canChangeName ? "pointer" : "not-allowed",
+            }}
+            disabled={!canChangeName}
+            onClick={() => {
+              setErr(null);
+              setMsg(null);
+              setDraftName(resolvedDisplayName === "No disponible" ? "" : resolvedDisplayName);
+              setEditNameOpen(true);
+            }}
+          >
+            Modificar
+          </button>
+        </div>
+
+        <div className="profile-setting-item" style={item}>
+          <div>
+            <div style={labelStyle}>Usuario</div>
+            <div style={valueStyle}>{resolvedUsername}</div>
+          </div>
+        </div>
+
+        <div className="profile-setting-item" style={item}>
+          <div>
+            <div style={labelStyle}>Correo</div>
+            <div style={valueStyle}>{resolvedEmail}</div>
+          </div>
+
+          <button
+            className="profile-setting-button"
+            type="button"
+            style={{
+              ...buttonStyle,
+              opacity: sendingPassword ? 0.7 : 1,
+              cursor: sendingPassword ? "not-allowed" : "pointer",
+            }}
+            disabled={sendingPassword}
+            onClick={handlePasswordReset}
+          >
+            {sendingPassword ? "Enviando..." : "Cambiar contraseña"}
+          </button>
+        </div>
+
+        <div className="profile-setting-item" style={item}>
+          <div>
+            <div style={labelStyle}>Fecha de nacimiento</div>
+            <div style={valueStyle}>{resolvedBirthDate}</div>
+          </div>
+        </div>
+
+        <div
+          className="profile-setting-item"
+          style={{ ...item, borderBottom: "none" }}
+        >
+          <div>
+            <div style={labelStyle}>Fecha de creación</div>
+            <div style={valueStyle}>{resolvedAppCreatedAt}</div>
+          </div>
+        </div>
+
+        {err && <div style={noticeStyle}>{err}</div>}
+        {msg && <div style={noticeStyle}>{msg}</div>}
       </div>
 
-      <span style={badge}>{statusText}</span>
+      <FullScreenModal open={editNameOpen} onClose={() => !savingName && setEditNameOpen(false)}>
+        <div style={modalCard} onClick={(e) => e.stopPropagation()}>
+          <strong style={{ fontSize: 16, color: "#fff", lineHeight: 1.2 }}>
+            Modificar nombre
+          </strong>
 
-      <p style={note}>
-        Esta configuración solo controla la privacidad general del perfil.
-      </p>
+          <input
+            style={inputStyle}
+            value={draftName}
+            onChange={(e) => setDraftName(e.target.value)}
+            placeholder="Nombre visible"
+          />
+
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.62)", lineHeight: 1.4 }}>
+            Podrás volver a cambiar tu nombre después de 60 días.
+          </div>
+
+          {err && <div style={noticeStyle}>{err}</div>}
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => !savingName && setEditNameOpen(false)}
+              disabled={savingName}
+              style={{
+                ...buttonStyle,
+                flex: "1 1 140px",
+                opacity: savingName ? 0.7 : 1,
+                cursor: savingName ? "not-allowed" : "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSaveName}
+              disabled={savingName}
+              style={{
+                ...buttonStyle,
+                flex: "1 1 160px",
+                background: savingName ? "rgba(255,255,255,0.16)" : "#fff",
+                color: savingName ? "#fff" : "#000",
+                opacity: savingName ? 0.8 : 1,
+                cursor: savingName ? "not-allowed" : "pointer",
+              }}
+            >
+              {savingName ? (
+                <>
+                  <SpinningGear /> Guardando...
+                </>
+              ) : (
+                "Guardar"
+              )}
+            </button>
+          </div>
+        </div>
+      </FullScreenModal>
     </section>
   );
 }

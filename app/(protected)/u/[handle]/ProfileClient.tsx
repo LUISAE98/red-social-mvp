@@ -26,7 +26,8 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, sendPasswordResetEmail } from "firebase/auth";
+import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
 import CreatorServicesMenu from "@/components/services/CreatorServicesMenu";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import DonationAccessButton from "@/components/services/DonationAccessButton";
@@ -66,6 +67,7 @@ type UserDoc = {
   firstName: string;
   lastName: string;
   age?: number;
+  displayNameLastChangedAt?: FirestoreDateLike;
   birthDate?: FirestoreDateLike;
   createdAt?: FirestoreDateLike;
   sex: string;
@@ -690,6 +692,32 @@ function resetExclusiveSessionModal() {
     }
   }
 
+async function handleUpdateDisplayName(nextName: string) {
+  if (!userDoc || !isOwner) return;
+
+  const result = await updateProfileDisplayName(nextName);
+
+  setUserDoc((prev) =>
+    prev
+      ? {
+          ...prev,
+          displayName: result.displayName,
+          displayNameLastChangedAt: result.displayNameLastChangedAt,
+        }
+      : prev
+  );
+}
+
+async function handleSendPasswordReset() {
+  const email = viewer?.email;
+
+  if (!email) {
+    throw new Error("No encontramos un correo asociado a esta cuenta.");
+  }
+
+  await sendPasswordResetEmail(auth, email);
+}
+
   async function uploadCropped(mode: CropMode) {
     if (!userDoc || !isOwner) return;
 
@@ -887,6 +915,9 @@ await createExclusiveSessionRequest({
 
   const normalizedBirthDate = normalizeDateValue(userDoc.birthDate ?? null);
   const normalizedCreatedAt = normalizeDateValue(userDoc.createdAt ?? null);
+  const normalizedDisplayNameLastChangedAt = normalizeDateValue(
+  userDoc.displayNameLastChangedAt ?? null
+);
 
   const coverSvg = `
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="600">
@@ -1379,14 +1410,19 @@ await createExclusiveSessionRequest({
                 style={{ ...styles.tabPlaceholder, marginTop: 12 }}
               >
                 <ProfileSettingsTab
-                  isSaving={savingProfileRestricted}
-                  isRestricted={profileRestricted}
-                  onToggleRestricted={handleToggleProfileRestricted}
-                  displayName={fullName}
-                  username={userDoc.handle}
-                  birthDate={normalizedBirthDate}
-                  appCreatedAt={normalizedCreatedAt}
-                />
+  isSaving={savingProfileRestricted}
+  isRestricted={profileRestricted}
+  onToggleRestricted={handleToggleProfileRestricted}
+  uid={userDoc.uid}
+  email={viewer?.email ?? null}
+  displayName={fullName}
+  username={userDoc.handle}
+  birthDate={normalizedBirthDate}
+  appCreatedAt={normalizedCreatedAt}
+  displayNameLastChangedAt={normalizedDisplayNameLastChangedAt}
+  onUpdateDisplayName={handleUpdateDisplayName}
+  onSendPasswordReset={handleSendPasswordReset}
+/>
               </section>
             )}
           </div>
