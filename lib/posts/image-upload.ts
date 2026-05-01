@@ -4,7 +4,7 @@ import { auth, storage } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import type { PostMedia } from "./types";
 
-const MAX_IMAGE_SIZE_BYTES = 30 * 1024 * 1024;
+const MAX_IMAGE_SIZE_BYTES = 80 * 1024 * 1024;
 
 function getSafeFileExtension(file: File): string {
   const byType =

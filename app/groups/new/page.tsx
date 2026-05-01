@@ -38,7 +38,7 @@ function extFromMime(mime: string) {
   return "jpg";
 }
 
-const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 80 * 1024 * 1024;
 const AVATAR_ASPECT = 1;
 const COVER_ASPECT = 16 / 9;
 

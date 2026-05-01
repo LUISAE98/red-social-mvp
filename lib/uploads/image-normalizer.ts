@@ -7,7 +7,7 @@ export type NormalizedImageFile = {
   originalName: string;
 };
 
-const DEFAULT_MAX_IMAGE_SIZE_BYTES = 30 * 1024 * 1024;
+const DEFAULT_MAX_IMAGE_SIZE_BYTES = 80 * 1024 * 1024;
 
 const WEB_SAFE_IMAGE_TYPES = new Set([
   "image/jpeg",
