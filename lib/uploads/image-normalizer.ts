@@ -67,7 +67,7 @@ function isWebSafeImage(file: File): boolean {
 
 function assertMaxSize(file: File, maxSizeBytes: number) {
   if (file.size > maxSizeBytes) {
-    throw new Error("La imagen no puede pesar más de 30 MB.");
+    throw new Error("La imagen no puede pesar más de 80 MB.");
   }
 }
 
@@ -117,14 +117,16 @@ export async function normalizeImageFile(
     };
   }
 
-  if (isWebSafeImage(file)) {
-    return {
-      file,
-      wasConverted: false,
-      originalType,
-      originalName,
-    };
-  }
+if (isWebSafeImage(file)) {
+  assertMaxSize(file, maxSizeBytes);
+
+  return {
+    file,
+    wasConverted: false,
+    originalType,
+    originalName,
+  };
+}
 
   try {
     const convertedFile = await convertHeicToJpeg(file);

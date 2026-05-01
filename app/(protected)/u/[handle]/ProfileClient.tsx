@@ -635,7 +635,7 @@ function resetExclusiveSessionModal() {
 
       try {
         const normalized = await normalizeImageFile(file, {
-  maxSizeBytes: 30 * 1024 * 1024,
+  maxSizeBytes: 80 * 1024 * 1024,
 });
 
         const src = await dataUrlFromFile(normalized.file);
