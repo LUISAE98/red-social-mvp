@@ -11,6 +11,7 @@ const DEFAULT_MAX_IMAGE_SIZE_BYTES = 30 * 1024 * 1024;
 
 const WEB_SAFE_IMAGE_TYPES = new Set([
   "image/jpeg",
+  "image/jpg",
   "image/png",
   "image/webp",
   "image/gif",
@@ -19,6 +20,8 @@ const WEB_SAFE_IMAGE_TYPES = new Set([
 const HEIC_IMAGE_TYPES = new Set([
   "image/heic",
   "image/heif",
+  "image/heic-sequence",
+  "image/heif-sequence",
 ]);
 
 function getSafeBaseName(fileName: string): string {
@@ -34,18 +37,32 @@ function getSafeBaseName(fileName: string): string {
 }
 
 function isHeicLikeFile(file: File): boolean {
-  const type = file.type.toLowerCase();
-  const name = file.name.toLowerCase();
+  const type = (file.type || "").toLowerCase();
+  const name = (file.name || "").toLowerCase();
 
   return (
     HEIC_IMAGE_TYPES.has(type) ||
+    type.includes("heic") ||
+    type.includes("heif") ||
     name.endsWith(".heic") ||
-    name.endsWith(".heif")
+    name.endsWith(".heif") ||
+    name.includes("heic") ||
+    name.includes("heif")
   );
 }
 
 function isWebSafeImage(file: File): boolean {
-  return WEB_SAFE_IMAGE_TYPES.has(file.type.toLowerCase());
+  const type = (file.type || "").toLowerCase();
+  const name = (file.name || "").toLowerCase();
+
+  return (
+    WEB_SAFE_IMAGE_TYPES.has(type) ||
+    name.endsWith(".jpg") ||
+    name.endsWith(".jpeg") ||
+    name.endsWith(".png") ||
+    name.endsWith(".webp") ||
+    name.endsWith(".gif")
+  );
 }
 
 function assertMaxSize(file: File, maxSizeBytes: number) {
@@ -83,8 +100,10 @@ export async function normalizeImageFile(
 ): Promise<NormalizedImageFile> {
   const maxSizeBytes = options?.maxSizeBytes ?? DEFAULT_MAX_IMAGE_SIZE_BYTES;
 
+  assertMaxSize(file, maxSizeBytes);
+
   const originalType = file.type || "application/octet-stream";
-  const originalName = file.name;
+  const originalName = file.name || "image";
 
   if (isHeicLikeFile(file)) {
     const convertedFile = await convertHeicToJpeg(file);
@@ -98,16 +117,26 @@ export async function normalizeImageFile(
     };
   }
 
-  if (!isWebSafeImage(file)) {
-    throw new Error("Solo puedes subir imágenes JPG, PNG, WEBP, GIF, HEIC o HEIF.");
+  if (isWebSafeImage(file)) {
+    return {
+      file,
+      wasConverted: false,
+      originalType,
+      originalName,
+    };
   }
 
-  assertMaxSize(file, maxSizeBytes);
+  try {
+    const convertedFile = await convertHeicToJpeg(file);
+    assertMaxSize(convertedFile, maxSizeBytes);
 
-  return {
-    file,
-    wasConverted: false,
-    originalType,
-    originalName,
-  };
+    return {
+      file: convertedFile,
+      wasConverted: true,
+      originalType,
+      originalName,
+    };
+  } catch {
+    throw new Error("Solo puedes subir imágenes JPG, PNG, WEBP, GIF, HEIC o HEIF.");
+  }
 }
