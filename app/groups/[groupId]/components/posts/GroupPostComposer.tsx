@@ -251,7 +251,7 @@ export default function GroupPostComposer({
 
     try {
       const normalized = await normalizeImageFile(file, {
-        maxSizeBytes: 30 * 1024 * 1024,
+        maxSizeBytes: 80 * 1024 * 1024,
       });
 
       setSelectedImage(normalized.file);
