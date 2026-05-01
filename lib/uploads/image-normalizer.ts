@@ -72,24 +72,73 @@ function assertMaxSize(file: File, maxSizeBytes: number) {
 }
 
 async function convertHeicToJpeg(file: File): Promise<File> {
-  const converted = await heic2any({
-    blob: file,
-    toType: "image/jpeg",
-    quality: 0.88,
-  });
-
-  const blob = Array.isArray(converted) ? converted[0] : converted;
-
-  if (!(blob instanceof Blob)) {
-    throw new Error("No se pudo convertir la imagen del iPhone.");
-  }
-
   const nextName = `${getSafeBaseName(file.name)}.jpg`;
 
-  return new File([blob], nextName, {
-    type: "image/jpeg",
-    lastModified: Date.now(),
-  });
+  try {
+    const converted = await heic2any({
+      blob: file,
+      toType: "image/jpeg",
+      quality: 0.88,
+    });
+
+    const blob = Array.isArray(converted) ? converted[0] : converted;
+
+    if (blob instanceof Blob) {
+      return new File([blob], nextName, {
+        type: "image/jpeg",
+        lastModified: Date.now(),
+      });
+    }
+  } catch {
+    // Fallback abajo
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("El navegador no pudo leer esta imagen HEIC."));
+
+      image.src = objectUrl;
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth || img.width;
+    canvas.height = img.naturalHeight || img.height;
+
+    const ctx = canvas.getContext("2d");
+
+    if (!ctx) {
+      throw new Error("No se pudo preparar la imagen.");
+    }
+
+    ctx.drawImage(img, 0, 0);
+
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(
+        (result) => {
+          if (!result) {
+            reject(new Error("No se pudo convertir la imagen a JPG."));
+            return;
+          }
+
+          resolve(result);
+        },
+        "image/jpeg",
+        0.88
+      );
+    });
+
+    return new File([blob], nextName, {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
 
 export async function normalizeImageFile(
