@@ -945,15 +945,15 @@ await createExclusiveSessionRequest({
 
   return (
     <>
-      <main
-        style={{
-          minHeight: "calc(100dvh - 70px)",
-          padding: "12px 0 calc(120px + env(safe-area-inset-bottom))",
-          background: "#000",
-          color: "#fff",
-          fontFamily: fontStack,
-        }}
-      >
+<main
+  style={{
+    minHeight: "calc(100dvh - 70px)",
+    padding: "0 0 calc(120px + env(safe-area-inset-bottom))",
+    background: "#000",
+    color: "#fff",
+    fontFamily: fontStack,
+  }}
+>
         <style jsx>{`
           .profile-shell {
             width: 100%;
@@ -1041,34 +1041,44 @@ await createExclusiveSessionRequest({
             box-sizing: border-box;
           }
 
-          @media (max-width: 900px) {
-            .profile-shell {
-              max-width: none;
-              padding: 0 8px;
-            }
-          }
+@media (max-width: 900px) {
+  .profile-shell {
+    max-width: none;
+    padding: 0;
+  }
+}
+@media (max-width: 640px) {
+  .profile-shell {
+    padding: 0;
+  }
 
-          @media (max-width: 640px) {
-            .profile-shell {
-              padding: 0 6px;
-            }
+  .profile-card {
+    border-radius: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    box-shadow: none !important;
+  }
 
-            .profile-card {
-              border-radius: 18px !important;
-            }
+  .profile-content {
+    padding: 0 12px 18px;
+  }
 
-            .profile-content {
-              padding: 0 12px 18px;
-            }
+  .profile-handle {
+    font-size: 14px;
+  }
 
-            .profile-handle {
-              font-size: 14px;
-            }
+  .profile-actions-row > button {
+    width: 100%;
+  }
 
-            .profile-actions-row > button {
-              width: 100%;
-            }
-          }
+  .profile-tab-content {
+    overflow: visible;
+  }
+
+  .profile-tab-panel {
+    overflow: visible;
+  }
+}
         `}</style>
 
         <div className="profile-shell">

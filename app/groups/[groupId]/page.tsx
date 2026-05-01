@@ -1356,26 +1356,33 @@ function redirectToLogin() {
               }
             }
 
-            @media (max-width: 900px) {
-              .group-shell {
-                max-width: none;
-                padding: 0 8px;
-              }
-            }
+@media (max-width: 900px) {
+  .group-shell {
+    max-width: none;
+    padding: 0;
+  }
+}
 
-            @media (max-width: 640px) {
-              .group-shell {
-                padding: 0 6px;
-              }
+@media (max-width: 640px) {
+  .group-shell {
+    padding: 0;
+  }
 
-              .group-content {
-                padding: 0 12px 18px;
-              }
+  .group-card {
+    border-radius: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    box-shadow: none !important;
+  }
 
-              .group-actions-row > button {
-                width: 100%;
-              }
-            }
+  .group-content {
+    padding: 0 12px 18px;
+  }
+
+  .group-actions-row > button {
+    width: 100%;
+  }
+}
           `}</style>
 
           <div style={container} className="group-shell">
@@ -1825,43 +1832,52 @@ function redirectToLogin() {
             }
           }
 
-          @media (max-width: 900px) {
-            .group-shell {
-              max-width: none;
-              padding: 0 8px;
-            }
-          }
+@media (max-width: 900px) {
+  .group-shell {
+    max-width: none;
+    padding: 0;
+  }
+}
 
-          @media (max-width: 640px) {
-            .group-shell {
-              padding: 0 6px;
-            }
+@media (max-width: 640px) {
+  .group-shell {
+    padding: 0;
+  }
 
-            .group-content {
-              padding: 0 12px 18px;
-            }
+  .group-card {
+    border-radius: 0 !important;
+    border-left: 0 !important;
+    border-right: 0 !important;
+    box-shadow: none !important;
+  }
 
-            .group-actions-row > button {
-              width: 100%;
-            }
+  .group-content {
+    padding: 0 12px 18px;
+  }
 
-            .group-feed-wrap {
-              max-width: none;
-              width: 100%;
-              min-width: 0;
-            }
+  .group-actions-row > button {
+    width: 100%;
+  }
 
-            .group-feed-item {
-              width: 100%;
-              min-width: 0;
-              max-width: 100%;
-            }
+  .group-feed-wrap {
+    max-width: none;
+    width: 100%;
+    min-width: 0;
+    gap: 0;
+  }
 
-            .group-subnav-wrap,
-            .group-services-wrap {
-              max-width: none;
-            }
-          }
+  .group-feed-item {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .group-subnav-wrap,
+  .group-services-wrap {
+    max-width: none;
+    width: 100%;
+  }
+}
         `}</style>
 
         <div style={container} className="group-shell">

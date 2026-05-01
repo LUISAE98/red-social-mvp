@@ -28,7 +28,7 @@ export const groupPageUi = {
 
 export const pageWrap: CSSProperties = {
   minHeight: "calc(100dvh - 70px)",
-  padding: "12px 0 calc(120px + env(safe-area-inset-bottom))",
+  padding: "0 0 calc(120px + env(safe-area-inset-bottom))",
   background: "#000",
   color: "#fff",
   fontFamily: groupPageFontStack,

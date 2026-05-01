@@ -102,7 +102,7 @@ function WalletHeaderButton({
         }}
         aria-hidden="true"
       >
-        💼
+        🪙
       </span>
     </HeaderIconButton>
   );
@@ -809,7 +809,6 @@ function AuthenticatedGroupsShell({
                 <strong className="mobileBrand">Red Social MVP</strong>
 
                 <div className="mobileActions">
-                  {showWalletRail ? <WalletHeaderButton href="/wallet/finanzas" size={42} /> : null}
 
                   <HeaderIconButton
                     onClick={() => setMobileSearchOpen(true)}
@@ -902,7 +901,7 @@ function AuthenticatedGroupsShell({
         </div>
 
         <div className="bottomNavLayer">
-          <MobileBottomNav />
+          <MobileBottomNav showWallet={showWalletRail} />
         </div>
       </div>
     </>

@@ -333,14 +333,15 @@ function redirectToLogin() {
     }
   }
 
-  const shellStyle: CSSProperties = {
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-    display: "grid",
-    gap: 12,
-    overflowX: "hidden",
-  };
+const shellStyle: CSSProperties = {
+  width: "100%",
+  maxWidth: "100%",
+  minWidth: 0,
+  display: "grid",
+  gap: 12,
+  overflowX: "hidden",
+  boxSizing: "border-box",
+};
 
   const headerStyle: CSSProperties = {
     display: "grid",
@@ -413,12 +414,17 @@ function redirectToLogin() {
     overflowWrap: "anywhere",
   };
 
-  const cardShellStyle: CSSProperties = {
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-    overflow: "hidden",
-  };
+const cardShellStyle: CSSProperties = {
+  width: "100%",
+  maxWidth: "100%",
+  minWidth: 0,
+  overflow: "visible",
+  boxSizing: "border-box",
+};
+
+const postShellStyle: CSSProperties = {
+  ...cardShellStyle,
+};
 
   return (
     <section style={shellStyle}>
@@ -462,8 +468,8 @@ function redirectToLogin() {
           isOwner || isModerator || currentUid === post.authorId;
 
         return (
-          <div key={post.id} style={cardShellStyle}>
-            <GroupPostCard
+<div key={post.id} style={postShellStyle}>
+  <GroupPostCard
               post={post}
               canDelete={canDeletePost}
               onDelete={canDeletePost ? handleDeletePost : undefined}

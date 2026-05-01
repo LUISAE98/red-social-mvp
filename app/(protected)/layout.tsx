@@ -102,7 +102,7 @@ function WalletHeaderButton({
         }}
         aria-hidden="true"
       >
-        💼
+        🪙
       </span>
     </HeaderIconButton>
   );
@@ -783,7 +783,6 @@ function AuthenticatedProfileShell({
                 <strong className="mobileBrand">Red Social MVP</strong>
 
                 <div className="mobileActions">
-                  {showWalletRail ? <WalletHeaderButton href="/wallet/finanzas" size={42} /> : null}
 
                   <HeaderIconButton
                     onClick={() => setMobileSearchOpen(true)}
@@ -875,7 +874,7 @@ function AuthenticatedProfileShell({
           ) : null}
         </div>
 
-        <MobileBottomNav />
+       <MobileBottomNav showWallet={showWalletRail} />
       </div>
     </>
   );

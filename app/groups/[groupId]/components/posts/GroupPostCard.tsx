@@ -668,15 +668,18 @@ export default function GroupPostCard({
     }
   }
 
-  const cardStyle: CSSProperties = {
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.022)",
-    color: "#fff",
-    padding: 12,
-    boxSizing: "border-box",
-    backdropFilter: "blur(10px)",
-  };
+const cardStyle: CSSProperties = {
+  borderRadius: isMobile ? 0 : 12,
+  border: isMobile ? "0" : "1px solid rgba(255,255,255,0.08)",
+  borderBottom: isMobile
+    ? "1px solid rgba(255,255,255,0.10)"
+    : "1px solid rgba(255,255,255,0.08)",
+  background: isMobile ? "transparent" : "rgba(255,255,255,0.022)",
+  color: "#fff",
+  padding: isMobile ? "14px 12px" : 12,
+  boxSizing: "border-box",
+  backdropFilter: isMobile ? "none" : "blur(10px)",
+};
 
   const metaStyle: CSSProperties = {
     fontSize: 10.5,
@@ -1278,22 +1281,23 @@ export default function GroupPostCard({
             )}
           </div>
 
-          <button
-            type="button"
-            onClick={handleCreateComment}
-            disabled={
-              !canCommentOnPosts ||
-              creatingComment ||
-              commentText.trim().length === 0
-            }
-            style={
-              !canCommentOnPosts ||
-              creatingComment ||
-              commentText.trim().length === 0
-                ? disabledButtonStyle
-                : primaryButtonStyle
-            }
-          >
+<button
+  type="button"
+  onClick={handleCreateComment}
+  disabled={
+    !canCommentOnPosts ||
+    creatingComment ||
+    commentText.trim().length === 0
+  }
+  style={{
+    ...(!canCommentOnPosts ||
+    creatingComment ||
+    commentText.trim().length === 0
+      ? disabledButtonStyle
+      : primaryButtonStyle),
+    flexShrink: 0,
+  }}
+>
             {creatingComment ? "Comentando..." : "Comentar"}
           </button>
         </div>
