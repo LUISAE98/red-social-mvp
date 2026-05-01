@@ -102,7 +102,7 @@ function WalletHeaderButton({
         }}
         aria-hidden="true"
       >
-        🪙
+        📊
       </span>
     </HeaderIconButton>
   );

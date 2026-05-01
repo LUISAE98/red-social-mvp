@@ -12,9 +12,16 @@ import {
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 
-type GroupPostComposerProps = {
-  onSubmit: (text: string) => Promise<void>;
+type GroupPostComposerSubmitPayload = {
+  text: string;
+  imageFile?: File | null;
 };
+
+type GroupPostComposerProps = {
+  onSubmit: (payload: GroupPostComposerSubmitPayload) => Promise<void>;
+};
+
+type ComposerPostType = "text" | "image" | "video" | "live" | "scheduled_event";
 
 const fontStack =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -132,7 +139,13 @@ export default function GroupPostComposer({
 }: GroupPostComposerProps) {
   const [text, setText] = useState("");
   const [creating, setCreating] = useState(false);
+  const [postType, setPostType] = useState<ComposerPostType>("text");
   const [currentUserHandle, setCurrentUserHandle] = useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const currentUser = auth.currentUser;
   const currentUserName = currentUser?.displayName?.trim() || "Tú";
@@ -180,15 +193,83 @@ export default function GroupPostComposer({
     };
   }, []);
 
+  useEffect(() => {
+    if (!localError) return;
+
+    const timer = window.setTimeout(() => {
+      setLocalError(null);
+    }, 4500);
+
+    return () => window.clearTimeout(timer);
+  }, [localError]);
+
+  useEffect(() => {
+    if (!selectedImage) {
+      setSelectedImagePreview(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(selectedImage);
+    setSelectedImagePreview(objectUrl);
+
+    return () => {
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, [selectedImage]);
+
   const currentUserHref = currentUserHandle ? `/u/${currentUserHandle}` : "#";
+  const hasContent = text.trim().length > 0 || !!selectedImage;
+
+  function handleOpenImagePicker() {
+    if (creating) return;
+    fileInputRef.current?.click();
+  }
+
+  function handleImageSelected(file: File | null) {
+    setLocalError(null);
+
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setLocalError("Solo puedes seleccionar archivos de imagen.");
+      return;
+    }
+
+    setSelectedImage(file);
+    setPostType("image");
+  }
+
+  function handleRemoveImage() {
+    setSelectedImage(null);
+    setPostType("text");
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
 
   async function handleSubmit() {
-    if (creating || text.trim().length === 0) return;
+    if (creating || !hasContent) return;
 
     try {
       setCreating(true);
-      await onSubmit(text.trim());
+      setLocalError(null);
+
+      await onSubmit({
+  text: text.trim(),
+  imageFile: selectedImage,
+});
+
       setText("");
+      setSelectedImage(null);
+      setSelectedImagePreview(null);
+      setPostType("text");
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    } catch (error: any) {
+      setLocalError(error?.message ?? "No se pudo publicar.");
     } finally {
       setCreating(false);
     }
@@ -240,6 +321,62 @@ export default function GroupPostComposer({
     WebkitAppearance: "none",
   };
 
+  const imagePreviewWrapStyle: CSSProperties = {
+    marginTop: 10,
+    width: "100%",
+    maxWidth: 420,
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.08)",
+    overflow: "hidden",
+    background: "rgba(255,255,255,0.04)",
+    position: "relative",
+  };
+
+  const imagePreviewStyle: CSSProperties = {
+    width: "100%",
+    maxHeight: 280,
+    objectFit: "cover",
+    display: "block",
+  };
+
+  const removeImageButtonStyle: CSSProperties = {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 30,
+    height: 30,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.72)",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: 16,
+    lineHeight: 1,
+  };
+
+  const actionsRowStyle: CSSProperties = {
+    marginTop: 10,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    flexWrap: "wrap",
+  };
+
+  const secondaryButtonStyle: CSSProperties = {
+    minHeight: 34,
+    padding: "8px 12px",
+    borderRadius: 8,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.04)",
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 12,
+    fontWeight: 600,
+    fontFamily: fontStack,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+
   const primaryButtonStyle: CSSProperties = {
     minHeight: 34,
     padding: "8px 14px",
@@ -261,8 +398,27 @@ export default function GroupPostComposer({
     cursor: "not-allowed",
   };
 
+  const localErrorStyle: CSSProperties = {
+    marginTop: 10,
+    borderRadius: 10,
+    border: "1px solid rgba(255,90,90,0.24)",
+    background: "rgba(120,18,18,0.28)",
+    color: "#ffdada",
+    padding: "9px 10px",
+    fontSize: 12,
+    lineHeight: 1.4,
+  };
+
   return (
     <section style={cardStyle}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        style={{ display: "none" }}
+        onChange={(event) => handleImageSelected(event.target.files?.[0] ?? null)}
+      />
+
       <div
         style={{
           display: "flex",
@@ -289,7 +445,9 @@ export default function GroupPostComposer({
             <Link href={currentUserHref} style={nameStyle}>
               {currentUserName}
             </Link>
-            <div style={labelStyle}>Crear publicación</div>
+            <div style={labelStyle}>
+              {postType === "image" ? "Crear publicación con imagen" : "Crear publicación"}
+            </div>
           </div>
 
           <AutoGrowTextarea
@@ -300,22 +458,50 @@ export default function GroupPostComposer({
             style={textareaStyle}
           />
 
-          <div
-            style={{
-              marginTop: 10,
-              display: "flex",
-              justifyContent: "flex-end",
-            }}
-          >
+          {selectedImagePreview && (
+            <div style={imagePreviewWrapStyle}>
+              <img
+                src={selectedImagePreview}
+                alt="Vista previa de imagen seleccionada"
+                style={imagePreviewStyle}
+              />
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                style={removeImageButtonStyle}
+                aria-label="Quitar imagen"
+                disabled={creating}
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          {localError && <div style={localErrorStyle}>{localError}</div>}
+
+          <div style={actionsRowStyle}>
+            <button
+              type="button"
+              onClick={handleOpenImagePicker}
+              disabled={creating}
+              style={
+                creating
+                  ? {
+                      ...secondaryButtonStyle,
+                      opacity: 0.5,
+                      cursor: "not-allowed",
+                    }
+                  : secondaryButtonStyle
+              }
+            >
+              Imagen
+            </button>
+
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={creating || text.trim().length === 0}
-              style={
-                creating || text.trim().length === 0
-                  ? disabledButtonStyle
-                  : primaryButtonStyle
-              }
+              disabled={creating || !hasContent}
+              style={creating || !hasContent ? disabledButtonStyle : primaryButtonStyle}
             >
               {creating ? "Publicando..." : "Publicar"}
             </button>

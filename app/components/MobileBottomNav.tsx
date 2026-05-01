@@ -182,7 +182,7 @@ export default function MobileBottomNav({
         key: "wallet",
         href: "/wallet/finanzas",
         active: pathname.startsWith("/wallet"),
-        emoji: "🪙",
+        emoji: "📊",
         label: "Wallet",
         type: "emoji",
       });

@@ -15,7 +15,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
-import type { Comment, GroupVisibility, Post } from "./types";
+import type { Comment, GroupVisibility, Post, PostMedia } from "./types";
 
 type AuthorSnapshot = {
   uid: string;
@@ -293,7 +293,7 @@ function hydratePost(
   const profile = userMap[raw.authorId];
   const group = groupMap[raw.groupId];
 
-  return {
+  return normalizePostMetadata({
     ...raw,
     authorName:
       profile?.displayName || raw.authorName || raw.authorId || "Usuario",
@@ -302,6 +302,44 @@ function hydratePost(
     groupName: group?.name ?? raw.groupName ?? null,
     groupAvatarUrl: group?.avatarUrl ?? raw.groupAvatarUrl ?? null,
     groupVisibility: group?.visibility ?? raw.groupVisibility ?? null,
+  });
+}
+
+function normalizePostMetadata(post: Post): Post {
+  const postType = post.postType ?? "text";
+
+  return {
+    ...post,
+    postType,
+
+    access: post.access ?? "free",
+    accessModel: post.accessModel ?? "free",
+    accessScope: post.accessScope ?? "group",
+    requiresPayment: post.requiresPayment ?? false,
+    requiresSubscription: post.requiresSubscription ?? false,
+    oneTimePrice: post.oneTimePrice ?? null,
+    currency: post.currency ?? null,
+    purchaseType: post.purchaseType ?? null,
+
+    media: Array.isArray(post.media) ? post.media : [],
+
+    counts: {
+      comments: post.counts?.comments ?? 0,
+      likes: post.counts?.likes ?? 0,
+    },
+
+    liveData: post.liveData ?? null,
+    videoData: post.videoData ?? null,
+    scheduledData: post.scheduledData ?? null,
+    playback: post.playback ?? null,
+
+    processing: post.processing ?? {
+      status: "none",
+      provider: null,
+      errorCode: null,
+      errorMessage: null,
+      updatedAt: null,
+    },
   };
 }
 
@@ -601,7 +639,14 @@ export async function fetchGroupPosts(groupId: string): Promise<Post[]> {
     fetchGroupsByIds(rawPosts.map((post) => post.groupId)),
   ]);
 
-  return rawPosts.map((post) => hydratePost(post, userMap, groupMap));
+  return rawPosts.map((post) => {
+  const hydrated = hydratePost(post, userMap, groupMap);
+
+  return {
+    ...hydrated,
+    isLocked: isPostLocked(hydrated),
+  };
+});
 }
 
 export async function fetchHomePosts(userUid: string): Promise<Post[]> {
@@ -615,7 +660,14 @@ export async function fetchHomePosts(userUid: string): Promise<Post[]> {
     fetchGroupsByIds(rawPosts.map((post) => post.groupId)),
   ]);
 
-  return rawPosts.map((post) => hydratePost(post, userMap, groupMap));
+  return rawPosts.map((post) => {
+  const hydrated = hydratePost(post, userMap, groupMap);
+
+  return {
+    ...hydrated,
+    isLocked: isPostLocked(hydrated),
+  };
+});
 }
 
 export async function fetchUserProfilePosts(
@@ -657,7 +709,14 @@ export async function fetchUserProfilePosts(
       fetchGroupsByIds(ownPosts.map((post) => post.groupId)),
     ]);
 
-    return ownPosts.map((post) => hydratePost(post, userMap, groupMap));
+    return ownPosts.map((post) => {
+  const hydrated = hydratePost(post, userMap, groupMap);
+
+  return {
+    ...hydrated,
+    isLocked: isPostLocked(hydrated),
+  };
+});
   }
 
   const visibleGroupIds = await fetchProfileVisibleGroupIds(viewerUid);
@@ -670,7 +729,14 @@ export async function fetchUserProfilePosts(
     fetchGroupsByIds(filteredPosts.map((post) => post.groupId)),
   ]);
 
-  return filteredPosts.map((post) => hydratePost(post, userMap, groupMap));
+  return filteredPosts.map((post) => {
+  const hydrated = hydratePost(post, userMap, groupMap);
+
+  return {
+    ...hydrated,
+    isLocked: isPostLocked(hydrated),
+  };
+});
 }
 
 export async function createTextPost(params: {
@@ -703,6 +769,96 @@ export async function createTextPost(params: {
     counts: {
       comments: 0,
       likes: 0,
+    },
+
+    postType: "text",
+
+accessModel: "free",
+accessScope: "group",
+requiresPayment: false,
+requiresSubscription: false,
+oneTimePrice: null,
+currency: null,
+purchaseType: null,
+
+liveData: null,
+videoData: null,
+scheduledData: null,
+playback: null,
+
+processing: {
+  status: "none",
+  provider: null,
+  errorCode: null,
+  errorMessage: null,
+  updatedAt: null,
+},
+  });
+}
+
+export async function createImagePost(params: {
+  groupId: string;
+  text?: string;
+  media: PostMedia[];
+}): Promise<void> {
+  assertValidId(params.groupId, "groupId");
+
+  const cleanText = params.text?.trim() ?? "";
+  const cleanMedia = Array.isArray(params.media)
+    ? params.media.filter(
+        (item) =>
+          item.type === "image" &&
+          typeof item.url === "string" &&
+          item.url.trim().length > 0
+      )
+    : [];
+
+  if (!cleanText && cleanMedia.length === 0) {
+    throw new Error("Agrega texto o una imagen antes de publicar.");
+  }
+
+  const author = await getCurrentAuthorSnapshot();
+  await ensureUserCanCreatePostInGroup(params.groupId, author.uid);
+
+  await addDoc(collection(db, "posts"), {
+    groupId: params.groupId,
+    authorId: author.uid,
+    authorName: author.authorName,
+    authorAvatarUrl: author.authorAvatarUrl,
+    authorUsername: author.authorUsername,
+    text: cleanText,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    deletedAt: null,
+    isDeleted: false,
+    access: "free",
+    media: cleanMedia,
+    counts: {
+      comments: 0,
+      likes: 0,
+    },
+
+    postType: cleanMedia.length > 0 ? "image" : "text",
+
+    accessModel: "free",
+    accessScope: "group",
+    requiresPayment: false,
+    requiresSubscription: false,
+    oneTimePrice: null,
+    currency: null,
+    purchaseType: null,
+
+    liveData: null,
+    videoData: null,
+    scheduledData: null,
+    playback: null,
+
+    processing: {
+      status: "ready",
+      provider: "firebase_storage",
+      errorCode: null,
+      errorMessage: null,
+      updatedAt: null,
     },
   });
 }
@@ -793,4 +949,18 @@ export async function deletePostComment(params: {
   }
 
   await deleteDoc(commentRef);
+}
+
+function isPostLocked(post: Post): boolean {
+  if (!post.accessModel) return false;
+
+  if (post.accessModel === "free") {
+    return false;
+  }
+
+  if (post.accessModel === "one_time_purchase") {
+    return true;
+  }
+
+  return false;
 }

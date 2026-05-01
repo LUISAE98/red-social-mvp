@@ -72,6 +72,35 @@ function formatDate(value?: { toDate?: () => Date } | null) {
   }
 }
 
+function getPostTypeLabel(post: Post): string | null {
+  if (post.postType === "video") return "Video";
+  if (post.postType === "live") return "Live";
+  if (post.postType === "scheduled_event") return "Evento";
+  return null;
+}
+
+function getPostStatusLabel(post: Post): string | null {
+  if (post.processing?.status === "uploading") return "Subiendo";
+  if (post.processing?.status === "processing") return "Procesando";
+  if (post.processing?.status === "ready") return "Listo";
+  if (post.processing?.status === "error") return "Error";
+
+  if (post.liveData?.status === "scheduled") return "Programado";
+  if (post.liveData?.status === "upcoming") return "Próximo";
+  if (post.liveData?.status === "live") return "En vivo";
+  if (post.liveData?.status === "ended") return "Finalizado";
+
+  if (post.videoData?.status === "processing") return "Procesando";
+  if (post.videoData?.status === "ready") return "Disponible";
+  if (post.videoData?.status === "error") return "Error";
+
+  if (post.scheduledData?.status === "scheduled") return "Programado";
+  if (post.scheduledData?.status === "completed") return "Completado";
+  if (post.scheduledData?.status === "cancelled") return "Cancelado";
+
+  return null;
+}
+
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   if (parts.length === 0) return "U";
@@ -359,6 +388,7 @@ export default function GroupPostCard({
   const [muteModalOpen, setMuteModalOpen] = useState(false);
   const [muteDays, setMuteDays] = useState("7");
   const [inlineActionError, setInlineActionError] = useState<string | null>(null);
+    const [failedMediaUrls, setFailedMediaUrls] = useState<Record<string, boolean>>({});
 
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -939,11 +969,69 @@ const cardStyle: CSSProperties = {
     fontSize: 12,
     lineHeight: 1.4,
   };
+  const mediaStatusStyle: CSSProperties = {
+    marginTop: 10,
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  };
 
+  const mediaBadgeStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    minHeight: 22,
+    padding: "3px 8px",
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.045)",
+    color: "rgba(255,255,255,0.82)",
+    fontSize: 10.5,
+    fontWeight: 600,
+    lineHeight: 1,
+    letterSpacing: "-0.01em",
+  };
+
+    const imageGridStyle: CSSProperties = {
+    marginTop: 12,
+    display: "grid",
+    gap: 8,
+    width: "100%",
+    maxWidth: "100%",
+  };
+
+  const imageWrapStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    borderRadius: 12,
+    overflow: "hidden",
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.04)",
+  };
+
+  const postImageStyle: CSSProperties = {
+    display: "block",
+    width: "100%",
+    maxHeight: isMobile ? 420 : 520,
+    objectFit: "cover",
+  };
   const shouldShowActionsMenu = availableActions.length > 0;
   const commentBlockedMessage = !canCommentOnPosts
     ? buildCommentBlockedMessage(commentBlockedReason)
     : null;
+
+  const postTypeLabel = getPostTypeLabel(post);
+  const postStatusLabel = getPostStatusLabel(post);
+  const shouldShowMediaStatus = !!postTypeLabel || !!postStatusLabel;
+    const imageMedia = Array.isArray(post.media)
+    ? post.media.filter(
+        (item) =>
+          item.type === "image" &&
+          typeof item.url === "string" &&
+          item.url.trim().length > 0 &&
+          !failedMediaUrls[item.url]
+      )
+    : [];
 
   return (
     <article style={cardStyle}>
@@ -1100,7 +1188,28 @@ const cardStyle: CSSProperties = {
         )}
       </div>
 
-      <div style={bodyStyle}>{post.text}</div>
+      {post.text && <div style={bodyStyle}>{post.text}</div>}
+
+      {imageMedia.length > 0 && (
+        <div style={imageGridStyle}>
+          {imageMedia.map((media) => (
+            <div key={media.url} style={imageWrapStyle}>
+              <img
+                src={media.url}
+                alt={media.altText || "Imagen de la publicación"}
+                loading="lazy"
+                style={postImageStyle}
+                onError={() => {
+                  setFailedMediaUrls((prev) => ({
+                    ...prev,
+                    [media.url]: true,
+                  }));
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
 
       <div
         style={{

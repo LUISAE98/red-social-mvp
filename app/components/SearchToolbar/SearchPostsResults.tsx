@@ -182,6 +182,37 @@ async function attachModerationFlags(posts: Post[], userId: string) {
   }));
 }
 
+function normalizeSearchPost(post: PostWithFlags): PostWithFlags {
+  return {
+    ...post,
+    postType: post.postType ?? "text",
+    access: post.access ?? "free",
+    accessModel: post.accessModel ?? "free",
+    accessScope: post.accessScope ?? "group",
+    requiresPayment: post.requiresPayment ?? false,
+    requiresSubscription: post.requiresSubscription ?? false,
+    oneTimePrice: post.oneTimePrice ?? null,
+    currency: post.currency ?? null,
+    purchaseType: post.purchaseType ?? null,
+    media: Array.isArray(post.media) ? post.media : [],
+    counts: {
+      comments: post.counts?.comments ?? 0,
+      likes: post.counts?.likes ?? 0,
+    },
+    liveData: post.liveData ?? null,
+    videoData: post.videoData ?? null,
+    scheduledData: post.scheduledData ?? null,
+    playback: post.playback ?? null,
+    processing: post.processing ?? {
+      status: "none",
+      provider: null,
+      errorCode: null,
+      errorMessage: null,
+      updatedAt: null,
+    },
+  };
+}
+
 async function fetchAccessibleGroupIds(user: User | null) {
   const publicSnap = await getDocs(
     query(collection(db, "groups"), where("visibility", "==", "public"))
@@ -291,7 +322,7 @@ export default function SearchPostsResults({
         }
 
         if (!active) return;
-        setPosts(finalPosts.slice(0, 60));
+        setPosts(finalPosts.slice(0, 60).map(normalizeSearchPost));
       } catch (e: any) {
         if (!active) return;
         setError(e?.message ?? "Error");

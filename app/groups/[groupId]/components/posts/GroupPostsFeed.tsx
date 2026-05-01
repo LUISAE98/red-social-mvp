@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import type { Comment, Post } from "@/lib/posts/types";
 import {
+  createImagePost,
   createPostComment,
   createTextPost,
   deletePostComment,
@@ -17,6 +18,7 @@ import {
 import GroupPostCard from "./GroupPostCard";
 import GroupPostComposer from "./GroupPostComposer";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
+import { uploadPostImage } from "@/lib/posts/image-upload";
 
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 
@@ -120,6 +122,37 @@ async function attachAuthorMemberState(
   });
 }
 
+function normalizeFeedPost(post: PostWithAuthorState): PostWithAuthorState {
+  return {
+    ...post,
+    postType: post.postType ?? "text",
+    access: post.access ?? "free",
+    accessModel: post.accessModel ?? "free",
+    accessScope: post.accessScope ?? "group",
+    requiresPayment: post.requiresPayment ?? false,
+    requiresSubscription: post.requiresSubscription ?? false,
+    oneTimePrice: post.oneTimePrice ?? null,
+    currency: post.currency ?? null,
+    purchaseType: post.purchaseType ?? null,
+    media: Array.isArray(post.media) ? post.media : [],
+    counts: {
+      comments: post.counts?.comments ?? 0,
+      likes: post.counts?.likes ?? 0,
+    },
+    liveData: post.liveData ?? null,
+    videoData: post.videoData ?? null,
+    scheduledData: post.scheduledData ?? null,
+    playback: post.playback ?? null,
+    processing: post.processing ?? {
+      status: "none",
+      provider: null,
+      errorCode: null,
+      errorMessage: null,
+      updatedAt: null,
+    },
+  };
+}
+
 function buildPostBlockedMessage(reason: InteractionBlockedReason): string {
   if (reason === "login") {
     return "Inicia sesión para publicar en esta comunidad.";
@@ -194,7 +227,7 @@ const searchParams = useSearchParams();
   async function loadPosts() {
     const nextPosts = await fetchGroupPosts(groupId);
     const hydratedPosts = await attachAuthorMemberState(groupId, nextPosts);
-    setPosts(hydratedPosts);
+    setPosts(hydratedPosts.map(normalizeFeedPost));
   }
 
   useEffect(() => {
@@ -209,7 +242,7 @@ const searchParams = useSearchParams();
         const hydratedPosts = await attachAuthorMemberState(groupId, nextPosts);
 
         if (!active) return;
-        setPosts(hydratedPosts);
+        setPosts(hydratedPosts.map(normalizeFeedPost));
       } catch (e: any) {
         if (!active) return;
         setError(e?.message ?? "Error desconocido");
@@ -268,13 +301,33 @@ function redirectToLogin() {
     return false;
   }
 
-  async function handleCreatePost(text: string) {
+  async function handleCreatePost(payload: {
+    text: string;
+    imageFile?: File | null;
+  }) {
     if (!guardCreatePost()) return;
 
     try {
       setError(null);
       setComposerError(null);
-      await createTextPost({ groupId, text });
+
+      const cleanText = payload.text.trim();
+
+      if (payload.imageFile) {
+        const uploadedImage = await uploadPostImage({
+          groupId,
+          file: payload.imageFile,
+        });
+
+        await createImagePost({
+          groupId,
+          text: cleanText,
+          media: [uploadedImage],
+        });
+      } else {
+        await createTextPost({ groupId, text: cleanText });
+      }
+
       await loadPosts();
     } catch (e: any) {
       setComposerError(e?.message ?? "No se pudo publicar.");
