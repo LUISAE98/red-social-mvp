@@ -244,10 +244,22 @@ export default function GroupPostComposer({
 
     if (!file) return;
 
-    if (!isAllowedImageSelection(file)) {
-      setLocalError("Solo puedes seleccionar imágenes JPG, PNG, WEBP, GIF, HEIC o HEIF.");
-      return;
-    }
+async function handleImageSelected(file: File | null) {
+  setLocalError(null);
+
+  if (!file) return;
+
+  try {
+    const normalized = await normalizeImageFile(file, {
+      maxSizeBytes: 80 * 1024 * 1024,
+    });
+
+    setSelectedImage(normalized.file);
+    setPostType("image");
+  } catch (e: any) {
+    setLocalError(e?.message ?? "No se pudo preparar la imagen.");
+  }
+}
 
     try {
       const normalized = await normalizeImageFile(file, {
