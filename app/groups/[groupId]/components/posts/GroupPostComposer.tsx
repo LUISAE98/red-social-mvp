@@ -136,17 +136,6 @@ function Avatar({
   );
 }
 
-function isAllowedImageSelection(file: File): boolean {
-  const type = file.type.toLowerCase();
-  const name = file.name.toLowerCase();
-
-  return (
-    type.startsWith("image/") ||
-    name.endsWith(".heic") ||
-    name.endsWith(".heif")
-  );
-}
-
 export default function GroupPostComposer({
   onSubmit,
 }: GroupPostComposerProps) {
@@ -239,10 +228,6 @@ export default function GroupPostComposer({
     fileInputRef.current?.click();
   }
 
-  async function handleImageSelected(file: File | null) {
-    setLocalError(null);
-
-    if (!file) return;
 
 async function handleImageSelected(file: File | null) {
   setLocalError(null);
@@ -260,18 +245,6 @@ async function handleImageSelected(file: File | null) {
     setLocalError(e?.message ?? "No se pudo preparar la imagen.");
   }
 }
-
-    try {
-      const normalized = await normalizeImageFile(file, {
-        maxSizeBytes: 80 * 1024 * 1024,
-      });
-
-      setSelectedImage(normalized.file);
-      setPostType("image");
-    } catch (e: any) {
-      setLocalError(e?.message ?? "No se pudo preparar la imagen.");
-    }
-  }
 
   function handleRemoveImage() {
     setSelectedImage(null);
