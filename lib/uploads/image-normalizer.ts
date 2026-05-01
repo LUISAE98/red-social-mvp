@@ -138,7 +138,11 @@ if (isWebSafeImage(file)) {
       originalType,
       originalName,
     };
-  } catch {
-    throw new Error("Solo puedes subir imágenes JPG, PNG, WEBP, GIF, HEIC o HEIF.");
-  }
+  } catch (e: any) {
+  throw new Error(
+    e?.message
+      ? `No se pudo convertir la imagen del iPhone: ${e.message}`
+      : "No se pudo convertir la imagen del iPhone."
+  );
+}
 }
