@@ -236,7 +236,7 @@ async function handleImageSelected(file: File | null) {
 
   try {
     const normalized = await normalizeImageFile(file, {
-      maxSizeBytes: 80 * 1024 * 1024,
+      maxSizeBytes: 150 * 1024 * 1024,
     });
 
     setSelectedImage(normalized.file);

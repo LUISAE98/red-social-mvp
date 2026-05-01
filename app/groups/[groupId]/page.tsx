@@ -1032,7 +1032,7 @@ const openCropWithFile = useCallback(
 
     try {
       const normalized = await normalizeImageFile(file, {
-        maxSizeBytes: 80 * 1024 * 1024,
+        maxSizeBytes: 150 * 1024 * 1024,
       });
 
       const src = await dataUrlFromFile(normalized.file);

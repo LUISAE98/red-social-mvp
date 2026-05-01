@@ -7,7 +7,11 @@ export type NormalizedImageFile = {
   originalName: string;
 };
 
-const DEFAULT_MAX_IMAGE_SIZE_BYTES = 80 * 1024 * 1024;
+const DEFAULT_MAX_IMAGE_SIZE_BYTES = 150 * 1024 * 1024;
+
+const OUTPUT_MAX_WIDTH = 2000;
+const OUTPUT_MAX_HEIGHT = 2000;
+const OUTPUT_QUALITY = 0.82;
 
 const WEB_SAFE_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -67,8 +71,87 @@ function isWebSafeImage(file: File): boolean {
 
 function assertMaxSize(file: File, maxSizeBytes: number) {
   if (file.size > maxSizeBytes) {
-    throw new Error("La imagen no puede pesar más de 80 MB.");
+    throw new Error("La imagen no puede pesar más de 150 MB.");
   }
+}
+
+function getOutputSize(width: number, height: number) {
+  const ratio = Math.min(
+    OUTPUT_MAX_WIDTH / width,
+    OUTPUT_MAX_HEIGHT / height,
+    1
+  );
+
+  return {
+    width: Math.max(1, Math.round(width * ratio)),
+    height: Math.max(1, Math.round(height * ratio)),
+  };
+}
+
+function loadImageFromFile(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("El navegador no pudo leer esta imagen."));
+    };
+
+    image.src = objectUrl;
+  });
+}
+
+async function compressImageToJpeg(file: File): Promise<File> {
+  const image = await loadImageFromFile(file);
+
+  const sourceWidth = image.naturalWidth || image.width;
+  const sourceHeight = image.naturalHeight || image.height;
+
+  if (!sourceWidth || !sourceHeight) {
+    throw new Error("No se pudo leer el tamaño de la imagen.");
+  }
+
+  const outputSize = getOutputSize(sourceWidth, sourceHeight);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = outputSize.width;
+  canvas.height = outputSize.height;
+
+  const ctx = canvas.getContext("2d");
+
+  if (!ctx) {
+    throw new Error("No se pudo preparar la imagen.");
+  }
+
+  ctx.drawImage(image, 0, 0, outputSize.width, outputSize.height);
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (result) => {
+        if (!result) {
+          reject(new Error("No se pudo comprimir la imagen."));
+          return;
+        }
+
+        resolve(result);
+      },
+      "image/jpeg",
+      OUTPUT_QUALITY
+    );
+  });
+
+  const nextName = `${getSafeBaseName(file.name)}.jpg`;
+
+  return new File([blob], nextName, {
+    type: "image/jpeg",
+    lastModified: Date.now(),
+  });
 }
 
 async function convertHeicToJpeg(file: File): Promise<File> {
@@ -84,61 +167,23 @@ async function convertHeicToJpeg(file: File): Promise<File> {
     const blob = Array.isArray(converted) ? converted[0] : converted;
 
     if (blob instanceof Blob) {
-      return new File([blob], nextName, {
+      const convertedFile = new File([blob], nextName, {
         type: "image/jpeg",
         lastModified: Date.now(),
       });
+
+      return compressImageToJpeg(convertedFile);
     }
   } catch {
-    // Fallback abajo
+    // Fallback abajo.
   }
 
-  const objectUrl = URL.createObjectURL(file);
-
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const image = new Image();
-
-      image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error("El navegador no pudo leer esta imagen HEIC."));
-
-      image.src = objectUrl;
-    });
-
-    const canvas = document.createElement("canvas");
-    canvas.width = img.naturalWidth || img.width;
-    canvas.height = img.naturalHeight || img.height;
-
-    const ctx = canvas.getContext("2d");
-
-    if (!ctx) {
-      throw new Error("No se pudo preparar la imagen.");
-    }
-
-    ctx.drawImage(img, 0, 0);
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (result) => {
-          if (!result) {
-            reject(new Error("No se pudo convertir la imagen a JPG."));
-            return;
-          }
-
-          resolve(result);
-        },
-        "image/jpeg",
-        0.88
-      );
-    });
-
-    return new File([blob], nextName, {
+  return compressImageToJpeg(
+    new File([file], nextName, {
       type: "image/jpeg",
       lastModified: Date.now(),
-    });
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
+    })
+  );
 }
 
 export async function normalizeImageFile(
@@ -156,7 +201,6 @@ export async function normalizeImageFile(
 
   if (isHeicLikeFile(file)) {
     const convertedFile = await convertHeicToJpeg(file);
-    assertMaxSize(convertedFile, maxSizeBytes);
 
     return {
       file: convertedFile,
@@ -166,20 +210,19 @@ export async function normalizeImageFile(
     };
   }
 
-if (isWebSafeImage(file)) {
-  assertMaxSize(file, maxSizeBytes);
+  if (isWebSafeImage(file)) {
+    const compressedFile = await compressImageToJpeg(file);
 
-  return {
-    file,
-    wasConverted: false,
-    originalType,
-    originalName,
-  };
-}
+    return {
+      file: compressedFile,
+      wasConverted: false,
+      originalType,
+      originalName,
+    };
+  }
 
   try {
     const convertedFile = await convertHeicToJpeg(file);
-    assertMaxSize(convertedFile, maxSizeBytes);
 
     return {
       file: convertedFile,
@@ -188,10 +231,10 @@ if (isWebSafeImage(file)) {
       originalName,
     };
   } catch (e: any) {
-  throw new Error(
-    e?.message
-      ? `No se pudo convertir la imagen del iPhone: ${e.message}`
-      : "No se pudo convertir la imagen del iPhone."
-  );
-}
+    throw new Error(
+      e?.message
+        ? `No se pudo convertir la imagen del iPhone: ${e.message}`
+        : "No se pudo convertir la imagen del iPhone."
+    );
+  }
 }
