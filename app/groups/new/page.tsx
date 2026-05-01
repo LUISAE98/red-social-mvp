@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Cropper from "react-easy-crop";
 
+
 import { useAuth } from "@/app/providers";
 import { createGroup } from "@/lib/groups/createGroup";
 import type {
@@ -24,13 +25,10 @@ import { doc, updateDoc } from "firebase/firestore";
 import { uploadFile } from "@/lib/storage/uploadFile";
 import { buildFileName } from "@/lib/storage/fileNaming";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
+import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 
 function parseTags(raw: string): string[] {
   return normalizeGroupTags(raw.split(","));
-}
-
-function isAllowedImageType(type: string) {
-  return type === "image/jpeg" || type === "image/png" || type === "image/webp";
 }
 
 function extFromMime(mime: string) {
@@ -356,29 +354,18 @@ useEffect(() => {
   }
 }, [authLoading, user, router, pathname, searchParams]);
 
-  function validateImageFile(file: File, label: string): string | null {
-    if (!isAllowedImageType(file.type)) {
-      return `${label}: tipo inválido. Usa JPG, PNG o WEBP.`;
-    }
-    if (file.size > MAX_IMAGE_BYTES) {
-      return `${label}: demasiado grande (máx 5MB).`;
-    }
-    return null;
-  }
+async function onPickAvatar(file: File | null) {
+  if (!file) return;
 
-  function onPickAvatar(file: File | null) {
-    if (!file) return;
-
-    const msg = validateImageFile(file, "Avatar");
-    if (msg) {
-      setError(msg);
-      return;
-    }
+  try {
+    const normalized = await normalizeImageFile(file, {
+      maxSizeBytes: MAX_IMAGE_BYTES,
+    });
 
     if (pendingAvatarSrc) URL.revokeObjectURL(pendingAvatarSrc);
 
     setError(null);
-    const src = URL.createObjectURL(file);
+    const src = URL.createObjectURL(normalized.file);
     setPendingAvatarSrc(src);
     setCropMode("avatar");
     setCropImageSrc(src);
@@ -386,21 +373,23 @@ useEffect(() => {
     setZoom(1);
     setCroppedAreaPixels(null);
     setCropOpen(true);
+  } catch (e: any) {
+    setError(e?.message ?? "Avatar: no se pudo leer la imagen.");
   }
+}
 
-  function onPickCover(file: File | null) {
-    if (!file) return;
+async function onPickCover(file: File | null) {
+  if (!file) return;
 
-    const msg = validateImageFile(file, "Portada");
-    if (msg) {
-      setError(msg);
-      return;
-    }
+  try {
+    const normalized = await normalizeImageFile(file, {
+      maxSizeBytes: MAX_IMAGE_BYTES,
+    });
 
     if (pendingCoverSrc) URL.revokeObjectURL(pendingCoverSrc);
 
     setError(null);
-    const src = URL.createObjectURL(file);
+    const src = URL.createObjectURL(normalized.file);
     setPendingCoverSrc(src);
     setCropMode("cover");
     setCropImageSrc(src);
@@ -408,14 +397,17 @@ useEffect(() => {
     setZoom(1);
     setCroppedAreaPixels(null);
     setCropOpen(true);
+  } catch (e: any) {
+    setError(e?.message ?? "Portada: no se pudo leer la imagen.");
   }
+}
 
-  const onCropComplete = useCallback(
-    (_croppedArea: unknown, croppedAreaPixelsArg: Area) => {
-      setCroppedAreaPixels(croppedAreaPixelsArg);
-    },
-    []
-  );
+const onCropComplete = useCallback(
+  (_croppedArea: unknown, croppedAreaPixelsArg: Area) => {
+    setCroppedAreaPixels(croppedAreaPixelsArg);
+  },
+  []
+);
 
   function closeCropModal() {
     if (croppingBusy) return;
@@ -1046,7 +1038,7 @@ useEffect(() => {
                 ref={avatarInputRef}
                 type="file"
                 style={{ display: "none" }}
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
                 onChange={(e) => {
                   onPickAvatar(e.target.files?.[0] ?? null);
                   e.currentTarget.value = "";
@@ -1057,7 +1049,7 @@ useEffect(() => {
                 ref={coverInputRef}
                 type="file"
                 style={{ display: "none" }}
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
                 onChange={(e) => {
                   onPickCover(e.target.files?.[0] ?? null);
                   e.currentTarget.value = "";

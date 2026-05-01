@@ -1,20 +1,10 @@
-import {
-  getDownloadURL,
-  ref,
-  uploadBytes,
-} from "firebase/storage";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 import { auth, storage } from "@/lib/firebase";
+import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import type { PostMedia } from "./types";
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
-
-const ALLOWED_IMAGE_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-]);
 
 function getSafeFileExtension(file: File): string {
   const byType =
@@ -31,7 +21,7 @@ function getSafeFileExtension(file: File): string {
   if (byType) return byType;
 
   const rawExtension = file.name.split(".").pop()?.toLowerCase() ?? "";
-  return rawExtension.replace(/[^a-z0-9]/g, "") || "image";
+  return rawExtension.replace(/[^a-z0-9]/g, "") || "jpg";
 }
 
 function buildImageStoragePath(params: {
@@ -47,16 +37,6 @@ function buildImageStoragePath(params: {
       : Math.random().toString(36).slice(2);
 
   return `posts/${params.groupId}/${params.uid}/${timestamp}-${randomId}.${extension}`;
-}
-
-function validateImageFile(file: File) {
-  if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-    throw new Error("Solo puedes subir imágenes JPG, PNG, WEBP o GIF.");
-  }
-
-  if (file.size > MAX_IMAGE_SIZE_BYTES) {
-    throw new Error("La imagen no puede pesar más de 5 MB.");
-  }
 }
 
 function getImageDimensions(file: File): Promise<{
@@ -102,23 +82,30 @@ export async function uploadPostImage(params: {
     throw new Error("Falta groupId para subir la imagen.");
   }
 
-  validateImageFile(params.file);
+  const normalized = await normalizeImageFile(params.file, {
+    maxSizeBytes: MAX_IMAGE_SIZE_BYTES,
+  });
 
-  const dimensions = await getImageDimensions(params.file);
+  const fileToUpload = normalized.file;
+  const dimensions = await getImageDimensions(fileToUpload);
+
   const path = buildImageStoragePath({
     uid,
     groupId: params.groupId,
-    file: params.file,
+    file: fileToUpload,
   });
 
   const imageRef = ref(storage, path);
 
-  await uploadBytes(imageRef, params.file, {
-    contentType: params.file.type,
+  await uploadBytes(imageRef, fileToUpload, {
+    contentType: fileToUpload.type,
     customMetadata: {
       groupId: params.groupId,
       uploadedBy: uid,
       usage: "post_image",
+      originalName: normalized.originalName,
+      originalType: normalized.originalType,
+      wasConverted: String(normalized.wasConverted),
     },
   });
 
@@ -130,8 +117,8 @@ export async function uploadPostImage(params: {
     path,
     width: dimensions.width,
     height: dimensions.height,
-    size: params.file.size,
-    mimeType: params.file.type,
+    size: fileToUpload.size,
+    mimeType: fileToUpload.type,
     thumbnailUrl: null,
     altText: null,
   };

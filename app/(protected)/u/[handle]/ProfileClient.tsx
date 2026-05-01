@@ -44,6 +44,7 @@ import type { CreatorServiceType, Currency } from "@/types/group";
 import Cropper from "react-easy-crop";
 
 import { auth, db, storage } from "@/lib/firebase";
+import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import ProfilePostsFeed from "./components/ProfilePostsFeed";
 import ProfileSubnav, {
   type ProfileTabKey,
@@ -632,13 +633,22 @@ function resetExclusiveSessionModal() {
 
       setMsg(null);
 
-      const src = await dataUrlFromFile(file);
-      setCropMode(mode);
-      setCropImageSrc(src);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setCroppedAreaPixels(null);
-      setCropOpen(true);
+      try {
+        const normalized = await normalizeImageFile(file, {
+          maxSizeBytes: 5 * 1024 * 1024,
+        });
+
+        const src = await dataUrlFromFile(normalized.file);
+
+        setCropMode(mode);
+        setCropImageSrc(src);
+        setCrop({ x: 0, y: 0 });
+        setZoom(1);
+        setCroppedAreaPixels(null);
+        setCropOpen(true);
+      } catch (e: any) {
+        setMsg(e?.message ?? "❌ No se pudo leer la imagen.");
+      }
     },
     [isOwner]
   );
@@ -1463,7 +1473,7 @@ await createExclusiveSessionRequest({
           <input
             ref={avatarInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
             style={{ display: "none" }}
             onChange={async (e) => {
               const f = e.target.files?.[0];
@@ -1475,7 +1485,7 @@ await createExclusiveSessionRequest({
           <input
             ref={coverInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
             style={{ display: "none" }}
             onChange={async (e) => {
               const f = e.target.files?.[0];

@@ -134,6 +134,17 @@ function Avatar({
   );
 }
 
+function isAllowedImageSelection(file: File): boolean {
+  const type = file.type.toLowerCase();
+  const name = file.name.toLowerCase();
+
+  return (
+    type.startsWith("image/") ||
+    name.endsWith(".heic") ||
+    name.endsWith(".heif")
+  );
+}
+
 export default function GroupPostComposer({
   onSubmit,
 }: GroupPostComposerProps) {
@@ -230,10 +241,10 @@ export default function GroupPostComposer({
 
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      setLocalError("Solo puedes seleccionar archivos de imagen.");
-      return;
-    }
+if (!isAllowedImageSelection(file)) {
+  setLocalError("Solo puedes seleccionar imágenes JPG, PNG, WEBP, GIF, HEIC o HEIF.");
+  return;
+}
 
     setSelectedImage(file);
     setPostType("image");
@@ -414,7 +425,7 @@ export default function GroupPostComposer({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
+        accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
         style={{ display: "none" }}
         onChange={(event) => handleImageSelected(event.target.files?.[0] ?? null)}
       />

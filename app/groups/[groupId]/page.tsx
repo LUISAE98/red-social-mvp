@@ -76,6 +76,7 @@ import {
 
 import { useGroupRealtime } from "@/lib/groups/useGroupRealtime";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
+import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 
 import {
   groupPageFontStack,
@@ -1028,14 +1029,22 @@ function redirectToLogin() {
       if (!isOwner) return;
       setActionError(null);
 
-      const src = await dataUrlFromFile(file);
+      try {
+        const normalized = await normalizeImageFile(file, {
+          maxSizeBytes: 5 * 1024 * 1024,
+        });
 
-      setCropMode(mode);
-      setCropImageSrc(src);
-      setCrop({ x: 0, y: 0 });
-      setZoom(1);
-      setCroppedAreaPixels(null);
-      setCropOpen(true);
+        const src = await dataUrlFromFile(normalized.file);
+
+        setCropMode(mode);
+        setCropImageSrc(src);
+        setCrop({ x: 0, y: 0 });
+        setZoom(1);
+        setCroppedAreaPixels(null);
+        setCropOpen(true);
+      } catch (e: any) {
+        setActionError(e?.message ?? "❌ No se pudo leer la imagen.");
+      }
     },
     [isOwner]
   );
@@ -2134,7 +2143,7 @@ function redirectToLogin() {
           <input
             ref={avatarInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
             style={{ display: "none" }}
             onChange={async (e) => {
               const f = e.target.files?.[0];
@@ -2146,7 +2155,7 @@ function redirectToLogin() {
           <input
             ref={coverInputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
             style={{ display: "none" }}
             onChange={async (e) => {
               const f = e.target.files?.[0];
