@@ -13,7 +13,7 @@ type UploadOptions = {
   onProgress?: (progress: number) => void;
 };
 
-const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_SIZE_BYTES = 30 * 1024 * 1024;
 
 function isImageLike(file: File): boolean {
   const type = file.type.toLowerCase();

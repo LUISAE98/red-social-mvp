@@ -38,7 +38,7 @@ function extFromMime(mime: string) {
   return "jpg";
 }
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 30 * 1024 * 1024;
 const AVATAR_ASPECT = 1;
 const COVER_ASPECT = 16 / 9;
 
@@ -1038,7 +1038,7 @@ const onCropComplete = useCallback(
                 ref={avatarInputRef}
                 type="file"
                 style={{ display: "none" }}
-                accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
+                accept="image/*,.heic,.heif"
                 onChange={(e) => {
                   onPickAvatar(e.target.files?.[0] ?? null);
                   e.currentTarget.value = "";
@@ -1049,7 +1049,7 @@ const onCropComplete = useCallback(
                 ref={coverInputRef}
                 type="file"
                 style={{ display: "none" }}
-                accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
+                accept="image/*,.heic,.heif"
                 onChange={(e) => {
                   onPickCover(e.target.files?.[0] ?? null);
                   e.currentTarget.value = "";

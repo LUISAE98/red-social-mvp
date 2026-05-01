@@ -635,8 +635,8 @@ function resetExclusiveSessionModal() {
 
       try {
         const normalized = await normalizeImageFile(file, {
-          maxSizeBytes: 5 * 1024 * 1024,
-        });
+  maxSizeBytes: 30 * 1024 * 1024,
+});
 
         const src = await dataUrlFromFile(normalized.file);
 
@@ -1473,7 +1473,7 @@ await createExclusiveSessionRequest({
           <input
             ref={avatarInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
+            accept="image/*,.heic,.heif"
             style={{ display: "none" }}
             onChange={async (e) => {
               const f = e.target.files?.[0];
@@ -1485,7 +1485,7 @@ await createExclusiveSessionRequest({
           <input
             ref={coverInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
+            accept="image/*,.heic,.heif"
             style={{ display: "none" }}
             onChange={async (e) => {
               const f = e.target.files?.[0];

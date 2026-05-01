@@ -1024,30 +1024,31 @@ function redirectToLogin() {
     return () => window.clearTimeout(timeoutId);
   }, [serviceToast]);
 
-  const openCropWithFile = useCallback(
-    async (mode: CropMode, file: File) => {
-      if (!isOwner) return;
-      setActionError(null);
+const openCropWithFile = useCallback(
+  async (mode: CropMode, file: File) => {
+    if (!isOwner) return;
 
-      try {
-        const normalized = await normalizeImageFile(file, {
-          maxSizeBytes: 5 * 1024 * 1024,
-        });
+    setActionError(null);
 
-        const src = await dataUrlFromFile(normalized.file);
+    try {
+      const normalized = await normalizeImageFile(file, {
+        maxSizeBytes: 30 * 1024 * 1024,
+      });
 
-        setCropMode(mode);
-        setCropImageSrc(src);
-        setCrop({ x: 0, y: 0 });
-        setZoom(1);
-        setCroppedAreaPixels(null);
-        setCropOpen(true);
-      } catch (e: any) {
-        setActionError(e?.message ?? "❌ No se pudo leer la imagen.");
-      }
-    },
-    [isOwner]
-  );
+      const src = await dataUrlFromFile(normalized.file);
+
+      setCropMode(mode);
+      setCropImageSrc(src);
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+      setCropOpen(true);
+    } catch (e: any) {
+      setActionError(e?.message ?? "❌ No se pudo leer la imagen.");
+    }
+  },
+  [isOwner]
+);
 
   function handlePickAvatar() {
     if (!isOwner) return;
@@ -2143,7 +2144,7 @@ function redirectToLogin() {
           <input
             ref={avatarInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
+            accept="image/*,.heic,.heif"
             style={{ display: "none" }}
             onChange={async (e) => {
               const f = e.target.files?.[0];
@@ -2155,7 +2156,7 @@ function redirectToLogin() {
           <input
             ref={coverInputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
+            accept="image/*,.heic,.heif"
             style={{ display: "none" }}
             onChange={async (e) => {
               const f = e.target.files?.[0];

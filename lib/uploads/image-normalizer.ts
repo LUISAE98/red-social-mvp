@@ -7,7 +7,7 @@ export type NormalizedImageFile = {
   originalName: string;
 };
 
-const DEFAULT_MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const DEFAULT_MAX_IMAGE_SIZE_BYTES = 30 * 1024 * 1024;
 
 const WEB_SAFE_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -50,7 +50,7 @@ function isWebSafeImage(file: File): boolean {
 
 function assertMaxSize(file: File, maxSizeBytes: number) {
   if (file.size > maxSizeBytes) {
-    throw new Error("La imagen no puede pesar más de 5 MB.");
+    throw new Error("La imagen no puede pesar más de 30 MB.");
   }
 }
 

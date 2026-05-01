@@ -10,7 +10,9 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 import { doc, getDoc } from "firebase/firestore";
+
 import { auth, db } from "@/lib/firebase";
+import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 
 type GroupPostComposerSubmitPayload = {
   text: string;
@@ -167,6 +169,7 @@ export default function GroupPostComposer({
 
     async function loadCurrentUserHandle() {
       const uid = auth.currentUser?.uid;
+
       if (!uid) {
         setCurrentUserHandle(null);
         return;
@@ -236,18 +239,26 @@ export default function GroupPostComposer({
     fileInputRef.current?.click();
   }
 
-  function handleImageSelected(file: File | null) {
+  async function handleImageSelected(file: File | null) {
     setLocalError(null);
 
     if (!file) return;
 
-if (!isAllowedImageSelection(file)) {
-  setLocalError("Solo puedes seleccionar imágenes JPG, PNG, WEBP, GIF, HEIC o HEIF.");
-  return;
-}
+    if (!isAllowedImageSelection(file)) {
+      setLocalError("Solo puedes seleccionar imágenes JPG, PNG, WEBP, GIF, HEIC o HEIF.");
+      return;
+    }
 
-    setSelectedImage(file);
-    setPostType("image");
+    try {
+      const normalized = await normalizeImageFile(file, {
+        maxSizeBytes: 30 * 1024 * 1024,
+      });
+
+      setSelectedImage(normalized.file);
+      setPostType("image");
+    } catch (e: any) {
+      setLocalError(e?.message ?? "No se pudo preparar la imagen.");
+    }
   }
 
   function handleRemoveImage() {
@@ -267,9 +278,9 @@ if (!isAllowedImageSelection(file)) {
       setLocalError(null);
 
       await onSubmit({
-  text: text.trim(),
-  imageFile: selectedImage,
-});
+        text: text.trim(),
+        imageFile: selectedImage,
+      });
 
       setText("");
       setSelectedImage(null);
@@ -425,9 +436,13 @@ if (!isAllowedImageSelection(file)) {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,.heic,.heif"
+        accept="image/*,.heic,.heif"
         style={{ display: "none" }}
-        onChange={(event) => handleImageSelected(event.target.files?.[0] ?? null)}
+        onChange={async (event) => {
+          const file = event.currentTarget.files?.[0] ?? null;
+          await handleImageSelected(file);
+          event.currentTarget.value = "";
+        }}
       />
 
       <div
@@ -456,8 +471,11 @@ if (!isAllowedImageSelection(file)) {
             <Link href={currentUserHref} style={nameStyle}>
               {currentUserName}
             </Link>
+
             <div style={labelStyle}>
-              {postType === "image" ? "Crear publicación con imagen" : "Crear publicación"}
+              {postType === "image"
+                ? "Crear publicación con imagen"
+                : "Crear publicación"}
             </div>
           </div>
 
@@ -476,6 +494,7 @@ if (!isAllowedImageSelection(file)) {
                 alt="Vista previa de imagen seleccionada"
                 style={imagePreviewStyle}
               />
+
               <button
                 type="button"
                 onClick={handleRemoveImage}
@@ -512,7 +531,11 @@ if (!isAllowedImageSelection(file)) {
               type="button"
               onClick={handleSubmit}
               disabled={creating || !hasContent}
-              style={creating || !hasContent ? disabledButtonStyle : primaryButtonStyle}
+              style={
+                creating || !hasContent
+                  ? disabledButtonStyle
+                  : primaryButtonStyle
+              }
             >
               {creating ? "Publicando..." : "Publicar"}
             </button>
