@@ -43,17 +43,66 @@ function getInitials(name: string) {
   return parts.map((part) => part.charAt(0).toUpperCase()).join("");
 }
 
-function formatDate(value?: { toDate?: () => Date } | null) {
-  if (!value?.toDate) return "Ahora mismo";
+function getDateFromTimestamp(value?: { toDate?: () => Date } | null) {
+  if (!value?.toDate) return null;
+
+  try {
+    const date = value.toDate();
+    return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatExactDate(value?: { toDate?: () => Date } | null) {
+  const date = getDateFromTimestamp(value);
+
+  if (!date) return "Fecha no disponible";
 
   try {
     return new Intl.DateTimeFormat("es-MX", {
       dateStyle: "medium",
       timeStyle: "short",
-    }).format(value.toDate());
+    }).format(date);
   } catch {
     return "Fecha no disponible";
   }
+}
+
+function formatRelativeDate(value?: { toDate?: () => Date } | null) {
+  const date = getDateFromTimestamp(value);
+
+  if (!date) return "Ahora mismo";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffSeconds = Math.max(0, Math.floor(diffMs / 1000));
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
+  const diffYears = Math.floor(diffDays / 365);
+
+  if (diffSeconds < 30) return "Ahora mismo";
+  if (diffSeconds < 60) return `hace ${diffSeconds} segundos`;
+
+  if (diffMinutes === 1) return "hace 1 minuto";
+  if (diffMinutes < 60) return `hace ${diffMinutes} minutos`;
+
+  if (diffHours === 1) return "hace 1 hora";
+  if (diffHours < 24) return `hace ${diffHours} horas`;
+
+  if (diffDays === 1) return "hace 1 día";
+  if (diffDays < 7) return `hace ${diffDays} días`;
+
+  if (diffWeeks === 1) return "hace 1 semana";
+  if (diffWeeks < 5) return `hace ${diffWeeks} semanas`;
+
+  if (diffMonths === 1) return "hace 1 mes";
+  if (diffMonths < 12) return `hace ${diffMonths} meses`;
+
+  if (diffYears === 1) return "hace 1 año";
+  return `hace ${diffYears} años`;
 }
 
 function getAuthorInfo(entity: {
@@ -218,6 +267,8 @@ const [localReplyCount, setLocalReplyCount] = useState(
   comment.counts?.replies ?? 0
 );
 const [commentFlameBusy, setCommentFlameBusy] = useState(false);
+const [showExactCommentDate, setShowExactCommentDate] = useState(false);
+const [exactReplyDates, setExactReplyDates] = useState<Record<string, boolean>>({});
 
   const author = getAuthorInfo(comment);
   const canDeleteComment =
@@ -422,14 +473,33 @@ const [commentFlameBusy, setCommentFlameBusy] = useState(false);
                   {author.authorName}
                 </Link>
 
-                <span
-                  style={{
-                    fontSize: 10.5,
-                    color: "rgba(255,255,255,0.44)",
-                  }}
-                >
-                  {formatDate(comment.createdAt)}
-                </span>
+<button
+  type="button"
+  onClick={() => setShowExactCommentDate((prev) => !prev)}
+  title={formatExactDate(comment.createdAt)}
+  aria-label={
+    showExactCommentDate
+      ? "Mostrar fecha relativa del comentario"
+      : "Mostrar fecha exacta del comentario"
+  }
+  style={{
+    fontSize: 10.5,
+    color: "rgba(255,255,255,0.44)",
+    border: "none",
+    background: "transparent",
+    padding: 0,
+    margin: 0,
+    fontFamily: fontStack,
+    cursor: "pointer",
+    lineHeight: 1.2,
+    textAlign: "left",
+    WebkitTapHighlightColor: "transparent",
+  }}
+>
+  {showExactCommentDate
+    ? formatExactDate(comment.createdAt)
+    : formatRelativeDate(comment.createdAt)}
+</button>
               </div>
 
               <div
@@ -669,14 +739,38 @@ const [commentFlameBusy, setCommentFlameBusy] = useState(false);
                           {replyAuthor.authorName}
                         </Link>
 
-                        <span
-                          style={{
-                            fontSize: 10,
-                            color: "rgba(255,255,255,0.42)",
-                          }}
-                        >
-                          {formatDate(reply.createdAt)}
-                        </span>
+<button
+  type="button"
+  onClick={() =>
+    setExactReplyDates((prev) => ({
+      ...prev,
+      [reply.id]: !prev[reply.id],
+    }))
+  }
+  title={formatExactDate(reply.createdAt)}
+  aria-label={
+    exactReplyDates[reply.id]
+      ? "Mostrar fecha relativa de la respuesta"
+      : "Mostrar fecha exacta de la respuesta"
+  }
+  style={{
+    fontSize: 10,
+    color: "rgba(255,255,255,0.42)",
+    border: "none",
+    background: "transparent",
+    padding: 0,
+    margin: 0,
+    fontFamily: fontStack,
+    cursor: "pointer",
+    lineHeight: 1.2,
+    textAlign: "left",
+    WebkitTapHighlightColor: "transparent",
+  }}
+>
+  {exactReplyDates[reply.id]
+    ? formatExactDate(reply.createdAt)
+    : formatRelativeDate(reply.createdAt)}
+</button>
                       </div>
 
                       <div

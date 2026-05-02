@@ -74,17 +74,66 @@ type MenuPosition = {
 const fontStack =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-function formatDate(value?: { toDate?: () => Date } | null) {
-  if (!value?.toDate) return "Ahora mismo";
+function getDateFromTimestamp(value?: { toDate?: () => Date } | null) {
+  if (!value?.toDate) return null;
+
+  try {
+    const date = value.toDate();
+    return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatExactDate(value?: { toDate?: () => Date } | null) {
+  const date = getDateFromTimestamp(value);
+
+  if (!date) return "Fecha no disponible";
 
   try {
     return new Intl.DateTimeFormat("es-MX", {
       dateStyle: "medium",
       timeStyle: "short",
-    }).format(value.toDate());
+    }).format(date);
   } catch {
     return "Fecha no disponible";
   }
+}
+
+function formatRelativeDate(value?: { toDate?: () => Date } | null) {
+  const date = getDateFromTimestamp(value);
+
+  if (!date) return "Ahora mismo";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffSeconds = Math.max(0, Math.floor(diffMs / 1000));
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
+  const diffYears = Math.floor(diffDays / 365);
+
+  if (diffSeconds < 30) return "Ahora mismo";
+  if (diffSeconds < 60) return `hace ${diffSeconds} segundos`;
+
+  if (diffMinutes === 1) return "hace 1 minuto";
+  if (diffMinutes < 60) return `hace ${diffMinutes} minutos`;
+
+  if (diffHours === 1) return "hace 1 hora";
+  if (diffHours < 24) return `hace ${diffHours} horas`;
+
+  if (diffDays === 1) return "hace 1 día";
+  if (diffDays < 7) return `hace ${diffDays} días`;
+
+  if (diffWeeks === 1) return "hace 1 semana";
+  if (diffWeeks < 5) return `hace ${diffWeeks} semanas`;
+
+  if (diffMonths === 1) return "hace 1 mes";
+  if (diffMonths < 12) return `hace ${diffMonths} meses`;
+
+  if (diffYears === 1) return "hace 1 año";
+  return `hace ${diffYears} años`;
 }
 
 function getPostTypeLabel(post: Post): string | null {
@@ -408,12 +457,13 @@ onToggleFlame,
   const [muteModalOpen, setMuteModalOpen] = useState(false);
   const [muteDays, setMuteDays] = useState("7");
   const [inlineActionError, setInlineActionError] = useState<string | null>(null);
-    const [flameBusy, setFlameBusy] = useState(false);
-    const [flamesPanelOpen, setFlamesPanelOpen] = useState(false);
-const [flameUsers, setFlameUsers] = useState<PostFlameUser[]>([]);
-const [loadingFlameUsers, setLoadingFlameUsers] = useState(false);
-const [flameUsersError, setFlameUsersError] = useState<string | null>(null);
-    const [failedMediaUrls, setFailedMediaUrls] = useState<Record<string, boolean>>({});
+  const [flameBusy, setFlameBusy] = useState(false);
+  const [flamesPanelOpen, setFlamesPanelOpen] = useState(false);
+  const [flameUsers, setFlameUsers] = useState<PostFlameUser[]>([]);
+  const [loadingFlameUsers, setLoadingFlameUsers] = useState(false);
+  const [flameUsersError, setFlameUsersError] = useState<string | null>(null);
+  const [failedMediaUrls, setFailedMediaUrls] = useState<Record<string, boolean>>({});
+  const [showExactPostDate, setShowExactPostDate] = useState(false);
 
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -1206,19 +1256,6 @@ const cardStyle: CSSProperties = {
                 {postAuthor.authorName}
               </Link>
 
-              {authorStatusBadge && (
-                <span
-                  style={{
-                    ...statusBadgeStyle,
-                    border: authorStatusBadge.border,
-                    background: authorStatusBadge.background,
-                    color: authorStatusBadge.color,
-                  }}
-                >
-                  {authorStatusBadge.text}
-                </span>
-              )}
-
               {shouldShowGroupContext && (
                 <div style={communityWrapStyle}>
                   {!isMobile && (
@@ -1284,9 +1321,35 @@ const cardStyle: CSSProperties = {
               )}
             </div>
 
-            <div style={{ ...metaStyle, marginTop: 4 }}>
-              {formatDate(post.createdAt)}
-            </div>
+            <button
+  type="button"
+  onClick={() => setShowExactPostDate((prev) => !prev)}
+  title={formatExactDate(post.createdAt)}
+  aria-label={
+    showExactPostDate
+      ? "Mostrar fecha relativa de la publicación"
+      : "Mostrar fecha exacta de la publicación"
+  }
+style={{
+  ...metaStyle,
+  marginTop: 1,
+  display: "block",
+  width: "fit-content",
+  padding: 0,
+  border: "none",
+  background: "transparent",
+  fontFamily: fontStack,
+  cursor: "pointer",
+  textAlign: "left",
+  lineHeight: 1.15,
+  WebkitTapHighlightColor: "transparent",
+}}
+>
+  {showExactPostDate
+    ? formatExactDate(post.createdAt)
+    : formatRelativeDate(post.createdAt)}
+</button>
+
           </div>
         </div>
 
@@ -1313,7 +1376,30 @@ const cardStyle: CSSProperties = {
         )}
       </div>
 
-      {post.text && <div style={bodyStyle}>{post.text}</div>}
+{(authorStatusBadge || post.text) && (
+  <div style={bodyStyle}>
+    {authorStatusBadge && (
+      <span
+        style={{
+          ...statusBadgeStyle,
+          minHeight: 18,
+          padding: "2px 7px",
+          fontSize: 10,
+          fontWeight: 650,
+          border: authorStatusBadge.border,
+          background: authorStatusBadge.background,
+          color: authorStatusBadge.color,
+          marginRight: post.text ? 8 : 0,
+          verticalAlign: "middle",
+        }}
+      >
+        {authorStatusBadge.text}
+      </span>
+    )}
+
+    {post.text}
+  </div>
+)}
 
       {imageMedia.length > 0 && (
         <div style={imageGridStyle}>
