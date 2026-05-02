@@ -401,6 +401,7 @@ const [flameUsersError, setFlameUsersError] = useState<string | null>(null);
 
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const flameUsersCacheRef = useRef<Record<string, PostFlameUser[]>>({});
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -591,13 +592,24 @@ const [flameUsersError, setFlameUsersError] = useState<string | null>(null);
     await onModerationComplete?.();
   }
 
-  async function handleOpenFlamesPanel() {
+ async function handleOpenFlamesPanel() {
+  const cachedUsers = flameUsersCacheRef.current[post.id];
+
+  setFlamesPanelOpen(true);
+  setFlameUsersError(null);
+
+  if (cachedUsers) {
+    setFlameUsers(cachedUsers);
+    setLoadingFlameUsers(false);
+    return;
+  }
+
   try {
-    setFlamesPanelOpen(true);
     setLoadingFlameUsers(true);
-    setFlameUsersError(null);
 
     const users = await fetchPostFlameUsers(post.id);
+
+    flameUsersCacheRef.current[post.id] = users;
     setFlameUsers(users);
   } catch (e: any) {
     setFlameUsersError(e?.message ?? "No se pudieron cargar las flamitas.");
@@ -618,6 +630,7 @@ const [flameUsersError, setFlameUsersError] = useState<string | null>(null);
       setFlameBusy(true);
       setInlineActionError(null);
       await onToggleFlame(post.id);
+      delete flameUsersCacheRef.current[post.id];
     } catch (e: any) {
       setInlineActionError(e?.message ?? "No se pudo actualizar la flamita.");
     } finally {
