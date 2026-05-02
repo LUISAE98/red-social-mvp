@@ -106,3 +106,5 @@ export {
 } from "./subscriptionTransitions";
 // Profile settings
 export { updateProfileDisplayName } from "./profileSettings";
+// Post reactions
+export { togglePostFlame } from "./postReactions";

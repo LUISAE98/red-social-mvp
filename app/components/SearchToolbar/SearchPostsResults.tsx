@@ -27,6 +27,7 @@ import {
   fetchGroupPosts,
   fetchPostComments,
   softDeletePost,
+  togglePostFlame,
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
@@ -241,7 +242,7 @@ async function fetchSearchPosts(user: User | null) {
   const groupsPosts = await Promise.all(
     groupIds.map(async (groupId) => {
       try {
-        return await fetchGroupPosts(groupId);
+        return await fetchGroupPosts(groupId, user?.uid ?? null);
       } catch {
         return [];
       }
@@ -339,7 +340,40 @@ export default function SearchPostsResults({
   }, [normalizedSearch, currentUser, userId]);
 
   async function handleDeletePost(postId: string) {
-    await softDeletePost(postId);
+    try {
+      setError(null);
+      await softDeletePost(postId);
+      setPosts((prev) => prev.filter((post) => post.id !== postId));
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo eliminar la publicación.");
+      throw e;
+    }
+  }
+
+    async function handleToggleFlame(postId: string): Promise<void> {
+    try {
+      setError(null);
+
+      const result = await togglePostFlame(postId);
+
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                viewerHasFlamed: result.liked,
+                counts: {
+                  ...post.counts,
+                  likes: result.likes,
+                },
+              }
+            : post
+        )
+      );
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo actualizar la flamita.");
+      throw e;
+    }
   }
 
   async function handleLoadComments(postId: string): Promise<Comment[]> {
@@ -689,6 +723,7 @@ export default function SearchPostsResults({
                 onLoadComments={handleLoadComments}
                 onCreateComment={handleCreateComment}
                 onDeleteComment={handleDeleteComment}
+                onToggleFlame={handleToggleFlame}
                 currentUserId={userId}
                 isOwner={false}
                 isModerator={post.canModerateGroupAuthor === true}

@@ -12,6 +12,7 @@ import {
   fetchHomePosts,
   fetchPostComments,
   softDeletePost,
+  togglePostFlame,
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
@@ -358,6 +359,32 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
     };
   }, [currentUserId]);
 
+    async function handleToggleFlame(postId: string): Promise<void> {
+    try {
+      setError(null);
+
+      const result = await togglePostFlame(postId);
+
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                viewerHasFlamed: result.liked,
+                counts: {
+                  ...post.counts,
+                  likes: result.likes,
+                },
+              }
+            : post
+        )
+      );
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo actualizar la flamita.");
+      throw e;
+    }
+  }
+
   async function handleDeletePost(postId: string) {
     try {
       setError(null);
@@ -551,6 +578,7 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
               onLoadComments={handleLoadComments}
               onCreateComment={handleCreateComment}
               onDeleteComment={handleDeleteComment}
+              onToggleFlame={handleToggleFlame}
               currentUserId={currentUserId}
               isOwner={false}
               isModerator={post.canModerateGroupAuthor === true}

@@ -13,9 +13,10 @@ import {
   where,
   type DocumentData,
 } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { auth, db, functions } from "@/lib/firebase";
 import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
 import type { Comment, GroupVisibility, Post, PostMedia } from "./types";
+import { httpsCallable } from "firebase/functions";
 
 type AuthorSnapshot = {
   uid: string;
@@ -57,6 +58,11 @@ type GroupWriteAccess = {
   postingMode: PostingMode;
   commentsEnabled: boolean;
   membershipStatus: GroupMemberStatus;
+};
+
+type TogglePostFlameResponse = {
+  liked: boolean;
+  likes: number;
 };
 
 function pickString(value: unknown): string | null {
@@ -343,6 +349,60 @@ function normalizePostMetadata(post: Post): Post {
   };
 }
 
+async function attachViewerFlameState(
+  posts: Post[],
+  viewerUid?: string | null
+): Promise<Post[]> {
+  const uid = viewerUid || auth.currentUser?.uid || null;
+
+  if (!uid || posts.length === 0) {
+    return posts.map((post) => ({
+      ...post,
+      viewerHasFlamed: false,
+    }));
+  }
+
+  const postIds = new Set(
+    posts
+      .map((post) => post.id)
+      .filter(
+        (postId): postId is string =>
+          typeof postId === "string" && postId.trim().length > 0
+      )
+  );
+
+  if (postIds.size === 0) {
+    return posts.map((post) => ({
+      ...post,
+      viewerHasFlamed: false,
+    }));
+  }
+
+  const likedPostIds = new Set<string>();
+
+  try {
+    const snap = await getDocs(collection(db, "users", uid, "postFlames"));
+
+    snap.docs.forEach((flameDoc) => {
+      const postId = flameDoc.id;
+
+      if (postIds.has(postId)) {
+        likedPostIds.add(postId);
+      }
+    });
+  } catch {
+    return posts.map((post) => ({
+      ...post,
+      viewerHasFlamed: false,
+    }));
+  }
+
+  return posts.map((post) => ({
+    ...post,
+    viewerHasFlamed: likedPostIds.has(post.id),
+  }));
+}
+
 function hydrateComment(
   raw: Comment,
   userMap: Record<string, UserProfileLookup>
@@ -617,7 +677,10 @@ async function ensureUserCanCommentInGroup(groupId: string, userUid: string) {
   }
 }
 
-export async function fetchGroupPosts(groupId: string): Promise<Post[]> {
+export async function fetchGroupPosts(
+  groupId: string,
+  viewerUid?: string | null
+): Promise<Post[]> {
   assertValidId(groupId, "groupId");
 
   const q = query(
@@ -639,14 +702,16 @@ export async function fetchGroupPosts(groupId: string): Promise<Post[]> {
     fetchGroupsByIds(rawPosts.map((post) => post.groupId)),
   ]);
 
-  return rawPosts.map((post) => {
-  const hydrated = hydratePost(post, userMap, groupMap);
+  const hydratedPosts = rawPosts.map((post) => {
+    const hydrated = hydratePost(post, userMap, groupMap);
 
-  return {
-    ...hydrated,
-    isLocked: isPostLocked(hydrated),
-  };
-});
+    return {
+      ...hydrated,
+      isLocked: isPostLocked(hydrated),
+    };
+  });
+
+  return attachViewerFlameState(hydratedPosts, viewerUid);
 }
 
 export async function fetchHomePosts(userUid: string): Promise<Post[]> {
@@ -660,14 +725,16 @@ export async function fetchHomePosts(userUid: string): Promise<Post[]> {
     fetchGroupsByIds(rawPosts.map((post) => post.groupId)),
   ]);
 
-  return rawPosts.map((post) => {
-  const hydrated = hydratePost(post, userMap, groupMap);
+  const hydratedPosts = rawPosts.map((post) => {
+    const hydrated = hydratePost(post, userMap, groupMap);
 
-  return {
-    ...hydrated,
-    isLocked: isPostLocked(hydrated),
-  };
-});
+    return {
+      ...hydrated,
+      isLocked: isPostLocked(hydrated),
+    };
+  });
+
+   return attachViewerFlameState(hydratedPosts, userUid);
 }
 
 export async function fetchUserProfilePosts(
@@ -709,14 +776,16 @@ export async function fetchUserProfilePosts(
       fetchGroupsByIds(ownPosts.map((post) => post.groupId)),
     ]);
 
-    return ownPosts.map((post) => {
-  const hydrated = hydratePost(post, userMap, groupMap);
+    const hydratedPosts = ownPosts.map((post) => {
+      const hydrated = hydratePost(post, userMap, groupMap);
 
-  return {
-    ...hydrated,
-    isLocked: isPostLocked(hydrated),
-  };
-});
+      return {
+        ...hydrated,
+        isLocked: isPostLocked(hydrated),
+      };
+    });
+
+    return attachViewerFlameState(hydratedPosts, viewerUid || profileUid);
   }
 
   const visibleGroupIds = await fetchProfileVisibleGroupIds(viewerUid);
@@ -729,14 +798,16 @@ export async function fetchUserProfilePosts(
     fetchGroupsByIds(filteredPosts.map((post) => post.groupId)),
   ]);
 
-  return filteredPosts.map((post) => {
-  const hydrated = hydratePost(post, userMap, groupMap);
+  const hydratedPosts = filteredPosts.map((post) => {
+    const hydrated = hydratePost(post, userMap, groupMap);
 
-  return {
-    ...hydrated,
-    isLocked: isPostLocked(hydrated),
-  };
-});
+    return {
+      ...hydrated,
+      isLocked: isPostLocked(hydrated),
+    };
+  });
+
+  return attachViewerFlameState(hydratedPosts, viewerUid);
 }
 
 export async function createTextPost(params: {
@@ -949,6 +1020,26 @@ export async function deletePostComment(params: {
   }
 
   await deleteDoc(commentRef);
+}
+
+export async function togglePostFlame(postId: string): Promise<TogglePostFlameResponse> {
+  assertValidId(postId, "postId");
+
+  if (!auth.currentUser?.uid) {
+    throw new Error("Debes iniciar sesión para reaccionar.");
+  }
+
+  const callable = httpsCallable<{ postId: string }, TogglePostFlameResponse>(
+    functions,
+    "togglePostFlame"
+  );
+
+  const result = await callable({ postId });
+
+  return {
+    liked: Boolean(result.data.liked),
+    likes: Number(result.data.likes ?? 0),
+  };
 }
 
 function isPostLocked(post: Post): boolean {

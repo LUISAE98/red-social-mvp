@@ -33,6 +33,7 @@ type GroupPostCardProps = {
   onLoadComments: (postId: string) => Promise<Comment[]>;
   onCreateComment: (postId: string, text: string) => Promise<Comment[]>;
   onDeleteComment: (postId: string, commentId: string) => Promise<Comment[]>;
+  onToggleFlame?: (postId: string) => Promise<void>;
   currentUserId?: string | null;
   isOwner?: boolean;
   isModerator?: boolean;
@@ -366,6 +367,7 @@ export default function GroupPostCard({
   onLoadComments,
   onCreateComment,
   onDeleteComment,
+  onToggleFlame,
   currentUserId = null,
   isOwner = false,
   isModerator = false,
@@ -388,6 +390,7 @@ export default function GroupPostCard({
   const [muteModalOpen, setMuteModalOpen] = useState(false);
   const [muteDays, setMuteDays] = useState("7");
   const [inlineActionError, setInlineActionError] = useState<string | null>(null);
+    const [flameBusy, setFlameBusy] = useState(false);
     const [failedMediaUrls, setFailedMediaUrls] = useState<Record<string, boolean>>({});
 
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
@@ -580,6 +583,25 @@ export default function GroupPostCard({
 
   async function refreshAfterModeration() {
     await onModerationComplete?.();
+  }
+
+  async function handleToggleFlame() {
+    if (!currentUserId) {
+      setInlineActionError("Inicia sesión para dar flamita.");
+      return;
+    }
+
+    if (!onToggleFlame || flameBusy) return;
+
+    try {
+      setFlameBusy(true);
+      setInlineActionError(null);
+      await onToggleFlame(post.id);
+    } catch (e: any) {
+      setInlineActionError(e?.message ?? "No se pudo actualizar la flamita.");
+    } finally {
+      setFlameBusy(false);
+    }
   }
 
   async function handleLoadComments() {
@@ -969,6 +991,37 @@ const cardStyle: CSSProperties = {
     fontSize: 12,
     lineHeight: 1.4,
   };
+    const flameButtonStyle: CSSProperties = {
+    minHeight: 32,
+    padding: "6px 10px",
+    borderRadius: 999,
+    border: post.viewerHasFlamed
+      ? "1px solid rgba(255,140,40,0.42)"
+      : "1px solid rgba(255,255,255,0.08)",
+    background: post.viewerHasFlamed
+      ? "rgba(255,120,30,0.12)"
+      : "rgba(255,255,255,0.035)",
+    color: post.viewerHasFlamed ? "#fff" : "rgba(255,255,255,0.68)",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    fontSize: 12,
+    fontWeight: 600,
+    fontFamily: fontStack,
+    cursor: flameBusy ? "not-allowed" : "pointer",
+    opacity: flameBusy ? 0.65 : 1,
+    whiteSpace: "nowrap",
+    WebkitTapHighlightColor: "transparent",
+  };
+
+  const flameIconStyle: CSSProperties = {
+    display: "inline-block",
+    fontSize: 16,
+    lineHeight: 1,
+    filter: post.viewerHasFlamed ? "none" : "grayscale(1)",
+    opacity: post.viewerHasFlamed ? 1 : 0.52,
+  };
   const mediaStatusStyle: CSSProperties = {
     marginTop: 10,
     display: "flex",
@@ -1210,6 +1263,35 @@ const cardStyle: CSSProperties = {
           ))}
         </div>
       )}
+
+            <div
+        style={{
+          marginTop: 12,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          gap: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleToggleFlame}
+          disabled={flameBusy}
+          aria-pressed={post.viewerHasFlamed === true}
+          aria-label={
+            post.viewerHasFlamed
+              ? "Quitar flamita de la publicación"
+              : "Dar flamita a la publicación"
+          }
+          style={flameButtonStyle}
+        >
+          <span aria-hidden="true" style={flameIconStyle}>
+            🔥
+          </span>
+          <span>{post.counts?.likes ?? 0}</span>
+        </button>
+      </div>
 
       <div
         style={{

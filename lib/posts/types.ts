@@ -19,6 +19,16 @@ export type PostCounts = {
   likes?: number;
 };
 
+export type PostReactionType = "flame";
+
+export type PostReaction = {
+  id: string;
+  postId: string;
+  userId: string;
+  type: PostReactionType;
+  createdAt?: Timestamp | null;
+};
+
 export type GroupVisibility = "public" | "private" | "hidden";
 
 export type PostType = "text" | "image" | "video" | "live" | "scheduled_event";
@@ -136,6 +146,12 @@ export type Post = {
   access?: "free" | "paid";
   media?: PostMedia[];
   counts?: PostCounts;
+
+  /**
+   * Estado calculado para la UI del usuario actual.
+   * No es obligatorio que exista en Firestore.
+   */
+  viewerHasFlamed?: boolean;
 
   postType?: PostType;
 

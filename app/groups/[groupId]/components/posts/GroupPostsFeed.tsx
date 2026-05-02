@@ -14,6 +14,7 @@ import {
   fetchGroupPosts,
   fetchPostComments,
   softDeletePost,
+  togglePostFlame,
 } from "@/lib/posts/post-service";
 import GroupPostCard from "./GroupPostCard";
 import GroupPostComposer from "./GroupPostComposer";
@@ -225,7 +226,7 @@ const searchParams = useSearchParams();
   }, [composerError]);
 
   async function loadPosts() {
-    const nextPosts = await fetchGroupPosts(groupId);
+    const nextPosts = await fetchGroupPosts(groupId, currentUid);
     const hydratedPosts = await attachAuthorMemberState(groupId, nextPosts);
     setPosts(hydratedPosts.map(normalizeFeedPost));
   }
@@ -238,7 +239,7 @@ const searchParams = useSearchParams();
         setLoadingInitial(true);
         setError(null);
 
-        const nextPosts = await fetchGroupPosts(groupId);
+        const nextPosts = await fetchGroupPosts(groupId, currentUid);
         const hydratedPosts = await attachAuthorMemberState(groupId, nextPosts);
 
         if (!active) return;
@@ -256,7 +257,7 @@ const searchParams = useSearchParams();
     return () => {
       active = false;
     };
-  }, [groupId]);
+   }, [groupId, currentUid]);
 
 function redirectToLogin() {
   const nextPath = buildCurrentPathWithSearch(
@@ -331,6 +332,32 @@ function redirectToLogin() {
       await loadPosts();
     } catch (e: any) {
       setComposerError(e?.message ?? "No se pudo publicar.");
+    }
+  }
+
+    async function handleToggleFlame(postId: string): Promise<void> {
+    try {
+      setError(null);
+
+      const result = await togglePostFlame(postId);
+
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                viewerHasFlamed: result.liked,
+                counts: {
+                  ...post.counts,
+                  likes: result.likes,
+                },
+              }
+            : post
+        )
+      );
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo actualizar la flamita.");
+      throw e;
     }
   }
 
@@ -529,6 +556,7 @@ const postShellStyle: CSSProperties = {
               onLoadComments={handleLoadComments}
               onCreateComment={handleCreateComment}
               onDeleteComment={handleDeleteComment}
+              onToggleFlame={handleToggleFlame}
               currentUserId={currentUid}
               isOwner={isOwner}
               isModerator={isModerator}

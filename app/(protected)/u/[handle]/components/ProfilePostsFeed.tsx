@@ -11,6 +11,7 @@ import {
   fetchPostComments,
   fetchUserProfilePosts,
   softDeletePost,
+  togglePostFlame,
 } from "@/lib/posts/post-service";
 
 import { db } from "@/lib/firebase";
@@ -371,6 +372,32 @@ export default function ProfilePostsFeed({
     };
   }, [profileUid, viewerUid, showPosts, isOwner]);
 
+    async function handleToggleFlame(postId: string): Promise<void> {
+    try {
+      setError(null);
+
+      const result = await togglePostFlame(postId);
+
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                viewerHasFlamed: result.liked,
+                counts: {
+                  ...post.counts,
+                  likes: result.likes,
+                },
+              }
+            : post
+        )
+      );
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo actualizar la flamita.");
+      throw e;
+    }
+  }
+
   async function handleDeletePost(postId: string) {
     try {
       setError(null);
@@ -581,6 +608,7 @@ export default function ProfilePostsFeed({
               onLoadComments={handleLoadComments}
               onCreateComment={handleCreateComment}
               onDeleteComment={handleDeleteComment}
+              onToggleFlame={handleToggleFlame}
               currentUserId={viewerUid}
               isOwner={false}
               isModerator={post.canModerateGroupAuthor === true}
