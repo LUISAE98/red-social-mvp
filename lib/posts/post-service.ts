@@ -65,6 +65,13 @@ type TogglePostFlameResponse = {
   likes: number;
 };
 
+export type PostFlameUser = {
+  userId: string;
+  displayName: string;
+  username?: string | null;
+  avatarUrl?: string | null;
+};
+
 function pickString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
@@ -1020,6 +1027,40 @@ export async function deletePostComment(params: {
   }
 
   await deleteDoc(commentRef);
+}
+
+export async function fetchPostFlameUsers(
+  postId: string
+): Promise<PostFlameUser[]> {
+  assertValidId(postId, "postId");
+
+  const snap = await getDocs(
+    query(
+      collection(db, "posts", postId, "reactions"),
+      orderBy("createdAt", "desc"),
+      limit(100)
+    )
+  );
+
+  const userIds = snap.docs
+    .map((reactionDoc) => {
+      const data = reactionDoc.data() as Record<string, unknown>;
+      return typeof data.userId === "string" ? data.userId.trim() : "";
+    })
+    .filter(Boolean);
+
+  const userMap = await fetchUsersByIds(userIds);
+
+  return userIds.map((userId) => {
+    const profile = userMap[userId];
+
+    return {
+      userId,
+      displayName: profile?.displayName || userId || "Usuario",
+      username: profile?.username ?? null,
+      avatarUrl: profile?.avatarUrl ?? null,
+    };
+  });
 }
 
 export async function togglePostFlame(postId: string): Promise<TogglePostFlameResponse> {

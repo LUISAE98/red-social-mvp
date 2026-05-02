@@ -12,6 +12,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { Comment, Post } from "@/lib/posts/types";
+import PostFlamesPanel, { type PostFlameUser } from "./PostFlamesPanel";
+import { fetchPostFlameUsers } from "@/lib/posts/post-service";
 import {
   banGroupMember,
   muteGroupMember,
@@ -391,6 +393,10 @@ export default function GroupPostCard({
   const [muteDays, setMuteDays] = useState("7");
   const [inlineActionError, setInlineActionError] = useState<string | null>(null);
     const [flameBusy, setFlameBusy] = useState(false);
+    const [flamesPanelOpen, setFlamesPanelOpen] = useState(false);
+const [flameUsers, setFlameUsers] = useState<PostFlameUser[]>([]);
+const [loadingFlameUsers, setLoadingFlameUsers] = useState(false);
+const [flameUsersError, setFlameUsersError] = useState<string | null>(null);
     const [failedMediaUrls, setFailedMediaUrls] = useState<Record<string, boolean>>({});
 
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
@@ -584,6 +590,21 @@ export default function GroupPostCard({
   async function refreshAfterModeration() {
     await onModerationComplete?.();
   }
+
+  async function handleOpenFlamesPanel() {
+  try {
+    setFlamesPanelOpen(true);
+    setLoadingFlameUsers(true);
+    setFlameUsersError(null);
+
+    const users = await fetchPostFlameUsers(post.id);
+    setFlameUsers(users);
+  } catch (e: any) {
+    setFlameUsersError(e?.message ?? "No se pudieron cargar las flamitas.");
+  } finally {
+    setLoadingFlameUsers(false);
+  }
+}
 
   async function handleToggleFlame() {
     if (!currentUserId) {
@@ -991,27 +1012,16 @@ const cardStyle: CSSProperties = {
     fontSize: 12,
     lineHeight: 1.4,
   };
-    const flameButtonStyle: CSSProperties = {
-    minHeight: 32,
-    padding: "6px 10px",
-    borderRadius: 999,
-    border: post.viewerHasFlamed
-      ? "1px solid rgba(255,140,40,0.42)"
-      : "1px solid rgba(255,255,255,0.08)",
-    background: post.viewerHasFlamed
-      ? "rgba(255,120,30,0.12)"
-      : "rgba(255,255,255,0.035)",
-    color: post.viewerHasFlamed ? "#fff" : "rgba(255,255,255,0.68)",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    fontSize: 12,
-    fontWeight: 600,
-    fontFamily: fontStack,
+  const flameButtonStyle: CSSProperties = {
+    width: 28,
+    height: 28,
+    border: "none",
+    background: "transparent",
+    padding: 0,
+    display: "inline-grid",
+    placeItems: "center",
     cursor: flameBusy ? "not-allowed" : "pointer",
     opacity: flameBusy ? 0.65 : 1,
-    whiteSpace: "nowrap",
     WebkitTapHighlightColor: "transparent",
   };
 
@@ -1022,6 +1032,20 @@ const cardStyle: CSSProperties = {
     filter: post.viewerHasFlamed ? "none" : "grayscale(1)",
     opacity: post.viewerHasFlamed ? 1 : 0.52,
   };
+
+    const flameCountButtonStyle: CSSProperties = {
+    border: "none",
+    background: "transparent",
+    padding: 0,
+    color: "rgba(255,255,255,0.72)",
+    fontSize: 12.5,
+    fontWeight: 600,
+    fontFamily: fontStack,
+    lineHeight: 1,
+    cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+  };
+
   const mediaStatusStyle: CSSProperties = {
     marginTop: 10,
     display: "flex",
@@ -1264,14 +1288,14 @@ const cardStyle: CSSProperties = {
         </div>
       )}
 
-            <div
+      <div
         style={{
           marginTop: 12,
-          display: "flex",
+          display: "inline-flex",
           alignItems: "center",
           justifyContent: "flex-start",
-          gap: 8,
-          flexWrap: "wrap",
+          gap: 4,
+          width: "fit-content",
         }}
       >
         <button
@@ -1289,8 +1313,16 @@ const cardStyle: CSSProperties = {
           <span aria-hidden="true" style={flameIconStyle}>
             🔥
           </span>
-          <span>{post.counts?.likes ?? 0}</span>
         </button>
+
+<button
+  type="button"
+  onClick={handleOpenFlamesPanel}
+  style={flameCountButtonStyle}
+  aria-label="Ver usuarios que dieron flamita"
+>
+  {post.counts?.likes ?? 0}
+</button>
       </div>
 
       <div
@@ -1609,6 +1641,13 @@ const cardStyle: CSSProperties = {
           </div>,
           document.body
         )}
+              <PostFlamesPanel
+        open={flamesPanelOpen}
+        loading={loadingFlameUsers}
+        error={flameUsersError}
+        users={flameUsers}
+        onClose={() => setFlamesPanelOpen(false)}
+      />
     </article>
   );
 }
