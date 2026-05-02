@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import PostPinchZoomImage from "./PostPinchZoomImage";
 import { createPortal } from "react-dom";
 import type { Post } from "@/lib/posts/types";
 
@@ -126,15 +127,6 @@ export default function PostImageViewer({
 const [mobileCommentsOpen, setMobileCommentsOpen] = useState(false);
 const [mounted, setMounted] = useState(false);
 const [showExactDate, setShowExactDate] = useState(false);
-const [mobileScale, setMobileScale] = useState(1);
-const [mobileTranslateY, setMobileTranslateY] = useState(0);
-
-const mobileGestureRef = useRef({
-  startY: 0,
-  startDistance: 0,
-  startScale: 1,
-  isPinching: false,
-});
 
   useEffect(() => {
     setMounted(true);
@@ -143,8 +135,6 @@ const mobileGestureRef = useRef({
   useEffect(() => {
 if (!open) {
   setMobileCommentsOpen(false);
-  setMobileScale(1);
-  setMobileTranslateY(0);
   return;
 }
 
@@ -241,88 +231,11 @@ const actionGroupStyle: CSSProperties = {
         ×
       </button>
 
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          overflow: "hidden",
-          touchAction: "none",
-          WebkitOverflowScrolling: "touch",
-        }}
-        onTouchStart={(event) => {
-          if (event.touches.length === 1) {
-            mobileGestureRef.current.startY = event.touches[0].clientY;
-            mobileGestureRef.current.isPinching = false;
-          }
-
-          if (event.touches.length === 2) {
-            const firstTouch = event.touches[0];
-            const secondTouch = event.touches[1];
-
-            const distance = Math.hypot(
-              firstTouch.clientX - secondTouch.clientX,
-              firstTouch.clientY - secondTouch.clientY
-            );
-
-            mobileGestureRef.current.startDistance = distance;
-            mobileGestureRef.current.startScale = mobileScale;
-            mobileGestureRef.current.isPinching = true;
-          }
-        }}
-        onTouchMove={(event) => {
-          if (event.touches.length === 2) {
-            event.preventDefault();
-
-            const firstTouch = event.touches[0];
-            const secondTouch = event.touches[1];
-
-            const distance = Math.hypot(
-              firstTouch.clientX - secondTouch.clientX,
-              firstTouch.clientY - secondTouch.clientY
-            );
-
-            const nextScale =
-              mobileGestureRef.current.startScale *
-              (distance / Math.max(mobileGestureRef.current.startDistance, 1));
-
-            setMobileScale(Math.min(4, Math.max(1, nextScale)));
-            return;
-          }
-
-          if (
-            event.touches.length === 1 &&
-            !mobileGestureRef.current.isPinching &&
-            mobileScale === 1
-          ) {
-            const nextTranslateY =
-              event.touches[0].clientY - mobileGestureRef.current.startY;
-
-            if (nextTranslateY > 0) {
-              setMobileTranslateY(nextTranslateY);
-            }
-          }
-        }}
-        onTouchEnd={() => {
-          if (mobileTranslateY > 120 && mobileScale === 1) {
-            onClose();
-            return;
-          }
-
-          setMobileTranslateY(0);
-        }}
-      >
-        <img
-          src={image.url}
-          alt={image.altText || "Imagen de la publicación"}
-          draggable={false}
-          style={{
-            ...imageStyle,
-            minHeight: "100dvh",
-            transform: `translateY(${mobileTranslateY}px) scale(${mobileScale})`,
-            transition: mobileTranslateY === 0 ? "transform 160ms ease" : "none",
-          }}
-        />
-      </div>
+      <PostPinchZoomImage
+        src={image.url}
+        alt={image.altText || "Imagen de la publicación"}
+        onClose={onClose}
+      />
 
 <div
   style={{
