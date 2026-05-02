@@ -37,16 +37,16 @@ type GroupPostCardProps = {
   onCreateComment: (postId: string, text: string) => Promise<Comment[]>;
   onDeleteComment: (postId: string, commentId: string) => Promise<Comment[]>;
   onLoadReplies: (postId: string, commentId: string) => Promise<CommentReply[]>;
-onCreateReply: (
-  postId: string,
-  commentId: string,
-  text: string
-) => Promise<CommentReply[]>;
-onDeleteReply: (
-  postId: string,
-  commentId: string,
-  replyId: string
-) => Promise<CommentReply[]>;
+  onCreateReply: (
+    postId: string,
+    commentId: string,
+    text: string
+  ) => Promise<CommentReply[]>;
+  onDeleteReply: (
+    postId: string,
+    commentId: string,
+    replyId: string
+  ) => Promise<CommentReply[]>;
   onToggleFlame?: (postId: string) => Promise<void>;
   currentUserId?: string | null;
   isOwner?: boolean;

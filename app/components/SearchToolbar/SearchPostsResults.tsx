@@ -20,10 +20,13 @@ import {
 import { db } from "@/lib/firebase";
 import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
 
-import type { Comment, Post } from "@/lib/posts/types";
+import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import {
   createPostComment,
+  createPostCommentReply,
   deletePostComment,
+  deletePostCommentReply,
+  fetchCommentReplies,
   fetchGroupPosts,
   fetchPostComments,
   softDeletePost,
@@ -350,7 +353,7 @@ export default function SearchPostsResults({
     }
   }
 
-    async function handleToggleFlame(postId: string): Promise<void> {
+  async function handleToggleFlame(postId: string): Promise<void> {
     try {
       setError(null);
 
@@ -382,12 +385,98 @@ export default function SearchPostsResults({
 
   async function handleCreateComment(postId: string, text: string) {
     await createPostComment({ postId, text });
+
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              counts: {
+                ...post.counts,
+                comments: (post.counts?.comments ?? 0) + 1,
+              },
+            }
+          : post
+      )
+    );
+
     return await fetchPostComments(postId);
   }
 
   async function handleDeleteComment(postId: string, commentId: string) {
     await deletePostComment({ postId, commentId });
-    return await fetchPostComments(postId);
+    const comments = await fetchPostComments(postId);
+
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              counts: {
+                ...post.counts,
+                comments: Math.max(0, post.counts?.comments ?? 0),
+              },
+            }
+          : post
+      )
+    );
+
+    return comments;
+  }
+
+  async function handleLoadReplies(
+    postId: string,
+    commentId: string
+  ): Promise<CommentReply[]> {
+    return await fetchCommentReplies({ postId, commentId });
+  }
+
+  async function handleCreateReply(
+    postId: string,
+    commentId: string,
+    text: string
+  ): Promise<CommentReply[]> {
+    await createPostCommentReply({ postId, commentId, text });
+
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              counts: {
+                ...post.counts,
+                comments: (post.counts?.comments ?? 0) + 1,
+              },
+            }
+          : post
+      )
+    );
+
+    return await fetchCommentReplies({ postId, commentId });
+  }
+
+  async function handleDeleteReply(
+    postId: string,
+    commentId: string,
+    replyId: string
+  ): Promise<CommentReply[]> {
+    await deletePostCommentReply({ postId, commentId, replyId });
+
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              counts: {
+                ...post.counts,
+                comments: Math.max(0, (post.counts?.comments ?? 0) - 1),
+              },
+            }
+          : post
+      )
+    );
+
+    return await fetchCommentReplies({ postId, commentId });
   }
 
   function clearDateFilters() {
@@ -723,6 +812,9 @@ export default function SearchPostsResults({
                 onLoadComments={handleLoadComments}
                 onCreateComment={handleCreateComment}
                 onDeleteComment={handleDeleteComment}
+                onLoadReplies={handleLoadReplies}
+                onCreateReply={handleCreateReply}
+                onDeleteReply={handleDeleteReply}
                 onToggleFlame={handleToggleFlame}
                 currentUserId={userId}
                 isOwner={false}
