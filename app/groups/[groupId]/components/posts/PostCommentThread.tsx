@@ -517,11 +517,11 @@ const [exactReplyDates, setExactReplyDates] = useState<Record<string, boolean>>(
               </div>
             </div>
 
-           <div
+<div
   style={{
     display: "inline-flex",
     alignItems: "center",
-    gap: 3,
+    gap: 1,
     flexShrink: 0,
   }}
 >
@@ -536,8 +536,8 @@ const [exactReplyDates, setExactReplyDates] = useState<Record<string, boolean>>(
         : "Dar flamita al comentario"
     }
     style={{
-      width: 28,
-      height: 28,
+      width: 22,
+      height: 22,
       border: "none",
       background: "transparent",
       padding: 0,

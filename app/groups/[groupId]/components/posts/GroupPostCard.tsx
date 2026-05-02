@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import PostFlamesPanel, { type PostFlameUser } from "./PostFlamesPanel";
 import PostCommentsPanel from "./PostCommentsPanel";
+import PostImageViewer from "./PostImageViewer";
 import { fetchPostFlameUsers } from "@/lib/posts/post-service";
 import {
   banGroupMember,
@@ -463,7 +464,13 @@ onToggleFlame,
   const [loadingFlameUsers, setLoadingFlameUsers] = useState(false);
   const [flameUsersError, setFlameUsersError] = useState<string | null>(null);
   const [failedMediaUrls, setFailedMediaUrls] = useState<Record<string, boolean>>({});
+  const [loadedMediaUrls, setLoadedMediaUrls] = useState<Record<string, boolean>>({});
+  const [mediaAspectRatios, setMediaAspectRatios] = useState<Record<string, number>>({});
   const [showExactPostDate, setShowExactPostDate] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<{
+  url: string;
+  altText?: string | null;
+} | null>(null);
 
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -1100,9 +1107,9 @@ const cardStyle: CSSProperties = {
     fontSize: 12,
     lineHeight: 1.4,
   };
-  const flameButtonStyle: CSSProperties = {
-    width: 28,
-    height: 28,
+const flameButtonStyle: CSSProperties = {
+  width: 22,
+  height: 22,
     border: "none",
     background: "transparent",
     padding: 0,
@@ -1157,29 +1164,55 @@ const cardStyle: CSSProperties = {
     letterSpacing: "-0.01em",
   };
 
-    const imageGridStyle: CSSProperties = {
-    marginTop: 12,
-    display: "grid",
-    gap: 8,
-    width: "100%",
-    maxWidth: "100%",
-  };
+const imageGridStyle: CSSProperties = {
+  marginTop: 12,
+  display: "grid",
+  gap: 8,
+  width: isMobile ? "calc(100% + 24px)" : "100%",
+  maxWidth: isMobile ? "calc(100% + 24px)" : "100%",
+  marginLeft: isMobile ? -12 : 0,
+  marginRight: isMobile ? -12 : 0,
+};
 
-  const imageWrapStyle: CSSProperties = {
+function getImageWrapStyle(mediaUrl: string): CSSProperties {
+  const ratio = mediaAspectRatios[mediaUrl];
+
+  const aspectRatio =
+    typeof ratio === "number"
+      ? ratio >= 1.2
+        ? isMobile
+          ? "16 / 10"
+          : "16 / 9"
+: ratio <= 0.82
+  ? isMobile
+    ? "4 / 5"
+    : "16 / 9"
+          : "1 / 1"
+      : isMobile
+        ? "1 / 1"
+        : "16 / 10";
+
+  return {
+    position: "relative",
     width: "100%",
     maxWidth: "100%",
-    borderRadius: 12,
+    aspectRatio,
+    borderRadius: isMobile ? 0 : 12,
     overflow: "hidden",
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.04)",
+    border: isMobile ? "none" : "1px solid rgba(255,255,255,0.08)",
+    background: "#000",
   };
+}
 
-  const postImageStyle: CSSProperties = {
-    display: "block",
-    width: "100%",
-    maxHeight: isMobile ? 420 : 520,
-    objectFit: "cover",
-  };
+const postImageStyle: CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  display: "block",
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+  transition: "opacity 180ms ease",
+};
   const shouldShowActionsMenu = availableActions.length > 0;
   const commentBlockedMessage = !canCommentOnPosts
     ? buildCommentBlockedMessage(commentBlockedReason)
@@ -1401,26 +1434,99 @@ style={{
   </div>
 )}
 
-      {imageMedia.length > 0 && (
-        <div style={imageGridStyle}>
-          {imageMedia.map((media) => (
-            <div key={media.url} style={imageWrapStyle}>
-              <img
-                src={media.url}
-                alt={media.altText || "Imagen de la publicación"}
-                loading="lazy"
-                style={postImageStyle}
-                onError={() => {
-                  setFailedMediaUrls((prev) => ({
-                    ...prev,
-                    [media.url]: true,
-                  }));
-                }}
-              />
-            </div>
-          ))}
-        </div>
-      )}
+{imageMedia.length > 0 && (
+  <div style={imageGridStyle}>
+    {imageMedia.map((media) => {
+      const isLoaded = loadedMediaUrls[media.url] === true;
+
+      return (
+        <button
+  key={media.url}
+  type="button"
+onClick={() => {
+  setSelectedImage({
+    url: media.url,
+    altText: media.altText || null,
+  });
+
+  void handleOpenCommentsPanel();
+}}
+  aria-label="Abrir imagen de la publicación"
+style={{
+  ...getImageWrapStyle(media.url),
+  padding: 0,
+  cursor: "pointer",
+  display: "block",
+}}
+>
+          {!isLoaded && (
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                inset: 0,
+                background:
+                  "linear-gradient(90deg, rgba(255,255,255,0.045), rgba(255,255,255,0.075), rgba(255,255,255,0.045))",
+              }}
+            />
+          )}
+
+          {!isMobile && mediaAspectRatios[media.url] <= 0.82 && (
+  <img
+    src={media.url}
+    alt=""
+    aria-hidden="true"
+    style={{
+      position: "absolute",
+      inset: 0,
+      width: "100%",
+      height: "100%",
+      objectFit: "cover",
+      filter: "blur(22px)",
+      transform: "scale(1.08)",
+      opacity: 0.34,
+    }}
+  />
+)}
+
+          <img
+            src={media.url}
+            alt={media.altText || "Imagen de la publicación"}
+            loading="lazy"
+style={{
+  ...postImageStyle,
+  objectFit: !isMobile && mediaAspectRatios[media.url] <= 0.82 ? "contain" : "cover",
+  opacity: isLoaded ? 1 : 0,
+}}
+onLoad={(event) => {
+  const img = event.currentTarget;
+  const ratio =
+    img.naturalWidth > 0 && img.naturalHeight > 0
+      ? img.naturalWidth / img.naturalHeight
+      : 1;
+
+  setMediaAspectRatios((prev) => ({
+    ...prev,
+    [media.url]: ratio,
+  }));
+
+  setLoadedMediaUrls((prev) => ({
+    ...prev,
+    [media.url]: true,
+  }));
+}}
+            onError={() => {
+              setFailedMediaUrls((prev) => ({
+                ...prev,
+                [media.url]: true,
+              }));
+            }}
+          />
+        </button>
+      );
+    })}
+  </div>
+)}
 
 <div
   style={{
@@ -1436,7 +1542,7 @@ style={{
     style={{
       display: "inline-flex",
       alignItems: "center",
-      gap: 4,
+      gap: 2,
     }}
   >
     <button
@@ -1610,7 +1716,7 @@ style={{
           </div>,
           document.body
         )}
-         {commentsPanelOpen && (
+        {commentsPanelOpen && selectedImage === null && (
         <PostCommentsPanel
           open={commentsPanelOpen}
           isMobile={isMobile}
@@ -1643,6 +1749,67 @@ style={{
         users={flameUsers}
         onClose={() => setFlamesPanelOpen(false)}
       />
+<PostImageViewer
+  open={selectedImage !== null}
+  isMobile={isMobile}
+  image={selectedImage}
+  post={post}
+  author={{
+    authorName: postAuthor.authorName,
+    avatarUrl: postAuthor.avatarUrl,
+    profileHref: postAuthor.profileHref,
+  }}
+  group={
+    groupInfo.groupName || groupInfo.groupId
+      ? {
+          name: groupInfo.groupName || "Comunidad",
+          avatarUrl: groupInfo.groupAvatarUrl,
+          href: groupInfo.href,
+        }
+      : null
+  }
+  authorStatusBadge={authorStatusBadge}
+  relativeDate={formatRelativeDate(post.createdAt)}
+  exactDate={formatExactDate(post.createdAt)}
+  likesCount={post.counts?.likes ?? 0}
+  commentsCount={visibleCommentsTotal}
+  viewerHasFlamed={post.viewerHasFlamed === true}
+  flameBusy={flameBusy}
+  commentsContent={
+    <PostCommentsPanel
+      open={selectedImage !== null}
+      isMobile={false}
+      postId={post.id}
+      comments={comments}
+      loading={loadingComments}
+      currentUserId={currentUserId}
+      isOwner={isOwner}
+      isModerator={isModerator}
+      canCommentOnPosts={canCommentOnPosts}
+      commentBlockedMessage={commentBlockedMessage}
+      commentText={commentText}
+      creatingComment={creatingComment}
+      deletingCommentId={deletingCommentId}
+      inlineError={inlineActionError}
+      onCommentTextChange={setCommentText}
+      onClose={() => setCommentsPanelOpen(false)}
+      onCreateComment={handleCreateComment}
+      onDeleteComment={handleDeleteComment}
+      onLoadReplies={onLoadReplies}
+      onCreateReply={onCreateReply}
+      onDeleteReply={onDeleteReply}
+    />
+  }
+  onClose={() => {
+    setSelectedImage(null);
+    setCommentsPanelOpen(false);
+  }}
+  onToggleFlame={handleToggleFlame}
+  onOpenFlames={handleOpenFlamesPanel}
+  onOpenComments={() => {
+    void handleOpenCommentsPanel();
+  }}
+/>
     </article>
   );
 }
