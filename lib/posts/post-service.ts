@@ -8,6 +8,7 @@ import {
   limit,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   updateDoc,
   where,
@@ -1293,13 +1294,7 @@ export async function createPostCommentReply(params: {
     params.commentId
   );
 
-  const commentSnap = await getDoc(commentRef);
-
-  if (!commentSnap.exists()) {
-    throw new Error("El comentario ya no existe.");
-  }
-
-  await addDoc(
+  const replyRef = doc(
     collection(
       db,
       "posts",
@@ -1307,8 +1302,52 @@ export async function createPostCommentReply(params: {
       "comments",
       params.commentId,
       "replies"
-    ),
-    {
+    )
+  );
+
+  await runTransaction(db, async (transaction) => {
+    const freshPostSnap = await transaction.get(postRef);
+    const freshCommentSnap = await transaction.get(commentRef);
+
+    if (!freshPostSnap.exists()) {
+      throw new Error("La publicación ya no existe.");
+    }
+
+    if (!freshCommentSnap.exists()) {
+      throw new Error("El comentario ya no existe.");
+    }
+
+    const freshPostData = freshPostSnap.data() as Record<string, unknown>;
+    const freshPostCounts =
+      freshPostData.counts && typeof freshPostData.counts === "object"
+        ? (freshPostData.counts as Record<string, unknown>)
+        : {};
+
+    const freshPostComments =
+      typeof freshPostCounts.comments === "number"
+        ? freshPostCounts.comments
+        : 0;
+
+    const freshPostLikes =
+      typeof freshPostCounts.likes === "number" ? freshPostCounts.likes : 0;
+
+    const freshCommentData = freshCommentSnap.data() as Record<string, unknown>;
+    const freshCommentCounts =
+      freshCommentData.counts && typeof freshCommentData.counts === "object"
+        ? (freshCommentData.counts as Record<string, unknown>)
+        : {};
+
+    const freshReplies =
+      typeof freshCommentCounts.replies === "number"
+        ? freshCommentCounts.replies
+        : 0;
+
+    const freshCommentLikes =
+      typeof freshCommentCounts.likes === "number"
+        ? freshCommentCounts.likes
+        : 0;
+
+    transaction.set(replyRef, {
       postId: params.postId,
       commentId: params.commentId,
       authorId: author.uid,
@@ -1318,31 +1357,27 @@ export async function createPostCommentReply(params: {
       text: cleanText,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    }
-);
+    });
 
-const commentData = commentSnap.data() as Record<string, unknown>;
-const currentCounts =
-  commentData.counts && typeof commentData.counts === "object"
-    ? (commentData.counts as Record<string, unknown>)
-    : {};
+    transaction.update(commentRef, {
+      counts: {
+        replies: freshReplies + 1,
+        likes: freshCommentLikes,
+      },
+      updatedAt: serverTimestamp(),
+    });
 
-const currentReplies =
-  typeof currentCounts.replies === "number" ? currentCounts.replies : 0;
+    transaction.update(postRef, {
+      counts: {
+        comments: freshPostComments + 1,
+        likes: freshPostLikes,
+      },
+      updatedAt: serverTimestamp(),
+    });
+  });
 
-const currentLikes =
-  typeof currentCounts.likes === "number" ? currentCounts.likes : 0;
-
-await updateDoc(commentRef, {
-  counts: {
-    replies: currentReplies + 1,
-    likes: currentLikes,
-  },
-  updatedAt: serverTimestamp(),
-});
-
-clearPostCommentsCache(params.postId);
-clearCommentRepliesCache(params.postId, params.commentId);
+  clearPostCommentsCache(params.postId);
+  clearCommentRepliesCache(params.postId, params.commentId);
 }
 
 export async function deletePostCommentReply(params: {
@@ -1364,50 +1399,84 @@ export async function deletePostCommentReply(params: {
     params.replyId
   );
 
-  const replySnap = await getDoc(replyRef);
+  const commentRef = doc(
+    db,
+    "posts",
+    params.postId,
+    "comments",
+    params.commentId
+  );
 
-  if (!replySnap.exists()) {
-    return;
-  }
+  const postRef = doc(db, "posts", params.postId);
 
- await deleteDoc(replyRef);
+  await runTransaction(db, async (transaction) => {
+    const freshReplySnap = await transaction.get(replyRef);
+    const freshCommentSnap = await transaction.get(commentRef);
+    const freshPostSnap = await transaction.get(postRef);
 
-const commentRef = doc(
-  db,
-  "posts",
-  params.postId,
-  "comments",
-  params.commentId
-);
+    if (!freshReplySnap.exists()) {
+      return;
+    }
 
-const commentSnap = await getDoc(commentRef);
+    if (!freshCommentSnap.exists()) {
+      throw new Error("El comentario ya no existe.");
+    }
 
-if (!commentSnap.exists()) {
-  return;
-}
+    if (!freshPostSnap.exists()) {
+      throw new Error("La publicación ya no existe.");
+    }
 
-const commentData = commentSnap.data() as Record<string, unknown>;
-const currentCounts =
-  commentData.counts && typeof commentData.counts === "object"
-    ? (commentData.counts as Record<string, unknown>)
-    : {};
+    const freshCommentData = freshCommentSnap.data() as Record<string, unknown>;
+    const freshCommentCounts =
+      freshCommentData.counts && typeof freshCommentData.counts === "object"
+        ? (freshCommentData.counts as Record<string, unknown>)
+        : {};
 
-const currentReplies =
-  typeof currentCounts.replies === "number" ? currentCounts.replies : 0;
+    const freshReplies =
+      typeof freshCommentCounts.replies === "number"
+        ? freshCommentCounts.replies
+        : 0;
 
-const currentLikes =
-  typeof currentCounts.likes === "number" ? currentCounts.likes : 0;
+    const freshCommentLikes =
+      typeof freshCommentCounts.likes === "number"
+        ? freshCommentCounts.likes
+        : 0;
 
-await updateDoc(commentRef, {
-  counts: {
-    replies: Math.max(0, currentReplies - 1),
-    likes: currentLikes,
-  },
-  updatedAt: serverTimestamp(),
-});
+    const freshPostData = freshPostSnap.data() as Record<string, unknown>;
+    const freshPostCounts =
+      freshPostData.counts && typeof freshPostData.counts === "object"
+        ? (freshPostData.counts as Record<string, unknown>)
+        : {};
 
-clearPostCommentsCache(params.postId);
-clearCommentRepliesCache(params.postId, params.commentId);
+    const freshPostComments =
+      typeof freshPostCounts.comments === "number"
+        ? freshPostCounts.comments
+        : 0;
+
+    const freshPostLikes =
+      typeof freshPostCounts.likes === "number" ? freshPostCounts.likes : 0;
+
+    transaction.delete(replyRef);
+
+    transaction.update(commentRef, {
+      counts: {
+        replies: Math.max(0, freshReplies - 1),
+        likes: freshCommentLikes,
+      },
+      updatedAt: serverTimestamp(),
+    });
+
+    transaction.update(postRef, {
+      counts: {
+        comments: Math.max(0, freshPostComments - 1),
+        likes: freshPostLikes,
+      },
+      updatedAt: serverTimestamp(),
+    });
+  });
+
+  clearPostCommentsCache(params.postId);
+  clearCommentRepliesCache(params.postId, params.commentId);
 }
 
 export async function fetchPostFlameUsers(
