@@ -11,8 +11,9 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 import { createPortal } from "react-dom";
-import type { Comment, Post } from "@/lib/posts/types";
+import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import PostFlamesPanel, { type PostFlameUser } from "./PostFlamesPanel";
+import PostCommentsPanel from "./PostCommentsPanel";
 import { fetchPostFlameUsers } from "@/lib/posts/post-service";
 import {
   banGroupMember,
@@ -35,6 +36,17 @@ type GroupPostCardProps = {
   onLoadComments: (postId: string) => Promise<Comment[]>;
   onCreateComment: (postId: string, text: string) => Promise<Comment[]>;
   onDeleteComment: (postId: string, commentId: string) => Promise<Comment[]>;
+  onLoadReplies: (postId: string, commentId: string) => Promise<CommentReply[]>;
+onCreateReply: (
+  postId: string,
+  commentId: string,
+  text: string
+) => Promise<CommentReply[]>;
+onDeleteReply: (
+  postId: string,
+  commentId: string,
+  replyId: string
+) => Promise<CommentReply[]>;
   onToggleFlame?: (postId: string) => Promise<void>;
   currentUserId?: string | null;
   isOwner?: boolean;
@@ -368,8 +380,11 @@ export default function GroupPostCard({
   onDelete,
   onLoadComments,
   onCreateComment,
-  onDeleteComment,
-  onToggleFlame,
+onDeleteComment,
+onLoadReplies,
+onCreateReply,
+onDeleteReply,
+onToggleFlame,
   currentUserId = null,
   isOwner = false,
   isModerator = false,
@@ -380,6 +395,7 @@ export default function GroupPostCard({
   commentBlockedReason = null,
 }: GroupPostCardProps) {
   const [comments, setComments] = useState<Comment[] | null>(null);
+  const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [creatingComment, setCreatingComment] = useState(false);
@@ -638,16 +654,25 @@ const [flameUsersError, setFlameUsersError] = useState<string | null>(null);
     }
   }
 
-  async function handleLoadComments() {
-    try {
-      setLoadingComments(true);
-      setInlineActionError(null);
-      const nextComments = await onLoadComments(post.id);
-      setComments(nextComments);
-    } finally {
-      setLoadingComments(false);
-    }
+ async function handleOpenCommentsPanel() {
+  setCommentsPanelOpen(true);
+
+  if (comments !== null) {
+    return;
   }
+
+  try {
+    setLoadingComments(true);
+    setInlineActionError(null);
+
+    const nextComments = await onLoadComments(post.id);
+    setComments(nextComments);
+  } catch (e: any) {
+    setInlineActionError(e?.message ?? "No se pudieron cargar los comentarios.");
+  } finally {
+    setLoadingComments(false);
+  }
+}
 
   async function handleCreateComment() {
     if (!canCommentOnPosts) {
@@ -1123,6 +1148,16 @@ const cardStyle: CSSProperties = {
       )
     : [];
 
+    const visibleCommentsTotal = useMemo(() => {
+  if (comments !== null) {
+    return comments.reduce((total, comment) => {
+      return total + 1 + (comment.counts?.replies ?? 0);
+    }, 0);
+  }
+
+  return post.counts?.comments ?? 0;
+}, [comments, post.counts?.comments]);
+
   return (
     <article style={cardStyle}>
       <div
@@ -1301,243 +1336,78 @@ const cardStyle: CSSProperties = {
         </div>
       )}
 
-      <div
-        style={{
-          marginTop: 12,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "flex-start",
-          gap: 4,
-          width: "fit-content",
-        }}
-      >
-        <button
-          type="button"
-          onClick={handleToggleFlame}
-          disabled={flameBusy}
-          aria-pressed={post.viewerHasFlamed === true}
-          aria-label={
-            post.viewerHasFlamed
-              ? "Quitar flamita de la publicación"
-              : "Dar flamita a la publicación"
-          }
-          style={flameButtonStyle}
-        >
-          <span aria-hidden="true" style={flameIconStyle}>
-            🔥
-          </span>
-        </button>
-
-<button
-  type="button"
-  onClick={handleOpenFlamesPanel}
-  style={flameCountButtonStyle}
-  aria-label="Ver usuarios que dieron flamita"
->
-  {post.counts?.likes ?? 0}
-</button>
-      </div>
-
-      <div
-        style={{
-          marginTop: 14,
-          paddingTop: 12,
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-          display: "grid",
-          gap: 10,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 8,
-            flexWrap: "wrap",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11.5,
-              fontWeight: 500,
-              color: "rgba(255,255,255,0.86)",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            Comentarios
-          </div>
-
-          <button
-            type="button"
-            onClick={handleLoadComments}
-            disabled={loadingComments}
-            style={loadingComments ? disabledButtonStyle : subtleButtonStyle}
-          >
-            {loadingComments ? "Cargando..." : "Ver comentarios"}
-          </button>
-        </div>
-
-        {comments !== null && comments.length === 0 && (
-          <p
-            style={{
-              margin: 0,
-              fontSize: 12,
-              fontWeight: 300,
-              color: "rgba(255,255,255,0.56)",
-              lineHeight: 1.45,
-            }}
-          >
-            Aún no hay comentarios.
-          </p>
-        )}
-
-        {comments !== null && comments.length > 0 && (
-          <div style={{ display: "grid", gap: 12 }}>
-            {comments.map((comment) => {
-              const canDeleteComment =
-                isOwner || isModerator || currentUserId === comment.authorId;
-
-              const commentAuthor = getAuthorInfo(
-                comment as unknown as { authorId?: string | null } & Record<string, unknown>
-              );
-
-              return (
-                <div
-                  key={comment.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    justifyContent: "space-between",
-                    gap: 10,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 10,
-                      minWidth: 0,
-                      flex: 1,
-                    }}
-                  >
-                    <Link
-                      href={commentAuthor.profileHref}
-                      style={{
-                        display: "inline-flex",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Avatar
-                        name={commentAuthor.authorName}
-                        avatarUrl={commentAuthor.avatarUrl}
-                        size={30}
-                      />
-                    </Link>
-
-                    <div style={{ minWidth: 0, flex: 1 }}>
-                      <Link
-                        href={commentAuthor.profileHref}
-                        style={{
-                          display: "inline-block",
-                          color: "#fff",
-                          textDecoration: "none",
-                          fontSize: 12,
-                          fontWeight: 500,
-                          lineHeight: 1.15,
-                          letterSpacing: "-0.02em",
-                        }}
-                      >
-                        {commentAuthor.authorName}
-                      </Link>
-
-                      <div
-                        style={{
-                          marginTop: 5,
-                          fontSize: 12.5,
-                          fontWeight: 300,
-                          lineHeight: 1.6,
-                          color: "rgba(255,255,255,0.9)",
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {comment.text}
-                      </div>
-                    </div>
-                  </div>
-
-                  {canDeleteComment && (
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteComment(comment.id)}
-                      disabled={deletingCommentId === comment.id}
-                      style={
-                        deletingCommentId === comment.id
-                          ? disabledButtonStyle
-                          : subtleButtonStyle
-                      }
-                    >
-                      {deletingCommentId === comment.id
-                        ? "Eliminando..."
-                        : "Eliminar"}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {inlineActionError && (
-          <div style={inlineErrorStyle}>{inlineActionError}</div>
-        )}
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-end",
-            gap: 10,
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <AutoGrowTextarea
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder={
-                canCommentOnPosts
-                  ? "Escribe un comentario..."
-                  : "Comentarios bloqueados en esta comunidad"
-              }
-              maxRows={3}
-              style={canCommentOnPosts ? inputStyle : disabledTextareaStyle}
-              disabled={!canCommentOnPosts}
-            />
-            {!canCommentOnPosts && commentBlockedMessage && (
-              <div style={blockedHintStyle}>{commentBlockedMessage}</div>
-            )}
-          </div>
-
-<button
-  type="button"
-  onClick={handleCreateComment}
-  disabled={
-    !canCommentOnPosts ||
-    creatingComment ||
-    commentText.trim().length === 0
-  }
+<div
   style={{
-    ...(!canCommentOnPosts ||
-    creatingComment ||
-    commentText.trim().length === 0
-      ? disabledButtonStyle
-      : primaryButtonStyle),
-    flexShrink: 0,
+    marginTop: 12,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: 14,
+    width: "fit-content",
   }}
 >
-            {creatingComment ? "Comentando..." : "Comentar"}
-          </button>
-        </div>
-      </div>
+  <div
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 4,
+    }}
+  >
+    <button
+      type="button"
+      onClick={handleToggleFlame}
+      disabled={flameBusy}
+      aria-pressed={post.viewerHasFlamed === true}
+      aria-label={
+        post.viewerHasFlamed
+          ? "Quitar flamita de la publicación"
+          : "Dar flamita a la publicación"
+      }
+      style={flameButtonStyle}
+    >
+      <span aria-hidden="true" style={flameIconStyle}>
+        🔥
+      </span>
+    </button>
+
+    <button
+      type="button"
+      onClick={handleOpenFlamesPanel}
+      style={flameCountButtonStyle}
+      aria-label="Ver usuarios que dieron flamita"
+    >
+      {post.counts?.likes ?? 0}
+    </button>
+  </div>
+
+  <button
+    type="button"
+    onClick={handleOpenCommentsPanel}
+    disabled={loadingComments}
+    aria-label="Abrir comentarios"
+    style={{
+      border: "none",
+      background: "transparent",
+      padding: 0,
+      color: "rgba(255,255,255,0.72)",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 5,
+      fontSize: 12.5,
+      fontWeight: 600,
+      fontFamily: fontStack,
+      lineHeight: 1,
+      cursor: loadingComments ? "not-allowed" : "pointer",
+      opacity: loadingComments ? 0.62 : 1,
+      WebkitTapHighlightColor: "transparent",
+    }}
+  >
+    <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1 }}>
+      💬
+    </span>
+    <span>{visibleCommentsTotal}</span>
+  </button>
+</div>
 
       {menuOpen &&
         menuPosition &&
@@ -1654,7 +1524,33 @@ const cardStyle: CSSProperties = {
           </div>,
           document.body
         )}
-              <PostFlamesPanel
+         {commentsPanelOpen && (
+        <PostCommentsPanel
+          open={commentsPanelOpen}
+          isMobile={isMobile}
+          postId={post.id}
+          comments={comments}
+          loading={loadingComments}
+          currentUserId={currentUserId}
+          isOwner={isOwner}
+          isModerator={isModerator}
+          canCommentOnPosts={canCommentOnPosts}
+          commentBlockedMessage={commentBlockedMessage}
+          commentText={commentText}
+          creatingComment={creatingComment}
+          deletingCommentId={deletingCommentId}
+          inlineError={inlineActionError}
+          onCommentTextChange={setCommentText}
+          onClose={() => setCommentsPanelOpen(false)}
+          onCreateComment={handleCreateComment}
+          onDeleteComment={handleDeleteComment}
+          onLoadReplies={onLoadReplies}
+          onCreateReply={onCreateReply}
+          onDeleteReply={onDeleteReply}
+        />
+      )}
+
+      <PostFlamesPanel
         open={flamesPanelOpen}
         loading={loadingFlameUsers}
         error={flameUsersError}

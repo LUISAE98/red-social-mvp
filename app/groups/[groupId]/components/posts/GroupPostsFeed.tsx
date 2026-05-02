@@ -5,12 +5,15 @@ import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import type { Comment, Post } from "@/lib/posts/types";
+import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import {
   createImagePost,
   createPostComment,
+  createPostCommentReply,
   createTextPost,
   deletePostComment,
+  deletePostCommentReply,
+  fetchCommentReplies,
   fetchGroupPosts,
   fetchPostComments,
   softDeletePost,
@@ -382,6 +385,44 @@ function redirectToLogin() {
     }
   }
 
+async function syncPostCommentsCount(postId: string) {
+  const comments = await fetchPostComments(postId);
+
+  const repliesCounts = await Promise.all(
+    comments.map(async (comment) => {
+      try {
+        const replies = await fetchCommentReplies({
+          postId,
+          commentId: comment.id,
+        });
+
+        return replies.length;
+      } catch {
+        return comment.counts?.replies ?? 0;
+      }
+    })
+  );
+
+  const total =
+    comments.length + repliesCounts.reduce((sum, count) => sum + count, 0);
+
+  setPosts((prev) =>
+    prev.map((post) =>
+      post.id === postId
+        ? {
+            ...post,
+            counts: {
+              ...post.counts,
+              comments: total,
+            },
+          }
+        : post
+    )
+  );
+
+  return comments;
+}
+
   async function handleCreateComment(
     postId: string,
     text: string
@@ -393,7 +434,8 @@ function redirectToLogin() {
     try {
       setError(null);
       await createPostComment({ postId, text });
-      return await fetchPostComments(postId);
+
+return await syncPostCommentsCount(postId);
     } catch (e: any) {
       throw e;
     }
@@ -406,9 +448,63 @@ function redirectToLogin() {
     try {
       setError(null);
       await deletePostComment({ postId, commentId });
-      return await fetchPostComments(postId);
+
+return await syncPostCommentsCount(postId);
     } catch (e: any) {
       setError(e?.message ?? "No se pudo eliminar el comentario.");
+      throw e;
+    }
+  }
+
+    async function handleLoadReplies(
+    postId: string,
+    commentId: string
+  ): Promise<CommentReply[]> {
+    try {
+      setError(null);
+      return await fetchCommentReplies({ postId, commentId });
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudieron cargar las respuestas.");
+      throw e;
+    }
+  }
+
+  async function handleCreateReply(
+    postId: string,
+    commentId: string,
+    text: string
+  ): Promise<CommentReply[]> {
+    if (!guardCreateComment()) {
+      throw new Error(buildCommentBlockedMessage(commentBlockedReason));
+    }
+
+    try {
+      setError(null);
+await createPostCommentReply({ postId, commentId, text });
+
+await syncPostCommentsCount(postId);
+
+return await fetchCommentReplies({ postId, commentId });
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo crear la respuesta.");
+      throw e;
+    }
+  }
+
+  async function handleDeleteReply(
+    postId: string,
+    commentId: string,
+    replyId: string
+  ): Promise<CommentReply[]> {
+    try {
+      setError(null);
+await deletePostCommentReply({ postId, commentId, replyId });
+
+await syncPostCommentsCount(postId);
+
+return await fetchCommentReplies({ postId, commentId });
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo eliminar la respuesta.");
       throw e;
     }
   }
@@ -556,13 +652,18 @@ const postShellStyle: CSSProperties = {
               onLoadComments={handleLoadComments}
               onCreateComment={handleCreateComment}
               onDeleteComment={handleDeleteComment}
-              onToggleFlame={handleToggleFlame}
+              onLoadReplies={handleLoadReplies}
+              onCreateReply={handleCreateReply}
+              onDeleteReply={handleDeleteReply}
+              onToggleFlame={handleToggleFlame}  
               currentUserId={currentUid}
               isOwner={isOwner}
               isModerator={isModerator}
               showGroupContext={false}
               canModerateGroupAuthor={isOwner || isModerator}
               onModerationComplete={loadPosts}
+              canCommentOnPosts={canCommentOnPosts}
+              commentBlockedReason={commentBlockedReason}
             />
           </div>
         );

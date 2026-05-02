@@ -108,3 +108,5 @@ export {
 export { updateProfileDisplayName } from "./profileSettings";
 // Post reactions
 export { togglePostFlame } from "./postReactions";
+// Post comments
+export { toggleCommentFlame } from "./postComments";

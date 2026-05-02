@@ -4,10 +4,13 @@ import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 
-import type { Comment, Post } from "@/lib/posts/types";
+import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import {
   createPostComment,
+  createPostCommentReply,
   deletePostComment,
+  deletePostCommentReply,
+  fetchCommentReplies,
   fetchPostComments,
   fetchUserProfilePosts,
   softDeletePost,
@@ -419,14 +422,52 @@ export default function ProfilePostsFeed({
     }
   }
 
+  async function syncPostCommentsCount(postId: string) {
+  const comments = await fetchPostComments(postId);
+
+  const repliesCounts = await Promise.all(
+    comments.map(async (comment) => {
+      try {
+        const replies = await fetchCommentReplies({
+          postId,
+          commentId: comment.id,
+        });
+
+        return replies.length;
+      } catch {
+        return comment.counts?.replies ?? 0;
+      }
+    })
+  );
+
+  const total =
+    comments.length + repliesCounts.reduce((sum, count) => sum + count, 0);
+
+  setPosts((prev) =>
+    prev.map((post) =>
+      post.id === postId
+        ? {
+            ...post,
+            counts: {
+              ...post.counts,
+              comments: total,
+            },
+          }
+        : post
+    )
+  );
+
+  return comments;
+}
+
   async function handleCreateComment(
     postId: string,
     text: string
   ): Promise<Comment[]> {
     try {
       setError(null);
-      await createPostComment({ postId, text });
-      return await fetchPostComments(postId);
+await createPostComment({ postId, text });
+return await syncPostCommentsCount(postId);
     } catch (e: any) {
       setError(e?.message ?? "Error desconocido");
       throw e;
@@ -439,10 +480,59 @@ export default function ProfilePostsFeed({
   ): Promise<Comment[]> {
     try {
       setError(null);
-      await deletePostComment({ postId, commentId });
-      return await fetchPostComments(postId);
+await deletePostComment({ postId, commentId });
+return await syncPostCommentsCount(postId);
     } catch (e: any) {
       setError(e?.message ?? "Error desconocido");
+      throw e;
+    }
+  }
+
+    async function handleLoadReplies(
+    postId: string,
+    commentId: string
+  ): Promise<CommentReply[]> {
+    try {
+      setError(null);
+      return await fetchCommentReplies({ postId, commentId });
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudieron cargar las respuestas.");
+      throw e;
+    }
+  }
+
+  async function handleCreateReply(
+    postId: string,
+    commentId: string,
+    text: string
+  ): Promise<CommentReply[]> {
+    try {
+      setError(null);
+await createPostCommentReply({ postId, commentId, text });
+
+await syncPostCommentsCount(postId);
+
+return await fetchCommentReplies({ postId, commentId });
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo crear la respuesta.");
+      throw e;
+    }
+  }
+
+  async function handleDeleteReply(
+    postId: string,
+    commentId: string,
+    replyId: string
+  ): Promise<CommentReply[]> {
+    try {
+      setError(null);
+await deletePostCommentReply({ postId, commentId, replyId });
+
+await syncPostCommentsCount(postId);
+
+return await fetchCommentReplies({ postId, commentId });
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo eliminar la respuesta.");
       throw e;
     }
   }
@@ -607,8 +697,11 @@ export default function ProfilePostsFeed({
               onDelete={canDeletePost ? handleDeletePost : undefined}
               onLoadComments={handleLoadComments}
               onCreateComment={handleCreateComment}
-              onDeleteComment={handleDeleteComment}
-              onToggleFlame={handleToggleFlame}
+onDeleteComment={handleDeleteComment}
+onLoadReplies={handleLoadReplies}
+onCreateReply={handleCreateReply}
+onDeleteReply={handleDeleteReply}
+onToggleFlame={handleToggleFlame}
               currentUserId={viewerUid}
               isOwner={false}
               isModerator={post.canModerateGroupAuthor === true}

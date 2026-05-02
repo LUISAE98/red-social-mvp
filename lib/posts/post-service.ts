@@ -15,7 +15,13 @@ import {
 } from "firebase/firestore";
 import { auth, db, functions } from "@/lib/firebase";
 import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
-import type { Comment, GroupVisibility, Post, PostMedia } from "./types";
+import type {
+  Comment,
+  CommentReply,
+  GroupVisibility,
+  Post,
+  PostMedia,
+} from "./types";
 import { httpsCallable } from "firebase/functions";
 
 type AuthorSnapshot = {
@@ -65,12 +71,40 @@ type TogglePostFlameResponse = {
   likes: number;
 };
 
+type ToggleCommentFlameResponse = {
+  liked: boolean;
+  likes: number;
+};
+
 export type PostFlameUser = {
   userId: string;
   displayName: string;
   username?: string | null;
   avatarUrl?: string | null;
 };
+
+const POST_COMMENTS_CACHE = new Map<string, Comment[]>();
+const COMMENT_REPLIES_CACHE = new Map<string, CommentReply[]>();
+
+function getCommentRepliesCacheKey(postId: string, commentId: string): string {
+  return `${postId}__${commentId}`;
+}
+
+function clearPostCommentsCache(postId: string) {
+  Array.from(POST_COMMENTS_CACHE.keys()).forEach((key) => {
+    if (key.startsWith(`${postId}__`)) {
+      POST_COMMENTS_CACHE.delete(key);
+    }
+  });
+}
+
+function clearCommentRepliesCache(postId: string, commentId: string) {
+  COMMENT_REPLIES_CACHE.delete(getCommentRepliesCacheKey(postId, commentId));
+}
+
+function getPostCommentsCacheKey(postId: string, viewerUid?: string | null): string {
+  return `${postId}__${viewerUid || "anon"}`;
+}
 
 function pickString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0
@@ -414,6 +448,72 @@ function hydrateComment(
   raw: Comment,
   userMap: Record<string, UserProfileLookup>
 ): Comment {
+  const profile = userMap[raw.authorId];
+
+  return {
+    ...raw,
+    authorName:
+      profile?.displayName || raw.authorName || raw.authorId || "Usuario",
+    authorAvatarUrl: profile?.avatarUrl ?? raw.authorAvatarUrl ?? null,
+    authorUsername: profile?.username ?? raw.authorUsername ?? null,
+    counts: {
+      replies: raw.counts?.replies ?? 0,
+      likes: raw.counts?.likes ?? 0,
+    },
+    viewerHasFlamed: raw.viewerHasFlamed ?? false,
+  };
+}
+
+async function attachViewerCommentFlameState(
+  postId: string,
+  comments: Comment[],
+  viewerUid?: string | null
+): Promise<Comment[]> {
+  const uid = viewerUid || auth.currentUser?.uid || null;
+
+  if (!uid || comments.length === 0) {
+    return comments.map((comment) => ({
+      ...comment,
+      viewerHasFlamed: false,
+    }));
+  }
+
+  const commentIds = new Set(comments.map((comment) => comment.id));
+  const likedCommentIds = new Set<string>();
+
+  try {
+    const snap = await getDocs(collection(db, "users", uid, "commentFlames"));
+
+    snap.docs.forEach((flameDoc) => {
+      const data = flameDoc.data() as Record<string, unknown>;
+
+      const flamePostId =
+        typeof data.postId === "string" ? data.postId.trim() : "";
+
+      const flameCommentId =
+        typeof data.commentId === "string" ? data.commentId.trim() : "";
+
+      if (flamePostId === postId && commentIds.has(flameCommentId)) {
+        likedCommentIds.add(flameCommentId);
+      }
+    });
+  } catch {
+    return comments.map((comment) => ({
+      ...comment,
+      viewerHasFlamed: false,
+    }));
+  }
+
+  return comments.map((comment) => ({
+    ...comment,
+    viewerHasFlamed: likedCommentIds.has(comment.id),
+  }));
+}
+
+function hydrateCommentReply(
+  raw: CommentReply,
+  userMap: Record<string, UserProfileLookup>
+): CommentReply {
   const profile = userMap[raw.authorId];
 
   return {
@@ -954,9 +1054,18 @@ export async function softDeletePost(postId: string): Promise<void> {
 export async function fetchPostComments(postId: string): Promise<Comment[]> {
   assertValidId(postId, "postId");
 
+const viewerUid = auth.currentUser?.uid ?? null;
+const cacheKey = getPostCommentsCacheKey(postId, viewerUid);
+
+const cached = POST_COMMENTS_CACHE.get(cacheKey);
+if (cached) {
+  return cached;
+}
+
   const q = query(
     collection(db, "posts", postId, "comments"),
-    orderBy("createdAt", "asc")
+    orderBy("createdAt", "asc"),
+    limit(30)
   );
 
   const snap = await getDocs(q);
@@ -970,7 +1079,19 @@ export async function fetchPostComments(postId: string): Promise<Comment[]> {
     rawComments.map((comment) => comment.authorId)
   );
 
-  return rawComments.map((comment) => hydrateComment(comment, userMap));
+  const hydratedComments = rawComments.map((comment) =>
+    hydrateComment(comment, userMap)
+  );
+
+const commentsWithViewerState = await attachViewerCommentFlameState(
+  postId,
+  hydratedComments,
+  viewerUid
+);
+
+POST_COMMENTS_CACHE.set(cacheKey, commentsWithViewerState);
+
+return commentsWithViewerState;
 }
 
 export async function createPostComment(params: {
@@ -1001,15 +1122,40 @@ export async function createPostComment(params: {
 
   await ensureUserCanCommentInGroup(groupId, author.uid);
 
-  await addDoc(collection(db, "posts", params.postId, "comments"), {
-    authorId: author.uid,
-    authorName: author.authorName,
-    authorAvatarUrl: author.authorAvatarUrl,
-    authorUsername: author.authorUsername,
-    text: cleanText,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+await addDoc(collection(db, "posts", params.postId, "comments"), {
+  authorId: author.uid,
+  authorName: author.authorName,
+  authorAvatarUrl: author.authorAvatarUrl,
+  authorUsername: author.authorUsername,
+  text: cleanText,
+  createdAt: serverTimestamp(),
+  updatedAt: serverTimestamp(),
+  counts: {
+    replies: 0,
+    likes: 0,
+  },
+});
+
+const currentCounts =
+  postData.counts && typeof postData.counts === "object"
+    ? (postData.counts as Record<string, unknown>)
+    : {};
+
+const currentComments =
+  typeof currentCounts.comments === "number" ? currentCounts.comments : 0;
+
+const currentLikes =
+  typeof currentCounts.likes === "number" ? currentCounts.likes : 0;
+
+await updateDoc(postRef, {
+  counts: {
+    comments: currentComments + 1,
+    likes: currentLikes,
+  },
+  updatedAt: serverTimestamp(),
+});
+
+clearPostCommentsCache(params.postId);
 }
 
 export async function deletePostComment(params: {
@@ -1026,7 +1172,242 @@ export async function deletePostComment(params: {
     return;
   }
 
-  await deleteDoc(commentRef);
+const postRef = doc(db, "posts", params.postId);
+const postSnap = await getDoc(postRef);
+
+if (!postSnap.exists()) {
+  return;
+}
+
+const postData = postSnap.data() as Record<string, unknown>;
+const currentCounts =
+  postData.counts && typeof postData.counts === "object"
+    ? (postData.counts as Record<string, unknown>)
+    : {};
+
+const currentComments =
+  typeof currentCounts.comments === "number" ? currentCounts.comments : 0;
+
+const currentLikes =
+  typeof currentCounts.likes === "number" ? currentCounts.likes : 0;
+
+await deleteDoc(commentRef);
+
+await updateDoc(postRef, {
+  counts: {
+    comments: Math.max(0, currentComments - 1),
+    likes: currentLikes,
+  },
+  updatedAt: serverTimestamp(),
+});
+
+clearPostCommentsCache(params.postId);
+clearCommentRepliesCache(params.postId, params.commentId);
+}
+
+export async function fetchCommentReplies(params: {
+  postId: string;
+  commentId: string;
+}): Promise<CommentReply[]> {
+  assertValidId(params.postId, "postId");
+  assertValidId(params.commentId, "commentId");
+
+  const cacheKey = getCommentRepliesCacheKey(params.postId, params.commentId);
+  const cached = COMMENT_REPLIES_CACHE.get(cacheKey);
+
+  if (cached) {
+    return cached;
+  }
+
+  const q = query(
+    collection(
+      db,
+      "posts",
+      params.postId,
+      "comments",
+      params.commentId,
+      "replies"
+    ),
+    orderBy("createdAt", "asc"),
+    limit(30)
+  );
+
+  const snap = await getDocs(q);
+
+  const rawReplies: CommentReply[] = snap.docs.map((d) => ({
+    id: d.id,
+    postId: params.postId,
+    commentId: params.commentId,
+    ...(d.data() as Omit<CommentReply, "id" | "postId" | "commentId">),
+  }));
+
+  const userMap = await fetchUsersByIds(
+    rawReplies.map((reply) => reply.authorId)
+  );
+
+  const hydratedReplies = rawReplies.map((reply) =>
+    hydrateCommentReply(reply, userMap)
+  );
+
+  COMMENT_REPLIES_CACHE.set(cacheKey, hydratedReplies);
+
+  return hydratedReplies;
+}
+
+export async function createPostCommentReply(params: {
+  postId: string;
+  commentId: string;
+  text: string;
+}): Promise<void> {
+  assertValidId(params.postId, "postId");
+  assertValidId(params.commentId, "commentId");
+
+  const cleanText = params.text.trim();
+  if (!cleanText) {
+    throw new Error("Escribe una respuesta antes de enviar.");
+  }
+
+  const author = await getCurrentAuthorSnapshot();
+
+  const postRef = doc(db, "posts", params.postId);
+  const postSnap = await getDoc(postRef);
+
+  if (!postSnap.exists()) {
+    throw new Error("La publicación no existe.");
+  }
+
+  const postData = postSnap.data() as Record<string, unknown>;
+  const groupId = pickString(postData.groupId);
+
+  if (!groupId) {
+    throw new Error("La publicación no pertenece a una comunidad válida.");
+  }
+
+  await ensureUserCanCommentInGroup(groupId, author.uid);
+
+  const commentRef = doc(
+    db,
+    "posts",
+    params.postId,
+    "comments",
+    params.commentId
+  );
+
+  const commentSnap = await getDoc(commentRef);
+
+  if (!commentSnap.exists()) {
+    throw new Error("El comentario ya no existe.");
+  }
+
+  await addDoc(
+    collection(
+      db,
+      "posts",
+      params.postId,
+      "comments",
+      params.commentId,
+      "replies"
+    ),
+    {
+      postId: params.postId,
+      commentId: params.commentId,
+      authorId: author.uid,
+      authorName: author.authorName,
+      authorAvatarUrl: author.authorAvatarUrl,
+      authorUsername: author.authorUsername,
+      text: cleanText,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    }
+);
+
+const commentData = commentSnap.data() as Record<string, unknown>;
+const currentCounts =
+  commentData.counts && typeof commentData.counts === "object"
+    ? (commentData.counts as Record<string, unknown>)
+    : {};
+
+const currentReplies =
+  typeof currentCounts.replies === "number" ? currentCounts.replies : 0;
+
+const currentLikes =
+  typeof currentCounts.likes === "number" ? currentCounts.likes : 0;
+
+await updateDoc(commentRef, {
+  counts: {
+    replies: currentReplies + 1,
+    likes: currentLikes,
+  },
+  updatedAt: serverTimestamp(),
+});
+
+clearPostCommentsCache(params.postId);
+clearCommentRepliesCache(params.postId, params.commentId);
+}
+
+export async function deletePostCommentReply(params: {
+  postId: string;
+  commentId: string;
+  replyId: string;
+}): Promise<void> {
+  assertValidId(params.postId, "postId");
+  assertValidId(params.commentId, "commentId");
+  assertValidId(params.replyId, "replyId");
+
+  const replyRef = doc(
+    db,
+    "posts",
+    params.postId,
+    "comments",
+    params.commentId,
+    "replies",
+    params.replyId
+  );
+
+  const replySnap = await getDoc(replyRef);
+
+  if (!replySnap.exists()) {
+    return;
+  }
+
+ await deleteDoc(replyRef);
+
+const commentRef = doc(
+  db,
+  "posts",
+  params.postId,
+  "comments",
+  params.commentId
+);
+
+const commentSnap = await getDoc(commentRef);
+
+if (!commentSnap.exists()) {
+  return;
+}
+
+const commentData = commentSnap.data() as Record<string, unknown>;
+const currentCounts =
+  commentData.counts && typeof commentData.counts === "object"
+    ? (commentData.counts as Record<string, unknown>)
+    : {};
+
+const currentReplies =
+  typeof currentCounts.replies === "number" ? currentCounts.replies : 0;
+
+const currentLikes =
+  typeof currentCounts.likes === "number" ? currentCounts.likes : 0;
+
+await updateDoc(commentRef, {
+  counts: {
+    replies: Math.max(0, currentReplies - 1),
+    likes: currentLikes,
+  },
+  updatedAt: serverTimestamp(),
+});
+
+clearPostCommentsCache(params.postId);
+clearCommentRepliesCache(params.postId, params.commentId);
 }
 
 export async function fetchPostFlameUsers(
@@ -1076,6 +1457,35 @@ export async function togglePostFlame(postId: string): Promise<TogglePostFlameRe
   );
 
   const result = await callable({ postId });
+
+  return {
+    liked: Boolean(result.data.liked),
+    likes: Number(result.data.likes ?? 0),
+  };
+}
+
+export async function toggleCommentFlame(params: {
+  postId: string;
+  commentId: string;
+}): Promise<ToggleCommentFlameResponse> {
+  assertValidId(params.postId, "postId");
+  assertValidId(params.commentId, "commentId");
+
+  if (!auth.currentUser?.uid) {
+    throw new Error("Debes iniciar sesión para reaccionar.");
+  }
+
+  const callable = httpsCallable<
+    { postId: string; commentId: string },
+    ToggleCommentFlameResponse
+  >(functions, "toggleCommentFlame");
+
+  const result = await callable({
+    postId: params.postId,
+    commentId: params.commentId,
+  });
+
+  clearPostCommentsCache(params.postId);
 
   return {
     liked: Boolean(result.data.liked),

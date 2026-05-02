@@ -1,0 +1,386 @@
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type TextareaHTMLAttributes,
+} from "react";
+import { createPortal } from "react-dom";
+import type { Comment, CommentReply } from "@/lib/posts/types";
+import PostCommentThread from "./PostCommentThread";
+
+type PostCommentsPanelProps = {
+  open: boolean;
+  isMobile: boolean;
+  postId: string;
+  comments: Comment[] | null;
+  loading: boolean;
+  currentUserId?: string | null;
+  isOwner?: boolean;
+  isModerator?: boolean;
+  canCommentOnPosts: boolean;
+  commentBlockedMessage: string | null;
+  commentText: string;
+  creatingComment: boolean;
+  deletingCommentId: string | null;
+  inlineError: string | null;
+  onCommentTextChange: (value: string) => void;
+  onClose: () => void;
+  onCreateComment: () => Promise<void>;
+  onDeleteComment: (commentId: string) => Promise<void>;
+  onLoadReplies: (postId: string, commentId: string) => Promise<CommentReply[]>;
+onCreateReply: (
+  postId: string,
+  commentId: string,
+  text: string
+) => Promise<CommentReply[]>;
+onDeleteReply: (
+  postId: string,
+  commentId: string,
+  replyId: string
+) => Promise<CommentReply[]>;
+};
+
+const fontStack =
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+
+function AutoGrowTextarea({
+  value,
+  maxRows = 3,
+  style,
+  ...props
+}: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "style"> & {
+  maxRows?: number;
+  style?: CSSProperties;
+}) {
+  const ref = useRef<HTMLTextAreaElement | null>(null);
+
+  const resize = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    el.style.height = "0px";
+
+    const computed = window.getComputedStyle(el);
+    const lineHeight = Number.parseFloat(computed.lineHeight || "20") || 20;
+    const paddingTop = Number.parseFloat(computed.paddingTop || "0") || 0;
+    const paddingBottom = Number.parseFloat(computed.paddingBottom || "0") || 0;
+    const borderTop = Number.parseFloat(computed.borderTopWidth || "0") || 0;
+    const borderBottom = Number.parseFloat(computed.borderBottomWidth || "0") || 0;
+
+    const maxHeight =
+      lineHeight * maxRows + paddingTop + paddingBottom + borderTop + borderBottom;
+
+    const nextHeight = Math.min(el.scrollHeight, maxHeight);
+    el.style.height = `${nextHeight}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, [maxRows]);
+
+  useEffect(() => {
+    resize();
+  }, [value, resize]);
+
+  return (
+    <textarea
+      {...props}
+      ref={ref}
+      value={value}
+      rows={1}
+      onInput={(event) => {
+        resize();
+        props.onInput?.(event);
+      }}
+      style={style}
+    />
+  );
+}
+
+export default function PostCommentsPanel({
+  open,
+  isMobile,
+  postId,
+  comments,
+  loading,
+  currentUserId = null,
+  isOwner = false,
+  isModerator = false,
+  canCommentOnPosts,
+  commentBlockedMessage,
+  commentText,
+  creatingComment,
+  deletingCommentId,
+  inlineError,
+  onCommentTextChange,
+  onClose,
+onCreateComment,
+onDeleteComment,
+onLoadReplies,
+onCreateReply,
+onDeleteReply,
+}: PostCommentsPanelProps) {
+  useEffect(() => {
+    if (!open || !isMobile) return;
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [open, isMobile, onClose]);
+
+  if (!open) return null;
+
+  const wrapperStyle: CSSProperties = isMobile
+    ? {
+        position: "fixed",
+        inset: 0,
+        zIndex: 99990,
+        background: "rgba(0,0,0,0.58)",
+        display: "flex",
+        alignItems: "flex-end",
+      }
+    : {
+        marginTop: 14,
+        paddingTop: 12,
+        borderTop: "1px solid rgba(255,255,255,0.06)",
+      };
+
+  const panelStyle: CSSProperties = isMobile
+    ? {
+        width: "100%",
+        maxHeight: "82dvh",
+        borderTopLeftRadius: 18,
+        borderTopRightRadius: 18,
+        border: "1px solid rgba(255,255,255,0.10)",
+        borderBottom: "none",
+        background: "rgba(12,12,12,0.98)",
+        boxShadow: "0 -18px 50px rgba(0,0,0,0.45)",
+        padding: "10px 12px 12px",
+        display: "grid",
+        gridTemplateRows: "auto 1fr auto",
+        gap: 10,
+        boxSizing: "border-box",
+      }
+    : {
+        display: "grid",
+        gap: 10,
+      };
+
+  const titleStyle: CSSProperties = {
+    margin: 0,
+    fontSize: 12.5,
+    fontWeight: 700,
+    color: "#fff",
+    letterSpacing: "-0.01em",
+  };
+
+  const closeButtonStyle: CSSProperties = {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.06)",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: 16,
+    lineHeight: 1,
+  };
+
+  const listStyle: CSSProperties = {
+    display: "grid",
+    gap: 12,
+    overflowY: isMobile ? "auto" : "visible",
+    minHeight: 0,
+    paddingRight: isMobile ? 2 : 0,
+  };
+
+  const inputStyle: CSSProperties = {
+    width: "100%",
+    minHeight: 38,
+    maxHeight: 90,
+    padding: 0,
+    border: "none",
+    borderBottom: "1px solid rgba(255,255,255,0.07)",
+    background: "transparent",
+    color: "#fff",
+    outline: "none",
+    resize: "none",
+    overflowY: "hidden",
+    fontSize: 13,
+    fontWeight: 300,
+    lineHeight: "20px",
+    fontFamily: fontStack,
+    boxSizing: "border-box",
+  };
+
+  const disabledTextareaStyle: CSSProperties = {
+    ...inputStyle,
+    color: "rgba(255,255,255,0.46)",
+    cursor: "not-allowed",
+  };
+
+  const subtleButtonStyle: CSSProperties = {
+    minHeight: 30,
+    padding: "6px 10px",
+    borderRadius: 8,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.04)",
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 11.5,
+    fontWeight: 500,
+    fontFamily: fontStack,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+
+  const primaryButtonStyle: CSSProperties = {
+    ...subtleButtonStyle,
+    background: "#fff",
+    color: "#000",
+  };
+
+  const disabledButtonStyle: CSSProperties = {
+    ...subtleButtonStyle,
+    background: "rgba(255,255,255,0.08)",
+    color: "rgba(255,255,255,0.44)",
+    cursor: "not-allowed",
+  };
+
+  const inlineErrorStyle: CSSProperties = {
+    borderRadius: 10,
+    border: "1px solid rgba(255,90,90,0.24)",
+    background: "rgba(120,18,18,0.28)",
+    color: "#ffdada",
+    padding: "10px 12px",
+    fontSize: 12,
+    lineHeight: 1.4,
+  };
+
+  const content = (
+    <div style={wrapperStyle} onClick={isMobile ? onClose : undefined}>
+      <section style={panelStyle} onClick={(e) => e.stopPropagation()}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+          }}
+        >
+          <h3 style={titleStyle}>Comentarios</h3>
+
+          {isMobile && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar comentarios"
+              style={closeButtonStyle}
+            >
+              ×
+            </button>
+          )}
+        </div>
+
+        <div style={listStyle}>
+          {loading && (
+            <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
+              Cargando comentarios...
+            </p>
+          )}
+
+          {!loading && comments !== null && comments.length === 0 && (
+            <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
+              Aún no hay comentarios.
+            </p>
+          )}
+
+{!loading &&
+  comments?.map((comment) => (
+    <PostCommentThread
+      key={comment.id}
+      postId={postId}
+      comment={comment}
+      currentUserId={currentUserId}
+      isOwner={isOwner}
+      isModerator={isModerator}
+      canCommentOnPosts={canCommentOnPosts}
+      deletingCommentId={deletingCommentId}
+      onDeleteComment={onDeleteComment}
+      onLoadReplies={onLoadReplies}
+      onCreateReply={onCreateReply}
+      onDeleteReply={onDeleteReply}
+    />
+  ))}
+        </div>
+
+        <div style={{ display: "grid", gap: 8 }}>
+          {inlineError && <div style={inlineErrorStyle}>{inlineError}</div>}
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-end",
+              gap: 10,
+            }}
+          >
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <AutoGrowTextarea
+                value={commentText}
+                onChange={(e) => onCommentTextChange(e.target.value)}
+                placeholder={
+                  canCommentOnPosts
+                    ? "Escribe un comentario..."
+                    : "Comentarios bloqueados en esta comunidad"
+                }
+                maxRows={3}
+                style={canCommentOnPosts ? inputStyle : disabledTextareaStyle}
+                disabled={!canCommentOnPosts}
+              />
+
+              {!canCommentOnPosts && commentBlockedMessage && (
+                <div
+                  style={{
+                    marginTop: 2,
+                    fontSize: 11.5,
+                    lineHeight: 1.45,
+                    color: "rgba(255,255,255,0.58)",
+                  }}
+                >
+                  {commentBlockedMessage}
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={onCreateComment}
+              disabled={
+                !canCommentOnPosts ||
+                creatingComment ||
+                commentText.trim().length === 0
+              }
+              style={
+                !canCommentOnPosts ||
+                creatingComment ||
+                commentText.trim().length === 0
+                  ? disabledButtonStyle
+                  : primaryButtonStyle
+              }
+            >
+              {creatingComment ? "Comentando..." : "Comentar"}
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+
+  if (isMobile && typeof document !== "undefined") {
+    return createPortal(content, document.body);
+  }
+
+  return content;
+}

@@ -170,11 +170,50 @@ export type Post = {
   processing?: PostProcessing | null;
 };
 
+export type CommentCounts = {
+  replies?: number;
+  likes?: number;
+};
+
+export type CommentReactionType = "flame";
+
+export type CommentReaction = {
+  id: string;
+  postId: string;
+  commentId: string;
+  userId: string;
+  type: CommentReactionType;
+  createdAt?: Timestamp | null;
+};
+
 export type Comment = {
   id: string;
   text: string;
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
+
+  authorId: string;
+  authorName?: string;
+  authorAvatarUrl?: string | null;
+  authorUsername?: string | null;
+
+  counts?: CommentCounts;
+
+  /**
+   * Estado calculado para la UI del usuario actual.
+   * No es obligatorio que exista en Firestore.
+   */
+  viewerHasFlamed?: boolean;
+};
+
+export type CommentReply = {
+  id: string;
+  text: string;
+  createdAt?: Timestamp | null;
+  updatedAt?: Timestamp | null;
+
+  postId: string;
+  commentId: string;
 
   authorId: string;
   authorName?: string;
