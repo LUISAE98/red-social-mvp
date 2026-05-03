@@ -1,4 +1,8 @@
+
 import type { Timestamp } from "firebase/firestore";
+
+export const MAX_POST_IMAGES = 10;
+export const POST_IMAGE_MEDIA_TYPE = "image";
 
 export type PostMediaType = "image" | "video";
 

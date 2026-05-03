@@ -22,7 +22,7 @@ import {
 import GroupPostCard from "./GroupPostCard";
 import GroupPostComposer from "./GroupPostComposer";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
-import { uploadPostImage } from "@/lib/posts/image-upload";
+import { uploadPostImages } from "@/lib/posts/image-upload";
 
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 
@@ -306,9 +306,9 @@ function redirectToLogin() {
   }
 
   async function handleCreatePost(payload: {
-    text: string;
-    imageFile?: File | null;
-  }) {
+  text: string;
+  imageFiles?: File[];
+}) {
     if (!guardCreatePost()) return;
 
     try {
@@ -317,20 +317,20 @@ function redirectToLogin() {
 
       const cleanText = payload.text.trim();
 
-      if (payload.imageFile) {
-        const uploadedImage = await uploadPostImage({
-          groupId,
-          file: payload.imageFile,
-        });
+if (payload.imageFiles && payload.imageFiles.length > 0) {
+  const uploadedImages = await uploadPostImages({
+    groupId,
+    files: payload.imageFiles,
+  });
 
-        await createImagePost({
-          groupId,
-          text: cleanText,
-          media: [uploadedImage],
-        });
-      } else {
-        await createTextPost({ groupId, text: cleanText });
-      }
+  await createImagePost({
+    groupId,
+    text: cleanText,
+    media: uploadedImages,
+  });
+} else {
+  await createTextPost({ groupId, text: cleanText });
+}
 
       await loadPosts();
     } catch (e: any) {

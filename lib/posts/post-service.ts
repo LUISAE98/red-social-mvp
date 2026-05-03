@@ -992,6 +992,10 @@ export async function createImagePost(params: {
       )
     : [];
 
+    if (cleanMedia.length > 10) {
+  throw new Error("Solo puedes subir hasta 10 imágenes por publicación.");
+}
+
   if (!cleanText && cleanMedia.length === 0) {
     throw new Error("Agrega texto o una imagen antes de publicar.");
   }

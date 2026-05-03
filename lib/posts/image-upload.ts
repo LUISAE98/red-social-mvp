@@ -3,6 +3,7 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { auth, storage } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import type { PostMedia } from "./types";
+import { MAX_POST_IMAGES } from "./types";
 
 const MAX_IMAGE_SIZE_BYTES = 150 * 1024 * 1024;
 
@@ -122,4 +123,26 @@ export async function uploadPostImage(params: {
     thumbnailUrl: null,
     altText: null,
   };
+}
+
+export async function uploadPostImages(params: {
+  groupId: string;
+  files: File[];
+}): Promise<PostMedia[]> {
+  if (params.files.length > MAX_POST_IMAGES) {
+    throw new Error(`Solo puedes subir hasta ${MAX_POST_IMAGES} imágenes por publicación.`);
+  }
+
+  const uploadedImages: PostMedia[] = [];
+
+  for (const file of params.files) {
+    const uploadedImage = await uploadPostImage({
+      groupId: params.groupId,
+      file,
+    });
+
+    uploadedImages.push(uploadedImage);
+  }
+
+  return uploadedImages;
 }

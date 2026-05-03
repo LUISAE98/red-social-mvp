@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import PostPinchZoomImage from "./PostPinchZoomImage";
 import { createPortal } from "react-dom";
 import type { Post } from "@/lib/posts/types";
@@ -127,10 +127,77 @@ export default function PostImageViewer({
 const [mobileCommentsOpen, setMobileCommentsOpen] = useState(false);
 const [mounted, setMounted] = useState(false);
 const [showExactDate, setShowExactDate] = useState(false);
+const [currentImageIndex, setCurrentImageIndex] = useState(0);
+const [mobileDragOffsetX, setMobileDragOffsetX] = useState(0);
+const [mobileSwipeAnimating, setMobileSwipeAnimating] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+    const imageList = useMemo<ImageMedia[]>(() => {
+    const postImages = Array.isArray(post.media)
+      ? post.media
+          .filter(
+            (item) =>
+              item.type === "image" &&
+              typeof item.url === "string" &&
+              item.url.trim().length > 0
+          )
+          .map((item) => ({
+            url: item.url,
+            altText: item.altText || null,
+          }))
+      : [];
+
+    if (postImages.length > 0) {
+      return postImages;
+    }
+
+    return image ? [image] : [];
+  }, [post.media, image]);
+
+  const currentImage =
+    imageList[currentImageIndex] ?? imageList[0] ?? image;
+
+  const totalImages = imageList.length;
+  const canNavigateImages = totalImages > 1;
+    const previousImage =
+    totalImages > 1
+      ? imageList[currentImageIndex <= 0 ? totalImages - 1 : currentImageIndex - 1]
+      : null;
+
+  const nextImage =
+    totalImages > 1
+      ? imageList[currentImageIndex >= totalImages - 1 ? 0 : currentImageIndex + 1]
+      : null;
+
+  function goToPreviousImage() {
+    if (!canNavigateImages) return;
+
+    setCurrentImageIndex((current) =>
+      current <= 0 ? totalImages - 1 : current - 1
+    );
+  }
+
+  function goToNextImage() {
+    if (!canNavigateImages) return;
+
+    setCurrentImageIndex((current) =>
+      current >= totalImages - 1 ? 0 : current + 1
+    );
+  }
+
+    useEffect(() => {
+    if (!open || imageList.length === 0) return;
+
+    const selectedUrl = image?.url;
+    const selectedIndex = selectedUrl
+      ? imageList.findIndex((item) => item.url === selectedUrl)
+      : 0;
+
+    setCurrentImageIndex(selectedIndex >= 0 ? selectedIndex : 0);
+  }, [open, image?.url, imageList]);
 
   useEffect(() => {
 if (!open) {
@@ -140,6 +207,8 @@ if (!open) {
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
+      if (event.key === "ArrowLeft") goToPreviousImage();
+      if (event.key === "ArrowRight") goToNextImage();
     }
 
     document.addEventListener("keydown", handleKeyDown);
@@ -151,7 +220,7 @@ if (!open) {
     };
   }, [open, onClose]);
 
-  if (!mounted || !open || !image) return null;
+  if (!mounted || !open || !currentImage) return null;
 
   const overlayStyle: CSSProperties = {
     position: "fixed",
@@ -231,11 +300,159 @@ const actionGroupStyle: CSSProperties = {
         ×
       </button>
 
-      <PostPinchZoomImage
-        src={image.url}
-        alt={image.altText || "Imagen de la publicación"}
-        onClose={onClose}
-      />
+<div
+  onTouchStart={(event) => {
+    if (!canNavigateImages || mobileSwipeAnimating) return;
+
+    const touch = event.touches[0];
+    if (!touch) return;
+
+    event.currentTarget.dataset.startX = String(touch.clientX);
+    event.currentTarget.dataset.startY = String(touch.clientY);
+    setMobileDragOffsetX(0);
+  }}
+  onTouchMove={(event) => {
+    if (!canNavigateImages || mobileSwipeAnimating) return;
+
+    const startX = Number(event.currentTarget.dataset.startX || 0);
+    const startY = Number(event.currentTarget.dataset.startY || 0);
+    const touch = event.touches[0];
+
+    if (!touch || !startX) return;
+
+    const diffX = touch.clientX - startX;
+    const diffY = touch.clientY - startY;
+
+    if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 18) {
+      return;
+    }
+
+    setMobileDragOffsetX(diffX);
+  }}
+  onTouchEnd={(event) => {
+    if (!canNavigateImages || mobileSwipeAnimating) return;
+
+    const startX = Number(event.currentTarget.dataset.startX || 0);
+    const startY = Number(event.currentTarget.dataset.startY || 0);
+    const touch = event.changedTouches[0];
+
+    if (!touch || !startX) {
+      setMobileDragOffsetX(0);
+      return;
+    }
+
+    const diffX = touch.clientX - startX;
+    const diffY = touch.clientY - startY;
+
+    if (Math.abs(diffX) < 65 || Math.abs(diffY) > 90) {
+      setMobileSwipeAnimating(true);
+      setMobileDragOffsetX(0);
+
+      window.setTimeout(() => {
+        setMobileSwipeAnimating(false);
+      }, 180);
+
+      return;
+    }
+
+    const direction = diffX < 0 ? "next" : "prev";
+    const targetOffset =
+      direction === "next" ? -window.innerWidth : window.innerWidth;
+
+    setMobileSwipeAnimating(true);
+    setMobileDragOffsetX(targetOffset);
+
+    window.setTimeout(() => {
+      if (direction === "next") {
+        goToNextImage();
+      } else {
+        goToPreviousImage();
+      }
+
+      setMobileDragOffsetX(0);
+      setMobileSwipeAnimating(false);
+    }, 180);
+  }}
+  style={{
+    position: "relative",
+    width: "100%",
+    height: "100%",
+    overflow: "hidden",
+    touchAction: "pan-y",
+  }}
+>
+  {previousImage && (
+    <img
+      src={previousImage.url}
+      alt={previousImage.altText || "Imagen anterior"}
+      draggable={false}
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+        background: "#000",
+        transform: `translateX(calc(-100% + ${mobileDragOffsetX}px))`,
+        transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
+      }}
+    />
+  )}
+
+  <div
+    style={{
+      position: "absolute",
+      inset: 0,
+      transform: `translateX(${mobileDragOffsetX}px)`,
+      transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
+      background: "#000",
+    }}
+  >
+    <PostPinchZoomImage
+      src={currentImage.url}
+      alt={currentImage.altText || "Imagen de la publicación"}
+      onClose={onClose}
+    />
+  </div>
+
+  {nextImage && (
+    <img
+      src={nextImage.url}
+      alt={nextImage.altText || "Imagen siguiente"}
+      draggable={false}
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+        background: "#000",
+        transform: `translateX(calc(100% + ${mobileDragOffsetX}px))`,
+        transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
+      }}
+    />
+  )}
+</div>
+
+{canNavigateImages && (
+  <div
+    style={{
+      position: "fixed",
+      right: "calc(16px + env(safe-area-inset-right))",
+      bottom: "calc(16px + env(safe-area-inset-bottom))",
+      zIndex: 2147483647,
+      minHeight: 22,
+      padding: "4px 0",
+      color: "rgba(255,255,255,0.92)",
+      fontSize: 11,
+      fontWeight: 700,
+      lineHeight: 1,
+      textShadow: "0 1px 8px rgba(0,0,0,0.75)",
+    }}
+  >
+    {currentImageIndex + 1}/{totalImages}
+  </div>
+)}
 
 <div
   style={{
@@ -520,8 +737,8 @@ const actionGroupStyle: CSSProperties = {
     ×
   </button>
   <img
-    src={image.url}
-    alt={image.altText || "Imagen de la publicación"}
+    src={currentImage.url}
+    alt={currentImage.altText || "Imagen de la publicación"}
     style={{
       display: "block",
       maxWidth: "100%",
@@ -532,6 +749,82 @@ const actionGroupStyle: CSSProperties = {
       background: "#000",
     }}
   />
+{canNavigateImages && (
+  <div
+    style={{
+      position: "absolute",
+      right: 14,
+      bottom: 14,
+      zIndex: 6,
+      minHeight: 24,
+      padding: "5px 8px",
+      borderRadius: 999,
+      background: "rgba(0,0,0,0.46)",
+      color: "rgba(255,255,255,0.88)",
+      fontSize: 11,
+      fontWeight: 650,
+      lineHeight: 1,
+    }}
+  >
+    {currentImageIndex + 1}/{totalImages}
+  </div>
+)}
+
+  {canNavigateImages && (
+    <>
+      <button
+        type="button"
+        onClick={goToPreviousImage}
+        aria-label="Ver imagen anterior"
+        style={{
+          position: "absolute",
+          left: 14,
+          top: "50%",
+          transform: "translateY(-50%)",
+          zIndex: 6,
+          width: 42,
+          height: 42,
+          borderRadius: 999,
+          border: "1px solid rgba(255,255,255,0.16)",
+          background: "rgba(0,0,0,0.48)",
+          color: "#fff",
+          fontSize: 26,
+          lineHeight: 1,
+          display: "grid",
+          placeItems: "center",
+          cursor: "pointer",
+        }}
+      >
+        ‹
+      </button>
+
+      <button
+        type="button"
+        onClick={goToNextImage}
+        aria-label="Ver imagen siguiente"
+        style={{
+          position: "absolute",
+          right: 14,
+          top: "50%",
+          transform: "translateY(-50%)",
+          zIndex: 6,
+          width: 42,
+          height: 42,
+          borderRadius: 999,
+          border: "1px solid rgba(255,255,255,0.16)",
+          background: "rgba(0,0,0,0.48)",
+          color: "#fff",
+          fontSize: 26,
+          lineHeight: 1,
+          display: "grid",
+          placeItems: "center",
+          cursor: "pointer",
+        }}
+      >
+        ›
+      </button>
+    </>
+  )}
 </div>
 
         <aside

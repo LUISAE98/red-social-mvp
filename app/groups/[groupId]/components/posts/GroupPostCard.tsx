@@ -467,10 +467,11 @@ onToggleFlame,
   const [loadedMediaUrls, setLoadedMediaUrls] = useState<Record<string, boolean>>({});
   const [mediaAspectRatios, setMediaAspectRatios] = useState<Record<string, number>>({});
   const [showExactPostDate, setShowExactPostDate] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<{
+const [selectedImage, setSelectedImage] = useState<{
   url: string;
   altText?: string | null;
 } | null>(null);
+
 
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -1436,98 +1437,276 @@ style={{
 
 {imageMedia.length > 0 && (
   <div style={imageGridStyle}>
-    {imageMedia.map((media) => {
-      const isLoaded = loadedMediaUrls[media.url] === true;
+    {(() => {
+      const totalImages = imageMedia.length;
+      const first = imageMedia[0];
+      const second = imageMedia[1] ?? null;
+      const third = imageMedia[2] ?? null;
+      const remainingCount = Math.max(0, totalImages - 3);
 
-      return (
-        <button
-  key={media.url}
-  type="button"
-onClick={() => {
-  setSelectedImage({
-    url: media.url,
-    altText: media.altText || null,
-  });
+      function openImage(media: (typeof imageMedia)[number]) {
+        setSelectedImage({
+          url: media.url,
+          altText: media.altText || null,
+        });
 
-  void handleOpenCommentsPanel();
-}}
-  aria-label="Abrir imagen de la publicación"
-style={{
-  ...getImageWrapStyle(media.url),
-  padding: 0,
-  cursor: "pointer",
-  display: "block",
-}}
->
-          {!isLoaded && (
-            <div
-              aria-hidden="true"
+        void handleOpenCommentsPanel();
+      }
+
+      const tileBaseStyle: CSSProperties = {
+        position: "relative",
+        minWidth: 0,
+        minHeight: 0,
+        overflow: "hidden",
+        border: "none",
+        padding: 0,
+        background: "#000",
+        cursor: "pointer",
+        display: "block",
+        WebkitTapHighlightColor: "transparent",
+      };
+
+      const tileImageStyle: CSSProperties = {
+        width: "100%",
+        height: "100%",
+        display: "block",
+        objectFit: "cover",
+      };
+
+      if (totalImages === 1) {
+        const isLoaded = loadedMediaUrls[first.url] === true;
+
+        return (
+          <button
+            type="button"
+            onClick={() => openImage(first)}
+            aria-label="Abrir imagen de la publicación"
+            style={{
+              ...getImageWrapStyle(first.url),
+              padding: 0,
+              cursor: "pointer",
+              display: "block",
+            }}
+          >
+            {!isLoaded && (
+              <div
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background:
+                    "linear-gradient(90deg, rgba(255,255,255,0.045), rgba(255,255,255,0.075), rgba(255,255,255,0.045))",
+                }}
+              />
+            )}
+
+            {!isMobile && mediaAspectRatios[first.url] <= 0.82 && (
+              <img
+                src={first.url}
+                alt=""
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  filter: "blur(22px)",
+                  transform: "scale(1.08)",
+                  opacity: 0.34,
+                }}
+              />
+            )}
+
+            <img
+              src={first.url}
+              alt={first.altText || "Imagen de la publicación"}
+              loading="lazy"
+              draggable={false}
               style={{
-                position: "absolute",
-                inset: 0,
-                background:
-                  "linear-gradient(90deg, rgba(255,255,255,0.045), rgba(255,255,255,0.075), rgba(255,255,255,0.045))",
+                ...postImageStyle,
+                objectFit:
+                  !isMobile && mediaAspectRatios[first.url] <= 0.82
+                    ? "contain"
+                    : "cover",
+                opacity: isLoaded ? 1 : 0,
+              }}
+              onLoad={(event) => {
+                const img = event.currentTarget;
+                const ratio =
+                  img.naturalWidth > 0 && img.naturalHeight > 0
+                    ? img.naturalWidth / img.naturalHeight
+                    : 1;
+
+                setMediaAspectRatios((prev) => ({
+                  ...prev,
+                  [first.url]: ratio,
+                }));
+
+                setLoadedMediaUrls((prev) => ({
+                  ...prev,
+                  [first.url]: true,
+                }));
+              }}
+              onError={() => {
+                setFailedMediaUrls((prev) => ({
+                  ...prev,
+                  [first.url]: true,
+                }));
               }}
             />
+          </button>
+        );
+      }
+
+      if (totalImages === 2 && second) {
+        return (
+          <div
+            style={{
+              width: "100%",
+              aspectRatio: isMobile ? "1 / 1" : "16 / 10",
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 2,
+              borderRadius: isMobile ? 0 : 12,
+              overflow: "hidden",
+              background: "#000",
+            }}
+          >
+            {[first, second].map((media, index) => (
+              <button
+                key={`${media.url}-${index}`}
+                type="button"
+                onClick={() => openImage(media)}
+                aria-label={`Abrir imagen ${index + 1} de ${totalImages}`}
+                style={tileBaseStyle}
+              >
+                <img
+                  src={media.url}
+                  alt={media.altText || `Imagen ${index + 1} de la publicación`}
+                  loading={index <= 1 ? "eager" : "lazy"}
+                  draggable={false}
+                  style={tileImageStyle}
+                  onError={() => {
+                    setFailedMediaUrls((prev) => ({
+                      ...prev,
+                      [media.url]: true,
+                    }));
+                  }}
+                />
+              </button>
+            ))}
+          </div>
+        );
+      }
+
+      return (
+        <div
+          style={{
+            width: "100%",
+            aspectRatio: isMobile ? "1 / 1" : "16 / 10",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 2,
+            borderRadius: isMobile ? 0 : 12,
+            overflow: "hidden",
+            background: "#000",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => openImage(first)}
+            aria-label={`Abrir imagen 1 de ${totalImages}`}
+            style={{
+              ...tileBaseStyle,
+              gridRow: "1 / span 2",
+            }}
+          >
+            <img
+              src={first.url}
+              alt={first.altText || "Imagen 1 de la publicación"}
+              loading="eager"
+              draggable={false}
+              style={tileImageStyle}
+              onError={() => {
+                setFailedMediaUrls((prev) => ({
+                  ...prev,
+                  [first.url]: true,
+                }));
+              }}
+            />
+          </button>
+
+          {second && (
+            <button
+              type="button"
+              onClick={() => openImage(second)}
+              aria-label={`Abrir imagen 2 de ${totalImages}`}
+              style={tileBaseStyle}
+            >
+              <img
+                src={second.url}
+                alt={second.altText || "Imagen 2 de la publicación"}
+                loading="eager"
+                draggable={false}
+                style={tileImageStyle}
+                onError={() => {
+                  setFailedMediaUrls((prev) => ({
+                    ...prev,
+                    [second.url]: true,
+                  }));
+                }}
+              />
+            </button>
           )}
 
-          {!isMobile && mediaAspectRatios[media.url] <= 0.82 && (
-  <img
-    src={media.url}
-    alt=""
-    aria-hidden="true"
-    style={{
-      position: "absolute",
-      inset: 0,
-      width: "100%",
-      height: "100%",
-      objectFit: "cover",
-      filter: "blur(22px)",
-      transform: "scale(1.08)",
-      opacity: 0.34,
-    }}
-  />
-)}
+          {third && (
+            <button
+              type="button"
+              onClick={() => openImage(third)}
+              aria-label={`Abrir imagen 3 de ${totalImages}`}
+              style={tileBaseStyle}
+            >
+              <img
+                src={third.url}
+                alt={third.altText || "Imagen 3 de la publicación"}
+                loading="lazy"
+                draggable={false}
+                style={tileImageStyle}
+                onError={() => {
+                  setFailedMediaUrls((prev) => ({
+                    ...prev,
+                    [third.url]: true,
+                  }));
+                }}
+              />
 
-          <img
-            src={media.url}
-            alt={media.altText || "Imagen de la publicación"}
-            loading="lazy"
-style={{
-  ...postImageStyle,
-  objectFit: !isMobile && mediaAspectRatios[media.url] <= 0.82 ? "contain" : "cover",
-  opacity: isLoaded ? 1 : 0,
-}}
-onLoad={(event) => {
-  const img = event.currentTarget;
-  const ratio =
-    img.naturalWidth > 0 && img.naturalHeight > 0
-      ? img.naturalWidth / img.naturalHeight
-      : 1;
-
-  setMediaAspectRatios((prev) => ({
-    ...prev,
-    [media.url]: ratio,
-  }));
-
-  setLoadedMediaUrls((prev) => ({
-    ...prev,
-    [media.url]: true,
-  }));
-}}
-            onError={() => {
-              setFailedMediaUrls((prev) => ({
-                ...prev,
-                [media.url]: true,
-              }));
-            }}
-          />
-        </button>
+              {remainingCount > 0 && (
+                <div
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "rgba(0,0,0,0.48)",
+                    display: "grid",
+                    placeItems: "center",
+                    color: "#fff",
+                    fontSize: 24,
+                    fontWeight: 800,
+                    lineHeight: 1,
+                    textShadow: "0 2px 10px rgba(0,0,0,0.65)",
+                  }}
+                >
+                  +{remainingCount}
+                </div>
+              )}
+            </button>
+          )}
+        </div>
       );
-    })}
+    })()}
   </div>
 )}
-
 <div
   style={{
     marginTop: 12,

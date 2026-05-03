@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { MAX_POST_IMAGES } from "@/lib/posts/types";
 import {
   useCallback,
   useEffect,
@@ -16,7 +17,7 @@ import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 
 type GroupPostComposerSubmitPayload = {
   text: string;
-  imageFile?: File | null;
+  imageFiles?: File[];
 };
 
 type GroupPostComposerProps = {
@@ -143,8 +144,8 @@ export default function GroupPostComposer({
   const [creating, setCreating] = useState(false);
   const [postType, setPostType] = useState<ComposerPostType>("text");
   const [currentUserHandle, setCurrentUserHandle] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [selectedImagePreview, setSelectedImagePreview] = useState<string | null>(null);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [selectedImagePreviews, setSelectedImagePreviews] = useState<string[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -206,22 +207,22 @@ export default function GroupPostComposer({
     return () => window.clearTimeout(timer);
   }, [localError]);
 
-  useEffect(() => {
-    if (!selectedImage) {
-      setSelectedImagePreview(null);
-      return;
-    }
+ useEffect(() => {
+  if (selectedImages.length === 0) {
+    setSelectedImagePreviews([]);
+    return;
+  }
 
-    const objectUrl = URL.createObjectURL(selectedImage);
-    setSelectedImagePreview(objectUrl);
+  const objectUrls = selectedImages.map((file) => URL.createObjectURL(file));
+  setSelectedImagePreviews(objectUrls);
 
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [selectedImage]);
+  return () => {
+    objectUrls.forEach((url) => URL.revokeObjectURL(url));
+  };
+}, [selectedImages]);
 
   const currentUserHref = currentUserHandle ? `/u/${currentUserHandle}` : "#";
-  const hasContent = text.trim().length > 0 || !!selectedImage;
+ const hasContent = text.trim().length > 0 || selectedImages.length > 0;
 
   function handleOpenImagePicker() {
     if (creating) return;
@@ -229,31 +230,57 @@ export default function GroupPostComposer({
   }
 
 
-async function handleImageSelected(file: File | null) {
+async function handleImagesSelected(files: File[]) {
   setLocalError(null);
 
-  if (!file) return;
+  if (files.length === 0) return;
+
+  const availableSlots = MAX_POST_IMAGES - selectedImages.length;
+
+  if (availableSlots <= 0) {
+    setLocalError(`Solo puedes subir hasta ${MAX_POST_IMAGES} imágenes por publicación.`);
+    return;
+  }
+
+  const filesToProcess = files.slice(0, availableSlots);
+
+  if (files.length > availableSlots) {
+    setLocalError(`Solo se agregaron ${availableSlots} imágenes. El máximo es ${MAX_POST_IMAGES}.`);
+  }
 
   try {
-    const normalized = await normalizeImageFile(file, {
-      maxSizeBytes: 150 * 1024 * 1024,
-    });
+    const normalizedFiles: File[] = [];
 
-    setSelectedImage(normalized.file);
+    for (const file of filesToProcess) {
+      const normalized = await normalizeImageFile(file, {
+        maxSizeBytes: 150 * 1024 * 1024,
+      });
+
+      normalizedFiles.push(normalized.file);
+    }
+
+    setSelectedImages((current) => [...current, ...normalizedFiles]);
     setPostType("image");
   } catch (e: any) {
-    setLocalError(e?.message ?? "No se pudo preparar la imagen.");
+    setLocalError(e?.message ?? "No se pudieron preparar las imágenes.");
   }
 }
 
-  function handleRemoveImage() {
-    setSelectedImage(null);
-    setPostType("text");
+function handleRemoveImage(indexToRemove: number) {
+  setSelectedImages((current) => {
+    const nextImages = current.filter((_, index) => index !== indexToRemove);
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    if (nextImages.length === 0) {
+      setPostType("text");
     }
+
+    return nextImages;
+  });
+
+  if (fileInputRef.current) {
+    fileInputRef.current.value = "";
   }
+}
 
   async function handleSubmit() {
     if (creating || !hasContent) return;
@@ -262,14 +289,14 @@ async function handleImageSelected(file: File | null) {
       setCreating(true);
       setLocalError(null);
 
-      await onSubmit({
-        text: text.trim(),
-        imageFile: selectedImage,
-      });
+await onSubmit({
+  text: text.trim(),
+  imageFiles: selectedImages,
+});
 
       setText("");
-      setSelectedImage(null);
-      setSelectedImagePreview(null);
+setSelectedImages([]);
+setSelectedImagePreviews([]);
       setPostType("text");
 
       if (fileInputRef.current) {
@@ -328,23 +355,22 @@ async function handleImageSelected(file: File | null) {
     WebkitAppearance: "none",
   };
 
-  const imagePreviewWrapStyle: CSSProperties = {
-    marginTop: 10,
-    width: "100%",
-    maxWidth: 420,
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.08)",
-    overflow: "hidden",
-    background: "rgba(255,255,255,0.04)",
-    position: "relative",
-  };
+const imagePreviewWrapStyle: CSSProperties = {
+  width: "100%",
+  aspectRatio: "1 / 1",
+  borderRadius: 12,
+  border: "1px solid rgba(255,255,255,0.08)",
+  overflow: "hidden",
+  background: "rgba(255,255,255,0.04)",
+  position: "relative",
+};
 
-  const imagePreviewStyle: CSSProperties = {
-    width: "100%",
-    maxHeight: 280,
-    objectFit: "cover",
-    display: "block",
-  };
+const imagePreviewStyle: CSSProperties = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+  display: "block",
+};
 
   const removeImageButtonStyle: CSSProperties = {
     position: "absolute",
@@ -418,17 +444,18 @@ async function handleImageSelected(file: File | null) {
 
   return (
     <section style={cardStyle}>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,.heic,.heif"
-        style={{ display: "none" }}
-        onChange={async (event) => {
-          const file = event.currentTarget.files?.[0] ?? null;
-          await handleImageSelected(file);
-          event.currentTarget.value = "";
-        }}
-      />
+<input
+  ref={fileInputRef}
+  type="file"
+  accept="image/*,.heic,.heif"
+  multiple
+  style={{ display: "none" }}
+  onChange={async (event) => {
+    const files = Array.from(event.currentTarget.files ?? []);
+    await handleImagesSelected(files);
+    event.currentTarget.value = "";
+  }}
+/>
 
       <div
         style={{
@@ -472,25 +499,37 @@ async function handleImageSelected(file: File | null) {
             style={textareaStyle}
           />
 
-          {selectedImagePreview && (
-            <div style={imagePreviewWrapStyle}>
-              <img
-                src={selectedImagePreview}
-                alt="Vista previa de imagen seleccionada"
-                style={imagePreviewStyle}
-              />
+{selectedImagePreviews.length > 0 && (
+  <div
+    style={{
+      marginTop: 10,
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))",
+      gap: 8,
+      maxWidth: 520,
+    }}
+  >
+    {selectedImagePreviews.map((previewUrl, index) => (
+      <div key={previewUrl} style={imagePreviewWrapStyle}>
+        <img
+          src={previewUrl}
+          alt={`Vista previa de imagen ${index + 1}`}
+          style={imagePreviewStyle}
+        />
 
-              <button
-                type="button"
-                onClick={handleRemoveImage}
-                style={removeImageButtonStyle}
-                aria-label="Quitar imagen"
-                disabled={creating}
-              >
-                ×
-              </button>
-            </div>
-          )}
+        <button
+          type="button"
+          onClick={() => handleRemoveImage(index)}
+          style={removeImageButtonStyle}
+          aria-label={`Quitar imagen ${index + 1}`}
+          disabled={creating}
+        >
+          ×
+        </button>
+      </div>
+    ))}
+  </div>
+)}
 
           {localError && <div style={localErrorStyle}>{localError}</div>}
 
