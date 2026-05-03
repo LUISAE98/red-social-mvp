@@ -353,12 +353,100 @@ function hydratePost(
   });
 }
 
+function truncateForShare(value: string, maxLength = 160): string {
+  const cleanValue = value.trim().replace(/\s+/g, " ");
+
+  if (cleanValue.length <= maxLength) {
+    return cleanValue;
+  }
+
+  return `${cleanValue.slice(0, maxLength - 1).trim()}…`;
+}
+
+function getPostPrimaryShareImageUrl(post: {
+  media?: PostMedia[];
+  videoData?: { thumbnailUrl?: string | null } | null;
+  playback?: { thumbnailUrl?: string | null } | null;
+}): string | null {
+  const firstMedia = Array.isArray(post.media) ? post.media[0] : null;
+
+  return (
+    firstMedia?.thumbnailUrl ||
+    firstMedia?.url ||
+    post.videoData?.thumbnailUrl ||
+    post.playback?.thumbnailUrl ||
+    null
+  );
+}
+
+function buildShareMetadata(params: {
+  text: string;
+  media?: PostMedia[];
+  authorName?: string | null;
+  groupVisibility?: GroupVisibility | null;
+  accessModel?: Post["accessModel"];
+  requiresPayment?: boolean;
+  requiresSubscription?: boolean;
+  videoData?: Post["videoData"];
+  playback?: Post["playback"];
+}): Pick<
+  Post,
+  | "isShareable"
+  | "publicSlug"
+  | "shareTitle"
+  | "shareDescription"
+  | "shareImageUrl"
+> {
+  const isFree =
+    (params.accessModel ?? "free") === "free" &&
+    params.requiresPayment !== true &&
+    params.requiresSubscription !== true;
+
+  const isPublicGroup = params.groupVisibility === "public";
+
+  const cleanText = params.text.trim();
+
+  return {
+    isShareable: isFree && isPublicGroup,
+    publicSlug: null,
+    shareTitle: cleanText
+      ? truncateForShare(cleanText, 80)
+      : params.authorName
+        ? `Publicación de ${params.authorName}`
+        : "Publicación",
+    shareDescription: cleanText ? truncateForShare(cleanText, 180) : null,
+    shareImageUrl: getPostPrimaryShareImageUrl({
+      media: params.media,
+      videoData: params.videoData,
+      playback: params.playback,
+    }),
+  };
+}
+
 function normalizePostMetadata(post: Post): Post {
   const postType = post.postType ?? "text";
+
+  const shareMetadata = buildShareMetadata({
+    text: post.text,
+    media: post.media,
+    authorName: post.authorName,
+    groupVisibility: post.groupVisibility,
+    accessModel: post.accessModel,
+    requiresPayment: post.requiresPayment,
+    requiresSubscription: post.requiresSubscription,
+    videoData: post.videoData,
+    playback: post.playback,
+  });
 
   return {
     ...post,
     postType,
+
+    isShareable: post.isShareable ?? shareMetadata.isShareable,
+    publicSlug: post.publicSlug ?? shareMetadata.publicSlug,
+    shareTitle: post.shareTitle ?? shareMetadata.shareTitle,
+    shareDescription: post.shareDescription ?? shareMetadata.shareDescription,
+    shareImageUrl: post.shareImageUrl ?? shareMetadata.shareImageUrl,
 
     access: post.access ?? "free",
     accessModel: post.accessModel ?? "free",
@@ -932,6 +1020,21 @@ export async function createTextPost(params: {
   const author = await getCurrentAuthorSnapshot();
   await ensureUserCanCreatePostInGroup(params.groupId, author.uid);
 
+  const groupMap = await fetchGroupsByIds([params.groupId]);
+  const groupVisibility = groupMap[params.groupId]?.visibility ?? null;
+
+  const shareMetadata = buildShareMetadata({
+    text: cleanText,
+    media: [],
+    authorName: author.authorName,
+    groupVisibility,
+    accessModel: "free",
+    requiresPayment: false,
+    requiresSubscription: false,
+    videoData: null,
+    playback: null,
+  });
+
   await addDoc(collection(db, "posts"), {
     groupId: params.groupId,
     authorId: author.uid,
@@ -943,6 +1046,11 @@ export async function createTextPost(params: {
     updatedAt: serverTimestamp(),
     deletedAt: null,
     isDeleted: false,
+    isShareable: shareMetadata.isShareable,
+    publicSlug: shareMetadata.publicSlug,
+    shareTitle: shareMetadata.shareTitle,
+    shareDescription: shareMetadata.shareDescription,
+    shareImageUrl: shareMetadata.shareImageUrl,
     access: "free",
     media: [],
     counts: {
@@ -1003,6 +1111,21 @@ export async function createImagePost(params: {
   const author = await getCurrentAuthorSnapshot();
   await ensureUserCanCreatePostInGroup(params.groupId, author.uid);
 
+  const groupMap = await fetchGroupsByIds([params.groupId]);
+  const groupVisibility = groupMap[params.groupId]?.visibility ?? null;
+
+  const shareMetadata = buildShareMetadata({
+    text: cleanText,
+    media: cleanMedia,
+    authorName: author.authorName,
+    groupVisibility,
+    accessModel: "free",
+    requiresPayment: false,
+    requiresSubscription: false,
+    videoData: null,
+    playback: null,
+  });
+
   await addDoc(collection(db, "posts"), {
     groupId: params.groupId,
     authorId: author.uid,
@@ -1014,6 +1137,11 @@ export async function createImagePost(params: {
     updatedAt: serverTimestamp(),
     deletedAt: null,
     isDeleted: false,
+    isShareable: shareMetadata.isShareable,
+    publicSlug: shareMetadata.publicSlug,
+    shareTitle: shareMetadata.shareTitle,
+    shareDescription: shareMetadata.shareDescription,
+    shareImageUrl: shareMetadata.shareImageUrl,
     access: "free",
     media: cleanMedia,
     counts: {

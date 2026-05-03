@@ -16,6 +16,7 @@ import PostFlamesPanel, { type PostFlameUser } from "./PostFlamesPanel";
 import PostCommentsPanel from "./PostCommentsPanel";
 import PostImageViewer from "./PostImageViewer";
 import { fetchPostFlameUsers } from "@/lib/posts/post-service";
+import PostShareButton from "@/components/ui/PostShareButton";
 import {
   banGroupMember,
   muteGroupMember,
@@ -1139,6 +1140,23 @@ const flameButtonStyle: CSSProperties = {
     opacity: post.viewerHasFlamed ? 1 : 0.52,
   };
 
+
+    const interactionRowStyle: CSSProperties = {
+    marginTop: 12,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    width: "100%",
+  };
+
+  const leftInteractionGroupStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: 14,
+    minWidth: 0,
+  };
     const flameCountButtonStyle: CSSProperties = {
     border: "none",
     background: "transparent",
@@ -1748,77 +1766,78 @@ style={{
     })()}
   </div>
 )}
-<div
-  style={{
-    marginTop: 12,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    gap: 14,
-    width: "fit-content",
-  }}
->
-  <div
-    style={{
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 2,
-    }}
-  >
-    <button
-      type="button"
-      onClick={handleToggleFlame}
-      disabled={flameBusy}
-      aria-pressed={post.viewerHasFlamed === true}
-      aria-label={
-        post.viewerHasFlamed
-          ? "Quitar flamita de la publicación"
-          : "Dar flamita a la publicación"
-      }
-      style={flameButtonStyle}
+<div style={interactionRowStyle}>
+  <div style={leftInteractionGroupStyle}>
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 2,
+      }}
     >
-      <span aria-hidden="true" style={flameIconStyle}>
-        🔥
-      </span>
-    </button>
+      <button
+        type="button"
+        onClick={handleToggleFlame}
+        disabled={flameBusy}
+        aria-pressed={post.viewerHasFlamed === true}
+        aria-label={
+          post.viewerHasFlamed
+            ? "Quitar flamita de la publicación"
+            : "Dar flamita a la publicación"
+        }
+        style={flameButtonStyle}
+      >
+        <span aria-hidden="true" style={flameIconStyle}>
+          🔥
+        </span>
+      </button>
+
+      <button
+        type="button"
+        onClick={handleOpenFlamesPanel}
+        style={flameCountButtonStyle}
+        aria-label="Ver usuarios que dieron flamita"
+      >
+        {post.counts?.likes ?? 0}
+      </button>
+    </div>
 
     <button
       type="button"
-      onClick={handleOpenFlamesPanel}
-      style={flameCountButtonStyle}
-      aria-label="Ver usuarios que dieron flamita"
+      onClick={handleOpenCommentsPanel}
+      disabled={loadingComments}
+      aria-label="Abrir comentarios"
+      style={{
+        border: "none",
+        background: "transparent",
+        padding: 0,
+        color: "rgba(255,255,255,0.72)",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        fontSize: 12.5,
+        fontWeight: 600,
+        fontFamily: fontStack,
+        lineHeight: 1,
+        cursor: loadingComments ? "not-allowed" : "pointer",
+        opacity: loadingComments ? 0.62 : 1,
+        WebkitTapHighlightColor: "transparent",
+      }}
     >
-      {post.counts?.likes ?? 0}
+      <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1 }}>
+        💬
+      </span>
+      <span>{visibleCommentsTotal}</span>
     </button>
   </div>
 
-  <button
-    type="button"
-    onClick={handleOpenCommentsPanel}
-    disabled={loadingComments}
-    aria-label="Abrir comentarios"
-    style={{
-      border: "none",
-      background: "transparent",
-      padding: 0,
-      color: "rgba(255,255,255,0.72)",
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 5,
-      fontSize: 12.5,
-      fontWeight: 600,
-      fontFamily: fontStack,
-      lineHeight: 1,
-      cursor: loadingComments ? "not-allowed" : "pointer",
-      opacity: loadingComments ? 0.62 : 1,
-      WebkitTapHighlightColor: "transparent",
-    }}
-  >
-    <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1 }}>
-      💬
-    </span>
-    <span>{visibleCommentsTotal}</span>
-  </button>
+  {post.isShareable === true && (
+    <PostShareButton
+      postId={post.id}
+      title={post.shareTitle || "Publicación"}
+      text={post.shareDescription || post.text || "Mira esta publicación."}
+    />
+  )}
 </div>
 
       {menuOpen &&

@@ -147,6 +147,36 @@ export type Post = {
   isDeleted: boolean;
   isLocked?: boolean;
 
+  /**
+   * Permite que una publicación pueda abrirse desde una ruta pública compartible.
+   * Solo debe usarse para posts públicos/free y de grupos públicos.
+   */
+  isShareable?: boolean;
+
+  /**
+   * Slug público opcional para compartir.
+   * Si no existe, la URL pública puede usar el postId.
+   */
+  publicSlug?: string | null;
+
+  /**
+   * Texto corto opcional para previews externos.
+   * Si no existe, se puede usar una versión recortada de text.
+   */
+  shareTitle?: string | null;
+
+  /**
+   * Descripción corta opcional para metadata/Open Graph.
+   * Si no existe, se puede derivar desde text.
+   */
+  shareDescription?: string | null;
+
+  /**
+   * Imagen principal para preview al compartir.
+   * Puede venir de media[0], video thumbnail o una imagen generada por metadata.
+   */
+  shareImageUrl?: string | null;
+
   access?: "free" | "paid";
   media?: PostMedia[];
   counts?: PostCounts;
