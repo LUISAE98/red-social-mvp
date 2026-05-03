@@ -705,8 +705,35 @@ const secondaryButtonStyle: CSSProperties = {
     lineHeight: 1.4,
   };
 
-  return (
-    <section style={cardStyle}>
+return (
+  <section style={cardStyle}>
+    <style>
+      {`
+        .composer-textarea-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255,255,255,0.18) transparent;
+        }
+
+        .composer-textarea-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .composer-textarea-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .composer-textarea-scroll::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.18);
+          border-radius: 999px;
+        }
+
+        .composer-textarea-scroll::-webkit-scrollbar-button {
+          display: none;
+          width: 0;
+          height: 0;
+        }
+      `}
+    </style>
 <input
   ref={fileInputRef}
   type="file"
@@ -754,13 +781,14 @@ const secondaryButtonStyle: CSSProperties = {
             </div>
           </div>
 
-          <AutoGrowTextarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Escribe algo..."
-            maxRows={3}
-            style={textareaStyle}
-          />
+<AutoGrowTextarea
+  className="composer-textarea-scroll"
+  value={text}
+  onChange={(e) => setText(e.target.value)}
+  placeholder="Escribe algo..."
+  maxRows={3}
+  style={textareaStyle}
+/>
 
 {(selectedImagePreviews.length > 0 || processingImageSlots > 0) && (
   <div

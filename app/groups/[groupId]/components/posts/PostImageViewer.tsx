@@ -141,6 +141,7 @@ const [mobileGestureAxis, setMobileGestureAxis] = useState<"horizontal" | "verti
 const [isCurrentImageZoomed, setIsCurrentImageZoomed] = useState(false);
 const [isCurrentImagePinching, setIsCurrentImagePinching] = useState(false);
 const [mobilePostTextExpanded, setMobilePostTextExpanded] = useState(false);
+const [desktopPostTextExpanded, setDesktopPostTextExpanded] = useState(false);
 
 const mobileGestureAxisRef = useRef<"horizontal" | "vertical" | null>(null);
 
@@ -182,7 +183,6 @@ useEffect(() => {
   setMobileDragOffsetX(0);
   setIsCurrentImageZoomed(false);
   setIsCurrentImagePinching(false);
-  setMobilePostTextExpanded(false);
 }, [currentImage?.url]);
 
 const totalImages = imageList.length;
@@ -227,6 +227,8 @@ const totalImages = imageList.length;
   useEffect(() => {
 if (!open) {
   setMobileCommentsOpen(false);
+  setMobilePostTextExpanded(false);
+  setDesktopPostTextExpanded(false);
   return;
 }
 
@@ -279,14 +281,6 @@ const closeButtonStyle: CSSProperties = {
   WebkitTapHighlightColor: "transparent",
 };
 
-  const imageStyle: CSSProperties = {
-    display: "block",
-    width: "100%",
-    height: "100%",
-    objectFit: "contain",
-    background: "#000",
-  };
-
   const actionButtonStyle: CSSProperties = {
     border: "none",
     background: "transparent",
@@ -317,6 +311,11 @@ const actionGroupStyle: CSSProperties = {
 const cleanPostText = typeof post.text === "string" ? post.text.trim() : "";
 const shouldShowMobilePostText = cleanPostText.length > 0;
 const shouldClampMobilePostText = cleanPostText.length > 90;
+const shouldShowDesktopPostText =
+  typeof post.text === "string" && post.text.trim().length > 0;
+
+const shouldClampDesktopPostText =
+  typeof post.text === "string" && post.text.trim().length > 160;
 
   const mobileContent = (
     <div style={overlayStyle}>
@@ -1145,54 +1144,122 @@ const shouldClampMobilePostText = cleanPostText.length > 90;
 </div>
           </div>
 
+<style>
+  {`
+    .post-image-viewer-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.22) transparent;
+    }
+
+    .post-image-viewer-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .post-image-viewer-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .post-image-viewer-scroll::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.22);
+      border-radius: 999px;
+    }
+
+    .post-image-viewer-scroll::-webkit-scrollbar-button {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+  `}
+</style>
+
 <div
+  className="post-image-viewer-scroll"
   style={{
-    padding: 16,
-    borderBottom: "none",
+    minHeight: 0,
+    overflowY: "auto",
+    padding: "16px 16px 14px",
     display: "grid",
-    gap: 14,
+    alignContent: "start",
+    gap: 8,
   }}
 >
-{(authorStatusBadge || post.text) && (
-  <div
+  {(authorStatusBadge || shouldShowDesktopPostText) && (
+    <div
+      style={{
+        color: "rgba(255,255,255,0.9)",
+        fontSize: 13,
+        fontWeight: 300,
+        lineHeight: 1.55,
+        wordBreak: "break-word",
+      }}
+    >
+      {authorStatusBadge && (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            minHeight: 18,
+            padding: "2px 7px",
+            borderRadius: 999,
+            fontSize: 10,
+            fontWeight: 650,
+            lineHeight: 1,
+            letterSpacing: "-0.01em",
+            whiteSpace: "nowrap",
+            border: authorStatusBadge.border,
+            background: authorStatusBadge.background,
+            color: authorStatusBadge.color,
+            marginRight: shouldShowDesktopPostText ? 8 : 0,
+            verticalAlign: "middle",
+          }}
+        >
+          {authorStatusBadge.text}
+        </span>
+      )}
+
+{shouldShowDesktopPostText && (
+  <span
     style={{
-      color: "rgba(255,255,255,0.9)",
-      fontSize: 13,
-      fontWeight: 300,
-      lineHeight: 1.6,
       whiteSpace: "pre-wrap",
-      wordBreak: "break-word",
     }}
   >
-    {authorStatusBadge && (
-      <span
+    {desktopPostTextExpanded || !shouldClampDesktopPostText
+      ? cleanPostText
+      : `${cleanPostText.slice(0, 145).trim()}...`}
+
+    {shouldClampDesktopPostText && (
+      <button
+        type="button"
+        onClick={() => setDesktopPostTextExpanded((prev) => !prev)}
         style={{
-          display: "inline-flex",
-          alignItems: "center",
-          minHeight: 18,
-          padding: "2px 7px",
-          borderRadius: 999,
-          fontSize: 10,
-          fontWeight: 650,
-          lineHeight: 1,
-          letterSpacing: "-0.01em",
-          whiteSpace: "nowrap",
-          border: authorStatusBadge.border,
-          background: authorStatusBadge.background,
-          color: authorStatusBadge.color,
-          marginRight: post.text ? 8 : 0,
-          verticalAlign: "middle",
+          marginLeft: 6,
+          border: "none",
+          background: "transparent",
+          color: "rgba(255,255,255,0.78)",
+          padding: 0,
+          fontSize: 13,
+          fontWeight: 700,
+          fontFamily: fontStack,
+          cursor: "pointer",
+          WebkitTapHighlightColor: "transparent",
         }}
       >
-        {authorStatusBadge.text}
-      </span>
+        {desktopPostTextExpanded ? "- Ver menos" : "+ Ver más"}
+      </button>
     )}
-
-    {post.text}
-  </div>
+  </span>
 )}
+    </div>
+  )}
 
-  <div style={actionRowStyle}>
+  <div
+    style={{
+      ...actionRowStyle,
+      alignItems: "center",
+      gap: 12,
+      marginTop: 0,
+    }}
+  >
     <div style={actionGroupStyle}>
       <button
         type="button"
@@ -1242,7 +1309,10 @@ const shouldClampMobilePostText = cleanPostText.length > 90;
       type="button"
       onClick={onOpenComments}
       aria-label="Abrir comentarios"
-      style={actionButtonStyle}
+      style={{
+        ...actionButtonStyle,
+        gap: 3,
+      }}
     >
       <span aria-hidden="true" style={{ fontSize: 19, lineHeight: 1 }}>
         💬
@@ -1250,17 +1320,17 @@ const shouldClampMobilePostText = cleanPostText.length > 90;
       <span>{commentsCount}</span>
     </button>
   </div>
-</div>
 
-          <div
-            style={{
-              minHeight: 0,
-              overflowY: "auto",
-              padding: 16,
-            }}
-          >
-            {commentsContent}
-          </div>
+<div
+  style={{
+    marginTop: 0,
+    paddingTop: 0,
+    minWidth: 0,
+  }}
+>
+  {commentsContent}
+</div>
+</div>
         </aside>
       </div>
     </div>

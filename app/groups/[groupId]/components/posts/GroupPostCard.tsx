@@ -415,6 +415,15 @@ function Avatar({
   );
 }
 
+function truncatePostText(text: string, maxLength: number) {
+  if (text.length <= maxLength) return text;
+
+  const sliced = text.slice(0, maxLength).trim();
+  const lastSpace = sliced.lastIndexOf(" ");
+
+  return `${sliced.slice(0, lastSpace > 40 ? lastSpace : sliced.length).trim()}...`;
+}
+
 function buildActionLabel(action: ModerationAction) {
   if (action === "mute") return "Mutear";
   if (action === "unmute") return "Quitar mute";
@@ -471,6 +480,7 @@ const [selectedImage, setSelectedImage] = useState<{
   url: string;
   altText?: string | null;
 } | null>(null);
+const [postTextExpanded, setPostTextExpanded] = useState(false);
 
 
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
@@ -1232,6 +1242,10 @@ const postImageStyle: CSSProperties = {
       )
     : [];
 
+    const cleanPostText = typeof post.text === "string" ? post.text.trim() : "";
+const feedPostTextLimit = imageMedia.length > 0 ? 135 : 230;
+const shouldClampFeedPostText = cleanPostText.length > feedPostTextLimit;
+
     const visibleCommentsTotal = useMemo(() => {
   if (comments !== null) {
     return comments.reduce((total, comment) => {
@@ -1410,7 +1424,7 @@ style={{
         )}
       </div>
 
-{(authorStatusBadge || post.text) && (
+{(authorStatusBadge || cleanPostText.length > 0) && (
   <div style={bodyStyle}>
     {authorStatusBadge && (
       <span
@@ -1423,7 +1437,7 @@ style={{
           border: authorStatusBadge.border,
           background: authorStatusBadge.background,
           color: authorStatusBadge.color,
-          marginRight: post.text ? 8 : 0,
+          marginRight: cleanPostText.length > 0 ? 8 : 0,
           verticalAlign: "middle",
         }}
       >
@@ -1431,7 +1445,34 @@ style={{
       </span>
     )}
 
-    {post.text}
+    {cleanPostText.length > 0 && (
+      <span>
+        {postTextExpanded || !shouldClampFeedPostText
+          ? cleanPostText
+          : truncatePostText(cleanPostText, feedPostTextLimit)}
+
+        {shouldClampFeedPostText && (
+          <button
+            type="button"
+            onClick={() => setPostTextExpanded((prev) => !prev)}
+            style={{
+              marginLeft: 6,
+              border: "none",
+              background: "transparent",
+              color: "rgba(255,255,255,0.72)",
+              padding: 0,
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: fontStack,
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          >
+            {postTextExpanded ? "- Ver menos" : "+ Ver más"}
+          </button>
+        )}
+      </span>
+    )}
   </div>
 )}
 
