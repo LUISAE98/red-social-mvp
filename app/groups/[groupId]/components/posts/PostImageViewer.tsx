@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import PostPinchZoomImage from "./PostPinchZoomImage";
 import { createPortal } from "react-dom";
 import type { Post } from "@/lib/posts/types";
@@ -130,12 +137,22 @@ const [showExactDate, setShowExactDate] = useState(false);
 const [currentImageIndex, setCurrentImageIndex] = useState(0);
 const [mobileDragOffsetX, setMobileDragOffsetX] = useState(0);
 const [mobileSwipeAnimating, setMobileSwipeAnimating] = useState(false);
+const [mobileGestureAxis, setMobileGestureAxis] = useState<"horizontal" | "vertical" | null>(null);
+const [isCurrentImageZoomed, setIsCurrentImageZoomed] = useState(false);
+const [isCurrentImagePinching, setIsCurrentImagePinching] = useState(false);
+const [mobilePostTextExpanded, setMobilePostTextExpanded] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+const mobileGestureAxisRef = useRef<"horizontal" | "vertical" | null>(null);
 
-    const imageList = useMemo<ImageMedia[]>(() => {
+useEffect(() => {
+  mobileGestureAxisRef.current = mobileGestureAxis;
+}, [mobileGestureAxis]);
+
+useEffect(() => {
+  setMounted(true);
+}, []);
+
+const imageList = useMemo<ImageMedia[]>(() => {
     const postImages = Array.isArray(post.media)
       ? post.media
           .filter(
@@ -157,10 +174,18 @@ const [mobileSwipeAnimating, setMobileSwipeAnimating] = useState(false);
     return image ? [image] : [];
   }, [post.media, image]);
 
-  const currentImage =
-    imageList[currentImageIndex] ?? imageList[0] ?? image;
+const currentImage =
+  imageList[currentImageIndex] ?? imageList[0] ?? image;
 
-  const totalImages = imageList.length;
+useEffect(() => {
+  setMobileGestureAxis(null);
+  setMobileDragOffsetX(0);
+  setIsCurrentImageZoomed(false);
+  setIsCurrentImagePinching(false);
+  setMobilePostTextExpanded(false);
+}, [currentImage?.url]);
+
+const totalImages = imageList.length;
   const canNavigateImages = totalImages > 1;
     const previousImage =
     totalImages > 1
@@ -289,6 +314,10 @@ const actionGroupStyle: CSSProperties = {
   gap: 2,
 };
 
+const cleanPostText = typeof post.text === "string" ? post.text.trim() : "";
+const shouldShowMobilePostText = cleanPostText.length > 0;
+const shouldClampMobilePostText = cleanPostText.length > 90;
+
   const mobileContent = (
     <div style={overlayStyle}>
       <button
@@ -302,17 +331,23 @@ const actionGroupStyle: CSSProperties = {
 
 <div
   onTouchStart={(event) => {
-    if (!canNavigateImages || mobileSwipeAnimating) return;
+    if (mobileSwipeAnimating || isCurrentImageZoomed || isCurrentImagePinching) return;
 
     const touch = event.touches[0];
     if (!touch) return;
 
     event.currentTarget.dataset.startX = String(touch.clientX);
     event.currentTarget.dataset.startY = String(touch.clientY);
+    event.currentTarget.dataset.gestureAxis = "";
+
+    setMobileGestureAxis(null);
     setMobileDragOffsetX(0);
   }}
   onTouchMove={(event) => {
-    if (!canNavigateImages || mobileSwipeAnimating) return;
+    if (mobileSwipeAnimating || isCurrentImageZoomed || isCurrentImagePinching) {
+      setMobileDragOffsetX(0);
+      return;
+    }
 
     const startX = Number(event.currentTarget.dataset.startX || 0);
     const startY = Number(event.currentTarget.dataset.startY || 0);
@@ -322,21 +357,53 @@ const actionGroupStyle: CSSProperties = {
 
     const diffX = touch.clientX - startX;
     const diffY = touch.clientY - startY;
+    const absX = Math.abs(diffX);
+    const absY = Math.abs(diffY);
 
-    if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 18) {
+    let axis = event.currentTarget.dataset.gestureAxis as
+      | "horizontal"
+      | "vertical"
+      | "";
+
+    if (!axis && (absX > 10 || absY > 10)) {
+      if (absX > absY * 1.15) {
+        axis = "horizontal";
+      } else if (diffY > 0 && absY > absX * 1.15) {
+        axis = "vertical";
+      }
+
+      if (axis) {
+        event.currentTarget.dataset.gestureAxis = axis;
+        setMobileGestureAxis(axis);
+      }
+    }
+
+    if (axis === "horizontal") {
+      event.preventDefault();
+      setMobileDragOffsetX(diffX);
       return;
     }
 
-    setMobileDragOffsetX(diffX);
+    if (axis === "vertical") {
+      setMobileDragOffsetX(0);
+    }
   }}
   onTouchEnd={(event) => {
-    if (!canNavigateImages || mobileSwipeAnimating) return;
+    if (mobileSwipeAnimating || isCurrentImageZoomed || isCurrentImagePinching) {
+      setMobileGestureAxis(null);
+      setMobileDragOffsetX(0);
+      return;
+    }
 
+    const axis = event.currentTarget.dataset.gestureAxis;
     const startX = Number(event.currentTarget.dataset.startX || 0);
     const startY = Number(event.currentTarget.dataset.startY || 0);
     const touch = event.changedTouches[0];
 
-    if (!touch || !startX) {
+    event.currentTarget.dataset.gestureAxis = "";
+    setMobileGestureAxis(null);
+
+    if (!canNavigateImages || axis !== "horizontal" || !touch || !startX) {
       setMobileDragOffsetX(0);
       return;
     }
@@ -378,7 +445,7 @@ const actionGroupStyle: CSSProperties = {
     width: "100%",
     height: "100%",
     overflow: "hidden",
-    touchAction: "pan-y",
+    touchAction: "none",
   }}
 >
   {previousImage && (
@@ -412,6 +479,9 @@ const actionGroupStyle: CSSProperties = {
       src={currentImage.url}
       alt={currentImage.altText || "Imagen de la publicación"}
       onClose={onClose}
+      onZoomStateChange={setIsCurrentImageZoomed}
+      onPinchStateChange={setIsCurrentImagePinching}
+      swipeAxis={mobileGestureAxis}
     />
   </div>
 
@@ -591,6 +661,92 @@ const actionGroupStyle: CSSProperties = {
       {showExactDate ? exactDate : relativeDate}
     </button>
   </div>
+
+  {shouldShowMobilePostText && (
+    <div
+      style={{
+        maxWidth: "calc(100vw - 32px)",
+        color: "rgba(255,255,255,0.86)",
+        fontSize: 12,
+        fontWeight: 300,
+        lineHeight: 1.35,
+        wordBreak: "break-word",
+      }}
+    >
+      {!mobilePostTextExpanded ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            maxWidth: "100%",
+            minWidth: 0,
+            gap: 4,
+          }}
+        >
+          <span
+            style={{
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {cleanPostText}
+          </span>
+
+          {shouldClampMobilePostText && (
+            <button
+              type="button"
+              onClick={() => setMobilePostTextExpanded(true)}
+              style={{
+                flexShrink: 0,
+                border: "none",
+                background: "transparent",
+                color: "rgba(255,255,255,0.78)",
+                padding: 0,
+                fontSize: 12,
+                fontWeight: 700,
+                fontFamily: fontStack,
+                cursor: "pointer",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              + Ver más
+            </button>
+          )}
+        </div>
+      ) : (
+        <div
+          style={{
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {cleanPostText}
+
+          {shouldClampMobilePostText && (
+            <button
+              type="button"
+              onClick={() => setMobilePostTextExpanded(false)}
+              style={{
+                marginLeft: 6,
+                border: "none",
+                background: "transparent",
+                color: "rgba(255,255,255,0.78)",
+                padding: 0,
+                fontSize: 12,
+                fontWeight: 700,
+                fontFamily: fontStack,
+                cursor: "pointer",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              - Ver menos
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )}
 
   <div
     style={{

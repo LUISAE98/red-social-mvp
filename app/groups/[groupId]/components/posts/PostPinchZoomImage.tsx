@@ -6,6 +6,9 @@ type Props = {
   src: string;
   alt: string;
   onClose: () => void;
+  onZoomStateChange?: (isZoomed: boolean) => void;
+  onPinchStateChange?: (isPinching: boolean) => void;
+  swipeAxis?: "horizontal" | "vertical" | null;
 };
 
 type GestureState = {
@@ -39,7 +42,14 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-export default function PostPinchZoomImage({ src, alt, onClose }: Props) {
+export default function PostPinchZoomImage({
+  src,
+  alt,
+  onClose,
+  onZoomStateChange,
+  onPinchStateChange,
+  swipeAxis = null,
+}: Props) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
 
@@ -96,7 +106,9 @@ export default function PostPinchZoomImage({ src, alt, onClose }: Props) {
     gesture.x = 0;
     gesture.y = 0;
     applyTransform(false);
-  }, [src]);
+    onZoomStateChange?.(false);
+    onPinchStateChange?.(false);
+  }, [src, onZoomStateChange, onPinchStateChange]);
 
   const frameStyle: CSSProperties = {
     position: "absolute",
@@ -142,6 +154,7 @@ export default function PostPinchZoomImage({ src, alt, onClose }: Props) {
 
         if (event.touches.length === 2) {
           event.preventDefault();
+          onPinchStateChange?.(true);
 
 const firstTouch = event.touches[0]!;
 const secondTouch = event.touches[1]!;
@@ -186,6 +199,7 @@ const secondTouch = event.touches[1]!;
           const pointY = gesture.startMidY - centerY - gesture.startY;
 
           gesture.scale = nextScale;
+          onZoomStateChange?.(nextScale > 1.02);
           gesture.x =
             gesture.startX +
             (midpoint.x - gesture.startMidX) -
@@ -217,10 +231,10 @@ const secondTouch = event.touches[1]!;
             return;
           }
 
-          if (deltaY > 0) {
-            gesture.y = deltaY;
-            applyTransform(false);
-          }
+if (deltaY > 0 && swipeAxis !== "horizontal") {
+  gesture.y = deltaY;
+  applyTransform(false);
+}
         }
       }}
       onTouchEnd={() => {
@@ -235,7 +249,12 @@ const secondTouch = event.touches[1]!;
           gesture.scale = 1;
           gesture.x = 0;
           gesture.y = 0;
+          onZoomStateChange?.(false);
+        } else {
+          onZoomStateChange?.(true);
         }
+
+        onPinchStateChange?.(false);
 
         clampPosition();
         gesture.isDragging = false;

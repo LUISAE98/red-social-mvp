@@ -147,7 +147,8 @@ export default function GroupPostComposer({
   const [currentUserHandle, setCurrentUserHandle] = useState<string | null>(null);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [selectedImagePreviews, setSelectedImagePreviews] = useState<string[]>([]);
-  const [localError, setLocalError] = useState<string | null>(null);
+const [localError, setLocalError] = useState<string | null>(null);
+const [processingImageSlots, setProcessingImageSlots] = useState(0);
 const [draggingPreviewIndex, setDraggingPreviewIndex] = useState<number | null>(null);
 const [dragOverPreviewIndex, setDragOverPreviewIndex] = useState<number | null>(null);
 const [isReorderingPreview, setIsReorderingPreview] = useState(false);
@@ -244,10 +245,11 @@ if (!cancelled) {
 }, [selectedImages]);
 
   const currentUserHref = currentUserHandle ? `/u/${currentUserHandle}` : "#";
- const hasContent = text.trim().length > 0 || selectedImages.length > 0;
+const hasContent = text.trim().length > 0 || selectedImages.length > 0;
+const isPreparingImages = processingImageSlots > 0;
 
   function handleOpenImagePicker() {
-    if (creating) return;
+    if (creating || isPreparingImages) return;
     fileInputRef.current?.click();
   }
 
@@ -442,7 +444,8 @@ async function handleImagesSelected(files: File[]) {
 
   if (files.length === 0) return;
 
-  const availableSlots = MAX_POST_IMAGES - selectedImages.length;
+  const availableSlots =
+    MAX_POST_IMAGES - selectedImages.length - processingImageSlots;
 
   if (availableSlots <= 0) {
     setLocalError(`Solo puedes subir hasta ${MAX_POST_IMAGES} imágenes por publicación.`);
@@ -455,21 +458,35 @@ async function handleImagesSelected(files: File[]) {
     setLocalError(`Solo se agregaron ${availableSlots} imágenes. El máximo es ${MAX_POST_IMAGES}.`);
   }
 
-  try {
-    const normalizedFiles: File[] = [];
+  setPostType("image");
+  setProcessingImageSlots((current) => current + filesToProcess.length);
 
-    for (const file of filesToProcess) {
+  let failedCount = 0;
+
+  for (const file of filesToProcess) {
+    try {
       const normalized = await normalizeImageFile(file, {
         maxSizeBytes: 150 * 1024 * 1024,
       });
 
-      normalizedFiles.push(normalized.file);
+      setSelectedImages((current) => [...current, normalized.file]);
+    } catch {
+      failedCount += 1;
+    } finally {
+      setProcessingImageSlots((current) => Math.max(0, current - 1));
     }
+  }
 
-    setSelectedImages((current) => [...current, ...normalizedFiles]);
-    setPostType("image");
-  } catch (e: any) {
-    setLocalError(e?.message ?? "No se pudieron preparar las imágenes.");
+  if (failedCount > 0) {
+    setLocalError(
+      failedCount === 1
+        ? "No se pudo preparar una imagen."
+        : `No se pudieron preparar ${failedCount} imágenes.`
+    );
+  }
+
+  if (failedCount === filesToProcess.length && selectedImages.length === 0) {
+    setPostType("text");
   }
 }
 
@@ -745,7 +762,7 @@ const secondaryButtonStyle: CSSProperties = {
             style={textareaStyle}
           />
 
-{selectedImagePreviews.length > 0 && (
+{(selectedImagePreviews.length > 0 || processingImageSlots > 0) && (
   <div
     style={{
       marginTop: 10,
@@ -766,6 +783,20 @@ const secondaryButtonStyle: CSSProperties = {
     .post-preview-scroller::-webkit-scrollbar-thumb {
       background: rgba(255,255,255,0.18);
       border-radius: 999px;
+    }
+
+    @keyframes post-preview-loading-pulse {
+      0% {
+        opacity: 0.42;
+      }
+
+      50% {
+        opacity: 0.78;
+      }
+
+      100% {
+        opacity: 0.42;
+      }
     }
 
     @media (max-width: 640px) {
@@ -847,7 +878,30 @@ style={{
       </div>
     ))}
 
-    {selectedImages.length < MAX_POST_IMAGES && (
+    {Array.from({ length: processingImageSlots }).map((_, index) => (
+      <div
+        key={`processing-image-${index}`}
+        aria-label="Preparando imagen"
+        style={{
+          ...imagePreviewWrapStyle,
+          border: "1px solid rgba(255,255,255,0.08)",
+          background: "rgba(255,255,255,0.055)",
+          animation: "post-preview-loading-pulse 1.6s ease-in-out infinite",
+        }}
+      >
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(90deg, rgba(255,255,255,0.035), rgba(255,255,255,0.12), rgba(255,255,255,0.035))",
+          }}
+        />
+      </div>
+    ))}
+
+    {selectedImages.length + processingImageSlots < MAX_POST_IMAGES && (
       <button
         type="button"
         onClick={handleOpenImagePicker}
@@ -894,14 +948,14 @@ style={{
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={creating || !hasContent}
+              disabled={creating || isPreparingImages || !hasContent}
               style={
-                creating || !hasContent
+              creating || isPreparingImages || !hasContent
                   ? disabledButtonStyle
                   : primaryButtonStyle
               }
             >
-              {creating ? "Publicando..." : "Publicar"}
+              {isPreparingImages ? "Preparando..." : creating ? "Publicando..." : "Publicar"}
             </button>
           </div>
         </div>

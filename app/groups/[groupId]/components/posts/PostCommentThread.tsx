@@ -375,7 +375,6 @@ const [exactReplyDates, setExactReplyDates] = useState<Record<string, boolean>>(
 
   const dangerButtonStyle: CSSProperties = {
     ...actionButtonStyle,
-    color: "#ff8a8a",
   };
 
   const disabledActionButtonStyle: CSSProperties = {
@@ -598,7 +597,9 @@ const [exactReplyDates, setExactReplyDates] = useState<Record<string, boolean>>(
                 {loadingReplies
                   ? "Cargando..."
                   : replies === null
-                    ? `Ver ${replyCount} respuestas`
+                    ? replyCount === 1
+                    ? "Ver 1 respuesta"
+                    : `Ver ${replyCount} respuestas`
                     : "Respuestas cargadas"}
               </button>
             )}
