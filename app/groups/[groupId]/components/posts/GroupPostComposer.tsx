@@ -7,8 +7,9 @@ import {
   useEffect,
   useRef,
   useState,
-  type CSSProperties,
-  type TextareaHTMLAttributes,
+type CSSProperties,
+type PointerEvent as ReactPointerEvent,
+type TextareaHTMLAttributes,
 } from "react";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -147,12 +148,25 @@ export default function GroupPostComposer({
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [selectedImagePreviews, setSelectedImagePreviews] = useState<string[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
+const [draggingPreviewIndex, setDraggingPreviewIndex] = useState<number | null>(null);
+const [dragOverPreviewIndex, setDragOverPreviewIndex] = useState<number | null>(null);
+const [isReorderingPreview, setIsReorderingPreview] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const previewScrollerRef = useRef<HTMLDivElement | null>(null);
+const dragStartIndexRef = useRef<number | null>(null);
+const dragPointerIdRef = useRef<number | null>(null);
+const dragPressTimerRef = useRef<number | null>(null);
+const dragStartPointRef = useRef<{ x: number; y: number } | null>(null);
+const previewDragActiveRef = useRef(false);
+const dragLastPointRef = useRef<{ x: number; y: number } | null>(null);
+const dragDidScrollRef = useRef(false);
 
   const currentUser = auth.currentUser;
   const currentUserName = currentUser?.displayName?.trim() || "Tú";
-  const currentUserAvatar = currentUser?.photoURL || null;
+  const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(
+    currentUser?.photoURL || null
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -180,9 +194,17 @@ export default function GroupPostComposer({
             ? data.handle.trim()
             : null;
 
-        if (!cancelled) {
-          setCurrentUserHandle(handle);
-        }
+            const avatarUrl =
+  typeof data.avatarUrl === "string" && data.avatarUrl.trim().length > 0
+    ? data.avatarUrl.trim()
+    : typeof data.photoURL === "string" && data.photoURL.trim().length > 0
+      ? data.photoURL.trim()
+      : currentUser?.photoURL || null;
+
+if (!cancelled) {
+  setCurrentUserHandle(handle);
+  setCurrentUserAvatar(avatarUrl);
+}
       } catch {
         if (!cancelled) {
           setCurrentUserHandle(null);
@@ -229,6 +251,191 @@ export default function GroupPostComposer({
     fileInputRef.current?.click();
   }
 
+function clearDragPressTimer() {
+  if (dragPressTimerRef.current !== null) {
+    window.clearTimeout(dragPressTimerRef.current);
+    dragPressTimerRef.current = null;
+  }
+}
+
+function startPreviewReorder(
+  index: number,
+  event: ReactPointerEvent<HTMLDivElement>
+) {
+  previewDragActiveRef.current = true;
+  dragStartIndexRef.current = index;
+  dragPointerIdRef.current = event.pointerId;
+
+  setDraggingPreviewIndex(index);
+  setDragOverPreviewIndex(index);
+  setIsReorderingPreview(true);
+
+  if (event.pointerType !== "mouse") {
+    document.body.style.overflow = "hidden";
+
+    if (navigator.vibrate) {
+      navigator.vibrate(18);
+    }
+  }
+
+  try {
+    event.currentTarget.setPointerCapture(event.pointerId);
+  } catch {}
+}
+
+function moveSelectedImage(fromIndex: number, toIndex: number) {
+  if (fromIndex === toIndex) return;
+
+  setSelectedImages((current) => {
+    if (
+      fromIndex < 0 ||
+      toIndex < 0 ||
+      fromIndex >= current.length ||
+      toIndex >= current.length
+    ) {
+      return current;
+    }
+
+    const nextImages = [...current];
+    const [movedImage] = nextImages.splice(fromIndex, 1);
+    nextImages.splice(toIndex, 0, movedImage);
+
+    return nextImages;
+  });
+}
+
+function getPreviewIndexFromPoint(clientX: number) {
+  const scroller = previewScrollerRef.current;
+  if (!scroller) return null;
+
+  const items = Array.from(
+    scroller.querySelectorAll<HTMLElement>("[data-preview-index]")
+  );
+
+  if (items.length === 0) return null;
+
+  let closestIndex: number | null = null;
+  let closestDistance = Number.POSITIVE_INFINITY;
+
+  items.forEach((item) => {
+    const rect = item.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const distance = Math.abs(clientX - centerX);
+    const index = Number(item.dataset.previewIndex);
+
+    if (Number.isInteger(index) && distance < closestDistance) {
+      closestDistance = distance;
+      closestIndex = index;
+    }
+  });
+
+  return closestIndex;
+}
+
+function handlePreviewPointerDown(
+  index: number,
+  event: ReactPointerEvent<HTMLDivElement>
+) {
+  if (creating) return;
+
+  clearDragPressTimer();
+
+  dragStartPointRef.current = {
+    x: event.clientX,
+    y: event.clientY,
+  };
+
+  dragLastPointRef.current = {
+    x: event.clientX,
+    y: event.clientY,
+  };
+
+  dragDidScrollRef.current = false;
+
+  if (event.pointerType === "mouse") {
+    startPreviewReorder(index, event);
+    return;
+  }
+
+  dragPressTimerRef.current = window.setTimeout(() => {
+    if (!dragDidScrollRef.current) {
+      startPreviewReorder(index, event);
+    }
+  }, 260);
+}
+
+function handlePreviewPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+  const scroller = previewScrollerRef.current;
+  const startPoint = dragStartPointRef.current;
+  const lastPoint = dragLastPointRef.current;
+
+  if (!scroller || !startPoint) return;
+
+  if (!previewDragActiveRef.current) {
+    if (event.pointerType !== "mouse" && lastPoint) {
+      const moveX = event.clientX - lastPoint.x;
+      const moveY = event.clientY - lastPoint.y;
+      const totalX = event.clientX - startPoint.x;
+      const totalY = event.clientY - startPoint.y;
+
+      if (Math.abs(totalX) > 7 && Math.abs(totalX) > Math.abs(totalY)) {
+        clearDragPressTimer();
+        dragDidScrollRef.current = true;
+        scroller.scrollLeft -= moveX;
+      }
+
+      dragLastPointRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+      };
+
+      return;
+    }
+
+    return;
+  }
+
+  event.preventDefault();
+
+  const fromIndex = dragStartIndexRef.current;
+  const nextIndex = getPreviewIndexFromPoint(event.clientX);
+
+  if (fromIndex !== null && nextIndex !== null && fromIndex !== nextIndex) {
+    moveSelectedImage(fromIndex, nextIndex);
+    dragStartIndexRef.current = nextIndex;
+    setDraggingPreviewIndex(nextIndex);
+    setDragOverPreviewIndex(nextIndex);
+  }
+
+  const rect = scroller.getBoundingClientRect();
+  const edgeSize = event.pointerType === "mouse" ? 110 : 58;
+  const scrollSpeed = event.pointerType === "mouse" ? 36 : 14;
+
+  if (event.clientX < rect.left + edgeSize) {
+    scroller.scrollLeft -= scrollSpeed;
+  }
+
+  if (event.clientX > rect.right - edgeSize) {
+    scroller.scrollLeft += scrollSpeed;
+  }
+}
+
+function handlePreviewPointerUp() {
+  clearDragPressTimer();
+
+  document.body.style.overflow = "";
+
+  previewDragActiveRef.current = false;
+  dragStartIndexRef.current = null;
+  dragPointerIdRef.current = null;
+  dragStartPointRef.current = null;
+  dragLastPointRef.current = null;
+  dragDidScrollRef.current = false;
+
+  setDraggingPreviewIndex(null);
+  setDragOverPreviewIndex(null);
+  setIsReorderingPreview(false);
+}
 
 async function handleImagesSelected(files: File[]) {
   setLocalError(null);
@@ -356,13 +563,14 @@ setSelectedImagePreviews([]);
   };
 
 const imagePreviewWrapStyle: CSSProperties = {
-  width: "100%",
-  aspectRatio: "1 / 1",
+  width: "clamp(76px, 22vw, 104px)",
+  height: "clamp(76px, 22vw, 104px)",
   borderRadius: 12,
   border: "1px solid rgba(255,255,255,0.08)",
   overflow: "hidden",
   background: "rgba(255,255,255,0.04)",
   position: "relative",
+  flex: "0 0 auto",
 };
 
 const imagePreviewStyle: CSSProperties = {
@@ -370,23 +578,56 @@ const imagePreviewStyle: CSSProperties = {
   height: "100%",
   objectFit: "cover",
   display: "block",
+  userSelect: "none",
+  WebkitUserSelect: "none",
 };
 
-  const removeImageButtonStyle: CSSProperties = {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 30,
-    height: 30,
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(0,0,0,0.72)",
-    color: "#fff",
-    cursor: "pointer",
-    fontSize: 16,
-    lineHeight: 1,
-  };
+const removeImageButtonStyle: CSSProperties = {
+  position: "absolute",
+  top: 6,
+  right: 6,
+  width: 24,
+  height: 24,
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,0.12)",
+  background: "rgba(0,0,0,0.68)",
+  color: "#fff",
+  cursor: "pointer",
+  fontSize: 13,
+  lineHeight: 1,
+};
 
+const imageNumberBadgeStyle: CSSProperties = {
+  position: "absolute",
+  left: 6,
+  top: 6,
+  minWidth: 22,
+  height: 22,
+  borderRadius: 999,
+  background: "rgba(0,0,0,0.62)",
+  color: "#fff",
+  display: "grid",
+  placeItems: "center",
+  fontSize: 11,
+  fontWeight: 700,
+  lineHeight: 1,
+};
+
+const addMoreImagesButtonStyle: CSSProperties = {
+  width: "clamp(76px, 22vw, 104px)",
+  height: "clamp(76px, 22vw, 104px)",
+  borderRadius: 12,
+  border: "1px dashed rgba(255,255,255,0.24)",
+  background: "rgba(255,255,255,0.045)",
+  color: "rgba(255,255,255,0.78)",
+  display: "grid",
+  placeItems: "center",
+  cursor: "pointer",
+  fontSize: 24,
+  fontWeight: 300,
+  lineHeight: 1,
+  flex: "0 0 auto",
+};
   const actionsRowStyle: CSSProperties = {
     marginTop: 10,
     display: "flex",
@@ -396,19 +637,24 @@ const imagePreviewStyle: CSSProperties = {
     flexWrap: "wrap",
   };
 
-  const secondaryButtonStyle: CSSProperties = {
-    minHeight: 34,
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.04)",
-    color: "rgba(255,255,255,0.86)",
-    fontSize: 12,
-    fontWeight: 600,
-    fontFamily: fontStack,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  };
+const secondaryButtonStyle: CSSProperties = {
+  width: 38,
+  height: 38,
+  minHeight: 38,
+  padding: 0,
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,0.10)",
+  background: "rgba(255,255,255,0.04)",
+  color: "rgba(255,255,255,0.90)",
+  fontSize: 18,
+  fontWeight: 600,
+  fontFamily: fontStack,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  flexShrink: 0,
+};
 
   const primaryButtonStyle: CSSProperties = {
     minHeight: 34,
@@ -503,23 +749,95 @@ const imagePreviewStyle: CSSProperties = {
   <div
     style={{
       marginTop: 10,
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))",
-      gap: 8,
-      maxWidth: 520,
+      position: "relative",
+      maxWidth: "100%",
     }}
   >
-    {selectedImagePreviews.map((previewUrl, index) => (
-      <div key={previewUrl} style={imagePreviewWrapStyle}>
-        <img
-          src={previewUrl}
-          alt={`Vista previa de imagen ${index + 1}`}
-          style={imagePreviewStyle}
-        />
+<style>
+  {`
+    .post-preview-scroller::-webkit-scrollbar {
+      height: 6px;
+    }
 
-        <button
-          type="button"
-          onClick={() => handleRemoveImage(index)}
+    .post-preview-scroller::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .post-preview-scroller::-webkit-scrollbar-thumb {
+      background: rgba(255,255,255,0.18);
+      border-radius: 999px;
+    }
+
+    @media (max-width: 640px) {
+      .post-preview-scroller::-webkit-scrollbar {
+        display: none;
+      }
+    }
+  `}
+</style>
+
+<div
+  ref={previewScrollerRef}
+  className="post-preview-scroller"
+style={{
+  display: "flex",
+  gap: 8,
+  maxWidth: "100%",
+  overflowX: "auto",
+  overflowY: "hidden",
+  paddingBottom: 8,
+  WebkitOverflowScrolling: "touch",
+  scrollbarWidth: "thin",
+  scrollbarColor: "rgba(255,255,255,0.18) transparent",
+  cursor: isReorderingPreview ? "grabbing" : "grab",
+}}
+>
+    {selectedImagePreviews.map((previewUrl, index) => (
+<div
+  key={previewUrl}
+  data-preview-index={index}
+  onDragStart={(event) => event.preventDefault()}
+  onTouchMoveCapture={(event) => {
+    if (previewDragActiveRef.current) {
+      event.preventDefault();
+    }
+  }}
+  onPointerDown={(event) => handlePreviewPointerDown(index, event)}
+  onPointerMove={handlePreviewPointerMove}
+  onPointerUp={handlePreviewPointerUp}
+  onPointerCancel={handlePreviewPointerUp}
+style={{
+  ...imagePreviewWrapStyle,
+  opacity: draggingPreviewIndex === index ? 0.62 : 1,
+  transform:
+    draggingPreviewIndex === index
+      ? "scale(0.96)"
+      : dragOverPreviewIndex === index
+        ? "scale(1.035)"
+        : "scale(1)",
+  outline:
+    dragOverPreviewIndex === index
+      ? "2px solid rgba(255,255,255,0.42)"
+      : "none",
+  transition: "transform 140ms ease, opacity 140ms ease, outline 140ms ease",
+  touchAction: "none",
+  cursor: isReorderingPreview ? "grabbing" : "grab",
+}}
+>
+<img
+  src={previewUrl}
+  alt={`Vista previa de imagen ${index + 1}`}
+  style={imagePreviewStyle}
+  draggable={false}
+  onDragStart={(event) => event.preventDefault()}
+/>
+
+        <div style={imageNumberBadgeStyle}>{index + 1}</div>
+
+<button
+  type="button"
+  onPointerDown={(event) => event.stopPropagation()}
+  onClick={() => handleRemoveImage(index)}
           style={removeImageButtonStyle}
           aria-label={`Quitar imagen ${index + 1}`}
           disabled={creating}
@@ -528,28 +846,50 @@ const imagePreviewStyle: CSSProperties = {
         </button>
       </div>
     ))}
+
+    {selectedImages.length < MAX_POST_IMAGES && (
+      <button
+        type="button"
+        onClick={handleOpenImagePicker}
+        disabled={creating}
+        style={
+          creating
+            ? {
+                ...addMoreImagesButtonStyle,
+                opacity: 0.5,
+                cursor: "not-allowed",
+              }
+            : addMoreImagesButtonStyle
+        }
+        aria-label="Agregar otra imagen"
+      >
+        +
+      </button>
+    )}
+    </div>
   </div>
 )}
 
           {localError && <div style={localErrorStyle}>{localError}</div>}
 
           <div style={actionsRowStyle}>
-            <button
-              type="button"
-              onClick={handleOpenImagePicker}
-              disabled={creating}
-              style={
-                creating
-                  ? {
-                      ...secondaryButtonStyle,
-                      opacity: 0.5,
-                      cursor: "not-allowed",
-                    }
-                  : secondaryButtonStyle
-              }
-            >
-              Imagen
-            </button>
+<button
+  type="button"
+  onClick={handleOpenImagePicker}
+  disabled={creating}
+  style={
+    creating
+      ? {
+          ...secondaryButtonStyle,
+          opacity: 0.5,
+          cursor: "not-allowed",
+        }
+      : secondaryButtonStyle
+  }
+  aria-label="Agregar imágenes"
+>
+  <span aria-hidden="true">🖼️</span>
+</button>
 
             <button
               type="button"
