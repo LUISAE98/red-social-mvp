@@ -100,6 +100,15 @@ function formatRelativeFromMs(value: number | null): string {
   return `hace ${diffYears} años`;
 }
 
+function truncatePostText(text: string, maxLength: number) {
+  if (text.length <= maxLength) return text;
+
+  const sliced = text.slice(0, maxLength).trim();
+  const lastSpace = sliced.lastIndexOf(" ");
+
+  return `${sliced.slice(0, lastSpace > 40 ? lastSpace : sliced.length).trim()}...`;
+}
+
 export default function PublicPostPageClient({
   post,
   postUrl,
@@ -137,6 +146,7 @@ export default function PublicPostPageClient({
   } | null>(null);
 
   const [showExactPostDate, setShowExactPostDate] = useState(false);
+  const [postTextExpanded, setPostTextExpanded] = useState(false);
   const [relativeDateLabel, setRelativeDateLabel] = useState("");
 
   useEffect(() => {
@@ -529,51 +539,147 @@ export default function PublicPostPageClient({
             </div>
           </div>
 
-          {post.text ? (
-            <div className="px-3 pb-4 text-[15px] leading-relaxed text-neutral-100 sm:px-4">
-              <p className="whitespace-pre-wrap break-words">{post.text}</p>
-            </div>
+{post.text ? (
+  <div className="px-3 pb-4 text-[15px] leading-relaxed text-neutral-100 sm:px-4">
+    <p className="whitespace-pre-wrap break-words">
+      {postTextExpanded || post.text.length <= 160
+        ? post.text
+        : truncatePostText(post.text, 160)}
+
+      {post.text.length > 160 ? (
+        <button
+          type="button"
+          onClick={() => setPostTextExpanded((prev) => !prev)}
+          className="ml-1 border-0 bg-transparent p-0 text-[15px] font-bold text-neutral-300"
+        >
+          {postTextExpanded ? "- Ver menos" : "+ Ver más"}
+        </button>
+      ) : null}
+    </p>
+  </div>
+) : null}
+
+{imageMedia.length > 0 ? (
+  <div className="w-full bg-black">
+    {(() => {
+      const totalImages = imageMedia.length;
+      const first = imageMedia[0];
+      const second = imageMedia[1] ?? null;
+      const third = imageMedia[2] ?? null;
+      const remainingCount = Math.max(0, totalImages - 3);
+
+      function openImage(item: (typeof imageMedia)[number]) {
+        setSelectedImage({
+          url: item.url,
+          altText: item.altText || null,
+        });
+
+        void handleOpenCommentsPanel();
+      }
+
+      if (totalImages === 1) {
+        return (
+          <button
+            type="button"
+            onClick={() => openImage(first)}
+            className="aspect-video w-full overflow-hidden bg-neutral-800"
+            aria-label="Abrir imagen de la publicación"
+          >
+            <img
+              src={first.url}
+              alt={first.altText || post.shareTitle || "Imagen del post"}
+              className="h-full w-full object-cover"
+              draggable={false}
+            />
+          </button>
+        );
+      }
+
+      if (totalImages === 2 && second) {
+        return (
+          <div className="grid aspect-square w-full grid-cols-2 gap-0.5 bg-black sm:aspect-[16/10]">
+            {[first, second].map((item, index) => (
+              <button
+                key={`${item.url}-${index}`}
+                type="button"
+                onClick={() => openImage(item)}
+                className="overflow-hidden bg-neutral-800"
+                aria-label={`Abrir imagen ${index + 1} de ${totalImages}`}
+              >
+                <img
+                  src={item.url}
+                  alt={
+                    item.altText ||
+                    post.shareTitle ||
+                    `Imagen ${index + 1} del post`
+                  }
+                  className="h-full w-full object-cover"
+                  draggable={false}
+                />
+              </button>
+            ))}
+          </div>
+        );
+      }
+
+      return (
+        <div className="grid aspect-square w-full grid-cols-2 gap-0.5 bg-black sm:aspect-[16/10]">
+          <button
+            type="button"
+            onClick={() => openImage(first)}
+            className="row-span-2 overflow-hidden bg-neutral-800"
+            aria-label={`Abrir imagen 1 de ${totalImages}`}
+          >
+            <img
+              src={first.url}
+              alt={first.altText || post.shareTitle || "Imagen 1 del post"}
+              className="h-full w-full object-cover"
+              draggable={false}
+            />
+          </button>
+
+          {second ? (
+            <button
+              type="button"
+              onClick={() => openImage(second)}
+              className="overflow-hidden bg-neutral-800"
+              aria-label={`Abrir imagen 2 de ${totalImages}`}
+            >
+              <img
+                src={second.url}
+                alt={second.altText || post.shareTitle || "Imagen 2 del post"}
+                className="h-full w-full object-cover"
+                draggable={false}
+              />
+            </button>
           ) : null}
 
-          {imageMedia.length > 0 ? (
-            <div
-              className={
-                imageMedia.length === 1
-                  ? "grid w-full grid-cols-1 gap-0 bg-black"
-                  : "grid w-full grid-cols-2 gap-0.5 bg-black"
-              }
+          {third ? (
+            <button
+              type="button"
+              onClick={() => openImage(third)}
+              className="relative overflow-hidden bg-neutral-800"
+              aria-label={`Abrir imagen 3 de ${totalImages}`}
             >
-              {imageMedia.map((item, index) => (
-                <button
-                  key={`${item.url}-${index}`}
-                  type="button"
-                  onClick={() => {
-                    setSelectedImage({
-                      url: item.url,
-                      altText: item.altText || null,
-                    });
-                    void handleOpenCommentsPanel();
-                  }}
-                  className={
-                    imageMedia.length === 1
-                      ? "aspect-video w-full overflow-hidden bg-neutral-800"
-                      : "aspect-square w-full overflow-hidden bg-neutral-800"
-                  }
-                >
-                  <img
-                    src={item.url}
-                    alt={
-                      item.altText ||
-                      post.shareTitle ||
-                      `Imagen ${index + 1} del post`
-                    }
-                    className="h-full w-full object-cover"
-                    draggable={false}
-                  />
-                </button>
-              ))}
-            </div>
+              <img
+                src={third.url}
+                alt={third.altText || post.shareTitle || "Imagen 3 del post"}
+                className="h-full w-full object-cover"
+                draggable={false}
+              />
+
+              {remainingCount > 0 ? (
+                <div className="absolute inset-0 grid place-items-center bg-black/50 text-3xl font-extrabold text-white">
+                  +{remainingCount}
+                </div>
+              ) : null}
+            </button>
           ) : null}
+        </div>
+      );
+    })()}
+  </div>
+) : null}
 
           <div className="flex items-center justify-between gap-3 px-3 py-3 text-sm text-neutral-400 sm:px-4">
             <div className="flex items-center gap-4">
