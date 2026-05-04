@@ -1,7 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { auth } from "@/lib/firebase";
 
 export type PublicPostView = {
   id: string;
@@ -34,9 +35,7 @@ type PublicPostPageClientProps = {
 function getInitials(name?: string | null): string {
   const cleanName = name?.trim();
 
-  if (!cleanName) {
-    return "U";
-  }
+  if (!cleanName) return "U";
 
   return cleanName
     .split(" ")
@@ -50,9 +49,26 @@ export default function PublicPostPageClient({
   post,
   postUrl,
 }: PublicPostPageClientProps) {
+  const [currentUserId, setCurrentUserId] = useState<string | null>(
+    auth.currentUser?.uid ?? null
+  );
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((user) => {
+      setCurrentUserId(user?.uid ?? null);
+    });
+
+    return () => unsub();
+  }, []);
+
+  const entryHref = currentUserId ? "/" : "/login";
   const authorName = post.authorName || "Usuario";
   const groupName = post.groupName || "Comunidad";
-  const firstImage = post.media.find((item) => item.type === "image" && item.url);
+
+  const imageMedia = useMemo(
+    () => post.media.filter((item) => item.type === "image" && item.url),
+    [post.media]
+  );
 
   async function handleShare() {
     const shareTitle = post.shareTitle || "Publicación";
@@ -84,23 +100,21 @@ export default function PublicPostPageClient({
           </Link>
 
           <Link
-            href="/login"
-            className="rounded-full border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+            href={entryHref}
+            className="rounded-xl border border-white/15 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
           >
-            Entrar
+            Login
           </Link>
         </div>
 
-        <article className="overflow-hidden rounded-3xl border border-white/10 bg-neutral-900 shadow-2xl">
-          <div className="flex items-start gap-3 p-4 sm:p-5">
-            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-neutral-800">
+        <article className="overflow-hidden rounded-2xl border border-white/10 bg-neutral-900 shadow-xl">
+          <div className="flex items-start gap-3 p-4">
+            <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-neutral-800">
               {post.authorAvatarUrl ? (
-                <Image
+                <img
                   src={post.authorAvatarUrl}
                   alt={authorName}
-                  fill
-                  sizes="44px"
-                  className="object-cover"
+                  className="h-full w-full object-cover"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-sm font-bold text-neutral-200">
@@ -128,25 +142,43 @@ export default function PublicPostPageClient({
           </div>
 
           {post.text ? (
-            <div className="px-4 pb-4 text-[15px] leading-relaxed text-neutral-100 sm:px-5">
+            <div className="px-4 pb-4 text-[15px] leading-relaxed text-neutral-100">
               <p className="whitespace-pre-wrap break-words">{post.text}</p>
             </div>
           ) : null}
 
-          {firstImage ? (
-            <div className="relative aspect-[4/3] w-full overflow-hidden bg-neutral-800 sm:aspect-video">
-              <Image
-                src={firstImage.url}
-                alt={firstImage.altText || post.shareTitle || "Imagen del post"}
-                fill
-                sizes="(max-width: 768px) 100vw, 672px"
-                className="object-cover"
-                priority
-              />
+          {imageMedia.length > 0 ? (
+            <div
+              className={
+                imageMedia.length === 1
+                  ? "grid w-full grid-cols-1 gap-0 bg-black"
+                  : "grid w-full grid-cols-2 gap-0.5 bg-black"
+              }
+            >
+              {imageMedia.map((item, index) => (
+                <div
+                  key={`${item.url}-${index}`}
+                  className={
+                    imageMedia.length === 1
+                      ? "aspect-video w-full overflow-hidden bg-neutral-800"
+                      : "aspect-square w-full overflow-hidden bg-neutral-800"
+                  }
+                >
+                  <img
+                    src={item.url}
+                    alt={
+                      item.altText ||
+                      post.shareTitle ||
+                      `Imagen ${index + 1} del post`
+                    }
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ))}
             </div>
           ) : null}
 
-          <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3 text-sm text-neutral-400 sm:px-5">
+          <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3 text-sm text-neutral-400">
             <div className="flex items-center gap-4">
               <span>🔥 {post.counts.likes}</span>
               <span>💬 {post.counts.comments}</span>
@@ -155,7 +187,7 @@ export default function PublicPostPageClient({
             <button
               type="button"
               onClick={handleShare}
-              className="grid h-8 w-8 place-items-center rounded-full text-lg transition hover:bg-white/10"
+              className="grid h-8 w-8 place-items-center rounded-lg text-lg transition hover:bg-white/10"
               aria-label="Compartir publicación"
               title="Compartir publicación"
             >
@@ -164,14 +196,14 @@ export default function PublicPostPageClient({
           </div>
         </article>
 
-        <div className="rounded-3xl border border-white/10 bg-neutral-900 p-4 text-center sm:p-5">
+        <div className="rounded-2xl border border-white/10 bg-neutral-900 p-4 text-center">
           <p className="text-sm text-neutral-300">
             Para comentar, reaccionar o ver más contenido, entra a Vibra.
           </p>
 
           <Link
-            href="/login"
-            className="mt-4 inline-flex rounded-full bg-white px-5 py-2 text-sm font-bold text-neutral-950 transition hover:bg-neutral-200"
+            href={entryHref}
+            className="mt-4 inline-flex rounded-xl bg-white px-5 py-2 text-sm font-bold text-neutral-950 transition hover:bg-neutral-200"
           >
             Entrar a Vibra
           </Link>

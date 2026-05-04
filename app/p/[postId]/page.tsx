@@ -7,15 +7,13 @@ import PublicPostPageClient, {
 } from "./PublicPostPageClient";
 
 type PublicPostPageProps = {
-  params: {
+  params: Promise<{
     postId: string;
-  };
+  }>;
 };
 
 function formatPublicDate(value: any): string | null {
-  if (!value?.toDate) {
-    return null;
-  }
+  if (!value?.toDate) return null;
 
   try {
     return new Intl.DateTimeFormat("es-MX", {
@@ -74,8 +72,7 @@ function toPublicPostView(post: any): PublicPostView {
         ? post.shareImageUrl
         : media[0]?.thumbnailUrl || media[0]?.url || null,
     counts: {
-      likes:
-        typeof post.counts?.likes === "number" ? post.counts.likes : 0,
+      likes: typeof post.counts?.likes === "number" ? post.counts.likes : 0,
       comments:
         typeof post.counts?.comments === "number" ? post.counts.comments : 0,
     },
@@ -86,7 +83,8 @@ function toPublicPostView(post: any): PublicPostView {
 export async function generateMetadata({
   params,
 }: PublicPostPageProps): Promise<Metadata> {
-  const post = await fetchPublicPostById(params.postId);
+  const { postId } = await params;
+  const post = await fetchPublicPostById(postId);
 
   if (!post) {
     return {
@@ -134,7 +132,8 @@ export async function generateMetadata({
 }
 
 export default async function PublicPostPage({ params }: PublicPostPageProps) {
-  const post = await fetchPublicPostById(params.postId);
+  const { postId } = await params;
+  const post = await fetchPublicPostById(postId);
 
   if (!post) {
     notFound();

@@ -22,7 +22,7 @@ function isFreePublicPost(post: Post): boolean {
   return (
     post.isDeleted !== true &&
     post.groupVisibility === "public" &&
-    post.isShareable === true &&
+    post.isShareable !== false &&
     accessModel === "free" &&
     post.requiresPayment !== true &&
     post.requiresSubscription !== true
