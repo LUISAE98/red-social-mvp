@@ -12,20 +12,33 @@ type PublicPostPageProps = {
   }>;
 };
 
-function formatPublicDate(value: any): string | null {
+function getDateFromTimestamp(value: any): Date | null {
   if (!value?.toDate) return null;
+
+  try {
+    const date = value.toDate();
+    return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
+  } catch {
+    return null;
+  }
+}
+
+function formatExactDate(date: Date | null): string | null {
+  if (!date) return null;
 
   try {
     return new Intl.DateTimeFormat("es-MX", {
       dateStyle: "medium",
       timeStyle: "short",
-    }).format(value.toDate());
+    }).format(date);
   } catch {
     return null;
   }
 }
 
 function toPublicPostView(post: any): PublicPostView {
+  const createdAtDate = getDateFromTimestamp(post.createdAt);
+
   const media = Array.isArray(post.media)
     ? post.media
         .filter((item: any) => {
@@ -48,6 +61,8 @@ function toPublicPostView(post: any): PublicPostView {
   return {
     id: post.id,
     text: typeof post.text === "string" ? post.text : "",
+
+    authorId: typeof post.authorId === "string" ? post.authorId : null,
     authorName:
       typeof post.authorName === "string" && post.authorName.trim()
         ? post.authorName
@@ -56,11 +71,18 @@ function toPublicPostView(post: any): PublicPostView {
       typeof post.authorUsername === "string" ? post.authorUsername : null,
     authorAvatarUrl:
       typeof post.authorAvatarUrl === "string" ? post.authorAvatarUrl : null,
+
+    groupId: typeof post.groupId === "string" ? post.groupId : null,
     groupName:
       typeof post.groupName === "string" && post.groupName.trim()
         ? post.groupName
         : "Comunidad",
-    createdAtLabel: formatPublicDate(post.createdAt),
+    groupAvatarUrl:
+      typeof post.groupAvatarUrl === "string" ? post.groupAvatarUrl : null,
+
+    createdAtMs: createdAtDate ? createdAtDate.getTime() : null,
+    createdAtExactLabel: formatExactDate(createdAtDate),
+
     shareTitle:
       typeof post.shareTitle === "string" && post.shareTitle.trim()
         ? post.shareTitle
@@ -71,11 +93,13 @@ function toPublicPostView(post: any): PublicPostView {
       typeof post.shareImageUrl === "string" && post.shareImageUrl.trim()
         ? post.shareImageUrl
         : media[0]?.thumbnailUrl || media[0]?.url || null,
+
     counts: {
       likes: typeof post.counts?.likes === "number" ? post.counts.likes : 0,
       comments:
         typeof post.counts?.comments === "number" ? post.counts.comments : 0,
     },
+
     media,
   };
 }
