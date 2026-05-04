@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  documentId,
   getDoc,
   getDocs,
   limit,
@@ -70,6 +71,12 @@ type GroupWriteAccess = {
 type TogglePostFlameResponse = {
   liked: boolean;
   likes: number;
+};
+
+type TogglePostSaveResponse = {
+  saved: boolean;
+  delta: number;
+  postId: string;
 };
 
 type ToggleCommentFlameResponse = {
@@ -459,10 +466,11 @@ function normalizePostMetadata(post: Post): Post {
 
     media: Array.isArray(post.media) ? post.media : [],
 
-    counts: {
-      comments: post.counts?.comments ?? 0,
-      likes: post.counts?.likes ?? 0,
-    },
+counts: {
+  comments: post.counts?.comments ?? 0,
+  likes: post.counts?.likes ?? 0,
+  saves: post.counts?.saves ?? 0,
+},
 
     liveData: post.liveData ?? null,
     videoData: post.videoData ?? null,
@@ -531,6 +539,68 @@ async function attachViewerFlameState(
     ...post,
     viewerHasFlamed: likedPostIds.has(post.id),
   }));
+}
+
+async function attachViewerSavedState(
+  posts: Post[],
+  viewerUid?: string | null
+): Promise<Post[]> {
+  const uid = viewerUid || auth.currentUser?.uid || null;
+
+  if (!uid || posts.length === 0) {
+    return posts.map((post) => ({
+      ...post,
+      viewerHasSaved: false,
+    }));
+  }
+
+  const postIds = new Set(
+    posts
+      .map((post) => post.id)
+      .filter(
+        (postId): postId is string =>
+          typeof postId === "string" && postId.trim().length > 0
+      )
+  );
+
+  if (postIds.size === 0) {
+    return posts.map((post) => ({
+      ...post,
+      viewerHasSaved: false,
+    }));
+  }
+
+  const savedPostIds = new Set<string>();
+
+  try {
+    const snap = await getDocs(collection(db, "users", uid, "savedPosts"));
+
+    snap.docs.forEach((saveDoc) => {
+      const postId = saveDoc.id;
+
+      if (postIds.has(postId)) {
+        savedPostIds.add(postId);
+      }
+    });
+  } catch {
+    return posts.map((post) => ({
+      ...post,
+      viewerHasSaved: false,
+    }));
+  }
+
+  return posts.map((post) => ({
+    ...post,
+    viewerHasSaved: savedPostIds.has(post.id),
+  }));
+}
+
+async function attachViewerPostState(
+  posts: Post[],
+  viewerUid?: string | null
+): Promise<Post[]> {
+  const withFlameState = await attachViewerFlameState(posts, viewerUid);
+  return attachViewerSavedState(withFlameState, viewerUid);
 }
 
 function hydrateComment(
@@ -907,7 +977,7 @@ export async function fetchGroupPosts(
     };
   });
 
-  return attachViewerFlameState(hydratedPosts, viewerUid);
+  return attachViewerPostState(hydratedPosts, viewerUid);
 }
 
 export async function fetchHomePosts(userUid: string): Promise<Post[]> {
@@ -930,7 +1000,7 @@ export async function fetchHomePosts(userUid: string): Promise<Post[]> {
     };
   });
 
-   return attachViewerFlameState(hydratedPosts, userUid);
+   return attachViewerPostState(hydratedPosts, userUid);
 }
 
 export async function fetchUserProfilePosts(
@@ -981,7 +1051,7 @@ export async function fetchUserProfilePosts(
       };
     });
 
-    return attachViewerFlameState(hydratedPosts, viewerUid || profileUid);
+    return attachViewerPostState(hydratedPosts, viewerUid || profileUid);
   }
 
   const visibleGroupIds = await fetchProfileVisibleGroupIds(viewerUid);
@@ -1003,7 +1073,7 @@ export async function fetchUserProfilePosts(
     };
   });
 
-  return attachViewerFlameState(hydratedPosts, viewerUid);
+  return attachViewerPostState(hydratedPosts, viewerUid);
 }
 
 export async function createTextPost(params: {
@@ -1053,10 +1123,11 @@ export async function createTextPost(params: {
     shareImageUrl: shareMetadata.shareImageUrl,
     access: "free",
     media: [],
-    counts: {
-      comments: 0,
-      likes: 0,
-    },
+counts: {
+  comments: 0,
+  likes: 0,
+  saves: 0,
+},
 
     postType: "text",
 
@@ -1144,10 +1215,11 @@ export async function createImagePost(params: {
     shareImageUrl: shareMetadata.shareImageUrl,
     access: "free",
     media: cleanMedia,
-    counts: {
-      comments: 0,
-      likes: 0,
-    },
+counts: {
+  comments: 0,
+  likes: 0,
+  saves: 0,
+},
 
     postType: cleanMedia.length > 0 ? "image" : "text",
 
@@ -1280,10 +1352,14 @@ const currentComments =
 const currentLikes =
   typeof currentCounts.likes === "number" ? currentCounts.likes : 0;
 
+const currentSaves =
+  typeof currentCounts.saves === "number" ? currentCounts.saves : 0;
+
 await updateDoc(postRef, {
   counts: {
     comments: currentComments + 1,
     likes: currentLikes,
+    saves: currentSaves,
   },
   updatedAt: serverTimestamp(),
 });
@@ -1324,12 +1400,16 @@ const currentComments =
 const currentLikes =
   typeof currentCounts.likes === "number" ? currentCounts.likes : 0;
 
+const currentSaves =
+  typeof currentCounts.saves === "number" ? currentCounts.saves : 0;
+
 await deleteDoc(commentRef);
 
 await updateDoc(postRef, {
   counts: {
     comments: Math.max(0, currentComments - 1),
     likes: currentLikes,
+    saves: currentSaves,
   },
   updatedAt: serverTimestamp(),
 });
@@ -1418,23 +1498,10 @@ export async function createPostCommentReply(params: {
 
   await ensureUserCanCommentInGroup(groupId, author.uid);
 
-  const commentRef = doc(
-    db,
-    "posts",
-    params.postId,
-    "comments",
-    params.commentId
-  );
+  const commentRef = doc(db, "posts", params.postId, "comments", params.commentId);
 
   const replyRef = doc(
-    collection(
-      db,
-      "posts",
-      params.postId,
-      "comments",
-      params.commentId,
-      "replies"
-    )
+    collection(db, "posts", params.postId, "comments", params.commentId, "replies")
   );
 
   await runTransaction(db, async (transaction) => {
@@ -1456,12 +1523,13 @@ export async function createPostCommentReply(params: {
         : {};
 
     const freshPostComments =
-      typeof freshPostCounts.comments === "number"
-        ? freshPostCounts.comments
-        : 0;
+      typeof freshPostCounts.comments === "number" ? freshPostCounts.comments : 0;
 
     const freshPostLikes =
       typeof freshPostCounts.likes === "number" ? freshPostCounts.likes : 0;
+
+    const freshPostSaves =
+      typeof freshPostCounts.saves === "number" ? freshPostCounts.saves : 0;
 
     const freshCommentData = freshCommentSnap.data() as Record<string, unknown>;
     const freshCommentCounts =
@@ -1470,14 +1538,10 @@ export async function createPostCommentReply(params: {
         : {};
 
     const freshReplies =
-      typeof freshCommentCounts.replies === "number"
-        ? freshCommentCounts.replies
-        : 0;
+      typeof freshCommentCounts.replies === "number" ? freshCommentCounts.replies : 0;
 
     const freshCommentLikes =
-      typeof freshCommentCounts.likes === "number"
-        ? freshCommentCounts.likes
-        : 0;
+      typeof freshCommentCounts.likes === "number" ? freshCommentCounts.likes : 0;
 
     transaction.set(replyRef, {
       postId: params.postId,
@@ -1503,6 +1567,7 @@ export async function createPostCommentReply(params: {
       counts: {
         comments: freshPostComments + 1,
         likes: freshPostLikes,
+        saves: freshPostSaves,
       },
       updatedAt: serverTimestamp(),
     });
@@ -1531,14 +1596,7 @@ export async function deletePostCommentReply(params: {
     params.replyId
   );
 
-  const commentRef = doc(
-    db,
-    "posts",
-    params.postId,
-    "comments",
-    params.commentId
-  );
-
+  const commentRef = doc(db, "posts", params.postId, "comments", params.commentId);
   const postRef = doc(db, "posts", params.postId);
 
   await runTransaction(db, async (transaction) => {
@@ -1565,14 +1623,10 @@ export async function deletePostCommentReply(params: {
         : {};
 
     const freshReplies =
-      typeof freshCommentCounts.replies === "number"
-        ? freshCommentCounts.replies
-        : 0;
+      typeof freshCommentCounts.replies === "number" ? freshCommentCounts.replies : 0;
 
     const freshCommentLikes =
-      typeof freshCommentCounts.likes === "number"
-        ? freshCommentCounts.likes
-        : 0;
+      typeof freshCommentCounts.likes === "number" ? freshCommentCounts.likes : 0;
 
     const freshPostData = freshPostSnap.data() as Record<string, unknown>;
     const freshPostCounts =
@@ -1581,12 +1635,13 @@ export async function deletePostCommentReply(params: {
         : {};
 
     const freshPostComments =
-      typeof freshPostCounts.comments === "number"
-        ? freshPostCounts.comments
-        : 0;
+      typeof freshPostCounts.comments === "number" ? freshPostCounts.comments : 0;
 
     const freshPostLikes =
       typeof freshPostCounts.likes === "number" ? freshPostCounts.likes : 0;
+
+    const freshPostSaves =
+      typeof freshPostCounts.saves === "number" ? freshPostCounts.saves : 0;
 
     transaction.delete(replyRef);
 
@@ -1602,6 +1657,7 @@ export async function deletePostCommentReply(params: {
       counts: {
         comments: Math.max(0, freshPostComments - 1),
         likes: freshPostLikes,
+        saves: freshPostSaves,
       },
       updatedAt: serverTimestamp(),
     });
@@ -1663,6 +1719,104 @@ export async function togglePostFlame(postId: string): Promise<TogglePostFlameRe
     liked: Boolean(result.data.liked),
     likes: Number(result.data.likes ?? 0),
   };
+}
+
+export async function togglePostSave(postId: string): Promise<TogglePostSaveResponse> {
+  assertValidId(postId, "postId");
+
+  if (!auth.currentUser?.uid) {
+    throw new Error("Debes iniciar sesión para guardar publicaciones.");
+  }
+
+  const callable = httpsCallable<{ postId: string }, TogglePostSaveResponse>(
+    functions,
+    "togglePostSave"
+  );
+
+  const result = await callable({ postId });
+
+  return {
+    saved: Boolean(result.data.saved),
+    delta: Number(result.data.delta ?? 0),
+    postId: String(result.data.postId || postId),
+  };
+}
+
+export async function fetchSavedPosts(userUid: string): Promise<Post[]> {
+  assertValidId(userUid, "userUid");
+
+  const savedSnap = await getDocs(
+    query(
+      collection(db, "users", userUid, "savedPosts"),
+      orderBy("savedAt", "desc"),
+      limit(100)
+    )
+  );
+
+  const savedPostIds = savedSnap.docs
+    .map((savedDoc) => savedDoc.id)
+    .filter((postId) => postId.trim().length > 0);
+
+  if (savedPostIds.length === 0) {
+    return [];
+  }
+
+  const postChunks: string[][] = [];
+
+  for (let index = 0; index < savedPostIds.length; index += 10) {
+    postChunks.push(savedPostIds.slice(index, index + 10));
+  }
+
+  const chunkResults = await Promise.all(
+    postChunks.map(async (chunk) => {
+      try {
+        const snap = await getDocs(
+          query(
+            collection(db, "posts"),
+            where(documentId(), "in", chunk),
+            where("isDeleted", "==", false)
+          )
+        );
+
+        return snap.docs.map((postDoc) => ({
+          id: postDoc.id,
+          ...(postDoc.data() as Omit<Post, "id">),
+        })) as Post[];
+      } catch {
+        return [] as Post[];
+      }
+    })
+  );
+
+  const rawPosts = chunkResults.flat();
+  const postMap = new Map(rawPosts.map((post) => [post.id, post]));
+
+  const orderedPosts = savedPostIds
+    .map((postId) => postMap.get(postId))
+    .filter((post): post is Post => Boolean(post));
+
+  const accessibleGroupIds = new Set(await fetchAccessibleGroupIds(userUid));
+
+  const visiblePosts = orderedPosts.filter((post) => {
+    const groupId = typeof post.groupId === "string" ? post.groupId.trim() : "";
+    return groupId && accessibleGroupIds.has(groupId);
+  });
+
+  const [userMap, groupMap] = await Promise.all([
+    fetchUsersByIds(visiblePosts.map((post) => post.authorId)),
+    fetchGroupsByIds(visiblePosts.map((post) => post.groupId)),
+  ]);
+
+  const hydratedPosts = visiblePosts.map((post) => {
+    const hydrated = hydratePost(post, userMap, groupMap);
+
+    return {
+      ...hydrated,
+      isLocked: isPostLocked(hydrated),
+    };
+  });
+
+  return attachViewerPostState(hydratedPosts, userUid);
 }
 
 export async function toggleCommentFlame(params: {

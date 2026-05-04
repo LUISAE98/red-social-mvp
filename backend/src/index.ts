@@ -110,3 +110,5 @@ export { updateProfileDisplayName } from "./profileSettings";
 export { togglePostFlame } from "./postReactions";
 // Post comments
 export { toggleCommentFlame } from "./postComments";
+// Post saves
+export { togglePostSave } from "./postSaves";

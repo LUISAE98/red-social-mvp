@@ -40,15 +40,15 @@ export default function PostShareButton({
   const [busy, setBusy] = useState(false);
 
   const buttonStyle: CSSProperties = {
-    width: 28,
-    height: 28,
+    width: 20,
+    height: 20,
     border: "none",
     background: "transparent",
     padding: 0,
     color: "rgba(255,255,255,0.72)",
     display: "inline-grid",
     placeItems: "center",
-    fontSize: 18,
+    fontSize: 14,
     fontFamily: fontStack,
     lineHeight: 1,
     cursor: busy ? "not-allowed" : "pointer",
@@ -109,7 +109,7 @@ if (navigator.share) {
       title={copied ? "Link copiado" : "Compartir publicación"}
       style={buttonStyle}
     >
-      <span aria-hidden="true">{copied ? "✅" : "📤"}</span>
+      <span aria-hidden="true">{copied ? "✅" : "🔗"}</span>
     </button>
   );
 }

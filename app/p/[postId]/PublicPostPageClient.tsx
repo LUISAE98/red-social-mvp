@@ -14,12 +14,14 @@ import {
   fetchPostComments,
   fetchPostFlameUsers,
   togglePostFlame,
+  togglePostSave,
 } from "@/lib/posts/post-service";
 import PostCommentsPanel from "@/app/groups/[groupId]/components/posts/PostCommentsPanel";
 import PostFlamesPanel, {
   type PostFlameUser,
 } from "@/app/groups/[groupId]/components/posts/PostFlamesPanel";
 import PostImageViewer from "@/app/groups/[groupId]/components/posts/PostImageViewer";
+import PostSaveButton from "@/components/ui/PostSaveButton";
 
 export type PublicPostView = {
   id: string;
@@ -44,6 +46,7 @@ export type PublicPostView = {
   counts: {
     likes: number;
     comments: number;
+    saves?: number;
   };
 
   media: Array<{
@@ -124,6 +127,9 @@ export default function PublicPostPageClient({
   const [commentsCount, setCommentsCount] = useState(post.counts.comments);
   const [viewerHasFlamed, setViewerHasFlamed] = useState(false);
   const [flameBusy, setFlameBusy] = useState(false);
+  const [savesCount, setSavesCount] = useState(post.counts.saves ?? 0);
+  const [viewerHasSaved, setViewerHasSaved] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
 
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
@@ -229,8 +235,10 @@ export default function PublicPostPageClient({
     counts: {
       likes: likesCount,
       comments: commentsCount,
+      saves: savesCount,
     },
     viewerHasFlamed,
+    viewerHasSaved,
     postType: imageMedia.length > 0 ? "image" : "text",
   };
 
@@ -278,7 +286,28 @@ export default function PublicPostPageClient({
       setFlameBusy(false);
     }
   }
+  async function handleToggleSave() {
+    if (!currentUserId) {
+      requireLogin("Inicia sesión para guardar publicaciones.");
+      return;
+    }
 
+    if (saveBusy) return;
+
+    try {
+      setSaveBusy(true);
+      setInlineError(null);
+
+      const result = await togglePostSave(post.id);
+
+      setViewerHasSaved(result.saved);
+      setSavesCount((prev) => Math.max(0, prev + result.delta));
+    } catch (e: any) {
+      setInlineError(e?.message ?? "No se pudo actualizar el guardado.");
+    } finally {
+      setSaveBusy(false);
+    }
+  }
   async function handleOpenFlamesPanel() {
     if (!currentUserId) {
       requireLogin("Inicia sesión para ver quién dio flamita.");
@@ -717,15 +746,25 @@ export default function PublicPostPageClient({
               </button>
             </div>
 
-            <button
-              type="button"
-              onClick={handleShare}
-              className="grid h-8 w-8 place-items-center rounded-lg text-lg transition hover:bg-white/10"
-              aria-label="Compartir publicación"
-              title="Compartir publicación"
-            >
-              📤
-            </button>
+            <div className="inline-flex items-center justify-end gap-2">
+              <PostSaveButton
+                count={savesCount}
+                saved={viewerHasSaved}
+                loading={saveBusy}
+                disabled={saveBusy}
+                onClick={handleToggleSave}
+              />
+
+              <button
+                type="button"
+                onClick={handleShare}
+                className="grid h-8 w-8 place-items-center rounded-lg text-lg transition hover:bg-white/10"
+                aria-label="Compartir publicación"
+                title="Compartir publicación"
+              >
+                🔗
+              </button>
+            </div>
           </div>
 
           {inlineError ? (

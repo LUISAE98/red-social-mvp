@@ -21,6 +21,7 @@ export type PostMedia = {
 export type PostCounts = {
   comments?: number;
   likes?: number;
+  saves?: number;
 };
 
 export type PostReactionType = "flame";
@@ -30,6 +31,13 @@ export type PostReaction = {
   postId: string;
   userId: string;
   type: PostReactionType;
+  createdAt?: Timestamp | null;
+};
+
+export type PostSave = {
+  id: string;
+  postId: string;
+  userId: string;
   createdAt?: Timestamp | null;
 };
 
@@ -186,6 +194,11 @@ export type Post = {
    * No es obligatorio que exista en Firestore.
    */
   viewerHasFlamed?: boolean;
+    /**
+   * Estado calculado para la UI del usuario actual.
+   * No es obligatorio que exista en Firestore.
+   */
+  viewerHasSaved?: boolean;
 
   postType?: PostType;
 

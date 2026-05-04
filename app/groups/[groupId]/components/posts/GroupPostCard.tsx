@@ -17,6 +17,7 @@ import PostCommentsPanel from "./PostCommentsPanel";
 import PostImageViewer from "./PostImageViewer";
 import { fetchPostFlameUsers } from "@/lib/posts/post-service";
 import PostShareButton from "@/components/ui/PostShareButton";
+import PostSaveButton from "@/components/ui/PostSaveButton";
 import {
   banGroupMember,
   muteGroupMember,
@@ -50,6 +51,7 @@ type GroupPostCardProps = {
     replyId: string
   ) => Promise<CommentReply[]>;
   onToggleFlame?: (postId: string) => Promise<void>;
+  onToggleSave?: (postId: string) => Promise<void>;
   currentUserId?: string | null;
   isOwner?: boolean;
   isModerator?: boolean;
@@ -445,6 +447,7 @@ onLoadReplies,
 onCreateReply,
 onDeleteReply,
 onToggleFlame,
+onToggleSave,
   currentUserId = null,
   isOwner = false,
   isModerator = false,
@@ -469,6 +472,7 @@ onToggleFlame,
   const [muteDays, setMuteDays] = useState("7");
   const [inlineActionError, setInlineActionError] = useState<string | null>(null);
   const [flameBusy, setFlameBusy] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
   const [flamesPanelOpen, setFlamesPanelOpen] = useState(false);
   const [flameUsers, setFlameUsers] = useState<PostFlameUser[]>([]);
   const [loadingFlameUsers, setLoadingFlameUsers] = useState(false);
@@ -720,6 +724,25 @@ const [postTextExpanded, setPostTextExpanded] = useState(false);
       setInlineActionError(e?.message ?? "No se pudo actualizar la flamita.");
     } finally {
       setFlameBusy(false);
+    }
+  }
+
+    async function handleToggleSave() {
+    if (!currentUserId) {
+      setInlineActionError("Inicia sesión para guardar publicaciones.");
+      return;
+    }
+
+    if (!onToggleSave || saveBusy) return;
+
+    try {
+      setSaveBusy(true);
+      setInlineActionError(null);
+      await onToggleSave(post.id);
+    } catch (e: any) {
+      setInlineActionError(e?.message ?? "No se pudo actualizar el guardado.");
+    } finally {
+      setSaveBusy(false);
     }
   }
 
@@ -1261,8 +1284,24 @@ const postImageStyle: CSSProperties = {
     : [];
 
     const cleanPostText = typeof post.text === "string" ? post.text.trim() : "";
-const feedPostTextLimit = imageMedia.length > 0 ? 135 : 230;
-const shouldClampFeedPostText = cleanPostText.length > feedPostTextLimit;
+const feedPostTextLimit = imageMedia.length > 0 ? 120 : 150;
+const feedPostTextMaxLines = imageMedia.length > 0 ? 3 : 5;
+
+const cleanPostTextLines = cleanPostText.split(/\r?\n/);
+
+const previewPostTextByLines = cleanPostTextLines
+  .slice(0, feedPostTextMaxLines)
+  .join("\n")
+  .trim();
+
+const previewPostText =
+  previewPostTextByLines.length > feedPostTextLimit
+    ? truncatePostText(previewPostTextByLines, feedPostTextLimit)
+    : previewPostTextByLines;
+
+const shouldClampFeedPostText =
+  cleanPostTextLines.length > feedPostTextMaxLines ||
+  cleanPostText.length > previewPostText.length;
 
     const visibleCommentsTotal = useMemo(() => {
   if (comments !== null) {
@@ -1465,9 +1504,9 @@ style={{
 
     {cleanPostText.length > 0 && (
       <span>
-        {postTextExpanded || !shouldClampFeedPostText
-          ? cleanPostText
-          : truncatePostText(cleanPostText, feedPostTextLimit)}
+{postTextExpanded || !shouldClampFeedPostText
+  ? cleanPostText
+  : previewPostText}
 
         {shouldClampFeedPostText && (
           <button
@@ -1831,13 +1870,31 @@ style={{
     </button>
   </div>
 
-  {post.isShareable === true && (
-    <PostShareButton
-      postId={post.id}
-      title={post.shareTitle || "Publicación"}
-      text={post.shareDescription || post.text || "Mira esta publicación."}
+  <div
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "flex-end",
+      gap: 8,
+      flexShrink: 0,
+    }}
+  >
+    <PostSaveButton
+      count={post.counts?.saves ?? 0}
+      saved={post.viewerHasSaved === true}
+      loading={saveBusy}
+      disabled={saveBusy}
+      onClick={handleToggleSave}
     />
-  )}
+
+    {post.isShareable === true && (
+      <PostShareButton
+        postId={post.id}
+        title={post.shareTitle || "Publicación"}
+        text={post.shareDescription || post.text || "Mira esta publicación."}
+      />
+    )}
+  </div>
 </div>
 
       {menuOpen &&

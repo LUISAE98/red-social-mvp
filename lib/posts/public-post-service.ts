@@ -59,9 +59,11 @@ function normalizePublicPost(rawPost: Post): Post {
     counts: {
       comments: rawPost.counts?.comments ?? 0,
       likes: rawPost.counts?.likes ?? 0,
+      saves: rawPost.counts?.saves ?? 0,
     },
     isLocked: false,
     viewerHasFlamed: false,
+    viewerHasSaved: false,
     postType: rawPost.postType ?? (media.length > 0 ? "image" : "text"),
     liveData: rawPost.liveData ?? null,
     videoData: rawPost.videoData ?? null,

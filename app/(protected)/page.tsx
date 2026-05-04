@@ -30,7 +30,7 @@ export default function GroupsHome() {
   };
 
   const feedWrap: React.CSSProperties = {
-    marginTop: 16,
+    marginTop: 0,
     width: "100%",
     maxWidth: "100%",
     boxSizing: "border-box",
@@ -47,6 +47,7 @@ export default function GroupsHome() {
   return (
     <main style={pageWrap}>
       <div style={container}>
+
         <div style={feedWrap}>
           <HomePostsFeed currentUserId={user?.uid ?? null} />
         </div>

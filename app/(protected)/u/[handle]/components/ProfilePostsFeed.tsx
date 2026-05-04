@@ -15,6 +15,7 @@ import {
   fetchUserProfilePosts,
   softDeletePost,
   togglePostFlame,
+  togglePostSave,
 } from "@/lib/posts/post-service";
 
 import { db } from "@/lib/firebase";
@@ -251,6 +252,7 @@ function normalizeProfileFeedPost(post: PostWithFlags): PostWithFlags {
     counts: {
       comments: post.counts?.comments ?? 0,
       likes: post.counts?.likes ?? 0,
+      saves: post.counts?.saves ?? 0,
     },
     liveData: post.liveData ?? null,
     videoData: post.videoData ?? null,
@@ -397,6 +399,37 @@ export default function ProfilePostsFeed({
       );
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar la flamita.");
+      throw e;
+    }
+  }
+
+    async function handleToggleSave(postId: string): Promise<void> {
+    try {
+      setError(null);
+
+      const result = await togglePostSave(postId);
+
+      setPosts((prev) =>
+        prev.map((post) => {
+          if (post.id !== postId) {
+            return post;
+          }
+
+          const currentSaves = post.counts?.saves ?? 0;
+          const nextSaves = Math.max(0, currentSaves + result.delta);
+
+          return {
+            ...post,
+            viewerHasSaved: result.saved,
+            counts: {
+              ...post.counts,
+              saves: nextSaves,
+            },
+          };
+        })
+      );
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo actualizar el guardado.");
       throw e;
     }
   }
@@ -702,6 +735,7 @@ onLoadReplies={handleLoadReplies}
 onCreateReply={handleCreateReply}
 onDeleteReply={handleDeleteReply}
 onToggleFlame={handleToggleFlame}
+onToggleSave={handleToggleSave}
               currentUserId={viewerUid}
               isOwner={false}
               isModerator={post.canModerateGroupAuthor === true}

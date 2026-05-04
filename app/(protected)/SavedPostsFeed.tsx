@@ -1,11 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import Link from "next/link";
 
+import { auth, db } from "@/lib/firebase";
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import {
   createPostComment,
@@ -13,20 +13,14 @@ import {
   deletePostComment,
   deletePostCommentReply,
   fetchCommentReplies,
-  fetchHomePosts,
   fetchPostComments,
+  fetchSavedPosts,
   softDeletePost,
   togglePostFlame,
   togglePostSave,
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
-import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
-import { buildRandomRecommendationSlots } from "@/app/components/GroupRecommendations/recommendation-engine";
-
-type HomePostsFeedProps = {
-  currentUserId: string | null;
-};
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
 type GroupRole = "owner" | "mod" | "member" | null;
@@ -97,6 +91,7 @@ async function getViewerCanModerateGroup(
     }
 
     const viewerMeta = await getMembershipMetaForGroup(groupId, currentUserId);
+
     return (
       viewerMeta.role === "mod" &&
       viewerMeta.status !== "banned" &&
@@ -105,44 +100,6 @@ async function getViewerCanModerateGroup(
   } catch {
     return false;
   }
-}
-
-async function filterOutHiddenHomePosts(
-  posts: Post[],
-  currentUserId: string
-): Promise<Post[]> {
-  if (!posts.length) return posts;
-
-  const uniqueViewerGroupIds = Array.from(
-    new Set(
-      posts
-        .map((post) => post.groupId)
-        .filter((groupId): groupId is string => !!groupId)
-    )
-  );
-
-  const viewerMembershipEntries = await Promise.all(
-    uniqueViewerGroupIds.map(async (groupId) => {
-      const meta = await getMembershipMetaForGroup(groupId, currentUserId);
-      return [groupId, meta.status] as const;
-    })
-  );
-
-  const viewerMembershipMap = new Map<string, MemberStatus>(
-    viewerMembershipEntries
-  );
-
-  return posts.filter((post) => {
-    const groupId = post.groupId;
-    if (!groupId) return true;
-
-    const viewerStatus = viewerMembershipMap.get(groupId) ?? null;
-    if (viewerStatus === "banned") {
-      return false;
-    }
-
-    return true;
-  });
 }
 
 async function attachModerationFlags(
@@ -164,10 +121,7 @@ async function attachModerationFlags(
 
   const moderationEntries = await Promise.all(
     uniqueGroupIds.map(async (groupId) => {
-      const canModerate = await getViewerCanModerateGroup(
-        groupId,
-        currentUserId
-      );
+      const canModerate = await getViewerCanModerateGroup(groupId, currentUserId);
       return [groupId, canModerate] as const;
     })
   );
@@ -226,7 +180,7 @@ async function attachModerationFlags(
   });
 }
 
-function normalizeHomeFeedPost(post: PostWithFlags): PostWithFlags {
+function normalizeSavedFeedPost(post: PostWithFlags): PostWithFlags {
   return {
     ...post,
     postType: post.postType ?? "text",
@@ -244,6 +198,7 @@ function normalizeHomeFeedPost(post: PostWithFlags): PostWithFlags {
       likes: post.counts?.likes ?? 0,
       saves: post.counts?.saves ?? 0,
     },
+    viewerHasSaved: post.viewerHasSaved ?? true,
     liveData: post.liveData ?? null,
     videoData: post.videoData ?? null,
     scheduledData: post.scheduledData ?? null,
@@ -258,46 +213,31 @@ function normalizeHomeFeedPost(post: PostWithFlags): PostWithFlags {
   };
 }
 
-function buildStableFeedSeed(
-  currentUserId: string,
-  posts: Array<{ id?: string; createdAt?: any }>
-): number {
-  const raw = [
-    currentUserId,
-    ...posts.map((post, index) => {
-      const createdAtValue =
-        typeof post?.createdAt?.toMillis === "function"
-          ? String(post.createdAt.toMillis())
-          : typeof post?.createdAt === "number"
-          ? String(post.createdAt)
-          : typeof post?.createdAt === "string"
-          ? post.createdAt
-          : String(index);
-
-      return `${post.id ?? index}-${createdAtValue}`;
-    }),
-  ].join("|");
-
-  let hash = 0;
-  for (let i = 0; i < raw.length; i += 1) {
-    hash = (hash * 31 + raw.charCodeAt(i)) >>> 0;
-  }
-
-  return hash || 1;
-}
-
-export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
+export default function SavedPostsFeed() {
+  const [currentUserId, setCurrentUserId] = useState<string | null>(
+    auth.currentUser?.uid ?? null
+  );
   const [posts, setPosts] = useState<PostWithFlags[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
+  const [searchInput, setSearchInput] = useState("");
+  const [activeSearch, setActiveSearch] = useState("");
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged((user) => {
+      setCurrentUserId(user?.uid ?? null);
+    });
+
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const mediaQuery = window.matchMedia("(max-width: 900px)");
-
     const sync = () => setIsMobile(mediaQuery.matches);
+
     sync();
 
     if (typeof mediaQuery.addEventListener === "function") {
@@ -315,11 +255,10 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
       return;
     }
 
-    const nextPosts = await fetchHomePosts(currentUserId);
-    const visiblePosts = await filterOutHiddenHomePosts(nextPosts, currentUserId);
-    const hydratedPosts = await attachModerationFlags(visiblePosts, currentUserId);
+    const nextPosts = await fetchSavedPosts(currentUserId);
+    const hydratedPosts = await attachModerationFlags(nextPosts, currentUserId);
 
-    setPosts(hydratedPosts.map(normalizeHomeFeedPost));
+    setPosts(hydratedPosts.map(normalizeSavedFeedPost));
   }
 
   useEffect(() => {
@@ -338,21 +277,15 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
         setLoadingInitial(true);
         setError(null);
 
-        const nextPosts = await fetchHomePosts(currentUserId);
-        const visiblePosts = await filterOutHiddenHomePosts(
-          nextPosts,
-          currentUserId
-        );
-        const hydratedPosts = await attachModerationFlags(
-          visiblePosts,
-          currentUserId
-        );
+        const nextPosts = await fetchSavedPosts(currentUserId);
+        const hydratedPosts = await attachModerationFlags(nextPosts, currentUserId);
 
         if (!active) return;
-        setPosts(hydratedPosts.map(normalizeHomeFeedPost));
+
+        setPosts(hydratedPosts.map(normalizeSavedFeedPost));
       } catch (e: any) {
         if (!active) return;
-        setError(e?.message ?? "Error desconocido");
+        setError(e?.message ?? "No se pudieron cargar tus publicaciones guardadas.");
       } finally {
         if (active) setLoadingInitial(false);
       }
@@ -365,7 +298,7 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
     };
   }, [currentUserId]);
 
-    async function handleToggleFlame(postId: string): Promise<void> {
+  async function handleToggleFlame(postId: string): Promise<void> {
     try {
       setError(null);
 
@@ -391,30 +324,32 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
     }
   }
 
-    async function handleToggleSave(postId: string): Promise<void> {
+  async function handleToggleSave(postId: string): Promise<void> {
     try {
       setError(null);
 
       const result = await togglePostSave(postId);
 
       setPosts((prev) =>
-        prev.map((post) => {
-          if (post.id !== postId) {
-            return post;
-          }
+        prev
+          .map((post) => {
+            if (post.id !== postId) {
+              return post;
+            }
 
-          const currentSaves = post.counts?.saves ?? 0;
-          const nextSaves = Math.max(0, currentSaves + result.delta);
+            const currentSaves = post.counts?.saves ?? 0;
+            const nextSaves = Math.max(0, currentSaves + result.delta);
 
-          return {
-            ...post,
-            viewerHasSaved: result.saved,
-            counts: {
-              ...post.counts,
-              saves: nextSaves,
-            },
-          };
-        })
+            return {
+              ...post,
+              viewerHasSaved: result.saved,
+              counts: {
+                ...post.counts,
+                saves: nextSaves,
+              },
+            };
+          })
+          .filter((post) => post.viewerHasSaved === true)
       );
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar el guardado.");
@@ -428,7 +363,7 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
       await softDeletePost(postId);
       await loadPosts();
     } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+      setError(e?.message ?? "No se pudo eliminar la publicación.");
       throw e;
     }
   }
@@ -438,48 +373,48 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
       setError(null);
       return await fetchPostComments(postId);
     } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+      setError(e?.message ?? "No se pudieron cargar los comentarios.");
       throw e;
     }
   }
 
   async function syncPostCommentsCount(postId: string) {
-  const comments = await fetchPostComments(postId);
+    const comments = await fetchPostComments(postId);
 
-  const repliesCounts = await Promise.all(
-    comments.map(async (comment) => {
-      try {
-        const replies = await fetchCommentReplies({
-          postId,
-          commentId: comment.id,
-        });
+    const repliesCounts = await Promise.all(
+      comments.map(async (comment) => {
+        try {
+          const replies = await fetchCommentReplies({
+            postId,
+            commentId: comment.id,
+          });
 
-        return replies.length;
-      } catch {
-        return comment.counts?.replies ?? 0;
-      }
-    })
-  );
+          return replies.length;
+        } catch {
+          return comment.counts?.replies ?? 0;
+        }
+      })
+    );
 
-  const total =
-    comments.length + repliesCounts.reduce((sum, count) => sum + count, 0);
+    const total =
+      comments.length + repliesCounts.reduce((sum, count) => sum + count, 0);
 
-  setPosts((prev) =>
-    prev.map((post) =>
-      post.id === postId
-        ? {
-            ...post,
-            counts: {
-              ...post.counts,
-              comments: total,
-            },
-          }
-        : post
-    )
-  );
+    setPosts((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              counts: {
+                ...post.counts,
+                comments: total,
+              },
+            }
+          : post
+      )
+    );
 
-  return comments;
-}
+    return comments;
+  }
 
   async function handleCreateComment(
     postId: string,
@@ -487,10 +422,10 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
   ): Promise<Comment[]> {
     try {
       setError(null);
-await createPostComment({ postId, text });
-return await syncPostCommentsCount(postId);
+      await createPostComment({ postId, text });
+      return await syncPostCommentsCount(postId);
     } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+      setError(e?.message ?? "No se pudo crear el comentario.");
       throw e;
     }
   }
@@ -501,15 +436,15 @@ return await syncPostCommentsCount(postId);
   ): Promise<Comment[]> {
     try {
       setError(null);
-await deletePostComment({ postId, commentId });
-return await syncPostCommentsCount(postId);
+      await deletePostComment({ postId, commentId });
+      return await syncPostCommentsCount(postId);
     } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+      setError(e?.message ?? "No se pudo eliminar el comentario.");
       throw e;
     }
   }
 
-    async function handleLoadReplies(
+  async function handleLoadReplies(
     postId: string,
     commentId: string
   ): Promise<CommentReply[]> {
@@ -529,11 +464,9 @@ return await syncPostCommentsCount(postId);
   ): Promise<CommentReply[]> {
     try {
       setError(null);
-await createPostCommentReply({ postId, commentId, text });
-
-await syncPostCommentsCount(postId);
-
-return await fetchCommentReplies({ postId, commentId });
+      await createPostCommentReply({ postId, commentId, text });
+      await syncPostCommentsCount(postId);
+      return await fetchCommentReplies({ postId, commentId });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo crear la respuesta.");
       throw e;
@@ -547,15 +480,22 @@ return await fetchCommentReplies({ postId, commentId });
   ): Promise<CommentReply[]> {
     try {
       setError(null);
-await deletePostCommentReply({ postId, commentId, replyId });
-
-await syncPostCommentsCount(postId);
-
-return await fetchCommentReplies({ postId, commentId });
+      await deletePostCommentReply({ postId, commentId, replyId });
+      await syncPostCommentsCount(postId);
+      return await fetchCommentReplies({ postId, commentId });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo eliminar la respuesta.");
       throw e;
     }
+  }
+
+  function handleSubmitSearch() {
+    setActiveSearch(searchInput.trim().toLowerCase());
+  }
+
+  function handleClearSearch() {
+    setSearchInput("");
+    setActiveSearch("");
   }
 
   const shellStyle: CSSProperties = {
@@ -571,7 +511,7 @@ return await fetchCommentReplies({ postId, commentId });
   const headerStyle: CSSProperties = useMemo(
     () => ({
       display: "grid",
-      gap: 4,
+      gap: 6,
       width: "100%",
       maxWidth: "100%",
       minWidth: 0,
@@ -581,6 +521,54 @@ return await fetchCommentReplies({ postId, commentId });
     }),
     [isMobile]
   );
+
+  const titleRowStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    minWidth: 0,
+  };
+
+  const titleStyle: CSSProperties = {
+    margin: 0,
+    maxWidth: "100%",
+    minWidth: 0,
+    fontSize: "clamp(18px, 2.2vw, 20px)",
+    fontWeight: 600,
+    lineHeight: 1.1,
+    color: "#fff",
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
+  };
+
+  const subtitleStyle: CSSProperties = {
+    margin: 0,
+    maxWidth: "100%",
+    minWidth: 0,
+    fontSize: 12,
+    color: "rgba(255,255,255,0.60)",
+    lineHeight: 1.45,
+    overflowWrap: "anywhere",
+    wordBreak: "break-word",
+  };
+
+  const backButtonStyle: CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 32,
+    padding: "7px 10px",
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.04)",
+    color: "rgba(255,255,255,0.88)",
+    fontSize: 12,
+    fontWeight: 700,
+    lineHeight: 1,
+    textDecoration: "none",
+    whiteSpace: "nowrap",
+  };
 
   const noticeStyle: CSSProperties = {
     width: "100%",
@@ -598,39 +586,89 @@ return await fetchCommentReplies({ postId, commentId });
     wordBreak: "break-word",
   };
 
-  const postItemStyle: CSSProperties = {
+    const searchFormStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+    paddingLeft: isMobile ? 14 : 0,
+    paddingRight: isMobile ? 14 : 0,
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  };
+
+  const searchInputStyle: CSSProperties = {
+    flex: 1,
+    minWidth: 0,
+    height: 38,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#fff",
+    padding: "0 14px",
+    fontSize: 13,
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
+  const searchButtonStyle: CSSProperties = {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.04)",
+    color: "#fff",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+    flexShrink: 0,
+    fontSize: 16,
+  };
+
+  const clearSearchButtonStyle: CSSProperties = {
+    ...searchButtonStyle,
+    fontSize: 14,
+  };
+
+   const postItemStyle: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
     minWidth: 0,
     overflowX: "hidden",
   };
 
-  const recommendationWrapperStyle: CSSProperties = {
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-    overflowX: "hidden",
-  };
+  const visiblePosts = activeSearch
+    ? posts.filter((post) => {
+        const haystack = [
+          post.text,
+          post.authorName,
+          post.authorUsername,
+          post.groupName,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-  const recommendationSlots = useMemo(() => {
-    if (!currentUserId || posts.length === 0) {
-      return new Set<number>();
-    }
-
-    const seed = buildStableFeedSeed(currentUserId, posts);
-    return buildRandomRecommendationSlots(posts.length, seed);
-  }, [currentUserId, posts]);
-
-  const hasInlineRecommendation = useMemo(() => {
-    return recommendationSlots.size > 0;
-  }, [recommendationSlots]);
+        return haystack.includes(activeSearch);
+      })
+    : posts;
 
   if (!currentUserId) {
     return (
       <section style={shellStyle}>
-        <div style={noticeStyle}>
-          Inicia sesión para ver publicaciones de tus comunidades.
+        <div style={headerStyle}>
+          <div style={titleRowStyle}>
+            <h2 style={titleStyle}>Guardados</h2>
+<Link href="/" style={backButtonStyle}>
+  <span aria-hidden="true">🏠</span>
+  <span>Inicio</span>
+</Link>
+          </div>
+          <p style={subtitleStyle}>Inicia sesión para ver tus publicaciones guardadas.</p>
         </div>
+
+        <div style={noticeStyle}>Debes iniciar sesión para ver esta sección.</div>
       </section>
     );
   }
@@ -638,96 +676,75 @@ return await fetchCommentReplies({ postId, commentId });
   return (
     <section style={shellStyle}>
       <div style={headerStyle}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            width: "100%",
-            minWidth: 0,
-          }}
-        >
-          <h2
-            style={{
-              margin: 0,
-              maxWidth: "100%",
-              minWidth: 0,
-              fontSize: "clamp(18px, 2.2vw, 20px)",
-              fontWeight: 600,
-              lineHeight: 1.1,
-              color: "#fff",
-              overflowWrap: "anywhere",
-              wordBreak: "break-word",
-            }}
-          >
-            Inicio
-          </h2>
-
-          <Link
-            href="/saved"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              minHeight: 34,
-              padding: "8px 12px",
-              borderRadius: 999,
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(255,255,255,0.04)",
-              color: "rgba(255,255,255,0.90)",
-              fontSize: 12,
-              fontWeight: 700,
-              lineHeight: 1,
-              textDecoration: "none",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-            }}
-          >
-            <span aria-hidden="true">🔖</span>
-            <span>Guardados</span>
-          </Link>
+        <div style={titleRowStyle}>
+          <h2 style={titleStyle}>Guardados</h2>
+<Link href="/" style={backButtonStyle}>
+  <span aria-hidden="true">🏠</span>
+  <span>Inicio</span>
+</Link>
         </div>
 
-        <p
-          style={{
-            margin: 0,
-            maxWidth: "100%",
-            minWidth: 0,
-            fontSize: 12,
-            color: "rgba(255,255,255,0.60)",
-            lineHeight: 1.45,
-            overflowWrap: "anywhere",
-            wordBreak: "break-word",
-          }}
-        >
-          Publicaciones recientes de comunidades donde ya estás dentro o eres
-          owner.
-        </p>
+        <p style={subtitleStyle}>Publicaciones que guardaste con 🔖.</p>
       </div>
+
+            <form
+        style={searchFormStyle}
+        onSubmit={(event) => {
+          event.preventDefault();
+          handleSubmitSearch();
+        }}
+      >
+        <input
+          type="search"
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          placeholder="Buscar en guardados"
+          style={searchInputStyle}
+          aria-label="Buscar en guardados"
+        />
+
+        {activeSearch ? (
+          <button
+            type="button"
+            onClick={handleClearSearch}
+            style={clearSearchButtonStyle}
+            aria-label="Limpiar búsqueda"
+            title="Limpiar búsqueda"
+          >
+            ×
+          </button>
+        ) : null}
+
+        <button
+          type="submit"
+          style={searchButtonStyle}
+          aria-label="Buscar"
+          title="Buscar"
+        >
+          🔎
+        </button>
+      </form>
 
       {error && <div style={noticeStyle}>{error}</div>}
 
       {loadingInitial && (
-        <div style={noticeStyle}>Cargando publicaciones de tus comunidades...</div>
+        <div style={noticeStyle}>Cargando publicaciones guardadas...</div>
       )}
 
       {!loadingInitial && posts.length === 0 && (
-        <div style={recommendationWrapperStyle}>
-          <GroupRecommendationsRail
-            currentUserId={currentUserId}
-            context="home"
-          />
+        <div style={noticeStyle}>Todavía no tienes publicaciones guardadas.</div>
+      )}
+
+      {!loadingInitial && posts.length > 0 && visiblePosts.length === 0 && (
+        <div style={noticeStyle}>
+          No se encontraron guardados para esta búsqueda.
         </div>
       )}
 
-      {posts.map((post, index) => {
+      {visiblePosts.map((post) => {
         const canDeletePost =
           currentUserId === post.authorId ||
           post.canModerateGroupAuthor === true;
-
-        const shouldRenderRecommendations = recommendationSlots.has(index + 1);
 
         return (
           <div key={post.id} style={postItemStyle}>
@@ -738,11 +755,11 @@ return await fetchCommentReplies({ postId, commentId });
               onLoadComments={handleLoadComments}
               onCreateComment={handleCreateComment}
               onDeleteComment={handleDeleteComment}
-onLoadReplies={handleLoadReplies}
-onCreateReply={handleCreateReply}
-onDeleteReply={handleDeleteReply}
-onToggleFlame={handleToggleFlame}
-onToggleSave={handleToggleSave}
+              onLoadReplies={handleLoadReplies}
+              onCreateReply={handleCreateReply}
+              onDeleteReply={handleDeleteReply}
+              onToggleFlame={handleToggleFlame}
+              onToggleSave={handleToggleSave}
               currentUserId={currentUserId}
               isOwner={false}
               isModerator={post.canModerateGroupAuthor === true}
@@ -750,27 +767,9 @@ onToggleSave={handleToggleSave}
               canModerateGroupAuthor={post.canModerateGroupAuthor === true}
               onModerationComplete={loadPosts}
             />
-
-            {shouldRenderRecommendations && (
-              <div style={recommendationWrapperStyle}>
-                <GroupRecommendationsRail
-                  currentUserId={currentUserId}
-                  context="home"
-                />
-              </div>
-            )}
           </div>
         );
       })}
-
-      {!loadingInitial && posts.length > 0 && !hasInlineRecommendation && (
-        <div style={recommendationWrapperStyle}>
-          <GroupRecommendationsRail
-            currentUserId={currentUserId}
-            context="home"
-          />
-        </div>
-      )}
     </section>
   );
 }

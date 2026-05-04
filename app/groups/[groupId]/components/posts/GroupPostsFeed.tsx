@@ -18,6 +18,7 @@ import {
   fetchPostComments,
   softDeletePost,
   togglePostFlame,
+  togglePostSave,
 } from "@/lib/posts/post-service";
 import GroupPostCard from "./GroupPostCard";
 import GroupPostComposer from "./GroupPostComposer";
@@ -142,6 +143,7 @@ function normalizeFeedPost(post: PostWithAuthorState): PostWithAuthorState {
     counts: {
       comments: post.counts?.comments ?? 0,
       likes: post.counts?.likes ?? 0,
+      saves: post.counts?.saves ?? 0,
     },
     liveData: post.liveData ?? null,
     videoData: post.videoData ?? null,
@@ -360,6 +362,37 @@ if (payload.imageFiles && payload.imageFiles.length > 0) {
       );
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar la flamita.");
+      throw e;
+    }
+  }
+
+    async function handleToggleSave(postId: string): Promise<void> {
+    try {
+      setError(null);
+
+      const result = await togglePostSave(postId);
+
+      setPosts((prev) =>
+        prev.map((post) => {
+          if (post.id !== postId) {
+            return post;
+          }
+
+          const currentSaves = post.counts?.saves ?? 0;
+          const nextSaves = Math.max(0, currentSaves + result.delta);
+
+          return {
+            ...post,
+            viewerHasSaved: result.saved,
+            counts: {
+              ...post.counts,
+              saves: nextSaves,
+            },
+          };
+        })
+      );
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo actualizar el guardado.");
       throw e;
     }
   }
@@ -655,7 +688,8 @@ const postShellStyle: CSSProperties = {
               onLoadReplies={handleLoadReplies}
               onCreateReply={handleCreateReply}
               onDeleteReply={handleDeleteReply}
-              onToggleFlame={handleToggleFlame}  
+              onToggleFlame={handleToggleFlame}
+              onToggleSave={handleToggleSave} 
               currentUserId={currentUid}
               isOwner={isOwner}
               isModerator={isModerator}
