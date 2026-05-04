@@ -36,6 +36,25 @@ function formatExactDate(date: Date | null): string | null {
   }
 }
 
+function buildPreviewText(value: string | null | undefined, maxLength = 45): string {
+  const cleanText = (value || "").trim().replace(/\s+/g, " ");
+
+  if (!cleanText) {
+    return "Publicación en Vibra";
+  }
+
+  if (cleanText.length <= maxLength) {
+    return cleanText;
+  }
+
+  const sliced = cleanText.slice(0, maxLength).trim();
+  const lastSpace = sliced.lastIndexOf(" ");
+  const safeText =
+    lastSpace > 20 ? sliced.slice(0, lastSpace).trim() : sliced;
+
+  return `${safeText}... + Ver más`;
+}
+
 function toPublicPostView(post: any): PublicPostView {
   const createdAtDate = getDateFromTimestamp(post.createdAt);
 
@@ -118,9 +137,8 @@ export async function generateMetadata({
   }
 
   const publicPost = toPublicPostView(post);
-  const title = publicPost.shareTitle || "Publicación";
-  const description =
-    publicPost.shareDescription || "Mira esta publicación en Vibra.";
+  const title = buildPreviewText(publicPost.text || publicPost.shareTitle);
+  const description = "";
   const url = buildPublicPostUrl(publicPost.id);
   const imageUrl = publicPost.shareImageUrl || undefined;
 

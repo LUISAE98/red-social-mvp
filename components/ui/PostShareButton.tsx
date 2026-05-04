@@ -12,6 +12,25 @@ type PostShareButtonProps = {
 const fontStack =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
+
+  function buildShortShareText(value: string, maxLength = 45): string {
+  const cleanText = value.trim().replace(/\s+/g, " ");
+
+  if (!cleanText) {
+    return "Mira esta publicación en Vibra";
+  }
+
+  if (cleanText.length <= maxLength) {
+    return cleanText;
+  }
+
+  const sliced = cleanText.slice(0, maxLength).trim();
+  const lastSpace = sliced.lastIndexOf(" ");
+  const safeText =
+    lastSpace > 20 ? sliced.slice(0, lastSpace).trim() : sliced;
+
+  return `${safeText}... Ver más`;
+}
 export default function PostShareButton({
   postId,
   title = "Publicación",
@@ -46,14 +65,18 @@ export default function PostShareButton({
     try {
       setBusy(true);
 
-      if (navigator.share) {
-        await navigator.share({
-          title,
-          text,
-          url,
-        });
-        return;
-      }
+const shareText = buildShortShareText(
+  text || "Mira esta publicación en Vibra"
+);
+
+if (navigator.share) {
+  await navigator.share({
+    title,
+    text: shareText,
+    url,
+  });
+  return;
+}
 
       await navigator.clipboard.writeText(url);
       setCopied(true);
