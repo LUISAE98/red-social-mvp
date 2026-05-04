@@ -2,27 +2,34 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { Post } from "@/lib/posts/types";
-import { buildPublicPostUrl } from "@/lib/posts/share-url";
 
-type PublicPostPageClientProps = {
-  post: Post;
+export type PublicPostView = {
+  id: string;
+  text: string;
+  authorName: string;
+  authorUsername: string | null;
+  authorAvatarUrl: string | null;
+  groupName: string;
+  createdAtLabel: string | null;
+  shareTitle: string | null;
+  shareDescription: string | null;
+  shareImageUrl: string | null;
+  counts: {
+    likes: number;
+    comments: number;
+  };
+  media: Array<{
+    type: "image" | "video";
+    url: string;
+    thumbnailUrl?: string | null;
+    altText?: string | null;
+  }>;
 };
 
-function formatDate(value: Post["createdAt"]): string {
-  if (!value?.toDate) {
-    return "";
-  }
-
-  try {
-    return new Intl.DateTimeFormat("es-MX", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(value.toDate());
-  } catch {
-    return "";
-  }
-}
+type PublicPostPageClientProps = {
+  post: PublicPostView;
+  postUrl: string;
+};
 
 function getInitials(name?: string | null): string {
   const cleanName = name?.trim();
@@ -41,17 +48,16 @@ function getInitials(name?: string | null): string {
 
 export default function PublicPostPageClient({
   post,
+  postUrl,
 }: PublicPostPageClientProps) {
-  const postUrl = buildPublicPostUrl(post.id);
-  const createdAtLabel = formatDate(post.createdAt);
   const authorName = post.authorName || "Usuario";
   const groupName = post.groupName || "Comunidad";
-  const media = Array.isArray(post.media) ? post.media : [];
-  const firstImage = media.find((item) => item.type === "image" && item.url);
+  const firstImage = post.media.find((item) => item.type === "image" && item.url);
 
   async function handleShare() {
     const shareTitle = post.shareTitle || "Publicación";
-    const shareText = post.shareDescription || post.text || "Mira esta publicación.";
+    const shareText =
+      post.shareDescription || post.text || "Mira esta publicación.";
 
     if (navigator.share) {
       await navigator.share({
@@ -116,7 +122,7 @@ export default function PublicPostPageClient({
 
               <p className="text-sm text-neutral-400">
                 {groupName}
-                {createdAtLabel ? ` · ${createdAtLabel}` : ""}
+                {post.createdAtLabel ? ` · ${post.createdAtLabel}` : ""}
               </p>
             </div>
           </div>
@@ -142,16 +148,18 @@ export default function PublicPostPageClient({
 
           <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3 text-sm text-neutral-400 sm:px-5">
             <div className="flex items-center gap-4">
-              <span>🔥 {post.counts?.likes ?? 0}</span>
-              <span>💬 {post.counts?.comments ?? 0}</span>
+              <span>🔥 {post.counts.likes}</span>
+              <span>💬 {post.counts.comments}</span>
             </div>
 
             <button
               type="button"
               onClick={handleShare}
-              className="rounded-full px-3 py-1.5 font-semibold text-neutral-200 transition hover:bg-white/10 hover:text-white"
+              className="grid h-8 w-8 place-items-center rounded-full text-lg transition hover:bg-white/10"
+              aria-label="Compartir publicación"
+              title="Compartir publicación"
             >
-              ↗ Compartir
+              📤
             </button>
           </div>
         </article>

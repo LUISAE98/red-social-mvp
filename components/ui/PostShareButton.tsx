@@ -21,21 +21,20 @@ export default function PostShareButton({
   const [busy, setBusy] = useState(false);
 
   const buttonStyle: CSSProperties = {
+    width: 28,
+    height: 28,
     border: "none",
     background: "transparent",
     padding: 0,
-    color: copied ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.72)",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 5,
-    fontSize: 12.5,
-    fontWeight: 600,
+    color: "rgba(255,255,255,0.72)",
+    display: "inline-grid",
+    placeItems: "center",
+    fontSize: 18,
     fontFamily: fontStack,
     lineHeight: 1,
     cursor: busy ? "not-allowed" : "pointer",
     opacity: busy ? 0.62 : 1,
     WebkitTapHighlightColor: "transparent",
-    whiteSpace: "nowrap",
     flexShrink: 0,
   };
 
@@ -53,7 +52,6 @@ export default function PostShareButton({
           text,
           url,
         });
-
         return;
       }
 
@@ -62,7 +60,7 @@ export default function PostShareButton({
 
       window.setTimeout(() => {
         setCopied(false);
-      }, 1800);
+      }, 1400);
     } catch {
       try {
         await navigator.clipboard.writeText(url);
@@ -70,9 +68,9 @@ export default function PostShareButton({
 
         window.setTimeout(() => {
           setCopied(false);
-        }, 1800);
+        }, 1400);
       } catch {
-        window.alert("No se pudo compartir el link.");
+        window.alert("No se pudo copiar el link.");
       }
     } finally {
       setBusy(false);
@@ -88,10 +86,7 @@ export default function PostShareButton({
       title={copied ? "Link copiado" : "Compartir publicación"}
       style={buttonStyle}
     >
-      <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1 }}>
-        ↗
-      </span>
-      <span>{copied ? "Copiado" : "Compartir"}</span>
+      <span aria-hidden="true">{copied ? "✅" : "📤"}</span>
     </button>
   );
 }
