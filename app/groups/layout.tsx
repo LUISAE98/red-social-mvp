@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { collection, getDocs, limit, query, where } from "firebase/firestore";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
@@ -109,6 +109,7 @@ function WalletHeaderButton({
 }
 
 type WalletRailTab = "finances" | "calendar" | "pending" | "history";
+type MainRailTab = "home" | "saved" | "createGroup";
 
 function resolveWalletRailTab(pathname: string): WalletRailTab | null {
   if (pathname.startsWith("/wallet/finanzas")) return "finances";
@@ -118,12 +119,21 @@ function resolveWalletRailTab(pathname: string): WalletRailTab | null {
   return null;
 }
 
+function resolveMainRailTab(pathname: string): MainRailTab | null {
+  if (pathname === "/" || pathname.startsWith("/home")) return "home";
+  if (pathname.startsWith("/saved")) return "saved";
+  if (pathname.startsWith("/groups/new")) return "createGroup";
+  return null;
+}
+
 function WalletDesktopRail({
   activePath,
+  showWallet,
 }: {
   activePath: string;
+  showWallet: boolean;
 }) {
-  const items: Array<{
+  const walletItems: Array<{
     key: WalletRailTab;
     label: string;
     href: string;
@@ -155,24 +165,72 @@ function WalletDesktopRail({
     },
   ];
 
-  const activeTab = resolveWalletRailTab(activePath);
+  const mainItems: Array<{
+    key: MainRailTab;
+    label: string;
+    href: string;
+    emoji: string;
+  }> = [
+    {
+      key: "home",
+      label: "Inicio",
+      href: "/",
+      emoji: "🏠",
+    },
+    {
+      key: "saved",
+      label: "Guardados",
+      href: "/saved",
+      emoji: "🔖",
+    },
+    {
+      key: "createGroup",
+      label: "Crear nuevo grupo",
+      href: "/groups/new",
+      emoji: "🧩",
+    },
+  ];
+
+  const activeWalletTab = resolveWalletRailTab(activePath);
+  const activeMainTab = resolveMainRailTab(activePath);
 
   return (
     <>
       <style jsx>{`
-        .walletRail {
-          position: sticky;
-          top: calc(env(safe-area-inset-top) + 96px);
+.walletRail {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 104px);
+  width: var(--wallet-rail-width);
+}
+
+        .railSection {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
         }
 
-        .walletTitle {
-          margin: 0 0 18px;
+        .railSection + .railSection {
+          margin-top: 34px;
+          padding-top: 26px;
+          border-top: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+.walletTitle {
+  margin: 0 0 10px;
           font-size: 17px;
           line-height: 1.2;
           font-weight: 700;
           letter-spacing: -0.02em;
           color: #fff;
         }
+.secondaryTitle {
+  margin: 0 0 10px;
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
 
         .walletNav {
           display: flex;
@@ -237,28 +295,55 @@ function WalletDesktopRail({
         }
       `}</style>
 
-      <aside className="walletRail" aria-label="Acceso directo wallet">
-        <h3 className="walletTitle">Wallet</h3>
+<aside className="walletRail" aria-label="Accesos directos">
+  <section className="railSection" aria-label="Navegación principal">
+    <h3 className="secondaryTitle">Menú</h3>
 
-        <nav className="walletNav">
-          {items.map((item) => {
-            const isActive = activeTab === item.key;
+    <nav className="walletNav">
+      {mainItems.map((item) => {
+        const isActive = activeMainTab === item.key;
 
-            return (
-              <Link
-                key={item.key}
-                href={item.href}
-                className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
-              >
-                <span className="walletEmoji" aria-hidden="true">
-                  {item.emoji}
-                </span>
-                <span className="walletLabel">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </aside>
+        return (
+          <Link
+            key={item.key}
+            href={item.href}
+            className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
+          >
+            <span className="walletEmoji" aria-hidden="true">
+              {item.emoji}
+            </span>
+            <span className="walletLabel">{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  </section>
+
+  {showWallet ? (
+    <section className="railSection" aria-label="Wallet">
+      <h3 className="walletTitle">Wallet</h3>
+
+      <nav className="walletNav">
+        {walletItems.map((item) => {
+          const isActive = activeWalletTab === item.key;
+
+          return (
+            <Link
+              key={item.key}
+              href={item.href}
+              className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
+            >
+              <span className="walletEmoji" aria-hidden="true">
+                {item.emoji}
+              </span>
+              <span className="walletLabel">{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </section>
+  ) : null}
+</aside>
     </>
   );
 }
@@ -417,7 +502,7 @@ function AuthenticatedGroupsShell({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
+
   const pathname = usePathname();
   const { user } = useAuth();
 
@@ -465,10 +550,7 @@ function AuthenticatedGroupsShell({
     };
   }, [user?.uid]);
 
-  const contentAreaClassName = useMemo(() => {
-    if (showWalletRail) return "contentArea contentAreaWithWallet";
-    return "contentArea";
-  }, [showWalletRail]);
+const contentAreaClassName = "contentArea contentAreaWithWallet";
 
   return (
     <>
@@ -553,17 +635,14 @@ function AuthenticatedGroupsShell({
           overflow: visible;
         }
 
-        .desktopSearchCol {
-          min-width: 0;
-          width: min(
-            var(--desktop-search-width),
-            calc(100% - var(--desktop-create-size) - var(--desktop-search-gap))
-          );
-          flex: 0 1 auto;
-          position: relative;
-          z-index: 2147483003;
-          overflow: visible;
-        }
+.desktopSearchCol {
+  min-width: 0;
+  width: min(var(--desktop-search-width), 100%);
+  flex: 0 1 auto;
+  position: relative;
+  z-index: 2147483003;
+  overflow: visible;
+}
 
         .desktopCreateButtonWrap {
           display: flex;
@@ -624,24 +703,24 @@ function AuthenticatedGroupsShell({
           overflow: visible;
         }
 
-        .contentArea {
-          display: grid;
-          grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
-          gap: var(--shell-column-gap);
-          width: 100%;
-          flex: 1;
-          padding-left: var(--shell-gutter);
-          padding-right: var(--shell-gutter);
-          padding-top: 24px;
-          padding-bottom: calc(24px + env(safe-area-inset-bottom));
-          box-sizing: border-box;
-          position: relative;
-          z-index: 1;
-        }
+.contentArea {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, var(--main-max-width));
+  gap: var(--shell-column-gap);
+  width: 100%;
+  flex: 1;
+  padding-left: var(--shell-gutter);
+  padding-right: var(--shell-gutter);
+  padding-top: 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+}
 
-        .contentAreaWithWallet {
-          grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--wallet-rail-width);
-        }
+.contentAreaWithWallet {
+  grid-template-columns: var(--sidebar-width) minmax(0, var(--main-max-width)) var(--wallet-rail-width);
+}
 
         .sidebarCol {
           position: relative;
@@ -763,40 +842,6 @@ function AuthenticatedGroupsShell({
                     createGroupHref="/groups/new"
                   />
                 </div>
-
-                <div className="desktopCreateButtonWrap">
-                  <HeaderIconButton
-                    href="/groups/new"
-                    title="Crear comunidad"
-                    ariaLabel="Crear comunidad"
-                    size={35}
-                    borderRadius={16}
-                    background="#ffffff"
-                    color="#000000"
-                    border="1px solid rgba(255,255,255,0.85)"
-                  >
-                    <svg
-                      width="22"
-                      height="22"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M12 5V19"
-                        stroke="currentColor"
-                        strokeWidth="1.9"
-                        strokeLinecap="round"
-                      />
-                      <path
-                        d="M5 12H19"
-                        stroke="currentColor"
-                        strokeWidth="1.9"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </HeaderIconButton>
-                </div>
               </div>
 
               <div className="desktopLogoutWrap">
@@ -808,65 +853,37 @@ function AuthenticatedGroupsShell({
               <div className="mobileHeaderRow">
                 <strong className="mobileBrand">Red Social MVP</strong>
 
-                <div className="mobileActions">
+<div className="mobileActions">
+  <HeaderIconButton
+    onClick={() => setMobileSearchOpen(true)}
+    title="Buscar comunidad"
+    ariaLabel="Buscar comunidad"
+  >
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle
+        cx="11"
+        cy="11"
+        r="6.5"
+        stroke="currentColor"
+        strokeWidth="1.9"
+      />
+      <path
+        d="M16 16L21 21"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+      />
+    </svg>
+  </HeaderIconButton>
 
-                  <HeaderIconButton
-                    onClick={() => setMobileSearchOpen(true)}
-                    title="Buscar comunidad"
-                    ariaLabel="Buscar comunidad"
-                  >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <circle
-                        cx="11"
-                        cy="11"
-                        r="6.5"
-                        stroke="currentColor"
-                        strokeWidth="1.9"
-                      />
-                      <path
-                        d="M16 16L21 21"
-                        stroke="currentColor"
-                        strokeWidth="1.9"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </HeaderIconButton>
-
-                  <HeaderIconButton
-                    onClick={() => router.push("/groups/new")}
-                    title="Crear comunidad"
-                    ariaLabel="Crear comunidad"
-                  >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M12 5V19"
-                        stroke="currentColor"
-                        strokeWidth="1.9"
-                        strokeLinecap="round"
-                      />
-                      <path
-                        d="M5 12H19"
-                        stroke="currentColor"
-                        strokeWidth="1.9"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </HeaderIconButton>
-
-                  <LogoutButton />
-                </div>
+  <LogoutButton />
+</div>
               </div>
             ) : (
               <div className="mobileSearchRow">
@@ -893,11 +910,12 @@ function AuthenticatedGroupsShell({
             <div className="mainInner">{children}</div>
           </main>
 
-          {showWalletRail && !walletRailLoading ? (
-            <div className="walletCol">
-              <WalletDesktopRail activePath={pathname} />
-            </div>
-          ) : null}
+<div className="walletCol">
+  <WalletDesktopRail
+    activePath={pathname}
+    showWallet={showWalletRail && !walletRailLoading}
+  />
+</div>
         </div>
 
         <div className="bottomNavLayer">

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
@@ -553,23 +552,6 @@ export default function SavedPostsFeed() {
     wordBreak: "break-word",
   };
 
-  const backButtonStyle: CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 32,
-    padding: "7px 10px",
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.04)",
-    color: "rgba(255,255,255,0.88)",
-    fontSize: 12,
-    fontWeight: 700,
-    lineHeight: 1,
-    textDecoration: "none",
-    whiteSpace: "nowrap",
-  };
-
   const noticeStyle: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
@@ -660,10 +642,6 @@ export default function SavedPostsFeed() {
         <div style={headerStyle}>
           <div style={titleRowStyle}>
             <h2 style={titleStyle}>Guardados</h2>
-<Link href="/" style={backButtonStyle}>
-  <span aria-hidden="true">🏠</span>
-  <span>Inicio</span>
-</Link>
           </div>
           <p style={subtitleStyle}>Inicia sesión para ver tus publicaciones guardadas.</p>
         </div>
@@ -678,10 +656,6 @@ export default function SavedPostsFeed() {
       <div style={headerStyle}>
         <div style={titleRowStyle}>
           <h2 style={titleStyle}>Guardados</h2>
-<Link href="/" style={backButtonStyle}>
-  <span aria-hidden="true">🏠</span>
-  <span>Inicio</span>
-</Link>
         </div>
 
         <p style={subtitleStyle}>Publicaciones que guardaste con 🔖.</p>

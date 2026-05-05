@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 
 import InviteLinkModal from "./InviteLinkModal";
@@ -400,6 +400,24 @@ export default function OwnerSidebarMyGroups({
   greetingBusyId,
 }: Props) {
   const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+useEffect(() => {
+  if (typeof window === "undefined") return;
+
+  const mediaQuery = window.matchMedia("(max-width: 900px)");
+
+  const sync = () => setIsMobile(mediaQuery.matches);
+  sync();
+
+  if (typeof mediaQuery.addEventListener === "function") {
+    mediaQuery.addEventListener("change", sync);
+    return () => mediaQuery.removeEventListener("change", sync);
+  }
+
+  mediaQuery.addListener(sync);
+  return () => mediaQuery.removeListener(sync);
+}, []);
 
   const [meetGreetBusyMap, setMeetGreetBusyMap] = useState<BusyMap>({});
   const [meetGreetErrorMap, setMeetGreetErrorMap] = useState<TextMap>({});
@@ -429,6 +447,26 @@ export default function OwnerSidebarMyGroups({
     color: "#fff",
     animation: "ownerSidebarBuzz 4.8s infinite",
   };
+
+const createGroupCardStyle: React.CSSProperties = {
+  width: "100%",
+  minHeight: 52,
+  borderRadius: 16,
+  border: "1.4px dashed rgba(255,255,255,0.22)",
+  background: "rgba(255,255,255,0.035)",
+  color: "rgba(255,255,255,0.84)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  fontSize: 13,
+  fontWeight: 700,
+  lineHeight: 1,
+  textDecoration: "none",
+  boxSizing: "border-box",
+  marginTop: 8,
+  textAlign: "center",
+};
 
   function setMeetGreetBusy(requestId: string, value: boolean) {
     setMeetGreetBusyMap((prev) => ({
@@ -803,6 +841,7 @@ if (scheduleConflict.hasConflict) {
 
   return (
     <>
+
       {!loadingGroups &&
   myGroups.length === 0 &&
   !ownedGrouped.some((section) =>
@@ -2560,6 +2599,21 @@ const scheduleConflictMessage = scheduleConflict.message;
           })}
         </div>
       ))}
+
+{isMobile &&
+ownedGrouped.some((section) =>
+  section.items.some((item) => item.visibility === "hidden")
+) ? (
+  <Link
+    href="/groups/new"
+    style={createGroupCardStyle}
+    aria-label="Crear grupo nuevo"
+    title="Crear grupo nuevo"
+  >
+    <span aria-hidden="true">🧩</span>
+    <span>Crear grupo nuevo</span>
+  </Link>
+) : null}
 
       {inviteGroupId && (
         <InviteLinkModal

@@ -67,7 +67,7 @@ export default function ProfileSubnav({
             key: "groups" as const,
             label: isOwner ? "Mis comunidades" : "Sus comunidades",
             title: isOwner ? "Mis comunidades" : "Las comunidades de este perfil",
-            emoji: "🫂",
+            emoji: "✨",
           },
         ]
       : []),

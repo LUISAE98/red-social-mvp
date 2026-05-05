@@ -63,7 +63,7 @@ function getServiceIcon(type: CreatorServiceType): string {
     case "clase_personalizada":
       return "👑";
     default:
-      return "✨";
+      return "👫";
   }
 }
 

@@ -171,7 +171,7 @@ export default function MobileBottomNav({
         key: "groups",
         href: "/groups",
         active: pathname.startsWith("/groups"),
-        emoji: "🫂",
+        emoji: "✨",
         label: "Mis comunidades",
         type: "emoji",
       },

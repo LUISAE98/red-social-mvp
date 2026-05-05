@@ -53,7 +53,7 @@ const tabs = [
     key: "members" as const,
     label: "Integrantes",
     title: "Integrantes",
-    emoji: "👥",
+    emoji: "👫",
   },
   ...(canManage
     ? [

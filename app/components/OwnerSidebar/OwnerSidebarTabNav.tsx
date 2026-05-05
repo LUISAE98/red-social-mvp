@@ -47,14 +47,14 @@ export default function OwnerSidebarTabNav({
       key: "owned" as const,
       label: "Mis comunidades",
       title: "Mis comunidades",
-      emoji: "🫂",
+      emoji: "✨",
       showBadge: false,
     },
     {
       key: "communities" as const,
       label: "Otras comunidades",
       title: "Otras comunidades",
-      emoji: "🌐",
+      emoji: "🌍",
       showBadge: false,
     },
     ...(hasRequests
