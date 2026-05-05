@@ -274,11 +274,13 @@ export default function SearchPostsResults({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+const [fromDate, setFromDate] = useState("");
+const [toDate, setToDate] = useState("");
+const [visibleCount, setVisibleCount] = useState(12);
 
   const filtersPanelRef = useRef<HTMLDivElement | null>(null);
+const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
 
@@ -532,9 +534,48 @@ export default function SearchPostsResults({
     return true;
   }
 
-  const filteredPosts = useMemo(() => {
-    return posts.filter(matchesDateRange);
-  }, [posts, fromDate, toDate]);
+const filteredPosts = useMemo(() => {
+  return posts.filter(matchesDateRange);
+}, [posts, fromDate, toDate]);
+
+const hasResults = filteredPosts.length > 0;
+
+const visiblePosts = filteredPosts.slice(0, visibleCount);
+const fallbackPosts = posts.slice(0, visibleCount);
+const hasMorePosts = hasResults
+  ? visibleCount < filteredPosts.length
+  : visibleCount < posts.length;
+
+  useEffect(() => {
+  setVisibleCount(12);
+}, [normalizedSearch, fromDate, toDate]);
+
+useEffect(() => {
+  const target = loadMoreRef.current;
+
+  if (!target || !hasMorePosts) return;
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      const firstEntry = entries[0];
+
+      if (firstEntry?.isIntersecting) {
+        setVisibleCount((prev) => prev + 12);
+      }
+    },
+    {
+      root: null,
+      rootMargin: "160px",
+      threshold: 0.1,
+    }
+  );
+
+  observer.observe(target);
+
+  return () => {
+    observer.disconnect();
+  };
+}, [hasMorePosts, visibleCount]);
 
   const activeFilters = [
     ...(fromDate
@@ -557,32 +598,35 @@ export default function SearchPostsResults({
       : []),
   ];
 
-  const shellStyle: CSSProperties = {
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-    display: "grid",
-    gap: 12,
-    marginBottom: 18,
-    overflowX: "hidden",
-  };
+const shellStyle: CSSProperties = {
+  width: "100%",
+  maxWidth: "100%",
+  minWidth: 0,
+  display: "grid",
+  gap: 6,
+  marginBottom: 18,
+  marginTop: -16,
+  overflowX: "hidden",
+};
 
-  const topBarStyle: CSSProperties = {
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1fr) auto",
-    gap: 12,
-    alignItems: "start",
-    position: "relative",
-  };
+const topBarStyle: CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) auto",
+  gap: 8,
+  alignItems: "center",
+  position: "relative",
+  marginBottom: -10,
+  zIndex: 80,
+};
 
-  const activeFiltersWrapStyle: CSSProperties = {
-    minHeight: 36,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-    padding: "0 2px",
-  };
+const activeFiltersWrapStyle: CSSProperties = {
+  minHeight: 0,
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+  padding: "0 2px",
+};
 
   const activeFilterPillStyle: CSSProperties = {
     display: "inline-flex",
@@ -610,22 +654,26 @@ export default function SearchPostsResults({
     lineHeight: 1,
   };
 
-  const filtersButtonStyle: CSSProperties = {
-    minHeight: 36,
-    padding: "8px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.05)",
-    color: "#fff",
-    cursor: "pointer",
-    fontWeight: 700,
-    fontSize: 12.5,
-    fontFamily: fontStack,
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    whiteSpace: "nowrap",
-  };
+const filtersButtonStyle: CSSProperties = {
+  minHeight: 36,
+  padding: "8px 12px",
+  borderRadius: 12,
+  border: "1px solid rgba(255,255,255,0.14)",
+  background: "rgba(10,10,10,0.92)",
+  color: "#fff",
+  cursor: "pointer",
+  fontWeight: 700,
+  fontSize: 12.5,
+  fontFamily: fontStack,
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  whiteSpace: "nowrap",
+  transform: "translateY(-12px)",
+  position: "relative",
+  zIndex: 30,
+};
+
 
   const filtersPanelStyle: CSSProperties = {
     position: "absolute",
@@ -766,8 +814,8 @@ export default function SearchPostsResults({
             style={filtersButtonStyle}
             onClick={() => setIsFiltersOpen((prev) => !prev)}
           >
-            <span aria-hidden="true">☰</span>
-            Filtros
+<span aria-hidden="true">🧮</span>
+Filtros
           </button>
 
           {isFiltersOpen && (
@@ -826,12 +874,46 @@ export default function SearchPostsResults({
         </div>
       </div>
 
-      {filteredPosts.length === 0 ? (
-        <div style={emptyStyle}>
-          No se encontraron publicaciones con los filtros seleccionados.
+      {!hasResults ? (
+<>
+  <div style={emptyStyle}>
+    No se encontraron coincidencias exactas.
+  </div>
+
+  {fallbackPosts.length > 0 &&
+    fallbackPosts.map((post) => {
+      const canDelete =
+        userId === post.authorId ||
+        post.canModerateGroupAuthor === true;
+
+      return (
+        <div key={post.id} style={postItemStyle}>
+          <GroupPostCard
+            post={post}
+            canDelete={canDelete}
+            onDelete={canDelete ? handleDeletePost : undefined}
+            onLoadComments={handleLoadComments}
+            onCreateComment={handleCreateComment}
+            onDeleteComment={handleDeleteComment}
+            onLoadReplies={handleLoadReplies}
+            onCreateReply={handleCreateReply}
+            onDeleteReply={handleDeleteReply}
+            onToggleFlame={handleToggleFlame}
+            onToggleSave={handleToggleSave}
+            currentUserId={userId}
+            isOwner={false}
+            isModerator={post.canModerateGroupAuthor === true}
+            showGroupContext={true}
+            canModerateGroupAuthor={
+              post.canModerateGroupAuthor === true
+            }
+          />
         </div>
+      );
+    })}
+</>
       ) : (
-        filteredPosts.map((post) => {
+        visiblePosts.map((post) => {
           const canDelete =
             userId === post.authorId ||
             post.canModerateGroupAuthor === true;
@@ -861,33 +943,48 @@ export default function SearchPostsResults({
         })
       )}
 
-      <style jsx>{`
-        .search-posts-filters-anchor {
-          position: relative;
-        }
+      {hasMorePosts ? (
+  <div
+    ref={loadMoreRef}
+    aria-hidden="true"
+    style={{
+      width: "100%",
+      height: 1,
+    }}
+  />
+) : null}
 
-        @media (max-width: 768px) {
-          .search-posts-topbar {
-            grid-template-columns: minmax(0, 1fr);
-          }
+<style jsx>{`
+  .search-posts-filters-anchor {
+    position: relative;
+  }
 
-          .search-posts-filters-anchor {
-            width: 100%;
-          }
+  @media (max-width: 768px) {
+    .search-posts-topbar {
+      grid-template-columns: minmax(0, 1fr) auto !important;
+      align-items: center !important;
+      gap: 8px !important;
+    }
 
-          .search-posts-filters-anchor button {
-            width: 100%;
-            justify-content: center;
-          }
+    .search-posts-filters-anchor {
+      width: auto;
+    }
 
-          .search-posts-filters-panel {
-            position: static !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            margin-top: 10px;
-          }
-        }
-      `}</style>
+    .search-posts-filters-anchor button {
+      width: auto;
+      justify-content: center;
+    }
+
+    .search-posts-filters-panel {
+      position: absolute !important;
+      top: 40px !important;
+      right: 0 !important;
+      width: 280px !important;
+      max-width: calc(100vw - 24px) !important;
+      margin-top: 0 !important;
+    }
+  }
+`}</style>
     </section>
   );
 }

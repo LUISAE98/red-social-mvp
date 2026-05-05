@@ -14,8 +14,6 @@ type Unsubscribe,
 
 import { auth, db } from "@/lib/firebase";
 import GroupsSearchToolbar from "./GroupsSearchToolbar";
-import { SearchResultsExplorerPanel } from "./SearchResultsExplorerPanel";
-import type { CanonicalGroupCategory } from "@/types/group";
 import {
   GROUP_CATEGORY_LABELS,
   normalizeGroupCategory,
@@ -135,38 +133,6 @@ function normalizeText(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
-}
-
-const SEARCH_STOP_WORDS = new Set([
-  "de",
-  "del",
-  "la",
-  "las",
-  "el",
-  "los",
-  "y",
-  "o",
-  "a",
-  "en",
-  "por",
-  "para",
-  "con",
-  "sin",
-  "un",
-  "una",
-  "unos",
-  "unas",
-]);
-
-function tokenizeSearch(value: string) {
-  return Array.from(
-    new Set(
-      normalizeText(value)
-        .split(/[^a-z0-9]+/i)
-        .map((item) => item.trim())
-        .filter((item) => item.length >= 2 && !SEARCH_STOP_WORDS.has(item))
-    )
-  );
 }
 
 function initialsFromName(name: string) {
@@ -382,211 +348,6 @@ function buildCommunityDiscoveryText(group: Community) {
   );
 }
 
-const CATEGORY_KEYWORDS: Record<CanonicalGroupCategory, string[]> = {
-  entretenimiento: [
-    "entretenimiento",
-    "show",
-    "shows",
-    "peliculas",
-    "series",
-    "cine",
-    "tv",
-    "humor",
-  ],
-  musica: [
-    "musica",
-    "music",
-    "cantante",
-    "banda",
-    "musico",
-    "concierto",
-    "album",
-    "canciones",
-  ],
-  creadores: [
-    "creadores",
-    "creador",
-    "influencer",
-    "streamer",
-    "youtuber",
-    "podcast",
-    "podcaster",
-    "contenido",
-  ],
-  gaming: [
-    "gaming",
-    "gamer",
-    "videojuegos",
-    "videojuego",
-    "esports",
-    "xbox",
-    "playstation",
-    "nintendo",
-    "steam",
-  ],
-  tecnologia: [
-    "tecnologia",
-    "tech",
-    "programacion",
-    "codigo",
-    "gadgets",
-    "ia",
-    "ai",
-    "web3",
-    "crypto",
-    "software",
-  ],
-  deportes: [
-    "deportes",
-    "deporte",
-    "futbol",
-    "soccer",
-    "liga",
-    "box",
-    "boxeo",
-    "nba",
-    "nfl",
-    "beisbol",
-    "tenis",
-  ],
-  fitness_bienestar: [
-    "fitness",
-    "bienestar",
-    "salud",
-    "running",
-    "gym",
-    "entrenamiento",
-    "wellness",
-  ],
-  educacion: [
-    "educacion",
-    "educativo",
-    "curso",
-    "cursos",
-    "clases",
-    "aprendizaje",
-    "escuela",
-  ],
-  negocios_finanzas: [
-    "negocios",
-    "finanzas",
-    "empresa",
-    "emprendimiento",
-    "dinero",
-    "inversion",
-    "inversiones",
-  ],
-  noticias_politica: [
-    "noticias",
-    "politica",
-    "actualidad",
-    "periodismo",
-    "gobierno",
-    "elecciones",
-  ],
-  ciencia: [
-    "ciencia",
-    "cientifico",
-    "cientifica",
-    "fisica",
-    "quimica",
-    "biologia",
-  ],
-  moda_belleza: [
-    "moda",
-    "belleza",
-    "fashion",
-    "makeup",
-    "maquillaje",
-    "skincare",
-  ],
-  comida: ["comida", "cocina", "recetas", "food", "chef", "restaurantes"],
-  viajes: ["viajes", "viaje", "turismo", "destinos", "aventura"],
-  autos: ["autos", "auto", "coches", "carros", "motos", "motor"],
-  mascotas: ["mascotas", "mascota", "perros", "gatos", "pet", "pets"],
-  hobbies: ["hobbies", "hobbie", "coleccion", "colecciones", "manualidades"],
-  familia_comunidad: ["familia", "comunidad", "padres", "madres", "vecinos"],
-  instituciones: [
-    "instituciones",
-    "institucion",
-    "empresa",
-    "escuela",
-    "gobierno",
-    "organizacion",
-  ],
-  otros: ["otros"],
-};
-
-function inferCategoriesFromQuery(search: string): CanonicalGroupCategory[] {
-  const normalized = normalizeText(search);
-
-  return (Object.entries(CATEGORY_KEYWORDS) as Array<
-    [CanonicalGroupCategory, string[]]
-  >)
-    .filter(([, keywords]) =>
-      keywords.some((keyword) => normalized.includes(normalizeText(keyword)))
-    )
-    .map(([category]) => category);
-}
-
-function uniqueStrings(values: string[]) {
-  return Array.from(
-    new Set(values.map((value) => value.trim()).filter(Boolean))
-  );
-}
-
-type AffinityContext = {
-  queryTokens: string[];
-  queryCategories: CanonicalGroupCategory[];
-  seedCategories: CanonicalGroupCategory[];
-  seedTags: string[];
-};
-
-function scoreRelatedCommunity(group: Community, ctx: AffinityContext) {
-  const discoveryText = buildCommunityDiscoveryText(group);
-  const tags = normalizeGroupTags(group.tags);
-  const canonicalCategory = normalizeGroupCategory(group.category);
-
-  const matchedQueryTokens = ctx.queryTokens.filter((token) =>
-    discoveryText.includes(token)
-  );
-
-  const matchedQueryTags = tags.filter((tag) =>
-    ctx.queryTokens.some((token) => tag.includes(token) || token.includes(tag))
-  );
-
-  const matchedSeedTags = tags.filter((tag) =>
-    ctx.seedTags.some((seed) => tag.includes(seed) || seed.includes(tag))
-  );
-
-  let score = 0;
-
-  score += matchedQueryTokens.length * 6;
-  score += matchedQueryTags.length * 8;
-  score += matchedSeedTags.length * 7;
-
-  if (canonicalCategory && ctx.queryCategories.includes(canonicalCategory)) {
-    score += 10;
-  }
-
-  if (canonicalCategory && ctx.seedCategories.includes(canonicalCategory)) {
-    score += 14;
-  }
-
-  return {
-    score,
-    hasDirectSignal:
-      matchedQueryTokens.length > 0 ||
-      matchedQueryTags.length > 0 ||
-      (canonicalCategory != null &&
-        ctx.queryCategories.includes(canonicalCategory)),
-    hasAffinitySignal:
-      matchedSeedTags.length > 0 ||
-      (canonicalCategory != null &&
-        ctx.seedCategories.includes(canonicalCategory)),
-  };
-}
-
 function getCommunityPreviewPriority(
   group: Community,
   currentUser: User | null,
@@ -650,7 +411,6 @@ export default function GroupsSearchPanel({
   >({});
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
-  const [fullResultsOpen, setFullResultsOpen] = useState(false);
 
   const cardBorder = "1px solid rgba(255,255,255,0.14)";
   const softBorder = "1px solid rgba(255,255,255,0.18)";
@@ -670,7 +430,7 @@ export default function GroupsSearchPanel({
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
-      if (!hasSearch && !fullResultsOpen) return;
+      if (!hasSearch) return;
 
       const target = event.target;
       if (!(target instanceof Node)) return;
@@ -679,7 +439,6 @@ export default function GroupsSearchPanel({
 
       window.setTimeout(() => {
         setSearch("");
-        setFullResultsOpen(false);
         onCloseSearch?.();
       }, 0);
     }
@@ -689,7 +448,7 @@ export default function GroupsSearchPanel({
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown, true);
     };
-  }, [hasSearch, fullResultsOpen, onCloseSearch]);
+   }, [hasSearch, onCloseSearch]);
 
 useEffect(() => {
   setError(null);
@@ -907,7 +666,6 @@ return {
 
     if (pathname !== previousPathnameRef.current) {
       setSearch("");
-      setFullResultsOpen(false);
       onCloseSearch?.();
       previousPathnameRef.current = pathname;
     }
@@ -949,99 +707,6 @@ return {
       return normalizeText(buildUserSearchText(p)).includes(normalizedQuery);
     });
   }, [profiles, normalizedSearch, search, user?.uid]);
-
-  const explorerCommunities = useMemo(() => {
-    if (!normalizedSearch) return [];
-
-    const queryTokens = tokenizeSearch(search);
-    const queryCategories = inferCategoriesFromQuery(search);
-
-    const exactGroups = searchableCommunities
-      .filter((group) => {
-        const discoveryText = buildCommunityDiscoveryText(group);
-        if (!discoveryText) return false;
-
-        if (discoveryText.includes(normalizeText(search))) {
-          return true;
-        }
-
-        if (queryTokens.length > 0) {
-          return queryTokens.every((token) => discoveryText.includes(token));
-        }
-
-        return false;
-      })
-      .map((group) => ({
-        ...group,
-        searchMatchType: "exact" as const,
-        searchScore: 1000,
-      }));
-
-    const exactIds = new Set(exactGroups.map((group) => group.id));
-
-    const seedCategories = uniqueStrings([
-      ...exactGroups
-        .map((group) => normalizeGroupCategory(group.category))
-        .filter((value): value is CanonicalGroupCategory => !!value),
-      ...queryCategories,
-    ]) as CanonicalGroupCategory[];
-
-    const seedTags = uniqueStrings([
-      ...queryTokens,
-      ...exactGroups.flatMap((group) => normalizeGroupTags(group.tags)),
-    ]);
-
-    const affinityContext: AffinityContext = {
-      queryTokens,
-      queryCategories,
-      seedCategories,
-      seedTags,
-    };
-
-    const relatedGroups = searchableCommunities
-      .filter((group) => !exactIds.has(group.id))
-      .map((group) => {
-        const scored = scoreRelatedCommunity(group, affinityContext);
-
-        return {
-          ...group,
-          searchMatchType: "related" as const,
-          searchScore: scored.score,
-          __hasDirectSignal: scored.hasDirectSignal,
-        };
-      })
-      .filter((group) => group.searchScore > 0 && group.__hasDirectSignal)
-      .sort((a, b) => {
-        const scoreDiff = (b.searchScore ?? 0) - (a.searchScore ?? 0);
-        if (scoreDiff !== 0) return scoreDiff;
-        return (a.name ?? "").localeCompare(b.name ?? "");
-      })
-      .map(({ __hasDirectSignal, ...group }) => group);
-
-    const relatedIds = new Set(relatedGroups.map((group) => group.id));
-
-    const suggestedGroups = searchableCommunities
-      .filter((group) => !exactIds.has(group.id) && !relatedIds.has(group.id))
-      .map((group) => {
-        const scored = scoreRelatedCommunity(group, affinityContext);
-
-        return {
-          ...group,
-          searchMatchType: "suggested" as const,
-          searchScore: scored.score,
-          __hasAffinitySignal: scored.hasAffinitySignal,
-        };
-      })
-      .filter((group) => group.searchScore > 0 && group.__hasAffinitySignal)
-      .sort((a, b) => {
-        const scoreDiff = (b.searchScore ?? 0) - (a.searchScore ?? 0);
-        if (scoreDiff !== 0) return scoreDiff;
-        return (a.name ?? "").localeCompare(b.name ?? "");
-      })
-      .map(({ __hasAffinitySignal, ...group }) => group);
-
-    return [...exactGroups, ...relatedGroups, ...suggestedGroups];
-  }, [normalizedSearch, search, searchableCommunities]);
 
   const previewCommunities = useMemo(() => {
     const ordered = [...filteredCommunities].sort((a, b) => {
@@ -1155,13 +820,11 @@ return {
 
   function handleCloseSearch() {
     setSearch("");
-    setFullResultsOpen(false);
     onCloseSearch?.();
   }
 
   function handleNavigateAndClose(href: string) {
     setSearch("");
-    setFullResultsOpen(false);
     onCloseSearch?.();
     router.push(href);
   }
@@ -1170,14 +833,18 @@ return {
     handleNavigateAndClose(`/groups/${groupId}`);
   }
 
-  function handleOpenFullResults() {
-    if (!normalizedSearch) return;
-    setFullResultsOpen(true);
-  }
+function handleOpenFullResults() {
+  if (!normalizedSearch) return;
 
-  function handleCloseFullResults() {
-    setFullResultsOpen(false);
-  }
+  const params = new URLSearchParams();
+  params.set("q", search);
+  params.set("tab", "groups");
+
+  setSearch("");
+  onCloseSearch?.();
+
+  router.push(`/search?${params.toString()}`);
+}
 
   const isLoading = authLoading || communitiesLoading || profilesLoading;
   const hasAnyResults =
@@ -1663,7 +1330,7 @@ to {
           showCloseSearch={showCloseSearch}
         />
 
-        {hasSearch && !fullResultsOpen && (
+        {hasSearch && (
           <div className="search-dropdown">
             <div className="search-dropdown-inner">
               {isLoading && (
@@ -1925,23 +1592,6 @@ const visLabel =
             )}
           </div>
         )}
-
-        <SearchResultsExplorerPanel
-          open={fullResultsOpen}
-          search={search}
-          fontStack={fontStack}
-          currentUser={user}
-          communities={explorerCommunities}
-          profiles={filteredProfiles}
-          memberMap={memberMap}
-          reqMap={reqMap}
-          onClose={handleCloseFullResults}
-          onNavigate={handleNavigateAndClose}
-          onJoinPublic={handleJoinPublic}
-          onRequestPrivate={handleRequestPrivate}
-          onCancelRequest={handleCancelRequest}
-          onLeave={handleLeave}
-        />
 
         {error && <div className="error-card">{error}</div>}
       </div>

@@ -37,12 +37,195 @@ function initialsFromName(name: string) {
   return (a + b).toUpperCase() || "C";
 }
 
-function isJoinedStatus(status: CanonicalMemberStatus) {
+function getDescriptionPreview(value?: string) {
+  const clean = (value ?? "").trim().replace(/\s+/g, " ");
+
+  if (!clean) return "";
+  if (clean.length <= 60) return clean;
+
+  return `${clean.slice(0, 80).trim()}...`;
+}
+
+type SearchServiceDot = {
+  key: string;
+  color: string;
+  title: string;
+};
+
+const SEARCH_SERVICE_COLORS = {
+  saludo: "#7DD3FC",
+  consejo: "#FACC15",
+  meetGreet: "#A78BFA",
+  exclusiveSession: "#F472B6",
+  weddingDonation: "#C084FC",
+  generalDonation: "#FB7185",
+};
+
+function getOfferingByType(
+  offerings: Array<Record<string, any>> | Record<string, any> | undefined,
+  type: string
+): Record<string, any> | null {
+  if (!offerings) return null;
+
+  if (Array.isArray(offerings)) {
+    return offerings.find((item) => item?.type === type) ?? null;
+  }
+
+  const direct = offerings[type];
+
+  if (typeof direct === "object" && direct !== null) {
+    return direct as Record<string, any>;
+  }
+
+  if (direct === true) {
+    return { enabled: true, visible: true };
+  }
+
+  return null;
+}
+
+function isVisibleEnabledService(service: Record<string, any> | null): boolean {
+  if (!service) return false;
+
+  const enabled = service.enabled === true;
+  const visible = service.visible !== false;
+
+  return enabled && visible;
+}
+
+function buildSearchServiceDots(source?: {
+  offerings?: Array<Record<string, any>> | Record<string, any>;
+  donation?: Record<string, any>;
+  monetization?: Record<string, any>;
+  greetingsEnabled?: boolean;
+  adviceEnabled?: boolean;
+  digitalMeetGreetEnabled?: boolean;
+  customClassEnabled?: boolean;
+}): SearchServiceDot[] {
+  const offerings = source?.offerings;
+  const donation = source?.donation ?? {};
+  const monetization = source?.monetization ?? {};
+
+  const dots: SearchServiceDot[] = [];
+
+  const saludoEnabled =
+    isVisibleEnabledService(getOfferingByType(offerings, "saludo")) ||
+    source?.greetingsEnabled === true ||
+    monetization.greetingsEnabled === true;
+
+  const consejoEnabled =
+    isVisibleEnabledService(getOfferingByType(offerings, "consejo")) ||
+    source?.adviceEnabled === true ||
+    monetization.adviceEnabled === true;
+
+  const meetGreetEnabled =
+    isVisibleEnabledService(
+      getOfferingByType(offerings, "meet_greet_digital")
+    ) ||
+    source?.digitalMeetGreetEnabled === true ||
+    monetization.digitalMeetGreetEnabled === true;
+
+  const exclusiveSessionEnabled =
+    isVisibleEnabledService(
+      getOfferingByType(offerings, "clase_personalizada")
+    ) ||
+    source?.customClassEnabled === true ||
+    monetization.customClassEnabled === true;
+
+  if (saludoEnabled) {
+    dots.push({
+      key: "saludo",
+      color: SEARCH_SERVICE_COLORS.saludo,
+      title: "Solicitar saludo",
+    });
+  }
+
+  if (consejoEnabled) {
+    dots.push({
+      key: "consejo",
+      color: SEARCH_SERVICE_COLORS.consejo,
+      title: "Solicitar consejo",
+    });
+  }
+
+  if (meetGreetEnabled) {
+    dots.push({
+      key: "meet_greet_digital",
+      color: SEARCH_SERVICE_COLORS.meetGreet,
+      title: "Agendar encuentro",
+    });
+  }
+
+  if (exclusiveSessionEnabled) {
+    dots.push({
+      key: "clase_personalizada",
+      color: SEARCH_SERVICE_COLORS.exclusiveSession,
+      title: "Reservar sesión exclusiva",
+    });
+  }
+
+  if (
+    donation.enabled === true &&
+    donation.visible !== false &&
+    donation.mode === "wedding"
+  ) {
+    dots.push({
+      key: "wedding_donation",
+      color: SEARCH_SERVICE_COLORS.weddingDonation,
+      title: "Apoyar boda",
+    });
+  }
+
+  if (
+    donation.enabled === true &&
+    donation.visible !== false &&
+    donation.mode === "general"
+  ) {
+    dots.push({
+      key: "general_donation",
+      color: SEARCH_SERVICE_COLORS.generalDonation,
+      title: "Apoyar",
+    });
+  }
+
+  return dots;
+}
+
+function ServiceDots({ dots }: { dots: SearchServiceDot[] }) {
+  if (dots.length === 0) return null;
+
   return (
-    status === "active" ||
-    status === "subscribed" ||
-    status === "muted"
+    <span
+      aria-label="Servicios activos"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        flexShrink: 0,
+      }}
+    >
+      {dots.map((dot) => (
+        <span
+          key={dot.key}
+          title={dot.title}
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: 999,
+            border: "none",
+            background: dot.color,
+            boxSizing: "border-box",
+            display: "inline-flex",
+            flexShrink: 0,
+          }}
+        />
+      ))}
+    </span>
   );
+}
+
+function isJoinedStatus(status: CanonicalMemberStatus) {
+  return status === "active" || status === "subscribed" || status === "muted";
 }
 
 function isBlockedStatus(status: CanonicalMemberStatus) {
@@ -85,15 +268,18 @@ export default function SearchGroupsResults({
   onCancelRequest,
   onLeave,
 }: SearchGroupsResultsProps) {
-  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-  const [visibilityFilters, setVisibilityFilters] = useState<
+const [isMobile, setIsMobile] = useState(false);
+const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+const [visibleCount, setVisibleCount] = useState(10);
+const [visibilityFilters, setVisibilityFilters] = useState<
     GroupVisibilityFilter[]
   >([]);
   const [monetizationFilters, setMonetizationFilters] = useState<
     MonetizationFilter[]
   >([]);
 
-  const filtersPanelRef = useRef<HTMLDivElement | null>(null);
+const filtersPanelRef = useRef<HTMLDivElement | null>(null);
+const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -112,14 +298,28 @@ export default function SearchGroupsResults({
     };
   }, [isFiltersOpen]);
 
-  const shellStyle: CSSProperties = {
-    minHeight: 0,
-    overflowY: "auto",
-    padding: 14,
-    display: "grid",
-    gap: 10,
-    position: "relative",
+  useEffect(() => {
+  function handleResize() {
+    setIsMobile(window.innerWidth <= 640);
+  }
+
+  handleResize();
+
+  window.addEventListener("resize", handleResize);
+
+  return () => {
+    window.removeEventListener("resize", handleResize);
   };
+}, []);
+
+const shellStyle: CSSProperties = {
+  minHeight: 0,
+  overflow: "visible",
+  padding: "0 4px 14px",
+  display: "grid",
+  gap: 10,
+  position: "relative",
+};
 
   const emptyStyle: CSSProperties = {
     borderRadius: 18,
@@ -137,7 +337,7 @@ export default function SearchGroupsResults({
   };
 
   const sectionTitleStyle: CSSProperties = {
-    margin: "2px 0 0 0",
+    margin: "0 0 2px 0",
     fontSize: 12,
     fontWeight: 700,
     letterSpacing: "0.04em",
@@ -150,8 +350,10 @@ export default function SearchGroupsResults({
     display: "grid",
     gridTemplateColumns: "minmax(0, 1fr) auto",
     gap: 12,
-    alignItems: "start",
+    alignItems: "center",
     position: "relative",
+    marginTop: -40,
+    marginBottom: 2,
   };
 
   const activeFiltersWrapStyle: CSSProperties = {
@@ -161,6 +363,7 @@ export default function SearchGroupsResults({
     gap: 8,
     flexWrap: "wrap",
     padding: "0 2px",
+    pointerEvents: "auto",
   };
 
   const activeFilterPillStyle: CSSProperties = {
@@ -204,6 +407,7 @@ export default function SearchGroupsResults({
     alignItems: "center",
     gap: 8,
     whiteSpace: "nowrap",
+    transform: "translateY(18px)",
   };
 
   const filtersPanelStyle: CSSProperties = {
@@ -286,15 +490,16 @@ export default function SearchGroupsResults({
     border: "1px solid rgba(255,255,255,0.20)",
   };
 
-  const cardStyle: CSSProperties = {
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.025)",
-    padding: 10,
-    display: "grid",
-    gap: 8,
-    cursor: "pointer",
-  };
+const cardStyle: CSSProperties = {
+  borderRadius: 0,
+  border: "none",
+  borderBottom: "1px solid rgba(255,255,255,0.08)",
+  background: "transparent",
+  padding: "10px 2px",
+  display: "grid",
+  gap: 8,
+  cursor: "pointer",
+};
 
   const mainGridStyle: CSSProperties = {
     display: "grid",
@@ -337,12 +542,25 @@ export default function SearchGroupsResults({
   const titleStyle: CSSProperties = {
     margin: 0,
     color: "#fff",
-    fontSize: 13.5,
-    fontWeight: 700,
+    fontSize: 14,
+    fontWeight: 600,
     lineHeight: 1.2,
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
+  };
+
+  const descriptionPreviewStyle: CSSProperties = {
+    display: "block",
+    margin: "-1px 0 0",
+    maxWidth: 420,
+    overflow: "hidden",
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 11,
+    fontWeight: 400,
+    lineHeight: 1.25,
+    whiteSpace: "nowrap",
+    textOverflow: "ellipsis",
   };
 
   const metaRowStyle: CSSProperties = {
@@ -350,24 +568,6 @@ export default function SearchGroupsResults({
     alignItems: "center",
     gap: 6,
     flexWrap: "wrap",
-  };
-
-  const pillStyle: CSSProperties = {
-    fontSize: 11,
-    padding: "3px 8px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.05)",
-    color: "rgba(255,255,255,0.88)",
-    lineHeight: 1.2,
-    whiteSpace: "nowrap",
-  };
-
-  const paidPillStyle: CSSProperties = {
-    ...pillStyle,
-    border: "1px solid rgba(255,225,166,0.26)",
-    background: "rgba(255,225,166,0.10)",
-    fontWeight: 700,
   };
 
   const inlineMetaStyle: CSSProperties = {
@@ -386,49 +586,38 @@ export default function SearchGroupsResults({
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 6,
-    flexWrap: "wrap",
+    flexWrap: "nowrap",
     flexShrink: 0,
   };
 
   const primaryButtonStyle: CSSProperties = {
-    minHeight: 32,
-    padding: "6px 10px",
+    minHeight: 34,
+    padding: "7px 11px",
     borderRadius: 11,
     border: "1px solid rgba(255,255,255,0.22)",
     background: "#fff",
     color: "#000",
     cursor: "pointer",
-    fontWeight: 700,
-    fontSize: 11.5,
+    fontWeight: 600,
+    fontSize: 12,
     fontFamily: fontStack,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     whiteSpace: "nowrap",
   };
 
   const secondaryButtonStyle: CSSProperties = {
-    minHeight: 32,
-    padding: "6px 10px",
+    minHeight: 34,
+    padding: "7px 11px",
     borderRadius: 11,
     border: "1px solid rgba(255,255,255,0.18)",
     background: "rgba(255,255,255,0.06)",
     color: "#fff",
     cursor: "pointer",
-    fontWeight: 700,
-    fontSize: 11.5,
+    fontWeight: 600,
+    fontSize: 12,
     fontFamily: fontStack,
-    whiteSpace: "nowrap",
-  };
-
-  const disabledButtonStyle: CSSProperties = {
-    minHeight: 32,
-    padding: "6px 10px",
-    borderRadius: 11,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.05)",
-    color: "rgba(255,255,255,0.68)",
-    fontWeight: 700,
-    fontSize: 11.5,
-    fontFamily: fontStack,
-    cursor: "default",
     whiteSpace: "nowrap",
   };
 
@@ -481,10 +670,7 @@ export default function SearchGroupsResults({
 
   const filteredByUi = useMemo(() => {
     return communities.filter((group) => {
-      return (
-        matchesVisibilityFilters(group) &&
-        matchesMonetizationFilters(group)
-      );
+      return matchesVisibilityFilters(group) && matchesMonetizationFilters(group);
     });
   }, [communities, visibilityFilters, monetizationFilters]);
 
@@ -493,12 +679,66 @@ export default function SearchGroupsResults({
   );
 
   const relatedGroups = filteredByUi.filter(
-    (group) => group.searchMatchType === "related"
+    (group) => (group.searchMatchType ?? "exact") === "related"
   );
 
   const suggestedGroups = filteredByUi.filter(
-    (group) => group.searchMatchType === "suggested"
+    (group) => (group.searchMatchType ?? "exact") === "suggested"
   );
+
+  const hasResults =
+    exactGroups.length > 0 ||
+    relatedGroups.length > 0 ||
+    suggestedGroups.length > 0;
+
+const randomizedRecommendedGroups = useMemo(() => {
+  return [...communities].sort(() => Math.random() - 0.5);
+}, [communities]);
+
+const displayGroups = useMemo(() => {
+  const baseGroups = hasResults ? filteredByUi : [];
+  const baseIds = new Set(baseGroups.map((group) => group.id));
+
+  const recommendedGroups = randomizedRecommendedGroups.filter(
+    (group) => !baseIds.has(group.id)
+  );
+
+  return [...baseGroups, ...recommendedGroups].slice(0, visibleCount);
+}, [hasResults, filteredByUi, randomizedRecommendedGroups, visibleCount]);
+
+const hasMoreGroups = visibleCount < communities.length;
+
+
+useEffect(() => {
+  setVisibleCount(10);
+}, [communities, visibilityFilters, monetizationFilters]);
+
+useEffect(() => {
+  const target = loadMoreRef.current;
+
+  if (!target || !hasMoreGroups) return;
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      const firstEntry = entries[0];
+
+      if (firstEntry?.isIntersecting) {
+        setVisibleCount((prev) => prev + 10);
+      }
+    },
+    {
+      root: null,
+      rootMargin: "120px",
+      threshold: 0.1,
+    }
+  );
+
+  observer.observe(target);
+
+  return () => {
+    observer.disconnect();
+  };
+}, [hasMoreGroups, displayGroups.length]);
 
   const activeFilters = [
     ...visibilityFilters.map((value) => ({
@@ -521,7 +761,7 @@ export default function SearchGroupsResults({
           style={filtersButtonStyle}
           onClick={() => setIsFiltersOpen((prev) => !prev)}
         >
-          <span aria-hidden="true">☰</span>
+          <span aria-hidden="true">🧮</span>
           Filtros
         </button>
 
@@ -617,28 +857,29 @@ export default function SearchGroupsResults({
     const isPrivate = group.visibility === "private";
     const isPublic = group.visibility === "public";
     const hasPendingReq = !!reqMap[group.id];
-    const paid = resolveSubscriptionEnabled(group);
     const paidPrivate = isPaidPrivateGroup(group);
 
-    const visLabel =
-      group.visibility === "public"
-        ? "Comunidad pública"
-        : group.visibility === "private"
-          ? "Comunidad privada"
-          : "Comunidad oculta";
+const visLabel =
+  group.visibility === "public"
+    ? "Comunidad pública"
+    : group.visibility === "private"
+      ? "Comunidad privada"
+      : "Comunidad oculta";
 
-    const price = resolveSubscriptionPrice(group);
-    const cur = resolveSubscriptionCurrency(group);
+const price = resolveSubscriptionPrice(group);
+const cur = resolveSubscriptionCurrency(group);
+const serviceDots = buildSearchServiceDots(group);
 
     return (
       <article
         key={group.id}
         style={cardStyle}
+        className="search-result-item"
         onClick={() => onNavigate(`/groups/${group.id}`)}
       >
-        <div style={mainGridStyle} className="search-groups-card-grid">
-          <div style={mainInfoStyle}>
-            <div style={avatarStyle}>
+        <div style={mainGridStyle} className="search-result-grid">
+          <div style={mainInfoStyle} className="search-result-main">
+            <div style={avatarStyle} className="search-result-avatar">
               {group.avatarUrl ? (
                 <img
                   src={group.avatarUrl}
@@ -656,52 +897,127 @@ export default function SearchGroupsResults({
               )}
             </div>
 
-            <div style={contentStyle}>
-              <h3 style={titleStyle} className="search-groups-card-title">
-                {group.name ?? "(sin nombre)"}
-              </h3>
+            <div style={contentStyle} className="search-result-content">
+<h3
+  style={{
+    ...titleStyle,
+    display: "flex",
+    alignItems: "baseline",
+    gap: 5,
+    minWidth: 0,
+  }}
+  className="search-result-name"
+>
+  <span
+    style={{
+      minWidth: 0,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: 600,
+      lineHeight: 1.2,
+    }}
+  >
+    {group.name ?? "(sin nombre)"}
+  </span>
 
-              <div style={metaRowStyle}>
-                <span style={pillStyle}>{visLabel}</span>
+  {!isMobile ? (
+    <>
+      <span
+        style={{
+          flexShrink: 0,
+          color: "rgba(255,255,255,0.42)",
+          fontSize: 11,
+          fontWeight: 500,
+          lineHeight: 1,
+        }}
+      >
+        ·
+      </span>
 
-                {paid && (
-                  <span style={paidPillStyle}>
-                    Con suscripción
-                    {price != null ? ` · ${price} ${cur ?? ""}` : ""}
-                  </span>
-                )}
+      <span
+        style={{
+          flexShrink: 0,
+          color: "rgba(255,255,255,0.48)",
+          fontSize: 11,
+          fontWeight: 500,
+          lineHeight: 1.2,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {visLabel}
+      </span>
+    </>
+  ) : null}
 
-                {isOwner && (
-                  <span style={inlineMetaStyle}>(Eres owner)</span>
-                )}
+  {!isMobile ? <ServiceDots dots={serviceDots} /> : null}
+</h3>
 
-                {!isOwner && isMember && (
-                  <span style={inlineMetaStyle}>
-                    ({membershipStatusLabel(membershipStatus)})
-                  </span>
-                )}
+{isMobile ? (
+  <div
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 5,
+      minWidth: 0,
+    }}
+  >
+    <span
+      style={{
+        color: "rgba(255,255,255,0.48)",
+        fontSize: 11,
+        fontWeight: 500,
+        lineHeight: 1.2,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {visLabel}
+    </span>
 
+    {serviceDots.length > 0 ? (
+      <>
+        <span
+          style={{
+            flexShrink: 0,
+            color: "rgba(255,255,255,0.42)",
+            fontSize: 11,
+            fontWeight: 500,
+            lineHeight: 1,
+          }}
+        >
+          ·
+        </span>
+
+        <ServiceDots dots={serviceDots} />
+      </>
+    ) : null}
+  </div>
+) : null}
+{!isMobile && getDescriptionPreview(group.description) ? (
+  <p
+    style={descriptionPreviewStyle}
+    className="search-result-description-preview"
+  >
+    {getDescriptionPreview(group.description)}
+  </p>
+) : null}
+
+
+              <div style={metaRowStyle} className="search-result-meta">
                 {!isOwner && isBlocked && (
                   <span style={dangerMetaStyle}>
                     ({membershipStatusLabel(membershipStatus)})
                   </span>
                 )}
-
-                {!isOwner &&
-                  !isMember &&
-                  !isBlocked &&
-                  isPrivate &&
-                  !paidPrivate &&
-                  hasPendingReq && (
-                    <span style={inlineMetaStyle}>(Pendiente)</span>
-                  )}
               </div>
             </div>
           </div>
 
           <div
             style={actionWrapStyle}
-            className="search-groups-card-actions"
+            className="search-result-actions"
             onClick={(e) => e.stopPropagation()}
           >
             {!isOwner && !isMember && !isBlocked && isPublic && (
@@ -720,7 +1036,8 @@ export default function SearchGroupsResults({
                 style={primaryButtonStyle}
                 onClick={() => onNavigate(`/groups/${group.id}`)}
               >
-                Suscribirme
+                💎 Suscribirme
+                {price != null ? ` · ${price} ${cur ?? "MXN"}` : ""}
               </button>
             )}
 
@@ -735,23 +1052,13 @@ export default function SearchGroupsResults({
                     Solicitar acceso
                   </button>
                 ) : (
-                  <>
-                    <button
-                      type="button"
-                      style={disabledButtonStyle}
-                      disabled
-                    >
-                      Enviada
-                    </button>
-
-                    <button
-                      type="button"
-                      style={secondaryButtonStyle}
-                      onClick={() => void onCancelRequest(group.id)}
-                    >
-                      Cancelar
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    style={secondaryButtonStyle}
+                    onClick={() => void onCancelRequest(group.id)}
+                  >
+                    Cancelar
+                  </button>
                 )}
               </>
             )}
@@ -805,7 +1112,7 @@ export default function SearchGroupsResults({
             position: relative;
           }
 
-          @media (max-width: 768px) {
+          @media (max-width: 640px) {
             .search-groups-topbar {
               grid-template-columns: minmax(0, 1fr);
             }
@@ -853,33 +1160,118 @@ export default function SearchGroupsResults({
         {renderFiltersPanel()}
       </div>
 
-      {exactGroups.length > 0 && (
-        <div style={sectionStyle}>
-          <h2 style={sectionTitleStyle}>Coincidencias</h2>
-          {exactGroups.map(renderGroupCard)}
-        </div>
-      )}
+{displayGroups.length > 0 && (
+  <div style={sectionStyle}>
+    <h2 style={sectionTitleStyle}>
+      {hasResults ? "Coincidencias" : "Comunidades recomendadas"}
+    </h2>
 
-      {relatedGroups.length > 0 && (
-        <div style={sectionStyle}>
-          <h2 style={sectionTitleStyle}>Comunidades relacionadas</h2>
-          {relatedGroups.map(renderGroupCard)}
-        </div>
-      )}
+    {displayGroups.map(renderGroupCard)}
+  </div>
+)}
 
-      {relatedGroups.length === 0 && suggestedGroups.length > 0 && (
-        <div style={sectionStyle}>
-          <h2 style={sectionTitleStyle}>Comunidades que te pueden interesar</h2>
-          {suggestedGroups.map(renderGroupCard)}
-        </div>
-      )}
+{hasMoreGroups ? (
+  <div
+    ref={loadMoreRef}
+    aria-hidden="true"
+    style={{
+      width: "100%",
+      height: 1,
+    }}
+  />
+) : null}
 
       <style jsx>{`
         .search-groups-filters-anchor {
           position: relative;
         }
 
-        @media (max-width: 768px) {
+        .search-result-item {
+          transition: background 0.16s ease;
+        }
+
+        .search-result-item:hover {
+          background: rgba(255, 255, 255, 0.035) !important;
+        }
+
+        .search-result-name-with-meta {
+          display: flex;
+          align-items: baseline;
+          gap: 5px;
+          min-width: 0;
+        }
+
+        .search-result-name-text {
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+.search-result-name-dot {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.42) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+}
+
+.search-result-name-visibility {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.48) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+  white-space: nowrap;
+}
+
+        .visibility-mobile {
+          display: none;
+        }
+
+        .search-groups-service-dots {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          flex-shrink: 0;
+        }
+
+        .search-groups-service-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 999px;
+          border: none;
+          box-sizing: border-box;
+          display: inline-flex;
+          flex-shrink: 0;
+        }
+
+        .service-dots-desktop {
+          display: inline-flex;
+          align-items: center;
+          flex-shrink: 0;
+        }
+
+        .service-dots-mobile {
+          display: none;
+        }
+
+        .mobile-service-separator {
+          color: rgba(255, 255, 255, 0.34);
+          font-size: 10px;
+          line-height: 1;
+          flex-shrink: 0;
+        }
+
+        .mobile-visibility-label {
+          color: rgba(255, 255, 255, 0.48);
+          font-size: 10px;
+          font-weight: 500;
+          line-height: 1.2;
+          white-space: nowrap;
+        }
+
+        @media (max-width: 640px) {
           .search-groups-topbar {
             grid-template-columns: minmax(0, 1fr);
           }
@@ -900,20 +1292,77 @@ export default function SearchGroupsResults({
             margin-top: 10px;
           }
 
-          .search-groups-card-grid {
-            grid-template-columns: minmax(0, 1fr) !important;
-            align-items: flex-start !important;
+.search-result-item {
+  padding: 10px 2px !important;
+}
+
+          .search-result-grid {
+            grid-template-columns: minmax(0, 1fr) auto !important;
+            align-items: center !important;
+            gap: 8px !important;
           }
 
-          .search-groups-card-actions {
-            width: 100%;
-            justify-content: flex-start !important;
+          .search-result-main {
+            gap: 8px !important;
+            align-items: center !important;
           }
 
-          .search-groups-card-title {
-            white-space: normal !important;
-            overflow: visible !important;
-            text-overflow: unset !important;
+          .search-result-avatar {
+            width: 38px !important;
+            height: 38px !important;
+          }
+
+          .search-result-content {
+            min-width: 0;
+          }
+
+          .search-result-name {
+            font-size: 13px !important;
+          }
+
+          .search-result-name-visibility {
+            font-size: 10px;
+          }
+
+          .search-result-description-preview {
+            display: none !important;
+          }
+
+          .visibility-desktop {
+            display: none;
+          }
+
+          .visibility-mobile {
+            display: none;
+          }
+
+          .service-dots-mobile {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 14px;
+            margin-top: -1px;
+          }
+
+          .service-dots-mobile .search-groups-service-dots {
+            gap: 4px;
+          }
+
+          .service-dots-mobile .search-groups-service-dot {
+            width: 7px;
+            height: 7px;
+          }
+
+          .search-result-actions {
+            justify-content: flex-end !important;
+            width: auto !important;
+            flex-wrap: nowrap !important;
+          }
+
+          .search-result-actions button {
+            min-height: 32px !important;
+            padding: 6px 10px !important;
+            font-size: 11px !important;
           }
         }
       `}</style>

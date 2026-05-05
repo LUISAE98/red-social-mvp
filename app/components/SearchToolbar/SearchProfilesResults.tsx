@@ -1,6 +1,11 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 
 import type { PublicUser } from "./GroupsSearchPanel";
 
@@ -22,113 +27,139 @@ export default function SearchProfilesResults({
   profiles,
   onNavigate,
 }: SearchProfilesResultsProps) {
+  const [visibleCount, setVisibleCount] = useState(10);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  const hasResults = profiles.length > 0;
+  const visibleProfiles = profiles.slice(0, visibleCount);
+  const hasMoreProfiles = visibleCount < profiles.length;
+
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [profiles]);
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+
+    if (!target || !hasMoreProfiles) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const firstEntry = entries[0];
+
+        if (firstEntry?.isIntersecting) {
+          setVisibleCount((prev) => prev + 10);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "120px",
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(target);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMoreProfiles, visibleProfiles.length]);
+
   const shellStyle: CSSProperties = {
     minHeight: 0,
-    overflowY: "auto",
-    padding: 16,
+    overflow: "visible",
+    padding: "0 4px 14px",
     display: "grid",
-    gap: 12,
+    gap: 0,
   };
 
   const emptyStyle: CSSProperties = {
     borderRadius: 18,
     border: "1px solid rgba(255,255,255,0.10)",
     background: "rgba(255,255,255,0.03)",
-    padding: "16px 18px",
+    padding: "15px 16px",
     color: "rgba(255,255,255,0.78)",
     fontSize: 14,
-    lineHeight: 1.5,
+    lineHeight: 1.45,
   };
 
   const cardStyle: CSSProperties = {
-    borderRadius: 18,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.025)",
-    padding: 14,
+    borderRadius: 0,
+    border: "none",
+    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    background: "transparent",
+    padding: "10px 2px",
     display: "grid",
-    gap: 12,
     cursor: "pointer",
   };
 
   const rowStyle: CSSProperties = {
     display: "grid",
     gridTemplateColumns: "auto minmax(0, 1fr) auto",
-    gap: 12,
+    gap: 10,
     alignItems: "center",
   };
 
   const avatarStyle: CSSProperties = {
-    width: 56,
-    height: 56,
+    width: 42,
+    height: 42,
     borderRadius: "50%",
     overflow: "hidden",
     border: "1px solid rgba(255,255,255,0.14)",
     background: "rgba(255,255,255,0.04)",
     display: "grid",
     placeItems: "center",
+    flexShrink: 0,
   };
 
   const fallbackStyle: CSSProperties = {
     color: "#fff",
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: 700,
   };
 
   const contentStyle: CSSProperties = {
     minWidth: 0,
     display: "grid",
-    gap: 7,
+    gap: 4,
   };
 
   const titleStyle: CSSProperties = {
     margin: 0,
     color: "#fff",
-    fontSize: 15.5,
-    fontWeight: 700,
+    fontSize: 14,
+    fontWeight: 600,
     lineHeight: 1.2,
-    overflowWrap: "anywhere",
-    wordBreak: "break-word",
-  };
-
-  const metaRowStyle: CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  };
-
-  const pillStyle: CSSProperties = {
-    fontSize: 12,
-    padding: "4px 9px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.05)",
-    color: "rgba(255,255,255,0.88)",
-    lineHeight: 1.2,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   };
 
-  const inlineStyle: CSSProperties = {
-    fontSize: 12,
-    color: "rgba(255,255,255,0.56)",
-    lineHeight: 1.3,
+  const handleStyle: CSSProperties = {
+    color: "rgba(255,255,255,0.48)",
+    fontSize: 11,
+    fontWeight: 500,
+    lineHeight: 1.2,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   };
 
   const ctaStyle: CSSProperties = {
-    minHeight: 38,
-    padding: "8px 12px",
-    borderRadius: 12,
+    minHeight: 34,
+    padding: "7px 11px",
+    borderRadius: 11,
     border: "1px solid rgba(255,255,255,0.18)",
     background: "rgba(255,255,255,0.06)",
     color: "#fff",
     cursor: "pointer",
-    fontWeight: 700,
-    fontSize: 13,
+    fontWeight: 600,
+    fontSize: 12,
     fontFamily: fontStack,
     whiteSpace: "nowrap",
   };
 
-  if (profiles.length === 0) {
+  if (!hasResults) {
     return (
       <section style={shellStyle}>
         <div style={emptyStyle}>
@@ -140,7 +171,7 @@ export default function SearchProfilesResults({
 
   return (
     <section style={shellStyle}>
-      {profiles.map((profile) => {
+      {visibleProfiles.map((profile) => {
         const fullName =
           profile.displayName?.trim() ||
           `${profile.firstName ?? ""} ${profile.lastName ?? ""}`.trim() ||
@@ -151,10 +182,11 @@ export default function SearchProfilesResults({
           <article
             key={profile.uid}
             style={cardStyle}
+            className="search-profile-item"
             onClick={() => onNavigate(`/u/${profile.handle}`)}
           >
-            <div style={rowStyle}>
-              <div style={avatarStyle}>
+            <div style={rowStyle} className="search-profile-row">
+              <div style={avatarStyle} className="search-profile-avatar">
                 {profile.photoURL ? (
                   <img
                     src={profile.photoURL}
@@ -175,10 +207,9 @@ export default function SearchProfilesResults({
               <div style={contentStyle}>
                 <h3 style={titleStyle}>{fullName}</h3>
 
-                <div style={metaRowStyle}>
-                  <span style={pillStyle}>@{profile.handle}</span>
-                  <span style={inlineStyle}>Perfil público</span>
-                </div>
+                {profile.handle ? (
+                  <span style={handleStyle}>@{profile.handle}</span>
+                ) : null}
               </div>
 
               <button
@@ -195,6 +226,49 @@ export default function SearchProfilesResults({
           </article>
         );
       })}
+
+      {hasMoreProfiles ? (
+        <div
+          ref={loadMoreRef}
+          aria-hidden="true"
+          style={{
+            width: "100%",
+            height: 1,
+          }}
+        />
+      ) : null}
+
+      <style jsx>{`
+        .search-profile-item {
+          transition: background 0.16s ease;
+        }
+
+        .search-profile-item:hover {
+          background: rgba(255, 255, 255, 0.035) !important;
+        }
+
+        @media (max-width: 640px) {
+          .search-profile-item {
+            padding: 10px 2px !important;
+          }
+
+          .search-profile-row {
+            grid-template-columns: auto minmax(0, 1fr) auto !important;
+            gap: 8px !important;
+          }
+
+          .search-profile-avatar {
+            width: 38px !important;
+            height: 38px !important;
+          }
+
+          .search-profile-row button {
+            min-height: 32px !important;
+            padding: 6px 10px !important;
+            font-size: 11px !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }
