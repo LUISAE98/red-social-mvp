@@ -74,11 +74,7 @@ function normalizeMemberStatus(raw: unknown): CanonicalMemberStatus {
 }
 
 export function isJoinedStatus(status: CanonicalMemberStatus) {
-  return (
-    status === "active" ||
-    status === "subscribed" ||
-    status === "muted"
-  );
+  return status === "active" || status === "subscribed" || status === "muted";
 }
 
 export function isBlockedStatus(status: CanonicalMemberStatus) {
@@ -360,9 +356,7 @@ function scoreRelatedCommunity(group: Community, ctx: AffinityContext) {
   );
 
   const matchedQueryTags = tags.filter((tag) =>
-    ctx.queryTokens.some(
-      (token) => tag.includes(token) || token.includes(tag)
-    )
+    ctx.queryTokens.some((token) => tag.includes(token) || token.includes(tag))
   );
 
   const matchedSeedTags = tags.filter((tag) =>
@@ -443,6 +437,9 @@ export default function GroupsSearchPanel({
   const router = useRouter();
   const pathname = usePathname();
 
+  const searchAreaRef = useRef<HTMLDivElement | null>(null);
+  const previousPathnameRef = useRef<string | null>(null);
+
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [communitiesLoading, setCommunitiesLoading] = useState(true);
@@ -459,8 +456,6 @@ export default function GroupsSearchPanel({
   const [search, setSearch] = useState("");
   const [fullResultsOpen, setFullResultsOpen] = useState(false);
 
-  const previousPathnameRef = useRef<string | null>(null);
-
   const cardBorder = "1px solid rgba(255,255,255,0.14)";
   const softBorder = "1px solid rgba(255,255,255,0.18)";
   const shadow = "0 18px 46px rgba(0,0,0,0.42)";
@@ -476,6 +471,29 @@ export default function GroupsSearchPanel({
 
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!hasSearch && !fullResultsOpen) return;
+
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+
+      if (searchAreaRef.current?.contains(target)) return;
+
+      window.setTimeout(() => {
+        setSearch("");
+        setFullResultsOpen(false);
+        onCloseSearch?.();
+      }, 0);
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown, true);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+    };
+  }, [hasSearch, fullResultsOpen, onCloseSearch]);
 
   useEffect(() => {
     async function loadCommunities() {
@@ -927,18 +945,20 @@ export default function GroupsSearchPanel({
   return (
     <>
       <style jsx>{`
-        .search-area {
-          position: relative;
-          z-index: 60;
-          width: 100%;
-        }
+.search-area {
+  position: relative;
+  z-index: 60;
+  width: 100%;
+  overflow: visible;
+}
 
-        .search-dropdown {
-          position: absolute;
-          top: calc(100% + 10px);
-          left: 0;
-          right: 0;
-          width: 100%;
+.search-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  width: 100%;
+  max-width: 100%;
           border: ${cardBorder};
           border-radius: 20px;
           background: rgba(12, 12, 12, 0.97);
@@ -950,6 +970,23 @@ export default function GroupsSearchPanel({
           display: flex;
           flex-direction: column;
           max-height: min(62vh, 560px);
+          opacity: 0;
+          transform: translateY(-8px) scaleY(0.96);
+          transform-origin: top center;
+          animation: dropdown-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1)
+            forwards;
+        }
+
+        @keyframes dropdown-enter {
+from {
+  opacity: 0;
+  transform: translateY(-8px) scaleY(0.96);
+}
+
+to {
+  opacity: 1;
+  transform: translateY(0) scaleY(1);
+}
         }
 
         .search-dropdown-inner {
@@ -1025,6 +1062,7 @@ export default function GroupsSearchPanel({
         .result-item {
           padding: 10px 14px;
           transition: background 0.16s ease;
+          cursor: pointer;
         }
 
         .result-item:hover {
@@ -1174,10 +1212,15 @@ export default function GroupsSearchPanel({
           white-space: nowrap;
         }
 
-        @media (max-width: 640px) {
-          .search-dropdown {
-            top: calc(100% + 8px);
-            border-radius: 18px;
+@media (max-width: 640px) {
+  .search-dropdown {
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 100%;
+    border-radius: 18px;
             max-height: min(58vh, 460px);
           }
 
@@ -1237,7 +1280,7 @@ export default function GroupsSearchPanel({
         }
       `}</style>
 
-      <div className="search-area">
+      <div ref={searchAreaRef} className="search-area">
         <GroupsSearchToolbar
           search={search}
           onSearchChange={setSearch}

@@ -65,7 +65,7 @@ export default function ProfileSubnav({
       ? [
           {
             key: "groups" as const,
-            label: isOwner ? "Mis comunidades" : "Sus comunidades",
+            label: isOwner ? "Mis\ncomunidades" : "Sus\ncomunidades",
             title: isOwner ? "Mis comunidades" : "Las comunidades de este perfil",
             emoji: "✨",
           },
@@ -146,11 +146,12 @@ export default function ProfileSubnav({
   };
 
   const labelStyle: CSSProperties = {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 600,
-    lineHeight: 1,
+    lineHeight: 1.05,
     letterSpacing: -0.1,
-    whiteSpace: "nowrap",
+    whiteSpace: "pre-line",
+    textAlign: "center",
   };
 
   return (
@@ -182,10 +183,24 @@ export default function ProfileSubnav({
                   : {}),
               }}
             />
-            <span style={itemInner}>
-              <EmojiIcon emoji={tab.emoji} active={active} />
-              <span style={labelStyle}>{tab.label}</span>
-            </span>
+              <span style={itemInner}>
+                <EmojiIcon emoji={tab.emoji} active={active} />
+                {tab.key === "groups" ? (
+                  <span
+                    style={{
+                      ...labelStyle,
+                      display: "grid",
+                      gap: 2,
+                      lineHeight: 1,
+                    }}
+                  >
+                    <span>Mis</span>
+                    <span style={{ fontSize: 10 }}>comunidades</span>
+                  </span>
+                ) : (
+                  <span style={labelStyle}>{tab.label}</span>
+                )}
+              </span>
           </button>
         );
       })}

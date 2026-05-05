@@ -2,6 +2,7 @@
 
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import LogoutButton from "@/app/LogoutButton";
 
 type ProfileSettingsTabProps = {
   isSaving?: boolean;
@@ -358,6 +359,12 @@ export default function ProfileSettingsTab({
     whiteSpace: "nowrap",
   };
 
+  const logoutButtonStyle: CSSProperties = {
+    ...buttonStyle,
+    width: "100%",
+    justifyContent: "center",
+  };
+
   const inputStyle: CSSProperties = {
     width: "100%",
     minHeight: 46,
@@ -404,12 +411,42 @@ export default function ProfileSettingsTab({
   return (
     <section style={outer}>
       <style jsx>{`
+        .profile-logout-button {
+          min-height: 36px;
+          padding: 8px 12px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(255, 255, 255, 0.07);
+          color: #fff;
+          font-size: 12px;
+          font-weight: 700;
+          font-family: ${fontStack};
+          cursor: pointer;
+          white-space: nowrap;
+        }
+
+        .profile-logout-button:hover {
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .profile-logout-button:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+
+        .profile-logout-wrap {
+          width: 180px;
+          max-width: 100%;
+        }
+
         @media (max-width: 520px) {
           .profile-setting-item {
             grid-template-columns: 1fr !important;
           }
 
-          .profile-setting-button {
+          .profile-setting-button,
+          .profile-logout-button,
+          .profile-logout-wrap {
             width: 100%;
           }
         }
@@ -516,14 +553,27 @@ export default function ProfileSettingsTab({
           </div>
         </div>
 
-        <div
-          className="profile-setting-item"
-          style={{ ...item, borderBottom: "none" }}
-        >
+        <div className="profile-setting-item" style={item}>
           <div>
             <div style={labelStyle}>Fecha de creación</div>
             <div style={valueStyle}>{resolvedAppCreatedAt}</div>
           </div>
+        </div>
+
+        <div
+          className="profile-logout-wrap"
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            paddingTop: 10,
+            margin: "0 auto",
+          }}
+        >
+<LogoutButton
+  variant="settings"
+  className="profile-setting-button"
+  style={logoutButtonStyle}
+/>
         </div>
 
         {err && <div style={noticeStyle}>{err}</div>}

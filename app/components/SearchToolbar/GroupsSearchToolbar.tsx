@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 export type GroupsSearchToolbarProps = {
   search: string;
@@ -26,11 +26,17 @@ export default function GroupsSearchToolbar({
   ariaLabel = "Buscar comunidades, perfiles o publicaciones",
 }: GroupsSearchToolbarProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [isFocused, setIsFocused] = useState(false);
 
   const fieldBorder = "1px solid rgba(255,255,255,0.18)";
   const fieldBg = "rgba(255,255,255,0.045)";
   const fieldBgFocus = "rgba(255,255,255,0.065)";
   const hasSearch = search.trim().length > 0;
+  const isExpanded = isFocused || hasSearch || showCloseSearch;
+
+  function focusInput() {
+    inputRef.current?.focus();
+  }
 
   function blurInput() {
     inputRef.current?.blur();
@@ -58,27 +64,38 @@ export default function GroupsSearchToolbar({
           width: 100%;
         }
 
+        .search-main {
+          min-width: 0;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .mobile-search-emoji-btn {
+          display: none;
+        }
+
         .search-input-wrap {
           position: relative;
           min-width: 0;
-          width: 100%;
+          width: ${isExpanded ? "min(100%, 920px)" : "360px"};
+          max-width: 920px;
+          transition:
+            width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+            max-width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+            transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+          transform-origin: center;
         }
 
-        .search-icon {
-          position: absolute;
-          top: 50%;
-          left: 14px;
-          transform: translateY(-50%);
-          width: 16px;
-          height: 16px;
-          color: rgba(255, 255, 255, 0.58);
-          pointer-events: none;
+        .search-input-wrap:focus-within {
+          transform: translateY(-1px);
         }
 
         .search-input {
           width: 100%;
           height: 46px;
-          padding: 0 42px 0 40px;
+          padding: 0 42px 0 16px;
           border-radius: 14px;
           border: ${fieldBorder};
           background: ${fieldBg};
@@ -86,7 +103,10 @@ export default function GroupsSearchToolbar({
           outline: none;
           font-size: 14px;
           box-sizing: border-box;
-          transition: border-color 0.18s ease, background 0.18s ease;
+          transition:
+            border-color 0.18s ease,
+            background 0.18s ease,
+            box-shadow 0.18s ease;
           appearance: none;
           -webkit-appearance: none;
           font-family: ${fontStack};
@@ -108,6 +128,7 @@ export default function GroupsSearchToolbar({
         .search-input:focus {
           border-color: rgba(255, 255, 255, 0.28);
           background: ${fieldBgFocus};
+          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
         }
 
         .inner-action-btn {
@@ -169,114 +190,163 @@ export default function GroupsSearchToolbar({
 
         @media (max-width: 640px) {
           .search-toolbar {
-            gap: 8px;
+            grid-template-columns: minmax(0, 1fr) ${showCreateGroup ? "auto" : ""};
+          }
+
+          .search-main {
+            justify-content: center;
+            gap: ${isExpanded ? "0px" : "0px"};
+          }
+
+          .mobile-search-emoji-btn {
+            width: ${isExpanded ? "0px" : "46px"};
+            min-width: ${isExpanded ? "0px" : "46px"};
+            height: 46px;
+            padding: 0;
+            border-radius: 14px;
+            border: ${fieldBorder};
+            background: ${fieldBg};
+            color: #fff;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            line-height: 1;
+            overflow: hidden;
+            opacity: ${isExpanded ? "0" : "1"};
+            transform: ${isExpanded ? "scale(0.92)" : "scale(1)"};
+            transition:
+              width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+              min-width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.18s ease,
+              transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.18s ease;
+            flex-shrink: 0;
+          }
+
+          .mobile-search-emoji-btn:hover {
+            background: rgba(255, 255, 255, 0.06);
+          }
+
+          .mobile-search-emoji-btn:focus-visible {
+            outline: 2px solid rgba(255, 255, 255, 0.28);
+            outline-offset: 2px;
+          }
+
+          .search-input-wrap {
+            width: ${isExpanded ? "min(100%, 360px)" : "0px"};
+            max-width: calc(100vw - 32px);
+            overflow: hidden;
+            opacity: ${isExpanded ? "1" : "0"};
+            transform: ${isExpanded ? "translateY(-1px) scale(1)" : "scale(0.96)"};
+            transition:
+              width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.18s ease,
+              transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+          }
+
+          .search-input {
+            height: 46px;
+            padding-left: 14px;
           }
         }
       `}</style>
 
       <div className="search-toolbar">
-        <div className="search-input-wrap">
-          <span className="search-icon" aria-hidden="true">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
-              <circle
-                cx="11"
-                cy="11"
-                r="6.5"
-                stroke="currentColor"
-                strokeWidth="2"
-              />
-              <path
-                d="M16.2 16.2L20 20"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </span>
-
-          <input
-            ref={inputRef}
-            type="text"
-            placeholder={placeholder}
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                e.preventDefault();
-                handleClose();
-              }
-            }}
-            className="search-input"
+        <div className="search-main">
+          <button
+            type="button"
+            className="mobile-search-emoji-btn"
+            onClick={focusInput}
             aria-label={ariaLabel}
-            autoCorrect="off"
-            autoCapitalize="none"
-            spellCheck={false}
-          />
+            title={ariaLabel}
+          >
+            <span aria-hidden="true">🔍</span>
+          </button>
 
-          {showCloseSearch && onCloseSearch ? (
-            <button
-              type="button"
-              className="inner-action-btn"
-              onClick={handleClose}
-              aria-label="Cerrar búsqueda"
-              title="Cerrar búsqueda"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
+          <div className="search-input-wrap">
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder={placeholder}
+              value={search}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              onChange={(e) => onSearchChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  handleClose();
+                }
+              }}
+              className="search-input"
+              aria-label={ariaLabel}
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+            />
+
+            {showCloseSearch && onCloseSearch ? (
+              <button
+                type="button"
+                className="inner-action-btn"
+                onClick={handleClose}
+                aria-label="Cerrar búsqueda"
+                title="Cerrar búsqueda"
               >
-                <path
-                  d="M6 6L18 18"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M18 6L6 18"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          ) : hasSearch ? (
-            <button
-              type="button"
-              className="inner-action-btn"
-              onClick={handleClearSearch}
-              aria-label="Limpiar búsqueda"
-              title="Limpiar búsqueda"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                aria-hidden="true"
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M6 6L18 18"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M18 6L6 18"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            ) : hasSearch ? (
+              <button
+                type="button"
+                className="inner-action-btn"
+                onClick={handleClearSearch}
+                aria-label="Limpiar búsqueda"
+                title="Limpiar búsqueda"
               >
-                <path
-                  d="M6 6L18 18"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-                <path
-                  d="M18 6L6 18"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </button>
-          ) : null}
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M6 6L18 18"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d="M18 6L6 18"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {showCreateGroup && onCreateGroup && (

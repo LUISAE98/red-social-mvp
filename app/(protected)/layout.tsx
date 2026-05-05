@@ -475,7 +475,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           --wallet-rail-width: 220px;
           --main-max-width: 860px;
           --shell-column-gap: 24px;
-          --desktop-search-width: 780px;
+          --desktop-search-width: 920px;
           --desktop-search-gap: 8px;
           --desktop-create-size: 35px;
 
@@ -507,14 +507,14 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           box-sizing: border-box;
         }
 
-        .desktopHeader {
-          display: grid;
-          grid-template-columns: var(--sidebar-width) minmax(0, 1fr) auto;
-          gap: var(--shell-column-gap);
-          align-items: center;
-          min-height: 60px;
-          width: 100%;
-        }
+ .desktopHeader {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--wallet-rail-width);
+  gap: var(--shell-column-gap);
+  align-items: center;
+  min-height: 60px;
+  width: 100%;
+}
 
         .brandCol {
           min-width: 0;
@@ -532,13 +532,14 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           text-decoration: none;
         }
 
-        .desktopMainCluster {
-          min-width: 0;
-          width: min(var(--main-max-width), 100%);
-          display: flex;
-          align-items: center;
-          gap: var(--desktop-search-gap);
-        }
+.desktopMainCluster {
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--desktop-search-gap);
+}
 
 .desktopSearchCol {
   min-width: 0;
@@ -590,9 +591,24 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           flex-shrink: 0;
         }
 
-        .mobileSearchRow {
-          width: 100%;
-        }
+.mobileSearchRow {
+  width: 100%;
+  overflow: visible;
+  animation: mobile-search-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transform-origin: top center;
+}
+
+@keyframes mobile-search-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scaleX(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleX(1);
+  }
+}
 
         .mobileSearchCol {
           min-width: 0;
@@ -747,30 +763,19 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
     title="Buscar comunidad"
     ariaLabel="Buscar comunidad"
   >
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
+    <span
       aria-hidden="true"
+      style={{
+        fontSize: 18,
+        lineHeight: 1,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
     >
-      <circle
-        cx="11"
-        cy="11"
-        r="6.5"
-        stroke="currentColor"
-        strokeWidth="1.9"
-      />
-      <path
-        d="M16 16L21 21"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-      />
-    </svg>
+      🔍
+    </span>
   </HeaderIconButton>
-
-  <LogoutButton />
 </div>
               </div>
             ) : (

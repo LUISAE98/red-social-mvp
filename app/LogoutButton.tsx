@@ -5,7 +5,19 @@ import { auth } from "@/lib/firebase";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export default function LogoutButton() {
+type LogoutButtonVariant = "icon" | "settings";
+
+type LogoutButtonProps = {
+  variant?: LogoutButtonVariant;
+  className?: string;
+  style?: React.CSSProperties;
+};
+
+export default function LogoutButton({
+  variant = "icon",
+  className,
+  style,
+}: LogoutButtonProps) {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -24,6 +36,22 @@ export default function LogoutButton() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (variant === "settings") {
+    return (
+      <button
+        onClick={handleLogout}
+        disabled={loading}
+        aria-label={loading ? "Cerrando sesión" : "Cerrar sesión"}
+        title={loading ? "Cerrando sesión..." : "Cerrar sesión"}
+className={className}
+style={style}
+type="button"
+      >
+        {loading ? "Cerrando sesión..." : "Cerrar sesión"}
+      </button>
+    );
   }
 
   return (
@@ -63,35 +91,18 @@ export default function LogoutButton() {
           ...
         </span>
       ) : (
-        <svg
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
+        <span
           aria-hidden="true"
+          style={{
+            fontSize: 18,
+            lineHeight: 1,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
         >
-          <path
-            d="M10 17L15 12L10 7"
-            stroke="currentColor"
-            strokeWidth="1.9"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M15 12H4"
-            stroke="currentColor"
-            strokeWidth="1.9"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M14 4H18C19.1046 4 20 4.89543 20 6V18C20 19.1046 19.1046 20 18 20H14"
-            stroke="currentColor"
-            strokeWidth="1.9"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
+          🚪
+        </span>
       )}
     </button>
   );
