@@ -610,118 +610,181 @@ export function CountBadge({
   );
 }
 
+type OwnerSidebarCache = {
+  viewer: any;
+  authReady: boolean;
+  userDoc: UserDoc | null;
+  loadingUser: boolean;
+
+  myGroups: GroupDocLite[];
+  joinedGroups: GroupDocLite[];
+  hiddenJoinedGroups: GroupDocLite[];
+  browseGroups: GroupDocLite[];
+  pendingJoinRequestsSent: OutgoingJoinRequestRow[];
+
+  loadingGroups: boolean;
+  loadingCommunities: boolean;
+
+  groupsErr: string | null;
+  msg: string | null;
+
+  activeView: TopView;
+  openCommunities: Record<string, boolean>;
+
+  joinRequestsByGroup: Record<string, JoinRequestRow[]>;
+  greetingsByGroup: Record<string, Array<{ id: string; data: GreetingRequestDoc }>>;
+  buyerPending: Array<{ id: string; data: GreetingRequestDoc }>;
+
+  meetGreetsByGroup: Record<string, Array<{ id: string; data: MeetGreetRequestDoc }>>;
+  exclusiveSessionsByGroup: Record<
+    string,
+    Array<{ id: string; data: ExclusiveSessionRequestDoc }>
+  >;
+
+  buyerMeetGreets: Array<{ id: string; data: MeetGreetRequestDoc }>;
+  buyerExclusiveSessions: Array<{ id: string; data: ExclusiveSessionRequestDoc }>;
+
+  greetingSectionOpen: Record<string, boolean>;
+  joinSectionOpen: Record<string, boolean>;
+  seenCountsByGroup: Record<string, { join: number; greeting: number }>;
+
+  userMiniMap: Record<string, UserMini>;
+  groupMetaMap: Record<string, GroupDocLite>;
+};
+
+let ownerSidebarCache: OwnerSidebarCache | null = null;
+
 export default function OwnerSidebar() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [viewer, setViewer] = useState<any>(null);
-  const [authReady, setAuthReady] = useState(false);
-
-  const [userDoc, setUserDoc] = useState<UserDoc | null>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
-
-  const [myGroups, setMyGroups] = useState<GroupDocLite[]>([]);
-  const [joinedGroups, setJoinedGroups] = useState<GroupDocLite[]>([]);
-  const [hiddenJoinedGroups, setHiddenJoinedGroups] = useState<GroupDocLite[]>(
-    []
+  const [viewer, setViewer] = useState<any>(
+    () => ownerSidebarCache?.viewer ?? null
   );
-  const [browseGroups, setBrowseGroups] = useState<GroupDocLite[]>([]);
+  const [authReady, setAuthReady] = useState(
+    () => ownerSidebarCache?.authReady ?? false
+  );
+
+  const [userDoc, setUserDoc] = useState<UserDoc | null>(
+    () => ownerSidebarCache?.userDoc ?? null
+  );
+  const [loadingUser, setLoadingUser] = useState(
+    () => ownerSidebarCache?.loadingUser ?? true
+  );
+
+  const [myGroups, setMyGroups] = useState<GroupDocLite[]>(
+    () => ownerSidebarCache?.myGroups ?? []
+  );
+  const [joinedGroups, setJoinedGroups] = useState<GroupDocLite[]>(
+    () => ownerSidebarCache?.joinedGroups ?? []
+  );
+  const [hiddenJoinedGroups, setHiddenJoinedGroups] = useState<GroupDocLite[]>(
+    () => ownerSidebarCache?.hiddenJoinedGroups ?? []
+  );
+  const [browseGroups, setBrowseGroups] = useState<GroupDocLite[]>(
+    () => ownerSidebarCache?.browseGroups ?? []
+  );
   const [pendingJoinRequestsSent, setPendingJoinRequestsSent] = useState<
     OutgoingJoinRequestRow[]
-  >([]);
+  >(() => ownerSidebarCache?.pendingJoinRequestsSent ?? []);
 
-  const [loadingGroups, setLoadingGroups] = useState(false);
-  const [loadingCommunities, setLoadingCommunities] = useState(false);
+  const [loadingGroups, setLoadingGroups] = useState(
+    () => ownerSidebarCache?.loadingGroups ?? false
+  );
+  const [loadingCommunities, setLoadingCommunities] = useState(
+    () => ownerSidebarCache?.loadingCommunities ?? false
+  );
 
-  const [groupsErr, setGroupsErr] = useState<string | null>(null);
+  const [groupsErr, setGroupsErr] = useState<string | null>(
+    () => ownerSidebarCache?.groupsErr ?? null
+  );
   const [joinBusyKey, setJoinBusyKey] = useState<string | null>(null);
   const [greetingBusyId, setGreetingBusyId] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(
+    () => ownerSidebarCache?.msg ?? null
+  );
 
-  const [activeView, setActiveView] = useState<TopView>("owned");
+  const [activeView, setActiveView] = useState<TopView>(
+    () => ownerSidebarCache?.activeView ?? "owned"
+  );
 
   const [openCommunities, setOpenCommunities] = useState<
     Record<string, boolean>
-  >({});
+  >(() => ownerSidebarCache?.openCommunities ?? {});
 
   const profileBucketKey = viewer?.uid ? `profile:${viewer.uid}` : null;
 
-const profileSidebarGroup = useMemo<GroupDocLite | null>(() => {
-  if (!viewer?.uid || !userDoc?.handle || !profileBucketKey) return null;
+  const profileSidebarGroup = useMemo<GroupDocLite | null>(() => {
+    if (!viewer?.uid || !userDoc?.handle || !profileBucketKey) return null;
 
-  const avatarUrl =
-    userDoc?.photoURL?.trim() || viewer?.photoURL?.trim() || null;
+    const avatarUrl =
+      userDoc?.photoURL?.trim() || viewer?.photoURL?.trim() || null;
 
-  return {
-    id: profileBucketKey,
-    name: "Mi perfil",
-    ownerId: viewer.uid,
-    visibility: "profile",
-    avatarUrl,
-    memberRole: "owner",
-    handle: userDoc.handle,
-    profileHref: `/u/${userDoc.handle}`,
-  };
-}, [
-  viewer?.uid,
-  viewer?.photoURL,
-  userDoc?.handle,
-  userDoc?.photoURL,
-  profileBucketKey,
-]);
-
-useEffect(() => {
-  if (!profileSidebarGroup) return;
-
-  setGroupMetaMap((prev) => ({
-    ...prev,
-    [profileSidebarGroup.id]: profileSidebarGroup,
-  }));
-}, [profileSidebarGroup]);
+    return {
+      id: profileBucketKey,
+      name: "Mi perfil",
+      ownerId: viewer.uid,
+      visibility: "profile",
+      avatarUrl,
+      memberRole: "owner",
+      handle: userDoc.handle,
+      profileHref: `/u/${userDoc.handle}`,
+    };
+  }, [
+    viewer?.uid,
+    viewer?.photoURL,
+    userDoc?.handle,
+    userDoc?.photoURL,
+    profileBucketKey,
+  ]);
 
   const [joinRequestsByGroup, setJoinRequestsByGroup] = useState<
     Record<string, JoinRequestRow[]>
-  >({});
+  >(() => ownerSidebarCache?.joinRequestsByGroup ?? {});
 
   const [greetingsByGroup, setGreetingsByGroup] = useState<
     Record<string, Array<{ id: string; data: GreetingRequestDoc }>>
-  >({});
+  >(() => ownerSidebarCache?.greetingsByGroup ?? {});
 
   const [buyerPending, setBuyerPending] = useState<
     Array<{ id: string; data: GreetingRequestDoc }>
-  >([]);
+  >(() => ownerSidebarCache?.buyerPending ?? []);
 
   const [meetGreetsByGroup, setMeetGreetsByGroup] = useState<
     Record<string, Array<{ id: string; data: MeetGreetRequestDoc }>>
-  >({});
+  >(() => ownerSidebarCache?.meetGreetsByGroup ?? {});
 
   const [exclusiveSessionsByGroup, setExclusiveSessionsByGroup] = useState<
     Record<string, Array<{ id: string; data: ExclusiveSessionRequestDoc }>>
-  >({});
+  >(() => ownerSidebarCache?.exclusiveSessionsByGroup ?? {});
 
   const [buyerMeetGreets, setBuyerMeetGreets] = useState<
     Array<{ id: string; data: MeetGreetRequestDoc }>
-  >([]);
+  >(() => ownerSidebarCache?.buyerMeetGreets ?? []);
 
   const [buyerExclusiveSessions, setBuyerExclusiveSessions] = useState<
     Array<{ id: string; data: ExclusiveSessionRequestDoc }>
-  >([]);
+  >(() => ownerSidebarCache?.buyerExclusiveSessions ?? []);
 
   const [greetingSectionOpen, setGreetingSectionOpen] = useState<
     Record<string, boolean>
-  >({});
+  >(() => ownerSidebarCache?.greetingSectionOpen ?? {});
+
   const [joinSectionOpen, setJoinSectionOpen] = useState<
     Record<string, boolean>
-  >({});
+  >(() => ownerSidebarCache?.joinSectionOpen ?? {});
 
   const [seenCountsByGroup, setSeenCountsByGroup] = useState<
     Record<string, { join: number; greeting: number }>
-  >({});
+  >(() => ownerSidebarCache?.seenCountsByGroup ?? {});
 
-  const [userMiniMap, setUserMiniMap] = useState<Record<string, UserMini>>({});
-  const [groupMetaMap, setGroupMetaMap] = useState<Record<string, GroupDocLite>>(
-    {}
+  const [userMiniMap, setUserMiniMap] = useState<Record<string, UserMini>>(
+    () => ownerSidebarCache?.userMiniMap ?? {}
   );
+  const [groupMetaMap, setGroupMetaMap] = useState<Record<string, GroupDocLite>>(
+    () => ownerSidebarCache?.groupMetaMap ?? {}
+  );
+
   const joinUnsubsRef = useRef<Array<() => void>>([]);
 
   const fontStack =
@@ -842,6 +905,84 @@ useEffect(() => {
     userDoc?.photoURL?.trim() || viewer?.photoURL?.trim() || null;
 
   const currentUserDisplayName = buildDisplayName(userDoc, viewer?.uid);
+
+    useEffect(() => {
+    ownerSidebarCache = {
+      viewer,
+      authReady,
+      userDoc,
+      loadingUser,
+
+      myGroups,
+      joinedGroups,
+      hiddenJoinedGroups,
+      browseGroups,
+      pendingJoinRequestsSent,
+
+      loadingGroups,
+      loadingCommunities,
+
+      groupsErr,
+      msg,
+
+      activeView,
+      openCommunities,
+
+      joinRequestsByGroup,
+      greetingsByGroup,
+      buyerPending,
+
+      meetGreetsByGroup,
+      exclusiveSessionsByGroup,
+
+      buyerMeetGreets,
+      buyerExclusiveSessions,
+
+      greetingSectionOpen,
+      joinSectionOpen,
+      seenCountsByGroup,
+
+      userMiniMap,
+      groupMetaMap,
+    };
+  }, [
+    viewer,
+    authReady,
+    userDoc,
+    loadingUser,
+
+    myGroups,
+    joinedGroups,
+    hiddenJoinedGroups,
+    browseGroups,
+    pendingJoinRequestsSent,
+
+    loadingGroups,
+    loadingCommunities,
+
+    groupsErr,
+    msg,
+
+    activeView,
+    openCommunities,
+
+    joinRequestsByGroup,
+    greetingsByGroup,
+    buyerPending,
+
+    meetGreetsByGroup,
+    exclusiveSessionsByGroup,
+
+    buyerMeetGreets,
+    buyerExclusiveSessions,
+
+    greetingSectionOpen,
+    joinSectionOpen,
+    seenCountsByGroup,
+
+    userMiniMap,
+    groupMetaMap,
+  ]);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {

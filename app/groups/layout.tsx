@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { collection, getDocs, limit, query, where } from "firebase/firestore";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
 import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
-import { db } from "@/lib/firebase";
+import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 
 function HeaderIconButton({
   onClick,
@@ -348,52 +347,6 @@ function WalletDesktopRail({
   );
 }
 
-async function ownerHasAnyActiveServices(ownerId: string): Promise<boolean> {
-  const q = query(
-    collection(db, "groups"),
-    where("ownerId", "==", ownerId),
-    limit(20)
-  );
-
-  const snap = await getDocs(q);
-
-  return snap.docs.some((docSnap) => {
-    const data = docSnap.data() as {
-      offerings?: Array<{
-        enabled?: boolean;
-      }> | null;
-      greetingsEnabled?: boolean;
-      adviceEnabled?: boolean;
-      customClassEnabled?: boolean;
-      digitalMeetGreetEnabled?: boolean;
-      monetization?: {
-        greetingsEnabled?: boolean;
-        adviceEnabled?: boolean;
-        customClassEnabled?: boolean;
-        digitalMeetGreetEnabled?: boolean;
-      } | null;
-    };
-
-    const offeringsActive =
-      Array.isArray(data.offerings) &&
-      data.offerings.some((item) => item?.enabled === true);
-
-    const legacyFlagsActive =
-      data.greetingsEnabled === true ||
-      data.adviceEnabled === true ||
-      data.customClassEnabled === true ||
-      data.digitalMeetGreetEnabled === true;
-
-    const monetizationFlagsActive =
-      data.monetization?.greetingsEnabled === true ||
-      data.monetization?.adviceEnabled === true ||
-      data.monetization?.customClassEnabled === true ||
-      data.monetization?.digitalMeetGreetEnabled === true;
-
-    return offeringsActive || legacyFlagsActive || monetizationFlagsActive;
-  });
-}
-
 function PublicGroupsShell({
   children,
 }: {
@@ -507,48 +460,10 @@ function AuthenticatedGroupsShell({
   const { user } = useAuth();
 
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [showWalletRail, setShowWalletRail] = useState(false);
-  const [walletRailLoading, setWalletRailLoading] = useState(true);
+const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      if (!user?.uid) {
-        if (!cancelled) {
-          setShowWalletRail(false);
-          setWalletRailLoading(false);
-        }
-        return;
-      }
-
-      try {
-        setWalletRailLoading(true);
-        const hasServices = await ownerHasAnyActiveServices(user.uid);
-
-        if (!cancelled) {
-          setShowWalletRail(hasServices);
-        }
-      } catch {
-        if (!cancelled) {
-          setShowWalletRail(false);
-        }
-      } finally {
-        if (!cancelled) {
-          setWalletRailLoading(false);
-        }
-      }
-    }
-
-    run();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.uid]);
 
 const contentAreaClassName = "contentArea contentAreaWithWallet";
 
@@ -913,7 +828,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 <div className="walletCol">
   <WalletDesktopRail
     activePath={pathname}
-    showWallet={showWalletRail && !walletRailLoading}
+    showWallet={showWalletRail}
   />
 </div>
         </div>
