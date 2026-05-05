@@ -1541,7 +1541,31 @@ to {
 .service-dots-mobile {
   display: inline-flex;
   align-items: center;
-  min-height: 10px;
+  gap: 6px;
+  min-height: 14px;
+  margin-top: -1px;
+}
+
+.mobile-service-separator {
+  color: rgba(255, 255, 255, 0.34);
+  font-size: 10px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+  .mobile-visibility-label {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.mobile-visibility-label {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
 }
   .search-dropdown {
     top: calc(100% + 8px);
@@ -1562,9 +1586,9 @@ to {
     display: none;
   }
 
-  .visibility-mobile {
-    display: inline;
-  }
+.visibility-mobile {
+  display: none;
+}
 
           .dropdown-title {
             padding: 11px 13px 8px;
@@ -1735,7 +1759,16 @@ const visLabel =
 ) : null}
 
 <div className="service-dots-mobile">
-  <ServiceDots dots={serviceDots} />
+  <span className="mobile-visibility-label">
+    {visLabel}
+  </span>
+
+  {serviceDots.length > 0 ? (
+    <>
+      <span className="mobile-service-separator">·</span>
+      <ServiceDots dots={serviceDots} />
+    </>
+  ) : null}
 </div>
 
 <div className="result-meta">

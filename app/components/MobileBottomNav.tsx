@@ -203,12 +203,12 @@ export default function MobileBottomNav({
   return (
     <>
 <style jsx>{`
-  .wrap {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    bottom: env(safe-area-inset-bottom, 0px);
+.wrap {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
     z-index: 9999;
     display: none;
     width: 100%;
