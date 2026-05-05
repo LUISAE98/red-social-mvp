@@ -202,85 +202,97 @@ export default function MobileBottomNav({
 
   return (
     <>
-      <style jsx>{`
-        .wrap {
-          position: fixed;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          z-index: 9999;
-          display: none;
-        }
+<style jsx>{`
+  .wrap {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 9999;
+    display: none;
+    width: 100%;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    pointer-events: none;
+  }
 
-        .navShell {
-          width: 100%;
-        }
+  .navShell {
+    width: 100%;
+    pointer-events: auto;
+  }
 
-        .nav {
-          width: 100%;
-          display: grid;
-          grid-template-columns: repeat(var(--mobile-nav-count), minmax(0, 1fr));
-          align-items: center;
-          padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
-          background: rgba(20, 20, 22, 0.95);
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          border-top: 1px solid rgba(255, 255, 255, 0.12);
-        }
+  .nav {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(var(--mobile-nav-count), minmax(0, 1fr));
+    align-items: center;
+    padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+    background: rgba(20, 20, 22, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    box-sizing: border-box;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
 
-        .item {
-          position: relative;
-          height: 52px;
-          display: grid;
-          place-items: center;
-          text-decoration: none;
-          color: rgba(255, 255, 255, 0.5);
-          transition:
-            color 0.2s ease,
-            transform 0.15s ease,
-            background 0.2s ease;
-          border-radius: 16px;
-        }
+  .item {
+    position: relative;
+    height: 52px;
+    display: grid;
+    place-items: center;
+    text-decoration: none;
+    color: rgba(255, 255, 255, 0.5);
+    transition:
+      color 0.2s ease,
+      transform 0.15s ease,
+      background 0.2s ease;
+    border-radius: 16px;
+    -webkit-tap-highlight-color: transparent;
+  }
 
-        .item:active {
-          transform: scale(0.95);
-        }
+  .item:active {
+    transform: scale(0.95);
+  }
 
-        .itemActive {
-          color: #ffffff;
-          background: rgba(255, 255, 255, 0.04);
-        }
+  .itemActive {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.04);
+  }
 
-        .indicator {
-          position: absolute;
-          top: 4px;
-          width: 24px;
-          height: 3px;
-          border-radius: 999px;
-          background: transparent;
-          transition:
-            background 0.2s ease,
-            opacity 0.2s ease;
-          opacity: 0;
-        }
+  .indicator {
+    position: absolute;
+    top: 4px;
+    width: 24px;
+    height: 3px;
+    border-radius: 999px;
+    background: transparent;
+    transition:
+      background 0.2s ease,
+      opacity 0.2s ease;
+    opacity: 0;
+  }
 
-        .itemActive .indicator {
-          background: #ffffff;
-          opacity: 1;
-        }
+  .itemActive .indicator {
+    background: #ffffff;
+    opacity: 1;
+  }
 
-        .itemInner {
-          display: grid;
-          justify-items: center;
-          gap: 4px;
-        }
+  .itemInner {
+    display: grid;
+    justify-items: center;
+    gap: 4px;
+  }
 
-        @media (max-width: 768px) {
-          .wrap {
-            display: block;
-          }
-        }
-      `}</style>
+  @media (max-width: 768px) {
+    .wrap {
+      display: block;
+    }
+  }
+`}</style>
 
       <nav className="wrap" aria-label="Navegación móvil inferior">
         <div className="navShell">

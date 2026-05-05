@@ -675,10 +675,9 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           display: block;
         }
 
-        .bottomNavLayer {
-          position: relative;
-          z-index: 5;
-        }
+.bottomNavLayer {
+  display: contents;
+}
 
         @media (max-width: 1180px) {
           .layout {

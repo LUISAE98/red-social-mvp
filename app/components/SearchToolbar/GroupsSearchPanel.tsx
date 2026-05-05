@@ -4,13 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import {
-  collection,
-  doc,
-  getDocs,
-  onSnapshot,
-  query,
-  where,
-  type Unsubscribe,
+collection,
+doc,
+onSnapshot,
+query,
+where,
+type Unsubscribe,
 } from "firebase/firestore";
 
 import { auth, db } from "@/lib/firebase";
@@ -36,10 +35,20 @@ export type Community = {
   tags?: string[];
   discoverable?: boolean;
   isActive?: boolean;
-  monetization?: {
+  offerings?: Array<Record<string, any>> | Record<string, any>;
+donation?: Record<string, any>;
+greetingsEnabled?: boolean;
+adviceEnabled?: boolean;
+digitalMeetGreetEnabled?: boolean;
+customClassEnabled?: boolean;
+monetization?: {
     isPaid?: boolean;
     priceMonthly?: number | null;
     currency?: string | null;
+    greetingsEnabled?: boolean;
+adviceEnabled?: boolean;
+digitalMeetGreetEnabled?: boolean;
+customClassEnabled?: boolean;
   };
   searchMatchType?: CommunitySearchMatchType;
   searchScore?: number;
@@ -52,6 +61,9 @@ export type PublicUser = {
   firstName?: string;
   lastName?: string;
   photoURL?: string | null;
+  offerings?: Array<Record<string, any>> | Record<string, any>;
+  donation?: Record<string, any>;
+  monetization?: Record<string, any>;
 };
 
 export type CanonicalMemberStatus =
@@ -162,6 +174,190 @@ function initialsFromName(name: string) {
   const a = parts[0]?.[0] ?? "";
   const b = parts[1]?.[0] ?? "";
   return (a + b).toUpperCase() || "U";
+}
+
+function getDescriptionPreview(value?: string) {
+  const clean = (value ?? "").trim().replace(/\s+/g, " ");
+
+  if (!clean) return "";
+
+  if (clean.length <= 60) return clean;
+
+  return `${clean.slice(0, 80).trim()}...`;
+}
+
+type SearchServiceDot = {
+  key: string;
+  color: string;
+  title: string;
+};
+
+const SEARCH_SERVICE_COLORS = {
+  saludo: "#7DD3FC",
+  consejo: "#FACC15",
+  meetGreet: "#A78BFA",
+  exclusiveSession: "#F472B6",
+  weddingDonation: "#C084FC",
+  generalDonation: "#FB7185",
+};
+
+function getOfferingByType(
+  offerings: Array<Record<string, any>> | Record<string, any> | undefined,
+  type: string
+): Record<string, any> | null {
+  if (!offerings) return null;
+
+  if (Array.isArray(offerings)) {
+    return offerings.find((item) => item?.type === type) ?? null;
+  }
+
+  const direct = offerings[type];
+
+  if (typeof direct === "object" && direct !== null) {
+    return direct as Record<string, any>;
+  }
+
+  if (direct === true) {
+    return { enabled: true, visible: true };
+  }
+
+  return null;
+}
+
+function isVisibleEnabledService(service: Record<string, any> | null): boolean {
+  if (!service) return false;
+
+  const enabled = service.enabled === true;
+  const visible = service.visible !== false;
+
+  return enabled && visible;
+}
+
+function buildSearchServiceDots(source?: {
+  offerings?: Array<Record<string, any>> | Record<string, any>;
+  donation?: Record<string, any>;
+  monetization?: Record<string, any>;
+  greetingsEnabled?: boolean;
+  adviceEnabled?: boolean;
+  digitalMeetGreetEnabled?: boolean;
+  customClassEnabled?: boolean;
+}): SearchServiceDot[] {
+  const offerings = source?.offerings;
+  const donation = source?.donation ?? {};
+  const monetization = source?.monetization ?? {};
+
+  const dots: SearchServiceDot[] = [];
+
+  const saludoEnabled =
+    isVisibleEnabledService(getOfferingByType(offerings, "saludo")) ||
+    source?.greetingsEnabled === true ||
+    monetization.greetingsEnabled === true;
+
+  const consejoEnabled =
+    isVisibleEnabledService(getOfferingByType(offerings, "consejo")) ||
+    source?.adviceEnabled === true ||
+    monetization.adviceEnabled === true;
+
+  const meetGreetEnabled =
+    isVisibleEnabledService(getOfferingByType(offerings, "meet_greet_digital")) ||
+    source?.digitalMeetGreetEnabled === true ||
+    monetization.digitalMeetGreetEnabled === true;
+
+  const exclusiveSessionEnabled =
+    isVisibleEnabledService(getOfferingByType(offerings, "clase_personalizada")) ||
+    source?.customClassEnabled === true ||
+    monetization.customClassEnabled === true;
+
+  if (saludoEnabled) {
+    dots.push({
+      key: "saludo",
+      color: SEARCH_SERVICE_COLORS.saludo,
+      title: "Solicitar saludo",
+    });
+  }
+
+  if (consejoEnabled) {
+    dots.push({
+      key: "consejo",
+      color: SEARCH_SERVICE_COLORS.consejo,
+      title: "Solicitar consejo",
+    });
+  }
+
+  if (meetGreetEnabled) {
+    dots.push({
+      key: "meet_greet_digital",
+      color: SEARCH_SERVICE_COLORS.meetGreet,
+      title: "Agendar encuentro",
+    });
+  }
+
+  if (exclusiveSessionEnabled) {
+    dots.push({
+      key: "clase_personalizada",
+      color: SEARCH_SERVICE_COLORS.exclusiveSession,
+      title: "Reservar sesión exclusiva",
+    });
+  }
+
+  if (
+    donation.enabled === true &&
+    donation.visible !== false &&
+    donation.mode === "wedding"
+  ) {
+    dots.push({
+      key: "wedding_donation",
+      color: SEARCH_SERVICE_COLORS.weddingDonation,
+      title: "Apoyar boda",
+    });
+  }
+
+  if (
+    donation.enabled === true &&
+    donation.visible !== false &&
+    donation.mode === "general"
+  ) {
+    dots.push({
+      key: "general_donation",
+      color: SEARCH_SERVICE_COLORS.generalDonation,
+      title: "Apoyar",
+    });
+  }
+
+  return dots;
+}
+
+function ServiceDots({ dots }: { dots: SearchServiceDot[] }) {
+  if (dots.length === 0) return null;
+
+  return (
+    <span
+      aria-label="Servicios activos"
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        flexShrink: 0,
+      }}
+    >
+      {dots.map((dot) => (
+        <span
+          key={dot.key}
+          title={dot.title}
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: 999,
+            border: "none",
+            background: dot.color,
+            boxSizing: "border-box",
+            display: "inline-flex",
+            flexShrink: 0,
+          }}
+        />
+      ))}
+    </span>
+  );
 }
 
 function buildCommunityDiscoveryText(group: Community) {
@@ -495,81 +691,126 @@ export default function GroupsSearchPanel({
     };
   }, [hasSearch, fullResultsOpen, onCloseSearch]);
 
-  useEffect(() => {
-    async function loadCommunities() {
-      setError(null);
-      setCommunitiesLoading(true);
+useEffect(() => {
+  setError(null);
+  setCommunitiesLoading(true);
 
-      try {
-        const col = collection(db, "groups");
+  const col = collection(db, "groups");
+  const unsubscribers: Unsubscribe[] = [];
+  const groupsById = new Map<string, Community>();
 
-        const qPublic = query(col, where("visibility", "==", "public"));
-        const publicSnap = await getDocs(qPublic);
+  function syncCommunities() {
+    setCommunities(Array.from(groupsById.values()));
+    setCommunitiesLoading(false);
+  }
 
-        const list: Community[] = [];
-        publicSnap.forEach((d) => {
-          list.push({ id: d.id, ...(d.data() as Record<string, unknown>) });
+  const qPublic = query(col, where("visibility", "==", "public"));
+
+  const unsubPublic = onSnapshot(
+    qPublic,
+    (snapshot) => {
+      snapshot.docs.forEach((d) => {
+        groupsById.set(d.id, {
+          id: d.id,
+          ...(d.data() as Record<string, unknown>),
+        });
+      });
+
+      syncCommunities();
+    },
+    (snapshotError) => {
+      const message =
+        snapshotError instanceof Error
+          ? snapshotError.message
+          : "Error cargando comunidades";
+      setError(message);
+      setCommunitiesLoading(false);
+    }
+  );
+
+  unsubscribers.push(unsubPublic);
+
+  if (user) {
+    const qPrivate = query(col, where("visibility", "==", "private"));
+
+    const unsubPrivate = onSnapshot(
+      qPrivate,
+      (snapshot) => {
+        snapshot.docs.forEach((d) => {
+          groupsById.set(d.id, {
+            id: d.id,
+            ...(d.data() as Record<string, unknown>),
+          });
         });
 
-        if (user) {
-          const qPrivate = query(col, where("visibility", "==", "private"));
-          const privateSnap = await getDocs(qPrivate);
-
-          privateSnap.forEach((d) => {
-            list.push({ id: d.id, ...(d.data() as Record<string, unknown>) });
-          });
-        }
-
-        const deduped = Array.from(
-          new Map(list.map((g) => [g.id, g])).values()
-        );
-
-        setCommunities(deduped);
-      } catch (e) {
+        syncCommunities();
+      },
+      (snapshotError) => {
         const message =
-          e instanceof Error ? e.message : "Error cargando comunidades";
+          snapshotError instanceof Error
+            ? snapshotError.message
+            : "Error cargando comunidades privadas";
         setError(message);
-      } finally {
         setCommunitiesLoading(false);
       }
+    );
+
+    unsubscribers.push(unsubPrivate);
+  }
+
+  return () => {
+    unsubscribers.forEach((unsubscribe) => unsubscribe());
+  };
+}, [user]);
+
+useEffect(() => {
+  setProfilesLoading(true);
+
+  const unsubProfiles = onSnapshot(
+    collection(db, "users"),
+    (snapshot) => {
+      const rows: PublicUser[] = snapshot.docs.map((d) => {
+        const data = d.data() as Record<string, unknown>;
+
+return {
+  uid: typeof data.uid === "string" ? data.uid : d.id,
+  handle: typeof data.handle === "string" ? data.handle : "",
+  displayName:
+    typeof data.displayName === "string" ? data.displayName : "",
+  firstName: typeof data.firstName === "string" ? data.firstName : "",
+  lastName: typeof data.lastName === "string" ? data.lastName : "",
+  photoURL: typeof data.photoURL === "string" ? data.photoURL : null,
+  offerings:
+    Array.isArray(data.offerings) ||
+    (typeof data.offerings === "object" && data.offerings !== null)
+      ? (data.offerings as Array<Record<string, any>> | Record<string, any>)
+      : undefined,
+  donation:
+    typeof data.donation === "object" && data.donation !== null
+      ? (data.donation as Record<string, any>)
+      : undefined,
+  monetization:
+    typeof data.monetization === "object" && data.monetization !== null
+      ? (data.monetization as Record<string, any>)
+      : undefined,
+};
+      });
+
+      setProfiles(rows);
+      setProfilesLoading(false);
+    },
+    (snapshotError) => {
+      const message =
+        snapshotError instanceof Error
+          ? snapshotError.message
+          : "Error cargando perfiles";
+      setError(message);
+      setProfilesLoading(false);
     }
+  );
 
-    void loadCommunities();
-  }, [user]);
-
-  useEffect(() => {
-    async function loadProfiles() {
-      setProfilesLoading(true);
-
-      try {
-        const snap = await getDocs(collection(db, "users"));
-
-        const rows: PublicUser[] = snap.docs.map((d) => {
-          const data = d.data() as Record<string, unknown>;
-
-          return {
-            uid: typeof data.uid === "string" ? data.uid : d.id,
-            handle: typeof data.handle === "string" ? data.handle : "",
-            displayName:
-              typeof data.displayName === "string" ? data.displayName : "",
-            firstName: typeof data.firstName === "string" ? data.firstName : "",
-            lastName: typeof data.lastName === "string" ? data.lastName : "",
-            photoURL: typeof data.photoURL === "string" ? data.photoURL : null,
-          };
-        });
-
-        setProfiles(rows);
-      } catch (e) {
-        const message =
-          e instanceof Error ? e.message : "Error cargando perfiles";
-        setError(message);
-      } finally {
-        setProfilesLoading(false);
-      }
-    }
-
-    void loadProfiles();
-  }, []);
+  return () => unsubProfiles();
+}, []);
 
   useEffect(() => {
     if (!user || communities.length === 0) {
@@ -1107,16 +1348,90 @@ to {
           gap: 5px;
         }
 
-        .result-name {
-          margin: 0;
-          font-size: 14px;
-          font-weight: 600;
-          line-height: 1.2;
-          color: #fff;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
+.result-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-name-with-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+}
+
+.result-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-name-dot {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.result-name-visibility {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.visibility-mobile {
+  display: none;
+}
+
+.service-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.service-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
+  background: transparent;
+  box-sizing: border-box;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.service-dots-desktop {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.service-dots-mobile {
+  display: none;
+}
+  .result-description-preview {
+  display: block;
+  margin: -1px 0 0;
+  max-width: 420px;
+  overflow: hidden;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.25;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 
         .result-meta {
           display: flex;
@@ -1213,6 +1528,21 @@ to {
         }
 
 @media (max-width: 640px) {
+.service-dot {
+  width: 7px;
+  height: 7px;
+  border-width: 1.4px;
+}
+
+.service-dots-desktop {
+  display: none;
+}
+
+.service-dots-mobile {
+  display: inline-flex;
+  align-items: center;
+  min-height: 10px;
+}
   .search-dropdown {
     top: calc(100% + 8px);
     left: 0;
@@ -1221,8 +1551,20 @@ to {
     max-width: 100%;
     min-width: 100%;
     border-radius: 18px;
-            max-height: min(58vh, 460px);
-          }
+    max-height: min(58vh, 460px);
+  }
+
+  .result-description-preview {
+    display: none;
+  }
+
+  .visibility-desktop {
+    display: none;
+  }
+
+  .visibility-mobile {
+    display: inline;
+  }
 
           .dropdown-title {
             padding: 11px 13px 8px;
@@ -1253,9 +1595,13 @@ to {
             min-width: 0;
           }
 
-          .result-name {
-            font-size: 13px;
-          }
+.result-name {
+  font-size: 13px;
+}
+
+.result-name-visibility {
+  font-size: 10px;
+}
 
           .result-meta {
             gap: 5px;
@@ -1328,16 +1674,15 @@ to {
                     const hasPendingReq = !!reqMap[g.id];
                     const paidPrivate = isPaidPrivateGroup(g);
 
-                    const visLabel =
-                      g.visibility === "public"
-                        ? "Comunidad pública"
-                        : g.visibility === "private"
-                          ? "Comunidad privada"
-                          : "Comunidad oculta";
-
-                    const paid = !!g.monetization?.isPaid;
+const visLabel =
+  g.visibility === "public"
+    ? "Comunidad pública"
+    : g.visibility === "private"
+      ? "Comunidad privada"
+      : "Comunidad oculta";
                     const price = g.monetization?.priceMonthly ?? null;
                     const cur = g.monetization?.currency ?? null;
+                    const serviceDots = buildSearchServiceDots(g);
 
                     return (
                       <div
@@ -1366,50 +1711,40 @@ to {
                             </div>
 
                             <div className="result-content">
-                              <h3 className="result-name">
-                                {g.name ?? "(sin nombre)"}
-                              </h3>
+<h3 className="result-name result-name-with-meta">
+  <span className="result-name-text">
+    {g.name ?? "(sin nombre)"}
+  </span>
+  <span className="result-name-dot">·</span>
+<span className="result-name-visibility">
+  <span className="visibility-desktop">{visLabel}</span>
+  <span className="visibility-mobile">
+    {visLabel.replace("Comunidad ", "").toLowerCase()}
+  </span>
+</span>
 
-                              <div className="result-meta">
-                                <span className="pill">{visLabel}</span>
+<span className="service-dots-desktop">
+  <ServiceDots dots={serviceDots} />
+</span>
+</h3>
 
-                                {paid && (
-                                  <span className="pill pill-paid">
-                                    Con suscripción
-                                    {price != null
-                                      ? ` · ${price} ${cur ?? ""}`
-                                      : ""}
-                                  </span>
-                                )}
+{getDescriptionPreview(g.description) ? (
+  <p className="result-description-preview">
+    {getDescriptionPreview(g.description)}
+  </p>
+) : null}
 
-                                {isOwner && (
-                                  <span className="meta-inline">
-                                    (Eres owner)
-                                  </span>
-                                )}
+<div className="service-dots-mobile">
+  <ServiceDots dots={serviceDots} />
+</div>
 
-                                {!isOwner && isMember && (
-                                  <span className="meta-inline">
-                                    ({membershipStatusLabel(membershipStatus)})
-                                  </span>
-                                )}
+<div className="result-meta">
 
                                 {!isOwner && isBlocked && (
                                   <span className="meta-inline meta-danger">
                                     ({membershipStatusLabel(membershipStatus)})
                                   </span>
                                 )}
-
-                                {!isOwner &&
-                                  !isMember &&
-                                  !isBlocked &&
-                                  isPrivate &&
-                                  !paidPrivate &&
-                                  hasPendingReq && (
-                                    <span className="meta-inline">
-                                      (Pendiente)
-                                    </span>
-                                  )}
                               </div>
                             </div>
                           </div>
@@ -1429,13 +1764,14 @@ to {
                             )}
 
                             {!isOwner && !isMember && !isBlocked && paidPrivate && (
-                              <button
-                                onClick={() => handleOpenSubscription(g.id)}
-                                className="primary-btn"
-                                type="button"
-                              >
-                                Suscribirme
-                              </button>
+<button
+  onClick={() => handleOpenSubscription(g.id)}
+  className="primary-btn"
+  type="button"
+>
+  💎 Suscribirme
+  {price != null ? ` · ${price} ${cur ?? "MXN"}` : ""}
+</button>
                             )}
 
                             {!isOwner &&
@@ -1455,25 +1791,13 @@ to {
                                       Solicitar acceso
                                     </button>
                                   ) : (
-                                    <>
-                                      <button
-                                        disabled
-                                        className="disabled-btn"
-                                        type="button"
-                                      >
-                                        Enviada
-                                      </button>
-
-                                      <button
-                                        onClick={() =>
-                                          void handleCancelRequest(g.id)
-                                        }
-                                        className="secondary-btn"
-                                        type="button"
-                                      >
-                                        Cancelar
-                                      </button>
-                                    </>
+<button
+  onClick={() => void handleCancelRequest(g.id)}
+  className="secondary-btn"
+  type="button"
+>
+  Cancelar
+</button>
                                   )}
                                 </>
                               )}
@@ -1506,6 +1830,8 @@ to {
                       p.handle ||
                       "Usuario";
 
+                      const serviceDots = buildSearchServiceDots(p);
+
                     return (
                       <div
                         key={p.uid}
@@ -1513,38 +1839,38 @@ to {
                         onClick={() => handleNavigateAndClose(`/u/${p.handle}`)}
                       >
                         <div className="result-grid">
-                          <div className="result-main-mobile">
-                            <div className="result-avatar">
-                              {p.photoURL ? (
-                                <img
-                                  src={p.photoURL}
-                                  alt={fullName}
-                                  style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "cover",
-                                  }}
-                                />
-                              ) : (
-                                <span className="result-avatar-fallback">
-                                  {initialsFromName(fullName)}
-                                </span>
-                              )}
-                            </div>
+<div className="result-main-mobile">
+  <div className="result-avatar">
+    {p.photoURL ? (
+      <img
+        src={p.photoURL}
+        alt={fullName}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+        }}
+      />
+    ) : (
+      <span className="result-avatar-fallback">
+        {initialsFromName(fullName)}
+      </span>
+    )}
+  </div>
 
-                            <div className="result-content">
-                              <h3 className="result-name">{fullName}</h3>
+  <div className="result-content">
+    <h3 className="result-name result-name-with-meta">
+  <span className="result-name-text">{fullName}</span>
+  <ServiceDots dots={serviceDots} />
+</h3>
 
-                              <div className="result-meta">
-                                <span className="pill">@{p.handle}</span>
-                                <span className="meta-inline">
-                                  Ver perfil público
-                                </span>
-                              </div>
-                            </div>
-                          </div>
+    <div className="result-meta">
+      <span className="pill">@{p.handle}</span>
+    </div>
+  </div>
+</div>
 
-                          <div className="profile-cta">Abrir</div>
+<div className="profile-cta">Abrir</div>
                         </div>
                       </div>
                     );

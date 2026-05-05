@@ -995,6 +995,14 @@ const copyTitle = isProfileCard
             const hasNewJoin = currentJoinCount > seen.join;
             const hasNewGreeting = currentGreetingCount > seen.greeting;
 
+            const hasOwnerSidebarAlerts =
+  showJoinSection ||
+  showGreetingsSection ||
+  showUpcomingSection ||
+  hasNewJoin ||
+  hasNewGreeting ||
+  hasPreparingAlert;
+
             return (
               <div
                 key={g.id}
@@ -1145,52 +1153,55 @@ const copyTitle = isProfileCard
     title={copyTitle}
     style={{
       flexShrink: 0,
+      marginLeft: hasOwnerSidebarAlerts ? 0 : "auto",
     }}
   />
 )}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const nextOpen = !openCommunities[g.id];
+{hasOwnerSidebarAlerts ? (
+  <button
+    type="button"
+    onClick={() => {
+      const nextOpen = !openCommunities[g.id];
 
-                        setOpenCommunities((prev) => ({
-                          ...prev,
-                          [g.id]: nextOpen,
-                        }));
+      setOpenCommunities((prev) => ({
+        ...prev,
+        [g.id]: nextOpen,
+      }));
 
-                        if (nextOpen) {
-                          setSeenCountsByGroup((prev) => ({
-                            ...prev,
-                            [g.id]: {
-                              join: currentJoinCount,
-                              greeting: currentGreetingCount,
-                            },
-                          }));
-                        }
-                      }}
-                      aria-label={
-                        isOpen
-                          ? "Cerrar opciones de comunidad"
-                          : "Abrir opciones de comunidad"
-                      }
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: 999,
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        background: "rgba(255,255,255,0.02)",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        flexShrink: 0,
-                      }}
-                    >
-                      <Chevron open={isOpen} />
-                    </button>
+      if (nextOpen) {
+        setSeenCountsByGroup((prev) => ({
+          ...prev,
+          [g.id]: {
+            join: currentJoinCount,
+            greeting: currentGreetingCount,
+          },
+        }));
+      }
+    }}
+    aria-label={
+      isOpen
+        ? "Cerrar opciones de comunidad"
+        : "Abrir opciones de comunidad"
+    }
+    style={{
+      width: 28,
+      height: 28,
+      borderRadius: 999,
+      border: "1px solid rgba(255,255,255,0.08)",
+      background: "rgba(255,255,255,0.02)",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      cursor: "pointer",
+      flexShrink: 0,
+    }}
+  >
+    <Chevron open={isOpen} />
+  </button>
+) : null}
                   </div>
 
-                  {isOpen && (
+                  {isOpen && hasOwnerSidebarAlerts && (
                     <div
                       style={{
                         marginTop: 9,
