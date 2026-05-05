@@ -1739,7 +1739,7 @@ const visLabel =
   <span className="result-name-text">
     {g.name ?? "(sin nombre)"}
   </span>
-  <span className="result-name-dot">·</span>
+<span className="result-name-dot visibility-desktop">·</span>
 <span className="result-name-visibility">
   <span className="visibility-desktop">{visLabel}</span>
   <span className="visibility-mobile">
