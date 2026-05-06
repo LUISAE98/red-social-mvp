@@ -50,6 +50,7 @@ export default function LoginClient() {
 
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const registered = searchParams.get("registered") === "1";
   const nextPath = getNextFromSearchParams(searchParams, "/");
   const registerHref = appendSafeNextParam("/register", nextPath);
@@ -116,15 +117,21 @@ export default function LoginClient() {
       "radial-gradient(circle at top, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.018) 18%, #000 52%)",
     color: "#fff",
     fontFamily: fontStack,
-    padding: "clamp(12px, 2.2vw, 18px) clamp(12px, 2.2vw, 18px) clamp(44px, 6vw, 72px)",
-    display: "grid",
-    placeItems: "center",
+    padding:
+      "clamp(12px, 2.2vw, 18px) clamp(12px, 2.2vw, 18px) clamp(44px, 6vw, 72px)",
     boxSizing: "border-box",
   };
 
   const shellStyle: React.CSSProperties = {
     width: "100%",
     maxWidth: 332,
+  };
+
+  const rightPaneStyle: React.CSSProperties = {
+    width: "100%",
+    minHeight: "100%",
+    display: "grid",
+    placeItems: "center",
   };
 
   const titleStyle: React.CSSProperties = {
@@ -240,97 +247,148 @@ export default function LoginClient() {
   };
 
   return (
-    <main style={pageStyle}>
-      <div style={shellStyle}>
-        <div>
-          <h1 style={titleStyle}>Iniciar sesión</h1>
-          <p style={subtitleStyle}>Accede con tu correo y contraseña.</p>
-        </div>
+    <>
+      <style jsx global>{`
+        .loginSplitPage {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        }
 
-        {registered && (
-          <div style={noticeStyle}>
-            Cuenta creada. Revisa tu correo para verificarla.
-          </div>
-        )}
+        .loginLeftPane {
+          min-width: 0;
+        }
 
-        <form onSubmit={handleLogin} style={{ display: "grid", gap: 8 }}>
-          <label style={{ display: "grid", gap: 4 }}>
-            <span style={labelTextStyle}>Correo</span>
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={inputStyle}
-              placeholder="tucorreo@ejemplo.com"
-            />
-          </label>
+        .loginRightPane {
+          min-width: 0;
+        }
 
-          <label style={{ display: "grid", gap: 4 }}>
-            <span style={labelTextStyle}>Contraseña</span>
-            <input
-              type="password"
-              required
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={inputStyle}
-              placeholder="Tu contraseña"
-            />
-          </label>
+        @media (max-width: 900px) {
+          .loginSplitPage {
+            grid-template-columns: 1fr;
+            display: grid;
+            place-items: center;
+          }
 
-          <div style={switchRowStyle}>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 11.5, fontWeight: 600 }}>
-                Mantener sesión
-              </div>
-              <div style={{ marginTop: 2, fontSize: 10, color: "rgba(255,255,255,0.6)" }}>
-                Dispositivos personales
-              </div>
+          .loginLeftPane {
+            display: none;
+          }
+
+          .loginRightPane {
+            width: 100%;
+          }
+        }
+      `}</style>
+
+      <main style={pageStyle} className="loginSplitPage">
+        <div className="loginLeftPane" />
+
+        <div className="loginRightPane" style={rightPaneStyle}>
+          <div style={shellStyle}>
+            <div>
+              <h1 style={titleStyle}>Iniciar sesión</h1>
+              <p style={subtitleStyle}>Accede con tu correo y contraseña.</p>
             </div>
 
-            <button
-              type="button"
-              aria-pressed={keepSession}
-              aria-label="Mantener sesión iniciada"
-              onClick={() => setKeepSession((prev) => !prev)}
-              style={switchButtonStyle}
-            >
-              <span style={switchThumbStyle} />
-            </button>
+            {registered && (
+              <div style={noticeStyle}>
+                Cuenta creada. Revisa tu correo para verificarla.
+              </div>
+            )}
+
+            <form onSubmit={handleLogin} style={{ display: "grid", gap: 8 }}>
+              <label style={{ display: "grid", gap: 4 }}>
+                <span style={labelTextStyle}>Correo</span>
+                <input
+                  type="email"
+                  required
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={inputStyle}
+                  placeholder="tucorreo@ejemplo.com"
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 4 }}>
+                <span style={labelTextStyle}>Contraseña</span>
+                <input
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={inputStyle}
+                  placeholder="Tu contraseña"
+                />
+              </label>
+
+              <div style={switchRowStyle}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 11.5, fontWeight: 600 }}>
+                    Mantener sesión
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 2,
+                      fontSize: 10,
+                      color: "rgba(255,255,255,0.6)",
+                    }}
+                  >
+                    Dispositivos personales
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  aria-pressed={keepSession}
+                  aria-label="Mantener sesión iniciada"
+                  onClick={() => setKeepSession((prev) => !prev)}
+                  style={switchButtonStyle}
+                >
+                  <span style={switchThumbStyle} />
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  marginTop: 1,
+                  flexWrap: "wrap",
+                }}
+              >
+                <Link href={registerHref} style={linkStyle}>
+                  Crear cuenta
+                </Link>
+
+                <Link href="/reset-password" style={linkStyle}>
+                  Olvidé mi contraseña
+                </Link>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                style={{
+                  ...(loading ? secondaryButtonStyle : primaryButtonStyle),
+                  marginTop: 2,
+                  opacity: loading ? 0.84 : 1,
+                  cursor: loading ? "not-allowed" : "pointer",
+                }}
+              >
+                {loading ? "Entrando..." : "Entrar"}
+              </button>
+            </form>
+
+            {msg && (
+              <div style={{ ...noticeStyle, marginTop: 10, marginBottom: 0 }}>
+                {msg}
+              </div>
+            )}
           </div>
-
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 1, flexWrap: "wrap" }}>
-            <Link href={registerHref} style={linkStyle}>
-              Crear cuenta
-            </Link>
-
-            <Link href="/reset-password" style={linkStyle}>
-              Olvidé mi contraseña
-            </Link>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              ...(loading ? secondaryButtonStyle : primaryButtonStyle),
-              marginTop: 2,
-              opacity: loading ? 0.84 : 1,
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
-
-        {msg && (
-          <div style={{ ...noticeStyle, marginTop: 10, marginBottom: 0 }}>
-            {msg}
-          </div>
-        )}
-      </div>
-    </main>
+        </div>
+      </main>
+    </>
   );
 }
