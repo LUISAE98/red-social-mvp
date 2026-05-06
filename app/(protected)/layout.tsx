@@ -197,7 +197,7 @@ function WalletDesktopRail({
       <style jsx>{`
 .walletRail {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + 104px);
+  top: calc(env(safe-area-inset-top) + 86px);
   width: var(--wallet-rail-width);
 }
 
@@ -434,12 +434,11 @@ function PublicProfileShell({
           box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
         }
 
-        @media (max-width: 900px) {
-          .floatingLogoutWrap {
-            right: calc(12px + env(safe-area-inset-right));
-            bottom: calc(82px + env(safe-area-inset-bottom));
-          }
-        }
+@media (max-width: 900px) {
+  .floatingLogoutWrap {
+    display: none;
+  }
+}
 
         @media (max-width: 520px) {
           .brand {
@@ -698,10 +697,13 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   grid-template-columns: var(--sidebar-width) minmax(0, var(--main-max-width)) var(--wallet-rail-width);
 }
 
-        .sidebarCol {
-          position: relative;
-          min-width: 0;
-        }
+.sidebarCol {
+  position: sticky;
+  top: calc(env(safe-area-inset-top) + 86px);
+  align-self: start;
+  min-width: 0;
+  z-index: 2;
+}
 
         .mainCol {
           min-width: 0;
@@ -798,12 +800,11 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
         }
 
-        @media (max-width: 900px) {
-          .floatingLogoutWrap {
-            right: calc(12px + env(safe-area-inset-right));
-            bottom: calc(82px + env(safe-area-inset-bottom));
-          }
-        }
+@media (max-width: 900px) {
+  .floatingLogoutWrap {
+    display: none;
+  }
+}
 
         @media (max-width: 520px) {
           .mobileHeaderRow {

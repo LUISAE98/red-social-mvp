@@ -78,9 +78,11 @@ export default function GroupsSearchToolbar({
 
         .search-input-wrap {
           position: relative;
+          overflow: visible;
           min-width: 0;
           width: ${isExpanded ? "min(100%, 920px)" : "360px"};
           max-width: 920px;
+          border-radius: 14px;
           transition:
             width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
             max-width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
@@ -93,6 +95,8 @@ export default function GroupsSearchToolbar({
         }
 
         .search-input {
+          position: relative;
+          z-index: 2;
           width: 100%;
           height: 46px;
           padding: 0 42px 0 16px;
@@ -133,6 +137,7 @@ export default function GroupsSearchToolbar({
 
         .inner-action-btn {
           position: absolute;
+          z-index: 20;
           top: 50%;
           right: 10px;
           transform: translateY(-50%);
@@ -195,7 +200,7 @@ export default function GroupsSearchToolbar({
 
           .search-main {
             justify-content: center;
-            gap: ${isExpanded ? "0px" : "0px"};
+            gap: 0px;
           }
 
           .mobile-search-emoji-btn {
@@ -237,7 +242,7 @@ export default function GroupsSearchToolbar({
           .search-input-wrap {
             width: ${isExpanded ? "min(100%, 360px)" : "0px"};
             max-width: calc(100vw - 32px);
-            overflow: hidden;
+            overflow: visible;
             opacity: ${isExpanded ? "1" : "0"};
             transform: ${isExpanded ? "translateY(-1px) scale(1)" : "scale(0.96)"};
             transition:
@@ -295,26 +300,7 @@ export default function GroupsSearchToolbar({
                 aria-label="Cerrar búsqueda"
                 title="Cerrar búsqueda"
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M6 6L18 18"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M18 6L6 18"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                ✕
               </button>
             ) : hasSearch ? (
               <button
@@ -324,26 +310,7 @@ export default function GroupsSearchToolbar({
                 aria-label="Limpiar búsqueda"
                 title="Limpiar búsqueda"
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  aria-hidden="true"
-                >
-                  <path
-                    d="M6 6L18 18"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                  <path
-                    d="M18 6L6 18"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                  />
-                </svg>
+                ✕
               </button>
             ) : null}
           </div>

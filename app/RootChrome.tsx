@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/app/providers";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
@@ -73,8 +74,11 @@ export default function RootChrome({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+const { user, loading } = useAuth();
+const pathname = usePathname();
+const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+
+const isLoginPage = pathname === "/login";
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -104,10 +108,18 @@ export default function RootChrome({
     <>
       <style jsx global>{`
         .rootChromePublicLayout {
+          --shell-gutter: 16px;
+          --sidebar-width: 300px;
+          --wallet-rail-width: 220px;
+          --shell-column-gap: 24px;
+          --desktop-search-width: 920px;
+
           min-height: 100vh;
           min-height: 100dvh;
           background: #000000;
           color: #ffffff;
+          display: flex;
+          flex-direction: column;
         }
 
         .rootChromePublicHeader {
@@ -116,33 +128,33 @@ export default function RootChrome({
           z-index: 100;
           padding-top: env(safe-area-inset-top);
           border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(0, 0, 0, 0.92);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
+          background: #000000;
         }
 
-        .rootChromePublicHeaderInner {
-          width: 100%;
-          padding-left: max(16px, env(safe-area-inset-left));
-          padding-right: max(16px, env(safe-area-inset-right));
-          padding-top: 12px;
-          padding-bottom: 12px;
-          box-sizing: border-box;
-        }
+ .rootChromePublicHeaderInner {
+  width: 100%;
+  padding-left: max(var(--shell-gutter), env(safe-area-inset-left));
+  padding-right: max(var(--shell-gutter), env(safe-area-inset-right));
+  padding-top: 8px;
+  padding-bottom: 8px;
+  box-sizing: border-box;
+  position: relative;
+}
 
-        .rootChromeDesktopHeader {
-          display: grid;
-          grid-template-columns: 220px minmax(0, 1fr) auto;
-          gap: 20px;
-          align-items: center;
-          min-height: 60px;
-          width: 100%;
-        }
+.rootChromeDesktopHeader {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 40px;
+  width: 100%;
+}
 
         .rootChromeBrandCol {
           min-width: 0;
           display: flex;
           align-items: center;
+          justify-content: flex-start;
         }
 
         .rootChromeBrand {
@@ -154,11 +166,14 @@ export default function RootChrome({
           white-space: nowrap;
         }
 
-        .rootChromeDesktopSearchCol {
-          min-width: 0;
-          width: min(780px, 100%);
-        }
-
+.rootChromeDesktopSearchCol {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: min(460px, calc(100vw - 48px));
+  transform: translate(-50%, -50%);
+  min-width: 0;
+}
         .rootChromeDesktopActions {
           display: flex;
           align-items: center;
@@ -176,7 +191,9 @@ export default function RootChrome({
           border-radius: 12px;
           border: 1px solid rgba(255, 255, 255, 0.14);
           background: rgba(255, 255, 255, 0.04);
-          transition: background 0.18s ease, border-color 0.18s ease,
+          transition:
+            background 0.18s ease,
+            border-color 0.18s ease,
             transform 0.18s ease;
         }
 
@@ -192,10 +209,8 @@ export default function RootChrome({
         }
 
         .rootChromeMobileHeaderRow {
-          min-height: 56px;
+          min-height: 38px;
           width: 100%;
-          align-items: center;
-          gap: 10px;
         }
 
         .rootChromeMobileBrand {
@@ -209,7 +224,7 @@ export default function RootChrome({
           text-overflow: ellipsis;
           white-space: nowrap;
           flex: 0 1 auto;
-          max-width: 42vw;
+          max-width: 34vw;
         }
 
         .rootChromeMobileActions {
@@ -230,13 +245,23 @@ export default function RootChrome({
         }
 
         .rootChromePageContent {
-          min-height: calc(100dvh - 84px);
+          flex: 1;
+        }
+
+        @media (max-width: 1180px) {
+          .rootChromePublicLayout {
+            --shell-gutter: 14px;
+            --sidebar-width: 260px;
+            --wallet-rail-width: 210px;
+            --shell-column-gap: 18px;
+          }
         }
 
         @media (max-width: 900px) {
           .rootChromePublicHeaderInner {
-            padding-top: 10px;
-            padding-bottom: 10px;
+            width: 100%;
+            padding-top: 6px;
+            padding-bottom: 6px;
             padding-left: max(12px, env(safe-area-inset-left));
             padding-right: max(12px, env(safe-area-inset-right));
           }
@@ -247,14 +272,13 @@ export default function RootChrome({
 
           .rootChromeMobileHeaderRow {
             display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
           }
 
           .rootChromeMobileSearchRow {
             display: block;
-          }
-
-          .rootChromePageContent {
-            min-height: calc(100dvh - 76px);
           }
         }
 
@@ -264,7 +288,7 @@ export default function RootChrome({
           }
 
           .rootChromeMobileBrand {
-            max-width: 38vw;
+            max-width: 28vw;
           }
 
           .rootChromeMobileActions {
@@ -277,11 +301,7 @@ export default function RootChrome({
         <header className="rootChromePublicHeader">
           <div className="rootChromePublicHeaderInner">
             <div className="rootChromeDesktopHeader">
-              <div className="rootChromeBrandCol">
-                <Link href="/" className="rootChromeBrand">
-                  Red Social MVP
-                </Link>
-              </div>
+<div className="rootChromeBrandCol" />
 
               <div className="rootChromeDesktopSearchCol">
                 <GroupsSearchPanel
@@ -291,18 +311,18 @@ export default function RootChrome({
                 />
               </div>
 
-              <div className="rootChromeDesktopActions">
-                <Link href="/login" className="rootChromeDesktopAuthLink">
-                  Iniciar sesión
-                </Link>
-              </div>
+<div className="rootChromeDesktopActions">
+  {!isLoginPage ? (
+    <Link href="/login" className="rootChromeDesktopAuthLink">
+      Iniciar sesión
+    </Link>
+  ) : null}
+</div>
             </div>
 
             {!mobileSearchOpen ? (
               <div className="rootChromeMobileHeaderRow">
-                <Link href="/" className="rootChromeMobileBrand">
-                  Red Social MVP
-                </Link>
+<span className="rootChromeMobileBrand" />
 
                 <div className="rootChromeMobileActions">
                   <HeaderIconButton
@@ -310,62 +330,18 @@ export default function RootChrome({
                     title="Buscar comunidad"
                     ariaLabel="Buscar comunidad"
                   >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <circle
-                        cx="11"
-                        cy="11"
-                        r="6.5"
-                        stroke="currentColor"
-                        strokeWidth="1.9"
-                      />
-                      <path
-                        d="M16 16L21 21"
-                        stroke="currentColor"
-                        strokeWidth="1.9"
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                    <span aria-hidden="true">🔍</span>
                   </HeaderIconButton>
 
-                  <HeaderIconButton
-                    href="/login"
-                    title="Iniciar sesión"
-                    ariaLabel="Iniciar sesión"
-                  >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M10 17L15 12L10 7"
-                        stroke="currentColor"
-                        strokeWidth="1.9"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                      <path
-                        d="M15 12H4"
-                        stroke="currentColor"
-                        strokeWidth="1.9"
-                        strokeLinecap="round"
-                      />
-                      <path
-                        d="M20 5V19"
-                        stroke="currentColor"
-                        strokeWidth="1.9"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                  </HeaderIconButton>
+{!isLoginPage ? (
+  <HeaderIconButton
+    href="/login"
+    title="Iniciar sesión"
+    ariaLabel="Iniciar sesión"
+  >
+    <span aria-hidden="true">↪</span>
+  </HeaderIconButton>
+) : null}
                 </div>
               </div>
             ) : (
