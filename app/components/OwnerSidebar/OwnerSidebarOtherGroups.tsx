@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { leaveGroup } from "@/lib/groups/membership";
 import { useRouter } from "next/navigation";
 
 import type {
@@ -13,6 +14,7 @@ import { dismissHiddenGroupTransition } from "@/lib/groups/sidebarGroups";
 import { Chevron, CountBadge } from "./OwnerSidebar";
 
 type Props = {
+  currentUserId: string | null;
   loadingCommunities: boolean;
   joinedGroups: GroupDocLite[];
   pendingJoinRequestsSent: OutgoingJoinRequestRow[];
@@ -464,9 +466,9 @@ function renderJoinedCardWithAccessNotice(params: {
         gap: notice ? 6 : 0,
       }}
     >
-      {renderCommunityCard(group, {
-        subtitle: buildJoinedSubtitle(group, isMobile),
-      })}
+{renderCommunityCard(group, {
+  subtitle: buildJoinedSubtitle(group, isMobile),
+})}
 
       {notice && (
         <div style={noticeStyles(notice.tone, isMobile)}>
@@ -535,7 +537,128 @@ function renderJoinedCardWithAccessNotice(params: {
   );
 }
 
+function LeaveGroupActionCard(params: {
+  group: GroupDocLite;
+  isMobile: boolean;
+  renderCommunityCard: (
+    g: GroupDocLite,
+    opts?: { compact?: boolean; subtitle?: React.ReactNode }
+  ) => React.ReactNode;
+  subtitle: React.ReactNode;
+  openMenuGroupId?: string | null;
+  onToggleMenu?: (groupId: string) => void;
+  onLeave: (group: GroupDocLite) => void;
+}) {
+  const { group, renderCommunityCard, subtitle, onLeave } = params;
+
+  const actionWidth = 150;
+
+const [startX, setStartX] = useState<number | null>(null);
+const [dragX, setDragX] = useState(0);
+const [isOpen, setIsOpen] = useState(false);
+const didDragRef = useRef(false);
+
+  const currentX = isOpen ? actionWidth : dragX;
+
+  function closeAction() {
+    setIsOpen(false);
+    setDragX(0);
+    setStartX(null);
+  }
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        borderRadius: 16,
+        minWidth: 0,
+      }}
+    >
+<button
+  type="button"
+  onClick={() => onLeave(group)}
+  style={{
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: actionWidth,
+    border: "none",
+    background: "linear-gradient(90deg, #ef4444 0%, #dc2626 100%)",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 600,
+    letterSpacing: -0.1,
+    display: "grid",
+    placeItems: "center",
+    padding: "0 14px",
+    zIndex: 1,
+  }}
+>
+  Abandonar grupo
+</button>
+
+      <div
+style={{
+  position: "relative",
+  zIndex: 2,
+  transform: `translateX(${currentX}px)`,
+  transition: startX === null ? "transform 180ms ease" : "none",
+  borderRadius: 16,
+  touchAction: "pan-y",
+  background: "#050505",
+}}
+onPointerDown={(event) => {
+  didDragRef.current = false;
+  setStartX(event.clientX);
+}}
+        onPointerMove={(event) => {
+          if (startX === null) return;
+
+          const deltaX = event.clientX - startX;
+
+if (deltaX > 0) {
+  if (deltaX > 6) {
+    didDragRef.current = true;
+  }
+
+  setDragX(Math.min(deltaX, actionWidth));
+  return;
+}
+
+          if (deltaX < -18) {
+            closeAction();
+          }
+        }}
+        onPointerUp={() => {
+          if (dragX >= 58) {
+            setIsOpen(true);
+            setDragX(0);
+          } else {
+            closeAction();
+          }
+
+          setStartX(null);
+        }}
+       onPointerCancel={closeAction}
+onClickCapture={(event) => {
+  if (didDragRef.current) {
+    event.preventDefault();
+    event.stopPropagation();
+    didDragRef.current = false;
+  }
+}}
+      >
+        {renderCommunityCard(group, { subtitle })}
+      </div>
+    </div>
+  );
+}
+
 export default function OwnerSidebarOtherGroups({
+  currentUserId,
   loadingCommunities,
   pendingJoinRequestsSent,
   joinedGrouped,
@@ -562,6 +685,11 @@ export default function OwnerSidebarOtherGroups({
     () => new Set()
   );
 
+  const [leaveTargetGroup, setLeaveTargetGroup] = useState<GroupDocLite | null>(
+  null
+);
+const [leavingGroupId, setLeavingGroupId] = useState<string | null>(null);
+
   const isMobile =
     typeof window !== "undefined" ? window.innerWidth <= 640 : false;
 
@@ -572,6 +700,33 @@ export default function OwnerSidebarOtherGroups({
   function handleSubscribe(groupId: string) {
     router.push(`/groups/${groupId}?service=suscripcion`);
   }
+
+function openLeaveConfirm(group: GroupDocLite) {
+  setLeaveTargetGroup(group);
+}
+
+function closeLeaveConfirm() {
+  if (leavingGroupId) return;
+  setLeaveTargetGroup(null);
+}
+
+async function handleConfirmLeaveGroup() {
+  if (!leaveTargetGroup) return;
+  if (!currentUserId) return;
+  if (leavingGroupId) return;
+
+  setLeavingGroupId(leaveTargetGroup.id);
+
+  try {
+    await leaveGroup(leaveTargetGroup.id, currentUserId);
+    setLeaveTargetGroup(null);
+    router.refresh();
+  } catch (error) {
+    console.error("leaveGroup error", error);
+  } finally {
+    setLeavingGroupId(null);
+  }
+}
 
   async function handleDismiss(groupId: string) {
     if (!groupId.trim()) return;
@@ -617,7 +772,8 @@ export default function OwnerSidebarOtherGroups({
     );
   }, [subscriptionPendingGroups, dismissedGroupIds]);
 
-  const visiblePendingJoinRequestsSent = pendingJoinRequestsSent.filter((row) => {
+ const visiblePendingJoinRequestsSent: OutgoingJoinRequestRow[] =
+  pendingJoinRequestsSent.filter((row: OutgoingJoinRequestRow) => {
     const community = groupMetaMap[row.groupId] ?? null;
     if (!community) {
       return true;
@@ -687,14 +843,29 @@ export default function OwnerSidebarOtherGroups({
                 isActuallyJoinedStatus(memberStatus);
 
               if (!showJoinSection) {
-                return renderJoinedCardWithAccessNotice({
-                  group: g,
-                  isMobile,
-                  renderCommunityCard,
-                  onSubscribe: handleSubscribe,
-                  onDismiss: handleDismiss,
-                  isDismissing: dismissingGroupIds.has(g.id),
-                });
+return (
+  <div key={g.id} style={{ display: "grid", gap: 6 }}>
+<LeaveGroupActionCard
+  group={g}
+  isMobile={isMobile}
+  renderCommunityCard={renderCommunityCard}
+  subtitle={buildJoinedSubtitle(g, isMobile)}
+  onLeave={openLeaveConfirm}
+/>
+
+    {buildAccessNotice(g) && (
+      <div style={noticeStyles(buildAccessNotice(g)!.tone, isMobile)}>
+        {buildAccessNotice(g)!.title ? (
+          <div style={{ fontWeight: 700 }}>
+            {buildAccessNotice(g)!.title}
+          </div>
+        ) : null}
+
+        <div>{buildAccessNotice(g)!.text}</div>
+      </div>
+    )}
+  </div>
+);
               }
 
               return (
@@ -1040,7 +1211,7 @@ export default function OwnerSidebarOtherGroups({
         <div style={{ display: "grid", gap: 8 }}>
           <div style={styles.sectionTitle}>Solicitudes de acceso enviadas</div>
           <div style={{ display: "grid", gap: 8 }}>
-            {visiblePendingJoinRequestsSent.map((row) => {
+            {visiblePendingJoinRequestsSent.map((row: OutgoingJoinRequestRow) => {
               const community = groupMetaMap[row.groupId] ?? null;
               if (!community) return null;
 
@@ -1068,6 +1239,112 @@ export default function OwnerSidebarOtherGroups({
             No tienes otras comunidades ni solicitudes pendientes.
           </div>
         )}
+        {leaveTargetGroup && (
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-label="Confirmar salida del grupo"
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 9999,
+      background: "rgba(0,0,0,0.72)",
+      backdropFilter: "blur(14px)",
+      WebkitBackdropFilter: "blur(14px)",
+      display: "grid",
+      placeItems: "center",
+      padding: 18,
+    }}
+  >
+    <div
+      style={{
+        width: "min(420px, 100%)",
+        borderRadius: 24,
+        border: "1px solid rgba(255,255,255,0.14)",
+        background: "rgba(18,18,20,0.98)",
+        boxShadow: "0 24px 80px rgba(0,0,0,0.46)",
+        padding: 20,
+        display: "grid",
+        gap: 14,
+        color: "#fff",
+      }}
+    >
+      <div style={{ display: "grid", gap: 6 }}>
+<div
+  style={{
+    fontSize: 17,
+    fontWeight: 650,
+    letterSpacing: -0.2,
+  }}
+>
+  ¿Estás seguro de que quieres abandonar el grupo?
+</div>
+
+        <div
+          style={{
+            fontSize: 13,
+            lineHeight: 1.45,
+            color: "rgba(255,255,255,0.68)",
+          }}
+        >
+          Vas a salir de{" "}
+          <strong style={{ color: "#fff" }}>
+            {leaveTargetGroup.name ?? "esta comunidad"}
+          </strong>
+          . Si después quieres volver, tendrás que unirte otra vez o solicitar
+          acceso según la configuración del grupo.
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: 10,
+          flexWrap: "wrap",
+        }}
+      >
+<button
+  type="button"
+  onClick={closeLeaveConfirm}
+  disabled={!!leavingGroupId}
+  style={{
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(255,255,255,0.045)",
+    color: "#fff",
+    borderRadius: 14,
+    padding: "10px 14px",
+    fontSize: 13,
+    fontWeight: 550,
+    cursor: leavingGroupId ? "not-allowed" : "pointer",
+    opacity: leavingGroupId ? 0.7 : 1,
+  }}
+>
+  Cancelar
+</button>
+
+<button
+  type="button"
+  onClick={handleConfirmLeaveGroup}
+  disabled={!!leavingGroupId}
+  style={{
+    border: "1px solid rgba(248,113,113,0.26)",
+    background: "rgba(239,68,68,0.88)",
+    color: "#fff",
+    borderRadius: 14,
+    padding: "10px 14px",
+    fontSize: 13,
+    fontWeight: 600,
+    cursor: leavingGroupId ? "not-allowed" : "pointer",
+    opacity: leavingGroupId ? 0.75 : 1,
+  }}
+>
+  {leavingGroupId ? "Saliendo..." : "Sí, abandonar"}
+</button>
+      </div>
+    </div>
+  </div>
+)}
     </>
   );
 }

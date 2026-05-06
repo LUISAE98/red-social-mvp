@@ -2709,8 +2709,9 @@ return (
 
 {activeView === "communities" && (
   <>
-    <OwnerSidebarOtherGroups
-      loadingCommunities={loadingCommunities}
+<OwnerSidebarOtherGroups
+  currentUserId={viewer?.uid ?? null}
+  loadingCommunities={loadingCommunities}
       joinedGroups={joinedGroups}
       pendingJoinRequestsSent={pendingJoinRequestsSent}
       browseGroups={browseGroups}
@@ -2740,8 +2741,8 @@ return (
       aria-label="Crear grupo nuevo"
       title="Crear grupo nuevo"
     >
-      <span aria-hidden="true">＋</span>
-      <span>Crear grupo nuevo</span>
+<span aria-hidden="true">🧩</span>
+<span>Crear grupo nuevo</span>
     </button>
   </>
 )}

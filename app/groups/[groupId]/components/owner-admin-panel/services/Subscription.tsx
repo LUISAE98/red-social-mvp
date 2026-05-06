@@ -312,7 +312,13 @@ export default function Subscription({
   const [showRemoveLegacyMembersModal, setShowRemoveLegacyMembersModal] =
     useState(false);
 
-  const disabledByVisibility = isPublic;
+ const disabledByVisibility = isPublic;
+const disabledPanelStyle: React.CSSProperties = disabledByVisibility
+  ? {
+      opacity: 0.55,
+      filter: "grayscale(0.35)",
+    }
+  : {};
 
   const subscriptionCalc = useMemo(() => {
     return draft.subscription.enabled ? calcNetAmount(draft.subscription.price) : null;
@@ -394,10 +400,10 @@ export default function Subscription({
     }
   }
 
-  function handleModify() {
-    if (isBusy) return;
-    openOverlay("edit", draft);
-  }
+function handleModify() {
+  if (isBusy || disabledByVisibility) return;
+  openOverlay("edit", draft);
+}
 
   function renderSummary() {
     if (!draft.subscription.enabled || disabledByVisibility) return null;
@@ -451,7 +457,12 @@ export default function Subscription({
   return (
     <>
       <div style={{ display: "grid", gap: 10 }}>
-        <div style={panelStyle}>
+        <div
+  style={{
+    ...panelStyle,
+    ...disabledPanelStyle,
+  }}
+>
           <div
             style={{
               display: "flex",
@@ -466,19 +477,44 @@ export default function Subscription({
               </span>
             </div>
 
-            <SwitchComponent
-              checked={draft.subscription.enabled}
-              disabled={isBusy || disabledByVisibility}
-              onChange={handleToggle}
-              label="Activar suscripción mensual"
-            />
+<div
+  onClick={() => {
+    if (disabledByVisibility) {
+      alert("No puedes activar suscripción mensual en una comunidad pública. Primero cambia la comunidad a privada u oculta.");
+    }
+  }}
+  style={{
+    cursor: disabledByVisibility ? "not-allowed" : "default",
+  }}
+>
+  <SwitchComponent
+    checked={disabledByVisibility ? false : draft.subscription.enabled}
+    disabled={isBusy || disabledByVisibility}
+    onChange={handleToggle}
+    label={
+      disabledByVisibility
+        ? "Disponible solo para comunidades privadas u ocultas"
+        : "Activar suscripción mensual"
+    }
+  />
+</div>
           </div>
 
-          {disabledByVisibility && (
-            <div style={subtleStyle}>
-              Para activar suscripción mensual, la comunidad debe ser privada u oculta.
-            </div>
-          )}
+{disabledByVisibility && (
+  <div
+    style={{
+      ...subtleStyle,
+      marginTop: 2,
+      padding: "8px 10px",
+      borderRadius: 10,
+      border: "1px solid rgba(255,255,255,0.08)",
+      background: "rgba(255,255,255,0.04)",
+      color: "rgba(255,255,255,0.68)",
+    }}
+  >
+    No puedes activar la suscripción mensual en comunidades públicas. Cambia la comunidad a privada u oculta para habilitar esta función.
+  </div>
+)}
 
           {renderSummary()}
         </div>

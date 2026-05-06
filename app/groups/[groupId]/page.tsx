@@ -4,7 +4,7 @@ import GroupServiceModals from "./components/GroupServiceModals";
 import GroupImageCropModal from "./components/GroupImageCropModal";
 import OwnerAdminServices from "./components/owner-admin-panel/OwnerAdminServices";
 
-import { doc, updateDoc } from "firebase/firestore";
+import { collection, doc, getCountFromServer, updateDoc } from "firebase/firestore";
 import {
   useEffect,
   useMemo,
@@ -23,7 +23,6 @@ import { useAuth } from "@/app/providers";
 import {
   joinGroup,
   joinGroupWithSubscription,
-  leaveGroup,
 } from "@/lib/groups/membership";
 import { requestToJoin, cancelJoinRequest } from "@/lib/groups/joinRequests";
 import OwnerAdminPanel from "./components/OwnerAdminPanel";
@@ -246,9 +245,45 @@ export default function GroupPage() {
     userId: user?.uid ?? null,
   });
 
-  const [joining, setJoining] = useState(false);
-  const [leaving, setLeaving] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
+const [joining, setJoining] = useState(false);
+const [actionError, setActionError] = useState<string | null>(null);
+
+  const [memberCount, setMemberCount] = useState<number | null>(null);
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function loadMemberCount() {
+    if (!groupId) return;
+
+    try {
+      const membersRef = collection(db, "groups", groupId, "members");
+      const snapshot = await getCountFromServer(membersRef);
+
+      if (!cancelled) {
+        setMemberCount(snapshot.data().count);
+      }
+    } catch (error) {
+      console.error("Error loading group member count:", error);
+
+      if (!cancelled) {
+        setMemberCount(null);
+      }
+    }
+  }
+
+  loadMemberCount();
+
+  return () => {
+    cancelled = true;
+  };
+}, [groupId]);
+
+const formattedMemberCount = useMemo(() => {
+  if (memberCount == null) return null;
+
+  return new Intl.NumberFormat("es-MX").format(memberCount);
+}, [memberCount]);
 
   const error = actionError ?? realtimeError;
 
@@ -662,26 +697,6 @@ function redirectToLogin() {
       setActionError(e?.message ?? "No se pudo cancelar la solicitud");
     } finally {
       setJoining(false);
-    }
-  }
-
-  async function handleLeave() {
-    if (!user) return;
-
-    if (isOwner) {
-      setActionError("El owner no puede salir de su propia comunidad.");
-      return;
-    }
-
-    setLeaving(true);
-    setActionError(null);
-
-    try {
-      await leaveGroup(groupId, user.uid);
-    } catch (e: any) {
-      setActionError(e?.message ?? "No se pudo salir");
-    } finally {
-      setLeaving(false);
     }
   }
 
@@ -1453,9 +1468,38 @@ const openCropWithFile = useCallback(
                       </div>
                     )}
 
-                    <div style={{ marginTop: 8, ...microText }}>
-                      {visibilityLabel(String(group.visibility ?? ""))}
-                    </div>
+<div
+  style={{
+    marginTop: 8,
+    ...microText,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  }}
+>
+  <span>{visibilityLabel(String(group.visibility ?? ""))}</span>
+
+  {memberCount !== null && (
+    <>
+      <span
+        aria-hidden="true"
+        style={{
+          width: 4,
+          height: 4,
+          borderRadius: 999,
+          background: "rgba(255,255,255,0.42)",
+          display: "inline-block",
+        }}
+      />
+
+      <span>
+        {formattedMemberCount} {memberCount === 1 ? "miembro" : "miembros"}
+      </span>
+    </>
+  )}
+</div>
                   </div>
                 </div>
 
@@ -1984,9 +2028,38 @@ const openCropWithFile = useCallback(
                     </div>
                   )}
 
-                  <div className="group-visibility" style={microText}>
-                    {visibilityLabel(String(group.visibility ?? ""))}
-                  </div>
+<div
+  className="group-visibility"
+  style={{
+    ...microText,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    flexWrap: "wrap",
+  }}
+>
+  <span>{visibilityLabel(String(group.visibility ?? ""))}</span>
+
+  {memberCount !== null && (
+    <>
+      <span
+        aria-hidden="true"
+        style={{
+          width: 4,
+          height: 4,
+          borderRadius: 999,
+          background: "rgba(255,255,255,0.42)",
+          display: "inline-block",
+        }}
+      />
+
+      <span>
+        {formattedMemberCount} {memberCount === 1 ? "miembro" : "miembros"}
+      </span>
+    </>
+  )}
+</div>
 
                   {canRequestCreatorServices &&
   normalizedCurrentOfferings.length > 0 && (
@@ -2049,20 +2122,7 @@ const openCropWithFile = useCallback(
                       )}
                     </>
                   )}
-
-                  {!isOwner && effectiveIsMember && (
-                    <button
-                      onClick={handleLeave}
-                      disabled={leaving}
-                      style={{
-                        ...secondaryButton,
-                        opacity: leaving ? 0.75 : 1,
-                        cursor: leaving ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {leaving ? "Saliendo..." : "Salir"}
-                    </button>
-                  )}
+                  
                 </div>
 
                 {error && (
@@ -2115,6 +2175,7 @@ const openCropWithFile = useCallback(
     groupId={groupId}
     ownerId={group.ownerId}
     currentUserId={user.uid}
+    currentVisibility={normalizeVisibility(group.visibility)}
     currentMonetization={normalizedCurrentMonetization}
     currentOfferings={normalizedCurrentOfferings}
     currentDonation={normalizedCurrentDonation}

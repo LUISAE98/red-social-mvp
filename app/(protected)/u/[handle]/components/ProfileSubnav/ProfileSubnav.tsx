@@ -66,8 +66,10 @@ export default function ProfileSubnav({
           {
             key: "groups" as const,
             label: isOwner ? "Mis\ncomunidades" : "Sus\ncomunidades",
-            title: isOwner ? "Mis comunidades" : "Las comunidades de este perfil",
-            emoji: "✨",
+            title: isOwner
+              ? "Mis comunidades"
+              : "Las comunidades de este perfil",
+            emoji: isOwner ? "✨" : "🌍",
           },
         ]
       : []),
@@ -102,7 +104,10 @@ export default function ProfileSubnav({
     boxShadow: "0 -8px 24px rgba(0,0,0,0.12)",
     padding: "10px 10px",
     display: "grid",
-    gridTemplateColumns: `repeat(${Math.max(tabs.length, 1)}, minmax(0, 1fr))`,
+    gridTemplateColumns: `repeat(${Math.max(
+      tabs.length,
+      1
+    )}, minmax(0, 1fr))`,
     alignItems: "center",
     gap: 0,
     fontFamily: fontStack,
@@ -183,24 +188,25 @@ export default function ProfileSubnav({
                   : {}),
               }}
             />
-              <span style={itemInner}>
-                <EmojiIcon emoji={tab.emoji} active={active} />
-                {tab.key === "groups" ? (
-                  <span
-                    style={{
-                      ...labelStyle,
-                      display: "grid",
-                      gap: 2,
-                      lineHeight: 1,
-                    }}
-                  >
-                    <span>Mis</span>
-                    <span style={{ fontSize: 10 }}>comunidades</span>
-                  </span>
-                ) : (
-                  <span style={labelStyle}>{tab.label}</span>
-                )}
-              </span>
+
+            <span style={itemInner}>
+              <EmojiIcon emoji={tab.emoji} active={active} />
+
+              {tab.key === "groups" ? (
+                <span
+                  style={{
+                    ...labelStyle,
+                    display: "grid",
+                    gap: 2,
+                    lineHeight: 1,
+                  }}
+                >
+<span>{isOwner ? "Mis comunidades" : "Sus comunidades"}</span>
+                </span>
+              ) : (
+                <span style={labelStyle}>{tab.label}</span>
+              )}
+            </span>
           </button>
         );
       })}
