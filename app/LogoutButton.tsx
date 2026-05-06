@@ -2,7 +2,6 @@
 
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 type LogoutButtonVariant = "icon" | "settings";
@@ -18,25 +17,28 @@ export default function LogoutButton({
   className,
   style,
 }: LogoutButtonProps) {
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
+const [loading, setLoading] = useState(false);
 
-  async function handleLogout() {
-    setLoading(true);
+async function handleLogout() {
+  setLoading(true);
 
-    try {
-      await signOut(auth);
-
-      await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-
-      router.replace("/login");
-      router.refresh();
-    } finally {
-      setLoading(false);
-    }
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.error("Error cerrando sesión en Firebase:", error);
   }
+
+  try {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      cache: "no-store",
+    });
+  } catch (error) {
+    console.error("Error limpiando sesión del servidor:", error);
+  }
+
+  window.location.replace("/login");
+}
 
   if (variant === "settings") {
     return (
