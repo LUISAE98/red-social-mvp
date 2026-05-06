@@ -1178,20 +1178,80 @@ const openCropWithFile = useCallback(
       </svg>
     `);
 
- const groupShareHref = `/groups/${groupId}`;
- const canShareGroup = group.visibility !== "hidden";
+const groupShareHref = `/groups/${groupId}`;
+const canShareGroup = group.visibility !== "hidden";
 
-  const avatarNode = (
-    <div
-      style={{
-        position: "absolute",
-        left: "50%",
-        top: groupPageUi.avatarOffsetTop,
-        transform: "translateX(-50%)",
-        zIndex: 20,
-      }}
-    >
-      <div style={{ position: "relative" }}>
+const groupVisualUi = {
+  ...groupPageUi,
+  coverHeight: "clamp(240px, 38vw, 360px)",
+  avatarSize: "clamp(112px, 24vw, 220px)",
+  avatarOffsetTop: "calc(clamp(112px, 24vw, 220px) / -2)",
+  contentTopPadding: "calc((clamp(112px, 24vw, 220px) / 2) + 22px)",
+};
+
+const avatarNode = (
+  <div
+    style={{
+      position: "absolute",
+      left: "50%",
+      top: groupVisualUi.avatarOffsetTop,
+      transform: "translateX(-50%)",
+      zIndex: 20,
+    }}
+  >
+    <div style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handlePickAvatar();
+        }}
+        disabled={!isOwner || uploading}
+        style={{
+          width: groupVisualUi.avatarSize,
+          height: groupVisualUi.avatarSize,
+          borderRadius: "50%",
+          overflow: "hidden",
+          border: "4px solid rgba(0,0,0,0.96)",
+          boxShadow: groupVisualUi.shadow,
+          display: "grid",
+          placeItems: "center",
+          background: "#0c0c0c",
+          userSelect: "none",
+          padding: 0,
+          margin: 0,
+          cursor: !isOwner || uploading ? "default" : "pointer",
+          pointerEvents: isOwner ? "auto" : "none",
+        }}
+        aria-label="Avatar de la comunidad"
+        title={isOwner ? "Cambiar avatar de la comunidad" : undefined}
+      >
+        {group.avatarUrl ? (
+          <img
+            src={group.avatarUrl}
+            alt="avatar"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
+          />
+        ) : (
+          <span
+            style={{
+              fontSize: "clamp(24px, 5vw, 34px)",
+              fontWeight: 600,
+              color: "rgba(255,255,255,0.88)",
+              fontFamily: groupPageFontStack,
+            }}
+          >
+            {(group.name ?? "G").trim().slice(0, 2).toUpperCase()}
+          </span>
+        )}
+      </button>
+
+      {isOwner && (
         <button
           type="button"
           onClick={(e) => {
@@ -1199,89 +1259,37 @@ const openCropWithFile = useCallback(
             e.stopPropagation();
             handlePickAvatar();
           }}
-          disabled={!isOwner || uploading}
+          disabled={uploading}
           style={{
-            width: groupPageUi.avatarSize,
-            height: groupPageUi.avatarSize,
-            borderRadius: "50%",
-            overflow: "hidden",
-            border: "4px solid rgba(0,0,0,0.96)",
-            boxShadow: groupPageUi.shadow,
+            position: "absolute",
+            right: 8,
+            bottom: 8,
+            width: 34,
+            height: 34,
+            borderRadius: 999,
+            border: "1px solid rgba(255,255,255,0.16)",
+            background: "rgba(12,12,12,0.92)",
+            color: "#fff",
+            cursor: uploading ? "not-allowed" : "pointer",
+            fontSize: 13,
+            fontWeight: 600,
             display: "grid",
             placeItems: "center",
-            background: "#0c0c0c",
-            userSelect: "none",
-            padding: 0,
-            margin: 0,
-            cursor: !isOwner || uploading ? "default" : "pointer",
-            pointerEvents: isOwner ? "auto" : "none",
+            boxShadow: groupVisualUi.shadow,
+            backdropFilter: "blur(10px)",
+            zIndex: 200,
+            pointerEvents: "auto",
+            fontFamily: groupPageFontStack,
           }}
-          aria-label="Avatar de la comunidad"
-          title={isOwner ? "Cambiar avatar de la comunidad" : undefined}
+          title="Cambiar avatar de la comunidad"
+          aria-label="Cambiar avatar de la comunidad"
         >
-          {group.avatarUrl ? (
-            <img
-              src={group.avatarUrl}
-              alt="avatar"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-              }}
-            />
-          ) : (
-            <span
-              style={{
-                fontSize: "clamp(24px, 5vw, 34px)",
-                fontWeight: 600,
-                color: "rgba(255,255,255,0.88)",
-                fontFamily: groupPageFontStack,
-              }}
-            >
-              {(group.name ?? "G").trim().slice(0, 2).toUpperCase()}
-            </span>
-          )}
+          {uploading && cropMode === "avatar" ? "..." : "✎"}
         </button>
-
-        {isOwner && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handlePickAvatar();
-            }}
-            disabled={uploading}
-            style={{
-              position: "absolute",
-              right: 8,
-              bottom: 8,
-              width: 34,
-              height: 34,
-              borderRadius: 999,
-              border: "1px solid rgba(255,255,255,0.16)",
-              background: "rgba(12,12,12,0.92)",
-              color: "#fff",
-              cursor: uploading ? "not-allowed" : "pointer",
-              fontSize: 13,
-              fontWeight: 600,
-              display: "grid",
-              placeItems: "center",
-              boxShadow: groupPageUi.shadow,
-              backdropFilter: "blur(10px)",
-              zIndex: 200,
-              pointerEvents: "auto",
-              fontFamily: groupPageFontStack,
-            }}
-            title="Cambiar avatar de la comunidad"
-            aria-label="Cambiar avatar de la comunidad"
-          >
-            {uploading && cropMode === "avatar" ? "..." : "✎"}
-          </button>
-        )}
-      </div>
+      )}
     </div>
-  );
+  </div>
+);
 
   const shouldShowRestrictedLanding =
     !isOwner &&
@@ -1315,18 +1323,19 @@ const openCropWithFile = useCallback(
             }
 
             .group-content {
-              position: relative;
-              padding: 0 18px 20px;
-              min-width: 0;
-            }
+  position: relative;
+  padding: 0 18px 20px;
+  min-width: 0;
+  background: #000;
+}
 
-            .group-header-copy {
-              padding-top: 92px;
-              position: relative;
-              z-index: 1;
-              min-height: 110px;
-              min-width: 0;
-            }
+.group-header-copy {
+  padding-top: calc((clamp(112px, 24vw, 220px) / 2) + 22px);
+  position: relative;
+  z-index: 1;
+  min-height: 110px;
+  min-width: 0;
+}
 
             .group-meta {
               display: grid;
@@ -1369,18 +1378,6 @@ const openCropWithFile = useCallback(
               box-sizing: border-box;
             }
 
-            @media (min-width: 700px) {
-              .group-header-copy {
-                padding-top: 126px;
-              }
-            }
-
-            @media (min-width: 1024px) {
-              .group-header-copy {
-                padding-top: 150px;
-              }
-            }
-
 @media (max-width: 900px) {
   .group-shell {
     max-width: none;
@@ -1411,14 +1408,21 @@ const openCropWithFile = useCallback(
           `}</style>
 
           <div style={container} className="group-shell">
-            <section className="group-card" style={cardStyle}>
-              <div
-                style={{
-                  position: "relative",
-                  height: groupPageUi.coverHeight,
-                  background: "#0b0b0b",
-                }}
-              >
+            <section
+  className="group-card"
+  style={{
+    ...cardStyle,
+    background: "#000",
+    backdropFilter: "none",
+  }}
+>
+<div
+  style={{
+    position: "relative",
+    height: groupVisualUi.coverHeight,
+    background: "#000",
+  }}
+>
                 <img
                   src={coverBg}
                   alt="Cover"
@@ -1790,11 +1794,12 @@ const openCropWithFile = useCallback(
             min-width: 0;
           }
 
-          .group-content {
-            position: relative;
-            padding: 0 18px 20px;
-            min-width: 0;
-          }
+.group-content {
+  position: relative;
+  padding: 0 18px 20px;
+  min-width: 0;
+  background: #000;
+}
 
           .group-header-copy {
             padding-top: 92px;
@@ -1935,14 +1940,22 @@ const openCropWithFile = useCallback(
         `}</style>
 
         <div style={container} className="group-shell">
-          <section className="group-card" style={cardStyle}>
-            <div
-              style={{
-                position: "relative",
-                height: groupPageUi.coverHeight,
-                background: "#0b0b0b",
-              }}
-            >
+          <section
+  className="group-card"
+  style={{
+    ...cardStyle,
+    background: "#000",
+    backgroundColor: "#000",
+    backdropFilter: "none",
+  }}
+>
+<div
+  style={{
+    position: "relative",
+    height: groupVisualUi.coverHeight,
+    background: "#000",
+  }}
+>
               <img
                 src={coverBg}
                 alt="cover"
@@ -1954,14 +1967,19 @@ const openCropWithFile = useCallback(
                 }}
               />
 
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.52) 58%, rgba(0,0,0,0.88) 100%)",
-                }}
-              />
+<div
+  style={{
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "92%",
+    zIndex: 10,
+    pointerEvents: "none",
+    background:
+      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.12) 14%, rgba(0,0,0,0.26) 28%, rgba(0,0,0,0.44) 44%, rgba(0,0,0,0.62) 60%, rgba(0,0,0,0.78) 76%, rgba(0,0,0,0.9) 90%, rgba(0,0,0,0.96) 100%)",
+  }}
+/>
 
               {canShareGroup && (
   <CopyLinkButton

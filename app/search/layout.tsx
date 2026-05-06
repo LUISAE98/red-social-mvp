@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
@@ -205,6 +205,28 @@ function WalletDesktopRail({
         .walletLabel {
           white-space: nowrap;
         }
+
+        .floatingLogoutWrap {
+          position: fixed;
+          right: calc(18px + env(safe-area-inset-right));
+          bottom: calc(18px + env(safe-area-inset-bottom));
+          z-index: 2147483005;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .floatingLogoutWrap :global(button) {
+          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
+        }
+
+        @media (max-width: 900px) {
+          .floatingLogoutWrap {
+            right: calc(12px + env(safe-area-inset-right));
+            bottom: calc(82px + env(safe-area-inset-bottom));
+          }
+        }
+
       `}</style>
 
       <aside className="walletRail" aria-label="Accesos directos">
@@ -286,6 +308,28 @@ function PublicSearchShell({ children }: { children: React.ReactNode }) {
             padding-bottom: calc(18px + env(safe-area-inset-bottom));
           }
         }
+
+        .floatingLogoutWrap {
+          position: fixed;
+          right: calc(18px + env(safe-area-inset-right));
+          bottom: calc(18px + env(safe-area-inset-bottom));
+          z-index: 2147483005;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .floatingLogoutWrap :global(button) {
+          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
+        }
+
+        @media (max-width: 900px) {
+          .floatingLogoutWrap {
+            right: calc(12px + env(safe-area-inset-right));
+            bottom: calc(82px + env(safe-area-inset-bottom));
+          }
+        }
+
       `}</style>
 
       <div className="layout">
@@ -299,15 +343,71 @@ function AuthenticatedSearchShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
+const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+const [isMobileHeaderHidden, setIsMobileHeaderHidden] = useState(false);
+const lastScrollYRef = useRef(0);
+const contentAreaScrollRef = useRef<HTMLDivElement | null>(null);
+
+const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  useEffect(() => {
-    setMobileSearchOpen(false);
-  }, [pathname]);
+ useEffect(() => {
+  setMobileSearchOpen(false);
+}, [pathname]);
+
+useEffect(() => {
+  setIsMobileHeaderHidden(false);
+  lastScrollYRef.current = 0;
+
+  if (contentAreaScrollRef.current) {
+    contentAreaScrollRef.current.scrollTop = 0;
+  }
+}, [pathname]);
+
+useEffect(() => {
+  if (mobileSearchOpen) {
+    setIsMobileHeaderHidden(false);
+    return;
+  }
+
+  const scrollElement = contentAreaScrollRef.current;
+  if (!scrollElement) return;
+
+  function handleScroll() {
+    if (window.innerWidth > 900) {
+      setIsMobileHeaderHidden(false);
+      return;
+    }
+
+const currentScrollY = contentAreaScrollRef.current?.scrollTop ?? 0;
+const previousScrollY = lastScrollYRef.current;
+const scrollDifference = currentScrollY - previousScrollY;
+
+    if (currentScrollY < 40) {
+      setIsMobileHeaderHidden(false);
+      lastScrollYRef.current = currentScrollY;
+      return;
+    }
+
+    if (scrollDifference > 8) {
+      setIsMobileHeaderHidden(true);
+    }
+
+    if (scrollDifference < -8) {
+      setIsMobileHeaderHidden(false);
+    }
+
+    lastScrollYRef.current = currentScrollY;
+  }
+
+  scrollElement.addEventListener("scroll", handleScroll, { passive: true });
+
+  return () => {
+    scrollElement.removeEventListener("scroll", handleScroll);
+  };
+}, [mobileSearchOpen]);
 
   return (
     <>
@@ -329,23 +429,26 @@ function AuthenticatedSearchShell({ children }: { children: React.ReactNode }) {
           overflow: hidden;
         }
 
-        .header {
-          position: sticky;
-          top: 0;
-          z-index: 80;
-          padding-top: env(safe-area-inset-top);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(0, 0, 0, 0.92);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-        }
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  padding-top: env(safe-area-inset-top);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: #000000;
+  transform: translateY(0);
+  transition:
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.28s ease;
+  will-change: transform;
+}
 
         .headerInner {
           width: 100%;
           padding-left: max(var(--shell-gutter), env(safe-area-inset-left));
           padding-right: max(var(--shell-gutter), env(safe-area-inset-right));
-          padding-top: 12px;
-          padding-bottom: 12px;
+          padding-top: 8px;
+          padding-bottom: 8px;
           box-sizing: border-box;
         }
 
@@ -354,7 +457,7 @@ function AuthenticatedSearchShell({ children }: { children: React.ReactNode }) {
           grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--wallet-rail-width);
           gap: var(--shell-column-gap);
           align-items: center;
-          min-height: 60px;
+          min-height: 40px;
           width: 100%;
         }
 
@@ -374,9 +477,7 @@ function AuthenticatedSearchShell({ children }: { children: React.ReactNode }) {
         }
 
         .desktopLogoutWrap {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
+          display: none;
         }
 
         .mobileHeaderRow,
@@ -385,7 +486,7 @@ function AuthenticatedSearchShell({ children }: { children: React.ReactNode }) {
         }
 
         .mobileHeaderRow {
-          min-height: 56px;
+          min-height: 38px;
           width: 100%;
         }
 
@@ -449,8 +550,13 @@ function AuthenticatedSearchShell({ children }: { children: React.ReactNode }) {
           }
         }
 
-        @media (max-width: 900px) {
-          .desktopHeader {
+@media (max-width: 900px) {
+  .headerHiddenMobile {
+    transform: translateY(calc(-100% - env(safe-area-inset-top)));
+    opacity: 0.98;
+  }
+
+  .desktopHeader {
             display: none;
           }
 
@@ -487,10 +593,36 @@ function AuthenticatedSearchShell({ children }: { children: React.ReactNode }) {
             width: 100%;
           }
         }
+
+        .floatingLogoutWrap {
+          position: fixed;
+          right: calc(18px + env(safe-area-inset-right));
+          bottom: calc(18px + env(safe-area-inset-bottom));
+          z-index: 2147483005;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .floatingLogoutWrap :global(button) {
+          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
+        }
+
+        @media (max-width: 900px) {
+          .floatingLogoutWrap {
+            right: calc(12px + env(safe-area-inset-right));
+            bottom: calc(82px + env(safe-area-inset-bottom));
+          }
+        }
+
       `}</style>
 
       <div className="layout">
-        <header className="header">
+        <header
+  className={`header ${
+    !mobileSearchOpen && isMobileHeaderHidden ? "headerHiddenMobile" : ""
+  }`}
+>
           <div className="headerInner">
             <div className="desktopHeader">
               <Link href="/" className="brand">
@@ -538,7 +670,11 @@ function AuthenticatedSearchShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <div className="contentArea">
+        <div className="floatingLogoutWrap">
+          <LogoutButton />
+        </div>
+
+       <div className="contentArea" ref={contentAreaScrollRef}>
           <div className="sidebarCol">
             <OwnerSidebar />
           </div>

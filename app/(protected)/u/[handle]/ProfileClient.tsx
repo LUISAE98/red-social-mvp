@@ -308,28 +308,28 @@ function redirectToLogin() {
   router.push(`/login?next=${encodeURIComponent(nextPath)}`);
 }
 
-  const ui = {
-    pageMaxWidth: 1080,
-    coverHeight: "clamp(190px, 35vw, 300px)",
-    avatarSize: "clamp(112px, 24vw, 220px)",
-    avatarOffsetTop: "clamp(-58px, -9vw, -82px)",
-    contentTopPadding: "clamp(82px, 14vw, 176px)",
-    cardRadius: 18,
-    panelRadius: 14,
-    buttonRadius: 10,
-    buttonPadding: "10px 14px",
-    modalMaxWidth: 680,
-    title: 18,
-    subtitle: 16,
-    body: 14,
-    micro: 12,
-    label: 12,
-    shadow: "0 18px 48px rgba(0,0,0,0.55)",
-    borderSoft: "1px solid rgba(255,255,255,0.16)",
-    borderFaint: "1px solid rgba(255,255,255,0.10)",
-    cardBg: "rgba(12,12,12,0.92)",
-    panelBg: "rgba(255,255,255,0.03)",
-  };
+const ui = {
+  pageMaxWidth: 1080,
+  coverHeight: "clamp(240px, 38vw, 360px)",
+  avatarSize: "clamp(112px, 24vw, 220px)",
+  avatarOffsetTop: "calc(clamp(112px, 24vw, 220px) / -2)",
+  contentTopPadding: "calc((clamp(112px, 24vw, 220px) / 2) + 22px)",
+  cardRadius: 18,
+  panelRadius: 14,
+  buttonRadius: 10,
+  buttonPadding: "10px 14px",
+  modalMaxWidth: 680,
+  title: 18,
+  subtitle: 16,
+  body: 14,
+  micro: 12,
+  label: 12,
+  shadow: "0 18px 48px rgba(0,0,0,0.55)",
+  borderSoft: "1px solid rgba(255,255,255,0.16)",
+  borderFaint: "1px solid rgba(255,255,255,0.10)",
+  cardBg: "#000",
+  panelBg: "rgba(255,255,255,0.03)",
+};
 
   const styles = {
     card: {
@@ -337,7 +337,7 @@ function redirectToLogin() {
       border: ui.borderSoft,
       background: ui.cardBg,
       boxShadow: ui.shadow,
-      backdropFilter: "blur(10px)",
+      backdropFilter: "none",
     } as CSSProperties,
     buttonPrimary: {
       padding: ui.buttonPadding,
@@ -979,11 +979,11 @@ await createExclusiveSessionRequest({
             min-width: 0;
           }
 
-          .profile-content {
-            position: relative;
-            padding: 0 18px 20px;
-            min-width: 0;
-          }
+.profile-content {
+  position: relative;
+  padding: 0 18px 20px;
+  min-width: 0;
+}
 
           .profile-meta {
             display: grid;
@@ -1117,15 +1117,19 @@ await createExclusiveSessionRequest({
                 }}
               />
 
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.52) 58%, rgba(0,0,0,0.88) 100%)",
-                }}
-              />
-
+<div
+  style={{
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "82%",
+    zIndex: 10,
+    pointerEvents: "none",
+    background:
+      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.12) 14%, rgba(0,0,0,0.26) 28%, rgba(0,0,0,0.44) 44%, rgba(0,0,0,0.62) 60%, rgba(0,0,0,0.78) 76%, rgba(0,0,0,0.9) 90%, rgba(0,0,0,0.96) 100%)",
+  }}
+/>
               <DonationAccessButton
   donation={userDoc.donation ?? null}
   disabled={!viewer}

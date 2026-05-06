@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
@@ -370,13 +370,11 @@ function PublicProfileShell({
           padding-left: max(24px, env(safe-area-inset-left));
           padding-right: max(24px, env(safe-area-inset-right));
           border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(0, 0, 0, 0.92);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
+          background: #000000;
         }
 
         .headerInner {
-          min-height: 60px;
+          min-height: 48px;
           display: flex;
           justify-content: flex-start;
           align-items: center;
@@ -407,7 +405,7 @@ function PublicProfileShell({
           }
 
           .headerInner {
-            min-height: 56px;
+            min-height: 44px;
           }
 
           .brand {
@@ -418,6 +416,28 @@ function PublicProfileShell({
             width: min(720px, calc(100% - 20px));
             padding-top: 10px;
             padding-bottom: calc(18px + env(safe-area-inset-bottom));
+          }
+        }
+
+
+        .floatingLogoutWrap {
+          position: fixed;
+          right: calc(18px + env(safe-area-inset-right));
+          bottom: calc(18px + env(safe-area-inset-bottom));
+          z-index: 2147483005;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .floatingLogoutWrap :global(button) {
+          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
+        }
+
+        @media (max-width: 900px) {
+          .floatingLogoutWrap {
+            right: calc(12px + env(safe-area-inset-right));
+            bottom: calc(82px + env(safe-area-inset-bottom));
           }
         }
 
@@ -454,8 +474,11 @@ function AuthenticatedProfileShell({
   const pathname = usePathname();
   const { user } = useAuth();
 
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
+const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+const [isMobileHeaderHidden, setIsMobileHeaderHidden] = useState(false);
+const lastScrollYRef = useRef(0);
+
+const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -463,6 +486,51 @@ function AuthenticatedProfileShell({
   useEffect(() => {
     setMobileSearchOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+  setIsMobileHeaderHidden(false);
+  lastScrollYRef.current = 0;
+}, [pathname]);
+
+useEffect(() => {
+  if (mobileSearchOpen) {
+    setIsMobileHeaderHidden(false);
+    return;
+  }
+
+  function handleScroll() {
+    if (window.innerWidth > 900) {
+      setIsMobileHeaderHidden(false);
+      return;
+    }
+
+    const currentScrollY = window.scrollY;
+    const previousScrollY = lastScrollYRef.current;
+    const scrollDifference = currentScrollY - previousScrollY;
+
+    if (currentScrollY < 40) {
+      setIsMobileHeaderHidden(false);
+      lastScrollYRef.current = currentScrollY;
+      return;
+    }
+
+    if (scrollDifference > 8) {
+      setIsMobileHeaderHidden(true);
+    }
+
+    if (scrollDifference < -8) {
+      setIsMobileHeaderHidden(false);
+    }
+
+    lastScrollYRef.current = currentScrollY;
+  }
+
+  window.addEventListener("scroll", handleScroll, { passive: true });
+
+  return () => {
+    window.removeEventListener("scroll", handleScroll);
+  };
+}, [mobileSearchOpen]);
 
 const contentAreaClassName = "contentArea contentAreaWithWallet";
 
@@ -487,23 +555,26 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           flex-direction: column;
         }
 
-        .header {
-          position: sticky;
-          top: 0;
-          z-index: 80;
-          padding-top: env(safe-area-inset-top);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(0, 0, 0, 0.92);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-        }
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  padding-top: env(safe-area-inset-top);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  background: #000000;
+  transform: translateY(0);
+  transition:
+    transform 0.34s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.28s ease;
+  will-change: transform;
+}
 
         .headerInner {
           width: 100%;
           padding-left: max(var(--shell-gutter), env(safe-area-inset-left));
           padding-right: max(var(--shell-gutter), env(safe-area-inset-right));
-          padding-top: 12px;
-          padding-bottom: 12px;
+          padding-top: 8px;
+          padding-bottom: 8px;
           box-sizing: border-box;
         }
 
@@ -512,7 +583,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--wallet-rail-width);
   gap: var(--shell-column-gap);
   align-items: center;
-  min-height: 60px;
+  min-height: 40px;
   width: 100%;
 }
 
@@ -555,10 +626,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         }
 
         .desktopLogoutWrap {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          flex-shrink: 0;
+          display: none;
         }
 
         .mobileHeaderRow,
@@ -567,7 +635,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         }
 
         .mobileHeaderRow {
-          min-height: 56px;
+          min-height: 38px;
           width: 100%;
         }
 
@@ -665,10 +733,15 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         }
 
         @media (max-width: 900px) {
+
+        .headerHiddenMobile {
+  transform: translateY(calc(-100% - env(safe-area-inset-top)));
+  opacity: 0.98;
+}
           .headerInner {
             width: 100%;
-            padding-top: 10px;
-            padding-bottom: 10px;
+            padding-top: 6px;
+            padding-bottom: 6px;
           }
 
           .desktopHeader {
@@ -713,6 +786,28 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           }
         }
 
+
+        .floatingLogoutWrap {
+          position: fixed;
+          right: calc(18px + env(safe-area-inset-right));
+          bottom: calc(18px + env(safe-area-inset-bottom));
+          z-index: 2147483005;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .floatingLogoutWrap :global(button) {
+          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
+        }
+
+        @media (max-width: 900px) {
+          .floatingLogoutWrap {
+            right: calc(12px + env(safe-area-inset-right));
+            bottom: calc(82px + env(safe-area-inset-bottom));
+          }
+        }
+
         @media (max-width: 520px) {
           .mobileHeaderRow {
             gap: 8px;
@@ -729,7 +824,11 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
       `}</style>
 
       <div className="layout">
-        <header className="header">
+        <header
+  className={`header ${
+    !mobileSearchOpen && isMobileHeaderHidden ? "headerHiddenMobile" : ""
+  }`}
+>
           <div className="headerInner">
             <div className="desktopHeader">
               <div className="brandCol">
@@ -793,6 +892,10 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
             )}
           </div>
         </header>
+
+        <div className="floatingLogoutWrap">
+          <LogoutButton />
+        </div>
 
         <div className={contentAreaClassName}>
           <div className="sidebarCol">
