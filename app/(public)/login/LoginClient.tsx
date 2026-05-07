@@ -267,7 +267,9 @@ const primaryButtonStyle: React.CSSProperties = {
   padding: "8px 14px",
   borderRadius: 10,
   border: "none",
-  background: `linear-gradient(100deg, ${vibraPink} 0%, ${vibraPurple} 52%, ${vibraBlue} 100%)`,
+  backgroundImage: `linear-gradient(100deg, ${vibraPink} 0%, ${vibraPurple} 35%, ${vibraBlue} 70%, ${vibraPink} 100%)`,
+backgroundSize: "280% 280%",
+backgroundPosition: "0% 50%",
   color: "#fff",
   fontSize: 14,
   fontWeight: 600,
@@ -421,8 +423,7 @@ body.loginNoScroll {
           position: relative;
           z-index: 1;
         }
-
-        @media (max-width: 1180px) {
+      @media (max-width: 1180px) {
   .loginLeftPane {
     transform: scale(0.82);
     transform-origin: center center;
@@ -620,16 +621,16 @@ marginBottom: 6,
 </Link>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  ...(loading ? secondaryButtonStyle : primaryButtonStyle),
-                  marginTop: 2,
-                  opacity: loading ? 0.84 : 1,
-                  cursor: loading ? "not-allowed" : "pointer",
-                }}
-              >
+<button
+  type="submit"
+  disabled={loading}
+  style={{
+    ...(loading ? secondaryButtonStyle : primaryButtonStyle),
+    marginTop: 2,
+    opacity: loading ? 0.84 : 1,
+    cursor: loading ? "not-allowed" : "pointer",
+  }}
+>
                 {loading ? "Entrando..." : "Entrar"}
               </button>
             </form>

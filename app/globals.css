@@ -24,6 +24,7 @@ body {
 
 html {
   -webkit-text-size-adjust: 100%;
+  scrollbar-gutter: stable;
 }
 
 *,
@@ -41,7 +42,6 @@ body {
 }
 
 /* Prevent Safari bounce scroll (PWA behavior) */
-
 html,
 body {
   min-height: 100%;
@@ -58,16 +58,16 @@ main,
   -webkit-overflow-scrolling: touch;
 }
 
-/* Scrollbar global discreta */
+/* Scrollbar global Vibra */
 html,
 body {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  scrollbar-color: rgba(168, 85, 255, 0.28) transparent;
 }
 
 html::-webkit-scrollbar,
 body::-webkit-scrollbar {
-  width: 6px;
+  width: 10px;
 }
 
 html::-webkit-scrollbar-track,
@@ -77,10 +77,17 @@ body::-webkit-scrollbar-track {
 
 html::-webkit-scrollbar-thumb,
 body::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(168, 85, 255, 0.24);
   border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
 }
 
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover {
+  background: rgba(168, 85, 255, 0.38);
+  background-clip: content-box;
+}
 html::-webkit-scrollbar-button,
 body::-webkit-scrollbar-button {
   display: none;

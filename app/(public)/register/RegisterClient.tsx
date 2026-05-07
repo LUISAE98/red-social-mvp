@@ -11,6 +11,10 @@ import {
   getNextFromSearchParams,
 } from "@/lib/auth-redirect";
 
+const vibraPink = "#ff2fb3";
+const vibraPurple = "#a855ff";
+const vibraBlue = "#4f46ff";
+
 type Sex = "male" | "female" | "other" | "prefer_not_say";
 
 const MONTHS = [
@@ -282,18 +286,23 @@ const pageStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
-  const shellStyle: React.CSSProperties = {
-    width: "100%",
-    maxWidth: 332,
-  };
+const shellStyle: React.CSSProperties = {
+  width: "100%",
+  maxWidth: 380,
+  padding: "24px 36px 34px",
+  borderRadius: 18,
+  border: "1px solid rgba(168, 85, 255, 0.58)",
+  background: "rgba(10, 7, 28, 0.30)",
+  boxShadow:
+    "0 0 0 1px rgba(255,255,255,0.03) inset, 0 0 28px rgba(168,85,255,0.18)",
+  backdropFilter: "blur(16px) saturate(120%)",
+  WebkitBackdropFilter: "blur(16px) saturate(120%)",
+  boxSizing: "border-box",
+};
 
-  const innerPanelStyle: React.CSSProperties = {
-    marginTop: 12,
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.022)",
-    padding: 10,
-  };
+const innerPanelStyle: React.CSSProperties = {
+  marginTop: 26,
+};
 
   const labelTextStyle: React.CSSProperties = {
     fontSize: 10.5,
@@ -307,7 +316,7 @@ const pageStyle: React.CSSProperties = {
     height: 40,
     padding: "0 11px",
     borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.12)",
+    border: "1px solid rgba(168,85,255,0.22)",
     background: "rgba(255,255,255,0.035)",
     color: "#fff",
     outline: "none",
@@ -318,23 +327,15 @@ const pageStyle: React.CSSProperties = {
     WebkitAppearance: "none",
   };
 
-  const selectStyle: React.CSSProperties = {
-    width: "100%",
-    height: 40,
-    padding: "0 11px",
-    borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.035)",
-    color: "#fff",
-    outline: "none",
-    fontSize: 12.5,
-    fontWeight: 400,
-    fontFamily: fontStack,
-    boxSizing: "border-box",
-    appearance: "none",
-    WebkitAppearance: "none",
-    MozAppearance: "none",
-  };
+const selectStyle: React.CSSProperties = {
+  ...inputStyle,
+  padding: "0 11px",
+  color: "rgba(255,255,255,0.58)",
+  appearance: "none",
+  WebkitAppearance: "none",
+  MozAppearance: "none",
+  cursor: "pointer",
+};
 
   const helperTextStyle: React.CSSProperties = {
     fontSize: 10,
@@ -350,41 +351,36 @@ const pageStyle: React.CSSProperties = {
     lineHeight: 1.35,
   };
 
-  const linkStyle: React.CSSProperties = {
-    color: "rgba(255,255,255,0.82)",
-    textDecoration: "underline",
-    textUnderlineOffset: "2px",
-    fontSize: 10.5,
-    fontWeight: 400,
-  };
+const linkStyle: React.CSSProperties = {
+  color: vibraPurple,
+  textDecoration: "none",
+  fontSize: 10.5,
+  fontWeight: 600,
+};
 
-  const secondaryButtonStyle: React.CSSProperties = {
-    width: "100%",
-    minHeight: 36,
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(255,255,255,0.08)",
-    color: "#fff",
-    fontSize: 12.5,
-    fontWeight: 600,
-    fontFamily: fontStack,
-    cursor: "pointer",
-  };
 
-  const primaryButtonStyle: React.CSSProperties = {
-    width: "100%",
-    minHeight: 36,
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "#fff",
-    color: "#000",
-    fontSize: 12.5,
-    fontWeight: 600,
-    fontFamily: fontStack,
-    cursor: "pointer",
-  };
+const primaryButtonStyle: React.CSSProperties = {
+  width: "100%",
+  minHeight: 40,
+  padding: "8px 14px",
+  borderRadius: 10,
+  border: "none",
+  background: `linear-gradient(100deg, ${vibraPink} 0%, ${vibraPurple} 52%, ${vibraBlue} 100%)`,
+  color: "#fff",
+  fontSize: 14,
+  fontWeight: 600,
+  letterSpacing: "-0.01em",
+  fontFamily: fontStack,
+  cursor: "pointer",
+  boxShadow: "0 10px 28px rgba(168,85,255,0.22)",
+  overflow: "hidden",
+};
+
+const secondaryButtonStyle: React.CSSProperties = {
+  ...primaryButtonStyle,
+  background: "rgba(255,255,255,0.08)",
+  color: "#fff",
+};
 
   const messageStyle: React.CSSProperties = {
     marginTop: 10,
@@ -408,10 +404,16 @@ const pageStyle: React.CSSProperties = {
     <main style={pageStyle}>
       <div style={shellStyle}>
         <style jsx>{`
-          select option {
-            background: #111;
-            color: #fff;
-          }
+
+        select {
+  background-color: rgba(255,255,255,0.035);
+  color: rgba(255,255,255,0.58);
+}
+
+select option {
+  background-color: #120922;
+  color: #ffffff;
+}
 
           .register-two-col {
             display: grid;

@@ -28,15 +28,8 @@ export default function GroupsSearchToolbar({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isFocused, setIsFocused] = useState(false);
 
-  const fieldBorder = "1px solid rgba(255,255,255,0.18)";
-  const fieldBg = "rgba(255,255,255,0.045)";
-  const fieldBgFocus = "rgba(255,255,255,0.065)";
   const hasSearch = search.trim().length > 0;
   const isExpanded = isFocused || hasSearch || showCloseSearch;
-
-  function focusInput() {
-    inputRef.current?.focus();
-  }
 
   function blurInput() {
     inputRef.current?.blur();
@@ -72,49 +65,59 @@ export default function GroupsSearchToolbar({
           justify-content: center;
         }
 
-        .mobile-search-emoji-btn {
-          display: none;
-        }
+.search-input-wrap {
+  position: relative;
+  min-width: 0;
+  width: ${isExpanded ? "min(100%, 920px)" : "360px"};
+  max-width: 920px;
+  padding: 1px;
+  border-radius: 18px;
+  background: linear-gradient(
+    100deg,
+    #ff2fb3 0%,
+    #a855ff 45%,
+    #4f46ff 100%
+  );
+  background-size: 220% 220%;
+  animation: vibraSearchBorderFlow 4.2s ease-in-out infinite;
+  transition:
+    width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center;
+  box-shadow: 0 8px 20px rgba(168, 85, 255, 0.10);
+}
 
-        .search-input-wrap {
-          position: relative;
-          overflow: visible;
-          min-width: 0;
-          width: ${isExpanded ? "min(100%, 920px)" : "360px"};
-          max-width: 920px;
-          border-radius: 14px;
-          transition:
-            width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-            max-width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-            transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
-          transform-origin: center;
-        }
+.search-input-wrap:focus-within {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(168, 85, 255, 0.16);
+}
 
-        .search-input-wrap:focus-within {
-          transform: translateY(-1px);
-        }
+.search-input {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 40px;
+  padding: 0 42px 0 15px;
+  border-radius: 17px;
+  border: none;
+  background: rgba(8, 5, 24, 0.94);
+  color: #fff;
+  outline: none;
+  font-size: 13px;
+  box-sizing: border-box;
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: ${fontStack};
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  transition:
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
 
-        .search-input {
-          position: relative;
-          z-index: 2;
-          width: 100%;
-          height: 46px;
-          padding: 0 42px 0 16px;
-          border-radius: 14px;
-          border: ${fieldBorder};
-          background: ${fieldBg};
-          color: #fff;
-          outline: none;
-          font-size: 14px;
-          box-sizing: border-box;
-          transition:
-            border-color 0.18s ease,
-            background 0.18s ease,
-            box-shadow 0.18s ease;
-          appearance: none;
-          -webkit-appearance: none;
-          font-family: ${fontStack};
-        }
+.search-input:focus {
+  background: rgba(10, 6, 28, 0.96);
+}
 
         .search-input::placeholder {
           color: rgba(255, 255, 255, 0.46);
@@ -129,17 +132,11 @@ export default function GroupsSearchToolbar({
           -webkit-appearance: none;
         }
 
-        .search-input:focus {
-          border-color: rgba(255, 255, 255, 0.28);
-          background: ${fieldBgFocus};
-          box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
-        }
-
         .inner-action-btn {
           position: absolute;
           z-index: 20;
           top: 50%;
-          right: 10px;
+          right: 11px;
           transform: translateY(-50%);
           width: 24px;
           height: 24px;
@@ -158,20 +155,15 @@ export default function GroupsSearchToolbar({
           background: rgba(255, 255, 255, 0.06);
         }
 
-        .inner-action-btn:focus-visible {
-          outline: 2px solid rgba(255, 255, 255, 0.28);
-          outline-offset: 2px;
-        }
-
         .create-btn {
           width: 46px;
           min-width: 46px;
           height: 46px;
           padding: 0;
-          border-radius: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.22);
-          background: #fff;
-          color: #000;
+          border-radius: 10px;
+          border: none;
+          background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 52%, #4f46ff 100%);
+          color: #fff;
           cursor: pointer;
           font-weight: 600;
           font-size: 20px;
@@ -182,94 +174,53 @@ export default function GroupsSearchToolbar({
           white-space: nowrap;
           flex-shrink: 0;
           line-height: 1;
+          box-shadow: 0 10px 28px rgba(168, 85, 255, 0.22);
         }
 
         .create-btn:hover {
           transform: translateY(-1px);
+          filter: brightness(1.04);
         }
 
-        .create-btn:focus-visible {
-          outline: 2px solid rgba(255, 255, 255, 0.28);
-          outline-offset: 2px;
+        @keyframes vibraSearchBorderFlow {
+          0%,
+          100% {
+            background-position: 0% 50%;
+          }
+
+          50% {
+            background-position: 100% 50%;
+          }
         }
 
         @media (max-width: 640px) {
-          .search-toolbar {
-            grid-template-columns: minmax(0, 1fr) ${showCreateGroup ? "auto" : ""};
-          }
-
           .search-main {
             justify-content: center;
-            gap: 0px;
-          }
-
-          .mobile-search-emoji-btn {
-            width: ${isExpanded ? "0px" : "46px"};
-            min-width: ${isExpanded ? "0px" : "46px"};
-            height: 46px;
-            padding: 0;
-            border-radius: 14px;
-            border: ${fieldBorder};
-            background: ${fieldBg};
-            color: #fff;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            line-height: 1;
-            overflow: hidden;
-            opacity: ${isExpanded ? "0" : "1"};
-            transform: ${isExpanded ? "scale(0.92)" : "scale(1)"};
-            transition:
-              width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-              min-width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-              opacity 0.18s ease,
-              transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-              background 0.18s ease;
-            flex-shrink: 0;
-          }
-
-          .mobile-search-emoji-btn:hover {
-            background: rgba(255, 255, 255, 0.06);
-          }
-
-          .mobile-search-emoji-btn:focus-visible {
-            outline: 2px solid rgba(255, 255, 255, 0.28);
-            outline-offset: 2px;
           }
 
           .search-input-wrap {
-            width: ${isExpanded ? "min(100%, 360px)" : "0px"};
-            max-width: calc(100vw - 32px);
-            overflow: visible;
-            opacity: ${isExpanded ? "1" : "0"};
-            transform: ${isExpanded ? "translateY(-1px) scale(1)" : "scale(0.96)"};
-            transition:
-              width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
-              opacity 0.18s ease,
-              transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+            width: 100%;
+            max-width: 100%;
+            opacity: 1;
+            transform: none;
           }
 
-          .search-input {
-            height: 46px;
-            padding-left: 14px;
+.search-input {
+  height: 40px;
+  padding-left: 14px;
+  font-size: 13px;
+}
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .search-input-wrap {
+            animation: none;
           }
         }
       `}</style>
 
       <div className="search-toolbar">
         <div className="search-main">
-          <button
-            type="button"
-            className="mobile-search-emoji-btn"
-            onClick={focusInput}
-            aria-label={ariaLabel}
-            title={ariaLabel}
-          >
-            <span aria-hidden="true">🔍</span>
-          </button>
-
           <div className="search-input-wrap">
             <input
               ref={inputRef}
