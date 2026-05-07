@@ -15,6 +15,10 @@ import {
   appendSafeNextParam,
   getNextFromSearchParams,
 } from "@/lib/auth-redirect";
+import {
+  VibraServiceIcon,
+  VibraServiceIconsStyles,
+} from "@/app/components/VibraServiceIcons/VibraServiceIcons";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
@@ -190,6 +194,7 @@ const heroInnerStyle: React.CSSProperties = {
 const heroCopyStyle: React.CSSProperties = {
   minWidth: 0,
   width: "min(540px, 100%)",
+  position: "relative",
 };
 
 const heroLogoStyle: React.CSSProperties = {
@@ -350,6 +355,8 @@ const forgotLinkStyle: React.CSSProperties = {
 
   return (
     <>
+      <VibraServiceIconsStyles />
+
       <style jsx global>{`
 
 html.loginNoScroll,
@@ -379,31 +386,10 @@ body.loginNoScroll {
 
 
 .heroVibraLogoGlow {
-  animation: heroVibraLogoGlowFlow 4.8s ease-in-out infinite;
+  animation: none;
+  filter: none;
 }
 
-@keyframes heroVibraLogoGlowFlow {
-  0%, 100% {
-    filter:
-      drop-shadow(0 0 16px rgba(255, 47, 179, 0.72))
-      drop-shadow(0 0 34px rgba(255, 47, 179, 0.42))
-      drop-shadow(0 0 58px rgba(255, 47, 179, 0.22));
-  }
-
-  33% {
-    filter:
-      drop-shadow(0 0 16px rgba(168, 85, 255, 0.78))
-      drop-shadow(0 0 36px rgba(168, 85, 255, 0.46))
-      drop-shadow(0 0 62px rgba(168, 85, 255, 0.24));
-  }
-
-  66% {
-    filter:
-      drop-shadow(0 0 16px rgba(79, 70, 255, 0.78))
-      drop-shadow(0 0 36px rgba(79, 70, 255, 0.46))
-      drop-shadow(0 0 62px rgba(79, 70, 255, 0.24));
-  }
-}
 @keyframes vibraTextFlow {
   0%, 100% {
     background-position: 0% 50%;
@@ -423,6 +409,46 @@ body.loginNoScroll {
           position: relative;
           z-index: 1;
         }
+
+.loginHeroServiceIcons {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: clamp(18px, 2.2vw, 40px);
+  flex-wrap: nowrap;
+}
+
+.loginHeroServiceIconBlock {
+  width: clamp(104px, 8vw, 132px);
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+.loginHeroServiceIconTitle {
+  margin-top: 12px;
+  font-size: clamp(12px, 0.95vw, 14px);
+  font-weight: 750;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.loginHeroServiceIconText {
+  margin-top: 7px;
+  font-size: clamp(10px, 0.78vw, 11.4px);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.72);
+}
+@media (max-width: 900px) {
+  .loginHeroServiceIcons {
+    display: none !important;
+  }
+}
       @media (max-width: 1180px) {
   .loginLeftPane {
     transform: scale(0.82);
@@ -525,6 +551,61 @@ body.loginNoScroll {
     <br />
     Comparte ideas, contenido y experiencias únicas.
   </p>
+
+<div
+  style={{
+    position: "absolute",
+    top: "calc(100% + 58px)",
+    left: "calc(80% - 170px)",
+    transform: "translateX(-50%)",
+    width: "min(620px, calc(100vw - 820px))",
+minWidth: 520,
+    pointerEvents: "none",
+    zIndex: 2,
+  }}
+>
+ <div className="loginHeroServiceIcons">
+  <div className="loginHeroServiceIconBlock">
+    <VibraServiceIcon type="communities" size={70} showLabel={false} />
+    <div className="loginHeroServiceIconTitle">Comunidades</div>
+    <div className="loginHeroServiceIconText">
+      Espacios para conectar
+      <br />
+      con tu gente.
+    </div>
+  </div>
+
+  <div className="loginHeroServiceIconBlock">
+    <VibraServiceIcon type="content" size={70} showLabel={false} />
+    <div className="loginHeroServiceIconTitle">Contenido</div>
+    <div className="loginHeroServiceIconText">
+      Publica, interactúa y
+      <br />
+      crece con tu audiencia.
+    </div>
+  </div>
+
+  <div className="loginHeroServiceIconBlock">
+    <VibraServiceIcon type="realTime" size={70} showLabel={false} />
+    <div className="loginHeroServiceIconTitle">Tiempo real</div>
+    <div className="loginHeroServiceIconText">
+      Chats, lives y experiencias
+      <br />
+      sin límites.
+    </div>
+  </div>
+
+  <div className="loginHeroServiceIconBlock">
+    <VibraServiceIcon type="exclusiveSession" size={70} showLabel={false} />
+    <div className="loginHeroServiceIconTitle">Monetiza</div>
+    <div className="loginHeroServiceIconText">
+      Convierte tu pasión en
+      <br />
+      ingresos reales.
+    </div>
+  </div>
+</div>
+  </div>
 </div>
   </div>
 </div>
