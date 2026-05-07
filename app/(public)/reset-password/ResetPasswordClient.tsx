@@ -39,18 +39,18 @@ export default function ResetPasswordClient() {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  const pageStyle: React.CSSProperties = {
-    minHeight: "100dvh",
-    background:
-      "radial-gradient(circle at top, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.018) 18%, #000 52%)",
-    color: "#fff",
-    fontFamily: fontStack,
-    padding: "clamp(12px, 2.2vw, 18px) clamp(12px, 2.2vw, 18px) clamp(44px, 6vw, 72px)",
-    display: "grid",
-    placeItems: "center",
-    boxSizing: "border-box",
-  };
-
+const pageStyle: React.CSSProperties = {
+  minHeight: "100dvh",
+  position: "relative",
+  zIndex: 1,
+  background: "transparent",
+  color: "#fff",
+  fontFamily: fontStack,
+  padding: "clamp(12px, 2.2vw, 18px) clamp(12px, 2.2vw, 18px) clamp(44px, 6vw, 72px)",
+  display: "grid",
+  placeItems: "center",
+  boxSizing: "border-box",
+};
   const shellStyle: React.CSSProperties = {
     width: "100%",
     maxWidth: 332,

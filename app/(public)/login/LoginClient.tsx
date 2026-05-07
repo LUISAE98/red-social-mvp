@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   signInWithEmailAndPassword,
   setPersistence,
@@ -49,8 +49,18 @@ export default function LoginClient() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [keepSession, setKeepSession] = useState(true);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+const [msg, setMsg] = useState<string | null>(null);
+const [loading, setLoading] = useState(false);
+
+useEffect(() => {
+  document.documentElement.classList.add("loginNoScroll");
+  document.body.classList.add("loginNoScroll");
+
+  return () => {
+    document.documentElement.classList.remove("loginNoScroll");
+    document.body.classList.remove("loginNoScroll");
+  };
+}, []);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -115,17 +125,18 @@ export default function LoginClient() {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  const pageStyle: React.CSSProperties = {
-    minHeight: "100dvh",
-    position: "relative",
-    overflow: "hidden",
-    background: "#000",
-    color: "#fff",
-    fontFamily: fontStack,
-    padding:
-      "clamp(12px, 2.2vw, 18px) clamp(12px, 2.2vw, 18px) clamp(44px, 6vw, 72px)",
-    boxSizing: "border-box",
-  };
+const pageStyle: React.CSSProperties = {
+  height: "100dvh",
+  maxHeight: "100dvh",
+  position: "relative",
+  overflow: "hidden",
+  background: "transparent",
+  color: "#fff",
+  fontFamily: fontStack,
+  padding:
+    "clamp(12px, 2.2vw, 18px) clamp(12px, 2.2vw, 18px) clamp(44px, 6vw, 72px)",
+  boxSizing: "border-box",
+};
 
   const shellStyle: React.CSSProperties = {
     width: "100%",
@@ -136,16 +147,16 @@ export default function LoginClient() {
     background: "rgba(10, 7, 28, 0.30)",
     boxShadow:
       "0 0 0 1px rgba(255,255,255,0.03) inset, 0 0 28px rgba(168,85,255,0.18)",
-    backdropFilter: "blur(16px)",
-    WebkitBackdropFilter: "blur(16px)",
+backdropFilter: "blur(16px) saturate(120%)",
+WebkitBackdropFilter: "blur(16px) saturate(120%)",
     boxSizing: "border-box",
   };
 
 const logoStyle: React.CSSProperties = {
-  width: 118,
+  width: 142,
   height: "auto",
   display: "block",
-  margin: "0 auto 22px auto",
+  margin: "-15px auto 1px auto",
 };
 
   const rightPaneStyle: React.CSSProperties = {
@@ -185,6 +196,10 @@ const heroLogoStyle: React.CSSProperties = {
   width: "clamp(150px, 13vw, 260px)",
   height: "auto",
   flexShrink: 0,
+  position: "relative",
+  zIndex: 1,
+  transform: "scale(1.32)",
+  transformOrigin: "center center",
 };
 
 const heroTitleStyle: React.CSSProperties = {
@@ -334,38 +349,18 @@ const forgotLinkStyle: React.CSSProperties = {
   return (
     <>
       <style jsx global>{`
+
+html.loginNoScroll,
+body.loginNoScroll {
+  overflow: hidden !important;
+  height: 100%;
+  overscroll-behavior: none;
+}
+
         .loginSplitPage {
           display: grid;
           grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         }
-
-        .loginBackgroundLayer {
-          position: absolute;
-          inset: -4%;
-          z-index: 0;
-          pointer-events: none;
-          background-image:
-            linear-gradient(rgba(0,0,0,0.18), rgba(0,0,0,0.18)),
-            url("/background-vibra.png");
-          background-size: cover;
-          background-position: center bottom;
-          background-repeat: no-repeat;
-          transform: scale(1);
-          transform-origin: center center;
-          animation: loginBackgroundBreath 26s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-          will-change: transform;
-        }
-
-        @keyframes loginBackgroundBreath {
-          0%, 100% {
-            transform: scale(1);
-          }
-
-          50% {
-            transform: scale(1.035);
-          }
-        }
-
         .heroVibraGradientText {
   background: linear-gradient(
     100deg,
@@ -380,6 +375,33 @@ const forgotLinkStyle: React.CSSProperties = {
   animation: vibraTextFlow 4.5s ease-in-out infinite;
 }
 
+
+.heroVibraLogoGlow {
+  animation: heroVibraLogoGlowFlow 4.8s ease-in-out infinite;
+}
+
+@keyframes heroVibraLogoGlowFlow {
+  0%, 100% {
+    filter:
+      drop-shadow(0 0 16px rgba(255, 47, 179, 0.72))
+      drop-shadow(0 0 34px rgba(255, 47, 179, 0.42))
+      drop-shadow(0 0 58px rgba(255, 47, 179, 0.22));
+  }
+
+  33% {
+    filter:
+      drop-shadow(0 0 16px rgba(168, 85, 255, 0.78))
+      drop-shadow(0 0 36px rgba(168, 85, 255, 0.46))
+      drop-shadow(0 0 62px rgba(168, 85, 255, 0.24));
+  }
+
+  66% {
+    filter:
+      drop-shadow(0 0 16px rgba(79, 70, 255, 0.78))
+      drop-shadow(0 0 36px rgba(79, 70, 255, 0.46))
+      drop-shadow(0 0 62px rgba(79, 70, 255, 0.24));
+  }
+}
 @keyframes vibraTextFlow {
   0%, 100% {
     background-position: 0% 50%;
@@ -389,88 +411,6 @@ const forgotLinkStyle: React.CSSProperties = {
     background-position: 100% 50%;
   }
 }
-
-        .loginWaveColorFilter {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          z-index: 0;
-          background:
-            linear-gradient(
-              115deg,
-              transparent 0%,
-              rgba(79, 70, 255, 0.08) 36%,
-              rgba(168, 85, 255, 0.075) 50%,
-              rgba(255, 47, 179, 0.08) 64%,
-              transparent 100%
-            );
-          mix-blend-mode: screen;
-          opacity: 0.45;
-          animation: loginWaveColorFlow 9s ease-in-out infinite;
-        }
-
-        @keyframes loginWaveColorFlow {
-          0%, 100% {
-            transform: translateX(-8%);
-            opacity: 0.28;
-          }
-
-          50% {
-            transform: translateX(8%);
-            opacity: 0.5;
-          }
-        }
-
-        .loginParticles {
-          position: absolute;
-          inset: 0;
-          pointer-events: none;
-          overflow: hidden;
-          z-index: 0;
-        }
-
-        .loginParticle {
-          position: absolute;
-          border-radius: 999px;
-          animation: particleFloat 8s ease-in-out infinite;
-        }
-
-        .loginParticle::before,
-        .loginParticle::after {
-          content: none;
-        }
-
-        .loginParticle.isGlowing::before {
-          content: "";
-          position: absolute;
-          inset: -180%;
-          border-radius: inherit;
-          background: inherit;
-          filter: blur(5px);
-          opacity: 0.28;
-        }
-
-        .loginParticle.isGlowing::after {
-          content: "";
-          position: absolute;
-          inset: -320%;
-          border-radius: inherit;
-          background: inherit;
-          filter: blur(9px);
-          opacity: 0.09;
-        }
-
-        @keyframes particleFloat {
-          0%, 100% {
-            transform: translate3d(0, 0, 0);
-            opacity: 0.35;
-          }
-
-          50% {
-            transform: translate3d(12px, -18px, 0);
-            opacity: 1;
-          }
-        }
 
         .loginLeftPane {
           min-width: 0;
@@ -504,27 +444,28 @@ const forgotLinkStyle: React.CSSProperties = {
     justify-content: flex-start;
   }
 
-  .loginBackgroundLayer {
-    inset: -7%;
-    background-size: auto 108%;
-    background-position: center bottom;
-  }
+.loginRightPane {
+  width: 100%;
+  order: 1;
+  min-height: auto !important;
+  height: auto !important;
+  padding-top: 8px;
+  align-items: flex-start !important;
+  place-items: start center !important;
+}
 
-  .loginRightPane {
-    width: 100%;
-    order: 1;
-    padding-top: 18px;
-  }
-
-  .loginLeftPane {
-    order: 2;
-    display: flex;
-    width: 100%;
-    height: auto !important;
-    transform: none;
-    padding: 18px 30px 34px !important;
-    justify-content: flex-start !important;
-  }
+.loginLeftPane {
+  order: 2;
+  display: flex;
+  width: 100%;
+  min-height: auto !important;
+  height: auto !important;
+  transform: none;
+  padding: 18px 30px 20px !important;
+  justify-content: flex-start !important;
+  position: relative;
+  z-index: 1;
+}
 
   .loginLeftPane img {
     display: none !important;
@@ -553,11 +494,6 @@ const forgotLinkStyle: React.CSSProperties = {
     text-align: left !important;
   }
 }
-.loginRightPane {
-  width: 100%;
-  order: 1;
-  padding-top: 18px;
-}
 
 @media (max-width: 420px) {
   .loginRightPane > div {
@@ -567,76 +503,14 @@ const forgotLinkStyle: React.CSSProperties = {
       `}</style>
 
       <main style={pageStyle} className="loginSplitPage">
-        <div className="loginBackgroundLayer" aria-hidden="true" />
-
-        <div className="loginWaveColorFilter" aria-hidden="true" />
-
-        <div className="loginParticles" aria-hidden="true">
-          {Array.from({ length: 86 }).map((_, index) => {
-            const randomA = Math.abs(Math.sin(index * 12.9898) * 43758.5453) % 1;
-            const randomB = Math.abs(Math.sin(index * 78.233) * 24634.6345) % 1;
-            const randomC = Math.abs(Math.sin(index * 39.425) * 12983.445) % 1;
-
-            const isLowerParticle = index < 68;
-
-            const left = randomA * 100;
-            const top = isLowerParticle ? 50 + randomB * 46 : 4 + randomB * 36;
-
-            const color =
-              left > 62
-                ? "rgba(79, 70, 255, 0.9)"
-                : left > 38
-                  ? "rgba(168, 85, 255, 0.92)"
-                  : "rgba(255, 47, 179, 0.95)";
-
-            const glow =
-              left > 62
-                ? "rgba(79, 70, 255, 0.9)"
-                : left > 38
-                  ? "rgba(168, 85, 255, 0.9)"
-                  : "rgba(255, 47, 179, 0.95)";
-
-            const size = isLowerParticle ? 2 + randomC * 4.2 : 1.4 + randomC * 2.2;
-
-            return (
-              <span
-                key={index}
-                className={`loginParticle ${randomC > 0.93 ? "isGlowing" : ""}`}
-                style={{
-                  left: `${left}%`,
-                  top: `${top}%`,
-                  width: size,
-                  height: size,
-                  background: color,
-                  boxShadow:
-                    randomC > 0.93
-                      ? `0 0 ${size * 1.8}px ${glow}`
-                      : `0 0 ${size * 0.8}px ${glow}`,
-                  filter:
-                    randomC > 0.93
-                      ? `brightness(${1.12 + randomB * 0.18})`
-                      : "brightness(1)",
-                  animationDelay: `${randomB * 4}s`,
-                  animationDuration: `${7 + randomC * 6}s`,
-                  opacity:
-                    randomA > 0.72
-                      ? 0.82
-                      : isLowerParticle
-                        ? 0.38 + randomC * 0.22
-                        : 0.08 + randomC * 0.12,
-                }}
-              />
-            );
-          })}
-        </div>
-
         <div className="loginLeftPane" style={heroContentStyle}>
   <div style={heroInnerStyle}>
-    <img
-      src="/logotipo.png"
-      alt="Vibra"
-      style={heroLogoStyle}
-    />
+<img
+  src="/logotipo.png"
+  alt="Vibra"
+  className="heroVibraLogoGlow"
+  style={heroLogoStyle}
+/>
 
 <div style={heroCopyStyle}>
   <h2 style={heroTitleStyle}>
