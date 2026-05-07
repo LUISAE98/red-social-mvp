@@ -107,7 +107,7 @@ function WalletHeaderButton({
   );
 }
 type WalletRailTab = "finances" | "calendar" | "pending" | "history";
-type MainRailTab = "home" | "saved" | "createGroup";
+type MainRailTab = "home" | "saved";
 
 function resolveWalletRailTab(pathname: string): WalletRailTab | null {
   if (pathname.startsWith("/wallet/finanzas")) return "finances";
@@ -120,7 +120,6 @@ function resolveWalletRailTab(pathname: string): WalletRailTab | null {
 function resolveMainRailTab(pathname: string): MainRailTab | null {
   if (pathname === "/" || pathname.startsWith("/home")) return "home";
   if (pathname.startsWith("/saved")) return "saved";
-  if (pathname.startsWith("/groups/new")) return "createGroup";
   return null;
 }
 
@@ -181,12 +180,7 @@ function WalletDesktopRail({
       href: "/saved",
       emoji: "🔖",
     },
-    {
-      key: "createGroup",
-      label: "Crear nuevo grupo",
-      href: "/groups/new",
-      emoji: "🧩",
-    },
+  
   ];
 
   const activeWalletTab = resolveWalletRailTab(activePath);
@@ -196,52 +190,282 @@ function WalletDesktopRail({
     <>
       <style jsx>{`
 .walletRail {
-  position: fixed;
-  top: calc(env(safe-area-inset-top) + 86px);
-  width: var(--wallet-rail-width);
+  width: min(100%, 250px);
+  height: calc(100% - 10px);
+  min-height: 0;
+  margin-left: auto;
+  margin-right: auto;
+  overflow: hidden;
+  padding-bottom: 0;
+  box-sizing: border-box;
+
+  display: flex;
+  flex-direction: column;
+  gap: clamp(12px, 2.2vh, 24px);
+}
+.railSection {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  padding: 14px 14px;
+  box-sizing: border-box;
+
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+
+background:
+  linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.20) 0%,
+    rgba(168, 85, 255, 0.22) 16%,
+    rgba(28, 18, 64, 0.97) 48%,
+    rgba(11, 10, 28, 0.985) 100%
+  );
+
+backdrop-filter: blur(54px) saturate(220%) brightness(1);
+-webkit-backdrop-filter: blur(54px) saturate(220%) brightness(1);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 26px rgba(255, 255, 255, 0.035),
+    0 0 34px rgba(168, 85, 255, 0.16),
+    0 18px 54px rgba(0, 0, 0, 0.48);
 }
 
-        .railSection {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
+.railSection::before {
+  content: "";
+  position: absolute;
+  inset: -38%;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 14% 8%, rgba(168, 85, 255, 0.44), transparent 32%),
+    radial-gradient(circle at 84% 18%, rgba(79, 70, 255, 0.30), transparent 34%),
+    radial-gradient(circle at 20% 92%, rgba(168, 85, 255, 0.32), transparent 38%),
+    radial-gradient(circle at 92% 88%, rgba(79, 70, 255, 0.18), transparent 40%);
+  filter: blur(24px);
+  opacity: 1;
+  z-index: 0;
+  animation: railAuraMove 7s ease-in-out infinite alternate;
+}
 
-        .railSection + .railSection {
-          margin-top: 34px;
-          padding-top: 26px;
-          border-top: 1px solid rgba(255, 255, 255, 0.12);
-        }
+.railSection::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 34px rgba(79, 70, 255, 0.10),
+    inset 0 0 24px rgba(168, 85, 255, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  z-index: 1;
+}
 
+.railSection > * {
+  position: relative;
+  z-index: 2;
+}
+
+.railSection + .railSection {
+  margin-top: 0;
+}
+
+.mainMenuRailSection {
+  transform: translateY(18px);
+}
+  
+.createCommunitySection + .railSection {
+  margin-top: clamp(14px, 2vh, 22px);
+}
+
+.logoutSection {
+  width: 100%;
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.logoutSection :global(button) {
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+}
+
+@media (max-height: 760px) {
+
+.walletRail {
+  transform: translateY(-1px);
+}
+  .walletRail {
+    gap: 10px;
+  }
+
+  .railSection {
+    padding: 12px 14px;
+    gap: 6px;
+  }
+
+  .createCommunityImage {
+    width: 108px;
+    max-width: 108px;
+    margin: -12px auto -20px;
+  }
+
+  .createCommunityCopy {
+    margin-bottom: 2px;
+  }
+
+  .createCommunityCopy strong {
+    font-size: 14px;
+  }
+
+  .createCommunityCopy span {
+    font-size: 11px;
+    line-height: 1.12;
+  }
+
+  .createCommunitySection :global(.createCommunityButton) {
+    height: 36px;
+    min-height: 36px;
+  }
+
+  .logoutSection :global(button) {
+    height: 38px;
+    min-height: 38px;
+  }
+}
 .walletTitle {
-  margin: 0 0 10px;
-          font-size: 17px;
-          line-height: 1.2;
-          font-weight: 700;
-          letter-spacing: -0.02em;
-          color: #fff;
-        }
-.secondaryTitle {
-  margin: 0 0 10px;
+  margin: 0 0 -1px;
   font-size: 17px;
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #fff;
 }
-        .walletNav {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
+
+.secondaryTitle {
+  margin: 0 0 -1px;
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+@keyframes railAuraMove {
+  from {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(2%, 1.5%, 0) scale(1.06);
+  }
+}
+
+.createCommunitySection {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: visible;
+  margin-top: 0;
+  gap: clamp(3px, 0.55vh, 6px);
+  align-items: center;
+}
+
+.createCommunitySection::before,
+.createCommunitySection::after {
+  display: none;
+}
+.createCommunityImage {
+  width: 138px;
+  max-width: 138px;
+  height: auto;
+  display: block;
+  margin: -8px auto -18px;
+  object-fit: contain;
+  position: relative;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.createCommunityCopy {
+  margin-bottom: 5px;
+  display: grid;
+  gap: 2px;
+  color: #fff;
+  text-align: center;
+  justify-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+}
+
+.createCommunityCopy strong {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.createCommunityCopy span {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.28;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.createCommunitySection :global(.createCommunityButton) {
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+
+  padding: 8px 14px;
+
+  border-radius: 10px;
+  border: none;
+  background-image: linear-gradient(
+    100deg,
+    #ff2fb3 0%,
+    #a855ff 35%,
+    #4f46ff 70%,
+    #ff2fb3 100%
+  );
+  background-size: 280% 280%;
+  background-position: 0% 50%;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(168, 85, 255, 0.22);
+  overflow: hidden;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.walletNav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
         .walletLink {
           position: relative;
           display: flex;
           align-items: center;
           gap: 12px;
-          min-height: 46px;
-          padding: 6px 0 6px 14px;
+          min-height: 34px;
+          padding: 4px 0 4px 10px;
           color: rgba(255, 255, 255, 0.74);
           text-decoration: none;
           font-size: 15px;
@@ -293,7 +517,7 @@ function WalletDesktopRail({
       `}</style>
 
 <aside className="walletRail" aria-label="Accesos directos">
-  <section className="railSection" aria-label="Navegación principal">
+  <section className="railSection mainMenuSection" aria-label="Navegación principal">
     <h3 className="secondaryTitle">Menú</h3>
 
     <nav className="walletNav">
@@ -315,6 +539,28 @@ function WalletDesktopRail({
       })}
     </nav>
   </section>
+
+<section className="railSection createCommunitySection" aria-label="Crear comunidad">
+  <img
+    src="/Crear-comunidad.png"
+    alt=""
+    className="createCommunityImage"
+    aria-hidden="true"
+  />
+
+  <div className="createCommunityCopy">
+    <strong>Crea tu comunidad</strong>
+    <span>
+      Conecta, comparte y
+      <br />
+      monetiza tu pasión.
+    </span>
+  </div>
+
+  <Link href="/groups/new" className="createCommunityButton">
+    Crear comunidad
+  </Link>
+</section>
 
   {showWallet ? (
     <section className="railSection" aria-label="Wallet">
@@ -340,6 +586,10 @@ function WalletDesktopRail({
       </nav>
     </section>
   ) : null}
+
+  <section className="logoutSection" aria-label="Cerrar sesión">
+    <LogoutButton variant="settings" />
+  </section>
 </aside>
     </>
   );
@@ -362,16 +612,16 @@ function PublicProfileShell({
           flex-direction: column;
         }
 
-        .header {
-          position: sticky;
-          top: 0;
-          z-index: 60;
-          padding-top: env(safe-area-inset-top);
-          padding-left: max(24px, env(safe-area-inset-left));
-          padding-right: max(24px, env(safe-area-inset-right));
-          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-          background: #000000;
-        }
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  padding-top: env(safe-area-inset-top);
+  border-bottom: none;
+  background: transparent;
+  transform: translateY(var(--mobile-header-offset-y, 0px));
+  will-change: transform, margin-bottom;
+}
 
         .headerInner {
           min-height: 48px;
@@ -420,20 +670,45 @@ function PublicProfileShell({
         }
 
 
-        .floatingLogoutWrap {
-          position: fixed;
-          right: calc(18px + env(safe-area-inset-right));
-          bottom: calc(18px + env(safe-area-inset-bottom));
-          z-index: 2147483005;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
+.floatingLogoutWrap {
+  position: fixed;
+  right: calc(18px + env(safe-area-inset-right));
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  z-index: 2147483005;
+  width: var(--wallet-rail-width);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-        .floatingLogoutWrap :global(button) {
-          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
-        }
-
+.floatingLogoutWrap :global(.logoutGradientButton) {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  background-image: linear-gradient(
+    100deg,
+    #ff2fb3 0%,
+    #a855ff 35%,
+    #4f46ff 70%,
+    #ff2fb3 100%
+  );
+  background-size: 280% 280%;
+  background-position: 0% 50%;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(168, 85, 255, 0.22);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
 @media (max-width: 900px) {
   .floatingLogoutWrap {
     display: none;
@@ -452,9 +727,9 @@ function PublicProfileShell({
       <div className="layout">
         <header className="header">
           <div className="headerInner">
-            <Link href="/" className="brand">
-              Red Social MVP
-            </Link>
+<Link href="/" className="brand" aria-label="Ir al inicio">
+  <img src="/logotipo.png" alt="Vibra" className="brandLogo" />
+</Link>
           </div>
         </header>
 
@@ -540,7 +815,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         .layout {
           --shell-gutter: 16px;
           --sidebar-width: 300px;
-          --wallet-rail-width: 220px;
+          --wallet-rail-width: 280px;
           --main-max-width: 860px;
           --shell-column-gap: 24px;
           --desktop-search-width: 920px;
@@ -560,8 +835,8 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   top: 0;
   z-index: 80;
   padding-top: env(safe-area-inset-top);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  background: #000000;
+  border-bottom: none;
+  background: transparent;
   transform: translateY(var(--mobile-header-offset-y, 0px));
   will-change: transform, margin-bottom;
 }
@@ -599,6 +874,20 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           color: #fff;
           text-decoration: none;
         }
+
+        .brandLogo {
+  display: block;
+  width: 112px;
+  height: auto;
+  object-fit: contain;
+}
+
+.mobileBrandLogo {
+  display: block;
+  width: 96px;
+  height: auto;
+  object-fit: contain;
+}
 
 .desktopMainCluster {
   min-width: 0;
@@ -699,7 +988,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 
 .sidebarCol {
   position: sticky;
-  top: calc(env(safe-area-inset-top) + 86px);
+  top: calc(env(safe-area-inset-top) + 112px);
   align-self: start;
   min-width: 0;
   z-index: 2;
@@ -716,21 +1005,46 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         .mainInner {
           width: min(var(--main-max-width), 100%);
         }
+.walletCol {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + clamp(24px, 4vh, 56px));
+  right: max(var(--shell-gutter), env(safe-area-inset-right));
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  width: var(--wallet-rail-width);
+  min-width: 0;
 
-        .walletCol {
-          min-width: 0;
-          display: block;
-        }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 
-        @media (max-width: 1180px) {
-          .layout {
-            --shell-gutter: 14px;
-            --sidebar-width: 260px;
-            --wallet-rail-width: 210px;
-            --shell-column-gap: 18px;
-            --main-max-width: 780px;
-          }
-        }
+  overflow: hidden;
+  box-sizing: border-box;
+  z-index: 20;
+}
+.walletLogoutWrap {
+  width: 250px;
+  margin: clamp(18px, 3vh, 34px) auto 0;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.walletLogoutWrap :global(button) {
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
+}
+
+@media (max-width: 1180px) {
+  .layout {
+    --shell-gutter: 14px;
+    --sidebar-width: 260px;
+    --wallet-rail-width: 260px;
+    --shell-column-gap: 18px;
+    --main-max-width: 780px;
+  }
+}
 
         @media (max-width: 900px) {
 
@@ -785,21 +1099,6 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           }
         }
 
-
-        .floatingLogoutWrap {
-          position: fixed;
-          right: calc(18px + env(safe-area-inset-right));
-          bottom: calc(18px + env(safe-area-inset-bottom));
-          z-index: 2147483005;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .floatingLogoutWrap :global(button) {
-          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
-        }
-
 @media (max-width: 900px) {
   .floatingLogoutWrap {
     display: none;
@@ -832,9 +1131,9 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           <div className="headerInner">
             <div className="desktopHeader">
               <div className="brandCol">
-                <Link href="/" className="brand">
-                  Red Social MVP
-                </Link>
+<Link href="/" className="brand" aria-label="Ir al inicio">
+  <img src="/logotipo.png" alt="Vibra" className="brandLogo" />
+</Link>
               </div>
 
               <div className="desktopMainCluster">
@@ -854,7 +1153,9 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 
             {!mobileSearchOpen ? (
               <div className="mobileHeaderRow">
-                <strong className="mobileBrand">Red Social MVP</strong>
+                <Link href="/" className="mobileBrand" aria-label="Ir al inicio">
+  <img src="/logotipo.png" alt="Vibra" className="mobileBrandLogo" />
+</Link>
 
 <div className="mobileActions">
   <HeaderIconButton
@@ -893,10 +1194,6 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           </div>
         </header>
 
-        <div className="floatingLogoutWrap">
-          <LogoutButton />
-        </div>
-
         <div className={contentAreaClassName}>
           <div className="sidebarCol">
             <OwnerSidebar />
@@ -911,6 +1208,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
     activePath={pathname}
     showWallet={showWalletRail}
   />
+
 </div>
         </div>
 
