@@ -495,55 +495,75 @@ const forgotLinkStyle: React.CSSProperties = {
     transform-origin: center center;
   }
 }
-        @media (max-width: 900px) {
-.loginSplitPage {
-  grid-template-columns: 1fr;
-  display: grid;
-  align-content: start;
-}
+@media (max-width: 900px) {
+  .loginSplitPage {
+    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+  }
 
-          .loginBackgroundLayer {
-            inset: -7%;
-            background-size: auto 108%;
-            background-position: center bottom;
-          }
+  .loginBackgroundLayer {
+    inset: -7%;
+    background-size: auto 108%;
+    background-position: center bottom;
+  }
 
-.loginLeftPane {
-  display: flex;
-  height: auto !important;
-  transform: none;
-  padding: 34px 18px 18px !important;
-}
+  .loginRightPane {
+    width: 100%;
+    order: 1;
+    padding-top: 18px;
+  }
 
-.loginLeftPane img {
-  display: none !important;
-}
+  .loginLeftPane {
+    order: 2;
+    display: flex;
+    width: 100%;
+    height: auto !important;
+    transform: none;
+    padding: 18px 30px 34px !important;
+    justify-content: flex-start !important;
+  }
 
-.loginLeftPane > div {
-  justify-content: center;
-  text-align: left;
-}
+  .loginLeftPane img {
+    display: none !important;
+  }
 
-.loginLeftPane h2 {
-  font-size: 23px !important;
-  line-height: 1.02 !important;
-}
+  .loginLeftPane > div {
+    width: 100% !important;
+    max-width: none !important;
+    justify-content: flex-start !important;
+    text-align: left;
+    gap: 0 !important;
+    transform: none !important;
+  }
 
-.loginLeftPane p {
-  font-size: 10.5px !important;
-  line-height: 1.35 !important;
-  margin-top: 12px !important;
+  .loginLeftPane h2 {
+    font-size: 36px !important;
+    line-height: 1.02 !important;
+    letter-spacing: -0.055em !important;
+    text-align: left !important;
+  }
+
+  .loginLeftPane p {
+    font-size: 15px !important;
+    line-height: 1.42 !important;
+    margin-top: 18px !important;
+    text-align: left !important;
+  }
 }
 .loginRightPane {
   width: 100%;
-  padding-top: 8px;
+  order: 1;
+  padding-top: 18px;
 }
 
-        @media (max-width: 420px) {
-          .loginRightPane > div {
-            padding: 28px 24px !important;
-          }
-        }
+@media (max-width: 420px) {
+  .loginRightPane > div {
+    padding: 28px 24px !important;
+  }
+}
       `}</style>
 
       <main style={pageStyle} className="loginSplitPage">
