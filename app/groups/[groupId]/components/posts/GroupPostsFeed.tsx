@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
@@ -14,11 +14,12 @@ import {
   deletePostComment,
   deletePostCommentReply,
   fetchCommentReplies,
-  fetchGroupPosts,
+  fetchGroupPostsPage,
   fetchPostComments,
   softDeletePost,
   togglePostFlame,
   togglePostSave,
+  type GroupPostsPageCursor,
 } from "@/lib/posts/post-service";
 import GroupPostCard from "./GroupPostCard";
 import GroupPostComposer from "./GroupPostComposer";
@@ -190,6 +191,41 @@ function buildCommentBlockedMessage(reason: InteractionBlockedReason): string {
 
   return "No puedes comentar en esta comunidad en este momento.";
 }
+const GROUP_FEED_PAGE_SIZE = 10;
+const GROUP_FEED_CACHE_TTL_MS = 1000 * 60 * 5;
+
+type GroupFeedCacheEntry = {
+  posts: PostWithAuthorState[];
+  cursor: GroupPostsPageCursor | null;
+  hasMore: boolean;
+  updatedAt: number;
+};
+
+const groupFeedMemoryCache = new Map<string, GroupFeedCacheEntry>();
+
+function getGroupFeedCacheKey(params: {
+  groupId: string;
+  currentUid: string | null;
+}): string {
+  return ["group-feed", params.groupId, params.currentUid ?? "guest"].join(":");
+}
+
+function mergeUniquePosts(
+  currentPosts: PostWithAuthorState[],
+  nextPosts: PostWithAuthorState[]
+): PostWithAuthorState[] {
+  const map = new Map<string, PostWithAuthorState>();
+
+  currentPosts.forEach((post) => {
+    if (post.id) map.set(post.id, post);
+  });
+
+  nextPosts.forEach((post) => {
+    if (post.id) map.set(post.id, post);
+  });
+
+  return Array.from(map.values());
+}
 
 export default function GroupPostsFeed({
   groupId,
@@ -200,16 +236,63 @@ export default function GroupPostsFeed({
   postBlockedReason = null,
   commentBlockedReason = null,
 }: GroupPostsFeedProps) {
-const router = useRouter();
-const pathname = usePathname();
-const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const [posts, setPosts] = useState<PostWithAuthorState[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [composerError, setComposerError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [pageCursor, setPageCursor] = useState<GroupPostsPageCursor | null>(
+    null
+  );
   const [currentUid, setCurrentUid] = useState<string | null>(
     auth.currentUser?.uid ?? null
+  );
+
+  const infiniteScrollTargetRef = useRef<HTMLDivElement | null>(null);
+  const loadingMoreRef = useRef(false);
+  const hasMoreRef = useRef(false);
+  const pageCursorRef = useRef<GroupPostsPageCursor | null>(null);
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
+
+  useEffect(() => {
+    pageCursorRef.current = pageCursor;
+  }, [pageCursor]);
+
+  const cacheKey = useMemo(
+    () =>
+      getGroupFeedCacheKey({
+        groupId,
+        currentUid,
+      }),
+    [groupId, currentUid]
+  );
+
+  const syncPostsState = useCallback(
+    (updater: (prev: PostWithAuthorState[]) => PostWithAuthorState[]) => {
+      setPosts((prev) => {
+        const next = updater(prev);
+
+        if (groupId) {
+          groupFeedMemoryCache.set(cacheKey, {
+            posts: next,
+            cursor: pageCursorRef.current,
+            hasMore: hasMoreRef.current,
+            updatedAt: Date.now(),
+          });
+        }
+
+        return next;
+      });
+    },
+    [cacheKey, groupId]
   );
 
   useEffect(() => {
@@ -230,30 +313,103 @@ const searchParams = useSearchParams();
     return () => window.clearTimeout(timer);
   }, [composerError]);
 
-  async function loadPosts() {
-    const nextPosts = await fetchGroupPosts(groupId, currentUid);
-    const hydratedPosts = await attachAuthorMemberState(groupId, nextPosts);
-    setPosts(hydratedPosts.map(normalizeFeedPost));
-  }
+  const loadPostsPage = useCallback(
+    async (mode: "initial" | "more" | "refresh" = "initial") => {
+      if (!groupId) {
+        setPosts([]);
+        setPageCursor(null);
+        setHasMore(false);
+        setLoadingInitial(false);
+        setLoadingMore(false);
+        return;
+      }
+
+      if (mode === "more") {
+        if (loadingMoreRef.current || !hasMoreRef.current) return;
+        loadingMoreRef.current = true;
+        setLoadingMore(true);
+      } else {
+        setLoadingInitial(true);
+      }
+
+      try {
+        setError(null);
+
+        const result = await fetchGroupPostsPage({
+          groupId,
+          viewerUid: currentUid,
+          pageSize: GROUP_FEED_PAGE_SIZE,
+          cursor: mode === "more" ? pageCursorRef.current : null,
+        });
+
+        const hydratedPosts = await attachAuthorMemberState(
+          groupId,
+          result.posts
+        );
+
+        const normalizedPosts = hydratedPosts.map(normalizeFeedPost);
+
+        const nextCursor = result.cursor;
+        const nextHasMore = result.hasMore;
+
+        setPageCursor(nextCursor);
+        setHasMore(nextHasMore);
+        pageCursorRef.current = nextCursor;
+        hasMoreRef.current = nextHasMore;
+
+        setPosts((prev) => {
+          const nextPosts =
+            mode === "more"
+              ? mergeUniquePosts(prev, normalizedPosts)
+              : normalizedPosts;
+
+          groupFeedMemoryCache.set(cacheKey, {
+            posts: nextPosts,
+            cursor: nextCursor,
+            hasMore: nextHasMore,
+            updatedAt: Date.now(),
+          });
+
+          return nextPosts;
+        });
+      } catch (e: any) {
+        setError(e?.message ?? "Error desconocido");
+      } finally {
+        if (mode === "more") {
+          loadingMoreRef.current = false;
+          setLoadingMore(false);
+        } else {
+          setLoadingInitial(false);
+        }
+      }
+    },
+    [cacheKey, groupId, currentUid]
+  );
+
+  const loadPosts = useCallback(async () => {
+    await loadPostsPage("refresh");
+  }, [loadPostsPage]);
 
   useEffect(() => {
     let active = true;
 
     async function run() {
-      try {
-        setLoadingInitial(true);
-        setError(null);
+      const cached = groupFeedMemoryCache.get(cacheKey);
+      const cacheIsFresh =
+        !!cached && Date.now() - cached.updatedAt <= GROUP_FEED_CACHE_TTL_MS;
 
-        const nextPosts = await fetchGroupPosts(groupId, currentUid);
-        const hydratedPosts = await attachAuthorMemberState(groupId, nextPosts);
+      if (cacheIsFresh) {
+        setPosts(cached.posts);
+        setPageCursor(cached.cursor);
+        setHasMore(cached.hasMore);
+        pageCursorRef.current = cached.cursor;
+        hasMoreRef.current = cached.hasMore;
+        setLoadingInitial(false);
+        return;
+      }
 
-        if (!active) return;
-        setPosts(hydratedPosts.map(normalizeFeedPost));
-      } catch (e: any) {
-        if (!active) return;
-        setError(e?.message ?? "Error desconocido");
-      } finally {
-        if (active) setLoadingInitial(false);
+      if (active) {
+        await loadPostsPage("initial");
       }
     }
 
@@ -262,16 +418,53 @@ const searchParams = useSearchParams();
     return () => {
       active = false;
     };
-   }, [groupId, currentUid]);
+  }, [groupId, currentUid, cacheKey, loadPostsPage]);
 
-function redirectToLogin() {
-  const nextPath = buildCurrentPathWithSearch(
-    pathname || `/groups/${groupId}`,
-    searchParams
-  );
+  const infiniteScrollTriggerIndex = useMemo(() => {
+    if (posts.length <= 5) return posts.length - 1;
+    return Math.max(0, posts.length - 5);
+  }, [posts.length]);
 
-  router.push(`/login?next=${encodeURIComponent(nextPath)}`);
-}
+  useEffect(() => {
+    if (!groupId) return;
+    if (!hasMore) return;
+    if (loadingInitial) return;
+
+    const target = infiniteScrollTargetRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) return;
+        void loadPostsPage("more");
+      },
+      {
+        root: null,
+        rootMargin: "240px 0px",
+        threshold: 0.01,
+      }
+    );
+
+    observer.observe(target);
+
+    return () => observer.disconnect();
+  }, [
+    groupId,
+    hasMore,
+    loadingInitial,
+    infiniteScrollTriggerIndex,
+    loadPostsPage,
+  ]);
+
+  function redirectToLogin() {
+    const nextPath = buildCurrentPathWithSearch(
+      pathname || `/groups/${groupId}`,
+      searchParams
+    );
+
+    router.push(`/login?next=${encodeURIComponent(nextPath)}`);
+  }
 
   function guardCreatePost(): boolean {
     if (canCreatePosts) {
@@ -308,9 +501,9 @@ function redirectToLogin() {
   }
 
   async function handleCreatePost(payload: {
-  text: string;
-  imageFiles?: File[];
-}) {
+    text: string;
+    imageFiles?: File[];
+  }) {
     if (!guardCreatePost()) return;
 
     try {
@@ -319,20 +512,20 @@ function redirectToLogin() {
 
       const cleanText = payload.text.trim();
 
-if (payload.imageFiles && payload.imageFiles.length > 0) {
-  const uploadedImages = await uploadPostImages({
-    groupId,
-    files: payload.imageFiles,
-  });
+      if (payload.imageFiles && payload.imageFiles.length > 0) {
+        const uploadedImages = await uploadPostImages({
+          groupId,
+          files: payload.imageFiles,
+        });
 
-  await createImagePost({
-    groupId,
-    text: cleanText,
-    media: uploadedImages,
-  });
-} else {
-  await createTextPost({ groupId, text: cleanText });
-}
+        await createImagePost({
+          groupId,
+          text: cleanText,
+          media: uploadedImages,
+        });
+      } else {
+        await createTextPost({ groupId, text: cleanText });
+      }
 
       await loadPosts();
     } catch (e: any) {
@@ -340,13 +533,13 @@ if (payload.imageFiles && payload.imageFiles.length > 0) {
     }
   }
 
-    async function handleToggleFlame(postId: string): Promise<void> {
+  async function handleToggleFlame(postId: string): Promise<void> {
     try {
       setError(null);
 
       const result = await togglePostFlame(postId);
 
-      setPosts((prev) =>
+      syncPostsState((prev) =>
         prev.map((post) =>
           post.id === postId
             ? {
@@ -366,13 +559,13 @@ if (payload.imageFiles && payload.imageFiles.length > 0) {
     }
   }
 
-    async function handleToggleSave(postId: string): Promise<void> {
+  async function handleToggleSave(postId: string): Promise<void> {
     try {
       setError(null);
 
       const result = await togglePostSave(postId);
 
-      setPosts((prev) =>
+      syncPostsState((prev) =>
         prev.map((post) => {
           if (post.id !== postId) {
             return post;
@@ -401,7 +594,8 @@ if (payload.imageFiles && payload.imageFiles.length > 0) {
     try {
       setError(null);
       await softDeletePost(postId);
-      await loadPosts();
+
+      syncPostsState((prev) => prev.filter((post) => post.id !== postId));
     } catch (e: any) {
       setError(e?.message ?? "No se pudo eliminar la publicación.");
       throw e;
@@ -418,43 +612,43 @@ if (payload.imageFiles && payload.imageFiles.length > 0) {
     }
   }
 
-async function syncPostCommentsCount(postId: string) {
-  const comments = await fetchPostComments(postId);
+  async function syncPostCommentsCount(postId: string) {
+    const comments = await fetchPostComments(postId);
 
-  const repliesCounts = await Promise.all(
-    comments.map(async (comment) => {
-      try {
-        const replies = await fetchCommentReplies({
-          postId,
-          commentId: comment.id,
-        });
+    const repliesCounts = await Promise.all(
+      comments.map(async (comment) => {
+        try {
+          const replies = await fetchCommentReplies({
+            postId,
+            commentId: comment.id,
+          });
 
-        return replies.length;
-      } catch {
-        return comment.counts?.replies ?? 0;
-      }
-    })
-  );
+          return replies.length;
+        } catch {
+          return comment.counts?.replies ?? 0;
+        }
+      })
+    );
 
-  const total =
-    comments.length + repliesCounts.reduce((sum, count) => sum + count, 0);
+    const total =
+      comments.length + repliesCounts.reduce((sum, count) => sum + count, 0);
 
-  setPosts((prev) =>
-    prev.map((post) =>
-      post.id === postId
-        ? {
-            ...post,
-            counts: {
-              ...post.counts,
-              comments: total,
-            },
-          }
-        : post
-    )
-  );
+    syncPostsState((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              counts: {
+                ...post.counts,
+                comments: total,
+              },
+            }
+          : post
+      )
+    );
 
-  return comments;
-}
+    return comments;
+  }
 
   async function handleCreateComment(
     postId: string,
@@ -468,7 +662,7 @@ async function syncPostCommentsCount(postId: string) {
       setError(null);
       await createPostComment({ postId, text });
 
-return await syncPostCommentsCount(postId);
+      return await syncPostCommentsCount(postId);
     } catch (e: any) {
       throw e;
     }
@@ -482,14 +676,14 @@ return await syncPostCommentsCount(postId);
       setError(null);
       await deletePostComment({ postId, commentId });
 
-return await syncPostCommentsCount(postId);
+      return await syncPostCommentsCount(postId);
     } catch (e: any) {
       setError(e?.message ?? "No se pudo eliminar el comentario.");
       throw e;
     }
   }
 
-    async function handleLoadReplies(
+  async function handleLoadReplies(
     postId: string,
     commentId: string
   ): Promise<CommentReply[]> {
@@ -513,11 +707,11 @@ return await syncPostCommentsCount(postId);
 
     try {
       setError(null);
-await createPostCommentReply({ postId, commentId, text });
+      await createPostCommentReply({ postId, commentId, text });
 
-await syncPostCommentsCount(postId);
+      await syncPostCommentsCount(postId);
 
-return await fetchCommentReplies({ postId, commentId });
+      return await fetchCommentReplies({ postId, commentId });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo crear la respuesta.");
       throw e;
@@ -531,26 +725,26 @@ return await fetchCommentReplies({ postId, commentId });
   ): Promise<CommentReply[]> {
     try {
       setError(null);
-await deletePostCommentReply({ postId, commentId, replyId });
+      await deletePostCommentReply({ postId, commentId, replyId });
 
-await syncPostCommentsCount(postId);
+      await syncPostCommentsCount(postId);
 
-return await fetchCommentReplies({ postId, commentId });
+      return await fetchCommentReplies({ postId, commentId });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo eliminar la respuesta.");
       throw e;
     }
   }
 
-const shellStyle: CSSProperties = {
-  width: "100%",
-  maxWidth: "100%",
-  minWidth: 0,
-  display: "grid",
-  gap: 12,
-  overflowX: "hidden",
-  boxSizing: "border-box",
-};
+  const shellStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    display: "grid",
+    gap: 12,
+    overflowX: "hidden",
+    boxSizing: "border-box",
+  };
 
   const headerStyle: CSSProperties = {
     display: "grid",
@@ -623,17 +817,17 @@ const shellStyle: CSSProperties = {
     overflowWrap: "anywhere",
   };
 
-const cardShellStyle: CSSProperties = {
-  width: "100%",
-  maxWidth: "100%",
-  minWidth: 0,
-  overflow: "visible",
-  boxSizing: "border-box",
-};
+  const cardShellStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    overflow: "visible",
+    boxSizing: "border-box",
+  };
 
-const postShellStyle: CSSProperties = {
-  ...cardShellStyle,
-};
+  const postShellStyle: CSSProperties = {
+    ...cardShellStyle,
+  };
 
   return (
     <section style={shellStyle}>
@@ -672,13 +866,28 @@ const postShellStyle: CSSProperties = {
         </div>
       )}
 
-      {posts.map((post) => {
+      {posts.map((post, index) => {
         const canDeletePost =
           isOwner || isModerator || currentUid === post.authorId;
 
+        const shouldAttachInfiniteScrollTarget =
+          hasMore && index === infiniteScrollTriggerIndex;
+
         return (
-<div key={post.id} style={postShellStyle}>
-  <GroupPostCard
+          <div key={post.id} style={postShellStyle}>
+            {shouldAttachInfiniteScrollTarget ? (
+              <div
+                ref={infiniteScrollTargetRef}
+                aria-hidden="true"
+                style={{
+                  width: "100%",
+                  height: 1,
+                  pointerEvents: "none",
+                }}
+              />
+            ) : null}
+
+            <GroupPostCard
               post={post}
               canDelete={canDeletePost}
               onDelete={canDeletePost ? handleDeletePost : undefined}
@@ -689,7 +898,7 @@ const postShellStyle: CSSProperties = {
               onCreateReply={handleCreateReply}
               onDeleteReply={handleDeleteReply}
               onToggleFlame={handleToggleFlame}
-              onToggleSave={handleToggleSave} 
+              onToggleSave={handleToggleSave}
               currentUserId={currentUid}
               isOwner={isOwner}
               isModerator={isModerator}
@@ -702,6 +911,14 @@ const postShellStyle: CSSProperties = {
           </div>
         );
       })}
+
+      {loadingMore && (
+        <div style={noticeStyle}>Cargando más publicaciones...</div>
+      )}
+
+      {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
+        <div style={noticeStyle}>Ya viste todas las publicaciones disponibles.</div>
+      )}
     </section>
   );
 }

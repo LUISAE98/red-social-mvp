@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
@@ -12,10 +12,11 @@ import {
   deletePostCommentReply,
   fetchCommentReplies,
   fetchPostComments,
-  fetchUserProfilePosts,
+  fetchUserProfilePostsPage,
   softDeletePost,
   togglePostFlame,
   togglePostSave,
+  type UserProfilePostsPageCursor,
 } from "@/lib/posts/post-service";
 
 import { db } from "@/lib/firebase";
@@ -296,6 +297,50 @@ function buildStableFeedSeed(
   return hash || 1;
 }
 
+const PROFILE_FEED_PAGE_SIZE = 10;
+const PROFILE_FEED_CACHE_TTL_MS = 1000 * 60 * 5;
+
+type ProfileFeedCacheEntry = {
+  posts: PostWithFlags[];
+  cursor: UserProfilePostsPageCursor | null;
+  hasMore: boolean;
+  updatedAt: number;
+};
+
+const profileFeedMemoryCache = new Map<string, ProfileFeedCacheEntry>();
+
+function getProfileFeedCacheKey(params: {
+  profileUid: string;
+  viewerUid: string | null;
+  isOwner: boolean;
+  showPosts: boolean;
+}): string {
+  return [
+    "profile-feed",
+    params.profileUid,
+    params.viewerUid ?? "guest",
+    params.isOwner ? "owner" : "viewer",
+    params.showPosts ? "show" : "hidden",
+  ].join(":");
+}
+
+function mergeUniquePosts(
+  currentPosts: PostWithFlags[],
+  nextPosts: PostWithFlags[]
+): PostWithFlags[] {
+  const map = new Map<string, PostWithFlags>();
+
+  currentPosts.forEach((post) => {
+    if (post.id) map.set(post.id, post);
+  });
+
+  nextPosts.forEach((post) => {
+    if (post.id) map.set(post.id, post);
+  });
+
+  return Array.from(map.values());
+}
+
 export default function ProfilePostsFeed({
   profileUid,
   viewerUid,
@@ -305,7 +350,55 @@ export default function ProfilePostsFeed({
   const [posts, setPosts] = useState<PostWithFlags[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [pageCursor, setPageCursor] =
+    useState<UserProfilePostsPageCursor | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+
+  const infiniteScrollTargetRef = useRef<HTMLDivElement | null>(null);
+  const loadingMoreRef = useRef(false);
+  const hasMoreRef = useRef(false);
+  const pageCursorRef = useRef<UserProfilePostsPageCursor | null>(null);
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
+
+  useEffect(() => {
+    pageCursorRef.current = pageCursor;
+  }, [pageCursor]);
+
+  const cacheKey = useMemo(
+    () =>
+      getProfileFeedCacheKey({
+        profileUid,
+        viewerUid,
+        isOwner,
+        showPosts,
+      }),
+    [profileUid, viewerUid, isOwner, showPosts]
+  );
+
+  const syncPostsState = useCallback(
+    (updater: (prev: PostWithFlags[]) => PostWithFlags[]) => {
+      setPosts((prev) => {
+        const next = updater(prev);
+
+        if (profileUid) {
+          profileFeedMemoryCache.set(cacheKey, {
+            posts: next,
+            cursor: pageCursorRef.current,
+            hasMore: hasMoreRef.current,
+            updatedAt: Date.now(),
+          });
+        }
+
+        return next;
+      });
+    },
+    [cacheKey, profileUid]
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -324,12 +417,97 @@ export default function ProfilePostsFeed({
     return () => mediaQuery.removeListener(sync);
   }, []);
 
-  async function loadPosts() {
-    const nextPosts = await fetchUserProfilePosts(profileUid, viewerUid);
-    const visiblePosts = await filterBannedGroupPosts(nextPosts, viewerUid);
-    const hydratedPosts = await attachModerationFlags(visiblePosts, viewerUid);
-    setPosts(hydratedPosts.map(normalizeProfileFeedPost));
-  }
+  const loadPostsPage = useCallback(
+    async (mode: "initial" | "more" | "refresh" = "initial") => {
+      if (!profileUid) {
+        setPosts([]);
+        setPageCursor(null);
+        setHasMore(false);
+        setLoadingInitial(false);
+        setLoadingMore(false);
+        return;
+      }
+
+      if (!showPosts && !isOwner) {
+        setPosts([]);
+        setPageCursor(null);
+        setHasMore(false);
+        setError(null);
+        setLoadingInitial(false);
+        setLoadingMore(false);
+        return;
+      }
+
+      if (mode === "more") {
+        if (loadingMoreRef.current || !hasMoreRef.current) return;
+        loadingMoreRef.current = true;
+        setLoadingMore(true);
+      } else {
+        setLoadingInitial(true);
+      }
+
+      try {
+        setError(null);
+
+        const result = await fetchUserProfilePostsPage({
+          profileUid,
+          viewerUid,
+          pageSize: PROFILE_FEED_PAGE_SIZE,
+          cursor: mode === "more" ? pageCursorRef.current : null,
+        });
+
+        const visiblePosts = await filterBannedGroupPosts(
+          result.posts,
+          viewerUid
+        );
+
+        const hydratedPosts = await attachModerationFlags(
+          visiblePosts,
+          viewerUid
+        );
+
+        const normalizedPosts = hydratedPosts.map(normalizeProfileFeedPost);
+
+        const nextCursor = result.cursor;
+        const nextHasMore = result.hasMore;
+
+        setPageCursor(nextCursor);
+        setHasMore(nextHasMore);
+        pageCursorRef.current = nextCursor;
+        hasMoreRef.current = nextHasMore;
+
+        setPosts((prev) => {
+          const nextPosts =
+            mode === "more"
+              ? mergeUniquePosts(prev, normalizedPosts)
+              : normalizedPosts;
+
+          profileFeedMemoryCache.set(cacheKey, {
+            posts: nextPosts,
+            cursor: nextCursor,
+            hasMore: nextHasMore,
+            updatedAt: Date.now(),
+          });
+
+          return nextPosts;
+        });
+      } catch (e: any) {
+        setError(e?.message ?? "Error desconocido");
+      } finally {
+        if (mode === "more") {
+          loadingMoreRef.current = false;
+          setLoadingMore(false);
+        } else {
+          setLoadingInitial(false);
+        }
+      }
+    },
+    [cacheKey, profileUid, viewerUid, showPosts, isOwner]
+  );
+
+  const loadPosts = useCallback(async () => {
+    await loadPostsPage("refresh");
+  }, [loadPostsPage]);
 
   useEffect(() => {
     let active = true;
@@ -338,6 +516,8 @@ export default function ProfilePostsFeed({
       if (!profileUid) {
         if (active) {
           setPosts([]);
+          setPageCursor(null);
+          setHasMore(false);
           setLoadingInitial(false);
         }
         return;
@@ -346,27 +526,30 @@ export default function ProfilePostsFeed({
       if (!showPosts && !isOwner) {
         if (active) {
           setPosts([]);
+          setPageCursor(null);
+          setHasMore(false);
           setLoadingInitial(false);
           setError(null);
         }
         return;
       }
 
-      try {
-        setLoadingInitial(true);
-        setError(null);
+      const cached = profileFeedMemoryCache.get(cacheKey);
+      const cacheIsFresh =
+        !!cached && Date.now() - cached.updatedAt <= PROFILE_FEED_CACHE_TTL_MS;
 
-        const nextPosts = await fetchUserProfilePosts(profileUid, viewerUid);
-        const visiblePosts = await filterBannedGroupPosts(nextPosts, viewerUid);
-        const hydratedPosts = await attachModerationFlags(visiblePosts, viewerUid);
+      if (cacheIsFresh) {
+        setPosts(cached.posts);
+        setPageCursor(cached.cursor);
+        setHasMore(cached.hasMore);
+        pageCursorRef.current = cached.cursor;
+        hasMoreRef.current = cached.hasMore;
+        setLoadingInitial(false);
+        return;
+      }
 
-        if (!active) return;
-        setPosts(hydratedPosts.map(normalizeProfileFeedPost));
-      } catch (e: any) {
-        if (!active) return;
-        setError(e?.message ?? "Error desconocido");
-      } finally {
-        if (active) setLoadingInitial(false);
+      if (active) {
+        await loadPostsPage("initial");
       }
     }
 
@@ -375,15 +558,55 @@ export default function ProfilePostsFeed({
     return () => {
       active = false;
     };
-  }, [profileUid, viewerUid, showPosts, isOwner]);
+  }, [profileUid, viewerUid, showPosts, isOwner, cacheKey, loadPostsPage]);
 
-    async function handleToggleFlame(postId: string): Promise<void> {
+  const infiniteScrollTriggerIndex = useMemo(() => {
+    if (posts.length <= 5) return posts.length - 1;
+    return Math.max(0, posts.length - 5);
+  }, [posts.length]);
+
+  useEffect(() => {
+    if (!profileUid) return;
+    if (!hasMore) return;
+    if (loadingInitial) return;
+    if (!showPosts && !isOwner) return;
+
+    const target = infiniteScrollTargetRef.current;
+    if (!target) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) return;
+        void loadPostsPage("more");
+      },
+      {
+        root: null,
+        rootMargin: "240px 0px",
+        threshold: 0.01,
+      }
+    );
+
+    observer.observe(target);
+
+    return () => observer.disconnect();
+  }, [
+    profileUid,
+    hasMore,
+    loadingInitial,
+    showPosts,
+    isOwner,
+    infiniteScrollTriggerIndex,
+    loadPostsPage,
+  ]);
+
+  async function handleToggleFlame(postId: string): Promise<void> {
     try {
       setError(null);
 
       const result = await togglePostFlame(postId);
 
-      setPosts((prev) =>
+      syncPostsState((prev) =>
         prev.map((post) =>
           post.id === postId
             ? {
@@ -403,13 +626,13 @@ export default function ProfilePostsFeed({
     }
   }
 
-    async function handleToggleSave(postId: string): Promise<void> {
+  async function handleToggleSave(postId: string): Promise<void> {
     try {
       setError(null);
 
       const result = await togglePostSave(postId);
 
-      setPosts((prev) =>
+      syncPostsState((prev) =>
         prev.map((post) => {
           if (post.id !== postId) {
             return post;
@@ -438,7 +661,8 @@ export default function ProfilePostsFeed({
     try {
       setError(null);
       await softDeletePost(postId);
-      await loadPosts();
+
+      syncPostsState((prev) => prev.filter((post) => post.id !== postId));
     } catch (e: any) {
       setError(e?.message ?? "Error desconocido");
       throw e;
@@ -456,42 +680,42 @@ export default function ProfilePostsFeed({
   }
 
   async function syncPostCommentsCount(postId: string) {
-  const comments = await fetchPostComments(postId);
+    const comments = await fetchPostComments(postId);
 
-  const repliesCounts = await Promise.all(
-    comments.map(async (comment) => {
-      try {
-        const replies = await fetchCommentReplies({
-          postId,
-          commentId: comment.id,
-        });
+    const repliesCounts = await Promise.all(
+      comments.map(async (comment) => {
+        try {
+          const replies = await fetchCommentReplies({
+            postId,
+            commentId: comment.id,
+          });
 
-        return replies.length;
-      } catch {
-        return comment.counts?.replies ?? 0;
-      }
-    })
-  );
+          return replies.length;
+        } catch {
+          return comment.counts?.replies ?? 0;
+        }
+      })
+    );
 
-  const total =
-    comments.length + repliesCounts.reduce((sum, count) => sum + count, 0);
+    const total =
+      comments.length + repliesCounts.reduce((sum, count) => sum + count, 0);
 
-  setPosts((prev) =>
-    prev.map((post) =>
-      post.id === postId
-        ? {
-            ...post,
-            counts: {
-              ...post.counts,
-              comments: total,
-            },
-          }
-        : post
-    )
-  );
+    syncPostsState((prev) =>
+      prev.map((post) =>
+        post.id === postId
+          ? {
+              ...post,
+              counts: {
+                ...post.counts,
+                comments: total,
+              },
+            }
+          : post
+      )
+    );
 
-  return comments;
-}
+    return comments;
+  }
 
   async function handleCreateComment(
     postId: string,
@@ -499,8 +723,8 @@ export default function ProfilePostsFeed({
   ): Promise<Comment[]> {
     try {
       setError(null);
-await createPostComment({ postId, text });
-return await syncPostCommentsCount(postId);
+      await createPostComment({ postId, text });
+      return await syncPostCommentsCount(postId);
     } catch (e: any) {
       setError(e?.message ?? "Error desconocido");
       throw e;
@@ -513,15 +737,15 @@ return await syncPostCommentsCount(postId);
   ): Promise<Comment[]> {
     try {
       setError(null);
-await deletePostComment({ postId, commentId });
-return await syncPostCommentsCount(postId);
+      await deletePostComment({ postId, commentId });
+      return await syncPostCommentsCount(postId);
     } catch (e: any) {
       setError(e?.message ?? "Error desconocido");
       throw e;
     }
   }
 
-    async function handleLoadReplies(
+  async function handleLoadReplies(
     postId: string,
     commentId: string
   ): Promise<CommentReply[]> {
@@ -541,11 +765,11 @@ return await syncPostCommentsCount(postId);
   ): Promise<CommentReply[]> {
     try {
       setError(null);
-await createPostCommentReply({ postId, commentId, text });
+      await createPostCommentReply({ postId, commentId, text });
 
-await syncPostCommentsCount(postId);
+      await syncPostCommentsCount(postId);
 
-return await fetchCommentReplies({ postId, commentId });
+      return await fetchCommentReplies({ postId, commentId });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo crear la respuesta.");
       throw e;
@@ -559,11 +783,11 @@ return await fetchCommentReplies({ postId, commentId });
   ): Promise<CommentReply[]> {
     try {
       setError(null);
-await deletePostCommentReply({ postId, commentId, replyId });
+      await deletePostCommentReply({ postId, commentId, replyId });
 
-await syncPostCommentsCount(postId);
+      await syncPostCommentsCount(postId);
 
-return await fetchCommentReplies({ postId, commentId });
+      return await fetchCommentReplies({ postId, commentId });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo eliminar la respuesta.");
       throw e;
@@ -721,21 +945,35 @@ return await fetchCommentReplies({ postId, commentId });
           viewerUid === post.authorId || post.canModerateGroupAuthor === true;
 
         const shouldRenderRecommendations = recommendationSlots.has(index + 1);
+        const shouldAttachInfiniteScrollTarget =
+          hasMore && index === infiniteScrollTriggerIndex;
 
         return (
           <div key={post.id} style={postItemStyle}>
+            {shouldAttachInfiniteScrollTarget ? (
+              <div
+                ref={infiniteScrollTargetRef}
+                aria-hidden="true"
+                style={{
+                  width: "100%",
+                  height: 1,
+                  pointerEvents: "none",
+                }}
+              />
+            ) : null}
+
             <GroupPostCard
               post={post}
               canDelete={canDeletePost}
               onDelete={canDeletePost ? handleDeletePost : undefined}
               onLoadComments={handleLoadComments}
               onCreateComment={handleCreateComment}
-onDeleteComment={handleDeleteComment}
-onLoadReplies={handleLoadReplies}
-onCreateReply={handleCreateReply}
-onDeleteReply={handleDeleteReply}
-onToggleFlame={handleToggleFlame}
-onToggleSave={handleToggleSave}
+              onDeleteComment={handleDeleteComment}
+              onLoadReplies={handleLoadReplies}
+              onCreateReply={handleCreateReply}
+              onDeleteReply={handleDeleteReply}
+              onToggleFlame={handleToggleFlame}
+              onToggleSave={handleToggleSave}
               currentUserId={viewerUid}
               isOwner={false}
               isModerator={post.canModerateGroupAuthor === true}
@@ -756,14 +994,25 @@ onToggleSave={handleToggleSave}
         );
       })}
 
-      {!loadingInitial && posts.length > 0 && !hasInlineRecommendation && viewerUid && (
-        <div style={recommendationWrapperStyle}>
-          <GroupRecommendationsRail
-            currentUserId={viewerUid}
-            context="profile"
-          />
-        </div>
+      {loadingMore && (
+        <div style={noticeStyle}>Cargando más publicaciones...</div>
       )}
+
+      {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
+        <div style={noticeStyle}>Ya viste todas las publicaciones disponibles.</div>
+      )}
+
+      {!loadingInitial &&
+        posts.length > 0 &&
+        !hasInlineRecommendation &&
+        viewerUid && (
+          <div style={recommendationWrapperStyle}>
+            <GroupRecommendationsRail
+              currentUserId={viewerUid}
+              context="profile"
+            />
+          </div>
+        )}
     </section>
   );
 }

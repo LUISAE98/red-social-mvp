@@ -191,18 +191,32 @@ function WalletDesktopRail({
       <style jsx>{`
 .walletRail {
   width: min(100%, 250px);
-  height: calc(100% - 10px);
+  height: 100%;
   min-height: 0;
   margin-left: auto;
   margin-right: auto;
   overflow: hidden;
-  padding-bottom: 0;
   box-sizing: border-box;
 
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  row-gap: clamp(18px, 3vh, 34px);
+}
+
+.walletRailCenter {
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: clamp(12px, 2.2vh, 24px);
+  justify-content: center;
+  gap: clamp(18px, 3vh, 28px);
+  overflow: visible;
 }
+
+.logoutSection {
+  width: 100%;
+  flex-shrink: 0;
+}
+
 .railSection {
   position: relative;
   overflow: hidden;
@@ -218,17 +232,17 @@ function WalletDesktopRail({
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.22);
 
-background:
-  linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.20) 0%,
-    rgba(168, 85, 255, 0.22) 16%,
-    rgba(28, 18, 64, 0.97) 48%,
-    rgba(11, 10, 28, 0.985) 100%
-  );
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.20) 0%,
+      rgba(168, 85, 255, 0.22) 16%,
+      rgba(28, 18, 64, 0.97) 48%,
+      rgba(11, 10, 28, 0.985) 100%
+    );
 
-backdrop-filter: blur(54px) saturate(220%) brightness(1);
--webkit-backdrop-filter: blur(54px) saturate(220%) brightness(1);
+  backdrop-filter: blur(54px) saturate(220%) brightness(1);
+  -webkit-backdrop-filter: blur(54px) saturate(220%) brightness(1);
 
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
@@ -267,7 +281,6 @@ backdrop-filter: blur(54px) saturate(220%) brightness(1);
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   z-index: 1;
 }
-
 .railSection > * {
   position: relative;
   z-index: 2;
@@ -282,7 +295,7 @@ backdrop-filter: blur(54px) saturate(220%) brightness(1);
 }
   
 .createCommunitySection + .railSection {
-  margin-top: clamp(14px, 2vh, 22px);
+  margin-top: 0;
 }
 
 .logoutSection {
@@ -299,13 +312,12 @@ backdrop-filter: blur(54px) saturate(220%) brightness(1);
 
 @media (max-height: 760px) {
 
-.walletRail {
-  transform: translateY(-1px);
-}
-  .walletRail {
-    gap: 10px;
+  .createCommunitySection {
+    transform: translateY(-10px);
   }
-
+.walletRailCenter {
+  gap: 10px;
+}
   .railSection {
     padding: 12px 14px;
     gap: 6px;
@@ -379,6 +391,8 @@ backdrop-filter: blur(54px) saturate(220%) brightness(1);
   margin-top: 0;
   gap: clamp(3px, 0.55vh, 6px);
   align-items: center;
+
+  transform: translateY(-18px);
 }
 
 .createCommunitySection::before,
@@ -517,58 +531,13 @@ backdrop-filter: blur(54px) saturate(220%) brightness(1);
       `}</style>
 
 <aside className="walletRail" aria-label="Accesos directos">
-  <section className="railSection mainMenuSection" aria-label="Navegación principal">
-    <h3 className="secondaryTitle">Menú</h3>
-
-    <nav className="walletNav">
-      {mainItems.map((item) => {
-        const isActive = activeMainTab === item.key;
-
-        return (
-          <Link
-            key={item.key}
-            href={item.href}
-            className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
-          >
-            <span className="walletEmoji" aria-hidden="true">
-              {item.emoji}
-            </span>
-            <span className="walletLabel">{item.label}</span>
-          </Link>
-        );
-      })}
-    </nav>
-  </section>
-
-<section className="railSection createCommunitySection" aria-label="Crear comunidad">
-  <img
-    src="/Crear-comunidad.png"
-    alt=""
-    className="createCommunityImage"
-    aria-hidden="true"
-  />
-
-  <div className="createCommunityCopy">
-    <strong>Crea tu comunidad</strong>
-    <span>
-      Conecta, comparte y
-      <br />
-      monetiza tu pasión.
-    </span>
-  </div>
-
-  <Link href="/groups/new" className="createCommunityButton">
-    Crear comunidad
-  </Link>
-</section>
-
-  {showWallet ? (
-    <section className="railSection" aria-label="Wallet">
-      <h3 className="walletTitle">Wallet</h3>
+  <div className="walletRailCenter">
+    <section className="railSection mainMenuSection" aria-label="Navegación principal">
+      <h3 className="secondaryTitle">Menú</h3>
 
       <nav className="walletNav">
-        {walletItems.map((item) => {
-          const isActive = activeWalletTab === item.key;
+        {mainItems.map((item) => {
+          const isActive = activeMainTab === item.key;
 
           return (
             <Link
@@ -585,7 +554,54 @@ backdrop-filter: blur(54px) saturate(220%) brightness(1);
         })}
       </nav>
     </section>
-  ) : null}
+
+    <section className="railSection createCommunitySection" aria-label="Crear comunidad">
+      <img
+        src="/Crear-comunidad.png"
+        alt=""
+        className="createCommunityImage"
+        aria-hidden="true"
+      />
+
+      <div className="createCommunityCopy">
+        <strong>Crea tu comunidad</strong>
+        <span>
+          Conecta, comparte y
+          <br />
+          monetiza tu pasión.
+        </span>
+      </div>
+
+      <Link href="/groups/new" className="createCommunityButton">
+        Crear comunidad
+      </Link>
+    </section>
+
+    {showWallet ? (
+      <section className="railSection" aria-label="Wallet">
+        <h3 className="walletTitle">Wallet</h3>
+
+        <nav className="walletNav">
+          {walletItems.map((item) => {
+            const isActive = activeWalletTab === item.key;
+
+            return (
+              <Link
+                key={item.key}
+                href={item.href}
+                className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
+              >
+                <span className="walletEmoji" aria-hidden="true">
+                  {item.emoji}
+                </span>
+                <span className="walletLabel">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+      </section>
+    ) : null}
+  </div>
 
   <section className="logoutSection" aria-label="Cerrar sesión">
     <LogoutButton variant="settings" />
@@ -983,7 +999,8 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 }
 
 .contentAreaWithWallet {
-  grid-template-columns: var(--sidebar-width) minmax(0, var(--main-max-width)) var(--wallet-rail-width);
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  padding-right: calc(var(--wallet-rail-width) + var(--shell-column-gap) + var(--shell-gutter));
 }
 
 .sidebarCol {
@@ -1002,14 +1019,16 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           padding-bottom: 90px;
         }
 
-        .mainInner {
-          width: min(var(--main-max-width), 100%);
-        }
+.mainInner {
+  width: min(var(--main-max-width), 100%);
+  margin-left: auto;
+  margin-right: auto;
+}
 .walletCol {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + clamp(24px, 4vh, 56px));
+  top: calc(env(safe-area-inset-top) + 44px);
   right: max(var(--shell-gutter), env(safe-area-inset-right));
-  bottom: calc(8px + env(safe-area-inset-bottom));
+  bottom: calc(24px + env(safe-area-inset-bottom));
   width: var(--wallet-rail-width);
   min-width: 0;
 

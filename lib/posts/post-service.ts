@@ -11,9 +11,11 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  startAfter,
   updateDoc,
   where,
   type DocumentData,
+  type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { auth, db, functions } from "@/lib/firebase";
 import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
@@ -82,6 +84,37 @@ type TogglePostSaveResponse = {
 type ToggleCommentFlameResponse = {
   liked: boolean;
   likes: number;
+};
+
+export type HomePostsPageCursor = {
+  groupIds: string[];
+  lastDocsByGroupId: Record<string, QueryDocumentSnapshot<DocumentData>>;
+};
+
+export type HomePostsPageResult = {
+  posts: Post[];
+  cursor: HomePostsPageCursor | null;
+  hasMore: boolean;
+};
+
+export type UserProfilePostsPageCursor = {
+  lastDoc: QueryDocumentSnapshot<DocumentData> | null;
+};
+
+export type UserProfilePostsPageResult = {
+  posts: Post[];
+  cursor: UserProfilePostsPageCursor | null;
+  hasMore: boolean;
+};
+
+export type GroupPostsPageCursor = {
+  lastDoc: QueryDocumentSnapshot<DocumentData> | null;
+};
+
+export type GroupPostsPageResult = {
+  posts: Post[];
+  cursor: GroupPostsPageCursor | null;
+  hasMore: boolean;
 };
 
 export type PostFlameUser = {
@@ -824,6 +857,113 @@ async function fetchPostsByAccessibleGroups(groupIds: string[]): Promise<Post[]>
   return deduped;
 }
 
+async function fetchHomePostsPageByAccessibleGroups(params: {
+  groupIds: string[];
+  pageSize: number;
+  cursor?: HomePostsPageCursor | null;
+}): Promise<{
+  posts: Post[];
+  cursor: HomePostsPageCursor | null;
+  hasMore: boolean;
+}> {
+  const cleanGroupIds = Array.from(
+    new Set(params.groupIds.map((id) => id.trim()).filter(Boolean))
+  );
+
+  if (cleanGroupIds.length === 0) {
+    return {
+      posts: [],
+      cursor: null,
+      hasMore: false,
+    };
+  }
+
+  const safePageSize = Math.max(1, Math.min(params.pageSize, 20));
+  const previousLastDocs = params.cursor?.lastDocsByGroupId ?? {};
+
+  const perGroupResults = await Promise.all(
+    cleanGroupIds.map(async (groupId) => {
+      try {
+        const baseConstraints = [
+          where("groupId", "==", groupId),
+          where("isDeleted", "==", false),
+          orderBy("createdAt", "desc"),
+        ];
+
+        const lastDoc = previousLastDocs[groupId];
+
+        const snap = await getDocs(
+          query(
+            collection(db, "posts"),
+            ...baseConstraints,
+            ...(lastDoc ? [startAfter(lastDoc)] : []),
+            limit(safePageSize)
+          )
+        );
+
+        const posts = snap.docs.map((d) => ({
+          id: d.id,
+          ...(d.data() as Omit<Post, "id">),
+        })) as Post[];
+
+        return {
+          groupId,
+          posts,
+          lastDoc: snap.docs[snap.docs.length - 1] ?? null,
+          hasMore: snap.docs.length === safePageSize,
+        };
+      } catch {
+        return {
+          groupId,
+          posts: [] as Post[],
+          lastDoc: null,
+          hasMore: false,
+        };
+      }
+    })
+  );
+
+  const rawPosts = perGroupResults.flatMap((result) => result.posts);
+
+  const deduped = Array.from(
+    new Map(rawPosts.map((post) => [post.id, post])).values()
+  );
+
+  deduped.sort((a, b) => {
+    const aMs = a.createdAt?.toMillis?.() ?? 0;
+    const bMs = b.createdAt?.toMillis?.() ?? 0;
+    return bMs - aMs;
+  });
+
+  const pagePosts = deduped.slice(0, safePageSize);
+
+  const nextLastDocsByGroupId: Record<
+    string,
+    QueryDocumentSnapshot<DocumentData>
+  > = {
+    ...previousLastDocs,
+  };
+
+  perGroupResults.forEach((result) => {
+    if (result.lastDoc) {
+      nextLastDocsByGroupId[result.groupId] = result.lastDoc;
+    }
+  });
+
+  const hasMore = perGroupResults.some((result) => result.hasMore);
+
+  return {
+    posts: pagePosts,
+    cursor: hasMore
+      ? {
+          groupIds: cleanGroupIds,
+          lastDocsByGroupId: nextLastDocsByGroupId,
+        }
+      : null,
+    hasMore,
+  };
+}
+
 async function getGroupWriteAccess(
   groupId: string,
   userUid: string
@@ -943,20 +1083,27 @@ async function ensureUserCanCommentInGroup(groupId: string, userUid: string) {
   }
 }
 
-export async function fetchGroupPosts(
-  groupId: string,
-  viewerUid?: string | null
-): Promise<Post[]> {
-  assertValidId(groupId, "groupId");
+export async function fetchGroupPostsPage(params: {
+  groupId: string;
+  viewerUid?: string | null;
+  pageSize?: number;
+  cursor?: GroupPostsPageCursor | null;
+}): Promise<GroupPostsPageResult> {
+  assertValidId(params.groupId, "groupId");
 
-  const q = query(
-    collection(db, "posts"),
-    where("groupId", "==", groupId),
-    where("isDeleted", "==", false),
-    orderBy("createdAt", "desc")
+  const safePageSize = Math.max(1, Math.min(params.pageSize ?? 10, 20));
+  const previousLastDoc = params.cursor?.lastDoc ?? null;
+
+  const snap = await getDocs(
+    query(
+      collection(db, "posts"),
+      where("groupId", "==", params.groupId),
+      where("isDeleted", "==", false),
+      orderBy("createdAt", "desc"),
+      ...(previousLastDoc ? [startAfter(previousLastDoc)] : []),
+      limit(safePageSize)
+    )
   );
-
-  const snap = await getDocs(q);
 
   const rawPosts: Post[] = snap.docs.map((d) => ({
     id: d.id,
@@ -977,21 +1124,66 @@ export async function fetchGroupPosts(
     };
   });
 
-  return attachViewerPostState(hydratedPosts, viewerUid);
+  const postsWithViewerState = await attachViewerPostState(
+    hydratedPosts,
+    params.viewerUid
+  );
+
+  const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
+  const hasMore = snap.docs.length === safePageSize;
+
+  return {
+    posts: postsWithViewerState,
+    cursor:
+      hasMore && lastDoc
+        ? {
+            lastDoc,
+          }
+        : null,
+    hasMore,
+  };
 }
 
-export async function fetchHomePosts(userUid: string): Promise<Post[]> {
-  assertValidId(userUid, "userUid");
+export async function fetchGroupPosts(
+  groupId: string,
+  viewerUid?: string | null
+): Promise<Post[]> {
+  const page = await fetchGroupPostsPage({
+    groupId,
+    viewerUid,
+    pageSize: 10,
+    cursor: null,
+  });
 
-  const groupIds = await fetchAccessibleGroupIds(userUid);
-  const rawPosts = await fetchPostsByAccessibleGroups(groupIds);
+  return page.posts;
+}
+
+export async function fetchHomePostsPage(params: {
+  userUid: string;
+  pageSize?: number;
+  cursor?: HomePostsPageCursor | null;
+}): Promise<HomePostsPageResult> {
+  assertValidId(params.userUid, "userUid");
+
+  const safePageSize = Math.max(1, Math.min(params.pageSize ?? 10, 20));
+
+  const groupIds =
+    params.cursor?.groupIds && params.cursor.groupIds.length > 0
+      ? params.cursor.groupIds
+      : await fetchAccessibleGroupIds(params.userUid);
+
+  const page = await fetchHomePostsPageByAccessibleGroups({
+    groupIds,
+    pageSize: safePageSize,
+    cursor: params.cursor ?? null,
+  });
 
   const [userMap, groupMap] = await Promise.all([
-    fetchUsersByIds(rawPosts.map((post) => post.authorId)),
-    fetchGroupsByIds(rawPosts.map((post) => post.groupId)),
+    fetchUsersByIds(page.posts.map((post) => post.authorId)),
+    fetchGroupsByIds(page.posts.map((post) => post.groupId)),
   ]);
 
-  const hydratedPosts = rawPosts.map((post) => {
+  const hydratedPosts = page.posts.map((post) => {
     const hydrated = hydratePost(post, userMap, groupMap);
 
     return {
@@ -1000,80 +1192,147 @@ export async function fetchHomePosts(userUid: string): Promise<Post[]> {
     };
   });
 
-   return attachViewerPostState(hydratedPosts, userUid);
+  const postsWithViewerState = await attachViewerPostState(
+    hydratedPosts,
+    params.userUid
+  );
+
+  return {
+    posts: postsWithViewerState,
+    cursor: page.cursor,
+    hasMore: page.hasMore,
+  };
+}
+
+export async function fetchHomePosts(userUid: string): Promise<Post[]> {
+  const page = await fetchHomePostsPage({
+    userUid,
+    pageSize: 10,
+    cursor: null,
+  });
+
+  return page.posts;
+}
+export async function fetchUserProfilePostsPage(params: {
+  profileUid: string;
+  viewerUid?: string | null;
+  pageSize?: number;
+  cursor?: UserProfilePostsPageCursor | null;
+}): Promise<UserProfilePostsPageResult> {
+  assertValidId(params.profileUid, "profileUid");
+
+  const safePageSize = Math.max(1, Math.min(params.pageSize ?? 10, 20));
+  const viewerUid = params.viewerUid ?? null;
+  const isOwner = viewerUid === params.profileUid;
+
+  const profileSnap = await getDoc(doc(db, "users", params.profileUid));
+  if (!profileSnap.exists()) {
+    return {
+      posts: [],
+      cursor: null,
+      hasMore: false,
+    };
+  }
+
+  const profileData = profileSnap.data() as Record<string, unknown>;
+  const showPosts = profileData.showPosts !== false;
+
+  if (!showPosts && !isOwner) {
+    return {
+      posts: [],
+      cursor: null,
+      hasMore: false,
+    };
+  }
+
+  const visibleGroupIds = isOwner
+    ? null
+    : new Set(await fetchProfileVisibleGroupIds(viewerUid));
+
+  if (!isOwner && visibleGroupIds && visibleGroupIds.size === 0) {
+    return {
+      posts: [],
+      cursor: null,
+      hasMore: false,
+    };
+  }
+
+  const previousLastDoc = params.cursor?.lastDoc ?? null;
+  const queryLimit = isOwner ? safePageSize : safePageSize * 3;
+
+  const snap = await getDocs(
+    query(
+      collection(db, "posts"),
+      where("authorId", "==", params.profileUid),
+      where("isDeleted", "==", false),
+      orderBy("createdAt", "desc"),
+      ...(previousLastDoc ? [startAfter(previousLastDoc)] : []),
+      limit(queryLimit)
+    )
+  );
+
+  const rawPosts = snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<Post, "id">),
+  })) as Post[];
+
+  const visiblePosts = isOwner
+    ? rawPosts
+    : rawPosts.filter((post) => {
+        const groupId =
+          typeof post.groupId === "string" ? post.groupId.trim() : "";
+
+        return !!groupId && visibleGroupIds?.has(groupId);
+      });
+
+  const pagePosts = visiblePosts.slice(0, safePageSize);
+
+  const [userMap, groupMap] = await Promise.all([
+    fetchUsersByIds(pagePosts.map((post) => post.authorId)),
+    fetchGroupsByIds(pagePosts.map((post) => post.groupId)),
+  ]);
+
+  const hydratedPosts = pagePosts.map((post) => {
+    const hydrated = hydratePost(post, userMap, groupMap);
+
+    return {
+      ...hydrated,
+      isLocked: isPostLocked(hydrated),
+    };
+  });
+
+  const postsWithViewerState = await attachViewerPostState(
+    hydratedPosts,
+    viewerUid || params.profileUid
+  );
+
+  const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
+  const hasMore = snap.docs.length === queryLimit;
+
+  return {
+    posts: postsWithViewerState,
+    cursor:
+      hasMore && lastDoc
+        ? {
+            lastDoc,
+          }
+        : null,
+    hasMore,
+  };
 }
 
 export async function fetchUserProfilePosts(
   profileUid: string,
   viewerUid?: string | null
 ): Promise<Post[]> {
-  assertValidId(profileUid, "profileUid");
-
-  const profileSnap = await getDoc(doc(db, "users", profileUid));
-  if (!profileSnap.exists()) {
-    return [];
-  }
-
-  const profileData = profileSnap.data() as Record<string, unknown>;
-  const showPosts = profileData.showPosts !== false;
-
-  if (!showPosts && viewerUid !== profileUid) {
-    return [];
-  }
-
-  if (viewerUid === profileUid) {
-    const ownPostsSnap = await getDocs(
-      query(
-        collection(db, "posts"),
-        where("authorId", "==", profileUid),
-        where("isDeleted", "==", false),
-        orderBy("createdAt", "desc"),
-        limit(100)
-      )
-    );
-
-    const ownPosts = ownPostsSnap.docs.map((d) => ({
-      id: d.id,
-      ...(d.data() as Omit<Post, "id">),
-    })) as Post[];
-
-    const [userMap, groupMap] = await Promise.all([
-      fetchUsersByIds(ownPosts.map((post) => post.authorId)),
-      fetchGroupsByIds(ownPosts.map((post) => post.groupId)),
-    ]);
-
-    const hydratedPosts = ownPosts.map((post) => {
-      const hydrated = hydratePost(post, userMap, groupMap);
-
-      return {
-        ...hydrated,
-        isLocked: isPostLocked(hydrated),
-      };
-    });
-
-    return attachViewerPostState(hydratedPosts, viewerUid || profileUid);
-  }
-
-  const visibleGroupIds = await fetchProfileVisibleGroupIds(viewerUid);
-
-  const rawPosts = await fetchPostsByAccessibleGroups(visibleGroupIds);
-  const filteredPosts = rawPosts.filter((post) => post.authorId === profileUid);
-
-  const [userMap, groupMap] = await Promise.all([
-    fetchUsersByIds(filteredPosts.map((post) => post.authorId)),
-    fetchGroupsByIds(filteredPosts.map((post) => post.groupId)),
-  ]);
-
-  const hydratedPosts = filteredPosts.map((post) => {
-    const hydrated = hydratePost(post, userMap, groupMap);
-
-    return {
-      ...hydrated,
-      isLocked: isPostLocked(hydrated),
-    };
+  const page = await fetchUserProfilePostsPage({
+    profileUid,
+    viewerUid,
+    pageSize: 10,
+    cursor: null,
   });
 
-  return attachViewerPostState(hydratedPosts, viewerUid);
+  return page.posts;
 }
 
 export async function createTextPost(params: {
