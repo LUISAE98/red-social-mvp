@@ -792,7 +792,7 @@ export default function OwnerSidebar() {
 
   const ui = {
     sidebarWidth: 300,
-    sidebarTop: 84,
+    sidebarTop: 65,
     sidebarBottom: 16,
   };
 
@@ -853,35 +853,42 @@ export default function OwnerSidebar() {
       letterSpacing: 0.65,
       padding: "4px 2px 2px",
     },
-    card: {
-      padding: "10px 12px",
-      borderRadius: 16,
-      background: "rgba(255,255,255,0.02)",
-      border: "1px solid rgba(255,255,255,0.06)",
-      backdropFilter: "blur(12px)",
-      WebkitBackdropFilter: "blur(12px)",
-    },
+card: {
+  padding: "10px 12px",
+  borderRadius: 16,
+  background:
+    "linear-gradient(90deg, rgba(236,72,153,0.16) 0%, rgba(147,51,234,0.14) 42%, rgba(59,130,246,0.10) 100%)",
+  border: "none",
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+},
     subtle: {
       fontSize: 11,
       color: "rgba(255,255,255,0.56)",
       lineHeight: 1.3,
     },
-    sectionPanel: {
-      padding: "10px",
-      borderRadius: 14,
-      border: "1px solid rgba(255,255,255,0.08)",
-      background: "rgba(255,255,255,0.02)",
-      display: "grid",
-      gap: 8,
-    },
-    miniItem: {
-      borderRadius: 14,
-      border: "1px solid rgba(255,255,255,0.08)",
-      background: "rgba(255,255,255,0.025)",
-      padding: 9,
-      display: "grid",
-      gap: 7,
-    },
+sectionPanel: {
+  padding: "10px",
+  borderRadius: 14,
+  border: "none",
+  background:
+    "linear-gradient(90deg, rgba(236,72,153,0.10) 0%, rgba(147,51,234,0.09) 48%, rgba(59,130,246,0.07) 100%)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)",
+  display: "grid",
+  gap: 8,
+},
+miniItem: {
+  borderRadius: 14,
+  border: "none",
+  background:
+    "linear-gradient(90deg, rgba(236,72,153,0.12) 0%, rgba(147,51,234,0.10) 50%, rgba(59,130,246,0.08) 100%)",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)",
+  padding: 9,
+  display: "grid",
+  gap: 7,
+},
         createGroupMobileCard: {
       width: "100%",
       minHeight: 52,
@@ -2510,30 +2517,65 @@ return (
   return (
     <>
       <style jsx>{`
-        .profile-owner-sidebar-scroll {
-          overflow-y: auto;
-          overflow-x: hidden;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
-          -webkit-overflow-scrolling: touch;
-        }
+.profile-owner-sidebar-panel {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  max-height: calc(100vh - 100px);
+  padding: 10px;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: none;
+  background: rgba(0, 0, 0, 0.80);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.34);
+  transition:
+    max-height 320ms ease,
+    height 320ms ease,
+    background 180ms ease;
+}
 
-        .profile-owner-sidebar-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
+.profile-owner-sidebar-content {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  gap: 10px;
+  min-height: 0;
+}
 
-        .profile-owner-sidebar-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
+.owner-sidebar-view-transition {
+  display: grid;
+  gap: 10px;
+  animation: ownerSidebarViewIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+}
 
-        .profile-owner-sidebar-scroll::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.1);
-          border-radius: 999px;
-        }
+@keyframes ownerSidebarViewIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
 
-        .profile-owner-sidebar-scroll::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.16);
-        }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.profile-owner-sidebar-scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+  .profile-owner-sidebar-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.profile-owner-sidebar-scroll::-webkit-scrollbar {
+  width: 3px;
+}
 
         .mini-vertical-scroll {
           max-height: 220px;
@@ -2595,6 +2637,11 @@ return (
         }
 
         @media (max-width: 1220px) {
+
+.profile-owner-sidebar-panel {
+  max-height: none !important;
+  padding: 10px;
+}
           .profile-owner-sidebar-fixed {
             position: static !important;
             width: 100% !important;
@@ -2609,36 +2656,32 @@ return (
         }
       `}</style>
 
-      <aside
-        className="profile-owner-sidebar-fixed"
-        style={{
-          position: "fixed",
-          left: 18,
-          top: ui.sidebarTop,
-          width: ui.sidebarWidth,
-          maxHeight: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom}px)`,
-          zIndex: 9998,
-          fontFamily: fontStack,
-          background: "transparent",
-          border: "none",
-          boxShadow: "none",
-          color: "#fff",
-        }}
-      >
-        <div
-          className="profile-owner-sidebar-scroll"
-          style={{
-            maxHeight: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom}px)`,
-            paddingRight: 4,
-            display: "grid",
-            gap: 10,
-          }}
-        >
+<aside
+  className="profile-owner-sidebar-fixed"
+  style={{
+    position: "fixed",
+    left: 18,
+    top: ui.sidebarTop,
+    width: ui.sidebarWidth,
+    maxHeight: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom}px)`,
+    zIndex: 9998,
+    fontFamily: fontStack,
+    color: "#fff",
+  }}
+>
+<div className="profile-owner-sidebar-panel">
+<div
+  className="profile-owner-sidebar-content"
+  style={{
+    maxHeight: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom + 28}px)`,
+  }}
+>
           {msg && <div style={styles.message}>{msg}</div>}
           {groupsErr && <div style={styles.message}>{groupsErr}</div>}
 
 {profileSidebarGroup && (
-  <OwnerSidebarMyGroups
+  <div style={{ display: "grid", gap: 8 }}>
+    <OwnerSidebarMyGroups
     loadingGroups={false}
     myGroups={[profileSidebarGroup]}
     ownedGrouped={[
@@ -2669,17 +2712,25 @@ return (
               handleGreetingAction={handleGreetingAction}
               joinBusyKey={joinBusyKey}
               greetingBusyId={greetingBusyId}
-            />
-          )}
+       />
+  </div>
+)}
 
           <OwnerSidebarTabNav
             activeView={activeView}
             onChange={setActiveView}
             requestedCount={pendingCount}
           />
-
-          {activeView === "owned" && (
-            <OwnerSidebarMyGroups
+<div
+  className="profile-owner-sidebar-scroll"
+  style={{
+    maxHeight: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom + 150}px)`,
+    paddingRight: 0,
+  }}
+>
+{activeView === "owned" && (
+  <div className="owner-sidebar-view-transition" key="owned">
+    <OwnerSidebarMyGroups
               loadingGroups={loadingGroups}
               myGroups={myGroups}
               meetGreetsByGroup={meetGreetsByGroup}
@@ -2704,11 +2755,13 @@ return (
               handleGreetingAction={handleGreetingAction}
               joinBusyKey={joinBusyKey}
               greetingBusyId={greetingBusyId}
-            />
-          )}
+     />
+  </div>
+)}
 
 {activeView === "communities" && (
-  <>
+  <div className="owner-sidebar-view-transition" key="communities">
+    <>
 <OwnerSidebarOtherGroups
   currentUserId={viewer?.uid ?? null}
   loadingCommunities={loadingCommunities}
@@ -2744,11 +2797,13 @@ return (
 <span aria-hidden="true">🧩</span>
 <span>Crear grupo nuevo</span>
     </button>
-  </>
+   </>
+  </div>
 )}
 
-          {activeView === "greetings" && pendingCount > 0 && (
-            <OwnerSidebarGreetings
+{activeView === "greetings" && pendingCount > 0 && (
+  <div className="owner-sidebar-view-transition" key="greetings">
+    <OwnerSidebarGreetings
               buyerPending={buyerPending}
               buyerExclusiveSessions={buyerExclusiveSessions}
               exclusiveSessionsByGroup={{}}
@@ -2760,8 +2815,10 @@ return (
               router={router}
               buyerMeetGreets={buyerMeetGreets}
               meetGreetsByGroup={{}}
-            />
-          )}
+    />
+  </div>
+)}
+</div>
 
           {(loadingGroups || loadingCommunities) && (
             <div
@@ -2774,8 +2831,9 @@ return (
               Cargando comunidades...
             </div>
           )}
-        </div>
-      </aside>
+         </div>
+</div>
+</aside>
     </>
   );
 }

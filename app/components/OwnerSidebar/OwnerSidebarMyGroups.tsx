@@ -1011,13 +1011,18 @@ const copyTitle = isProfileCard
                 }}
               >
                 <div
-                  style={{
-                    ...styles.card,
-                    border: "none",
-                    margin: 0,
-                    borderRadius: 16,
-                    background: "rgba(0,0,0,0.96)",
-                  }}
+style={{
+  ...styles.card,
+  border: "none",
+  margin: 0,
+  borderRadius: 16,
+background: isProfileCard
+  ? "rgba(0,0,0,0.72)"
+  : "linear-gradient(90deg, rgba(236,72,153,0.16) 0%, rgba(147,51,234,0.14) 42%, rgba(59,130,246,0.10) 100%)",
+  boxShadow: isProfileCard
+    ? "none"
+    : "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
+}}
                 >
                   <div
                     style={{

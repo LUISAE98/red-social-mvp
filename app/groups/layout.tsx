@@ -195,7 +195,7 @@ function WalletDesktopRail({
   min-height: 0;
   margin-left: auto;
   margin-right: auto;
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
 
   display: grid;
@@ -224,32 +224,31 @@ function WalletDesktopRail({
 
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 
   padding: 14px 14px;
   box-sizing: border-box;
 
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  border: 1px solid rgba(168, 85, 255, 0.16);
 
-background:
-  linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.20) 0%,
-    rgba(168, 85, 255, 0.22) 16%,
-    rgba(28, 18, 64, 0.97) 48%,
-    rgba(11, 10, 28, 0.985) 100%
-  );
+  background:
+    linear-gradient(
+      135deg,
+      rgb(3, 3, 6) 0%,
+      rgb(8, 5, 13) 48%,
+      rgb(0, 0, 0) 100%
+    );
 
-backdrop-filter: blur(54px) saturate(220%) brightness(1);
--webkit-backdrop-filter: blur(54px) saturate(220%) brightness(1);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.22),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 0 26px rgba(255, 255, 255, 0.035),
-    0 0 34px rgba(168, 85, 255, 0.16),
-    0 18px 54px rgba(0, 0, 0, 0.48);
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.025),
+    inset 0 0 22px rgba(168, 85, 255, 0.025),
+    0 0 18px rgba(168, 85, 255, 0.06),
+    0 18px 54px rgba(0, 0, 0, 0.68);
 }
 
 .railSection::before {
@@ -259,12 +258,11 @@ backdrop-filter: blur(54px) saturate(220%) brightness(1);
   border-radius: inherit;
   pointer-events: none;
   background:
-    radial-gradient(circle at 14% 8%, rgba(168, 85, 255, 0.44), transparent 32%),
-    radial-gradient(circle at 84% 18%, rgba(79, 70, 255, 0.30), transparent 34%),
-    radial-gradient(circle at 20% 92%, rgba(168, 85, 255, 0.32), transparent 38%),
-    radial-gradient(circle at 92% 88%, rgba(79, 70, 255, 0.18), transparent 40%);
+    radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.09), transparent 34%),
+    radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.06), transparent 36%),
+    radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.05), transparent 40%);
   filter: blur(24px);
-  opacity: 1;
+  opacity: 0.55;
   z-index: 0;
   animation: railAuraMove 7s ease-in-out infinite alternate;
 }
@@ -354,7 +352,7 @@ backdrop-filter: blur(54px) saturate(220%) brightness(1);
   }
 }
 .walletTitle {
-  margin: 0 0 -1px;
+  margin: 0 0 2px;
   font-size: 17px;
   line-height: 1.2;
   font-weight: 700;
@@ -363,7 +361,7 @@ backdrop-filter: blur(54px) saturate(220%) brightness(1);
 }
 
 .secondaryTitle {
-  margin: 0 0 -1px;
+  margin: 0 0 2px;
   font-size: 17px;
   line-height: 1.2;
   font-weight: 700;
@@ -471,7 +469,7 @@ backdrop-filter: blur(54px) saturate(220%) brightness(1);
 .walletNav {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
         .walletLink {
@@ -497,21 +495,64 @@ backdrop-filter: blur(54px) saturate(220%) brightness(1);
           transform: translateX(2px);
         }
 
-        .walletLinkActive {
-          color: #ffffff;
-          font-weight: 700;
-        }
+:global(.walletLinkActive) {
+  color: #ffffff;
+  font-weight: 700;
+  border-radius: 15px;
+  position: relative;
+  overflow: hidden;
 
-        .walletLinkActive::before {
-          content: "";
-          position: absolute;
-          left: 0;
-          top: 4px;
-          bottom: 4px;
-          width: 3px;
-          border-radius: 999px;
-          background: #ffffff;
-        }
+  background:
+    radial-gradient(circle at 18% 50%, rgba(236, 72, 153, 0.23), transparent 34%),
+    radial-gradient(circle at 80% 45%, rgba(79, 70, 229, 0.25), transparent 36%),
+    radial-gradient(circle at 50% 50%, rgba(124, 58, 237, 0.23), transparent 42%),
+    linear-gradient(
+      135deg,
+      #09090f 0%,
+      #050509 52%,
+      #000000 100%
+    );
+
+  padding: 3px 12px;
+  margin-left: -2px;
+  margin-right: -2px;
+
+  box-shadow:
+    inset 0 0 10px rgba(255, 255, 255, 0.04),
+    inset 0 0 18px rgba(124, 58, 237, 0.16),
+    0 0 14px rgba(124, 58, 237, 0.20);
+}
+
+:global(.walletLinkActive)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+
+  background:
+    linear-gradient(
+      110deg,
+      transparent 0%,
+      rgba(236, 72, 153, 0.13) 25%,
+      rgba(124, 58, 237, 0.18) 50%,
+      rgba(79, 70, 229, 0.13) 75%,
+      transparent 100%
+    );
+
+  opacity: 0.82;
+  animation: walletActiveAura 4.5s ease-in-out infinite alternate;
+}
+
+@keyframes walletActiveAura {
+  0% {
+    transform: translateX(-8%);
+  }
+
+  100% {
+    transform: translateX(8%);
+  }
+}
 
         .walletEmoji {
           display: inline-flex;
@@ -1037,7 +1078,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   flex-direction: column;
   align-items: center;
 
-  overflow: hidden;
+  overflow: visible;
   box-sizing: border-box;
   z-index: 20;
 }
