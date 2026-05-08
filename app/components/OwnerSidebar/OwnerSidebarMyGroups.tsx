@@ -1017,11 +1017,11 @@ style={{
   margin: 0,
   borderRadius: 16,
 background: isProfileCard
-  ? "rgba(0,0,0,0.72)"
-  : "linear-gradient(90deg, rgba(236,72,153,0.16) 0%, rgba(147,51,234,0.14) 42%, rgba(59,130,246,0.10) 100%)",
-  boxShadow: isProfileCard
-    ? "none"
-    : "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
+  ? "transparent"
+  : "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)",
+boxShadow: isProfileCard
+  ? "none"
+  : "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
 }}
                 >
                   <div
@@ -1193,7 +1193,7 @@ background: isProfileCard
       height: 28,
       borderRadius: 999,
       border: "1px solid rgba(255,255,255,0.08)",
-      background: "rgba(255,255,255,0.02)",
+      background: "rgba(255,255,255,0.012)",
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
@@ -1749,7 +1749,7 @@ const scheduleConflictMessage = scheduleConflict.message;
                                       key={`${r.serviceKind}-${r.id}`}
                                       style={{
                                         ...styles.miniItem,
-                                        background: "rgba(255,255,255,0.02)",
+                                        background: "rgba(255,255,255,0.012)",
                                         border:
                                           "1px solid rgba(255,255,255,0.07)",
                                         borderRadius: 16,
@@ -2459,7 +2459,7 @@ const scheduleConflictMessage = scheduleConflict.message;
                                     key={`upcoming-${r.serviceKind}-${r.id}`}
                                     style={{
                                       ...styles.miniItem,
-                                      background: "rgba(250,204,21,0.06)",
+                                      background: "rgba(250,204,21,0.035)",
                                       border:
                                         "1px solid rgba(250,204,21,0.16)",
                                       borderRadius: 16,

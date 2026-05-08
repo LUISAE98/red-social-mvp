@@ -568,37 +568,48 @@ const didDragRef = useRef(false);
 
   return (
     <div
-      style={{
-        position: "relative",
-        overflow: "hidden",
-        borderRadius: 16,
-        minWidth: 0,
-      }}
+style={{
+  position: "relative",
+  overflow: "hidden",
+  borderRadius: 16,
+  minWidth: 0,
+  background: "transparent",
+}}
     >
-<button
-  type="button"
-  onClick={() => onLeave(group)}
+<div
   style={{
     position: "absolute",
     left: 0,
     top: 0,
     bottom: 0,
-    width: actionWidth,
-    border: "none",
-    background: "linear-gradient(90deg, #ef4444 0%, #dc2626 100%)",
-    color: "#fff",
-    cursor: "pointer",
-    fontSize: 12,
-    fontWeight: 600,
-    letterSpacing: -0.1,
-    display: "grid",
-    placeItems: "center",
-    padding: "0 14px",
+    width: currentX,
+    overflow: "hidden",
+    borderRadius: 16,
     zIndex: 1,
+    pointerEvents: currentX > 0 ? "auto" : "none",
   }}
 >
-  Abandonar grupo
-</button>
+  <button
+    type="button"
+    onClick={() => onLeave(group)}
+    style={{
+      width: actionWidth,
+      height: "100%",
+      border: "none",
+      background: "linear-gradient(90deg, #ef4444 0%, #dc2626 100%)",
+      color: "#fff",
+      cursor: "pointer",
+      fontSize: 12,
+      fontWeight: 600,
+      letterSpacing: -0.1,
+      display: "grid",
+      placeItems: "center",
+      padding: "0 14px",
+    }}
+  >
+    Abandonar grupo
+  </button>
+</div>
 
       <div
 style={{
@@ -608,7 +619,7 @@ style={{
   transition: startX === null ? "transform 180ms ease" : "none",
   borderRadius: 16,
   touchAction: "pan-y",
-  background: "#050505",
+  background: "transparent",
 }}
 onPointerDown={(event) => {
   didDragRef.current = false;

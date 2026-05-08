@@ -790,11 +790,11 @@ export default function OwnerSidebar() {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  const ui = {
-    sidebarWidth: 300,
-    sidebarTop: 65,
-    sidebarBottom: 16,
-  };
+const ui = {
+  sidebarWidth: 300,
+  sidebarTop: 90,
+  sidebarBottom: 16,
+};
 
   const styles: Record<string, CSSProperties> = {
     input: {
@@ -856,11 +856,11 @@ export default function OwnerSidebar() {
 card: {
   padding: "10px 12px",
   borderRadius: 16,
-  background:
-    "linear-gradient(90deg, rgba(236,72,153,0.16) 0%, rgba(147,51,234,0.14) 42%, rgba(59,130,246,0.10) 100%)",
+background:
+  "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)",
   border: "none",
-  boxShadow:
-    "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
+boxShadow:
+  "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
   backdropFilter: "blur(12px)",
   WebkitBackdropFilter: "blur(12px)",
 },
@@ -873,8 +873,8 @@ sectionPanel: {
   padding: "10px",
   borderRadius: 14,
   border: "none",
-  background:
-    "linear-gradient(90deg, rgba(236,72,153,0.10) 0%, rgba(147,51,234,0.09) 48%, rgba(59,130,246,0.07) 100%)",
+background:
+  "linear-gradient(90deg, rgba(236,72,153,0.06) 0%, rgba(147,51,234,0.055) 48%, rgba(59,130,246,0.045) 100%)",
   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)",
   display: "grid",
   gap: 8,
@@ -882,8 +882,8 @@ sectionPanel: {
 miniItem: {
   borderRadius: 14,
   border: "none",
-  background:
-    "linear-gradient(90deg, rgba(236,72,153,0.12) 0%, rgba(147,51,234,0.10) 50%, rgba(59,130,246,0.08) 100%)",
+background:
+  "linear-gradient(90deg, rgba(236,72,153,0.07) 0%, rgba(147,51,234,0.06) 50%, rgba(59,130,246,0.05) 100%)",
   boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)",
   padding: 9,
   display: "grid",
@@ -2332,18 +2332,30 @@ const copyTitle = isProfileCard
 
 return (
   <div
-    key={g.id}
-    style={{
-      ...styles.card,
-      padding: opts?.compact ? "9px 11px" : "10px 12px",
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-    }}
+    className="owner-sidebar-community-card"
+style={{
+  ...styles.card,
+  padding: opts?.compact ? "9px 11px" : "10px 12px",
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+
+background: isProfileCard
+  ? "transparent"
+  : "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)",
+
+boxShadow: isProfileCard
+  ? "none"
+  : "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
+
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+}}
   >
-    <button
-          type="button"
-          onClick={() => router.push(`/groups/${g.id}`)}
+<button
+  type="button"
+  className="owner-sidebar-community-card-main"
+  onClick={() => router.push(`/groups/${g.id}`)}
           style={{
             background: "transparent",
             border: "none",
@@ -2511,10 +2523,13 @@ return (
     ].filter((section) => section.items.length > 0);
   }, [browseGroups, joinedGroups]);
 
-  if (!authReady) return null;
-  if (!viewer) return null;
+if (!authReady) return null;
+if (!viewer) return null;
 
-  return (
+const isProfileTopOpen =
+  profileBucketKey ? openCommunities[profileBucketKey] === true : false;
+
+return (
     <>
       <style jsx>{`
 .profile-owner-sidebar-panel {
@@ -2525,11 +2540,15 @@ return (
   padding: 10px;
   box-sizing: border-box;
   border-radius: 12px;
-  border: none;
-  background: rgba(0, 0, 0, 0.80);
+border: 1px solid rgba(168, 85, 255, 0.16);
+  background: rgba(10, 6, 16, 0.80);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.34);
+box-shadow:
+  0 0 0 1px rgba(168, 85, 255, 0.05),
+  0 0 10px rgba(168, 85, 255, 0.10),
+  0 0 20px rgba(168, 85, 255, 0.06),
+  0 18px 54px rgba(0, 0, 0, 0.34);
   transition:
     max-height 320ms ease,
     height 320ms ease,
@@ -2636,24 +2655,73 @@ return (
           }
         }
 
-        @media (max-width: 1220px) {
+@media (max-width: 1220px) {
+.profile-owner-sidebar-panel {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.owner-sidebar-community-card {
+  width: 100% !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  justify-content: space-between !important;
+}
+
+.owner-sidebar-community-card-main {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+.profile-owner-sidebar-fixed {
+  position: fixed !important;
+  left: 8px !important;
+  right: 8px !important;
+  top: 90px !important;
+  bottom: 78px !important;
+  width: auto !important;
+  max-height: none !important;
+  margin: 0 !important;
+}
 
 .profile-owner-sidebar-panel {
-  max-height: none !important;
-  padding: 10px;
+  height: 100% !important;
+  max-height: 100% !important;
+  padding: 0 !important;
+  overflow: hidden !important;
 }
-          .profile-owner-sidebar-fixed {
-            position: static !important;
-            width: 100% !important;
-            max-height: none !important;
-            margin: 18px auto 0 !important;
-          }
 
-          .profile-owner-sidebar-scroll {
-            max-height: none !important;
-            overflow: visible !important;
-          }
-        }
+  .profile-owner-sidebar-content {
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow: hidden !important;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+  }
+
+  .profile-owner-sidebar-scroll {
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+  }
+}
+
+  .profile-owner-sidebar-panel--profile-open {
+    overflow-y: auto;
+  }
+
+  .profile-owner-sidebar-panel--profile-open .profile-owner-sidebar-scroll {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
       `}</style>
 
 <aside
@@ -2669,7 +2737,13 @@ return (
     color: "#fff",
   }}
 >
-<div className="profile-owner-sidebar-panel">
+<div
+  className={
+    isProfileTopOpen
+      ? "profile-owner-sidebar-panel profile-owner-sidebar-panel--profile-open"
+      : "profile-owner-sidebar-panel"
+  }
+>
 <div
   className="profile-owner-sidebar-content"
   style={{
