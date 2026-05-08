@@ -1,3 +1,5 @@
+//layout (protected) este ya está corregido, este lo tomas de referencia solamente
+
 "use client";
 
 import Link from "next/link";

@@ -1,6 +1,11 @@
 "use client";
 
+import { useAuth } from "../providers";
+
 export default function VibraGlobalBackground() {
+  const { user } = useAuth();
+  const isLoggedIn = Boolean(user);
+
   return (
     <>
       <style jsx global>{`
@@ -11,7 +16,10 @@ export default function VibraGlobalBackground() {
           pointer-events: none;
           overflow: hidden;
           background-image:
-            linear-gradient(rgba(0,0,0,0.18), rgba(0,0,0,0.18)),
+            linear-gradient(
+              rgba(0, 0, 0, var(--vibra-bg-darkness)),
+              rgba(0, 0, 0, var(--vibra-bg-darkness))
+            ),
             url("/background-vibra.png");
           background-size: cover;
           background-position: center bottom;
@@ -20,16 +28,9 @@ export default function VibraGlobalBackground() {
           transform-origin: center bottom;
           animation: vibraGlobalBackgroundSoftWave 18s ease-in-out infinite;
           will-change: transform;
-        }
-
-        @keyframes vibraGlobalBackgroundSoftWave {
-          0%, 100% {
-            transform: translate3d(0, 0, 0) scaleX(1) scaleY(1);
-          }
-
-          50% {
-            transform: translate3d(0, 2px, 0) scaleX(1.006) scaleY(0.988);
-          }
+          transition: filter 420ms ease, opacity 420ms ease;
+          filter: brightness(var(--vibra-bg-brightness))
+            saturate(var(--vibra-bg-saturation));
         }
 
         .vibraGlobalColorFilter {
@@ -47,20 +48,9 @@ export default function VibraGlobalBackground() {
               transparent 100%
             );
           mix-blend-mode: screen;
-          opacity: 0.45;
+          opacity: var(--vibra-color-filter-opacity);
           animation: vibraGlobalColorFlow 9s ease-in-out infinite;
-        }
-
-        @keyframes vibraGlobalColorFlow {
-          0%, 100% {
-            transform: translateX(-8%);
-            opacity: 0.28;
-          }
-
-          50% {
-            transform: translateX(8%);
-            opacity: 0.5;
-          }
+          transition: opacity 420ms ease;
         }
 
         .vibraGlobalParticles {
@@ -69,6 +59,9 @@ export default function VibraGlobalBackground() {
           z-index: 0;
           pointer-events: none;
           overflow: hidden;
+          opacity: var(--vibra-particles-opacity);
+          filter: brightness(var(--vibra-particles-brightness));
+          transition: opacity 420ms ease, filter 420ms ease;
         }
 
         .vibraGlobalParticle {
@@ -97,6 +90,28 @@ export default function VibraGlobalBackground() {
           opacity: 0.09;
         }
 
+        @keyframes vibraGlobalBackgroundSoftWave {
+          0%, 100% {
+            transform: translate3d(0, 0, 0) scaleX(1) scaleY(1);
+          }
+
+          50% {
+            transform: translate3d(0, 2px, 0) scaleX(1.006) scaleY(0.988);
+          }
+        }
+
+        @keyframes vibraGlobalColorFlow {
+          0%, 100% {
+            transform: translateX(-8%);
+            opacity: calc(var(--vibra-color-filter-opacity) * 0.65);
+          }
+
+          50% {
+            transform: translateX(8%);
+            opacity: var(--vibra-color-filter-opacity);
+          }
+        }
+
         @keyframes vibraGlobalParticleFloat {
           0%, 100% {
             transform: translate3d(0, 0, 0);
@@ -110,10 +125,38 @@ export default function VibraGlobalBackground() {
         }
       `}</style>
 
-      <div className="vibraGlobalBackground" aria-hidden="true" />
-      <div className="vibraGlobalColorFilter" aria-hidden="true" />
+      <div
+        className="vibraGlobalBackground"
+        aria-hidden="true"
+        style={
+          {
+            "--vibra-bg-darkness": isLoggedIn ? "0.52" : "0.18",
+            "--vibra-bg-brightness": isLoggedIn ? "0.72" : "1",
+            "--vibra-bg-saturation": isLoggedIn ? "0.82" : "1",
+          } as React.CSSProperties
+        }
+      />
 
-      <div className="vibraGlobalParticles" aria-hidden="true">
+      <div
+        className="vibraGlobalColorFilter"
+        aria-hidden="true"
+        style={
+          {
+            "--vibra-color-filter-opacity": isLoggedIn ? "0.18" : "0.45",
+          } as React.CSSProperties
+        }
+      />
+
+      <div
+        className="vibraGlobalParticles"
+        aria-hidden="true"
+        style={
+          {
+            "--vibra-particles-opacity": isLoggedIn ? "0.42" : "1",
+            "--vibra-particles-brightness": isLoggedIn ? "0.72" : "1",
+          } as React.CSSProperties
+        }
+      >
         {Array.from({ length: 86 }).map((_, index) => {
           const randomA = Math.abs(Math.sin(index * 12.9898) * 43758.5453) % 1;
           const randomB = Math.abs(Math.sin(index * 78.233) * 24634.6345) % 1;

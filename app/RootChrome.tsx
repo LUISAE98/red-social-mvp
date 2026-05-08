@@ -6,58 +6,12 @@ import { useEffect } from "react";
 import { useAuth } from "@/app/providers";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 
-function HeaderIconButton({
-  href,
-  title,
-  ariaLabel,
-  children,
-  size = 40,
-  borderRadius = 10,
-  background = "linear-gradient(100deg, #ff2fb3 0%, #a855ff 52%, #4f46ff 100%)",
-  color = "#fff",
-  border = "none",
-}: {
-  href: string;
-  title: string;
-  ariaLabel: string;
-  children: React.ReactNode;
-  size?: number;
-  borderRadius?: number;
-  background?: string;
-  color?: string;
-  border?: string;
-}) {
-  const commonStyle: React.CSSProperties = {
-    width: size,
-    height: size,
-    minWidth: size,
-    padding: 0,
-    borderRadius,
-    border,
-    background,
-    color,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    textDecoration: "none",
-    flexShrink: 0,
-    boxShadow: "0 10px 28px rgba(168,85,255,0.22)",
-  };
-
-  return (
-    <Link href={href} title={title} aria-label={ariaLabel} style={commonStyle}>
-      {children}
-    </Link>
-  );
-}
-
 export default function RootChrome({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, loading, startAuthTransition } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -72,9 +26,10 @@ export default function RootChrome({
 
   useEffect(() => {
     if (!loading && !user && !isPublicRoute) {
+      startAuthTransition("exiting");
       router.replace("/login");
     }
-  }, [loading, user, isPublicRoute, router]);
+  }, [loading, user, isPublicRoute, router, startAuthTransition]);
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -84,14 +39,29 @@ export default function RootChrome({
       <div
         style={{
           minHeight: "100dvh",
-          background: "#000",
-          color: "#fff",
           display: "grid",
           placeItems: "center",
           padding: 24,
+          color: "#fff",
+          background: "rgba(0,0,0,0.22)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
         }}
       >
-        Cargando sesión...
+        <div
+          style={{
+            padding: "14px 18px",
+            borderRadius: 18,
+            border: "1px solid rgba(255,255,255,0.12)",
+            background: "rgba(8,8,16,0.42)",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.28)",
+            fontSize: 14,
+            fontWeight: 600,
+            letterSpacing: "-0.01em",
+          }}
+        >
+          Cargando sesión...
+        </div>
       </div>
     );
   }
@@ -107,7 +77,7 @@ export default function RootChrome({
           --shell-gutter: 16px;
           min-height: 100vh;
           min-height: 100dvh;
-          background: #000000;
+          background: transparent;
           color: #ffffff;
           display: flex;
           flex-direction: column;
@@ -162,64 +132,47 @@ export default function RootChrome({
           flex-shrink: 0;
         }
 
-.rootChromeDesktopAuthLink {
-  width: auto;
-  min-height: 40px;
-  padding: 8px 14px;
-  border-radius: 10px;
-  border: none;
-  background: linear-gradient(100deg, #ff2fb3 0%, #a855ff 45%, #4f46ff 100%);
-  background-size: 220% 220%;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
-  cursor: pointer;
-  box-shadow: 0 10px 28px rgba(168,85,255,0.22);
-  overflow: hidden;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  white-space: nowrap;
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    filter 0.18s ease;
-}
+        .rootChromeDesktopAuthLink {
+          width: auto;
+          min-height: 40px;
+          padding: 8px 14px;
+          border-radius: 10px;
+          border: none;
+          background-image: linear-gradient(
+            100deg,
+            #ff2fb3 0%,
+            #a855ff 35%,
+            #4f46ff 70%,
+            #ff2fb3 100%
+          );
+          background-size: 280% 280%;
+          background-position: 0% 50%;
+          color: #fff;
+          font-size: 14px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+          font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+            "SF Pro Display", system-ui, sans-serif;
+          cursor: pointer;
+          box-shadow: 0 10px 28px rgba(168, 85, 255, 0.22);
+          overflow: hidden;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          white-space: nowrap;
+          transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease,
+            filter 0.18s ease;
+        }
 
-.rootChromeDesktopAuthLink {
-  width: auto;
-  min-height: 40px;
-  padding: 8px 14px;
-  border-radius: 10px;
-  border: none;
-  background-image: linear-gradient(
-    100deg,
-    #ff2fb3 0%,
-    #a855ff 35%,
-    #4f46ff 70%,
-    #ff2fb3 100%
-  );
-  background-size: 280% 280%;
-  background-position: 0% 50%;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
-  cursor: pointer;
-  box-shadow: 0 10px 28px rgba(168,85,255,0.22);
-  overflow: hidden;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  white-space: nowrap;
-}
+        .rootChromeDesktopAuthLink:hover {
+          transform: translateY(-1px);
+          filter: brightness(1.06);
+          box-shadow: 0 14px 34px rgba(168, 85, 255, 0.3);
+        }
 
         .rootChromeMobileSearchRow {
           display: none;
@@ -278,7 +231,11 @@ export default function RootChrome({
 
               <div className="rootChromeDesktopActions">
                 {pathname !== "/login" ? (
-                  <Link href="/login" className="rootChromeDesktopAuthLink">
+                  <Link
+                    href="/login"
+                    className="rootChromeDesktopAuthLink"
+                    onClick={() => startAuthTransition("entering")}
+                  >
                     Iniciar sesión
                   </Link>
                 ) : null}
@@ -294,8 +251,6 @@ export default function RootChrome({
                   showCloseSearch={false}
                 />
               </div>
-
-{null}
             </div>
           </div>
         </header>

@@ -1,3 +1,5 @@
+// Layout de grupos corregido con el panel derecho actualizado
+
 "use client";
 
 import Link from "next/link";
@@ -9,6 +11,11 @@ import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
+import {
+  VibraNavigationIcon,
+  VibraNavigationIconsStyles,
+  type VibraNavigationIconType,
+} from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 
 function HeaderIconButton({
   onClick,
@@ -91,18 +98,7 @@ function WalletHeaderButton({
       color="#000000"
       border="1px solid rgba(255,255,255,0.95)"
     >
-      <span
-        style={{
-          fontSize: size >= 40 ? 18 : 16,
-          lineHeight: 1,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-        aria-hidden="true"
-      >
-        📊
-      </span>
+      <VibraNavigationIcon type="finance" size={20} />
     </HeaderIconButton>
   );
 }
@@ -134,31 +130,31 @@ function WalletDesktopRail({
     key: WalletRailTab;
     label: string;
     href: string;
-    emoji: string;
+    icon: VibraNavigationIconType;
   }> = [
     {
       key: "finances",
       label: "Finanzas",
       href: "/wallet/finanzas",
-      emoji: "📈",
+      icon: "finance",
     },
     {
       key: "calendar",
       label: "Calendario",
       href: "/wallet/calendario",
-      emoji: "📅",
+      icon: "calendar",
     },
     {
       key: "pending",
       label: "Pendientes",
       href: "/wallet/pendientes",
-      emoji: "⏳",
+      icon: "pending",
     },
     {
       key: "history",
       label: "Historial",
       href: "/wallet/historial",
-      emoji: "🧾",
+      icon: "history",
     },
   ];
 
@@ -166,21 +162,20 @@ function WalletDesktopRail({
     key: MainRailTab;
     label: string;
     href: string;
-    emoji: string;
+    icon: VibraNavigationIconType;
   }> = [
     {
       key: "home",
       label: "Inicio",
       href: "/",
-      emoji: "🏠",
+      icon: "home",
     },
     {
       key: "saved",
       label: "Guardados",
       href: "/saved",
-      emoji: "🔖",
+      icon: "saved",
     },
-  
   ];
 
   const activeWalletTab = resolveWalletRailTab(activePath);
@@ -188,6 +183,8 @@ function WalletDesktopRail({
 
   return (
     <>
+      <VibraNavigationIconsStyles />
+
       <style jsx>{`
 .walletRail {
   width: min(100%, 250px);
@@ -292,7 +289,7 @@ function WalletDesktopRail({
 .mainMenuRailSection {
   transform: translateY(18px);
 }
-  
+
 .createCommunitySection + .railSection {
   margin-top: 0;
 }
@@ -310,13 +307,14 @@ function WalletDesktopRail({
 }
 
 @media (max-height: 760px) {
-
   .createCommunitySection {
     transform: translateY(-10px);
   }
-.walletRailCenter {
-  gap: 10px;
-}
+
+  .walletRailCenter {
+    gap: 10px;
+  }
+
   .railSection {
     padding: 12px 14px;
     gap: 6px;
@@ -351,6 +349,7 @@ function WalletDesktopRail({
     min-height: 38px;
   }
 }
+
 .walletTitle {
   margin: 0 0 2px;
   font-size: 17px;
@@ -398,6 +397,7 @@ function WalletDesktopRail({
 .createCommunitySection::after {
   display: none;
 }
+
 .createCommunityImage {
   width: 138px;
   max-width: 138px;
@@ -466,34 +466,35 @@ function WalletDesktopRail({
   justify-content: center;
   box-sizing: border-box;
 }
+
 .walletNav {
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-        .walletLink {
-          position: relative;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          min-height: 34px;
-          padding: 4px 0 4px 10px;
-          color: rgba(255, 255, 255, 0.74);
-          text-decoration: none;
-          font-size: 15px;
-          line-height: 1.2;
-          font-weight: 500;
-          transition:
-            color 0.18s ease,
-            transform 0.18s ease,
-            opacity 0.18s ease;
-        }
+.walletLink:hover {
+  color: #ffffff;
+  transform: translateX(2px);
+}
 
-        .walletLink:hover {
-          color: #ffffff;
-          transform: translateX(2px);
-        }
+.walletIcon {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #a855ff;
+  transform: translateY(3.5px);
+  margin-right: 8px;
+}
+
+.walletLabel {
+  min-width: 0;
+  white-space: nowrap;
+}
 
 :global(.walletLinkActive) {
   color: #ffffff;
@@ -553,102 +554,88 @@ function WalletDesktopRail({
     transform: translateX(8%);
   }
 }
-
-        .walletEmoji {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 22px;
-          min-width: 22px;
-          flex-shrink: 0;
-          font-size: 17px;
-          line-height: 1;
-          margin-right: 6px;
-        }
-
-        .walletLabel {
-          min-width: 0;
-          white-space: nowrap;
-        }
       `}</style>
 
-<aside className="walletRail" aria-label="Accesos directos">
-  <div className="walletRailCenter">
-    <section className="railSection mainMenuSection" aria-label="Navegación principal">
-      <h3 className="secondaryTitle">Menú</h3>
+      <aside className="walletRail" aria-label="Accesos directos">
+        <div className="walletRailCenter">
+          <section className="railSection mainMenuSection" aria-label="Navegación principal">
+            <h3 className="secondaryTitle">Menú</h3>
 
-      <nav className="walletNav">
-        {mainItems.map((item) => {
-          const isActive = activeMainTab === item.key;
+            <nav className="walletNav">
+              {mainItems.map((item) => {
+                const isActive = activeMainTab === item.key;
 
-          return (
-            <Link
-              key={item.key}
-              href={item.href}
-              className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
-            >
-              <span className="walletEmoji" aria-hidden="true">
-                {item.emoji}
+                return (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
+                  >
+                    <span className="walletIcon" aria-hidden="true">
+                      <VibraNavigationIcon type={item.icon} size={21} />
+                    </span>
+                    <span className="walletLabel">{item.label}</span>
+
+                  </Link>
+                );
+              })}
+            </nav>
+          </section>
+
+          <section className="railSection createCommunitySection" aria-label="Crear comunidad">
+            <img
+              src="/Crear-comunidad.png"
+              alt=""
+              className="createCommunityImage"
+              aria-hidden="true"
+            />
+
+            <div className="createCommunityCopy">
+              <strong>Crea tu comunidad</strong>
+              <span>
+                Conecta, comparte y
+                <br />
+                monetiza tu pasión.
               </span>
-              <span className="walletLabel">{item.label}</span>
+            </div>
+
+            <Link href="/groups/new" className="createCommunityButton">
+              Crear comunidad
             </Link>
-          );
-        })}
-      </nav>
-    </section>
+          </section>
 
-    <section className="railSection createCommunitySection" aria-label="Crear comunidad">
-      <img
-        src="/Crear-comunidad.png"
-        alt=""
-        className="createCommunityImage"
-        aria-hidden="true"
-      />
+          {showWallet ? (
+            <section className="railSection" aria-label="Wallet">
+              <h3 className="walletTitle">Wallet</h3>
 
-      <div className="createCommunityCopy">
-        <strong>Crea tu comunidad</strong>
-        <span>
-          Conecta, comparte y
-          <br />
-          monetiza tu pasión.
-        </span>
-      </div>
+              <nav className="walletNav">
+                {walletItems.map((item) => {
+                  const isActive = activeWalletTab === item.key;
 
-      <Link href="/groups/new" className="createCommunityButton">
-        Crear comunidad
-      </Link>
-    </section>
+                  return (
+                    <Link
+                      key={item.key}
+                      href={item.href}
+                      className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
+                    >
+                      <span className="walletIcon" aria-hidden="true">
+                        <VibraNavigationIcon type={item.icon} size={21} />
+                      </span>
+                      <span className="walletLabel">{item.label}</span>
 
-    {showWallet ? (
-      <section className="railSection" aria-label="Wallet">
-        <h3 className="walletTitle">Wallet</h3>
 
-        <nav className="walletNav">
-          {walletItems.map((item) => {
-            const isActive = activeWalletTab === item.key;
+                    </Link>
+                  );
+                })}
+              </nav>
+            </section>
+          ) : null}
+        </div>
 
-            return (
-              <Link
-                key={item.key}
-                href={item.href}
-                className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
-              >
-                <span className="walletEmoji" aria-hidden="true">
-                  {item.emoji}
-                </span>
-                <span className="walletLabel">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </section>
-    ) : null}
-  </div>
-
-  <section className="logoutSection" aria-label="Cerrar sesión">
-    <LogoutButton variant="settings" />
-  </section>
-</aside>
+        <section className="logoutSection" aria-label="Cerrar sesión">
+          <LogoutButton variant="settings" />
+        </section>
+      </aside>
     </>
   );
 }
