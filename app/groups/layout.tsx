@@ -1271,24 +1271,8 @@ export default function GroupsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: "100dvh",
-          background: "#000",
-          color: "#fff",
-          display: "grid",
-          placeItems: "center",
-          padding: 24,
-        }}
-      >
-        Cargando sesión...
-      </div>
-    );
-  }
 
   if (user) {
     return <AuthenticatedGroupsShell>{children}</AuthenticatedGroupsShell>;

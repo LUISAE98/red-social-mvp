@@ -13,7 +13,7 @@ export default function GroupsHome() {
 
   const pageWrap: React.CSSProperties = {
     padding: "12px 0 calc(118px + env(safe-area-inset-bottom))",
-    background: "#000",
+    background: "transparent",
     minHeight: "100vh",
     color: "#fff",
     fontFamily: fontStack,

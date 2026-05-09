@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuth } from "@/app/providers";
 import {
   signInWithEmailAndPassword,
   setPersistence,
@@ -55,6 +56,8 @@ export default function LoginClient() {
   const [keepSession, setKeepSession] = useState(true);
 const [msg, setMsg] = useState<string | null>(null);
 const [loading, setLoading] = useState(false);
+const [isLeavingLogin, setIsLeavingLogin] = useState(false);
+const { startAuthTransition } = useAuth();
 
 useEffect(() => {
   document.documentElement.classList.add("loginNoScroll");
@@ -73,12 +76,12 @@ useEffect(() => {
   const nextPath = getNextFromSearchParams(searchParams, "/");
   const registerHref = appendSafeNextParam("/register", nextPath);
 
-  async function handleLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setMsg(null);
-    setLoading(true);
+async function handleLogin(e: React.FormEvent) {
+e.preventDefault();
+setMsg(null);
+setLoading(true);
 
-    try {
+  try {
       await applyAuthPersistence(keepSession);
 
       const credential = await signInWithEmailAndPassword(
@@ -107,10 +110,13 @@ useEffect(() => {
         throw new Error(data?.error || "No se pudo crear la sesión");
       }
 
-      router.replace(nextPath);
-      router.refresh();
-    } catch (err: unknown) {
-      if (err instanceof Error) {
+      setIsLeavingLogin(true);
+startAuthTransition("entering");
+router.replace(nextPath);
+} catch (err: unknown) {
+  setIsLeavingLogin(false);
+
+  if (err instanceof Error) {
         const maybeFirebaseError = err as Error & { code?: string };
 
         if (!maybeFirebaseError.code) {
@@ -522,6 +528,33 @@ body.loginNoScroll {
   }
 }
 
+.loginLeaving .loginLeftPane,
+.loginLeaving .loginRightPane {
+  animation: vibraLoginAbsorbOut 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+
+.loginLeaving .loginLeftPane {
+  transform-origin: 72% 42%;
+}
+
+.loginLeaving .loginRightPane {
+  transform-origin: 42% 50%;
+}
+
+@keyframes vibraLoginAbsorbOut {
+  0% {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 0;
+    filter: blur(10px);
+    transform: scale(0.72);
+  }
+}
+
 @media (max-width: 420px) {
   .loginRightPane > div {
     padding: 28px 24px !important;
@@ -529,7 +562,10 @@ body.loginNoScroll {
 }
       `}</style>
 
-      <main style={pageStyle} className="loginSplitPage">
+     <main
+  style={pageStyle}
+  className={`loginSplitPage ${isLeavingLogin ? "loginLeaving" : ""}`}
+>
         <div className="loginLeftPane" style={heroContentStyle}>
   <div style={heroInnerStyle}>
 <img
@@ -712,15 +748,24 @@ marginBottom: 6,
     cursor: loading ? "not-allowed" : "pointer",
   }}
 >
-                {loading ? "Entrando..." : "Entrar"}
+                Entrar
               </button>
             </form>
 
-            {msg && (
-              <div style={{ ...noticeStyle, marginTop: 10, marginBottom: 0 }}>
-                {msg}
-              </div>
-            )}
+{msg && (
+  <div
+    style={{
+      ...noticeStyle,
+      marginTop: 10,
+      marginBottom: 0,
+      border: "1px solid rgba(255, 80, 80, 0.45)",
+      background: "rgba(255, 40, 40, 0.10)",
+      color: "rgba(255, 190, 190, 0.95)",
+    }}
+  >
+    {msg}
+  </div>
+)}
           </div>
         </div>
       </main>

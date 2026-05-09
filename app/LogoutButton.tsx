@@ -3,6 +3,8 @@
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/app/providers";
 
 type LogoutButtonVariant = "icon" | "settings";
 
@@ -18,9 +20,12 @@ export default function LogoutButton({
   style,
 }: LogoutButtonProps) {
 const [loading, setLoading] = useState(false);
+const { startAuthTransition } = useAuth();
+const router = useRouter();
 
 async function handleLogout() {
   setLoading(true);
+  startAuthTransition("exiting");
 
   try {
     await signOut(auth);
@@ -37,7 +42,7 @@ async function handleLogout() {
     console.error("Error limpiando sesión del servidor:", error);
   }
 
-  window.location.replace("/login");
+  router.replace("/login");
 }
 
   if (variant === "settings") {
@@ -77,7 +82,7 @@ padding: "8px 14px",
         }}
         type="button"
       >
-        {loading ? "Cerrando..." : "Cerrar sesión"}
+       Cerrar sesión
       </button>
     );
   }
@@ -108,19 +113,6 @@ boxSizing: "border-box",
       }}
       type="button"
     >
-      {loading ? (
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            lineHeight: 1,
-            fontFamily:
-              '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
-          }}
-        >
-          ...
-        </span>
-      ) : (
 <span
   aria-hidden="true"
   style={{
@@ -133,7 +125,6 @@ boxSizing: "border-box",
 >
   Salir
 </span>
-      )}
     </button>
   );
 }

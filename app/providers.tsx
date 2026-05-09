@@ -41,9 +41,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       hasCheckedAuth.current = true;
 
-      setTimeout(() => {
-        setAuthTransitionMode("idle");
-      }, 450);
+setTimeout(() => {
+  setAuthTransitionMode("idle");
+}, 1100);
     });
 
     return () => unsub();

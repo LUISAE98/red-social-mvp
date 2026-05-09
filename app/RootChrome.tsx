@@ -33,38 +33,15 @@ export default function RootChrome({
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+    const isAuthPage =
+  pathname === "/login" ||
+  pathname === "/register" ||
+  pathname === "/forgot-password" ||
+  pathname === "/reset-password";
 
-  if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: "100dvh",
-          display: "grid",
-          placeItems: "center",
-          padding: 24,
-          color: "#fff",
-          background: "rgba(0,0,0,0.22)",
-          backdropFilter: "blur(10px)",
-          WebkitBackdropFilter: "blur(10px)",
-        }}
-      >
-        <div
-          style={{
-            padding: "14px 18px",
-            borderRadius: 18,
-            border: "1px solid rgba(255,255,255,0.12)",
-            background: "rgba(8,8,16,0.42)",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.28)",
-            fontSize: 14,
-            fontWeight: 600,
-            letterSpacing: "-0.01em",
-          }}
-        >
-          Cargando sesión...
-        </div>
-      </div>
-    );
-  }
+if (user && isAuthPage) {
+  return null;
+}
 
   if (user) {
     return <>{children}</>;
