@@ -146,10 +146,12 @@ const imageIconStyle = (
 
   return {
     position: "absolute",
-    top:
+top:
   tabKey === "owned"
     ? "54%"
-    : "50%",
+    : tabKey === "greetings"
+      ? "45%"
+      : "50%",
     left: "50%",
     width: tabStyle.size,
     height: tabStyle.size,

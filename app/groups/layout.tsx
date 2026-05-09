@@ -1154,6 +1154,13 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 }
 
 .walletLogoutWrap :global(button) {
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+  background: #7c3aed !important;
+  background-image: none !important;
+  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.22);
+}
 
 @media (max-width: 1180px) {
   .layout {

@@ -454,15 +454,13 @@ const sidebarScrollRef = usePersistentSidebarScroll(
 }
 
 .createCommunityImage {
-  width: 138px;
-  max-width: 138px;
+  width: 300px;
+  max-width: 300px;
   height: auto;
   display: block;
-  margin: -8px auto -18px;
+  margin: -6px auto -14px;
   object-fit: contain;
-  position: relative;
-  z-index: 1;
-  pointer-events: none;
+  transform: translateX(-35px);
 }
 
 .createCommunityCopy {
