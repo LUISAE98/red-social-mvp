@@ -27,30 +27,48 @@ const AuthContext = createContext<AuthCtx>({
   startAuthTransition: () => {},
 });
 
+const AUTH_TRANSITION_MS = 1100;
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authTransitionMode, setAuthTransitionMode] =
     useState<AuthTransitionMode>("checking");
 
-  const hasCheckedAuth = useRef(false);
+  const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function clearTransitionTimer() {
+    if (transitionTimerRef.current) {
+      clearTimeout(transitionTimerRef.current);
+      transitionTimerRef.current = null;
+    }
+  }
+
+  function scheduleIdle(delay = AUTH_TRANSITION_MS) {
+    clearTransitionTimer();
+
+    transitionTimerRef.current = setTimeout(() => {
+      setAuthTransitionMode("idle");
+      transitionTimerRef.current = null;
+    }, delay);
+  }
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
-      hasCheckedAuth.current = true;
-
-setTimeout(() => {
-  setAuthTransitionMode("idle");
-}, 1100);
+      scheduleIdle();
     });
 
-    return () => unsub();
+    return () => {
+      clearTransitionTimer();
+      unsub();
+    };
   }, []);
 
   const startAuthTransition = (mode: "entering" | "exiting") => {
     setAuthTransitionMode(mode);
+    scheduleIdle();
   };
 
   const value = useMemo(
