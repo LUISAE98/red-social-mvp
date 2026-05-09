@@ -285,7 +285,7 @@ function WalletDesktopRail({
   box-sizing: border-box;
 
   border-radius: 12px;
-  border: 1px solid rgba(168, 85, 255, 0.16);
+  border: 1px solid rgba(168, 85, 255, 0.08);
 
   background:
     linear-gradient(
@@ -299,10 +299,10 @@ function WalletDesktopRail({
   -webkit-backdrop-filter: none;
 
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.025),
-    inset 0 0 22px rgba(168, 85, 255, 0.025),
-    0 0 18px rgba(168, 85, 255, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.015),
+    inset 0 0 14px rgba(168, 85, 255, 0.012),
+    0 0 8px rgba(168, 85, 255, 0.022),
     0 18px 54px rgba(0, 0, 0, 0.68);
 }
 
@@ -313,14 +313,13 @@ function WalletDesktopRail({
   border-radius: inherit;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.09), transparent 34%),
-    radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.06), transparent 36%),
-    radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.05), transparent 40%);
+    radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.045), transparent 34%),
+    radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.032), transparent 36%),
+    radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.025), transparent 40%);
   filter: blur(24px);
-  opacity: 0.55;
+  opacity: 0.32;
   z-index: 0;
 }
-
 .railSection::after {
   content: "";
   position: absolute;
@@ -328,9 +327,9 @@ function WalletDesktopRail({
   border-radius: inherit;
   pointer-events: none;
   box-shadow:
-    inset 0 0 34px rgba(79, 70, 255, 0.10),
-    inset 0 0 24px rgba(168, 85, 255, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    inset 0 0 18px rgba(79, 70, 255, 0.045),
+    inset 0 0 14px rgba(168, 85, 255, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
   z-index: 1;
 }
 
@@ -357,6 +356,8 @@ function WalletDesktopRail({
   width: 100%;
   height: 40px;
   min-height: 40px;
+  filter: saturate(0.84) brightness(0.93);
+  box-shadow: 0 7px 18px rgba(168, 85, 255, 0.11);
 }
 
 @media (max-height: 760px) {
@@ -510,7 +511,8 @@ function WalletDesktopRail({
   letter-spacing: -0.01em;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   cursor: pointer;
-  box-shadow: 0 10px 28px rgba(168, 85, 255, 0.22);
+  box-shadow: 0 7px 18px rgba(168, 85, 255, 0.11);
+  filter: saturate(0.84) brightness(0.93);
   overflow: hidden;
   text-decoration: none;
   display: flex;
@@ -527,8 +529,14 @@ function WalletDesktopRail({
 }
 
 .walletLink:hover {
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.84);
   transform: translateX(2px);
+}
+
+.walletLink:hover .walletIcon {
+  color: rgba(255, 255, 255, 0.72);
+  opacity: 0.86;
+  filter: saturate(0.7) brightness(1);
 }
 
 .walletIcon {
@@ -538,14 +546,31 @@ function WalletDesktopRail({
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #a855ff;
+  color: rgba(255, 255, 255, 0.68);
+  opacity: 0.82;
+  filter: saturate(0.65) brightness(0.96);
   transform: translateY(3.5px);
   margin-right: 8px;
+  transition:
+    color 180ms ease,
+    opacity 180ms ease,
+    filter 180ms ease;
 }
 
 .walletLabel {
   min-width: 0;
   white-space: nowrap;
+  color: rgba(255, 255, 255, 0.74);
+  transition: color 180ms ease;
+}
+:global(.walletLinkActive) .walletIcon {
+  color: #a855ff;
+  opacity: 1;
+  filter: saturate(1) brightness(1);
+}
+
+:global(.walletLinkActive) .walletLabel {
+  color: #ffffff;
 }
 
 :global(.walletLinkActive) {
@@ -1129,11 +1154,6 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 }
 
 .walletLogoutWrap :global(button) {
-  width: 100%;
-  height: 40px;
-  min-height: 40px;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
-}
 
 @media (max-width: 1180px) {
   .layout {

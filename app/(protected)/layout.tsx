@@ -3,7 +3,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
@@ -33,12 +33,16 @@ function usePersistentSidebarScroll(key: string, restoreSignal?: unknown) {
 
     isRestoringRef.current = true;
 
-el.scrollTop = target;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.scrollTop = target;
 
-setTimeout(() => {
-  el.scrollTop = target;
-  isRestoringRef.current = false;
-}, 80);
+        setTimeout(() => {
+          el.scrollTop = target;
+          isRestoringRef.current = false;
+        }, 80);
+      });
+    });
   };
 
   useEffect(() => {
@@ -62,9 +66,9 @@ setTimeout(() => {
     };
   }, [key]);
 
-useLayoutEffect(() => {
-  restoreScroll();
-}, [key, restoreSignal]);
+  useEffect(() => {
+    restoreScroll();
+  }, [key, restoreSignal]);
 
   return scrollRef;
 }
@@ -283,7 +287,7 @@ const sidebarScrollRef = usePersistentSidebarScroll(
   box-sizing: border-box;
 
   border-radius: 12px;
-  border: 1px solid rgba(168, 85, 255, 0.16);
+  border: 1px solid rgba(168, 85, 255, 0.08);
 
   background:
     linear-gradient(
@@ -297,10 +301,10 @@ const sidebarScrollRef = usePersistentSidebarScroll(
   -webkit-backdrop-filter: none;
 
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.025),
-    inset 0 0 22px rgba(168, 85, 255, 0.025),
-    0 0 18px rgba(168, 85, 255, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.015),
+    inset 0 0 14px rgba(168, 85, 255, 0.012),
+    0 0 8px rgba(168, 85, 255, 0.022),
     0 18px 54px rgba(0, 0, 0, 0.68);
 }
 
@@ -311,14 +315,14 @@ const sidebarScrollRef = usePersistentSidebarScroll(
   border-radius: inherit;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.09), transparent 34%),
-    radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.06), transparent 36%),
-    radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.05), transparent 40%);
+    radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.045), transparent 34%),
+    radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.032), transparent 36%),
+    radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.025), transparent 40%);
   filter: blur(24px);
-  opacity: 0.55;
+  opacity: 0.32;
   z-index: 0;
 }
-
+  
 .railSection::after {
   content: "";
   position: absolute;
@@ -326,9 +330,9 @@ const sidebarScrollRef = usePersistentSidebarScroll(
   border-radius: inherit;
   pointer-events: none;
   box-shadow:
-    inset 0 0 34px rgba(79, 70, 255, 0.10),
-    inset 0 0 24px rgba(168, 85, 255, 0.10),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    inset 0 0 18px rgba(79, 70, 255, 0.045),
+    inset 0 0 14px rgba(168, 85, 255, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
   z-index: 1;
 }
 
@@ -526,8 +530,14 @@ const sidebarScrollRef = usePersistentSidebarScroll(
 }
 
 .walletLink:hover {
-  color: #ffffff;
+  color: rgba(255, 255, 255, 0.84);
   transform: translateX(2px);
+}
+
+.walletLink:hover .walletIcon {
+  color: rgba(255, 255, 255, 0.72);
+  opacity: 0.86;
+  filter: saturate(0.7) brightness(1);
 }
 
 .walletIcon {
@@ -537,14 +547,32 @@ const sidebarScrollRef = usePersistentSidebarScroll(
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #a855ff;
+  color: rgba(255, 255, 255, 0.68);
+  opacity: 0.82;
+  filter: saturate(0.65) brightness(0.96);
   transform: translateY(3.5px);
   margin-right: 8px;
+  transition:
+    color 180ms ease,
+    opacity 180ms ease,
+    filter 180ms ease;
 }
 
 .walletLabel {
   min-width: 0;
   white-space: nowrap;
+  color: rgba(255, 255, 255, 0.74);
+  transition: color 180ms ease;
+}
+
+:global(.walletLinkActive) .walletIcon {
+  color: #a855ff;
+  opacity: 1;
+  filter: saturate(1) brightness(1);
+}
+
+:global(.walletLinkActive) .walletLabel {
+  color: #ffffff;
 }
 
 :global(.walletLinkActive) {
@@ -1131,7 +1159,9 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   width: 100%;
   height: 40px;
   min-height: 40px;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
+  background: #7c3aed !important;
+  background-image: none !important;
+  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.22);
 }
 
 @media (max-width: 1180px) {

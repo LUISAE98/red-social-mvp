@@ -30,6 +30,7 @@ export default function OwnerSidebarTabNav({
       label: "Mis comunidades",
       title: "Mis comunidades",
       iconType: "myCommunities" as VibraNavigationIconType,
+      imageSrc: "/miscomunidades.png",
       showBadge: false,
     },
     {
@@ -47,6 +48,7 @@ export default function OwnerSidebarTabNav({
             label: "Solicitados",
             title: "Solicitados",
             iconType: "requested" as VibraNavigationIconType,
+            imageSrc: "/solicitados.png",
             showBadge: true,
           },
         ]
@@ -103,37 +105,67 @@ export default function OwnerSidebarTabNav({
     zIndex: 2,
   };
 
-  const iconWrap: CSSProperties = {
-    position: "relative",
-    display: "grid",
-    placeItems: "center",
-    width: 44,
-    height: 44,
-    overflow: "visible",
-    lineHeight: 1,
-    zIndex: 1,
+const iconWrap: CSSProperties = {
+  position: "relative",
+  display: "grid",
+  placeItems: "center",
+  width: 88,
+  height: 44,
+  overflow: "visible",
+  lineHeight: 1,
+  zIndex: 1,
+};
+
+const imageIconStyle = (
+  active: boolean,
+  tabKey: TopView
+): CSSProperties => {
+  const styleByTab: Record<
+    TopView,
+    {
+      size: number;
+      scale: number;
+    }
+  > = {
+    owned: {
+      size: 44,
+      scale: 2.7,
+    },
+    communities: {
+      size: 45,
+      scale: 1,
+    },
+    greetings: {
+      size: 90,
+      scale: 1,
+    },
   };
 
-const imageIconStyle = (active: boolean): CSSProperties => ({
-  position: "absolute",
-  top: "50%",
-  left: "50%",
+  const tabStyle = styleByTab[tabKey];
+  const inactiveScale = tabStyle.scale * 0.96;
 
-  width: "clamp(120px, 18vw, 185px)",
-  height: "clamp(120px, 18vw, 185px)",
-
-  objectFit: "contain",
-  display: "block",
-  opacity: active ? 1 : 0.9,
-
-transform: active
-  ? "translate(-50%, -50%) scale(1)"
-  : "translate(-50%, -50%) scale(0.94)",
-
-  transition: "opacity 0.2s ease, transform 0.2s ease",
-  pointerEvents: "none",
-  zIndex: 0,
-});
+  return {
+    position: "absolute",
+    top:
+  tabKey === "owned"
+    ? "54%"
+    : "50%",
+    left: "50%",
+    width: tabStyle.size,
+    height: tabStyle.size,
+    objectFit: "contain",
+    display: "block",
+opacity: active ? 1 : 0.65,
+filter: active ? "none" : "grayscale(0.45) brightness(0.72) saturate(0.75)",
+    transform: active
+      ? `translate(-50%, -50%) scale(${tabStyle.scale})`
+      : `translate(-50%, -50%) scale(${inactiveScale})`,
+    transformOrigin: "center center",
+    transition: "opacity 0.2s ease, transform 0.2s ease",
+    pointerEvents: "none",
+    zIndex: 0,
+  };
+};
   const badgeStyle: CSSProperties = {
     position: "absolute",
     top: -2,
@@ -219,7 +251,7 @@ transform: active
                       src={tab.imageSrc}
                       alt=""
                       aria-hidden="true"
-                      style={imageIconStyle(active)}
+                      style={imageIconStyle(active, tab.key)}
                     />
                   ) : (
                     <VibraNavigationIcon

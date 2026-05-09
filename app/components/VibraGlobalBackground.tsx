@@ -203,9 +203,9 @@ export default function VibraGlobalBackground() {
         aria-hidden="true"
         style={
           {
-            "--vibra-bg-darkness": isLoggedIn ? "0.52" : "0.18",
-            "--vibra-bg-brightness": isLoggedIn ? "0.72" : "1",
-            "--vibra-bg-saturation": isLoggedIn ? "0.82" : "1",
+"--vibra-bg-darkness": isLoggedIn ? "0.68" : "0.28",
+"--vibra-bg-brightness": isLoggedIn ? "0.58" : "0.88",
+"--vibra-bg-saturation": isLoggedIn ? "0.75" : "0.95",
           } as React.CSSProperties
         }
       />

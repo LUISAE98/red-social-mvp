@@ -855,14 +855,13 @@ const ui = {
     },
 card: {
   padding: "10px 12px",
-  borderRadius: 16,
-background:
-  "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)",
-  border: "none",
-boxShadow:
-  "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
+  borderRadius: 12,
+  background: "#000",
+  border: "1px solid rgba(255,255,255,0.08)",
+  boxShadow:
+    "0 18px 44px rgba(0,0,0,0.34)",
+  backdropFilter: "none",
+  WebkitBackdropFilter: "none",
 },
     subtle: {
       fontSize: 11,
@@ -871,20 +870,18 @@ boxShadow:
     },
 sectionPanel: {
   padding: "10px",
-  borderRadius: 14,
-  border: "none",
-background:
-  "linear-gradient(90deg, rgba(236,72,153,0.06) 0%, rgba(147,51,234,0.055) 48%, rgba(59,130,246,0.045) 100%)",
-  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)",
+  borderRadius: 12,
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "#000",
+  boxShadow: "none",
   display: "grid",
   gap: 8,
 },
 miniItem: {
-  borderRadius: 14,
-  border: "none",
-background:
-  "linear-gradient(90deg, rgba(236,72,153,0.07) 0%, rgba(147,51,234,0.06) 50%, rgba(59,130,246,0.05) 100%)",
-  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.035)",
+  borderRadius: 12,
+  border: "1px solid rgba(255,255,255,0.08)",
+  background: "#000",
+  boxShadow: "none",
   padding: 9,
   display: "grid",
   gap: 7,
@@ -2340,13 +2337,13 @@ style={{
   alignItems: "center",
   gap: 8,
 
-background: isProfileCard
-  ? "transparent"
-  : "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)",
+background: isProfileCard ? "transparent" : "#000",
+
+border: isProfileCard ? "none" : "1px solid rgba(168,85,255,0.08)",
 
 boxShadow: isProfileCard
   ? "none"
-  : "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
+  : "inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 44px rgba(0,0,0,0.34)",
 
   backdropFilter: "blur(12px)",
   WebkitBackdropFilter: "blur(12px)",
@@ -2540,19 +2537,54 @@ return (
   padding: 10px;
   box-sizing: border-box;
   border-radius: 12px;
-border: 1px solid rgba(168, 85, 255, 0.16);
-  background: rgba(10, 6, 16, 0.80);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-box-shadow:
-  0 0 0 1px rgba(168, 85, 255, 0.05),
-  0 0 10px rgba(168, 85, 255, 0.10),
-  0 0 20px rgba(168, 85, 255, 0.06),
-  0 18px 54px rgba(0, 0, 0, 0.34);
+  border: 1px solid rgba(168, 85, 255, 0.08);
+  background:
+    linear-gradient(
+      135deg,
+      rgb(3, 3, 6) 0%,
+      rgb(8, 5, 13) 48%,
+      rgb(0, 0, 0) 100%
+    );
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.015),
+    inset 0 0 14px rgba(168, 85, 255, 0.012),
+    0 0 8px rgba(168, 85, 255, 0.022),
+    0 18px 54px rgba(0, 0, 0, 0.68);
   transition:
     max-height 320ms ease,
     height 320ms ease,
     background 180ms ease;
+}
+
+.profile-owner-sidebar-panel::before {
+  content: "";
+  position: absolute;
+  inset: -38%;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.045), transparent 34%),
+    radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.032), transparent 36%),
+    radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.025), transparent 40%);
+  filter: blur(24px);
+  opacity: 0.32;
+  z-index: 0;
+}
+
+.profile-owner-sidebar-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 18px rgba(79, 70, 255, 0.045),
+    inset 0 0 14px rgba(168, 85, 255, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  z-index: 1;
 }
 
 .profile-owner-sidebar-content {
