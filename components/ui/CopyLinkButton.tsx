@@ -1,6 +1,10 @@
 "use client";
 
 import { CSSProperties, useEffect, useMemo, useState } from "react";
+import {
+  VibraNavigationIcon,
+  VibraNavigationIconsStyles,
+} from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 
 type CopyLinkButtonProps = {
   href: string;
@@ -81,33 +85,34 @@ export default function CopyLinkButton({
     }
   }
 
-  const buttonStyle: CSSProperties = {
-    minWidth: iconOnly ? 34 : "auto",
-    minHeight: 34,
-    borderRadius: 999,
-border: copied
-  ? "1px solid rgba(34,197,94,0.55)"
-  : "1px solid rgba(255,255,255,0.16)",
-background: copied ? "rgba(34,197,94,0.95)" : "rgba(12,12,12,0.82)",
-    color: "#fff",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    padding: iconOnly ? "0 9px" : "8px 11px",
-    fontSize: 13,
-    fontWeight: 700,
-    lineHeight: 1,
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.55 : 1,
-    boxShadow: "0 10px 28px rgba(0,0,0,0.32)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
-    userSelect: "none",
-    transition:
-      "transform 160ms ease, opacity 160ms ease, background 160ms ease",
-    ...style,
-  };
+const buttonStyle: CSSProperties = {
+  width: copied ? 30 : iconOnly ? 24 : "auto",
+  height: copied ? 30 : 24,
+  minWidth: copied ? 30 : iconOnly ? 24 : "auto",
+  minHeight: copied ? 30 : 24,
+  borderRadius: copied ? 999 : 0,
+  border: "none",
+  background: copied ? "rgba(34,197,94,0.95)" : "transparent",
+  color: "#fff",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 6,
+  padding: iconOnly ? 0 : "6px 8px",
+  fontSize: 13,
+  fontWeight: 700,
+  lineHeight: 1,
+  cursor: disabled ? "not-allowed" : "pointer",
+  opacity: disabled ? 0.55 : 1,
+  boxShadow: copied ? "0 10px 24px rgba(34,197,94,0.28)" : "none",
+  backdropFilter: "none",
+  WebkitBackdropFilter: "none",
+  userSelect: "none",
+  transform: copied ? "scale(1)" : "scale(1)",
+  transition:
+    "width 220ms cubic-bezier(0.22, 1, 0.36, 1), height 220ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 220ms cubic-bezier(0.22, 1, 0.36, 1), background 180ms ease, box-shadow 180ms ease, transform 180ms ease, opacity 160ms ease",
+  ...style,
+};
 
   const toastStyle: CSSProperties = {
     position: "fixed",
@@ -135,6 +140,8 @@ background: copied ? "rgba(34,197,94,0.95)" : "rgba(12,12,12,0.82)",
 
   return (
     <>
+      <VibraNavigationIconsStyles />
+
       <button
         type="button"
         className={className}
@@ -144,11 +151,37 @@ background: copied ? "rgba(34,197,94,0.95)" : "rgba(12,12,12,0.82)",
         aria-label={title}
         style={buttonStyle}
       >
-<span aria-hidden="true">{copied ? "✅" : "🔗"}</span>
+<span
+  aria-hidden="true"
+  style={{
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transform: copied ? "scale(1)" : "scale(1)",
+    transition:
+      "transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease",
+  }}
+>
+  {copied ? (
+    <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+      <path
+        d="M5.5 12.5l4.1 4.1 8.9-9.2"
+        fill="none"
+        stroke="#fff"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ) : (
+    <VibraNavigationIcon type="copyLink" size={21} />
+  )}
+</span>
+
 {!iconOnly ? <span>{copied ? "Copiado" : label}</span> : null}
       </button>
 
-            {error && (
+      {error && (
         <div role="status" aria-live="polite" style={toastStyle}>
           {error}
         </div>

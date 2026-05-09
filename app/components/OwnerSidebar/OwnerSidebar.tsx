@@ -2684,7 +2684,7 @@ box-shadow:
   position: fixed !important;
   left: 8px !important;
   right: 8px !important;
-  top: 90px !important;
+ top: calc(env(safe-area-inset-top, 0px) + 90px) !important;
   bottom: 78px !important;
   width: auto !important;
   max-height: none !important;

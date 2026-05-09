@@ -1,9 +1,9 @@
-// Layout de grupos corregido con el panel derecho actualizado
+// Layout de grupos 
 
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
@@ -16,6 +16,58 @@ import {
   VibraNavigationIconsStyles,
   type VibraNavigationIconType,
 } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+
+function usePersistentSidebarScroll(key: string, restoreSignal?: unknown) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const isRestoringRef = useRef(false);
+
+  const restoreScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const saved = sessionStorage.getItem(key);
+    if (saved === null) return;
+
+    const target = Number(saved);
+    if (!Number.isFinite(target)) return;
+
+    isRestoringRef.current = true;
+
+el.scrollTop = target;
+
+setTimeout(() => {
+  el.scrollTop = target;
+  isRestoringRef.current = false;
+}, 80);
+  };
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const saveScroll = () => {
+      if (isRestoringRef.current) return;
+
+      const canScroll = el.scrollHeight > el.clientHeight + 1;
+      if (!canScroll) return;
+
+      sessionStorage.setItem(key, String(el.scrollTop));
+    };
+
+    el.addEventListener("scroll", saveScroll, { passive: true });
+
+    return () => {
+      saveScroll();
+      el.removeEventListener("scroll", saveScroll);
+    };
+  }, [key]);
+
+useLayoutEffect(() => {
+  restoreScroll();
+}, [key, restoreSignal]);
+
+  return scrollRef;
+}
 
 function HeaderIconButton({
   onClick,
@@ -180,6 +232,10 @@ function WalletDesktopRail({
 
   const activeWalletTab = resolveWalletRailTab(activePath);
   const activeMainTab = resolveMainRailTab(activePath);
+ const sidebarScrollRef = usePersistentSidebarScroll(
+  "vibra-wallet-rail-scroll",
+  showWallet
+);
 
   return (
     <>
@@ -192,26 +248,28 @@ function WalletDesktopRail({
   min-height: 0;
   margin-left: auto;
   margin-right: auto;
-  overflow: visible;
+  overflow: hidden;
   box-sizing: border-box;
 
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
-  row-gap: clamp(18px, 3vh, 34px);
+  display: flex;
+  flex-direction: column;
 }
 
 .walletRailCenter {
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: clamp(18px, 3vh, 28px);
-  overflow: visible;
+  justify-content: flex-start;
+  gap: clamp(12px, 2vh, 20px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 18px;
+  scrollbar-width: none;
 }
 
-.logoutSection {
-  width: 100%;
-  flex-shrink: 0;
+.walletRailCenter::-webkit-scrollbar {
+  display: none;
 }
 
 .railSection {
@@ -261,7 +319,6 @@ function WalletDesktopRail({
   filter: blur(24px);
   opacity: 0.55;
   z-index: 0;
-  animation: railAuraMove 7s ease-in-out infinite alternate;
 }
 
 .railSection::after {
@@ -286,18 +343,14 @@ function WalletDesktopRail({
   margin-top: 0;
 }
 
-.mainMenuRailSection {
-  transform: translateY(18px);
-}
-
 .createCommunitySection + .railSection {
   margin-top: 0;
 }
 
 .logoutSection {
   width: 100%;
-  margin-top: auto;
-  flex-shrink: 0;
+  margin-top: 14px;
+  flex: 0 0 auto;
 }
 
 .logoutSection :global(button) {
@@ -308,9 +361,8 @@ function WalletDesktopRail({
 
 @media (max-height: 760px) {
   .createCommunitySection {
-    transform: translateY(-10px);
+    transform: none;
   }
-
   .walletRailCenter {
     gap: 10px;
   }
@@ -390,7 +442,7 @@ function WalletDesktopRail({
   gap: clamp(3px, 0.55vh, 6px);
   align-items: center;
 
-  transform: translateY(-18px);
+  transform: none;
 }
 
 .createCommunitySection::before,
@@ -542,7 +594,6 @@ function WalletDesktopRail({
     );
 
   opacity: 0.82;
-  animation: walletActiveAura 4.5s ease-in-out infinite alternate;
 }
 
 @keyframes walletActiveAura {
@@ -557,7 +608,7 @@ function WalletDesktopRail({
       `}</style>
 
       <aside className="walletRail" aria-label="Accesos directos">
-        <div className="walletRailCenter">
+                <div className="walletRailCenter" ref={sidebarScrollRef}>
           <section className="railSection mainMenuSection" aria-label="Navegación principal">
             <h3 className="secondaryTitle">Menú</h3>
 
@@ -1037,7 +1088,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   top: calc(env(safe-area-inset-top) + 112px);
   align-self: start;
   min-width: 0;
-  z-index: 2;
+  z-index: 90;
 }
 
         .mainCol {
@@ -1055,7 +1106,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 }
 .walletCol {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + 44px);
+  top: calc(env(safe-area-inset-top) + 90px);
   right: max(var(--shell-gutter), env(safe-area-inset-right));
   bottom: calc(24px + env(safe-area-inset-bottom));
   width: var(--wallet-rail-width);
@@ -1065,7 +1116,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   flex-direction: column;
   align-items: center;
 
-  overflow: visible;
+  overflow: hidden;
   box-sizing: border-box;
   z-index: 20;
 }

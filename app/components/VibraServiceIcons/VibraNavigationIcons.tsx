@@ -178,25 +178,51 @@ const NAVIGATION_ICON_CONFIG: Record<
     ),
   },
 
-  copyLink: {
-    label: "Copiar link",
-    icon: (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <VibraGradientDefs />
-        <rect
-          stroke={gradientStroke}
-          x="8.5"
-          y="7"
-          width="10"
-          height="12"
-          rx="2"
-        />
-        <path stroke={gradientStroke} d="M5.5 14V5h10" />
-        <path stroke={gradientStroke} d="M11.5 12h4" />
-        <path stroke={gradientStroke} d="M11.5 15h3" />
-      </svg>
-    ),
-  },
+copyLink: {
+  label: "Copiar link",
+  icon: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <VibraGradientDefs />
+
+      <path
+        stroke="#a855ff"
+        d="
+          M8.1 4.1
+          H12.9
+          Q15.5 4.1 15.5 6.7
+          V7.1
+        "
+      />
+
+      <path
+        stroke="#a855ff"
+        d="
+          M5.5 14.3
+          V6.7
+          Q5.5 4.1 8.1 4.1
+        "
+      />
+
+      <path
+        stroke="#a855ff"
+        d="
+          M5.5 14.3
+          Q5.5 16.9 8.1 16.9
+          H8.5
+        "
+      />
+
+      <rect
+        stroke="#a855ff"
+        x="8.5"
+        y="7.1"
+        width="10"
+        height="12.8"
+        rx="2.6"
+      />
+    </svg>
+  ),
+},
 };
 
 export function VibraNavigationIcon({

@@ -2,35 +2,17 @@
 
 import { CSSProperties } from "react";
 import type { TopView } from "./OwnerSidebar";
+import {
+  VibraNavigationIcon,
+  VibraNavigationIconsStyles,
+  type VibraNavigationIconType,
+} from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 
 type Props = {
   activeView: TopView;
   onChange: (view: TopView) => void;
   requestedCount?: number;
 };
-
-type EmojiIconProps = {
-  emoji: string;
-  active: boolean;
-};
-
-function EmojiIcon({ emoji, active }: EmojiIconProps) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        display: "block",
-        fontSize: active ? 22 : 20,
-        lineHeight: 1,
-        transform: active ? "scale(1.02)" : "scale(1)",
-        transition: "transform 0.15s ease, opacity 0.2s ease",
-        opacity: active ? 1 : 0.78,
-      }}
-    >
-      {emoji}
-    </span>
-  );
-}
 
 export default function OwnerSidebarTabNav({
   activeView,
@@ -47,14 +29,15 @@ export default function OwnerSidebarTabNav({
       key: "owned" as const,
       label: "Mis comunidades",
       title: "Mis comunidades",
-      emoji: "✨",
+      iconType: "myCommunities" as VibraNavigationIconType,
       showBadge: false,
     },
     {
       key: "communities" as const,
       label: "Otras comunidades",
       title: "Otras comunidades",
-      emoji: "🌍",
+      iconType: "otherCommunities" as VibraNavigationIconType,
+      imageSrc: "/suscomunidades.png",
       showBadge: false,
     },
     ...(hasRequests
@@ -63,7 +46,7 @@ export default function OwnerSidebarTabNav({
             key: "greetings" as const,
             label: "Solicitados",
             title: "Solicitados",
-            emoji: "📩",
+            iconType: "requested" as VibraNavigationIconType,
             showBadge: true,
           },
         ]
@@ -84,12 +67,13 @@ export default function OwnerSidebarTabNav({
     fontFamily: fontStack,
     boxSizing: "border-box",
     padding: "0 8px",
+    overflow: "visible",
   };
 
   const itemBase: CSSProperties = {
     position: "relative",
     minWidth: 0,
-    height: 70,
+    height: 92,
     display: "grid",
     placeItems: "center",
     color: "rgba(255,255,255,0.62)",
@@ -98,7 +82,8 @@ export default function OwnerSidebarTabNav({
     cursor: "pointer",
     transition: "color 0.2s ease, transform 0.15s ease",
     WebkitTapHighlightColor: "transparent",
-    padding: "0 6px",
+    padding: "0 4px",
+    overflow: "visible",
   };
 
   const activeStyle: CSSProperties = {
@@ -106,31 +91,53 @@ export default function OwnerSidebarTabNav({
   };
 
   const itemInner: CSSProperties = {
+    position: "relative",
     display: "grid",
+    gridTemplateRows: "44px 28px",
     justifyItems: "center",
-    alignContent: "start",
-    gap: 6,
+    alignItems: "center",
     width: "100%",
     minWidth: 0,
-    paddingTop: 2,
-    paddingBottom: 12,
+    paddingTop: 4,
+    paddingBottom: 16,
+    zIndex: 2,
   };
 
   const iconWrap: CSSProperties = {
     position: "relative",
     display: "grid",
     placeItems: "center",
-    minHeight: 24,
+    width: 44,
+    height: 44,
+    overflow: "visible",
     lineHeight: 1,
-    flexShrink: 0,
-    width: 30,
-    height: 24,
+    zIndex: 1,
   };
 
+const imageIconStyle = (active: boolean): CSSProperties => ({
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+
+  width: "clamp(120px, 18vw, 185px)",
+  height: "clamp(120px, 18vw, 185px)",
+
+  objectFit: "contain",
+  display: "block",
+  opacity: active ? 1 : 0.9,
+
+transform: active
+  ? "translate(-50%, -50%) scale(1)"
+  : "translate(-50%, -50%) scale(0.94)",
+
+  transition: "opacity 0.2s ease, transform 0.2s ease",
+  pointerEvents: "none",
+  zIndex: 0,
+});
   const badgeStyle: CSSProperties = {
     position: "absolute",
-    top: -8,
-    right: -12,
+    top: -2,
+    right: -8,
     minWidth: 18,
     height: 18,
     padding: "0 5px",
@@ -148,66 +155,93 @@ export default function OwnerSidebarTabNav({
     boxShadow: "0 4px 10px rgba(0,0,0,0.28)",
     pointerEvents: "none",
     boxSizing: "border-box",
+    zIndex: 5,
   };
 
   const labelStyle: CSSProperties = {
+    position: "relative",
+    zIndex: 3,
     fontSize: 11.5,
-    fontWeight: 500,
-    lineHeight: 1.08,
+    fontWeight: 700,
+    lineHeight: 1.05,
     letterSpacing: -0.12,
     textAlign: "center",
     whiteSpace: "normal",
-    overflow: "visible",
+    overflow: "hidden",
     textOverflow: "clip",
-    wordBreak: "keep-all",
+    wordBreak: "normal",
+    maxWidth: "100%",
+    minHeight: 24,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   };
 
   const indicatorStyle = (active: boolean): CSSProperties => ({
     position: "absolute",
     left: "50%",
-    bottom: 4,
+    bottom: 8,
     transform: "translateX(-50%)",
-    width: 58,
-    height: 4,
+    width: 68,
+    height: 3,
     borderRadius: 999,
-    background: "#fff",
+    background: "#a855ff",
     opacity: active ? 1 : 0,
     transition: "opacity 0.2s ease",
+    zIndex: 4,
   });
 
   return (
-    <div style={wrapStyle}>
-      {tabs.map((tab) => {
-        const active = safeActiveView === tab.key;
+    <>
+      <VibraNavigationIconsStyles />
 
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => onChange(tab.key)}
-            aria-pressed={active}
-            aria-label={tab.title}
-            title={tab.title}
-            style={{
-              ...itemBase,
-              ...(active ? activeStyle : null),
-            }}
-          >
-            <span style={itemInner}>
-              <span style={iconWrap}>
-                <EmojiIcon emoji={tab.emoji} active={active} />
-                {tab.showBadge && requestedCount > 0 ? (
-                  <span style={badgeStyle}>{badgeText}</span>
-                ) : null}
+      <div style={wrapStyle}>
+        {tabs.map((tab) => {
+          const active = safeActiveView === tab.key;
+
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => onChange(tab.key)}
+              aria-pressed={active}
+              aria-label={tab.title}
+              title={tab.title}
+              style={{
+                ...itemBase,
+                ...(active ? activeStyle : null),
+              }}
+            >
+              <span style={itemInner}>
+                <span style={iconWrap}>
+                  {tab.imageSrc ? (
+                    <img
+                      src={tab.imageSrc}
+                      alt=""
+                      aria-hidden="true"
+                      style={imageIconStyle(active)}
+                    />
+                  ) : (
+                    <VibraNavigationIcon
+                      type={tab.iconType}
+                      size={active ? 24 : 22}
+                      strokeWidth={active ? 2.2 : 2}
+                    />
+                  )}
+
+                  {tab.showBadge && requestedCount > 0 ? (
+                    <span style={badgeStyle}>{badgeText}</span>
+                  ) : null}
+                </span>
+
+                <span style={labelStyle}>{tab.label}</span>
               </span>
 
-              <span style={labelStyle}>{tab.label}</span>
-            </span>
-
-            <span style={indicatorStyle(active)} />
-          </button>
-        );
-      })}
-    </div>
+              <span style={indicatorStyle(active)} />
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }
