@@ -1,17 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { onAuthStateChanged, type User } from "firebase/auth";
-import { auth } from "../../lib/firebase";
+import type { CSSProperties } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/app/providers";
 import HomePostsFeed from "./HomePostsFeed";
 
 export default function GroupsHome() {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, loading, startAuthTransition } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (!user) {
+      startAuthTransition("exiting");
+      router.replace("/login?next=%2F");
+    }
+  }, [loading, user, router, startAuthTransition]);
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  const pageWrap: React.CSSProperties = {
+  const pageWrap: CSSProperties = {
     padding: "12px 0 calc(118px + env(safe-area-inset-bottom))",
     background: "transparent",
     minHeight: "100vh",
@@ -21,7 +32,7 @@ export default function GroupsHome() {
     boxSizing: "border-box",
   };
 
-  const container: React.CSSProperties = {
+  const container: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
     margin: 0,
@@ -29,27 +40,22 @@ export default function GroupsHome() {
     boxSizing: "border-box",
   };
 
-  const feedWrap: React.CSSProperties = {
+  const feedWrap: CSSProperties = {
     marginTop: 0,
     width: "100%",
     maxWidth: "100%",
     boxSizing: "border-box",
   };
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (nextUser) => {
-      setUser(nextUser);
-    });
-
-    return () => unsub();
-  }, []);
+  if (loading || !user) {
+    return null;
+  }
 
   return (
     <main style={pageWrap}>
       <div style={container}>
-
         <div style={feedWrap}>
-          <HomePostsFeed currentUserId={user?.uid ?? null} />
+          <HomePostsFeed currentUserId={user.uid} />
         </div>
       </div>
     </main>
