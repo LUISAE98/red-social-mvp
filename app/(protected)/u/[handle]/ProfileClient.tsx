@@ -41,7 +41,8 @@ import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import { getServiceByType } from "@/lib/services/normalizeServices";
 import type { CreatorServiceType, Currency } from "@/types/group";
-import Cropper from "react-easy-crop";
+import SafeCropper from "@/components/media/SafeCropper";
+import type { ComponentType } from "react";
 
 import { auth, db, storage } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
@@ -52,6 +53,23 @@ import ProfileSubnav, {
 import ProfileGroupsTab from "./components/ProfileSubnav/ProfileGroupsTab";
 import ProfileSettingsTab from "./components/ProfileSubnav/ProfileSettingsTab";
 import ProfileServicesTab from "./components/ProfileSubnav/ProfileServicesTab";
+
+type SafeCropperProps = {
+  image: string;
+  crop: { x: number; y: number };
+  zoom: number;
+  aspect: number;
+  cropShape?: "rect" | "round";
+  showGrid?: boolean;
+  rotation?: number;
+  minZoom?: number;
+  maxZoom?: number;
+  zoomSpeed?: number;
+  onCropChange: (crop: { x: number; y: number }) => void;
+  onZoomChange: (zoom: number) => void;
+  onCropComplete: (croppedArea: unknown, croppedAreaPixels: unknown) => void;
+};
+
 
 type FirestoreDateLike =
   | string
@@ -1677,17 +1695,21 @@ await createExclusiveSessionRequest({
                   border: "1px solid rgba(255,255,255,0.10)",
                 }}
               >
-                <Cropper
-                  image={cropImageSrc}
-                  crop={crop}
-                  zoom={zoom}
-                  aspect={cropAspect}
-                  onCropChange={setCrop}
-                  onZoomChange={setZoom}
-                  onCropComplete={onCropComplete}
-                  cropShape={cropMode === "avatar" ? "round" : "rect"}
-                  showGrid={cropMode !== "avatar"}
-                />
+<SafeCropper
+  image={cropImageSrc}
+  crop={crop}
+  zoom={zoom}
+  aspect={cropAspect}
+  onCropChange={setCrop}
+  onZoomChange={setZoom}
+  onCropComplete={onCropComplete}
+  cropShape={cropMode === "avatar" ? "round" : "rect"}
+  showGrid={cropMode !== "avatar"}
+  rotation={0}
+  minZoom={1}
+  maxZoom={3}
+  zoomSpeed={1}
+/>
               </div>
 
               <div

@@ -1,4 +1,4 @@
-import heic2any from "heic2any";
+
 
 export type NormalizedImageFile = {
   file: File;
@@ -158,6 +158,12 @@ async function convertHeicToJpeg(file: File): Promise<File> {
   const nextName = `${getSafeBaseName(file.name)}.jpg`;
 
   try {
+    if (typeof window === "undefined") {
+      throw new Error("La conversión HEIC solo está disponible en navegador.");
+    }
+
+    const { default: heic2any } = await import("heic2any");
+
     const converted = await heic2any({
       blob: file,
       toType: "image/jpeg",

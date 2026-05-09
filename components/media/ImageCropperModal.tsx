@@ -1,8 +1,13 @@
-"use client";
-
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import Cropper, { Area } from "react-easy-crop";
+import SafeCropper from "@/components/media/SafeCropper";
 import { cropImageToBlob } from "@/lib/storage/cropImage";
+
+type CropArea = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
 type Props = {
   open: boolean;
@@ -27,7 +32,7 @@ export default function ImageCropperModal({
 }: Props) {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+ const [croppedAreaPixels, setCroppedAreaPixels] = useState<CropArea | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -41,9 +46,9 @@ export default function ImageCropperModal({
     }
   }, [open]);
 
-  const onCropComplete = useCallback((_area: Area, areaPixels: Area) => {
-    setCroppedAreaPixels(areaPixels);
-  }, []);
+const onCropComplete = useCallback((_area: CropArea, areaPixels: CropArea) => {
+  setCroppedAreaPixels(areaPixels);
+}, []);
 
   const canConfirm = useMemo(() => open && !!imageSrc && !!croppedAreaPixels && !busy, [open, imageSrc, croppedAreaPixels, busy]);
 
@@ -101,17 +106,21 @@ export default function ImageCropperModal({
 
             <div className="relative w-full h-[380px] rounded-xl overflow-hidden border border-white/10 bg-black">
               {imageSrc ? (
-                <Cropper
-                  image={imageSrc}
-                  crop={crop}
-                  zoom={zoom}
-                  aspect={aspect}
-                  cropShape={cropShape}
-                  showGrid={cropShape !== "round"}
-                  onCropChange={setCrop}
-                  onZoomChange={setZoom}
-                  onCropComplete={onCropComplete}
-                />
+<SafeCropper
+  image={imageSrc}
+  crop={crop}
+  zoom={zoom}
+  aspect={aspect}
+  cropShape={cropShape}
+  showGrid={cropShape !== "round"}
+  onCropChange={setCrop}
+  onZoomChange={setZoom}
+  onCropComplete={onCropComplete}
+  rotation={0}
+  minZoom={1}
+  maxZoom={3}
+  zoomSpeed={1}
+/>
               ) : (
                 <div className="w-full h-full grid place-items-center text-white/50 text-sm">
                   No hay imagen.

@@ -11,7 +11,7 @@ export default function RootChrome({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading, startAuthTransition } = useAuth();
+  const { user, loading, authTransitionMode, startAuthTransition } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -33,6 +33,9 @@ export default function RootChrome({
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+    if (authTransitionMode === "exiting") {
+  return null;
+}
     const isAuthPage =
   pathname === "/login" ||
   pathname === "/register" ||

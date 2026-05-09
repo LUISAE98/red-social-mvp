@@ -1,7 +1,7 @@
 "use client";
 
-import Cropper from "react-easy-crop";
 import type { CSSProperties } from "react";
+import SafeCropper from "@/components/media/SafeCropper";
 
 export type GroupCropMode = "avatar" | "cover";
 
@@ -136,17 +136,21 @@ export default function GroupImageCropModal({
               border: "1px solid rgba(255,255,255,0.10)",
             }}
           >
-            <Cropper
-              image={cropImageSrc}
-              crop={crop}
-              zoom={zoom}
-              aspect={cropAspect}
-              onCropChange={onCropChange}
-              onZoomChange={onZoomChange}
-              onCropComplete={onCropComplete}
-              cropShape={cropMode === "avatar" ? "round" : "rect"}
-              showGrid={cropMode !== "avatar"}
-            />
+<SafeCropper
+  image={cropImageSrc}
+  crop={crop}
+  zoom={zoom}
+  aspect={cropAspect}
+  onCropChange={onCropChange}
+  onZoomChange={onZoomChange}
+  onCropComplete={onCropComplete}
+  cropShape={cropMode === "avatar" ? "round" : "rect"}
+  showGrid={cropMode !== "avatar"}
+  rotation={0}
+  minZoom={1}
+  maxZoom={3}
+  zoomSpeed={1}
+/>
           </div>
 
           <div

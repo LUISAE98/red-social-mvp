@@ -1,8 +1,33 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import Cropper from "react-easy-crop";
+import SafeCropper from "@/components/media/SafeCropper";
+import type { ComponentType } from "react";
+
+type CropArea = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+
+type SafeCropperProps = {
+  image: string;
+  crop: { x: number; y: number };
+  zoom: number;
+  aspect: number;
+  cropShape?: "rect" | "round";
+  showGrid?: boolean;
+  rotation?: number;
+  minZoom?: number;
+  maxZoom?: number;
+  zoomSpeed?: number;
+  onCropChange: (crop: { x: number; y: number }) => void;
+  onZoomChange: (zoom: number) => void;
+  onCropComplete: (croppedArea: CropArea, croppedAreaPixels: CropArea) => void;
+};
 
 
 import { useAuth } from "@/app/providers";
@@ -26,6 +51,7 @@ import { uploadFile } from "@/lib/storage/uploadFile";
 import { buildFileName } from "@/lib/storage/fileNaming";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
+
 
 function parseTags(raw: string): string[] {
   return normalizeGroupTags(raw.split(","));
@@ -205,7 +231,7 @@ function SelectField({
   );
 }
 
-export default function NewGroupPage() {
+function NewGroupPageContent() {
 const router = useRouter();
 const pathname = usePathname();
 const searchParams = useSearchParams();
@@ -1723,17 +1749,21 @@ const onCropComplete = useCallback(
                   border: "1px solid rgba(255,255,255,0.10)",
                 }}
               >
-                <Cropper
-                  image={cropImageSrc}
-                  crop={crop}
-                  zoom={zoom}
-                  aspect={cropAspect}
-                  onCropChange={setCrop}
-                  onZoomChange={setZoom}
-                  onCropComplete={onCropComplete}
-                  cropShape={cropMode === "avatar" ? "round" : "rect"}
-                  showGrid={cropMode !== "avatar"}
-                />
+<SafeCropper
+  image={cropImageSrc}
+  crop={crop}
+  zoom={zoom}
+  aspect={cropAspect}
+  onCropChange={setCrop}
+  onZoomChange={setZoom}
+  onCropComplete={onCropComplete}
+  cropShape={cropMode === "avatar" ? "round" : "rect"}
+  showGrid={cropMode !== "avatar"}
+  rotation={0}
+  minZoom={1}
+  maxZoom={3}
+  zoomSpeed={1}
+/>
               </div>
 
               <div
@@ -1801,5 +1831,12 @@ const onCropComplete = useCallback(
         </div>
       )}
     </>
+  );
+}
+export default function NewGroupPage() {
+  return (
+    <Suspense fallback={null}>
+      <NewGroupPageContent />
+    </Suspense>
   );
 }
