@@ -1337,7 +1337,7 @@ boxShadow:
         justifyContent: "center",
         padding: 0,
         cursor: "pointer",
-        opacity: 0.65,
+        opacity: isMobile ? 0.85 : 0.65,
         position: "relative",
         overflow: "visible",
       }}

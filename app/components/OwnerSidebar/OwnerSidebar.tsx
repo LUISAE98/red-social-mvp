@@ -2714,7 +2714,7 @@ return (
   .owner-sidebar-community-card :global(button[aria-label*="Copiar"]) {
     opacity: 0.72 !important;
   }
-}
+
 
 .profile-owner-sidebar-panel {
   background: transparent !important;
