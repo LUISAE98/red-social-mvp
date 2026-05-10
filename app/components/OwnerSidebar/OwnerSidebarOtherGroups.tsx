@@ -40,6 +40,7 @@ type Props = {
   userMiniMap: Record<string, UserMini>;
   getInitials: (name?: string | null) => string;
   renderUserLink: (uid: string) => React.ReactNode;
+  onCreateCommunity: () => void;
 };
 
 type SidebarMemberStatus =
@@ -688,6 +689,7 @@ export default function OwnerSidebarOtherGroups({
   userMiniMap,
   getInitials,
   renderUserLink,
+  onCreateCommunity,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -811,8 +813,21 @@ async function handleConfirmLeaveGroup() {
     <>
       {hasAnySubscriptionPending && (
         <div style={{ display: "grid", gap: 8 }}>
-          <div style={styles.sectionTitle}>
-            Comunidades pendientes de suscripción
+          <div style={styles.sectionHeaderRow}>
+            <div style={styles.sectionTitle}>
+              Comunidades pendientes de suscripción
+            </div>
+
+            <button
+              type="button"
+              onClick={onCreateCommunity}
+              style={styles.createInlineButton}
+              aria-label="Crear comunidad"
+              title="Crear comunidad"
+            >
+              <span aria-hidden="true">+</span>
+              <span>Crear</span>
+            </button>
           </div>
 
           <div style={{ display: "grid", gap: 8 }}>
@@ -830,9 +845,24 @@ async function handleConfirmLeaveGroup() {
         </div>
       )}
 
-      {visibleJoinedGrouped.map((section) => (
+      {visibleJoinedGrouped.map((section, sectionIndex) => (
         <div key={`joined-${section.key}`} style={{ display: "grid", gap: 8 }}>
-          <div style={styles.sectionTitle}>{section.title}</div>
+          <div style={styles.sectionHeaderRow}>
+            <div style={styles.sectionTitle}>{section.title}</div>
+
+            {!hasAnySubscriptionPending && sectionIndex === 0 ? (
+              <button
+                type="button"
+                onClick={onCreateCommunity}
+                style={styles.createInlineButton}
+                aria-label="Crear comunidad"
+                title="Crear comunidad"
+              >
+                <span aria-hidden="true">+</span>
+                <span>Crear</span>
+              </button>
+            ) : null}
+          </div>
 
           <div style={{ display: "grid", gap: 8 }}>
             {section.items.map((g) => {
@@ -1231,7 +1261,22 @@ style={{
 
       {hasAnyPending && (
         <div style={{ display: "grid", gap: 8 }}>
-          <div style={styles.sectionTitle}>Solicitudes de acceso enviadas</div>
+          <div style={styles.sectionHeaderRow}>
+            <div style={styles.sectionTitle}>Solicitudes de acceso enviadas</div>
+
+            {!hasAnySubscriptionPending && !hasAnyJoined ? (
+              <button
+                type="button"
+                onClick={onCreateCommunity}
+                style={styles.createInlineButton}
+                aria-label="Crear comunidad"
+                title="Crear comunidad"
+              >
+                <span aria-hidden="true">+</span>
+                <span>Crear</span>
+              </button>
+            ) : null}
+          </div>
           <div style={{ display: "grid", gap: 8 }}>
             {visiblePendingJoinRequestsSent.map((row: OutgoingJoinRequestRow) => {
               const community = groupMetaMap[row.groupId] ?? null;
@@ -1251,14 +1296,31 @@ style={{
         !hasAnyJoined &&
         !hasAnySubscriptionPending &&
         !hasAnyPending && (
-          <div
-            style={{
-              fontSize: 12,
-              color: "rgba(255,255,255,0.58)",
-              padding: "2px 2px 0",
-            }}
-          >
-            No tienes otras comunidades ni solicitudes pendientes.
+          <div style={{ display: "grid", gap: 8 }}>
+            <div style={styles.sectionHeaderRow}>
+              <div style={styles.sectionTitle}>Otras comunidades</div>
+
+              <button
+                type="button"
+                onClick={onCreateCommunity}
+                style={styles.createInlineButton}
+                aria-label="Crear comunidad"
+                title="Crear comunidad"
+              >
+                <span aria-hidden="true">+</span>
+                <span>Crear</span>
+              </button>
+            </div>
+
+            <div
+              style={{
+                fontSize: 12,
+                color: "rgba(255,255,255,0.58)",
+                padding: "2px 2px 0",
+              }}
+            >
+              No tienes otras comunidades ni solicitudes pendientes.
+            </div>
           </div>
         )}
         {leaveTargetGroup && (

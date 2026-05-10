@@ -89,6 +89,8 @@ type Props = {
     action: "accept" | "reject"
   ) => Promise<void>;
 
+  onCreateCommunity: () => void;
+
   joinBusyKey: string | null;
   greetingBusyId: string | null;
 };
@@ -400,6 +402,7 @@ export default function OwnerSidebarMyGroups({
   handleApproveJoin,
   handleRejectJoin,
   handleGreetingAction,
+  onCreateCommunity,
   joinBusyKey,
   greetingBusyId,
 }: Props) {
@@ -1003,7 +1006,22 @@ height: 3.2px;
 
       {ownedGrouped.map((section, sectionIndex) => (
         <div key={section.key} style={{ display: "grid", gap: 7 }}>
-          <div style={styles.sectionTitle}>{section.title}</div>
+                    <div style={styles.sectionHeaderRow}>
+            <div style={styles.sectionTitle}>{section.title}</div>
+
+            {myGroups.some((item) => item.visibility !== "profile") && sectionIndex === 0 ? ( 
+              <button
+                type="button"
+                onClick={onCreateCommunity}
+                style={styles.createInlineButton}
+                aria-label="Crear comunidad"
+                title="Crear comunidad"
+              >
+                <span aria-hidden="true">+</span>
+                <span>Crear</span>
+              </button>
+            ) : null}
+          </div>
 
           {section.items.map((g) => {
 const isOpen = openCommunities[g.id] === true;

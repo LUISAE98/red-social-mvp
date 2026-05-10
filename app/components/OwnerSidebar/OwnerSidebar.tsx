@@ -858,14 +858,42 @@ const ui = {
       fontSize: 12,
       lineHeight: 1.35,
     },
-    sectionTitle: {
-      fontSize: 11,
-      fontWeight: isMobile ? 600 : 550,
-      color: "rgba(254, 254, 254, 0.22)",
-      textTransform: "uppercase",
-      letterSpacing: 0.65,
-      padding: "4px 2px 2px",
-    },
+sectionTitle: {
+  fontSize: 11,
+  fontWeight: isMobile ? 600 : 550,
+  color: "rgba(254, 254, 254, 0.22)",
+  textTransform: "uppercase",
+  letterSpacing: 0.65,
+},
+
+    sectionHeaderRow: {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10,
+  padding: "4px 2px 2px",
+},
+
+createInlineButton: {
+  minHeight: 24,
+  padding: "0 9px",
+  borderRadius: 9,
+  border: "2.5px solid rgba(168,85,247,0.80)",
+  background: "transparent",
+  color: "rgba(168,85,247,0.92)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 5,
+  fontSize: 11,
+  fontWeight: 700,
+  fontFamily: fontStack,
+  lineHeight: 1,
+  cursor: "pointer",
+  opacity: isMobile ? 0.95 : 0.78,
+},
+
+
 card: {
   padding: "10px 12px",
   borderRadius: 12,
@@ -2815,9 +2843,10 @@ className="profile-owner-sidebar-fixed"
               setGreetingSectionOpen={setGreetingSectionOpen}
               handleApproveJoin={handleApproveJoin}
               handleRejectJoin={handleRejectJoin}
-              handleGreetingAction={handleGreetingAction}
-              joinBusyKey={joinBusyKey}
-              greetingBusyId={greetingBusyId}
+handleGreetingAction={handleGreetingAction}
+onCreateCommunity={() => router.push("/groups/new")}
+joinBusyKey={joinBusyKey}
+greetingBusyId={greetingBusyId}
        />
   </div>
 )}
@@ -2858,9 +2887,10 @@ className="profile-owner-sidebar-fixed"
               setGreetingSectionOpen={setGreetingSectionOpen}
               handleApproveJoin={handleApproveJoin}
               handleRejectJoin={handleRejectJoin}
-              handleGreetingAction={handleGreetingAction}
-              joinBusyKey={joinBusyKey}
-              greetingBusyId={greetingBusyId}
+handleGreetingAction={handleGreetingAction}
+onCreateCommunity={() => router.push("/groups/new")}
+joinBusyKey={joinBusyKey}
+greetingBusyId={greetingBusyId}
      />
   </div>
 )}
@@ -2887,9 +2917,10 @@ className="profile-owner-sidebar-fixed"
       handleApproveJoin={handleApproveJoin}
       handleRejectJoin={handleRejectJoin}
       joinBusyKey={joinBusyKey}
-      userMiniMap={userMiniMap}
-      getInitials={getInitials}
-      renderUserLink={renderUserLink}
+userMiniMap={userMiniMap}
+getInitials={getInitials}
+renderUserLink={renderUserLink}
+onCreateCommunity={() => router.push("/groups/new")}
     />
    </>
   </div>
