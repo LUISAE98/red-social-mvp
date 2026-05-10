@@ -899,23 +899,6 @@ miniItem: {
   display: "grid",
   gap: 7,
 },
-        createGroupMobileCard: {
-      width: "100%",
-      minHeight: 52,
-      borderRadius: 16,
-      border: "1.4px dashed rgba(255,255,255,0.22)",
-      background: "rgba(255,255,255,0.035)",
-      color: "rgba(255,255,255,0.84)",
-      display: "none",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8,
-      fontSize: 13,
-      fontWeight: 700,
-      fontFamily: fontStack,
-      cursor: "pointer",
-      marginTop: 8,
-    },
   };
 
   const currentUserAvatar =
@@ -2675,15 +2658,7 @@ return (
         .mini-vertical-scroll::-webkit-scrollbar-thumb:hover {
           background: rgba(255, 255, 255, 0.18);
         }
-          .create-group-mobile-card {
-  display: none;
-}
 
-@media (max-width: 900px) {
-  .create-group-mobile-card {
-    display: inline-flex !important;
-  }
-}
 
         @keyframes ownerSidebarBuzz {
           0% {
@@ -2916,18 +2891,6 @@ className="profile-owner-sidebar-fixed"
       getInitials={getInitials}
       renderUserLink={renderUserLink}
     />
-
-    <button
-      type="button"
-      className="create-group-mobile-card"
-      style={styles.createGroupMobileCard}
-      onClick={() => router.push("/groups/new")}
-      aria-label="Crear grupo nuevo"
-      title="Crear grupo nuevo"
-    >
-<span aria-hidden="true">🧩</span>
-<span>Crear grupo nuevo</span>
-    </button>
    </>
   </div>
 )}

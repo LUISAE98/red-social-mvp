@@ -452,26 +452,16 @@ useEffect(() => {
     color: "#fff",
     animation: "ownerSidebarBuzz 4.8s infinite",
   };
+  const lastRealGroupSectionIndex = ownedGrouped.reduce(
+    (lastIndex, section, index) => {
+      const hasRealGroup = section.items.some(
+        (item) => item.visibility !== "profile"
+      );
 
-const createGroupCardStyle: React.CSSProperties = {
-  width: "100%",
-  minHeight: 52,
-  borderRadius: 16,
-  border: "1.4px dashed rgba(255,255,255,0.22)",
-  background: "rgba(255,255,255,0.035)",
-  color: "rgba(255,255,255,0.84)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 8,
-  fontSize: 13,
-  fontWeight: 700,
-  lineHeight: 1,
-  textDecoration: "none",
-  boxSizing: "border-box",
-  marginTop: 8,
-  textAlign: "center",
-};
+      return hasRealGroup ? index : lastIndex;
+    },
+    -1
+  );
 
   function setMeetGreetBusy(requestId: string, value: boolean) {
     setMeetGreetBusyMap((prev) => ({
@@ -1011,7 +1001,7 @@ height: 3.2px;
     </div>
   )}
 
-      {ownedGrouped.map((section) => (
+      {ownedGrouped.map((section, sectionIndex) => (
         <div key={section.key} style={{ display: "grid", gap: 7 }}>
           <div style={styles.sectionTitle}>{section.title}</div>
 
@@ -2815,23 +2805,93 @@ const scheduleConflictMessage = scheduleConflict.message;
               </div>
             );
           })}
-        </div>
-      ))}
-
-{isMobile &&
-ownedGrouped.some((section) =>
-  section.items.some((item) => item.visibility === "hidden")
-) ? (
+{sectionIndex === lastRealGroupSectionIndex && isMobile ? (
   <Link
     href="/groups/new"
-    style={createGroupCardStyle}
-    aria-label="Crear grupo nuevo"
-    title="Crear grupo nuevo"
+    aria-label="Crear comunidad"
+    title="Crear comunidad"
+    style={{
+      width: "100%",
+      marginTop: 10,
+      borderRadius: 22,
+      overflow: "hidden",
+      textDecoration: "none",
+      display: "block",
+      border: "1px solid rgba(255,255,255,0.10)",
+      background:
+        "linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.035))",
+      boxShadow: "0 18px 38px rgba(0,0,0,0.28)",
+    }}
   >
-    <span aria-hidden="true">🧩</span>
-    <span>Crear grupo nuevo</span>
+    <div
+      style={{
+        width: "100%",
+        aspectRatio: "16 / 9",
+        backgroundImage: "url('/Crear-comunidad.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    />
+
+<div
+  style={{
+    display: "grid",
+    gap: 8,
+    padding: "13px 13px 14px",
+    textAlign: "center",
+    justifyItems: "center",
+  }}
+>
+      <div
+        style={{
+fontSize: 15,
+fontWeight: 600,
+fontFamily:
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+color: "#fff",
+letterSpacing: "-0.18px",
+lineHeight: 1.15,
+        }}
+      >
+        Crea tu comunidad
+      </div>
+
+      <div
+        style={{
+          fontSize: 12,
+          color: "rgba(255,255,255,0.66)",
+          lineHeight: 1.35,
+maxWidth: 220,
+        }}
+      >
+        Conecta, comparte y monetiza tu pasión.
+      </div>
+
+      <div
+        style={{
+          width: "100%",
+          minHeight: 38,
+          borderRadius: 14,
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#fff",
+          fontSize: 13,
+          fontWeight: 600,
+          background:
+            "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)",
+          boxShadow: "0 12px 28px rgba(147,51,234,0.32)",
+          fontFamily:
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+        }}
+      >
+        Crear comunidad
+      </div>
+    </div>
   </Link>
 ) : null}
+        </div>
+      ))}
 
       {inviteGroupId && (
         <InviteLinkModal
