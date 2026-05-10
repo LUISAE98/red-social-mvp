@@ -103,7 +103,7 @@ const buttonStyle: CSSProperties = {
   fontWeight: 700,
   lineHeight: 1,
   cursor: disabled ? "not-allowed" : "pointer",
-  opacity: disabled ? 0.55 : 1,
+  opacity: disabled ? 0.55 : 0.65,
   boxShadow: copied ? "0 10px 24px rgba(34,197,94,0.28)" : "none",
   backdropFilter: "none",
   WebkitBackdropFilter: "none",

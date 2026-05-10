@@ -2306,6 +2306,7 @@ const copyHref = isProfileCard ? g.profileHref! : `/groups/${g.id}`;
 const copyTitle = isProfileCard
   ? "Copiar link del perfil"
   : "Copiar link del grupo";
+  const isSelectedGroup = pathname === `/groups/${g.id}`;
 
     const autoSubscriptionSubtitle =
       !opts?.subtitle &&
@@ -2332,21 +2333,27 @@ return (
     className="owner-sidebar-community-card"
 style={{
   ...styles.card,
-  padding: opts?.compact ? "9px 11px" : "10px 12px",
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
+padding: "10px 12px",
+display: "flex",
+alignItems: "center",
+gap: 8,
+margin: 0,
+borderRadius: 16,
 
-background: isProfileCard ? "transparent" : "#000",
+background:
+  isProfileCard || !isSelectedGroup
+    ? "transparent"
+    : "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)",
 
-border: isProfileCard ? "none" : "1px solid rgba(168,85,255,0.08)",
+border: "none",
 
-boxShadow: isProfileCard
-  ? "none"
-  : "inset 0 1px 0 rgba(255,255,255,0.035), 0 18px 44px rgba(0,0,0,0.34)",
+boxShadow:
+  isProfileCard || !isSelectedGroup
+    ? "none"
+    : "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
 
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
+backdropFilter: "none",
+WebkitBackdropFilter: "none",
 }}
   >
 <button
@@ -2700,9 +2707,6 @@ return (
   width: 100% !important;
   padding-left: 0 !important;
   padding-right: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  border: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   justify-content: space-between !important;

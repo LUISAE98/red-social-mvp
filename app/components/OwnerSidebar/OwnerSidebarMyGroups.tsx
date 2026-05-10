@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
-
+import {
+  VibraNavigationIcon,
+  VibraNavigationIconsStyles,
+} from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import InviteLinkModal from "./InviteLinkModal";
 import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
 import ScheduleCalendarOverlay from "@/app/(protected)/wallet/components/ScheduleCalendarOverlay";
@@ -399,6 +403,7 @@ export default function OwnerSidebarMyGroups({
   joinBusyKey,
   greetingBusyId,
 }: Props) {
+  const pathname = usePathname();
   const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -841,7 +846,155 @@ if (scheduleConflict.hasConflict) {
 
   return (
     <>
+<VibraNavigationIconsStyles />
+<style jsx global>{`
+  .ownerInviteMagicOrbit {
+    position: absolute;
+    inset: -9px;
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: 3;
+    overflow: hidden;
+  }
 
+  .ownerInviteMagicParticle {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+width: 3.2px;
+height: 3.2px;
+    border-radius: 999px;
+    opacity: 0;
+    background: rgb(236, 72, 153);
+    box-shadow: 0 0 5px rgba(236, 72, 153, 0.42);
+    animation-name: ownerInviteMagicFloat;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+    will-change: transform, opacity, background, box-shadow;
+  }
+
+  .ownerInviteMagicParticle1 {
+    animation-duration: 8.4s;
+    animation-delay: -0.8s;
+    --x1: -7px;
+    --y1: -5px;
+    --x2: 4px;
+    --y2: -8px;
+    --x3: 8px;
+    --y3: 2px;
+    --x4: -2px;
+    --y4: 7px;
+    --color-a: rgb(236, 72, 153);
+    --glow-a: rgba(236, 72, 153, 0.42);
+    --color-b: rgb(168, 85, 247);
+    --glow-b: rgba(168, 85, 247, 0.38);
+  }
+
+  .ownerInviteMagicParticle2 {
+    animation-duration: 9.6s;
+    animation-delay: -2.4s;
+    --x1: 7px;
+    --y1: -4px;
+    --x2: -5px;
+    --y2: -7px;
+    --x3: -8px;
+    --y3: 3px;
+    --x4: 3px;
+    --y4: 8px;
+    --color-a: rgb(168, 85, 247);
+    --glow-a: rgba(168, 85, 247, 0.40);
+    --color-b: rgb(59, 130, 246);
+    --glow-b: rgba(59, 130, 246, 0.36);
+  }
+
+  .ownerInviteMagicParticle3 {
+    animation-duration: 10.8s;
+    animation-delay: -4s;
+    --x1: -3px;
+    --y1: 8px;
+    --x2: 8px;
+    --y2: 5px;
+    --x3: 5px;
+    --y3: -7px;
+    --x4: -8px;
+    --y4: -2px;
+    --color-a: rgb(59, 130, 246);
+    --glow-a: rgba(59, 130, 246, 0.38);
+    --color-b: rgb(236, 72, 153);
+    --glow-b: rgba(236, 72, 153, 0.38);
+  }
+
+  .ownerInviteMagicParticle4 {
+    animation-duration: 11.2s;
+    animation-delay: -5.6s;
+    --x1: 2px;
+    --y1: -8px;
+    --x2: 8px;
+    --y2: -1px;
+    --x3: -4px;
+    --y3: 8px;
+    --x4: -7px;
+    --y4: -4px;
+    --color-a: rgb(236, 72, 153);
+    --glow-a: rgba(236, 72, 153, 0.36);
+    --color-b: rgb(59, 130, 246);
+    --glow-b: rgba(59, 130, 246, 0.36);
+  }
+
+  .ownerInviteMagicParticle5 {
+    animation-duration: 12.4s;
+    animation-delay: -7.2s;
+    --x1: 8px;
+    --y1: 3px;
+    --x2: 1px;
+    --y2: 8px;
+    --x3: -7px;
+    --y3: 1px;
+    --x4: 4px;
+    --y4: -8px;
+    --color-a: rgb(168, 85, 247);
+    --glow-a: rgba(168, 85, 247, 0.36);
+    --color-b: rgb(236, 72, 153);
+    --glow-b: rgba(236, 72, 153, 0.36);
+  }
+
+  @keyframes ownerInviteMagicFloat {
+    0% {
+      opacity: 0.24;
+      background: var(--color-a);
+      box-shadow: 0 0 4px var(--glow-a);
+      transform: translate3d(var(--x1), var(--y1), 0) scale(0.72);
+    }
+
+    28% {
+      opacity: 0.72;
+      background: var(--color-b);
+      box-shadow: 0 0 6px var(--glow-b);
+      transform: translate3d(var(--x2), var(--y2), 0) scale(0.95);
+    }
+
+    58% {
+      opacity: 0.54;
+      background: var(--color-a);
+      box-shadow: 0 0 5px var(--glow-a);
+      transform: translate3d(var(--x3), var(--y3), 0) scale(0.82);
+    }
+
+    82% {
+      opacity: 0.66;
+      background: var(--color-b);
+      box-shadow: 0 0 6px var(--glow-b);
+      transform: translate3d(var(--x4), var(--y4), 0) scale(0.92);
+    }
+
+    100% {
+      opacity: 0.24;
+      background: var(--color-a);
+      box-shadow: 0 0 4px var(--glow-a);
+      transform: translate3d(var(--x1), var(--y1), 0) scale(0.72);
+    }
+  }
+`}</style>
       {!loadingGroups &&
   myGroups.length === 0 &&
   !ownedGrouped.some((section) =>
@@ -859,13 +1012,14 @@ if (scheduleConflict.hasConflict) {
   )}
 
       {ownedGrouped.map((section) => (
-        <div key={section.key} style={{ display: "grid", gap: 8 }}>
+        <div key={section.key} style={{ display: "grid", gap: 7 }}>
           <div style={styles.sectionTitle}>{section.title}</div>
 
           {section.items.map((g) => {
-            const isOpen = openCommunities[g.id] === true;
-            const isPublic = g.visibility === "public";
-            const isInviteEligible = g.visibility === "hidden";
+const isOpen = openCommunities[g.id] === true;
+const isSelectedGroup = pathname === `/groups/${g.id}`;
+const isPublic = g.visibility === "public";
+const isInviteEligible = g.visibility === "hidden";
 
             const joinRequests = joinRequestsByGroup[g.id] ?? [];
             const greetings = greetingsByGroup[g.id] ?? [];
@@ -875,7 +1029,7 @@ if (scheduleConflict.hasConflict) {
 const communityName = g.name ?? "(Sin nombre)";
 const avatarFallback = getInitials(communityName);
 const isProfileCard = g.visibility === "profile";
-const canCopyLink = g.visibility !== "hidden";
+const canShowLinkAction = true;
 const copyHref = isProfileCard
   ? g.profileHref ?? (g.handle ? `/u/${g.handle}` : "/")
   : `/groups/${g.id}`;
@@ -1016,12 +1170,14 @@ style={{
   border: "none",
   margin: 0,
   borderRadius: 16,
-background: isProfileCard
-  ? "transparent"
-  : "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)",
-boxShadow: isProfileCard
-  ? "none"
-  : "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
+background:
+  isProfileCard || !isSelectedGroup
+    ? "transparent"
+    : "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)",
+boxShadow:
+  isProfileCard || !isSelectedGroup
+    ? "none"
+    : "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
 }}
                 >
                   <div
@@ -1152,15 +1308,52 @@ boxShadow: isProfileCard
                         </div>
                       </div>
                     </Link>
-{canCopyLink && (
-  <CopyLinkButton
-    href={copyHref}
-    title={copyTitle}
-    style={{
-      flexShrink: 0,
-      marginLeft: hasOwnerSidebarAlerts ? 0 : "auto",
-    }}
-  />
+{canShowLinkAction && (
+  isInviteEligible ? (
+    <button
+      type="button"
+      onClick={() => setInviteGroupId(g.id)}
+      title="Generar link de invitación"
+      aria-label="Generar link de invitación"
+      style={{
+        flexShrink: 0,
+        marginLeft: hasOwnerSidebarAlerts ? 0 : "auto",
+        width: 24,
+        height: 24,
+        border: "none",
+        background: "transparent",
+        color: "#fff",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 0,
+        cursor: "pointer",
+        opacity: 0.65,
+        position: "relative",
+        overflow: "visible",
+      }}
+    >
+      <VibraNavigationIcon type="copyLink" size={21} />
+
+      <span aria-hidden="true" className="ownerInviteMagicOrbit">
+        {[0, 1, 2, 3, 4].map((index) => (
+          <span
+            key={index}
+            className={`ownerInviteMagicParticle ownerInviteMagicParticle${index + 1}`}
+          />
+        ))}
+      </span>
+    </button>
+  ) : (
+    <CopyLinkButton
+      href={copyHref}
+      title={copyTitle}
+      style={{
+        flexShrink: 0,
+        marginLeft: hasOwnerSidebarAlerts ? 0 : "auto",
+      }}
+    />
+  )
 )}
 {hasOwnerSidebarAlerts ? (
   <button

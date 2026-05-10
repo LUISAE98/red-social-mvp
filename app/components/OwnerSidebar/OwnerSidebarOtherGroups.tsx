@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { leaveGroup } from "@/lib/groups/membership";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import type {
   GroupDocLite,
@@ -620,6 +620,7 @@ style={{
   borderRadius: 16,
   touchAction: "pan-y",
   background: "transparent",
+  boxShadow: "none",
 }}
 onPointerDown={(event) => {
   didDragRef.current = false;
@@ -689,6 +690,7 @@ export default function OwnerSidebarOtherGroups({
   renderUserLink,
 }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const [dismissedGroupIds, setDismissedGroupIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -882,11 +884,20 @@ return (
               return (
                 <div
                   key={g.id}
-                  style={{
-                    ...styles.card,
-                    display: "grid",
-                    gap: 9,
-                  }}
+style={{
+  ...styles.card,
+  display: "grid",
+  gap: 9,
+  border: "none",
+  background:
+    pathname === `/groups/${g.id}`
+      ? "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)"
+      : "transparent",
+  boxShadow:
+    pathname === `/groups/${g.id}`
+      ? "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)"
+      : "none",
+}}
                 >
                   <div
                     style={{

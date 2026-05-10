@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { createInviteLink } from "@/lib/groups/inviteLinks";
 
 type Props = {
@@ -61,6 +62,11 @@ async function copyToClipboardWithFallback(text: string) {
 }
 
 export default function InviteLinkModal({ groupId, onClose }: Props) {
+    const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [loading, setLoading] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [unit, setUnit] = useState<Unit>("days");
@@ -321,7 +327,8 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
     cursor: "pointer",
   };
 
-  return (
+  if (!mounted) return null;
+    return createPortal(
     <div
       style={overlayStyle}
       onClick={() => {
@@ -514,6 +521,7 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
           )}
         </div>
       </div>
-    </div>
+     </div>,
+    document.body
   );
 }
