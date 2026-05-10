@@ -1276,7 +1276,7 @@ boxShadow:
 <span
   style={{
     fontSize: 13,
-    fontWeight: 550,
+    fontWeight: isProfileCard ? 600 : 550,
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
     letterSpacing: "-0.08px",

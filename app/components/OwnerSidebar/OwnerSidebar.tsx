@@ -657,6 +657,19 @@ let ownerSidebarCache: OwnerSidebarCache | null = null;
 export default function OwnerSidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const [isMobile, setIsMobile] = useState(false);
+
+useEffect(() => {
+  if (typeof window === "undefined") return;
+
+  const mediaQuery = window.matchMedia("(max-width: 1220px)");
+
+  const sync = () => setIsMobile(mediaQuery.matches);
+  sync();
+
+  mediaQuery.addEventListener("change", sync);
+  return () => mediaQuery.removeEventListener("change", sync);
+}, []);
 
   const [viewer, setViewer] = useState<any>(
     () => ownerSidebarCache?.viewer ?? null
@@ -847,7 +860,7 @@ const ui = {
     },
     sectionTitle: {
       fontSize: 11,
-      fontWeight: 550,
+      fontWeight: isMobile ? 600 : 550,
       color: "rgba(254, 254, 254, 0.22)",
       textTransform: "uppercase",
       letterSpacing: 0.65,
@@ -2697,6 +2710,12 @@ return (
         }
 
 @media (max-width: 1220px) {
+
+  .owner-sidebar-community-card :global(button[aria-label*="Copiar"]) {
+    opacity: 0.72 !important;
+  }
+}
+
 .profile-owner-sidebar-panel {
   background: transparent !important;
   box-shadow: none !important;

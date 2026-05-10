@@ -39,6 +39,20 @@ export default function CopyLinkButton({
 }: CopyLinkButtonProps) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+useEffect(() => {
+  if (typeof window === "undefined") return;
+
+  const mediaQuery = window.matchMedia("(max-width: 900px)");
+
+  const sync = () => setIsMobile(mediaQuery.matches);
+  sync();
+
+  mediaQuery.addEventListener("change", sync);
+
+  return () => mediaQuery.removeEventListener("change", sync);
+}, []);
 
   const absoluteUrl = useMemo(() => getAbsoluteUrl(href), [href]);
 
@@ -86,13 +100,13 @@ export default function CopyLinkButton({
   }
 
 const buttonStyle: CSSProperties = {
-  width: copied ? 30 : iconOnly ? 24 : "auto",
-  height: copied ? 30 : 24,
-  minWidth: copied ? 30 : iconOnly ? 24 : "auto",
-  minHeight: copied ? 30 : 24,
-  borderRadius: copied ? 999 : 0,
+  width: iconOnly ? 24 : "auto",
+  height: 24,
+  minWidth: iconOnly ? 24 : "auto",
+  minHeight: 24,
+  borderRadius: 0,
   border: "none",
-  background: copied ? "rgba(34,197,94,0.95)" : "transparent",
+  background: "transparent",
   color: "#fff",
   display: "inline-flex",
   alignItems: "center",
@@ -103,15 +117,47 @@ const buttonStyle: CSSProperties = {
   fontWeight: 700,
   lineHeight: 1,
   cursor: disabled ? "not-allowed" : "pointer",
-  opacity: disabled ? 0.55 : 0.65,
-  boxShadow: copied ? "0 10px 24px rgba(34,197,94,0.28)" : "none",
+  opacity: disabled ? 0.55 : isMobile ? 0.85 : 0.65,
+  boxShadow: "none",
   backdropFilter: "none",
   WebkitBackdropFilter: "none",
   userSelect: "none",
-  transform: copied ? "scale(1)" : "scale(1)",
-  transition:
-    "width 220ms cubic-bezier(0.22, 1, 0.36, 1), height 220ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 220ms cubic-bezier(0.22, 1, 0.36, 1), background 180ms ease, box-shadow 180ms ease, transform 180ms ease, opacity 160ms ease",
+  position: "relative",
+  overflow: "visible",
+  transition: "opacity 160ms ease",
   ...style,
+};
+const copyIconStyle: CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  opacity: copied ? 0 : 1,
+  transform: copied ? "scale(0.35)" : "scale(1)",
+  transition:
+    "transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 140ms ease",
+};
+
+const copiedCircleStyle: CSSProperties = {
+  position: "absolute",
+  left: "50%",
+  top: "50%",
+  width: 24,
+  height: 24,
+  borderRadius: 999,
+  background: "rgba(34,197,94,0.95)",
+  boxShadow: "0 8px 18px rgba(34,197,94,0.24)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  opacity: copied ? 1 : 0,
+  transform: copied
+    ? "translate(-50%, -50%) scale(1)"
+    : "translate(-50%, -50%) scale(0.35)",
+  transition:
+    "transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 140ms ease",
+  pointerEvents: "none",
 };
 
   const toastStyle: CSSProperties = {
@@ -151,31 +197,21 @@ const buttonStyle: CSSProperties = {
         aria-label={title}
         style={buttonStyle}
       >
-<span
-  aria-hidden="true"
-  style={{
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transform: copied ? "scale(1)" : "scale(1)",
-    transition:
-      "transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease",
-  }}
->
-  {copied ? (
-    <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
-      <path
-        d="M5.5 12.5l4.1 4.1 8.9-9.2"
-        fill="none"
-        stroke="#fff"
-        strokeWidth="2.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  ) : (
-    <VibraNavigationIcon type="copyLink" size={21} />
-  )}
+<span aria-hidden="true" style={copyIconStyle}>
+  <VibraNavigationIcon type="copyLink" size={21} />
+</span>
+
+<span aria-hidden="true" style={copiedCircleStyle}>
+  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+    <path
+      d="M5.5 12.5l4.1 4.1 8.9-9.2"
+      fill="none"
+      stroke="#fff"
+      strokeWidth="2.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
 </span>
 
 {!iconOnly ? <span>{copied ? "Copiado" : label}</span> : null}
