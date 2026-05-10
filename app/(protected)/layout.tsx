@@ -409,7 +409,7 @@ const sidebarScrollRef = usePersistentSidebarScroll(
   margin: 0 0 2px;
   font-size: 17px;
   line-height: 1.2;
-  font-weight: 700;
+  font-weight: 550;
   letter-spacing: -0.02em;
   color: #fff;
 }
@@ -418,7 +418,7 @@ const sidebarScrollRef = usePersistentSidebarScroll(
   margin: 0 0 2px;
   font-size: 17px;
   line-height: 1.2;
-  font-weight: 700;
+  font-weight: 550;
   letter-spacing: -0.02em;
   color: #fff;
 }
@@ -488,6 +488,7 @@ const sidebarScrollRef = usePersistentSidebarScroll(
 }
 
 .createCommunitySection :global(.createCommunityButton) {
+opacity: 0.85;
   width: 100%;
   height: 40px;
   min-height: 40px;

@@ -847,8 +847,8 @@ const ui = {
     },
     sectionTitle: {
       fontSize: 11,
-      fontWeight: 700,
-      color: "rgba(255,255,255,0.36)",
+      fontWeight: 550,
+      color: "rgba(254, 254, 254, 0.22)",
       textTransform: "uppercase",
       letterSpacing: 0.65,
       padding: "4px 2px 2px",
@@ -2306,7 +2306,9 @@ const copyHref = isProfileCard ? g.profileHref! : `/groups/${g.id}`;
 const copyTitle = isProfileCard
   ? "Copiar link del perfil"
   : "Copiar link del grupo";
-  const isSelectedGroup = pathname === `/groups/${g.id}`;
+  const isSelectedGroup = isProfileCard
+  ? pathname === g.profileHref
+  : pathname === `/groups/${g.id}`;
 
     const autoSubscriptionSubtitle =
       !opts?.subtitle &&
@@ -2341,14 +2343,14 @@ margin: 0,
 borderRadius: 16,
 
 background:
-  isProfileCard || !isSelectedGroup
+  !isSelectedGroup
     ? "transparent"
     : "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)",
 
 border: "none",
 
 boxShadow:
-  isProfileCard || !isSelectedGroup
+  !isSelectedGroup
     ? "none"
     : "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
 
@@ -2359,7 +2361,7 @@ WebkitBackdropFilter: "none",
 <button
   type="button"
   className="owner-sidebar-community-card-main"
-  onClick={() => router.push(`/groups/${g.id}`)}
+  onClick={() => router.push(isProfileCard ? g.profileHref! : `/groups/${g.id}`)}
           style={{
             background: "transparent",
             border: "none",
@@ -2411,9 +2413,11 @@ WebkitBackdropFilter: "none",
           <div style={{ minWidth: 0, flex: 1 }}>
             <div
               style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#fff",
+fontSize: 13,
+fontWeight: 500,
+fontFamily: fontStack,
+letterSpacing: "-0.08px",
+color: "rgba(255,255,255,0.94)",
                 whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
@@ -2605,8 +2609,6 @@ return (
 .owner-sidebar-view-transition {
   display: grid;
   gap: 10px;
-  animation: ownerSidebarViewIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  will-change: opacity, transform;
 }
 
 @keyframes ownerSidebarViewIn {
@@ -2705,8 +2707,8 @@ return (
 
 .owner-sidebar-community-card {
   width: 100% !important;
-  padding-left: 0 !important;
-  padding-right: 0 !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   justify-content: space-between !important;
@@ -2761,7 +2763,7 @@ return (
       `}</style>
 
 <aside
-  className="profile-owner-sidebar-fixed"
+className="profile-owner-sidebar-fixed"
   style={{
     position: "fixed",
     left: 18,
@@ -2929,18 +2931,6 @@ return (
   </div>
 )}
 </div>
-
-          {(loadingGroups || loadingCommunities) && (
-            <div
-              style={{
-                fontSize: 12,
-                color: "rgba(255,255,255,0.58)",
-                padding: "2px 2px 0",
-              }}
-            >
-              Cargando comunidades...
-            </div>
-          )}
          </div>
 </div>
 </aside>

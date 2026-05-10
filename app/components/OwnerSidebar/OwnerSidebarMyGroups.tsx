@@ -1017,18 +1017,24 @@ height: 3.2px;
 
           {section.items.map((g) => {
 const isOpen = openCommunities[g.id] === true;
-const isSelectedGroup = pathname === `/groups/${g.id}`;
 const isPublic = g.visibility === "public";
 const isInviteEligible = g.visibility === "hidden";
+
+const communityName = g.name ?? "(Sin nombre)";
+const avatarFallback = getInitials(communityName);
+const isProfileCard = g.visibility === "profile";
+
+const profileHref = g.profileHref ?? (g.handle ? `/u/${g.handle}` : null);
+
+const isSelectedGroup = isProfileCard
+  ? !!profileHref && pathname === profileHref
+  : pathname === `/groups/${g.id}`;
 
             const joinRequests = joinRequestsByGroup[g.id] ?? [];
             const greetings = greetingsByGroup[g.id] ?? [];
             const meetGreets = meetGreetsByGroup[g.id] ?? [];
             const exclusiveSessions = exclusiveSessionsByGroup[g.id] ?? [];
 
-const communityName = g.name ?? "(Sin nombre)";
-const avatarFallback = getInitials(communityName);
-const isProfileCard = g.visibility === "profile";
 const canShowLinkAction = true;
 const copyHref = isProfileCard
   ? g.profileHref ?? (g.handle ? `/u/${g.handle}` : "/")
@@ -1171,11 +1177,11 @@ style={{
   margin: 0,
   borderRadius: 16,
 background:
-  isProfileCard || !isSelectedGroup
+  !isSelectedGroup
     ? "transparent"
     : "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)",
 boxShadow:
-  isProfileCard || !isSelectedGroup
+  !isSelectedGroup
     ? "none"
     : "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)",
 }}
@@ -1267,19 +1273,22 @@ boxShadow:
                             flexWrap: "wrap",
                           }}
                         >
-                          <span
-                            style={{
-                              fontSize: 13,
-                              fontWeight: 700,
-                              color: "#fff",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              maxWidth: "100%",
-                            }}
-                          >
-                            {communityName}
-                          </span>
+<span
+  style={{
+    fontSize: 13,
+    fontWeight: 550,
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+    letterSpacing: "-0.08px",
+    color: "rgba(255,255,255,0.94)",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    maxWidth: "100%",
+  }}
+>
+  {communityName}
+</span>
 
                           {hasNewJoin ? (
                             <span style={emojiAlertStyle}>🔵</span>

@@ -88,9 +88,9 @@ export default function OwnerSidebarTabNav({
     overflow: "visible",
   };
 
-  const activeStyle: CSSProperties = {
-    color: "#fff",
-  };
+const activeStyle: CSSProperties = {
+  color: "rgba(255,255,255,0.92)",
+};
 
   const itemInner: CSSProperties = {
     position: "relative",
@@ -157,8 +157,10 @@ top:
     height: tabStyle.size,
     objectFit: "contain",
     display: "block",
-opacity: active ? 1 : 0.65,
-filter: active ? "none" : "grayscale(0.45) brightness(0.72) saturate(0.75)",
+opacity: active ? 0.93 : 0.65,
+filter: active
+  ? "brightness(0.92) saturate(0.96)"
+  : "grayscale(0.45) brightness(0.72) saturate(0.75)",
     transform: active
       ? `translate(-50%, -50%) scale(${tabStyle.scale})`
       : `translate(-50%, -50%) scale(${inactiveScale})`,
@@ -192,24 +194,26 @@ filter: active ? "none" : "grayscale(0.45) brightness(0.72) saturate(0.75)",
     zIndex: 5,
   };
 
-  const labelStyle: CSSProperties = {
-    position: "relative",
-    zIndex: 3,
-    fontSize: 11.5,
-    fontWeight: 700,
-    lineHeight: 1.05,
-    letterSpacing: -0.12,
-    textAlign: "center",
-    whiteSpace: "normal",
-    overflow: "hidden",
-    textOverflow: "clip",
-    wordBreak: "normal",
-    maxWidth: "100%",
-    minHeight: 24,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  };
+const labelStyle: CSSProperties = {
+  position: "relative",
+  zIndex: 3,
+  fontSize: 11.5,
+  fontWeight: 550,
+  fontFamily: fontStack,
+  lineHeight: 1.05,
+  letterSpacing: "-0.08px",
+  color: "rgba(255,255,255,0.88)",
+  textAlign: "center",
+  whiteSpace: "normal",
+  overflow: "hidden",
+  textOverflow: "clip",
+  wordBreak: "normal",
+  maxWidth: "100%",
+  minHeight: 24,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
 
   const indicatorStyle = (active: boolean): CSSProperties => ({
     position: "absolute",
@@ -220,7 +224,7 @@ filter: active ? "none" : "grayscale(0.45) brightness(0.72) saturate(0.75)",
     height: 3,
     borderRadius: 999,
     background: "#a855ff",
-    opacity: active ? 1 : 0,
+    opacity: active ? 0.75 : 0,
     transition: "opacity 0.2s ease",
     zIndex: 4,
   });

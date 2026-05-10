@@ -407,7 +407,7 @@ function WalletDesktopRail({
   margin: 0 0 2px;
   font-size: 17px;
   line-height: 1.2;
-  font-weight: 700;
+  font-weight: 550;
   letter-spacing: -0.02em;
   color: #fff;
 }
@@ -416,7 +416,7 @@ function WalletDesktopRail({
   margin: 0 0 2px;
   font-size: 17px;
   line-height: 1.2;
-  font-weight: 700;
+  font-weight: 550;
   letter-spacing: -0.02em;
   color: #fff;
 }
@@ -452,15 +452,13 @@ function WalletDesktopRail({
 }
 
 .createCommunityImage {
-  width: 138px;
-  max-width: 138px;
+  width: 300px;
+  max-width: 300px;
   height: auto;
   display: block;
-  margin: -8px auto -18px;
+  margin: -6px auto -14px;
   object-fit: contain;
-  position: relative;
-  z-index: 1;
-  pointer-events: none;
+  transform: translateX(-35px);
 }
 
 .createCommunityCopy {
@@ -488,6 +486,7 @@ function WalletDesktopRail({
 }
 
 .createCommunitySection :global(.createCommunityButton) {
+opacity: 0.85;
   width: 100%;
   height: 40px;
   min-height: 40px;
