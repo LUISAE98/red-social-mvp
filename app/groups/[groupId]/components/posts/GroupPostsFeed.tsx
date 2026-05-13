@@ -17,8 +17,10 @@ import {
   fetchGroupPostsPage,
   fetchPostComments,
   softDeletePost,
+  toggleGroupPostPin,
   togglePostFlame,
   togglePostSave,
+  toggleProfilePostPin,
   type GroupPostsPageCursor,
 } from "@/lib/posts/post-service";
 import GroupPostCard from "./GroupPostCard";
@@ -157,6 +159,14 @@ function normalizeFeedPost(post: PostWithAuthorState): PostWithAuthorState {
       errorMessage: null,
       updatedAt: null,
     },
+
+    isPinnedInGroup: post.isPinnedInGroup ?? false,
+    groupPinnedAt: post.groupPinnedAt ?? null,
+    groupPinnedBy: post.groupPinnedBy ?? null,
+
+    isPinnedOnProfile: post.isPinnedOnProfile ?? false,
+    profilePinnedAt: post.profilePinnedAt ?? null,
+    profilePinnedBy: post.profilePinnedBy ?? null,
   };
 }
 
@@ -210,6 +220,29 @@ function getGroupFeedCacheKey(params: {
   return ["group-feed", params.groupId, params.currentUid ?? "guest"].join(":");
 }
 
+function sortGroupFeedPosts(posts: PostWithAuthorState[]): PostWithAuthorState[] {
+  return [...posts].sort((a, b) => {
+    const aPinned = a.isPinnedInGroup === true;
+    const bPinned = b.isPinnedInGroup === true;
+
+    if (aPinned !== bPinned) {
+      return aPinned ? -1 : 1;
+    }
+
+    const aPinnedAt = a.groupPinnedAt?.toMillis?.() ?? 0;
+    const bPinnedAt = b.groupPinnedAt?.toMillis?.() ?? 0;
+
+    if (aPinned && bPinned && aPinnedAt !== bPinnedAt) {
+      return bPinnedAt - aPinnedAt;
+    }
+
+    const aCreatedAt = a.createdAt?.toMillis?.() ?? 0;
+    const bCreatedAt = b.createdAt?.toMillis?.() ?? 0;
+
+    return bCreatedAt - aCreatedAt;
+  });
+}
+
 function mergeUniquePosts(
   currentPosts: PostWithAuthorState[],
   nextPosts: PostWithAuthorState[]
@@ -224,7 +257,7 @@ function mergeUniquePosts(
     if (post.id) map.set(post.id, post);
   });
 
-  return Array.from(map.values());
+  return sortGroupFeedPosts(Array.from(map.values()));
 }
 
 export default function GroupPostsFeed({
@@ -361,7 +394,7 @@ export default function GroupPostsFeed({
           const nextPosts =
             mode === "more"
               ? mergeUniquePosts(prev, normalizedPosts)
-              : normalizedPosts;
+              : sortGroupFeedPosts(normalizedPosts);
 
           groupFeedMemoryCache.set(cacheKey, {
             posts: nextPosts,
@@ -555,6 +588,67 @@ export default function GroupPostsFeed({
       );
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar la flamita.");
+      throw e;
+    }
+  }
+
+    async function handleToggleGroupPin(postId: string): Promise<void> {
+    try {
+      setError(null);
+
+      const result = await toggleGroupPostPin(postId);
+
+      syncPostsState((prev) =>
+        sortGroupFeedPosts(
+          prev.map((post) =>
+            post.id === postId
+              ? {
+                  ...post,
+                  isPinnedInGroup: result.isPinnedInGroup,
+                  groupPinnedAt: result.isPinnedInGroup
+                    ? post.groupPinnedAt ?? null
+                    : null,
+                  groupPinnedBy: result.isPinnedInGroup
+                    ? currentUid
+                    : null,
+                }
+              : post
+          )
+        )
+      );
+
+      await loadPosts();
+    } catch (e: any) {
+      setError(e?.message ?? "No se pudo fijar o desfijar la publicación.");
+      throw e;
+    }
+  }
+    async function handleToggleProfilePin(postId: string): Promise<void> {
+    try {
+      setError(null);
+
+      const result = await toggleProfilePostPin(postId);
+
+      syncPostsState((prev) =>
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                isPinnedOnProfile: result.isPinnedOnProfile,
+                profilePinnedAt: result.isPinnedOnProfile
+                  ? post.profilePinnedAt ?? null
+                  : null,
+                profilePinnedBy: result.isPinnedOnProfile ? currentUid : null,
+              }
+            : post
+        )
+      );
+
+      await loadPosts();
+    } catch (e: any) {
+      setError(
+        e?.message ?? "No se pudo fijar o desfijar la publicación en tu perfil."
+      );
       throw e;
     }
   }
@@ -899,6 +993,8 @@ export default function GroupPostsFeed({
               onDeleteReply={handleDeleteReply}
               onToggleFlame={handleToggleFlame}
               onToggleSave={handleToggleSave}
+              onToggleGroupPin={handleToggleGroupPin}
+              onToggleProfilePin={handleToggleProfilePin}
               currentUserId={currentUid}
               isOwner={isOwner}
               isModerator={isModerator}

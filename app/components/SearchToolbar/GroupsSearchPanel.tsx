@@ -4,12 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import {
-collection,
-doc,
-onSnapshot,
-query,
-where,
-type Unsubscribe,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  where,
 } from "firebase/firestore";
 
 import { auth, db } from "@/lib/firebase";
@@ -21,6 +23,9 @@ import {
 } from "@/types/group";
 
 export type CommunitySearchMatchType = "exact" | "related" | "suggested";
+const SEARCH_LIMIT = 12;
+const SEARCH_DEBOUNCE_MS = 300;
+const MIN_SEARCH_LENGTH = 2;
 
 export type Community = {
   id: string;
@@ -411,13 +416,14 @@ export default function GroupsSearchPanel({
   >({});
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   const cardBorder = "1px solid rgba(255,255,255,0.14)";
   const softBorder = "1px solid rgba(255,255,255,0.18)";
   const shadow = "0 18px 46px rgba(0,0,0,0.42)";
 
-  const normalizedSearch = search.trim().toLowerCase();
-  const hasSearch = normalizedSearch.length > 0;
+const normalizedSearch = debouncedSearch.trim().toLowerCase();
+const hasSearch = normalizedSearch.length >= MIN_SEARCH_LENGTH;
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -427,6 +433,13 @@ export default function GroupsSearchPanel({
 
     return () => unsub();
   }, []);
+  useEffect(() => {
+  const timer = window.setTimeout(() => {
+    setDebouncedSearch(search);
+  }, SEARCH_DEBOUNCE_MS);
+
+  return () => window.clearTimeout(timer);
+}, [search]);
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
@@ -451,212 +464,304 @@ export default function GroupsSearchPanel({
    }, [hasSearch, onCloseSearch]);
 
 useEffect(() => {
-  setError(null);
-  setCommunitiesLoading(true);
+  let cancelled = false;
 
-  const col = collection(db, "groups");
-  const unsubscribers: Unsubscribe[] = [];
-  const groupsById = new Map<string, Community>();
+  async function loadCommunities() {
+    setError(null);
 
-  function syncCommunities() {
-    setCommunities(Array.from(groupsById.values()));
-    setCommunitiesLoading(false);
-  }
-
-  const qPublic = query(col, where("visibility", "==", "public"));
-
-  const unsubPublic = onSnapshot(
-    qPublic,
-    (snapshot) => {
-      snapshot.docs.forEach((d) => {
-        groupsById.set(d.id, {
-          id: d.id,
-          ...(d.data() as Record<string, unknown>),
-        });
-      });
-
-      syncCommunities();
-    },
-    (snapshotError) => {
-      const message =
-        snapshotError instanceof Error
-          ? snapshotError.message
-          : "Error cargando comunidades";
-      setError(message);
+    if (!hasSearch) {
+      setCommunities([]);
       setCommunitiesLoading(false);
+      return;
     }
-  );
 
-  unsubscribers.push(unsubPublic);
+    try {
+      setCommunitiesLoading(true);
 
-  if (user) {
-    const qPrivate = query(col, where("visibility", "==", "private"));
+      const col = collection(db, "groups");
 
-    const unsubPrivate = onSnapshot(
-      qPrivate,
-      (snapshot) => {
-        snapshot.docs.forEach((d) => {
-          groupsById.set(d.id, {
+      const queriesToRun = [
+        query(
+          col,
+          where("visibility", "==", "public"),
+          limit(SEARCH_LIMIT)
+        ),
+      ];
+
+      if (user?.uid) {
+        queriesToRun.push(
+          query(
+            col,
+            where("visibility", "==", "private"),
+            limit(SEARCH_LIMIT)
+          )
+        );
+      }
+
+      const snapshots = await Promise.all(
+        queriesToRun.map((q) => getDocs(q))
+      );
+
+      if (cancelled) return;
+
+      const groupsById = new Map<string, Community>();
+
+      for (const snap of snapshots) {
+        for (const d of snap.docs) {
+          const group = {
             id: d.id,
             ...(d.data() as Record<string, unknown>),
-          });
-        });
+          } as Community;
 
-        syncCommunities();
-      },
-      (snapshotError) => {
-        const message =
-          snapshotError instanceof Error
-            ? snapshotError.message
-            : "Error cargando comunidades privadas";
-        setError(message);
+          groupsById.set(group.id, group);
+        }
+      }
+
+      setCommunities(Array.from(groupsById.values()));
+    } catch (e) {
+      const message =
+        e instanceof Error
+          ? e.message
+          : "Error cargando comunidades";
+
+      setError(message);
+    } finally {
+      if (!cancelled) {
         setCommunitiesLoading(false);
       }
-    );
-
-    unsubscribers.push(unsubPrivate);
+    }
   }
 
+  loadCommunities();
+
   return () => {
-    unsubscribers.forEach((unsubscribe) => unsubscribe());
+    cancelled = true;
   };
-}, [user]);
+}, [user?.uid, hasSearch]);
 
 useEffect(() => {
-  setProfilesLoading(true);
+  let cancelled = false;
 
-  const unsubProfiles = onSnapshot(
-    collection(db, "users"),
-    (snapshot) => {
-      const rows: PublicUser[] = snapshot.docs.map((d) => {
-        const data = d.data() as Record<string, unknown>;
+  function mapUserDoc(d: { id: string; data: () => Record<string, unknown> }): PublicUser {
+    const data = d.data();
 
-return {
-  uid: typeof data.uid === "string" ? data.uid : d.id,
-  handle: typeof data.handle === "string" ? data.handle : "",
-  displayName:
-    typeof data.displayName === "string" ? data.displayName : "",
-  firstName: typeof data.firstName === "string" ? data.firstName : "",
-  lastName: typeof data.lastName === "string" ? data.lastName : "",
-  photoURL: typeof data.photoURL === "string" ? data.photoURL : null,
-  offerings:
-    Array.isArray(data.offerings) ||
-    (typeof data.offerings === "object" && data.offerings !== null)
-      ? (data.offerings as Array<Record<string, any>> | Record<string, any>)
-      : undefined,
-  donation:
-    typeof data.donation === "object" && data.donation !== null
-      ? (data.donation as Record<string, any>)
-      : undefined,
-  monetization:
-    typeof data.monetization === "object" && data.monetization !== null
-      ? (data.monetization as Record<string, any>)
-      : undefined,
-};
-      });
+    return {
+      uid: typeof data.uid === "string" ? data.uid : d.id,
+      handle: typeof data.handle === "string" ? data.handle : "",
+      displayName:
+        typeof data.displayName === "string"
+          ? data.displayName
+          : "",
+      firstName:
+        typeof data.firstName === "string"
+          ? data.firstName
+          : "",
+      lastName:
+        typeof data.lastName === "string"
+          ? data.lastName
+          : "",
+      photoURL:
+        typeof data.photoURL === "string"
+          ? data.photoURL
+          : null,
+      offerings:
+        Array.isArray(data.offerings) ||
+        (typeof data.offerings === "object" &&
+          data.offerings !== null)
+          ? (
+              data.offerings as
+                | Array<Record<string, any>>
+                | Record<string, any>
+            )
+          : undefined,
+      donation:
+        typeof data.donation === "object" &&
+        data.donation !== null
+          ? (data.donation as Record<string, any>)
+          : undefined,
+      monetization:
+        typeof data.monetization === "object" &&
+        data.monetization !== null
+          ? (data.monetization as Record<string, any>)
+          : undefined,
+    };
+  }
 
-      setProfiles(rows);
+  async function loadProfiles() {
+    if (!hasSearch) {
+      setProfiles([]);
       setProfilesLoading(false);
-    },
-    (snapshotError) => {
-      const message =
-        snapshotError instanceof Error
-          ? snapshotError.message
-          : "Error cargando perfiles";
-      setError(message);
-      setProfilesLoading(false);
+      return;
     }
-  );
 
-  return () => unsubProfiles();
-}, []);
+    try {
+      setProfilesLoading(true);
 
-  useEffect(() => {
+      const normalizedQuery = normalizeText(debouncedSearch);
+      const usersRef = collection(db, "users");
+
+      const [handleSnap, displayNameSnap, firstNameSnap, lastNameSnap] =
+        await Promise.all([
+          getDocs(
+            query(
+              usersRef,
+              orderBy("handle"),
+              where("handle", ">=", normalizedQuery),
+              where("handle", "<=", `${normalizedQuery}\uf8ff`),
+              limit(SEARCH_LIMIT)
+            )
+          ),
+          getDocs(
+            query(
+              usersRef,
+              orderBy("displayName"),
+              where("displayName", ">=", debouncedSearch.trim()),
+              where("displayName", "<=", `${debouncedSearch.trim()}\uf8ff`),
+              limit(SEARCH_LIMIT)
+            )
+          ),
+          getDocs(
+            query(
+              usersRef,
+              orderBy("firstName"),
+              where("firstName", ">=", debouncedSearch.trim()),
+              where("firstName", "<=", `${debouncedSearch.trim()}\uf8ff`),
+              limit(SEARCH_LIMIT)
+            )
+          ),
+          getDocs(
+            query(
+              usersRef,
+              orderBy("lastName"),
+              where("lastName", ">=", debouncedSearch.trim()),
+              where("lastName", "<=", `${debouncedSearch.trim()}\uf8ff`),
+              limit(SEARCH_LIMIT)
+            )
+          ),
+        ]);
+
+      if (cancelled) return;
+
+      const usersById = new Map<string, PublicUser>();
+
+      for (const snap of [handleSnap, displayNameSnap, firstNameSnap, lastNameSnap]) {
+        for (const d of snap.docs) {
+          const profile = mapUserDoc(d);
+
+          if (!profile.handle) continue;
+          if (user?.uid && profile.uid === user.uid) continue;
+
+          usersById.set(profile.uid, profile);
+        }
+      }
+
+      setProfiles(Array.from(usersById.values()).slice(0, SEARCH_LIMIT));
+    } catch (e) {
+      const message =
+        e instanceof Error
+          ? e.message
+          : "Error cargando perfiles";
+
+      setError(message);
+      setProfiles([]);
+    } finally {
+      if (!cancelled) {
+        setProfilesLoading(false);
+      }
+    }
+  }
+
+  loadProfiles();
+
+  return () => {
+    cancelled = true;
+  };
+}, [hasSearch, debouncedSearch, user?.uid]);
+
+useEffect(() => {
+  let cancelled = false;
+
+  async function loadMembershipState() {
     if (!user || communities.length === 0) {
       setMemberMap({});
       setReqMap({});
       return;
     }
 
-    const unsubscribers: Unsubscribe[] = [];
+    try {
+      const entries = await Promise.all(
+        communities.slice(0, SEARCH_LIMIT).map(async (group) => {
+          const memberRef = doc(
+            db,
+            "groups",
+            group.id,
+            "members",
+            user.uid
+          );
 
-    for (const group of communities) {
-      const memberRef = doc(db, "groups", group.id, "members", user.uid);
-      const requestRef = doc(db, "groups", group.id, "joinRequests", user.uid);
+          const requestRef = doc(
+            db,
+            "groups",
+            group.id,
+            "joinRequests",
+            user.uid
+          );
 
-      let latestMembershipStatus: CanonicalMemberStatus = null;
-      let latestPendingRequest = false;
+          const [memberSnap, requestSnap] = await Promise.all([
+            getDoc(memberRef),
+            getDoc(requestRef),
+          ]);
 
-      const syncRequestState = () => {
-        setMemberMap((prev) => {
-          if (prev[group.id] === latestMembershipStatus) return prev;
-          return { ...prev, [group.id]: latestMembershipStatus };
-        });
-
-        setReqMap((prev) => {
-          if (prev[group.id] === latestPendingRequest) return prev;
-          return { ...prev, [group.id]: latestPendingRequest };
-        });
-      };
-
-      const unsubMember = onSnapshot(
-        memberRef,
-        (snapshot) => {
-          latestMembershipStatus = snapshot.exists()
+          const memberStatus = memberSnap.exists()
             ? normalizeMemberStatus(
-                (snapshot.data() as Record<string, unknown>)?.status ?? "active"
+                (memberSnap.data() as Record<string, unknown>)
+                  ?.status ?? "active"
               )
             : null;
 
-          if (
-            isJoinedStatus(latestMembershipStatus) ||
-            isBlockedStatus(latestMembershipStatus)
-          ) {
-            latestPendingRequest = false;
-          }
-
-          syncRequestState();
-        },
-        (snapshotError) => {
-          const message =
-            snapshotError instanceof Error
-              ? snapshotError.message
-              : "Error leyendo membresía en tiempo real";
-          setError(message);
-        }
-      );
-
-      const unsubRequest = onSnapshot(
-        requestRef,
-        (snapshot) => {
-          const joinRequestData = snapshot.data() as
+          const requestData = requestSnap.data() as
             | Record<string, unknown>
             | undefined;
 
-          latestPendingRequest =
-            !isJoinedStatus(latestMembershipStatus) &&
-            !isBlockedStatus(latestMembershipStatus) &&
-            snapshot.exists() &&
-            (joinRequestData?.status ?? "pending") === "pending";
+          const pending =
+            requestSnap.exists() &&
+            (requestData?.status ?? "pending") === "pending";
 
-          syncRequestState();
-        },
-        (snapshotError) => {
-          const message =
-            snapshotError instanceof Error
-              ? snapshotError.message
-              : "Error leyendo solicitud en tiempo real";
-          setError(message);
-        }
+          return {
+            groupId: group.id,
+            memberStatus,
+            pending,
+          };
+        })
       );
 
-      unsubscribers.push(unsubMember, unsubRequest);
-    }
+      if (cancelled) return;
 
-    return () => {
-      unsubscribers.forEach((unsubscribe) => unsubscribe());
-    };
-  }, [user, communities]);
+      const nextMemberMap: Record<
+        string,
+        CanonicalMemberStatus
+      > = {};
+
+      const nextReqMap: Record<string, boolean> = {};
+
+      entries.forEach((entry) => {
+        nextMemberMap[entry.groupId] = entry.memberStatus;
+        nextReqMap[entry.groupId] = entry.pending;
+      });
+
+      setMemberMap(nextMemberMap);
+      setReqMap(nextReqMap);
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  loadMembershipState();
+
+  return () => {
+    cancelled = true;
+  };
+}, [user, communities]);
 
   useEffect(() => {
     if (previousPathnameRef.current === null) {
@@ -838,7 +943,12 @@ function handleOpenFullResults() {
 
   const params = new URLSearchParams();
   params.set("q", search);
-  params.set("tab", "groups");
+
+  if (filteredProfiles.length > 0 && filteredCommunities.length === 0) {
+    params.set("tab", "profiles");
+  } else {
+    params.set("tab", "groups");
+  }
 
   setSearch("");
   onCloseSearch?.();

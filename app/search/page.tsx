@@ -5,10 +5,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   collection,
   doc,
-  onSnapshot,
+  getDoc,
+  getDocs,
+  limit,
+  orderBy,
   query,
   where,
-  type Unsubscribe,
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
@@ -26,6 +28,10 @@ import type {
 } from "@/app/components/SearchToolbar/GroupsSearchPanel";
 
 type TabType = "groups" | "profiles" | "posts";
+
+const MIN_SEARCH_LENGTH = 2;
+const SEARCH_LIMIT = 30;
+const SEARCH_DEBOUNCE_MS = 350;
 
 function normalizeText(value: string) {
   return value
@@ -77,12 +83,14 @@ function SearchPageContent() {
     urlTab === "profiles" || urlTab === "posts" ? urlTab : "groups"
   );
 
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [communities, setCommunities] = useState<Community[]>([]);
   const [profiles, setProfiles] = useState<PublicUser[]>([]);
   const [memberMap, setMemberMap] = useState<Record<string, CanonicalMemberStatus>>({});
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
 
-  const normalizedQuery = useMemo(() => normalizeText(queryText), [queryText]);
+  const normalizedQuery = useMemo(() => normalizeText(debouncedQuery), [debouncedQuery]);
+  const canSearch = normalizedQuery.length >= MIN_SEARCH_LENGTH;
 
   useEffect(() => {
     if (urlTab === "groups" || urlTab === "profiles" || urlTab === "posts") {
@@ -91,139 +99,247 @@ function SearchPageContent() {
   }, [urlTab]);
 
   useEffect(() => {
-    const col = collection(db, "groups");
-    const unsubscribers: Unsubscribe[] = [];
-    const groupsById = new Map<string, Community>();
+    const timer = window.setTimeout(() => {
+      setDebouncedQuery(queryText);
+    }, SEARCH_DEBOUNCE_MS);
 
-    function sync() {
-      setCommunities(Array.from(groupsById.values()));
+    return () => window.clearTimeout(timer);
+  }, [queryText]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadGroups() {
+      if (!canSearch) {
+        setCommunities([]);
+        return;
+      }
+
+      const groupsRef = collection(db, "groups");
+      const queriesToRun = [
+        query(groupsRef, where("visibility", "==", "public"), limit(SEARCH_LIMIT)),
+      ];
+
+      if (user?.uid) {
+        queriesToRun.push(
+          query(groupsRef, where("visibility", "==", "private"), limit(SEARCH_LIMIT))
+        );
+      }
+
+      const snapshots = await Promise.all(queriesToRun.map((q) => getDocs(q)));
+      if (cancelled) return;
+
+      const groupsById = new Map<string, Community>();
+
+      for (const snap of snapshots) {
+        for (const d of snap.docs) {
+          const group = {
+            id: d.id,
+            ...(d.data() as Record<string, unknown>),
+          } as Community;
+
+          if (group.visibility === "hidden") continue;
+          if (group.isActive === false) continue;
+          if (group.discoverable === false) continue;
+
+          if (normalizeText(buildCommunitySearchText(group)).includes(normalizedQuery)) {
+            groupsById.set(group.id, {
+              ...group,
+              searchMatchType: "exact",
+              searchScore: 1000,
+            });
+          }
+        }
+      }
+
+      setCommunities(Array.from(groupsById.values()).slice(0, SEARCH_LIMIT));
     }
 
-    const unsubPublic = onSnapshot(query(col, where("visibility", "==", "public")), (snap) => {
-      snap.docs.forEach((d) => {
-        groupsById.set(d.id, { id: d.id, ...(d.data() as Record<string, unknown>) });
-      });
-      sync();
+    loadGroups().catch(() => {
+      if (!cancelled) setCommunities([]);
     });
 
-    unsubscribers.push(unsubPublic);
-
-    if (user?.uid) {
-      const unsubPrivate = onSnapshot(query(col, where("visibility", "==", "private")), (snap) => {
-        snap.docs.forEach((d) => {
-          groupsById.set(d.id, { id: d.id, ...(d.data() as Record<string, unknown>) });
-        });
-        sync();
-      });
-
-      unsubscribers.push(unsubPrivate);
-    }
-
     return () => {
-      unsubscribers.forEach((unsubscribe) => unsubscribe());
+      cancelled = true;
     };
-  }, [user?.uid]);
+  }, [canSearch, normalizedQuery, user?.uid]);
 
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, "users"), (snap) => {
-      const rows: PublicUser[] = snap.docs.map((d) => {
-        const data = d.data() as Record<string, unknown>;
+   useEffect(() => {
+    let cancelled = false;
 
-        return {
-          uid: typeof data.uid === "string" ? data.uid : d.id,
-          handle: typeof data.handle === "string" ? data.handle : "",
-          displayName: typeof data.displayName === "string" ? data.displayName : "",
-          firstName: typeof data.firstName === "string" ? data.firstName : "",
-          lastName: typeof data.lastName === "string" ? data.lastName : "",
-          photoURL: typeof data.photoURL === "string" ? data.photoURL : null,
-          offerings:
-            Array.isArray(data.offerings) ||
-            (typeof data.offerings === "object" && data.offerings !== null)
-              ? (data.offerings as Array<Record<string, any>> | Record<string, any>)
-              : undefined,
-          donation:
-            typeof data.donation === "object" && data.donation !== null
-              ? (data.donation as Record<string, any>)
-              : undefined,
-          monetization:
-            typeof data.monetization === "object" && data.monetization !== null
-              ? (data.monetization as Record<string, any>)
-              : undefined,
-        };
-      });
+    function mapUserDoc(d: { id: string; data: () => Record<string, unknown> }): PublicUser {
+      const data = d.data();
 
-      setProfiles(rows);
+      return {
+        uid: typeof data.uid === "string" ? data.uid : d.id,
+        handle: typeof data.handle === "string" ? data.handle : "",
+        displayName: typeof data.displayName === "string" ? data.displayName : "",
+        firstName: typeof data.firstName === "string" ? data.firstName : "",
+        lastName: typeof data.lastName === "string" ? data.lastName : "",
+        photoURL: typeof data.photoURL === "string" ? data.photoURL : null,
+        offerings:
+          Array.isArray(data.offerings) ||
+          (typeof data.offerings === "object" && data.offerings !== null)
+            ? (data.offerings as Array<Record<string, any>> | Record<string, any>)
+            : undefined,
+        donation:
+          typeof data.donation === "object" && data.donation !== null
+            ? (data.donation as Record<string, any>)
+            : undefined,
+        monetization:
+          typeof data.monetization === "object" && data.monetization !== null
+            ? (data.monetization as Record<string, any>)
+            : undefined,
+      };
+    }
+
+    async function loadProfiles() {
+      if (!canSearch) {
+        setProfiles([]);
+        return;
+      }
+
+      const rawQuery = debouncedQuery.trim();
+      const lowerQuery = normalizeText(rawQuery);
+      const usersRef = collection(db, "users");
+
+      const usersById = new Map<string, PublicUser>();
+
+      const handleSnap = await getDoc(doc(db, "handles", lowerQuery));
+
+      if (handleSnap.exists()) {
+        const handleData = handleSnap.data() as Record<string, unknown>;
+        const uid = typeof handleData.uid === "string" ? handleData.uid : null;
+
+        if (uid) {
+          const userSnap = await getDoc(doc(db, "users", uid));
+
+          if (userSnap.exists()) {
+            const profile = mapUserDoc({
+              id: userSnap.id,
+              data: () => userSnap.data() as Record<string, unknown>,
+            });
+
+            if (profile.handle && (!user?.uid || profile.uid !== user.uid)) {
+              usersById.set(profile.uid, profile);
+            }
+          }
+        }
+      }
+
+      const queryResults = await Promise.allSettled([
+        getDocs(
+          query(
+            usersRef,
+            orderBy("handle"),
+            where("handle", ">=", lowerQuery),
+            where("handle", "<=", `${lowerQuery}\uf8ff`),
+            limit(SEARCH_LIMIT)
+          )
+        ),
+        getDocs(
+          query(
+            usersRef,
+            orderBy("displayName"),
+            limit(100)
+          )
+        ),
+      ]);
+
+      if (cancelled) return;
+
+      for (const result of queryResults) {
+        if (result.status !== "fulfilled") continue;
+
+        for (const d of result.value.docs) {
+          const profile = mapUserDoc(d);
+
+          if (!profile.handle) continue;
+          if (user?.uid && profile.uid === user.uid) continue;
+
+          const searchable = normalizeText(buildUserSearchText(profile));
+          if (!searchable.includes(lowerQuery)) continue;
+
+          usersById.set(profile.uid, profile);
+        }
+      }
+
+      setProfiles(Array.from(usersById.values()).slice(0, SEARCH_LIMIT));
+    }
+
+    loadProfiles().catch((error) => {
+      console.error("Search profiles error:", error);
+      if (!cancelled) setProfiles([]);
     });
 
-    return () => unsub();
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [canSearch, debouncedQuery, user?.uid]);
 
   useEffect(() => {
-    if (!user?.uid || communities.length === 0) {
-      setMemberMap({});
-      setReqMap({});
-      return;
+    let cancelled = false;
+
+    async function loadViewerGroupState() {
+      if (!user?.uid || communities.length === 0) {
+        setMemberMap({});
+        setReqMap({});
+        return;
+      }
+
+      const entries = await Promise.all(
+        communities.map(async (group) => {
+          const memberRef = doc(db, "groups", group.id, "members", user.uid);
+          const requestRef = doc(db, "groups", group.id, "joinRequests", user.uid);
+
+          const [memberSnap, requestSnap] = await Promise.all([
+            getDoc(memberRef),
+            getDoc(requestRef),
+          ]);
+
+          const memberStatus = memberSnap.exists()
+            ? normalizeMemberStatus(
+                (memberSnap.data() as Record<string, unknown>)?.status ?? "active"
+              )
+            : null;
+
+          const requestData = requestSnap.data() as Record<string, unknown> | undefined;
+          const pending =
+            requestSnap.exists() && (requestData?.status ?? "pending") === "pending";
+
+          return {
+            groupId: group.id,
+            memberStatus,
+            pending,
+          };
+        })
+      );
+
+      if (cancelled) return;
+
+      const nextMemberMap: Record<string, CanonicalMemberStatus> = {};
+      const nextReqMap: Record<string, boolean> = {};
+
+      for (const entry of entries) {
+        nextMemberMap[entry.groupId] = entry.memberStatus;
+        nextReqMap[entry.groupId] = entry.pending;
+      }
+
+      setMemberMap(nextMemberMap);
+      setReqMap(nextReqMap);
     }
 
-    const unsubscribers: Unsubscribe[] = [];
-
-    for (const group of communities) {
-      const memberRef = doc(db, "groups", group.id, "members", user.uid);
-      const requestRef = doc(db, "groups", group.id, "joinRequests", user.uid);
-
-      const unsubMember = onSnapshot(memberRef, (snapshot) => {
-        const status = snapshot.exists()
-          ? normalizeMemberStatus(
-              (snapshot.data() as Record<string, unknown>)?.status ?? "active"
-            )
-          : null;
-
-        setMemberMap((prev) => ({ ...prev, [group.id]: status }));
-      });
-
-      const unsubRequest = onSnapshot(requestRef, (snapshot) => {
-        const data = snapshot.data() as Record<string, unknown> | undefined;
-        const pending = snapshot.exists() && (data?.status ?? "pending") === "pending";
-
-        setReqMap((prev) => ({ ...prev, [group.id]: pending }));
-      });
-
-      unsubscribers.push(unsubMember, unsubRequest);
-    }
+    loadViewerGroupState().catch(() => {
+      if (!cancelled) {
+        setMemberMap({});
+        setReqMap({});
+      }
+    });
 
     return () => {
-      unsubscribers.forEach((unsubscribe) => unsubscribe());
+      cancelled = true;
     };
   }, [user?.uid, communities]);
-
-  const filteredCommunities = useMemo(() => {
-    if (!normalizedQuery) return [];
-
-    return communities
-      .filter((group) => {
-        if (group.visibility === "hidden") return false;
-        if (group.isActive === false) return false;
-        if (group.discoverable === false) return false;
-
-        return normalizeText(buildCommunitySearchText(group)).includes(normalizedQuery);
-      })
-      .map((group) => ({
-        ...group,
-        searchMatchType: "exact" as const,
-        searchScore: 1000,
-      }));
-  }, [communities, normalizedQuery]);
-
-  const filteredProfiles = useMemo(() => {
-    if (!normalizedQuery) return [];
-
-    return profiles.filter((profile) => {
-      if (!profile.handle) return false;
-      if (user?.uid && profile.uid === user.uid) return false;
-
-      return normalizeText(buildUserSearchText(profile)).includes(normalizedQuery);
-    });
-  }, [profiles, normalizedQuery, user?.uid]);
 
   function handleChangeTab(tab: TabType) {
     setActiveTab(tab);
@@ -290,7 +406,7 @@ function SearchPageContent() {
           <SearchGroupsResults
             fontStack="inherit"
             currentUser={user}
-            communities={filteredCommunities}
+            communities={communities}
             memberMap={memberMap}
             reqMap={reqMap}
             onNavigate={handleNavigate}
@@ -304,7 +420,7 @@ function SearchPageContent() {
         {activeTab === "profiles" && (
           <SearchProfilesResults
             fontStack="inherit"
-            profiles={filteredProfiles}
+            profiles={profiles}
             onNavigate={handleNavigate}
           />
         )}
@@ -312,51 +428,52 @@ function SearchPageContent() {
         {activeTab === "posts" && (
           <SearchPostsResults
             fontStack="inherit"
-            search={queryText}
+            search={debouncedQuery}
             currentUser={user}
             onNavigate={handleNavigate}
           />
         )}
       </section>
 
-<style jsx>{`
-  .search-page {
-    width: 100%;
-    min-height: 100%;
-    color: #fff;
-    display: grid;
-    justify-items: center;
-    align-content: start;
-    padding: 0 0 96px;
-    box-sizing: border-box;
-  }
+      <style jsx>{`
+        .search-page {
+          width: 100%;
+          min-height: 100%;
+          color: #fff;
+          display: grid;
+          justify-items: center;
+          align-content: start;
+          padding: 0 0 96px;
+          box-sizing: border-box;
+        }
 
-  .search-content {
-    width: min(100%, 1040px);
-    display: grid;
-    gap: 14px;
-    padding: 0 16px;
-    box-sizing: border-box;
-  }
+        .search-content {
+          width: min(100%, 1040px);
+          display: grid;
+          gap: 14px;
+          padding: 0 16px;
+          box-sizing: border-box;
+        }
 
-  .search-query {
-    color: rgba(255, 255, 255, 0.62);
-    font-size: 13px;
-    line-height: 1.35;
-    padding: 0 2px;
-  }
+        .search-query {
+          color: rgba(255, 255, 255, 0.62);
+          font-size: 13px;
+          line-height: 1.35;
+          padding: 0 2px;
+        }
 
-  @media (max-width: 768px) {
-    .search-content {
-      width: 100%;
-      padding: 0 10px;
-      gap: 12px;
-    }
-  }
-`}</style>
+        @media (max-width: 768px) {
+          .search-content {
+            width: 100%;
+            padding: 0 10px;
+            gap: 12px;
+          }
+        }
+      `}</style>
     </main>
   );
 }
+
 export default function SearchPage() {
   return (
     <Suspense fallback={null}>

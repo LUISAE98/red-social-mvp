@@ -13,6 +13,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   query,
   where,
 } from "firebase/firestore";
@@ -35,6 +36,8 @@ import {
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+const MIN_POST_SEARCH_LENGTH = 2;
+const MAX_SEARCH_GROUPS = 8;
 
 type SearchPostsResultsProps = {
   fontStack: string;
@@ -221,7 +224,11 @@ function normalizeSearchPost(post: PostWithFlags): PostWithFlags {
 
 async function fetchAccessibleGroupIds(user: User | null) {
   const publicSnap = await getDocs(
-    query(collection(db, "groups"), where("visibility", "==", "public"))
+    query(
+      collection(db, "groups"),
+      where("visibility", "==", "public"),
+      limit(MAX_SEARCH_GROUPS)
+    )
   );
 
   const publicIds = publicSnap.docs.map((d) => d.id);
@@ -229,23 +236,29 @@ async function fetchAccessibleGroupIds(user: User | null) {
   if (!user?.uid) return publicIds;
 
   const ownedSnap = await getDocs(
-    query(collection(db, "groups"), where("ownerId", "==", user.uid))
+    query(
+      collection(db, "groups"),
+      where("ownerId", "==", user.uid),
+      limit(MAX_SEARCH_GROUPS)
+    )
   );
 
   const ownedIds = ownedSnap.docs.map((d) => d.id);
 
   const hidden = await getMyHiddenJoinedGroups();
+  const hiddenIds = hidden.map((g) => g.id).slice(0, MAX_SEARCH_GROUPS);
 
-  const hiddenIds = hidden.map((g) => g.id);
-
-  return Array.from(new Set([...publicIds, ...ownedIds, ...hiddenIds]));
+  return Array.from(new Set([...publicIds, ...ownedIds, ...hiddenIds])).slice(
+    0,
+    MAX_SEARCH_GROUPS
+  );
 }
 
 async function fetchSearchPosts(user: User | null) {
   const groupIds = await fetchAccessibleGroupIds(user);
 
   const groupsPosts = await Promise.all(
-    groupIds.map(async (groupId) => {
+    groupIds.slice(0, MAX_SEARCH_GROUPS).map(async (groupId) => {
       try {
         return await fetchGroupPosts(groupId, user?.uid ?? null);
       } catch {
@@ -258,7 +271,9 @@ async function fetchSearchPosts(user: User | null) {
 
   const deduped = Array.from(new Map(all.map((p) => [p.id, p])).values());
 
-  deduped.sort((a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt));
+  deduped.sort(
+    (a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt)
+  );
 
   return deduped;
 }
@@ -305,12 +320,12 @@ const loadMoreRef = useRef<HTMLDivElement | null>(null);
     let active = true;
 
     async function run() {
-      if (!normalizedSearch) {
-        setPosts([]);
-        setLoading(false);
-        setError(null);
-        return;
-      }
+ if (normalizedSearch.length < MIN_POST_SEARCH_LENGTH) {
+  setPosts([]);
+  setLoading(false);
+  setError(null);
+  return;
+}
 
       try {
         setLoading(true);

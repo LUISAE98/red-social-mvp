@@ -52,6 +52,8 @@ type GroupPostCardProps = {
   ) => Promise<CommentReply[]>;
   onToggleFlame?: (postId: string) => Promise<void>;
   onToggleSave?: (postId: string) => Promise<void>;
+  onToggleGroupPin?: (postId: string) => Promise<void>;
+  onToggleProfilePin?: (postId: string) => Promise<void>;
   currentUserId?: string | null;
   isOwner?: boolean;
   isModerator?: boolean;
@@ -68,6 +70,10 @@ type ModerationAction =
   | "ban"
   | "unban"
   | "remove"
+  | "pin_group_post"
+  | "unpin_group_post"
+  | "pin_profile_post"
+  | "unpin_profile_post"
   | "delete_post";
 
 type MenuPosition = {
@@ -433,6 +439,10 @@ function buildActionLabel(action: ModerationAction) {
   if (action === "ban") return "Banear";
   if (action === "unban") return "Quitar ban";
   if (action === "remove") return "Expulsar de la comunidad";
+  if (action === "pin_group_post") return "Fijar en grupo";
+  if (action === "unpin_group_post") return "Desfijar del grupo";
+  if (action === "pin_profile_post") return "Fijar en mi perfil";
+  if (action === "unpin_profile_post") return "Desfijar de mi perfil";
   return "Eliminar publicación";
 }
 
@@ -448,6 +458,8 @@ onCreateReply,
 onDeleteReply,
 onToggleFlame,
 onToggleSave,
+onToggleGroupPin,
+onToggleProfilePin,
   currentUserId = null,
   isOwner = false,
   isModerator = false,
@@ -473,6 +485,7 @@ onToggleSave,
   const [inlineActionError, setInlineActionError] = useState<string | null>(null);
   const [flameBusy, setFlameBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
+  const [pinBusy, setPinBusy] = useState(false);
   const [flamesPanelOpen, setFlamesPanelOpen] = useState(false);
   const [flameUsers, setFlameUsers] = useState<PostFlameUser[]>([]);
   const [loadingFlameUsers, setLoadingFlameUsers] = useState(false);
@@ -659,6 +672,20 @@ const [postTextExpanded, setPostTextExpanded] = useState(false);
   const availableActions = useMemo(() => {
     const actions: ModerationAction[] = [];
 
+    if (isOwner && onToggleGroupPin) {
+      actions.push(
+        post.isPinnedInGroup === true ? "unpin_group_post" : "pin_group_post"
+      );
+    }
+
+    if (currentUserId && post.authorId === currentUserId && onToggleProfilePin) {
+      actions.push(
+        post.isPinnedOnProfile === true
+          ? "unpin_profile_post"
+          : "pin_profile_post"
+      );
+    }
+
     if (canModerateAuthor) {
       if (effectiveAuthorStatus === "banned") {
         actions.push("unban");
@@ -675,7 +702,19 @@ const [postTextExpanded, setPostTextExpanded] = useState(false);
     }
 
     return actions;
-  }, [canModerateAuthor, effectiveAuthorStatus, canDelete, onDelete]);
+  }, [
+    isOwner,
+    onToggleGroupPin,
+    currentUserId,
+    post.authorId,
+    post.isPinnedInGroup,
+    post.isPinnedOnProfile,
+    onToggleProfilePin,
+    canModerateAuthor,
+    effectiveAuthorStatus,
+    canDelete,
+    onDelete,
+  ]);
 
   async function refreshAfterModeration() {
     await onModerationComplete?.();
@@ -787,7 +826,32 @@ const [postTextExpanded, setPostTextExpanded] = useState(false);
       setCreatingComment(false);
     }
   }
+  async function handleTogglePin(
+    scope: "group" | "profile"
+  ): Promise<void> {
+    if (pinBusy) return;
 
+    const handler =
+      scope === "group" ? onToggleGroupPin : onToggleProfilePin;
+
+    if (!handler) return;
+
+    try {
+      setPinBusy(true);
+      setInlineActionError(null);
+      await handler(post.id);
+      setMenuOpen(false);
+    } catch (e: any) {
+      setInlineActionError(
+        e?.message ??
+          (scope === "group"
+            ? "No se pudo actualizar el fijado del grupo."
+            : "No se pudo actualizar el fijado del perfil.")
+      );
+    } finally {
+      setPinBusy(false);
+    }
+  }
   async function handleDelete() {
     if (!onDelete || deleting) return;
 
@@ -846,6 +910,16 @@ const [postTextExpanded, setPostTextExpanded] = useState(false);
   async function handleModerationAction(action: ModerationAction) {
     if (action === "delete_post") {
       await handleDelete();
+      return;
+    }
+
+    if (action === "pin_group_post" || action === "unpin_group_post") {
+      await handleTogglePin("group");
+      return;
+    }
+
+    if (action === "pin_profile_post" || action === "unpin_profile_post") {
+      await handleTogglePin("profile");
       return;
     }
 
@@ -1266,6 +1340,8 @@ const postImageStyle: CSSProperties = {
   transition: "opacity 180ms ease",
 };
   const shouldShowActionsMenu = availableActions.length > 0;
+  const isPinned =
+    post.isPinnedInGroup === true || post.isPinnedOnProfile === true;
   const commentBlockedMessage = !canCommentOnPosts
     ? buildCommentBlockedMessage(commentBlockedReason)
     : null;
@@ -1425,7 +1501,30 @@ const shouldClampFeedPostText =
                 </div>
               )}
             </div>
-
+            {isPinned && (
+              <div
+                style={{
+                  marginTop: 6,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  minHeight: 22,
+                  padding: "3px 8px",
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  background: "rgba(255,255,255,0.055)",
+                  color: "rgba(255,255,255,0.82)",
+                  fontSize: 10.5,
+                  fontWeight: 650,
+                  lineHeight: 1,
+                  letterSpacing: "-0.01em",
+                  width: "fit-content",
+                }}
+              >
+                <span aria-hidden="true">📌</span>
+                <span>Fijado</span>
+              </div>
+            )}
             <button
   type="button"
   onClick={() => setShowExactPostDate((prev) => !prev)}
@@ -1473,7 +1572,7 @@ style={{
               aria-expanded={menuOpen}
               aria-label="Abrir acciones de la publicación"
               style={menuButtonStyle}
-              disabled={deleting || moderationBusy}
+              disabled={deleting || moderationBusy || pinBusy}
             >
               ⋮
             </button>
@@ -1916,7 +2015,7 @@ style={{
                 action === "remove" ||
                 action === "delete_post";
 
-              const isBusy = moderationBusy || deleting;
+              const isBusy = moderationBusy || deleting || pinBusy;
 
               return (
                 <button

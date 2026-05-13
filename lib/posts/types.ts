@@ -1,4 +1,3 @@
-
 import type { Timestamp } from "firebase/firestore";
 
 export const MAX_POST_IMAGES = 10;
@@ -156,6 +155,22 @@ export type Post = {
   isLocked?: boolean;
 
   /**
+   * Permite fijar una publicación arriba del feed del grupo.
+   * Solo debe poder cambiarse desde backend seguro validando owner del grupo.
+   */
+  isPinnedInGroup?: boolean;
+  groupPinnedAt?: Timestamp | null;
+  groupPinnedBy?: string | null;
+
+  /**
+   * Permite fijar una publicación arriba del feed del perfil del autor.
+   * Solo debe poder cambiarse desde backend seguro validando dueño del perfil.
+   */
+  isPinnedOnProfile?: boolean;
+  profilePinnedAt?: Timestamp | null;
+  profilePinnedBy?: string | null;
+
+  /**
    * Permite que una publicación pueda abrirse desde una ruta pública compartible.
    * Solo debe usarse para posts públicos/free y de grupos públicos.
    */
@@ -194,7 +209,8 @@ export type Post = {
    * No es obligatorio que exista en Firestore.
    */
   viewerHasFlamed?: boolean;
-    /**
+
+  /**
    * Estado calculado para la UI del usuario actual.
    * No es obligatorio que exista en Firestore.
    */

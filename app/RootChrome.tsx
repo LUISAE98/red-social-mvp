@@ -22,7 +22,8 @@ export default function RootChrome({
     pathname === "/forgot-password" ||
     pathname === "/reset-password" ||
     pathname.startsWith("/search") ||
-    pathname.startsWith("/groups");
+    pathname.startsWith("/groups") ||
+    pathname.startsWith("/u/");
 
   useEffect(() => {
     if (!loading && !user && !isPublicRoute) {

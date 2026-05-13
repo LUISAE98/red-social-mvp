@@ -85,10 +85,22 @@ type ToggleCommentFlameResponse = {
   liked: boolean;
   likes: number;
 };
+type ToggleGroupPostPinResponse = {
+  ok: boolean;
+  postId: string;
+  isPinnedInGroup: boolean;
+};
+
+type ToggleProfilePostPinResponse = {
+  ok: boolean;
+  postId: string;
+  isPinnedOnProfile: boolean;
+};
 
 export type HomePostsPageCursor = {
   groupIds: string[];
   lastDocsByGroupId: Record<string, QueryDocumentSnapshot<DocumentData>>;
+  bufferedPosts: Post[];
 };
 
 export type HomePostsPageResult = {
@@ -99,6 +111,7 @@ export type HomePostsPageResult = {
 
 export type UserProfilePostsPageCursor = {
   lastDoc: QueryDocumentSnapshot<DocumentData> | null;
+  bufferedPosts: Post[];
 };
 
 export type UserProfilePostsPageResult = {
@@ -114,6 +127,16 @@ export type GroupPostsPageCursor = {
 export type GroupPostsPageResult = {
   posts: Post[];
   cursor: GroupPostsPageCursor | null;
+  hasMore: boolean;
+};
+
+export type SavedPostsPageCursor = {
+  lastSavedDoc: QueryDocumentSnapshot<DocumentData> | null;
+};
+
+export type SavedPostsPageResult = {
+  posts: Post[];
+  cursor: SavedPostsPageCursor | null;
   hasMore: boolean;
 };
 
@@ -510,13 +533,21 @@ counts: {
     scheduledData: post.scheduledData ?? null,
     playback: post.playback ?? null,
 
-    processing: post.processing ?? {
-      status: "none",
-      provider: null,
-      errorCode: null,
-      errorMessage: null,
-      updatedAt: null,
-    },
+processing: post.processing ?? {
+  status: "none",
+  provider: null,
+  errorCode: null,
+  errorMessage: null,
+  updatedAt: null,
+},
+
+isPinnedInGroup: post.isPinnedInGroup ?? false,
+groupPinnedAt: post.groupPinnedAt ?? null,
+groupPinnedBy: post.groupPinnedBy ?? null,
+
+isPinnedOnProfile: post.isPinnedOnProfile ?? false,
+profilePinnedAt: post.profilePinnedAt ?? null,
+profilePinnedBy: post.profilePinnedBy ?? null,
   };
 }
 
@@ -880,22 +911,19 @@ async function fetchHomePostsPageByAccessibleGroups(params: {
 
   const safePageSize = Math.max(1, Math.min(params.pageSize, 20));
   const previousLastDocs = params.cursor?.lastDocsByGroupId ?? {};
+  const previousBufferedPosts = params.cursor?.bufferedPosts ?? [];
 
   const perGroupResults = await Promise.all(
     cleanGroupIds.map(async (groupId) => {
       try {
-        const baseConstraints = [
-          where("groupId", "==", groupId),
-          where("isDeleted", "==", false),
-          orderBy("createdAt", "desc"),
-        ];
-
         const lastDoc = previousLastDocs[groupId];
 
         const snap = await getDocs(
           query(
             collection(db, "posts"),
-            ...baseConstraints,
+            where("groupId", "==", groupId),
+            where("isDeleted", "==", false),
+            orderBy("createdAt", "desc"),
             ...(lastDoc ? [startAfter(lastDoc)] : []),
             limit(safePageSize)
           )
@@ -923,19 +951,26 @@ async function fetchHomePostsPageByAccessibleGroups(params: {
     })
   );
 
-  const rawPosts = perGroupResults.flatMap((result) => result.posts);
+  const fetchedPosts = perGroupResults.flatMap((result) => result.posts);
 
-  const deduped = Array.from(
-    new Map(rawPosts.map((post) => [post.id, post])).values()
+  const dedupedPosts = Array.from(
+    new Map(
+      [...previousBufferedPosts, ...fetchedPosts].map((post) => [post.id, post])
+    ).values()
   );
 
-  deduped.sort((a, b) => {
+  dedupedPosts.sort((a, b) => {
     const aMs = a.createdAt?.toMillis?.() ?? 0;
     const bMs = b.createdAt?.toMillis?.() ?? 0;
     return bMs - aMs;
   });
 
-  const pagePosts = deduped.slice(0, safePageSize);
+  const pagePosts = dedupedPosts.slice(0, safePageSize);
+  const pagePostIds = new Set(pagePosts.map((post) => post.id));
+
+  const nextBufferedPosts = dedupedPosts.filter(
+    (post) => !pagePostIds.has(post.id)
+  );
 
   const nextLastDocsByGroupId: Record<
     string,
@@ -950,7 +985,8 @@ async function fetchHomePostsPageByAccessibleGroups(params: {
     }
   });
 
-  const hasMore = perGroupResults.some((result) => result.hasMore);
+  const hasMoreFromGroups = perGroupResults.some((result) => result.hasMore);
+  const hasMore = nextBufferedPosts.length > 0 || hasMoreFromGroups;
 
   return {
     posts: pagePosts,
@@ -958,6 +994,7 @@ async function fetchHomePostsPageByAccessibleGroups(params: {
       ? {
           groupIds: cleanGroupIds,
           lastDocsByGroupId: nextLastDocsByGroupId,
+          bufferedPosts: nextBufferedPosts,
         }
       : null,
     hasMore,
@@ -1124,16 +1161,18 @@ export async function fetchGroupPostsPage(params: {
     };
   });
 
-  const postsWithViewerState = await attachViewerPostState(
-    hydratedPosts,
-    params.viewerUid
-  );
+const postsWithViewerState = await attachViewerPostState(
+  hydratedPosts,
+  params.viewerUid
+);
 
-  const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
+const sortedPosts = sortPostsWithPinnedPriority(postsWithViewerState);
+
+const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
   const hasMore = snap.docs.length === safePageSize;
 
   return {
-    posts: postsWithViewerState,
+   posts: sortedPosts,
     cursor:
       hasMore && lastDoc
         ? {
@@ -1192,16 +1231,18 @@ export async function fetchHomePostsPage(params: {
     };
   });
 
-  const postsWithViewerState = await attachViewerPostState(
-    hydratedPosts,
-    params.userUid
-  );
+const postsWithViewerState = await attachViewerPostState(
+  hydratedPosts,
+  params.userUid
+);
 
-  return {
-    posts: postsWithViewerState,
-    cursor: page.cursor,
-    hasMore: page.hasMore,
-  };
+const sortedPosts = sortPostsWithPinnedPriority(postsWithViewerState);
+
+return {
+  posts: sortedPosts,
+  cursor: page.cursor,
+  hasMore: page.hasMore,
+};
 }
 
 export async function fetchHomePosts(userUid: string): Promise<Post[]> {
@@ -1258,6 +1299,7 @@ export async function fetchUserProfilePostsPage(params: {
   }
 
   const previousLastDoc = params.cursor?.lastDoc ?? null;
+  const previousBufferedPosts = params.cursor?.bufferedPosts ?? [];
   const queryLimit = isOwner ? safePageSize : safePageSize * 3;
 
   const snap = await getDocs(
@@ -1276,7 +1318,7 @@ export async function fetchUserProfilePostsPage(params: {
     ...(d.data() as Omit<Post, "id">),
   })) as Post[];
 
-  const visiblePosts = isOwner
+  const visibleFetchedPosts = isOwner
     ? rawPosts
     : rawPosts.filter((post) => {
         const groupId =
@@ -1285,7 +1327,27 @@ export async function fetchUserProfilePostsPage(params: {
         return !!groupId && visibleGroupIds?.has(groupId);
       });
 
+  const visiblePosts = Array.from(
+    new Map(
+      [...previousBufferedPosts, ...visibleFetchedPosts].map((post) => [
+        post.id,
+        post,
+      ])
+    ).values()
+  );
+
+  visiblePosts.sort((a, b) => {
+    const aMs = a.createdAt?.toMillis?.() ?? 0;
+    const bMs = b.createdAt?.toMillis?.() ?? 0;
+    return bMs - aMs;
+  });
+
   const pagePosts = visiblePosts.slice(0, safePageSize);
+  const pagePostIds = new Set(pagePosts.map((post) => post.id));
+
+  const nextBufferedPosts = visiblePosts.filter(
+    (post) => !pagePostIds.has(post.id)
+  );
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(pagePosts.map((post) => post.authorId)),
@@ -1306,17 +1368,26 @@ export async function fetchUserProfilePostsPage(params: {
     viewerUid || params.profileUid
   );
 
+  const sortedPosts = sortPostsWithPinnedPriority(postsWithViewerState);
+
   const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
-  const hasMore = snap.docs.length === queryLimit;
+  const hasMoreFromQuery = snap.docs.length === queryLimit;
+  const hasMore = nextBufferedPosts.length > 0 || hasMoreFromQuery;
 
   return {
-    posts: postsWithViewerState,
+    posts: sortedPosts,
     cursor:
       hasMore && lastDoc
         ? {
             lastDoc,
+            bufferedPosts: nextBufferedPosts,
           }
-        : null,
+        : nextBufferedPosts.length > 0
+          ? {
+              lastDoc: previousLastDoc,
+              bufferedPosts: nextBufferedPosts,
+            }
+          : null,
     hasMore,
   };
 }
@@ -1375,6 +1446,13 @@ export async function createTextPost(params: {
     updatedAt: serverTimestamp(),
     deletedAt: null,
     isDeleted: false,
+    isPinnedInGroup: false,
+groupPinnedAt: null,
+groupPinnedBy: null,
+
+isPinnedOnProfile: false,
+profilePinnedAt: null,
+profilePinnedBy: null,
     isShareable: shareMetadata.isShareable,
     publicSlug: shareMetadata.publicSlug,
     shareTitle: shareMetadata.shareTitle,
@@ -1467,6 +1545,13 @@ export async function createImagePost(params: {
     updatedAt: serverTimestamp(),
     deletedAt: null,
     isDeleted: false,
+    isPinnedInGroup: false,
+groupPinnedAt: null,
+groupPinnedBy: null,
+
+isPinnedOnProfile: false,
+profilePinnedAt: null,
+profilePinnedBy: null,
     isShareable: shareMetadata.isShareable,
     publicSlug: shareMetadata.publicSlug,
     shareTitle: shareMetadata.shareTitle,
@@ -2001,14 +2086,68 @@ export async function togglePostSave(postId: string): Promise<TogglePostSaveResp
   };
 }
 
-export async function fetchSavedPosts(userUid: string): Promise<Post[]> {
-  assertValidId(userUid, "userUid");
+export async function toggleGroupPostPin(
+  postId: string
+): Promise<ToggleGroupPostPinResponse> {
+  assertValidId(postId, "postId");
+
+  if (!auth.currentUser?.uid) {
+    throw new Error("Debes iniciar sesión.");
+  }
+
+  const callable = httpsCallable<
+    { postId: string },
+    ToggleGroupPostPinResponse
+  >(functions, "toggleGroupPostPin");
+
+  const result = await callable({ postId });
+
+  return {
+    ok: Boolean(result.data.ok),
+    postId: String(result.data.postId || postId),
+    isPinnedInGroup: Boolean(result.data.isPinnedInGroup),
+  };
+}
+
+export async function toggleProfilePostPin(
+  postId: string
+): Promise<ToggleProfilePostPinResponse> {
+  assertValidId(postId, "postId");
+
+  if (!auth.currentUser?.uid) {
+    throw new Error("Debes iniciar sesión.");
+  }
+
+  const callable = httpsCallable<
+    { postId: string },
+    ToggleProfilePostPinResponse
+  >(functions, "toggleProfilePostPin");
+
+  const result = await callable({ postId });
+
+  return {
+    ok: Boolean(result.data.ok),
+    postId: String(result.data.postId || postId),
+    isPinnedOnProfile: Boolean(result.data.isPinnedOnProfile),
+  };
+}
+
+export async function fetchSavedPostsPage(params: {
+  userUid: string;
+  pageSize?: number;
+  cursor?: SavedPostsPageCursor | null;
+}): Promise<SavedPostsPageResult> {
+  assertValidId(params.userUid, "userUid");
+
+  const safePageSize = Math.max(1, Math.min(params.pageSize ?? 10, 20));
+  const previousLastSavedDoc = params.cursor?.lastSavedDoc ?? null;
 
   const savedSnap = await getDocs(
     query(
-      collection(db, "users", userUid, "savedPosts"),
+      collection(db, "users", params.userUid, "savedPosts"),
       orderBy("savedAt", "desc"),
-      limit(100)
+      ...(previousLastSavedDoc ? [startAfter(previousLastSavedDoc)] : []),
+      limit(safePageSize)
     )
   );
 
@@ -2017,7 +2156,11 @@ export async function fetchSavedPosts(userUid: string): Promise<Post[]> {
     .filter((postId) => postId.trim().length > 0);
 
   if (savedPostIds.length === 0) {
-    return [];
+    return {
+      posts: [],
+      cursor: null,
+      hasMore: false,
+    };
   }
 
   const postChunks: string[][] = [];
@@ -2030,11 +2173,7 @@ export async function fetchSavedPosts(userUid: string): Promise<Post[]> {
     postChunks.map(async (chunk) => {
       try {
         const snap = await getDocs(
-          query(
-            collection(db, "posts"),
-            where(documentId(), "in", chunk),
-            where("isDeleted", "==", false)
-          )
+          query(collection(db, "posts"), where(documentId(), "in", chunk))
         );
 
         return snap.docs.map((postDoc) => ({
@@ -2047,14 +2186,16 @@ export async function fetchSavedPosts(userUid: string): Promise<Post[]> {
     })
   );
 
-  const rawPosts = chunkResults.flat();
+  const rawPosts = chunkResults.flat().filter((post) => !post.isDeleted);
   const postMap = new Map(rawPosts.map((post) => [post.id, post]));
 
   const orderedPosts = savedPostIds
     .map((postId) => postMap.get(postId))
     .filter((post): post is Post => Boolean(post));
 
-  const accessibleGroupIds = new Set(await fetchAccessibleGroupIds(userUid));
+  const accessibleGroupIds = new Set(
+    await fetchAccessibleGroupIds(params.userUid)
+  );
 
   const visiblePosts = orderedPosts.filter((post) => {
     const groupId = typeof post.groupId === "string" ? post.groupId.trim() : "";
@@ -2075,7 +2216,46 @@ export async function fetchSavedPosts(userUid: string): Promise<Post[]> {
     };
   });
 
-  return attachViewerPostState(hydratedPosts, userUid);
+  const postsWithViewerState = await attachViewerPostState(
+    hydratedPosts,
+    params.userUid
+  );
+
+  const lastSavedDoc = savedSnap.docs[savedSnap.docs.length - 1] ?? null;
+  const hasMore = savedSnap.docs.length === safePageSize;
+
+  return {
+    posts: postsWithViewerState,
+    cursor:
+      hasMore && lastSavedDoc
+        ? {
+            lastSavedDoc,
+          }
+        : null,
+    hasMore,
+  };
+}
+
+export async function fetchSavedPosts(userUid: string): Promise<Post[]> {
+  assertValidId(userUid, "userUid");
+
+  const allPosts: Post[] = [];
+  let cursor: SavedPostsPageCursor | null = null;
+  let hasMore = true;
+
+  while (hasMore && allPosts.length < 100) {
+    const page = await fetchSavedPostsPage({
+      userUid,
+      pageSize: 20,
+      cursor,
+    });
+
+    allPosts.push(...page.posts);
+    cursor = page.cursor;
+    hasMore = page.hasMore;
+  }
+
+  return allPosts.slice(0, 100);
 }
 
 export async function toggleCommentFlame(params: {
@@ -2105,6 +2285,36 @@ export async function toggleCommentFlame(params: {
     liked: Boolean(result.data.liked),
     likes: Number(result.data.likes ?? 0),
   };
+}
+
+function sortPostsWithPinnedPriority(posts: Post[]): Post[] {
+  return [...posts].sort((a, b) => {
+    const aPinned = a.isPinnedInGroup === true || a.isPinnedOnProfile === true;
+    const bPinned = b.isPinnedInGroup === true || b.isPinnedOnProfile === true;
+
+    if (aPinned !== bPinned) {
+      return aPinned ? -1 : 1;
+    }
+
+    const aPinnedAt =
+      a.groupPinnedAt?.toMillis?.() ??
+      a.profilePinnedAt?.toMillis?.() ??
+      0;
+
+    const bPinnedAt =
+      b.groupPinnedAt?.toMillis?.() ??
+      b.profilePinnedAt?.toMillis?.() ??
+      0;
+
+    if (aPinned && bPinned && aPinnedAt !== bPinnedAt) {
+      return bPinnedAt - aPinnedAt;
+    }
+
+    const aCreatedAt = a.createdAt?.toMillis?.() ?? 0;
+    const bCreatedAt = b.createdAt?.toMillis?.() ?? 0;
+
+    return bCreatedAt - aCreatedAt;
+  });
 }
 
 function isPostLocked(post: Post): boolean {

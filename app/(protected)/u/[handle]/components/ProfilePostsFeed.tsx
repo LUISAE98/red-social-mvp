@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, Timestamp } from "firebase/firestore";
 
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import {
@@ -16,6 +16,7 @@ import {
   softDeletePost,
   togglePostFlame,
   togglePostSave,
+  toggleProfilePostPin,
   type UserProfilePostsPageCursor,
 } from "@/lib/posts/post-service";
 
@@ -266,6 +267,14 @@ function normalizeProfileFeedPost(post: PostWithFlags): PostWithFlags {
       errorMessage: null,
       updatedAt: null,
     },
+
+    isPinnedInGroup: post.isPinnedInGroup ?? false,
+    groupPinnedAt: post.groupPinnedAt ?? null,
+    groupPinnedBy: post.groupPinnedBy ?? null,
+
+    isPinnedOnProfile: post.isPinnedOnProfile ?? false,
+    profilePinnedAt: post.profilePinnedAt ?? null,
+    profilePinnedBy: post.profilePinnedBy ?? null,
   };
 }
 
@@ -323,7 +332,28 @@ function getProfileFeedCacheKey(params: {
     params.showPosts ? "show" : "hidden",
   ].join(":");
 }
+function sortProfileFeedPosts(posts: PostWithFlags[]): PostWithFlags[] {
+  return [...posts].sort((a, b) => {
+    const aPinned = a.isPinnedOnProfile === true;
+    const bPinned = b.isPinnedOnProfile === true;
 
+    if (aPinned !== bPinned) {
+      return aPinned ? -1 : 1;
+    }
+
+    const aPinnedAt = a.profilePinnedAt?.toMillis?.() ?? 0;
+    const bPinnedAt = b.profilePinnedAt?.toMillis?.() ?? 0;
+
+    if (aPinned && bPinned && aPinnedAt !== bPinnedAt) {
+      return bPinnedAt - aPinnedAt;
+    }
+
+    const aCreatedAt = a.createdAt?.toMillis?.() ?? 0;
+    const bCreatedAt = b.createdAt?.toMillis?.() ?? 0;
+
+    return bCreatedAt - aCreatedAt;
+  });
+}
 function mergeUniquePosts(
   currentPosts: PostWithFlags[],
   nextPosts: PostWithFlags[]
@@ -338,7 +368,7 @@ function mergeUniquePosts(
     if (post.id) map.set(post.id, post);
   });
 
-  return Array.from(map.values());
+  return sortProfileFeedPosts(Array.from(map.values()));
 }
 
 export default function ProfilePostsFeed({
@@ -480,7 +510,7 @@ export default function ProfilePostsFeed({
           const nextPosts =
             mode === "more"
               ? mergeUniquePosts(prev, normalizedPosts)
-              : normalizedPosts;
+              : sortProfileFeedPosts(normalizedPosts);
 
           profileFeedMemoryCache.set(cacheKey, {
             posts: nextPosts,
@@ -625,6 +655,40 @@ export default function ProfilePostsFeed({
       throw e;
     }
   }
+  
+async function handleToggleProfilePin(postId: string): Promise<void> {
+  if (!isOwner) {
+    throw new Error("Solo puedes fijar publicaciones en tu propio perfil.");
+  }
+
+  try {
+    setError(null);
+
+    const result = await toggleProfilePostPin(postId);
+
+    syncPostsState((prev) =>
+      sortProfileFeedPosts(
+        prev.map((post) =>
+          post.id === postId
+            ? {
+                ...post,
+                isPinnedOnProfile: result.isPinnedOnProfile,
+                profilePinnedAt: result.isPinnedOnProfile
+                  ? Timestamp.now()
+                  : null,
+                profilePinnedBy: result.isPinnedOnProfile ? viewerUid : null,
+              }
+            : post
+        )
+      )
+    );
+  } catch (e: any) {
+    setError(
+      e?.message ?? "No se pudo fijar o desfijar la publicación en tu perfil."
+    );
+    throw e;
+  }
+}
 
   async function handleToggleSave(postId: string): Promise<void> {
     try {
@@ -974,6 +1038,7 @@ export default function ProfilePostsFeed({
               onDeleteReply={handleDeleteReply}
               onToggleFlame={handleToggleFlame}
               onToggleSave={handleToggleSave}
+              onToggleProfilePin={isOwner ? handleToggleProfilePin : undefined}
               currentUserId={viewerUid}
               isOwner={false}
               isModerator={post.canModerateGroupAuthor === true}

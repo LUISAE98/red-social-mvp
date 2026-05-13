@@ -1,7 +1,7 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 
 import { auth, db } from "@/lib/firebase";
@@ -13,13 +13,17 @@ import {
   deletePostCommentReply,
   fetchCommentReplies,
   fetchPostComments,
-  fetchSavedPosts,
+  fetchSavedPostsPage,
   softDeletePost,
   togglePostFlame,
   togglePostSave,
+  type SavedPostsPageCursor,
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+
+const SAVED_POSTS_PAGE_SIZE = 10;
+const SAVED_POSTS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
 type GroupRole = "owner" | "mod" | "member" | null;
@@ -29,6 +33,21 @@ type PostWithFlags = Post & {
   authorMemberStatus?: MemberStatus;
   authorMutedUntil?: any;
 };
+
+type SavedPostsCacheEntry = {
+  posts: PostWithFlags[];
+  cursor: SavedPostsPageCursor | null;
+  hasMore: boolean;
+  timestamp: number;
+};
+
+const savedPostsMemoryCache = new Map<string, SavedPostsCacheEntry>();
+
+function mergeUniquePosts(currentPosts: PostWithFlags[], nextPosts: PostWithFlags[]) {
+  return Array.from(
+    new Map([...currentPosts, ...nextPosts].map((post) => [post.id, post])).values()
+  );
+}
 
 function normalizeRole(raw: unknown): GroupRole {
   if (raw === "owner") return "owner";
@@ -217,11 +236,17 @@ export default function SavedPostsFeed() {
     auth.currentUser?.uid ?? null
   );
   const [posts, setPosts] = useState<PostWithFlags[]>([]);
+  const [pageCursor, setPageCursor] = useState<SavedPostsPageCursor | null>(null);
+  const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
+
+  const loadingMoreRef = useRef(false);
+  const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((user) => {
@@ -248,17 +273,106 @@ export default function SavedPostsFeed() {
     return () => mediaQuery.removeListener(sync);
   }, []);
 
-  async function loadPosts() {
-    if (!currentUserId) {
-      setPosts([]);
-      return;
-    }
+  const syncPostsState = useCallback(
+    (
+      updater:
+        | PostWithFlags[]
+        | ((currentPosts: PostWithFlags[]) => PostWithFlags[])
+    ) => {
+      setPosts((currentPosts) => {
+        const nextPosts =
+          typeof updater === "function" ? updater(currentPosts) : updater;
 
-    const nextPosts = await fetchSavedPosts(currentUserId);
-    const hydratedPosts = await attachModerationFlags(nextPosts, currentUserId);
+        if (currentUserId) {
+          const cacheKey = currentUserId;
+          const existingCache = savedPostsMemoryCache.get(cacheKey);
 
-    setPosts(hydratedPosts.map(normalizeSavedFeedPost));
-  }
+          savedPostsMemoryCache.set(cacheKey, {
+            posts: nextPosts,
+            cursor: existingCache?.cursor ?? pageCursor,
+            hasMore: existingCache?.hasMore ?? hasMore,
+            timestamp: Date.now(),
+          });
+        }
+
+        return nextPosts;
+      });
+    },
+    [currentUserId, hasMore, pageCursor]
+  );
+
+  const loadPostsPage = useCallback(
+    async ({ reset = false }: { reset?: boolean } = {}) => {
+      if (!currentUserId) {
+        syncPostsState([]);
+        setPageCursor(null);
+        setHasMore(false);
+        return;
+      }
+
+      if (loadingMoreRef.current) return;
+
+      const nextCursor = reset ? null : pageCursor;
+
+      if (!reset && !hasMore) {
+        return;
+      }
+
+      loadingMoreRef.current = true;
+
+      if (reset) {
+        setLoadingInitial(true);
+      } else {
+        setLoadingMore(true);
+      }
+
+      try {
+        setError(null);
+
+        const page = await fetchSavedPostsPage({
+          userUid: currentUserId,
+          pageSize: SAVED_POSTS_PAGE_SIZE,
+          cursor: nextCursor,
+        });
+
+        const hydratedPosts = await attachModerationFlags(page.posts, currentUserId);
+        const normalizedPosts = hydratedPosts.map(normalizeSavedFeedPost);
+
+        setPosts((currentPosts) => {
+          const nextPosts = reset
+            ? normalizedPosts
+            : mergeUniquePosts(currentPosts, normalizedPosts);
+
+          savedPostsMemoryCache.set(currentUserId, {
+            posts: nextPosts,
+            cursor: page.cursor,
+            hasMore: page.hasMore,
+            timestamp: Date.now(),
+          });
+
+          return nextPosts;
+        });
+
+        setPageCursor(page.cursor);
+        setHasMore(page.hasMore);
+      } catch (e: any) {
+        setError(e?.message ?? "No se pudieron cargar tus publicaciones guardadas.");
+      } finally {
+        loadingMoreRef.current = false;
+        setLoadingInitial(false);
+        setLoadingMore(false);
+      }
+    },
+    [currentUserId, hasMore, pageCursor, syncPostsState]
+  );
+
+  const refreshPosts = useCallback(async () => {
+    if (!currentUserId) return;
+
+    savedPostsMemoryCache.delete(currentUserId);
+
+    await loadPostsPage({ reset: true });
+  }, [currentUserId, loadPostsPage]);
 
   useEffect(() => {
     let active = true;
@@ -267,27 +381,26 @@ export default function SavedPostsFeed() {
       if (!currentUserId) {
         if (active) {
           setPosts([]);
+          setPageCursor(null);
+          setHasMore(false);
           setLoadingInitial(false);
         }
         return;
       }
 
-      try {
-        setLoadingInitial(true);
-        setError(null);
+      const cache = savedPostsMemoryCache.get(currentUserId);
+      const cacheIsFresh =
+        cache && Date.now() - cache.timestamp < SAVED_POSTS_CACHE_TTL_MS;
 
-        const nextPosts = await fetchSavedPosts(currentUserId);
-        const hydratedPosts = await attachModerationFlags(nextPosts, currentUserId);
-
-        if (!active) return;
-
-        setPosts(hydratedPosts.map(normalizeSavedFeedPost));
-      } catch (e: any) {
-        if (!active) return;
-        setError(e?.message ?? "No se pudieron cargar tus publicaciones guardadas.");
-      } finally {
-        if (active) setLoadingInitial(false);
+      if (cacheIsFresh) {
+        setPosts(cache.posts);
+        setPageCursor(cache.cursor);
+        setHasMore(cache.hasMore);
+        setLoadingInitial(false);
+        return;
       }
+
+      await loadPostsPage({ reset: true });
     }
 
     run();
@@ -295,7 +408,34 @@ export default function SavedPostsFeed() {
     return () => {
       active = false;
     };
-  }, [currentUserId]);
+  }, [currentUserId, loadPostsPage]);
+
+  useEffect(() => {
+    const trigger = loadMoreTriggerRef.current;
+
+    if (!trigger || !currentUserId || loadingInitial || !hasMore) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const firstEntry = entries[0];
+
+        if (firstEntry?.isIntersecting && !loadingMoreRef.current) {
+          loadPostsPage({ reset: false });
+        }
+      },
+      {
+        root: null,
+        rootMargin: "900px 0px",
+        threshold: 0,
+      }
+    );
+
+    observer.observe(trigger);
+
+    return () => observer.disconnect();
+  }, [currentUserId, hasMore, loadingInitial, loadPostsPage]);
 
   async function handleToggleFlame(postId: string): Promise<void> {
     try {
@@ -303,7 +443,7 @@ export default function SavedPostsFeed() {
 
       const result = await togglePostFlame(postId);
 
-      setPosts((prev) =>
+      syncPostsState((prev) =>
         prev.map((post) =>
           post.id === postId
             ? {
@@ -329,7 +469,7 @@ export default function SavedPostsFeed() {
 
       const result = await togglePostSave(postId);
 
-      setPosts((prev) =>
+      syncPostsState((prev) =>
         prev
           .map((post) => {
             if (post.id !== postId) {
@@ -360,7 +500,8 @@ export default function SavedPostsFeed() {
     try {
       setError(null);
       await softDeletePost(postId);
-      await loadPosts();
+
+      syncPostsState((prev) => prev.filter((post) => post.id !== postId));
     } catch (e: any) {
       setError(e?.message ?? "No se pudo eliminar la publicación.");
       throw e;
@@ -398,7 +539,7 @@ export default function SavedPostsFeed() {
     const total =
       comments.length + repliesCounts.reduce((sum, count) => sum + count, 0);
 
-    setPosts((prev) =>
+    syncPostsState((prev) =>
       prev.map((post) =>
         post.id === postId
           ? {
@@ -568,7 +709,7 @@ export default function SavedPostsFeed() {
     wordBreak: "break-word",
   };
 
-    const searchFormStyle: CSSProperties = {
+  const searchFormStyle: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
     minWidth: 0,
@@ -613,7 +754,7 @@ export default function SavedPostsFeed() {
     fontSize: 14,
   };
 
-   const postItemStyle: CSSProperties = {
+  const postItemStyle: CSSProperties = {
     width: "100%",
     maxWidth: "100%",
     minWidth: 0,
@@ -661,7 +802,7 @@ export default function SavedPostsFeed() {
         <p style={subtitleStyle}>Publicaciones que guardaste con 🔖.</p>
       </div>
 
-            <form
+      <form
         style={searchFormStyle}
         onSubmit={(event) => {
           event.preventDefault();
@@ -739,11 +880,21 @@ export default function SavedPostsFeed() {
               isModerator={post.canModerateGroupAuthor === true}
               showGroupContext={true}
               canModerateGroupAuthor={post.canModerateGroupAuthor === true}
-              onModerationComplete={loadPosts}
+              onModerationComplete={refreshPosts}
             />
           </div>
         );
       })}
+
+      <div ref={loadMoreTriggerRef} style={{ width: "100%", height: 1 }} />
+
+      {loadingMore && (
+        <div style={noticeStyle}>Cargando más publicaciones guardadas...</div>
+      )}
+
+      {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
+        <div style={noticeStyle}>Ya viste todas tus publicaciones guardadas.</div>
+      )}
     </section>
   );
 }

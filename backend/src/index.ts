@@ -104,11 +104,18 @@ export {
   removeLegacyFreeMembersAfterSubscriptionTransition,
   dismissHiddenGroupTransition,
 } from "./subscriptionTransitions";
+
 // Profile settings
 export { updateProfileDisplayName } from "./profileSettings";
+
 // Post reactions
 export { togglePostFlame } from "./postReactions";
+
 // Post comments
 export { toggleCommentFlame } from "./postComments";
+
 // Post saves
 export { togglePostSave } from "./postSaves";
+
+// Post pins
+export { toggleGroupPostPin, toggleProfilePostPin } from "./postPins";

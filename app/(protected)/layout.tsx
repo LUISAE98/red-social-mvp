@@ -997,7 +997,26 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           text-decoration: none;
         }
 
-        .brandLogo {
+
+
+.vibraLogoImage {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 112px;
+  height: auto;
+  object-fit: contain;
+  animation: vibraLogoShake 5.8s ease-in-out infinite;
+}
+
+
+
+.vibraAnimatedLogo.isMobile .vibraWord {
+  left: 44px;
+  font-size: 18px;
+}
+
+.brandLogo {
   display: block;
   width: 112px;
   height: auto;
@@ -1009,6 +1028,77 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   width: 96px;
   height: auto;
   object-fit: contain;
+}
+
+@keyframes vibraTextFlow {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes vibraLetterCycle {
+  0%, 10% {
+    opacity: 0;
+    transform: translateX(-28px) translateY(0) scale(0.92);
+  }
+
+  18% {
+    opacity: 1;
+    transform: translateX(0) translateY(calc(var(--i) * -3px)) scale(1);
+  }
+
+  27% {
+    opacity: 1;
+    transform: translateX(0) translateY(calc(var(--i) * -7px)) scale(1.04);
+  }
+
+  38%, 68% {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
+
+  82%, 100% {
+    opacity: 0;
+    transform: translateX(-28px) translateY(0) scale(0.92);
+  }
+}
+
+@keyframes vibraLogoShake {
+  0%, 8%, 76%, 100% {
+    transform: translateX(0) rotate(0deg);
+  }
+
+  11% {
+    transform: translateX(-1px) rotate(-1deg);
+  }
+
+  13% {
+    transform: translateX(2px) rotate(1.2deg);
+  }
+
+  15% {
+    transform: translateX(-1px) rotate(-0.8deg);
+  }
+
+  17% {
+    transform: translateX(0) rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vibraLogoImage,
+  .vibraLetter {
+    animation: none !important;
+  }
+
+  .vibraLetter {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .desktopMainCluster {

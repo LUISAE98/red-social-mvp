@@ -878,7 +878,7 @@ createInlineButton: {
   minHeight: 24,
   padding: "0 9px",
   borderRadius: 9,
-  border: "2.5px solid rgba(168,85,247,0.80)",
+  border: "2.5px solid rgba(168,85,247,0.75)",
   background: "transparent",
   color: "rgba(168,85,247,0.92)",
   display: "inline-flex",
