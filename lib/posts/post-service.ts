@@ -565,47 +565,37 @@ async function attachViewerFlameState(
     }));
   }
 
-  const postIds = new Set(
-    posts
-      .map((post) => post.id)
-      .filter(
-        (postId): postId is string =>
-          typeof postId === "string" && postId.trim().length > 0
-      )
+  const uniquePostIds = Array.from(
+    new Set(
+      posts
+        .map((post) => post.id)
+        .filter(
+          (postId): postId is string =>
+            typeof postId === "string" && postId.trim().length > 0
+        )
+    )
   );
-
-  if (postIds.size === 0) {
-    return posts.map((post) => ({
-      ...post,
-      viewerHasFlamed: false,
-    }));
-  }
 
   const likedPostIds = new Set<string>();
 
-  try {
-    const snap = await getDocs(collection(db, "users", uid, "postFlames"));
-
-    snap.docs.forEach((flameDoc) => {
-      const postId = flameDoc.id;
-
-      if (postIds.has(postId)) {
-        likedPostIds.add(postId);
+  await Promise.all(
+    uniquePostIds.map(async (postId) => {
+      try {
+        const snap = await getDoc(doc(db, "users", uid, "postFlames", postId));
+        if (snap.exists()) {
+          likedPostIds.add(postId);
+        }
+      } catch {
+        // Si falla una lectura puntual, no rompemos el feed.
       }
-    });
-  } catch {
-    return posts.map((post) => ({
-      ...post,
-      viewerHasFlamed: false,
-    }));
-  }
+    })
+  );
 
   return posts.map((post) => ({
     ...post,
     viewerHasFlamed: likedPostIds.has(post.id),
   }));
 }
-
 async function attachViewerSavedState(
   posts: Post[],
   viewerUid?: string | null
@@ -619,40 +609,31 @@ async function attachViewerSavedState(
     }));
   }
 
-  const postIds = new Set(
-    posts
-      .map((post) => post.id)
-      .filter(
-        (postId): postId is string =>
-          typeof postId === "string" && postId.trim().length > 0
-      )
+  const uniquePostIds = Array.from(
+    new Set(
+      posts
+        .map((post) => post.id)
+        .filter(
+          (postId): postId is string =>
+            typeof postId === "string" && postId.trim().length > 0
+        )
+    )
   );
-
-  if (postIds.size === 0) {
-    return posts.map((post) => ({
-      ...post,
-      viewerHasSaved: false,
-    }));
-  }
 
   const savedPostIds = new Set<string>();
 
-  try {
-    const snap = await getDocs(collection(db, "users", uid, "savedPosts"));
-
-    snap.docs.forEach((saveDoc) => {
-      const postId = saveDoc.id;
-
-      if (postIds.has(postId)) {
-        savedPostIds.add(postId);
+  await Promise.all(
+    uniquePostIds.map(async (postId) => {
+      try {
+        const snap = await getDoc(doc(db, "users", uid, "savedPosts", postId));
+        if (snap.exists()) {
+          savedPostIds.add(postId);
+        }
+      } catch {
+        // Si falla una lectura puntual, no rompemos el feed.
       }
-    });
-  } catch {
-    return posts.map((post) => ({
-      ...post,
-      viewerHasSaved: false,
-    }));
-  }
+    })
+  );
 
   return posts.map((post) => ({
     ...post,
@@ -1119,22 +1100,48 @@ export async function fetchGroupPostsPage(params: {
 
   const safePageSize = Math.max(1, Math.min(params.pageSize ?? 10, 20));
   const previousLastDoc = params.cursor?.lastDoc ?? null;
+  const isFirstPage = !previousLastDoc;
 
-  const snap = await getDocs(
-    query(
-      collection(db, "posts"),
-      where("groupId", "==", params.groupId),
-      where("isDeleted", "==", false),
-      orderBy("createdAt", "desc"),
-      ...(previousLastDoc ? [startAfter(previousLastDoc)] : []),
-      limit(safePageSize)
-    )
-  );
+  const [postsSnap, pinnedSnap] = await Promise.all([
+    getDocs(
+      query(
+        collection(db, "posts"),
+        where("groupId", "==", params.groupId),
+        where("isDeleted", "==", false),
+        orderBy("createdAt", "desc"),
+        ...(previousLastDoc ? [startAfter(previousLastDoc)] : []),
+        limit(isFirstPage ? safePageSize + 1 : safePageSize)
+      )
+    ),
+    isFirstPage
+      ? getDocs(
+          query(
+            collection(db, "posts"),
+            where("groupId", "==", params.groupId),
+            where("isDeleted", "==", false),
+            where("isPinnedInGroup", "==", true),
+            orderBy("groupPinnedAt", "desc"),
+            limit(1)
+          )
+        )
+      : Promise.resolve(null),
+  ]);
 
-  const rawPosts: Post[] = snap.docs.map((d) => ({
+  const normalPosts: Post[] = postsSnap.docs.map((d) => ({
     id: d.id,
     ...(d.data() as Omit<Post, "id">),
   }));
+
+  const pinnedPosts: Post[] =
+    pinnedSnap?.docs.map((d) => ({
+      id: d.id,
+      ...(d.data() as Omit<Post, "id">),
+    })) ?? [];
+
+  const rawPosts = Array.from(
+    new Map([...pinnedPosts, ...normalPosts].map((post) => [post.id, post]))
+      .values()
+  );
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(rawPosts.map((post) => post.authorId)),
@@ -1150,18 +1157,18 @@ export async function fetchGroupPostsPage(params: {
     };
   });
 
-const postsWithViewerState = await attachViewerPostState(
-  hydratedPosts,
-  params.viewerUid
-);
+  const postsWithViewerState = await attachViewerPostState(
+    hydratedPosts,
+    params.viewerUid
+  );
 
-const sortedPosts = sortPostsWithPinnedPriority(postsWithViewerState);
+  const sortedPosts = sortPostsWithPinnedPriority(postsWithViewerState);
 
-const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
-  const hasMore = snap.docs.length === safePageSize;
+  const lastDoc = postsSnap.docs[postsSnap.docs.length - 1] ?? null;
+  const hasMore = postsSnap.docs.length === safePageSize;
 
   return {
-   posts: sortedPosts,
+    posts: sortedPosts,
     cursor:
       hasMore && lastDoc
         ? {

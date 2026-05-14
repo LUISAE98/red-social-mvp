@@ -24,51 +24,78 @@ export const toggleGroupPostPin = onCall<TogglePostPinInput>(async (request) => 
 
   const postId = getPostId(request.data);
   const postRef = db.collection("posts").doc(postId);
-  const postSnap = await postRef.get();
 
-  if (!postSnap.exists) {
-    throw new HttpsError("not-found", "La publicación no existe.");
-  }
+  return db.runTransaction(async (tx) => {
+    const postSnap = await tx.get(postRef);
 
-  const post = postSnap.data();
+    if (!postSnap.exists) {
+      throw new HttpsError("not-found", "La publicación no existe.");
+    }
 
-  if (!post || post.isDeleted === true || post.deletedAt) {
-    throw new HttpsError("failed-precondition", "La publicación fue eliminada.");
-  }
+    const post = postSnap.data();
 
-  const groupId = post.groupId;
+    if (!post || post.isDeleted === true || post.deletedAt) {
+      throw new HttpsError("failed-precondition", "La publicación fue eliminada.");
+    }
 
-  if (typeof groupId !== "string" || groupId.trim().length === 0) {
-    throw new HttpsError("failed-precondition", "La publicación no pertenece a un grupo válido.");
-  }
+    const groupId = post.groupId;
 
-  const groupRef = db.collection("groups").doc(groupId);
-  const groupSnap = await groupRef.get();
+    if (typeof groupId !== "string" || groupId.trim().length === 0) {
+      throw new HttpsError("failed-precondition", "La publicación no pertenece a un grupo válido.");
+    }
 
-  if (!groupSnap.exists) {
-    throw new HttpsError("not-found", "El grupo no existe.");
-  }
+    const groupRef = db.collection("groups").doc(groupId);
+    const groupSnap = await tx.get(groupRef);
 
-  const group = groupSnap.data();
+    if (!groupSnap.exists) {
+      throw new HttpsError("not-found", "El grupo no existe.");
+    }
 
-  if (!group || group.ownerId !== uid) {
-    throw new HttpsError("permission-denied", "Solo el dueño del grupo puede fijar o desfijar publicaciones.");
-  }
+    const group = groupSnap.data();
 
-  const nextPinnedState = post.isPinnedInGroup !== true;
+    if (!group || group.ownerId !== uid) {
+      throw new HttpsError(
+        "permission-denied",
+        "Solo el dueño del grupo puede fijar o desfijar publicaciones."
+      );
+    }
 
-  await postRef.update({
-    isPinnedInGroup: nextPinnedState,
-    groupPinnedAt: nextPinnedState ? FieldValue.serverTimestamp() : null,
-    groupPinnedBy: nextPinnedState ? uid : null,
-    updatedAt: FieldValue.serverTimestamp(),
+    const nextPinnedState = post.isPinnedInGroup !== true;
+
+    if (nextPinnedState) {
+      const existingPinnedSnap = await tx.get(
+        db
+          .collection("posts")
+          .where("groupId", "==", groupId)
+          .where("isDeleted", "==", false)
+          .where("isPinnedInGroup", "==", true)
+      );
+
+      existingPinnedSnap.docs.forEach((docSnap) => {
+        if (docSnap.id !== postId) {
+          tx.update(docSnap.ref, {
+            isPinnedInGroup: false,
+            groupPinnedAt: null,
+            groupPinnedBy: null,
+            updatedAt: FieldValue.serverTimestamp(),
+          });
+        }
+      });
+    }
+
+    tx.update(postRef, {
+      isPinnedInGroup: nextPinnedState,
+      groupPinnedAt: nextPinnedState ? FieldValue.serverTimestamp() : null,
+      groupPinnedBy: nextPinnedState ? uid : null,
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    return {
+      ok: true,
+      postId,
+      isPinnedInGroup: nextPinnedState,
+    };
   });
-
-  return {
-    ok: true,
-    postId,
-    isPinnedInGroup: nextPinnedState,
-  };
 });
 
 export const toggleProfilePostPin = onCall<TogglePostPinInput>(async (request) => {
@@ -93,7 +120,10 @@ export const toggleProfilePostPin = onCall<TogglePostPinInput>(async (request) =
   }
 
   if (post.authorId !== uid) {
-    throw new HttpsError("permission-denied", "Solo puedes fijar o desfijar publicaciones en tu propio perfil.");
+    throw new HttpsError(
+      "permission-denied",
+      "Solo puedes fijar o desfijar publicaciones en tu propio perfil."
+    );
   }
 
   const nextPinnedState = post.isPinnedOnProfile !== true;
