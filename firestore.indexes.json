@@ -1,0 +1,33 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "groups",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "search.isActive", "order": "ASCENDING" },
+        { "fieldPath": "search.discoverable", "order": "ASCENDING" },
+        { "fieldPath": "search.visibility", "order": "ASCENDING" },
+        { "fieldPath": "search.updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "groups",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "search.isActive", "order": "ASCENDING" },
+        { "fieldPath": "search.discoverable", "order": "ASCENDING" },
+        { "fieldPath": "search.visibility", "order": "ASCENDING" },
+        { "fieldPath": "search.prefixes", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "search.updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "members",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

@@ -2,8 +2,6 @@
 
 import {
   collection,
-  doc,
-  getDoc,
   getDocs,
   limit,
   query,
@@ -244,22 +242,25 @@ export function trackGroupRecommendationSignalFromGroup(input: {
   });
 }
 
-async function isUserMemberOfGroup(groupId: string, uid: string) {
-  if (!uid) return false;
+async function fetchUserMembershipGroupIds(uid: string): Promise<Set<string>> {
+  if (!uid) return new Set();
 
   try {
-    const memberSnap = await getDoc(doc(db, "groups", groupId, "members", uid));
-    return memberSnap.exists();
+    const snap = await getDocs(
+      collection(db, "users", uid, "groupMemberships")
+    );
+
+    return new Set(snap.docs.map((docSnap) => docSnap.id));
   } catch {
-    return false;
+    return new Set();
   }
 }
 
 async function fetchGroupsByCategories(
   categories: CanonicalGroupCategory[],
-  uid: string
+  memberGroupIds: Set<string>
 ): Promise<RecommendationGroupCard[]> {
-  if (!uid || categories.length === 0) return [];
+if (categories.length === 0) return [];
 
   const chunks = chunkArray(
     uniqueCanonicalCategories(categories),
@@ -286,8 +287,7 @@ async function fetchGroupsByCategories(
       if (!card) continue;
       if (data.discoverable === false) continue;
 
-      const alreadyMember = await isUserMemberOfGroup(docSnap.id, uid);
-      if (alreadyMember) continue;
+if (memberGroupIds.has(docSnap.id)) continue;
 
       found.set(docSnap.id, card);
     }
@@ -296,7 +296,10 @@ async function fetchGroupsByCategories(
   return Array.from(found.values()).slice(0, MAX_RECOMMENDATIONS);
 }
 
-async function fetchRandomFallbackGroups(uid: string): Promise<RecommendationGroupCard[]> {
+async function fetchRandomFallbackGroups(
+  uid: string,
+  memberGroupIds: Set<string>
+): Promise<RecommendationGroupCard[]> {
   if (!uid) return [];
 
   const q = query(
@@ -316,8 +319,7 @@ async function fetchRandomFallbackGroups(uid: string): Promise<RecommendationGro
     if (!card) continue;
     if (data.discoverable === false) continue;
 
-    const alreadyMember = await isUserMemberOfGroup(docSnap.id, uid);
-    if (alreadyMember) continue;
+if (memberGroupIds.has(docSnap.id)) continue;
 
     found.push(card);
   }
@@ -359,7 +361,12 @@ export async function fetchRecommendedGroupsForUser(
     };
   }
 
-  const groups = await fetchGroupsByCategories(affinityCategories, uid);
+ const memberGroupIds = await fetchUserMembershipGroupIds(uid);
+
+const groups = await fetchGroupsByCategories(
+  affinityCategories,
+  memberGroupIds
+);
 
   if (groups.length > 0) {
     return {
@@ -373,10 +380,10 @@ export async function fetchRecommendedGroupsForUser(
     };
   }
 
-  const fallback = await fetchGroupsByCategories(
-    preferences.selectedCategories,
-    uid
-  );
+const fallback = await fetchGroupsByCategories(
+  preferences.selectedCategories,
+  memberGroupIds
+);
 
   if (fallback.length > 0) {
     return {
@@ -387,7 +394,7 @@ export async function fetchRecommendedGroupsForUser(
     };
   }
 
-  const randomFallback = await fetchRandomFallbackGroups(uid);
+const randomFallback = await fetchRandomFallbackGroups(uid, memberGroupIds);
 
   return {
     groups: randomFallback,

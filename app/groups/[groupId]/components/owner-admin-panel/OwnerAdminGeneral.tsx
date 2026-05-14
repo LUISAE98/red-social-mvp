@@ -2,8 +2,10 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { doc, onSnapshot, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { buildGroupSearchIndex } from "@/lib/groups/groupSearchIndex";
+import type { Group } from "@/types/group";
 
 type GroupVisibility = "public" | "private" | "hidden";
 type EditField = "name" | "description" | "visibility" | "category" | "tags";
@@ -207,13 +209,15 @@ export default function OwnerAdminGeneral({
     const unsubscribe = onSnapshot(doc(db, "groups", groupId), (snap) => {
       if (!snap.exists()) return;
 
-      const data = snap.data() as {
-        name?: string | null;
-        description?: string | null;
-        category?: string | null;
-        tags?: string[] | null;
-        visibility?: string | null;
-      };
+const data = snap.data() as {
+  name?: string | null;
+  description?: string | null;
+  category?: string | null;
+  tags?: string[] | null;
+  visibility?: string | null;
+  discoverable?: boolean | null;
+  isActive?: boolean | null;
+};
 
       if (!savingGeneral) {
         setName(data.name ?? "");
@@ -345,6 +349,36 @@ export default function OwnerAdminGeneral({
     setDraftValue("");
     setGeneralErr(null);
   }
+  function buildNextSearchPatch(next: {
+  name?: string;
+  description?: string;
+  visibility?: GroupVisibility;
+  category?: string;
+  tags?: string[];
+}) {
+  const nextName = next.name ?? name;
+  const nextDescription = next.description ?? description;
+  const nextVisibility = next.visibility ?? savedVisibility;
+  const nextCategory = next.category ?? category ?? "otros";
+  const nextTags = next.tags ?? parseTags(tagsRaw);
+  const nextDiscoverable = getDiscoverableFromVisibility(nextVisibility);
+  const nextIsActive = true;
+  const nextUpdatedAt = serverTimestamp() as any;
+
+  return {
+    updatedAt: nextUpdatedAt,
+    search: buildGroupSearchIndex({
+      name: nextName,
+      description: nextDescription,
+      category: nextCategory as Group["category"],
+      tags: nextTags,
+      visibility: nextVisibility,
+      discoverable: nextDiscoverable,
+      isActive: nextIsActive,
+      updatedAt: nextUpdatedAt,
+    }),
+  };
+}
 
   async function saveField() {
     if (!editField) return;
@@ -364,10 +398,10 @@ export default function OwnerAdminGeneral({
           return;
         }
 
-        await updateDoc(groupRef, {
-          name: nextName,
-          updatedAt: Date.now(),
-        });
+await updateDoc(groupRef, {
+  name: nextName,
+  ...buildNextSearchPatch({ name: nextName }),
+});
 
         setName(nextName);
         setGeneralMsg("Nombre actualizado.");
@@ -381,10 +415,10 @@ export default function OwnerAdminGeneral({
           return;
         }
 
-        await updateDoc(groupRef, {
-          description: nextDescription,
-          updatedAt: Date.now(),
-        });
+await updateDoc(groupRef, {
+  description: nextDescription,
+  ...buildNextSearchPatch({ description: nextDescription }),
+});
 
         setDescription(nextDescription);
         setGeneralMsg("Descripción actualizada.");
@@ -397,11 +431,11 @@ export default function OwnerAdminGeneral({
           ? "private"
           : "public";
 
-        await updateDoc(groupRef, {
-          visibility: nextVisibility,
-          discoverable: getDiscoverableFromVisibility(nextVisibility),
-          updatedAt: Date.now(),
-        });
+await updateDoc(groupRef, {
+  visibility: nextVisibility,
+  discoverable: getDiscoverableFromVisibility(nextVisibility),
+  ...buildNextSearchPatch({ visibility: nextVisibility }),
+});
 
         setSavedVisibility(nextVisibility);
         setGeneralMsg("Estado actualizado.");
@@ -410,10 +444,10 @@ export default function OwnerAdminGeneral({
       if (editField === "category") {
         const nextCategory = draftValue || "otros";
 
-        await updateDoc(groupRef, {
-          category: nextCategory,
-          updatedAt: Date.now(),
-        });
+await updateDoc(groupRef, {
+  category: nextCategory,
+  ...buildNextSearchPatch({ category: nextCategory }),
+});
 
         setCategory(nextCategory);
         setGeneralMsg("Categoría actualizada.");
@@ -422,10 +456,10 @@ export default function OwnerAdminGeneral({
       if (editField === "tags") {
         const nextTags = parseTags(draftValue);
 
-        await updateDoc(groupRef, {
-          tags: nextTags,
-          updatedAt: Date.now(),
-        });
+await updateDoc(groupRef, {
+  tags: nextTags,
+  ...buildNextSearchPatch({ tags: nextTags }),
+});
 
         setTagsRaw(nextTags.join(", "));
         setGeneralMsg("Tags actualizadas.");

@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
   documentId,
@@ -760,51 +761,39 @@ async function fetchPublicGroupIds(): Promise<string[]> {
   return snap.docs.map((d) => d.id);
 }
 
-async function fetchVisibleGroupsForMembershipChecks(): Promise<GroupDoc[]> {
-  const groupsCol = collection(db, "groups");
-
-  const [publicSnap, privateSnap] = await Promise.all([
-    getDocs(query(groupsCol, where("visibility", "==", "public"))),
-    getDocs(query(groupsCol, where("visibility", "==", "private"))),
-  ]);
-
-  const list: GroupDoc[] = [
-    ...publicSnap.docs.map((d) => ({ id: d.id, ...(d.data() as DocumentData) })),
-    ...privateSnap.docs.map((d) => ({ id: d.id, ...(d.data() as DocumentData) })),
-  ];
-
-  return Array.from(new Map(list.map((g) => [g.id, g])).values());
-}
-
 async function fetchMemberGroupIds(userUid: string): Promise<string[]> {
-  const visibleGroups = await fetchVisibleGroupsForMembershipChecks();
+  if (!userUid.trim()) return [];
 
-  const checks = await Promise.all(
-    visibleGroups.map(async (group) => {
-      try {
-        const memberRef = doc(db, "groups", group.id, "members", userUid);
-        const memberSnap = await getDoc(memberRef);
-
-        if (!memberSnap.exists()) return null;
-
-        const memberData = memberSnap.data() as Record<string, unknown>;
-        const status = resolveEffectiveMembershipStatus(
-          memberData.status,
-          memberData.mutedUntil
-        );
-
-        return status === "active" || status === "subscribed" || status === "muted"
-         ? group.id
-         : null;
-      } catch {
-        return null;
-      }
-    })
+  const snap = await getDocs(
+    query(
+      collectionGroup(db, "members"),
+      where("userId", "==", userUid)
+    )
   );
 
-  return checks.filter((id): id is string => !!id);
-}
+  const groupIds = snap.docs
+    .map((memberDoc) => {
+      const data = memberDoc.data() as Record<string, unknown>;
 
+      const status = resolveEffectiveMembershipStatus(
+        data.status,
+        data.mutedUntil
+      );
+
+      if (
+        status !== "active" &&
+        status !== "subscribed" &&
+        status !== "muted"
+      ) {
+        return null;
+      }
+
+      return memberDoc.ref.parent.parent?.id ?? null;
+    })
+    .filter((id): id is string => typeof id === "string" && id.trim().length > 0);
+
+  return Array.from(new Set(groupIds));
+}
 async function fetchHiddenMemberGroupIds(userUid: string): Promise<string[]> {
   try {
     if (!userUid.trim()) return [];

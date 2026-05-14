@@ -2,18 +2,17 @@ import {
   deleteDoc,
   deleteField,
   doc,
+  getDoc,
   serverTimestamp,
   setDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
-/**
- * Tipos de acceso a grupo alineados con sidebar + group page + backend transition
- */
 type MembershipAccessType =
-  | "standard" // join normal gratis
-  | "subscription" // metadata de acceso por suscripción
-  | "legacy_free"; // usuario conservó acceso gratis tras transición
+  | "standard"
+  | "subscription"
+  | "legacy_free";
 
 type MembershipStatus =
   | "active"
@@ -27,6 +26,20 @@ type JoinWithSubscriptionOptions = {
   currency?: string;
 };
 
+type GroupMembershipSummary = {
+  groupId: string;
+  name?: string | null;
+  description?: string | null;
+  imageUrl?: string | null;
+  avatarUrl?: string | null;
+  coverUrl?: string | null;
+  ownerId?: string | null;
+  visibility?: string | null;
+  discoverable?: boolean | null;
+  isActive?: boolean | null;
+  category?: string | null;
+};
+
 function buildBaseMemberFields(uid: string, status: MembershipStatus) {
   return {
     userId: uid,
@@ -34,7 +47,6 @@ function buildBaseMemberFields(uid: string, status: MembershipStatus) {
     status,
     updatedAt: serverTimestamp(),
 
-    // limpieza de estados incompatibles previos
     removedAt: deleteField(),
     removedBy: deleteField(),
     removedReason: deleteField(),
@@ -43,20 +55,83 @@ function buildBaseMemberFields(uid: string, status: MembershipStatus) {
     transitionDirection: deleteField(),
     transitionResolvedAt: deleteField(),
 
-    // compatibilidad general
     subscriptionEndedAt: deleteField(),
     subscriptionEndedBy: deleteField(),
   };
 }
 
-/**
- * Join estándar (flujo actual)
- */
+function buildUserMembershipBaseFields(params: {
+  groupId: string;
+  uid: string;
+  status: MembershipStatus;
+  accessType: MembershipAccessType;
+  requiresSubscription: boolean;
+  subscriptionActive: boolean;
+  groupSummary: GroupMembershipSummary | null;
+}) {
+  return {
+    groupId: params.groupId,
+    userId: params.uid,
+
+    roleInGroup: "member",
+    status: params.status,
+    accessType: params.accessType,
+    requiresSubscription: params.requiresSubscription,
+    subscriptionActive: params.subscriptionActive,
+
+    groupName: params.groupSummary?.name ?? null,
+    groupDescription: params.groupSummary?.description ?? null,
+    groupImageUrl: params.groupSummary?.imageUrl ?? null,
+    groupAvatarUrl: params.groupSummary?.avatarUrl ?? null,
+    groupCoverUrl: params.groupSummary?.coverUrl ?? null,
+    groupOwnerId: params.groupSummary?.ownerId ?? null,
+    groupVisibility: params.groupSummary?.visibility ?? null,
+    groupDiscoverable: params.groupSummary?.discoverable ?? null,
+    groupIsActive: params.groupSummary?.isActive ?? null,
+    groupCategory: params.groupSummary?.category ?? null,
+
+    updatedAt: serverTimestamp(),
+  };
+}
+
+async function getGroupMembershipSummary(
+  groupId: string
+): Promise<GroupMembershipSummary | null> {
+  try {
+    const groupSnap = await getDoc(doc(db, "groups", groupId));
+
+    if (!groupSnap.exists()) return null;
+
+    const data = groupSnap.data() as Record<string, unknown>;
+
+    return {
+      groupId,
+      name: typeof data.name === "string" ? data.name : null,
+      description: typeof data.description === "string" ? data.description : null,
+      imageUrl: typeof data.imageUrl === "string" ? data.imageUrl : null,
+      avatarUrl: typeof data.avatarUrl === "string" ? data.avatarUrl : null,
+      coverUrl: typeof data.coverUrl === "string" ? data.coverUrl : null,
+      ownerId: typeof data.ownerId === "string" ? data.ownerId : null,
+      visibility: typeof data.visibility === "string" ? data.visibility : null,
+      discoverable:
+        typeof data.discoverable === "boolean" ? data.discoverable : null,
+      isActive: typeof data.isActive === "boolean" ? data.isActive : null,
+      category: typeof data.category === "string" ? data.category : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function joinGroup(groupId: string, uid: string) {
   const memberRef = doc(db, "groups", groupId, "members", uid);
   const joinRequestRef = doc(db, "groups", groupId, "joinRequests", uid);
+  const userMembershipRef = doc(db, "users", uid, "groupMemberships", groupId);
 
-  await setDoc(
+  const groupSummary = await getGroupMembershipSummary(groupId);
+  const batch = writeBatch(db);
+
+  batch.set(
     memberRef,
     {
       ...buildBaseMemberFields(uid, "active"),
@@ -67,7 +142,6 @@ export async function joinGroup(groupId: string, uid: string) {
 
       joinedAt: serverTimestamp(),
 
-      // limpiar metadata de suscripción / legado
       subscribedAt: deleteField(),
       subscriptionPriceMonthly: deleteField(),
       subscriptionCurrency: deleteField(),
@@ -78,22 +152,36 @@ export async function joinGroup(groupId: string, uid: string) {
     { merge: true }
   );
 
-  await deleteDoc(joinRequestRef).catch(() => {
-    // No-op: si no existe la solicitud, no pasa nada.
-  });
+  batch.set(
+    userMembershipRef,
+    {
+      ...buildUserMembershipBaseFields({
+        groupId,
+        uid,
+        status: "active",
+        accessType: "standard",
+        requiresSubscription: false,
+        subscriptionActive: false,
+        groupSummary,
+      }),
+
+      joinedAt: serverTimestamp(),
+
+      subscribedAt: deleteField(),
+      subscriptionPriceMonthly: deleteField(),
+      subscriptionCurrency: deleteField(),
+      legacyGrantedAt: deleteField(),
+      legacyGrantedBy: deleteField(),
+      legacyComplimentary: deleteField(),
+    },
+    { merge: true }
+  );
+
+  batch.delete(joinRequestRef);
+
+  await batch.commit();
 }
 
-/**
- * Join vía suscripción
- *
- * Regla nueva:
- * - status = "subscribed"
- * - accessType = "subscription"
- *
- * Así distinguimos claramente:
- * - active => acceso gratis / legacy
- * - subscribed => acceso pagado por suscripción
- */
 export async function joinGroupWithSubscription(
   groupId: string,
   uid: string,
@@ -101,8 +189,12 @@ export async function joinGroupWithSubscription(
 ) {
   const memberRef = doc(db, "groups", groupId, "members", uid);
   const joinRequestRef = doc(db, "groups", groupId, "joinRequests", uid);
+  const userMembershipRef = doc(db, "users", uid, "groupMemberships", groupId);
 
-  await setDoc(
+  const groupSummary = await getGroupMembershipSummary(groupId);
+  const batch = writeBatch(db);
+
+  batch.set(
     memberRef,
     {
       ...buildBaseMemberFields(uid, "subscribed"),
@@ -116,7 +208,6 @@ export async function joinGroupWithSubscription(
       subscribedAt: serverTimestamp(),
       joinedAt: serverTimestamp(),
 
-      // limpiar metadata incompatible
       legacyGrantedAt: deleteField(),
       legacyGrantedBy: deleteField(),
       legacyComplimentary: deleteField(),
@@ -124,26 +215,45 @@ export async function joinGroupWithSubscription(
     { merge: true }
   );
 
-  await deleteDoc(joinRequestRef).catch(() => {
-    // No-op: si no existe la solicitud, no pasa nada.
-  });
+  batch.set(
+    userMembershipRef,
+    {
+      ...buildUserMembershipBaseFields({
+        groupId,
+        uid,
+        status: "subscribed",
+        accessType: "subscription",
+        requiresSubscription: true,
+        subscriptionActive: true,
+        groupSummary,
+      }),
+
+      subscriptionPriceMonthly: options?.priceMonthly ?? null,
+      subscriptionCurrency: options?.currency ?? "MXN",
+      subscribedAt: serverTimestamp(),
+      joinedAt: serverTimestamp(),
+
+      legacyGrantedAt: deleteField(),
+      legacyGrantedBy: deleteField(),
+      legacyComplimentary: deleteField(),
+    },
+    { merge: true }
+  );
+
+  batch.delete(joinRequestRef);
+
+  await batch.commit();
 }
 
-/**
- * Join como legacy free
- *
- * Cuando el grupo pasa de gratis → suscripción
- * y decides mantener a los usuarios existentes gratis.
- *
- * Regla:
- * - siguen siendo status = "active"
- * - accessType = "legacy_free"
- */
 export async function joinGroupAsLegacyFree(groupId: string, uid: string) {
   const memberRef = doc(db, "groups", groupId, "members", uid);
   const joinRequestRef = doc(db, "groups", groupId, "joinRequests", uid);
+  const userMembershipRef = doc(db, "users", uid, "groupMemberships", groupId);
 
-  await setDoc(
+  const groupSummary = await getGroupMembershipSummary(groupId);
+  const batch = writeBatch(db);
+
+  batch.set(
     memberRef,
     {
       ...buildBaseMemberFields(uid, "active"),
@@ -156,7 +266,6 @@ export async function joinGroupAsLegacyFree(groupId: string, uid: string) {
       legacyGrantedAt: serverTimestamp(),
       joinedAt: serverTimestamp(),
 
-      // limpiar metadata incompatible
       subscribedAt: deleteField(),
       subscriptionPriceMonthly: deleteField(),
       subscriptionCurrency: deleteField(),
@@ -164,20 +273,43 @@ export async function joinGroupAsLegacyFree(groupId: string, uid: string) {
     { merge: true }
   );
 
-  await deleteDoc(joinRequestRef).catch(() => {
-    // No-op: si no existe la solicitud, no pasa nada.
-  });
+  batch.set(
+    userMembershipRef,
+    {
+      ...buildUserMembershipBaseFields({
+        groupId,
+        uid,
+        status: "active",
+        accessType: "legacy_free",
+        requiresSubscription: false,
+        subscriptionActive: false,
+        groupSummary,
+      }),
+
+      legacyComplimentary: true,
+      legacyGrantedAt: serverTimestamp(),
+      joinedAt: serverTimestamp(),
+
+      subscribedAt: deleteField(),
+      subscriptionPriceMonthly: deleteField(),
+      subscriptionCurrency: deleteField(),
+    },
+    { merge: true }
+  );
+
+  batch.delete(joinRequestRef);
+
+  await batch.commit();
 }
 
-/**
- * Leave group
- *
- * Se mantiene deleteDoc para que "salir" elimine la membresía real.
- * Esto además coincide con la nueva regla que queremos reforzar:
- * cuando alguien queda fuera del grupo, debe quedar como no-miembro,
- * no como expulsado visualmente.
- */
 export async function leaveGroup(groupId: string, uid: string) {
-  const ref = doc(db, "groups", groupId, "members", uid);
-  await deleteDoc(ref);
+  const memberRef = doc(db, "groups", groupId, "members", uid);
+  const userMembershipRef = doc(db, "users", uid, "groupMemberships", groupId);
+
+  const batch = writeBatch(db);
+
+  batch.delete(memberRef);
+  batch.delete(userMembershipRef);
+
+  await batch.commit();
 }

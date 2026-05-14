@@ -14,6 +14,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
+import { searchGroups } from "@/lib/groups/searchGroups";
 import { useAuth } from "@/app/providers";
 
 import SearchSubnav from "@/app/components/SearchToolbar/SearchSubnav";
@@ -39,12 +40,6 @@ function normalizeText(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
-}
-
-function buildCommunitySearchText(group: Community) {
-  return [group.name ?? "", group.description ?? "", group.visibility ?? ""]
-    .join(" ")
-    .toLowerCase();
 }
 
 function buildUserSearchText(user: PublicUser) {
@@ -89,7 +84,11 @@ function SearchPageContent() {
   const [memberMap, setMemberMap] = useState<Record<string, CanonicalMemberStatus>>({});
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
 
-  const normalizedQuery = useMemo(() => normalizeText(debouncedQuery), [debouncedQuery]);
+  const normalizedQuery = useMemo(
+    () => normalizeText(debouncedQuery),
+    [debouncedQuery]
+  );
+
   const canSearch = normalizedQuery.length >= MIN_SEARCH_LENGTH;
 
   useEffect(() => {
@@ -115,56 +114,31 @@ function SearchPageContent() {
         return;
       }
 
-      const groupsRef = collection(db, "groups");
-      const queriesToRun = [
-        query(groupsRef, where("visibility", "==", "public"), limit(SEARCH_LIMIT)),
-      ];
+      const result = await searchGroups({
+        term: debouncedQuery,
+        pageSize: SEARCH_LIMIT,
+        visibility: ["public", "private"],
+      });
 
-      if (user?.uid) {
-        queriesToRun.push(
-          query(groupsRef, where("visibility", "==", "private"), limit(SEARCH_LIMIT))
-        );
-      }
-
-      const snapshots = await Promise.all(queriesToRun.map((q) => getDocs(q)));
       if (cancelled) return;
 
-      const groupsById = new Map<string, Community>();
-
-      for (const snap of snapshots) {
-        for (const d of snap.docs) {
-          const group = {
-            id: d.id,
-            ...(d.data() as Record<string, unknown>),
-          } as Community;
-
-          if (group.visibility === "hidden") continue;
-          if (group.isActive === false) continue;
-          if (group.discoverable === false) continue;
-
-          if (normalizeText(buildCommunitySearchText(group)).includes(normalizedQuery)) {
-            groupsById.set(group.id, {
-              ...group,
-              searchMatchType: "exact",
-              searchScore: 1000,
-            });
-          }
-        }
-      }
-
-      setCommunities(Array.from(groupsById.values()).slice(0, SEARCH_LIMIT));
+      setCommunities(result.groups as Community[]);
     }
 
-    loadGroups().catch(() => {
-      if (!cancelled) setCommunities([]);
+    loadGroups().catch((error) => {
+      console.error("Search groups error:", error);
+
+      if (!cancelled) {
+        setCommunities([]);
+      }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [canSearch, normalizedQuery, user?.uid]);
+  }, [canSearch, debouncedQuery]);
 
-   useEffect(() => {
+  useEffect(() => {
     let cancelled = false;
 
     function mapUserDoc(d: { id: string; data: () => Record<string, unknown> }): PublicUser {
@@ -237,13 +211,7 @@ function SearchPageContent() {
             limit(SEARCH_LIMIT)
           )
         ),
-        getDocs(
-          query(
-            usersRef,
-            orderBy("displayName"),
-            limit(100)
-          )
-        ),
+        getDocs(query(usersRef, limit(100))),
       ]);
 
       if (cancelled) return;
@@ -437,6 +405,8 @@ function SearchPageContent() {
 
       <style jsx>{`
         .search-page {
+          position: relative;
+          z-index: 2;
           width: 100%;
           min-height: 100%;
           color: #fff;
@@ -448,6 +418,8 @@ function SearchPageContent() {
         }
 
         .search-content {
+          position: relative;
+          z-index: 3;
           width: min(100%, 1040px);
           display: grid;
           gap: 14px;

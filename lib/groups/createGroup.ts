@@ -1,28 +1,32 @@
-import { addDoc, collection, doc, serverTimestamp, setDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import {
-  buildNormalizedGroupCommerceState,
-} from "@/lib/groups/groupServiceCatalog";
-import type {
-  Group,
-  GroupVisibility,
-} from "@/types/group";
+  addDoc,
+  collection,
+  doc,
+  serverTimestamp,
+  setDoc,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { buildGroupSearchIndex } from "@/lib/groups/groupSearchIndex";
+import { buildNormalizedGroupCommerceState } from "@/lib/groups/groupServiceCatalog";
+import type { Group, GroupVisibility } from "@/types/group";
 
 function normalizeTags(tags?: string[]): string[] {
   if (!Array.isArray(tags)) return [];
+
   return Array.from(
     new Set(
       tags
-        .map((t) => (t ?? "").toString().trim().toLowerCase())
+        .map((tag) => (tag ?? "").toString().trim().toLowerCase())
         .filter(Boolean)
     )
   ).slice(0, 10);
 }
 
-type CreateGroupInput = Omit<Group, "id" | "createdAt" | "updatedAt">;
+type CreateGroupInput = Omit<Group, "id" | "createdAt" | "updatedAt" | "search">;
 
 function normalizeNullableTrimmedText(value: unknown): string | null {
   if (typeof value !== "string") return null;
+
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
 }
@@ -33,6 +37,7 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
   if (!input.description?.trim()) throw new Error("Descripción requerida");
 
   const visibility: GroupVisibility = input.visibility;
+
   if (!["public", "private", "hidden"].includes(visibility)) {
     throw new Error("Visibilidad inválida.");
   }
@@ -57,10 +62,14 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
     monetization: input.monetization,
     donation: input.donation,
     legacyGreetingsEnabled:
-      typeof input.greetingsEnabled === "boolean" ? input.greetingsEnabled : undefined,
+      typeof input.greetingsEnabled === "boolean"
+        ? input.greetingsEnabled
+        : undefined,
   });
 
-  const payload: Omit<Group, "id"> = {
+  const now = serverTimestamp() as any;
+
+  const baseGroup: Omit<Group, "id" | "createdAt" | "updatedAt" | "search"> = {
     name: input.name.trim(),
     description: input.description.trim(),
 
@@ -79,7 +88,6 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
     category: input.category ?? "otros",
     tags: normalizeTags(input.tags),
 
-    // Legacy temporal controlado
     greetingsEnabled: commerce.monetization.greetingsEnabled,
 
     welcomeMessage: commerce.monetization.greetingsEnabled
@@ -99,9 +107,22 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
     donation: commerce.donation,
 
     isActive: typeof input.isActive === "boolean" ? input.isActive : true,
+  };
 
-    createdAt: serverTimestamp() as any,
-    updatedAt: serverTimestamp() as any,
+  const payload: Omit<Group, "id"> = {
+    ...baseGroup,
+    createdAt: now,
+    updatedAt: now,
+    search: buildGroupSearchIndex({
+      name: baseGroup.name,
+      description: baseGroup.description,
+      category: baseGroup.category,
+      tags: baseGroup.tags,
+      visibility: baseGroup.visibility,
+      discoverable: baseGroup.discoverable,
+      isActive: baseGroup.isActive,
+      updatedAt: now,
+    }),
   };
 
   const groupRef = await addDoc(collection(db, "groups"), payload);

@@ -724,135 +724,33 @@ function PublicGroupsShell({
     <>
       <style jsx>{`
         .layout {
-          min-height: 100vh;
-          min-height: 100dvh;
-          background: #000000;
+          width: 100%;
+          min-width: 0;
+          min-height: auto;
+          background: transparent;
           color: #fff;
-          display: flex;
-          flex-direction: column;
-        }
-
-.header {
-  position: sticky;
-  top: 0;
-  z-index: 80;
-  padding-top: env(safe-area-inset-top);
-  border-bottom: none;
-  background: transparent;
-  transform: translateY(var(--mobile-header-offset-y, 0px));
-  will-change: transform, margin-bottom;
-}
-
-        .headerInner {
-          min-height: 48px;
-          display: flex;
-          justify-content: flex-start;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .brand {
-          color: #fff;
-          text-decoration: none;
-          font-weight: 700;
-          letter-spacing: -0.02em;
-          line-height: 1.1;
+          overflow-x: hidden;
         }
 
         .contentArea {
           width: min(820px, calc(100% - 28px));
+          min-width: 0;
           margin: 0 auto;
-          flex: 1;
           padding-top: 24px;
           padding-bottom: calc(24px + env(safe-area-inset-bottom));
           box-sizing: border-box;
         }
 
         @media (max-width: 900px) {
-          .header {
-            padding-left: max(12px, env(safe-area-inset-left));
-            padding-right: max(12px, env(safe-area-inset-right));
-          }
-
-          .headerInner {
-            min-height: 44px;
-          }
-
-          .brand {
-            font-size: 15px;
-          }
-
           .contentArea {
             width: min(720px, calc(100% - 20px));
             padding-top: 10px;
             padding-bottom: calc(18px + env(safe-area-inset-bottom));
           }
         }
-
-
-.floatingLogoutWrap {
-  position: fixed;
-  right: calc(18px + env(safe-area-inset-right));
-  bottom: calc(18px + env(safe-area-inset-bottom));
-  z-index: 2147483005;
-  width: var(--wallet-rail-width);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.floatingLogoutWrap :global(.logoutGradientButton) {
-  width: 100%;
-  min-height: 40px;
-  padding: 8px 14px;
-  border-radius: 10px;
-  border: none;
-  background-image: linear-gradient(
-    100deg,
-    #ff2fb3 0%,
-    #a855ff 35%,
-    #4f46ff 70%,
-    #ff2fb3 100%
-  );
-  background-size: 280% 280%;
-  background-position: 0% 50%;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
-  cursor: pointer;
-  box-shadow: 0 10px 28px rgba(168, 85, 255, 0.22);
-  text-decoration: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-}
-@media (max-width: 900px) {
-  .floatingLogoutWrap {
-    display: none;
-  }
-}
-
-        @media (max-width: 520px) {
-          .brand {
-            max-width: 132px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-        }
       `}</style>
 
       <div className="layout">
-        <header className="header">
-          <div className="headerInner">
-<Link href="/" className="brand" aria-label="Ir al inicio">
-  <img src="/logotipo.png" alt="Vibra" className="brandLogo" />
-</Link>
-          </div>
-        </header>
-
         <div className="contentArea">{children}</div>
       </div>
     </>

@@ -71,6 +71,15 @@ type MemberData = {
   transitionDirection?: string | null;
 };
 
+type UserGroupMembershipData = MemberData & {
+  groupId?: string;
+  groupName?: string | null;
+  groupOwnerId?: string | null;
+  groupVisibility?: string | null;
+  groupAvatarUrl?: string | null;
+  groupIsActive?: boolean | null;
+};
+
 type HiddenGroupTransitionData = {
   userId?: string;
   groupId?: string;
@@ -295,91 +304,178 @@ function resolveSidebarState(params: {
   return "hidden";
 }
 
+function buildSidebarRowFromIndexedMembership(params: {
+  membershipId: string;
+  data: UserGroupMembershipData;
+  callerUid: string;
+}): SidebarGroupRow | null {
+  const groupId =
+    typeof params.data.groupId === "string" && params.data.groupId.trim()
+      ? params.data.groupId
+      : params.membershipId;
+
+  if (!groupId) return null;
+  if (params.data.groupOwnerId === params.callerUid) return null;
+  if (params.data.groupVisibility !== "hidden") return null;
+  if (params.data.groupIsActive === false) return null;
+
+  const memberStatus = normalizeSidebarMemberStatus(
+    params.data.status ?? "active"
+  );
+  const membershipAccessType = normalizeAccessType(params.data.accessType);
+  const requiresSubscription = params.data.requiresSubscription === true;
+  const subscriptionActive = params.data.subscriptionActive === true;
+  const legacyComplimentary = membershipAccessType === "legacy_free";
+  const transitionPendingAction = params.data.transitionPendingAction === true;
+  const transitionReason = buildTransitionReason(params.data);
+
+  const sidebarState = resolveSidebarState({
+    status: memberStatus,
+    accessType: membershipAccessType,
+    requiresSubscription,
+    subscriptionActive,
+    transitionPendingAction,
+    transitionReason,
+    groupSubscriptionEnabled: requiresSubscription,
+  });
+
+  if (sidebarState === "hidden") return null;
+
+  return {
+    id: groupId,
+    name:
+      typeof params.data.groupName === "string" ? params.data.groupName : null,
+    ownerId:
+      typeof params.data.groupOwnerId === "string"
+        ? params.data.groupOwnerId
+        : null,
+    visibility:
+      typeof params.data.groupVisibility === "string"
+        ? params.data.groupVisibility
+        : null,
+    avatarUrl:
+      typeof params.data.groupAvatarUrl === "string"
+        ? params.data.groupAvatarUrl
+        : null,
+
+    memberStatus,
+    membershipAccessType,
+    requiresSubscription,
+    subscriptionActive,
+    legacyComplimentary,
+    transitionPendingAction,
+    transitionReason,
+    canDismiss: false,
+    sidebarState,
+
+    previousSubscriptionPriceMonthly: null,
+    nextSubscriptionPriceMonthly: null,
+    subscriptionPriceChangeCurrency: null,
+
+    monetization: null,
+    offerings: [],
+  };
+}
+
 export const getMyHiddenJoinedGroups = onCall(async (request) => {
   const callerUid = request.auth?.uid;
   if (!callerUid) {
     throw new HttpsError("unauthenticated", "Debes estar autenticado.");
   }
 
-  const membershipsSnap = await db
-    .collectionGroup("members")
-    .where("userId", "==", callerUid)
+  const indexedMembershipsSnap = await db
+    .collection("users")
+    .doc(callerUid)
+    .collection("groupMemberships")
     .get();
 
-  const membershipRows = await Promise.all(
-    membershipsSnap.docs.map(async (memberDoc) => {
-      const memberData = (memberDoc.data() ?? {}) as MemberData;
+  let membershipRows: Array<SidebarGroupRow | null> =
+    indexedMembershipsSnap.docs.map((membershipDoc) =>
+      buildSidebarRowFromIndexedMembership({
+        membershipId: membershipDoc.id,
+        data: (membershipDoc.data() ?? {}) as UserGroupMembershipData,
+        callerUid,
+      })
+    );
 
-      const groupRef = memberDoc.ref.parent.parent;
-      if (!groupRef) return null;
+  // Fallback temporal para usuarios legacy sin índice.
+  // Después del backfill del paso 16, este bloque se puede eliminar.
+  if (indexedMembershipsSnap.empty) {
+    const membershipsSnap = await db
+      .collectionGroup("members")
+      .where("userId", "==", callerUid)
+      .get();
 
-      const groupSnap = await groupRef.get();
-      if (!groupSnap.exists) return null;
+    membershipRows = await Promise.all(
+      membershipsSnap.docs.map(async (memberDoc) => {
+        const memberData = (memberDoc.data() ?? {}) as MemberData;
 
-      const groupData = (groupSnap.data() ?? {}) as GroupData;
+        const groupRef = memberDoc.ref.parent.parent;
+        if (!groupRef) return null;
 
-      if (groupData?.ownerId === callerUid) return null;
+        const groupSnap = await groupRef.get();
+        if (!groupSnap.exists) return null;
 
-      // Mantiene el comportamiento original:
-      // memberships reales de comunidades hidden dentro de "other groups".
-      if (groupData?.visibility !== "hidden") return null;
+        const groupData = (groupSnap.data() ?? {}) as GroupData;
 
-      const memberStatus = normalizeSidebarMemberStatus(
-        memberData?.status ?? "active"
-      );
-      const membershipAccessType = normalizeAccessType(memberData?.accessType);
-      const requiresSubscription = memberData?.requiresSubscription === true;
-      const subscriptionActive = memberData?.subscriptionActive === true;
-      const legacyComplimentary = membershipAccessType === "legacy_free";
-      const transitionPendingAction =
-        memberData?.transitionPendingAction === true;
-      const transitionReason = buildTransitionReason(memberData);
-      const groupSubscriptionEnabled = isSubscriptionEnabled(
-        groupData?.monetization
-      );
+        if (groupData?.ownerId === callerUid) return null;
+        if (groupData?.visibility !== "hidden") return null;
 
-      const sidebarState = resolveSidebarState({
-        status: memberStatus,
-        accessType: membershipAccessType,
-        requiresSubscription,
-        subscriptionActive,
-        transitionPendingAction,
-        transitionReason,
-        groupSubscriptionEnabled,
-      });
+        const memberStatus = normalizeSidebarMemberStatus(
+          memberData?.status ?? "active"
+        );
+        const membershipAccessType = normalizeAccessType(memberData?.accessType);
+        const requiresSubscription = memberData?.requiresSubscription === true;
+        const subscriptionActive = memberData?.subscriptionActive === true;
+        const legacyComplimentary = membershipAccessType === "legacy_free";
+        const transitionPendingAction =
+          memberData?.transitionPendingAction === true;
+        const transitionReason = buildTransitionReason(memberData);
+        const groupSubscriptionEnabled = isSubscriptionEnabled(
+          groupData?.monetization
+        );
 
-      if (sidebarState === "hidden") return null;
+        const sidebarState = resolveSidebarState({
+          status: memberStatus,
+          accessType: membershipAccessType,
+          requiresSubscription,
+          subscriptionActive,
+          transitionPendingAction,
+          transitionReason,
+          groupSubscriptionEnabled,
+        });
 
-      const canDismiss = false;
+        if (sidebarState === "hidden") return null;
 
-      return {
-        id: groupSnap.id,
-        name: groupData?.name ?? null,
-        ownerId: groupData?.ownerId ?? null,
-        visibility: groupData?.visibility ?? null,
-        avatarUrl: groupData?.avatarUrl ?? null,
+        return {
+          id: groupSnap.id,
+          name: groupData?.name ?? null,
+          ownerId: groupData?.ownerId ?? null,
+          visibility: groupData?.visibility ?? null,
+          avatarUrl: groupData?.avatarUrl ?? null,
 
-        memberStatus,
-        membershipAccessType,
-        requiresSubscription,
-        subscriptionActive,
-        legacyComplimentary,
-        transitionPendingAction,
-        transitionReason,
-        canDismiss,
-        sidebarState,
+          memberStatus,
+          membershipAccessType,
+          requiresSubscription,
+          subscriptionActive,
+          legacyComplimentary,
+          transitionPendingAction,
+          transitionReason,
+          canDismiss: false,
+          sidebarState,
 
-        previousSubscriptionPriceMonthly: null,
-        nextSubscriptionPriceMonthly: null,
-        subscriptionPriceChangeCurrency: null,
+          previousSubscriptionPriceMonthly: null,
+          nextSubscriptionPriceMonthly: null,
+          subscriptionPriceChangeCurrency: null,
 
-        monetization: groupData?.monetization ?? null,
-        offerings: Array.isArray(groupData?.offerings)
-          ? groupData.offerings
-          : [],
-      } satisfies SidebarGroupRow;
-    })
-  );
+          monetization: groupData?.monetization ?? null,
+          offerings: Array.isArray(groupData?.offerings)
+            ? groupData.offerings
+            : [],
+        } satisfies SidebarGroupRow;
+      })
+    );
+  }
 
   const remindersSnap = await db
     .collection("users")

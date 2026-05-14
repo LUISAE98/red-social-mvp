@@ -15,12 +15,9 @@ import {
 } from "firebase/firestore";
 
 import { auth, db } from "@/lib/firebase";
+import { searchGroups } from "@/lib/groups/searchGroups";
 import GroupsSearchToolbar from "./GroupsSearchToolbar";
-import {
-  GROUP_CATEGORY_LABELS,
-  normalizeGroupCategory,
-  normalizeGroupTags,
-} from "@/types/group";
+
 
 export type CommunitySearchMatchType = "exact" | "related" | "suggested";
 const SEARCH_LIMIT = 12;
@@ -331,28 +328,6 @@ function ServiceDots({ dots }: { dots: SearchServiceDot[] }) {
   );
 }
 
-function buildCommunityDiscoveryText(group: Community) {
-  const canonicalCategory = normalizeGroupCategory(group.category);
-  const categoryLabel = canonicalCategory
-    ? GROUP_CATEGORY_LABELS[canonicalCategory]
-    : "";
-
-  const tags = normalizeGroupTags(group.tags).join(" ");
-
-  return normalizeText(
-    [
-      group.name ?? "",
-      group.description ?? "",
-      group.visibility ?? "",
-      canonicalCategory ?? "",
-      categoryLabel,
-      tags,
-    ]
-      .join(" ")
-      .trim()
-  );
-}
-
 function getCommunityPreviewPriority(
   group: Community,
   currentUser: User | null,
@@ -478,53 +453,21 @@ useEffect(() => {
     try {
       setCommunitiesLoading(true);
 
-      const col = collection(db, "groups");
-
-      const queriesToRun = [
-        query(
-          col,
-          where("visibility", "==", "public"),
-          limit(SEARCH_LIMIT)
-        ),
-      ];
-
-      if (user?.uid) {
-        queriesToRun.push(
-          query(
-            col,
-            where("visibility", "==", "private"),
-            limit(SEARCH_LIMIT)
-          )
-        );
-      }
-
-      const snapshots = await Promise.all(
-        queriesToRun.map((q) => getDocs(q))
-      );
+      const result = await searchGroups({
+        term: debouncedSearch,
+        pageSize: SEARCH_LIMIT,
+        visibility: ["public", "private"],
+      });
 
       if (cancelled) return;
 
-      const groupsById = new Map<string, Community>();
-
-      for (const snap of snapshots) {
-        for (const d of snap.docs) {
-          const group = {
-            id: d.id,
-            ...(d.data() as Record<string, unknown>),
-          } as Community;
-
-          groupsById.set(group.id, group);
-        }
-      }
-
-      setCommunities(Array.from(groupsById.values()));
+      setCommunities(result.groups as Community[]);
     } catch (e) {
       const message =
-        e instanceof Error
-          ? e.message
-          : "Error cargando comunidades";
+        e instanceof Error ? e.message : "Error cargando comunidades";
 
       setError(message);
+      setCommunities([]);
     } finally {
       if (!cancelled) {
         setCommunitiesLoading(false);
@@ -537,7 +480,7 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [user?.uid, hasSearch]);
+}, [hasSearch, debouncedSearch]);
 
 useEffect(() => {
   let cancelled = false;
@@ -785,21 +728,11 @@ useEffect(() => {
     });
   }, [communities]);
 
-  const filteredCommunities = useMemo(() => {
-    if (!normalizedSearch) return [];
+const filteredCommunities = useMemo(() => {
+  if (!normalizedSearch) return [];
 
-    const normalizedQuery = normalizeText(search);
-
-    return searchableCommunities.filter((g) => {
-      const basicText = normalizeText(buildCommunitySearchText(g));
-      const discoveryText = buildCommunityDiscoveryText(g);
-
-      return (
-        basicText.includes(normalizedQuery) ||
-        discoveryText.includes(normalizedQuery)
-      );
-    });
-  }, [searchableCommunities, normalizedSearch, search]);
+  return searchableCommunities;
+}, [searchableCommunities, normalizedSearch]);
 
   const filteredProfiles = useMemo(() => {
     if (!normalizedSearch) return [];

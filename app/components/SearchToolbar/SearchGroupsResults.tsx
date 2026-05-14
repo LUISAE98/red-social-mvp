@@ -241,15 +241,32 @@ function membershipStatusLabel(status: CanonicalMemberStatus) {
 }
 
 function resolveSubscriptionEnabled(group: Community) {
-  return group.monetization?.isPaid === true;
+  const monetization = group.monetization as Record<string, any> | undefined;
+
+  return (
+    monetization?.subscriptionsEnabled === true ||
+    monetization?.isPaid === true
+  );
 }
 
 function resolveSubscriptionPrice(group: Community) {
-  return group.monetization?.priceMonthly ?? null;
+  const monetization = group.monetization as Record<string, any> | undefined;
+
+  return (
+    monetization?.subscriptionPriceMonthly ??
+    monetization?.priceMonthly ??
+    null
+  );
 }
 
 function resolveSubscriptionCurrency(group: Community) {
-  return group.monetization?.currency ?? null;
+  const monetization = group.monetization as Record<string, any> | undefined;
+
+  return (
+    monetization?.subscriptionCurrency ??
+    monetization?.currency ??
+    null
+  );
 }
 
 function isPaidPrivateGroup(group: Community) {
@@ -674,71 +691,44 @@ const cardStyle: CSSProperties = {
     });
   }, [communities, visibilityFilters, monetizationFilters]);
 
-  const exactGroups = filteredByUi.filter(
-    (group) => (group.searchMatchType ?? "exact") === "exact"
-  );
+  const hasResults = filteredByUi.length > 0;
 
-  const relatedGroups = filteredByUi.filter(
-    (group) => (group.searchMatchType ?? "exact") === "related"
-  );
+  const displayGroups = useMemo(() => {
+    return filteredByUi.slice(0, visibleCount);
+  }, [filteredByUi, visibleCount]);
 
-  const suggestedGroups = filteredByUi.filter(
-    (group) => (group.searchMatchType ?? "exact") === "suggested"
-  );
+  const hasMoreGroups = visibleCount < filteredByUi.length;
 
-  const hasResults =
-    exactGroups.length > 0 ||
-    relatedGroups.length > 0 ||
-    suggestedGroups.length > 0;
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [communities, visibilityFilters, monetizationFilters]);
 
-const randomizedRecommendedGroups = useMemo(() => {
-  return [...communities].sort(() => Math.random() - 0.5);
-}, [communities]);
+  useEffect(() => {
+    const target = loadMoreRef.current;
 
-const displayGroups = useMemo(() => {
-  const baseGroups = hasResults ? filteredByUi : [];
-  const baseIds = new Set(baseGroups.map((group) => group.id));
+    if (!target || !hasMoreGroups) return;
 
-  const recommendedGroups = randomizedRecommendedGroups.filter(
-    (group) => !baseIds.has(group.id)
-  );
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const firstEntry = entries[0];
 
-  return [...baseGroups, ...recommendedGroups].slice(0, visibleCount);
-}, [hasResults, filteredByUi, randomizedRecommendedGroups, visibleCount]);
-
-const hasMoreGroups = visibleCount < communities.length;
-
-
-useEffect(() => {
-  setVisibleCount(10);
-}, [communities, visibilityFilters, monetizationFilters]);
-
-useEffect(() => {
-  const target = loadMoreRef.current;
-
-  if (!target || !hasMoreGroups) return;
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      const firstEntry = entries[0];
-
-      if (firstEntry?.isIntersecting) {
-        setVisibleCount((prev) => prev + 10);
+        if (firstEntry?.isIntersecting) {
+          setVisibleCount((prev) => prev + 10);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "120px",
+        threshold: 0.1,
       }
-    },
-    {
-      root: null,
-      rootMargin: "120px",
-      threshold: 0.1,
-    }
-  );
+    );
 
-  observer.observe(target);
+    observer.observe(target);
 
-  return () => {
-    observer.disconnect();
-  };
-}, [hasMoreGroups, displayGroups.length]);
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMoreGroups, displayGroups.length]);
 
   const activeFilters = [
     ...visibilityFilters.map((value) => ({
@@ -1163,7 +1153,7 @@ const serviceDots = buildSearchServiceDots(group);
 {displayGroups.length > 0 && (
   <div style={sectionStyle}>
     <h2 style={sectionTitleStyle}>
-      {hasResults ? "Coincidencias" : "Comunidades recomendadas"}
+      Coincidencias
     </h2>
 
     {displayGroups.map(renderGroupCard)}

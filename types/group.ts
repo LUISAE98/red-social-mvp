@@ -28,6 +28,49 @@ export type CanonicalGroupCategory =
   | "instituciones"
   | "otros";
 
+
+  export type GroupSearchIndex = {
+  nameNormalized: string;
+  descriptionNormalized: string;
+  categoryNormalized: CanonicalGroupCategory | null;
+  categoryLabelNormalized: string;
+  tagsNormalized: string[];
+
+  /**
+   * Tokens exactos para búsquedas por palabra.
+   * Ej: ["musica", "rock", "fans"]
+   */
+  tokens: string[];
+
+  /**
+   * Prefijos para autocomplete / búsqueda parcial controlada.
+   * Ej: "musica" -> ["mu", "mus", "musi", "music", "musica"]
+   */
+  prefixes: string[];
+
+  /**
+   * Campo de control para búsquedas públicas.
+   * Debe replicar group.visibility para poder indexar sin depender de lógica frontend.
+   */
+  visibility: GroupVisibility;
+
+  /**
+   * Campo de control para excluir grupos no listables.
+   */
+  discoverable: boolean;
+
+  /**
+   * Campo de control para excluir grupos desactivados.
+   */
+  isActive: boolean;
+
+  /**
+   * Versión del índice para poder migrar/backfillear sin romper.
+   */
+  version: 1;
+
+  updatedAt: any;
+};
 /**
  * Categorías LEGACY.
  * Se mantienen para no romper grupos ya guardados en Firestore
@@ -290,7 +333,7 @@ export type SubscriptionToFreePolicy =
   | "keep_members_free"
   | "remove_all_members";
 
-  export type SubscriptionPriceIncreasePolicy =
+export type SubscriptionPriceIncreasePolicy =
   | "keep_legacy_price"
   | "require_resubscribe_new_price";
 /**
@@ -551,6 +594,12 @@ export interface Group {
    * Etiquetas libres para afinidad/búsqueda.
    */
   tags?: string[];
+    /**
+   * Índice profesional de búsqueda.
+   * Se escribe al crear/editar grupo y se consulta desde Firestore.
+   * No debe depender de filtros masivos en frontend.
+   */
+  search?: GroupSearchIndex;
 
   /**
    * Legacy temporal.
