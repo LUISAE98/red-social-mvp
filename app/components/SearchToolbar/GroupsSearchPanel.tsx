@@ -4,18 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import {
-  collection,
   doc,
   getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
 } from "firebase/firestore";
 
 import { auth, db } from "@/lib/firebase";
 import { searchGroups } from "@/lib/groups/searchGroups";
+import { searchProfiles } from "@/lib/profile/searchProfiles";
 import GroupsSearchToolbar from "./GroupsSearchToolbar";
 
 
@@ -485,51 +480,6 @@ useEffect(() => {
 useEffect(() => {
   let cancelled = false;
 
-  function mapUserDoc(d: { id: string; data: () => Record<string, unknown> }): PublicUser {
-    const data = d.data();
-
-    return {
-      uid: typeof data.uid === "string" ? data.uid : d.id,
-      handle: typeof data.handle === "string" ? data.handle : "",
-      displayName:
-        typeof data.displayName === "string"
-          ? data.displayName
-          : "",
-      firstName:
-        typeof data.firstName === "string"
-          ? data.firstName
-          : "",
-      lastName:
-        typeof data.lastName === "string"
-          ? data.lastName
-          : "",
-      photoURL:
-        typeof data.photoURL === "string"
-          ? data.photoURL
-          : null,
-      offerings:
-        Array.isArray(data.offerings) ||
-        (typeof data.offerings === "object" &&
-          data.offerings !== null)
-          ? (
-              data.offerings as
-                | Array<Record<string, any>>
-                | Record<string, any>
-            )
-          : undefined,
-      donation:
-        typeof data.donation === "object" &&
-        data.donation !== null
-          ? (data.donation as Record<string, any>)
-          : undefined,
-      monetization:
-        typeof data.monetization === "object" &&
-        data.monetization !== null
-          ? (data.monetization as Record<string, any>)
-          : undefined,
-    };
-  }
-
   async function loadProfiles() {
     if (!hasSearch) {
       setProfiles([]);
@@ -540,65 +490,28 @@ useEffect(() => {
     try {
       setProfilesLoading(true);
 
-      const normalizedQuery = normalizeText(debouncedSearch);
-      const usersRef = collection(db, "users");
-
-      const [handleSnap, displayNameSnap, firstNameSnap, lastNameSnap] =
-        await Promise.all([
-          getDocs(
-            query(
-              usersRef,
-              orderBy("handle"),
-              where("handle", ">=", normalizedQuery),
-              where("handle", "<=", `${normalizedQuery}\uf8ff`),
-              limit(SEARCH_LIMIT)
-            )
-          ),
-          getDocs(
-            query(
-              usersRef,
-              orderBy("displayName"),
-              where("displayName", ">=", debouncedSearch.trim()),
-              where("displayName", "<=", `${debouncedSearch.trim()}\uf8ff`),
-              limit(SEARCH_LIMIT)
-            )
-          ),
-          getDocs(
-            query(
-              usersRef,
-              orderBy("firstName"),
-              where("firstName", ">=", debouncedSearch.trim()),
-              where("firstName", "<=", `${debouncedSearch.trim()}\uf8ff`),
-              limit(SEARCH_LIMIT)
-            )
-          ),
-          getDocs(
-            query(
-              usersRef,
-              orderBy("lastName"),
-              where("lastName", ">=", debouncedSearch.trim()),
-              where("lastName", "<=", `${debouncedSearch.trim()}\uf8ff`),
-              limit(SEARCH_LIMIT)
-            )
-          ),
-        ]);
+      const result = await searchProfiles({
+        db,
+        rawQuery: debouncedSearch,
+        currentUserId: user?.uid ?? null,
+        maxResults: SEARCH_LIMIT,
+      });
 
       if (cancelled) return;
 
-      const usersById = new Map<string, PublicUser>();
-
-      for (const snap of [handleSnap, displayNameSnap, firstNameSnap, lastNameSnap]) {
-        for (const d of snap.docs) {
-          const profile = mapUserDoc(d);
-
-          if (!profile.handle) continue;
-          if (user?.uid && profile.uid === user.uid) continue;
-
-          usersById.set(profile.uid, profile);
-        }
-      }
-
-      setProfiles(Array.from(usersById.values()).slice(0, SEARCH_LIMIT));
+      setProfiles(
+        result.map((profile) => ({
+          uid: profile.uid,
+          handle: profile.handle,
+          displayName: profile.displayName,
+          firstName: profile.firstName ?? "",
+          lastName: profile.lastName ?? "",
+          photoURL: profile.photoURL ?? null,
+          offerings: profile.offerings,
+          donation: profile.donation,
+          monetization: profile.monetization,
+        }))
+      );
     } catch (e) {
       const message =
         e instanceof Error

@@ -22,6 +22,15 @@
       ]
     },
     {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "search.isActive", "order": "ASCENDING" },
+        { "fieldPath": "search.profileSearchable", "order": "ASCENDING" },
+        { "fieldPath": "search.prefixes", "arrayConfig": "CONTAINS" }
+      ]
+    },
+    {
       "collectionGroup": "members",
       "queryScope": "COLLECTION_GROUP",
       "fields": [

@@ -2,19 +2,11 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
 import { searchGroups } from "@/lib/groups/searchGroups";
+import { searchProfiles } from "@/lib/profile/searchProfiles";
 import { useAuth } from "@/app/providers";
 
 import SearchSubnav from "@/app/components/SearchToolbar/SearchSubnav";
@@ -40,19 +32,6 @@ function normalizeText(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
-}
-
-function buildUserSearchText(user: PublicUser) {
-  return [
-    user.handle,
-    user.displayName,
-    user.firstName,
-    user.lastName,
-    `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
 }
 
 function normalizeMemberStatus(raw: unknown): CanonicalMemberStatus {
@@ -109,16 +88,16 @@ function SearchPageContent() {
     let cancelled = false;
 
     async function loadGroups() {
-      if (!canSearch) {
-        setCommunities([]);
-        return;
-      }
+if (activeTab !== "groups" || !canSearch) {
+  setCommunities([]);
+  return;
+}
 
-      const result = await searchGroups({
-        term: debouncedQuery,
-        pageSize: SEARCH_LIMIT,
-        visibility: ["public", "private"],
-      });
+const result = await searchGroups({
+  term: debouncedQuery,
+  pageSize: SEARCH_LIMIT,
+  visibility: ["public", "private"],
+});
 
       if (cancelled) return;
 
@@ -136,114 +115,50 @@ function SearchPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [canSearch, debouncedQuery]);
+}, [activeTab, canSearch, debouncedQuery, user?.uid]);
 
   useEffect(() => {
     let cancelled = false;
 
-    function mapUserDoc(d: { id: string; data: () => Record<string, unknown> }): PublicUser {
-      const data = d.data();
-
-      return {
-        uid: typeof data.uid === "string" ? data.uid : d.id,
-        handle: typeof data.handle === "string" ? data.handle : "",
-        displayName: typeof data.displayName === "string" ? data.displayName : "",
-        firstName: typeof data.firstName === "string" ? data.firstName : "",
-        lastName: typeof data.lastName === "string" ? data.lastName : "",
-        photoURL: typeof data.photoURL === "string" ? data.photoURL : null,
-        offerings:
-          Array.isArray(data.offerings) ||
-          (typeof data.offerings === "object" && data.offerings !== null)
-            ? (data.offerings as Array<Record<string, any>> | Record<string, any>)
-            : undefined,
-        donation:
-          typeof data.donation === "object" && data.donation !== null
-            ? (data.donation as Record<string, any>)
-            : undefined,
-        monetization:
-          typeof data.monetization === "object" && data.monetization !== null
-            ? (data.monetization as Record<string, any>)
-            : undefined,
-      };
-    }
-
     async function loadProfiles() {
-      if (!canSearch) {
-        setProfiles([]);
-        return;
-      }
+if (activeTab !== "profiles" || !canSearch) {
+  setProfiles([]);
+  return;
+}
 
-      const rawQuery = debouncedQuery.trim();
-      const lowerQuery = normalizeText(rawQuery);
-      const usersRef = collection(db, "users");
-
-      const usersById = new Map<string, PublicUser>();
-
-      const handleSnap = await getDoc(doc(db, "handles", lowerQuery));
-
-      if (handleSnap.exists()) {
-        const handleData = handleSnap.data() as Record<string, unknown>;
-        const uid = typeof handleData.uid === "string" ? handleData.uid : null;
-
-        if (uid) {
-          const userSnap = await getDoc(doc(db, "users", uid));
-
-          if (userSnap.exists()) {
-            const profile = mapUserDoc({
-              id: userSnap.id,
-              data: () => userSnap.data() as Record<string, unknown>,
-            });
-
-            if (profile.handle && (!user?.uid || profile.uid !== user.uid)) {
-              usersById.set(profile.uid, profile);
-            }
-          }
-        }
-      }
-
-      const queryResults = await Promise.allSettled([
-        getDocs(
-          query(
-            usersRef,
-            orderBy("handle"),
-            where("handle", ">=", lowerQuery),
-            where("handle", "<=", `${lowerQuery}\uf8ff`),
-            limit(SEARCH_LIMIT)
-          )
-        ),
-        getDocs(query(usersRef, limit(100))),
-      ]);
+      const result = await searchProfiles({
+        db,
+        rawQuery: debouncedQuery,
+        currentUserId: user?.uid ?? null,
+        maxResults: SEARCH_LIMIT,
+      });
 
       if (cancelled) return;
 
-      for (const result of queryResults) {
-        if (result.status !== "fulfilled") continue;
-
-        for (const d of result.value.docs) {
-          const profile = mapUserDoc(d);
-
-          if (!profile.handle) continue;
-          if (user?.uid && profile.uid === user.uid) continue;
-
-          const searchable = normalizeText(buildUserSearchText(profile));
-          if (!searchable.includes(lowerQuery)) continue;
-
-          usersById.set(profile.uid, profile);
-        }
-      }
-
-      setProfiles(Array.from(usersById.values()).slice(0, SEARCH_LIMIT));
+      setProfiles(
+        result.map((profile) => ({
+          uid: profile.uid,
+          handle: profile.handle,
+          displayName: profile.displayName,
+          firstName: profile.firstName ?? "",
+          lastName: profile.lastName ?? "",
+          photoURL: profile.photoURL ?? null,
+        }))
+      );
     }
 
     loadProfiles().catch((error) => {
       console.error("Search profiles error:", error);
-      if (!cancelled) setProfiles([]);
+
+      if (!cancelled) {
+        setProfiles([]);
+      }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [canSearch, debouncedQuery, user?.uid]);
+}, [activeTab, canSearch, debouncedQuery, user?.uid]);
 
   useEffect(() => {
     let cancelled = false;

@@ -10,6 +10,7 @@ import {
   appendSafeNextParam,
   getNextFromSearchParams,
 } from "@/lib/auth-redirect";
+import { buildProfileSearchIndex } from "@/lib/profile/profileSearchIndex";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
@@ -244,17 +245,27 @@ const handle = useMemo(() => normalizeHandle(handleRaw), [handleRaw]);
           createdAt: serverTimestamp(),
         });
 
-        tx.set(userRef, {
-          uid,
-          handle,
-          displayName,
-          firstName: fn,
-          lastName: ln,
-          birthDate,
-          sex,
-          photoURL: null,
-          createdAt: serverTimestamp(),
-        });
+tx.set(userRef, {
+  uid,
+  handle,
+  displayName,
+  firstName: fn,
+  lastName: ln,
+  birthDate,
+  sex,
+  photoURL: null,
+  createdAt: serverTimestamp(),
+  updatedAt: serverTimestamp(),
+  search: buildProfileSearchIndex({
+    handle,
+    displayName,
+    firstName: fn,
+    lastName: ln,
+    isActive: true,
+    profileSearchable: true,
+    updatedAt: serverTimestamp(),
+  }),
+});
       });
 
       await sendEmailVerification(cred.user);

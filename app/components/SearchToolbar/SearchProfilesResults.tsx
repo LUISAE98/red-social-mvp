@@ -65,6 +65,11 @@ export default function SearchProfilesResults({
     };
   }, [hasMoreProfiles, visibleProfiles.length]);
 
+  function openProfile(handle?: string | null) {
+    if (!handle) return;
+    onNavigate(`/u/${handle}`);
+  }
+
   const shellStyle: CSSProperties = {
     minHeight: 0,
     overflow: "visible",
@@ -178,12 +183,17 @@ export default function SearchProfilesResults({
           profile.handle ||
           "Usuario";
 
+        const canOpenProfile = Boolean(profile.handle);
+
         return (
           <article
             key={profile.uid}
-            style={cardStyle}
+            style={{
+              ...cardStyle,
+              cursor: canOpenProfile ? "pointer" : "default",
+            }}
             className="search-profile-item"
-            onClick={() => onNavigate(`/u/${profile.handle}`)}
+            onClick={() => openProfile(profile.handle)}
           >
             <div style={rowStyle} className="search-profile-row">
               <div style={avatarStyle} className="search-profile-avatar">
@@ -215,9 +225,10 @@ export default function SearchProfilesResults({
               <button
                 type="button"
                 style={ctaStyle}
+                disabled={!canOpenProfile}
                 onClick={(event) => {
                   event.stopPropagation();
-                  onNavigate(`/u/${profile.handle}`);
+                  openProfile(profile.handle);
                 }}
               >
                 Abrir
@@ -245,6 +256,11 @@ export default function SearchProfilesResults({
 
         .search-profile-item:hover {
           background: rgba(255, 255, 255, 0.035) !important;
+        }
+
+        .search-profile-row button:disabled {
+          opacity: 0.45;
+          cursor: not-allowed;
         }
 
         @media (max-width: 640px) {

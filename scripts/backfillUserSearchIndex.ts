@@ -1,30 +1,32 @@
-import { onCall, HttpsError } from "firebase-functions/v2/https";
-import { getApps, initializeApp } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore, Timestamp } from "firebase-admin/firestore";
-
-if (!getApps().length) {
-  initializeApp();
-}
-
-const db = getFirestore();
-
-const DISPLAY_NAME_COOLDOWN_DAYS = 60;
-const DISPLAY_NAME_COOLDOWN_MS =
-  DISPLAY_NAME_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+import "dotenv/config";
+import * as admin from "firebase-admin";
 
 const PROFILE_SEARCH_INDEX_VERSION = 1;
 const MIN_PREFIX_LENGTH = 2;
 const MAX_PREFIX_LENGTH = 20;
 const MAX_PROFILE_SEARCH_PREFIXES = 120;
+const BATCH_SIZE = 400;
 
-function normalizeDisplayName(value: unknown): string {
-  if (typeof value !== "string") return "";
+function initializeAdmin() {
+  if (admin.apps.length) return;
 
-  return value
-    .trim()
-    .replace(/\s+/g, " ")
-    .slice(0, 60);
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+
+  if (!projectId || !clientEmail || !privateKey) {
+    throw new Error(
+      "Faltan FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL o FIREBASE_PRIVATE_KEY en .env.local"
+    );
+  }
+
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    }),
+  });
 }
 
 function normalizeSearchText(value: unknown): string {
@@ -184,34 +186,21 @@ function buildHandlePrefixes(handleNormalized: string): string[] {
   return Array.from(prefixes);
 }
 
-function buildProfileSearchIndex({
-  displayName,
-  firstName,
-  lastName,
-  handle,
-  isActive,
-  profileSearchable,
-  updatedAt,
-}: {
-  displayName?: unknown;
-  firstName?: unknown;
-  lastName?: unknown;
-  handle?: unknown;
-  isActive?: unknown;
-  profileSearchable?: unknown;
-  updatedAt: Timestamp;
-}) {
-  const handleNormalized = normalizeHandleForSearch(handle);
-  const firstNameNormalized = normalizeSearchText(firstName);
-  const lastNameNormalized = normalizeSearchText(lastName);
+function buildProfileSearchIndex(
+  data: FirebaseFirestore.DocumentData,
+  updatedAt: FirebaseFirestore.Timestamp | FirebaseFirestore.FieldValue
+) {
+  const handleNormalized = normalizeHandleForSearch(data.handle);
+  const firstNameNormalized = normalizeSearchText(data.firstName);
+  const lastNameNormalized = normalizeSearchText(data.lastName);
 
-  const fallbackDisplayName = [firstName, lastName]
+  const fallbackDisplayName = [data.firstName, data.lastName]
     .filter((value) => typeof value === "string" && value.trim())
     .join(" ");
 
   const displayNameNormalized = normalizeSearchText(
-    typeof displayName === "string" && displayName.trim()
-      ? displayName
+    typeof data.displayName === "string" && data.displayName.trim()
+      ? data.displayName
       : fallbackDisplayName
   );
 
@@ -253,118 +242,73 @@ function buildProfileSearchIndex({
     handleNormalized,
     tokens,
     prefixes,
-    isActive: isActive !== false,
-    profileSearchable: profileSearchable !== false,
+    isActive: data.isActive !== false,
+    profileSearchable: data.profileSearchable !== false,
     updatedAt,
     version: PROFILE_SEARCH_INDEX_VERSION,
   };
 }
 
-function getDateFromUnknown(value: unknown): Date | null {
-  if (!value) return null;
+async function main() {
+  initializeAdmin();
 
-  if (value instanceof Timestamp) {
-    return value.toDate();
-  }
+  const db = admin.firestore();
+  const usersSnap = await db.collection("users").get();
 
-  if (value instanceof Date) {
-    return value;
-  }
+  let batch = db.batch();
+  let pendingWrites = 0;
+  let scanned = 0;
+  let updated = 0;
+  let skipped = 0;
 
-  if (typeof value === "string") {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
+  for (const userDoc of usersSnap.docs) {
+    scanned += 1;
 
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "toDate" in value &&
-    typeof (value as { toDate?: unknown }).toDate === "function"
-  ) {
-    return (value as { toDate: () => Date }).toDate();
-  }
+    const data = userDoc.data();
 
-  return null;
-}
-
-export const updateProfileDisplayName = onCall(
-  {
-    region: "us-central1",
-  },
-  async (request) => {
-    const uid = request.auth?.uid;
-
-    if (!uid) {
-      throw new HttpsError(
-        "unauthenticated",
-        "Debes iniciar sesión para cambiar tu nombre."
-      );
+    if (!data.handle || !data.displayName) {
+      skipped += 1;
+      console.warn(`[SKIP] ${userDoc.id}: missing handle or displayName`);
+      continue;
     }
 
-    const nextDisplayName = normalizeDisplayName(request.data?.displayName);
+    const now = admin.firestore.Timestamp.now();
+    const search = buildProfileSearchIndex(data, now);
 
-    if (nextDisplayName.length < 3) {
-      throw new HttpsError(
-        "invalid-argument",
-        "El nombre debe tener al menos 3 caracteres."
-      );
-    }
-
-    const userRef = db.doc(`users/${uid}`);
-    const userSnap = await userRef.get();
-
-    if (!userSnap.exists) {
-      throw new HttpsError("not-found", "Perfil no encontrado.");
-    }
-
-    const userData = userSnap.data() ?? {};
-    const lastChangedAt = getDateFromUnknown(
-      userData.displayNameLastChangedAt
+    batch.set(
+      userDoc.ref,
+      {
+        search,
+        updatedAt: now,
+      },
+      { merge: true }
     );
 
-    if (lastChangedAt) {
-      const nextAllowedAt =
-        lastChangedAt.getTime() + DISPLAY_NAME_COOLDOWN_MS;
+    pendingWrites += 1;
+    updated += 1;
 
-      if (Date.now() < nextAllowedAt) {
-        const remainingMs = nextAllowedAt - Date.now();
-        const remainingDays = Math.ceil(
-          remainingMs / (24 * 60 * 60 * 1000)
-        );
+    console.log(`OK ${userDoc.id} -> ${data.handle ?? data.displayName}`);
 
-        throw new HttpsError(
-          "failed-precondition",
-          `Podrás cambiar tu nombre nuevamente en ${remainingDays} día(s).`
-        );
-      }
+    if (pendingWrites >= BATCH_SIZE) {
+      await batch.commit();
+      batch = db.batch();
+      pendingWrites = 0;
+      console.log(`[COMMIT] updated ${updated}/${scanned}`);
     }
-
-    const now = Timestamp.now();
-
-    await userRef.update({
-      displayName: nextDisplayName,
-      displayNameLastChangedAt: now,
-      updatedAt: now,
-      search: buildProfileSearchIndex({
-        displayName: nextDisplayName,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        handle: userData.handle,
-        isActive: userData.isActive,
-        profileSearchable: userData.profileSearchable,
-        updatedAt: now,
-      }),
-    });
-
-    await getAuth().updateUser(uid, {
-      displayName: nextDisplayName,
-    });
-
-    return {
-      ok: true,
-      displayName: nextDisplayName,
-      displayNameLastChangedAt: now.toDate().toISOString(),
-    };
   }
-);
+
+  if (pendingWrites > 0) {
+    await batch.commit();
+  }
+
+  console.log("");
+  console.log("Backfill terminado.");
+  console.log(`Escaneados: ${scanned}`);
+  console.log(`Actualizados: ${updated}`);
+  console.log(`Saltados: ${skipped}`);
+}
+
+main().catch((error) => {
+  console.error("Backfill falló:", error);
+  process.exit(1);
+});
