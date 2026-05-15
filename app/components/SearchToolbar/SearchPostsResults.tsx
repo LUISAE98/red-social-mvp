@@ -8,27 +8,16 @@ import {
   type CSSProperties,
 } from "react";
 import type { User } from "firebase/auth";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  limit,
-  query,
-  where,
-} from "firebase/firestore";
-
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
-
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
+import { searchPosts } from "@/lib/posts/searchPosts";
 import {
   createPostComment,
   createPostCommentReply,
   deletePostComment,
   deletePostCommentReply,
   fetchCommentReplies,
-  fetchGroupPosts,
   fetchPostComments,
   softDeletePost,
   togglePostFlame,
@@ -37,7 +26,6 @@ import {
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
 const MIN_POST_SEARCH_LENGTH = 2;
-const MAX_SEARCH_GROUPS = 8;
 
 type SearchPostsResultsProps = {
   fontStack: string;
@@ -222,62 +210,6 @@ function normalizeSearchPost(post: PostWithFlags): PostWithFlags {
   };
 }
 
-async function fetchAccessibleGroupIds(user: User | null) {
-  const publicSnap = await getDocs(
-    query(
-      collection(db, "groups"),
-      where("visibility", "==", "public"),
-      limit(MAX_SEARCH_GROUPS)
-    )
-  );
-
-  const publicIds = publicSnap.docs.map((d) => d.id);
-
-  if (!user?.uid) return publicIds;
-
-  const ownedSnap = await getDocs(
-    query(
-      collection(db, "groups"),
-      where("ownerId", "==", user.uid),
-      limit(MAX_SEARCH_GROUPS)
-    )
-  );
-
-  const ownedIds = ownedSnap.docs.map((d) => d.id);
-
-  const hidden = await getMyHiddenJoinedGroups();
-  const hiddenIds = hidden.map((g) => g.id).slice(0, MAX_SEARCH_GROUPS);
-
-  return Array.from(new Set([...publicIds, ...ownedIds, ...hiddenIds])).slice(
-    0,
-    MAX_SEARCH_GROUPS
-  );
-}
-
-async function fetchSearchPosts(user: User | null) {
-  const groupIds = await fetchAccessibleGroupIds(user);
-
-  const groupsPosts = await Promise.all(
-    groupIds.slice(0, MAX_SEARCH_GROUPS).map(async (groupId) => {
-      try {
-        return await fetchGroupPosts(groupId, user?.uid ?? null);
-      } catch {
-        return [];
-      }
-    })
-  );
-
-  const all = groupsPosts.flat();
-
-  const deduped = Array.from(new Map(all.map((p) => [p.id, p])).values());
-
-  deduped.sort(
-    (a, b) => getTimestampMs(b.createdAt) - getTimestampMs(a.createdAt)
-  );
-
-  return deduped;
-}
-
 export default function SearchPostsResults({
   fontStack,
   search,
@@ -331,16 +263,23 @@ const loadMoreRef = useRef<HTMLDivElement | null>(null);
         setLoading(true);
         setError(null);
 
-        const raw = await fetchSearchPosts(currentUser);
+        const fromMs = getStartOfDayMs(fromDate);
+        const toMs = getEndOfDayMs(toDate);
 
-        const filtered = raw.filter((p) =>
-          (p.text ?? "").toLowerCase().includes(normalizedSearch)
-        );
+const result = await searchPosts({
+  search: normalizedSearch,
+  pageSize: 60,
+  fromDate: fromMs !== null ? new Date(fromMs) : null,
+  toDate: toMs !== null ? new Date(toMs) : null,
+  viewerId: userId,
+});
 
-        let finalPosts: PostWithFlags[] = filtered;
+        const raw = result.posts;
+
+        let finalPosts: PostWithFlags[] = raw;
 
         if (userId) {
-          const visible = await filterOutBlockedPosts(filtered, userId);
+          const visible = await filterOutBlockedPosts(raw, userId);
           finalPosts = await attachModerationFlags(visible, userId);
         }
 
@@ -348,7 +287,8 @@ const loadMoreRef = useRef<HTMLDivElement | null>(null);
         setPosts(finalPosts.slice(0, 60).map(normalizeSearchPost));
       } catch (e: any) {
         if (!active) return;
-        setError(e?.message ?? "Error");
+        console.error("searchPosts error completo:", e);
+setError(e?.message ?? "Error");
       } finally {
         if (active) setLoading(false);
       }
@@ -359,7 +299,7 @@ const loadMoreRef = useRef<HTMLDivElement | null>(null);
     return () => {
       active = false;
     };
-  }, [normalizedSearch, currentUser, userId]);
+  }, [normalizedSearch, currentUser, userId, fromDate, toDate]);
 
   async function handleDeletePost(postId: string) {
     try {
@@ -549,17 +489,13 @@ const loadMoreRef = useRef<HTMLDivElement | null>(null);
     return true;
   }
 
-const filteredPosts = useMemo(() => {
-  return posts.filter(matchesDateRange);
-}, [posts, fromDate, toDate]);
+const filteredPosts = posts;
 
 const hasResults = filteredPosts.length > 0;
 
 const visiblePosts = filteredPosts.slice(0, visibleCount);
 const fallbackPosts = posts.slice(0, visibleCount);
-const hasMorePosts = hasResults
-  ? visibleCount < filteredPosts.length
-  : visibleCount < posts.length;
+const hasMorePosts = visibleCount < filteredPosts.length;
 
   useEffect(() => {
   setVisibleCount(12);

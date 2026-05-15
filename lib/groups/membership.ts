@@ -177,8 +177,6 @@ export async function joinGroup(groupId: string, uid: string) {
     { merge: true }
   );
 
-  batch.delete(joinRequestRef);
-
   await batch.commit();
 }
 

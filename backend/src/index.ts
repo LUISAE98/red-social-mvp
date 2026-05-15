@@ -119,3 +119,11 @@ export { togglePostSave } from "./postSaves";
 
 // Post pins
 export { toggleGroupPostPin, toggleProfilePostPin } from "./postPins";
+// Home Feed materializado
+export {
+  onHomeFeedPostCreated,
+  onHomeFeedPostDeleted,
+  onHomeFeedMembershipCreated,
+  onHomeFeedMembershipDeleted,
+  onHomeFeedMemberStatusChanged,
+} from "./home-feed";

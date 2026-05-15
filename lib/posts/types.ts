@@ -48,6 +48,20 @@ export type PostAccessModel = "free" | "one_time_purchase";
 
 export type PostAccessScope = "group" | "profile";
 
+export type PostSearchIndex = {
+  textNormalized: string;
+  tokens: string[];
+  prefixes: string[];
+  groupId: string;
+  authorId: string;
+  visibility?: GroupVisibility | null;
+  accessScope?: PostAccessScope | null;
+  isDeleted: boolean;
+  createdAt?: Timestamp | null;
+  updatedAt?: Timestamp | null;
+  version: 1;
+};
+
 export type PostPurchaseType = "post" | "video" | "live" | "event" | null;
 
 export type LiveStatus =
@@ -231,6 +245,7 @@ export type Post = {
   scheduledData?: PostScheduledData | null;
   playback?: PostPlayback | null;
   processing?: PostProcessing | null;
+  search?: PostSearchIndex | null;
 };
 
 export type CommentCounts = {

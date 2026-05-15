@@ -13,6 +13,7 @@ import {
   runTransaction,
   serverTimestamp,
   startAfter,
+  Timestamp,
   updateDoc,
   where,
   type DocumentData,
@@ -28,6 +29,7 @@ import type {
   PostMedia,
 } from "./types";
 import { httpsCallable } from "firebase/functions";
+import { buildPostSearchIndex } from "./postSearchIndex";
 
 type AuthorSnapshot = {
   uid: string;
@@ -99,9 +101,7 @@ type ToggleProfilePostPinResponse = {
 };
 
 export type HomePostsPageCursor = {
-  groupIds: string[];
-  lastDocsByGroupId: Record<string, QueryDocumentSnapshot<DocumentData>>;
-  bufferedPosts: Post[];
+  lastDoc: QueryDocumentSnapshot<DocumentData> | null;
 };
 
 export type HomePostsPageResult = {
@@ -815,162 +815,6 @@ async function fetchProfileVisibleGroupIds(
   );
 }
 
-async function fetchPostsByAccessibleGroups(groupIds: string[]): Promise<Post[]> {
-  if (groupIds.length === 0) {
-    return [];
-  }
-
-  const perGroupResults = await Promise.all(
-    groupIds.map(async (groupId) => {
-      try {
-        const snap = await getDocs(
-          query(
-            collection(db, "posts"),
-            where("groupId", "==", groupId),
-            where("isDeleted", "==", false),
-            orderBy("createdAt", "desc"),
-            limit(50)
-          )
-        );
-
-        return snap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as Omit<Post, "id">),
-        })) as Post[];
-      } catch {
-        return [] as Post[];
-      }
-    })
-  );
-
-  const rawPosts = perGroupResults.flat();
-
-  const deduped = Array.from(
-    new Map(rawPosts.map((post) => [post.id, post])).values()
-  );
-
-  deduped.sort((a, b) => {
-    const aMs = a.createdAt?.toMillis?.() ?? 0;
-    const bMs = b.createdAt?.toMillis?.() ?? 0;
-    return bMs - aMs;
-  });
-
-  return deduped;
-}
-
-async function fetchHomePostsPageByAccessibleGroups(params: {
-  groupIds: string[];
-  pageSize: number;
-  cursor?: HomePostsPageCursor | null;
-}): Promise<{
-  posts: Post[];
-  cursor: HomePostsPageCursor | null;
-  hasMore: boolean;
-}> {
-  const cleanGroupIds = Array.from(
-    new Set(params.groupIds.map((id) => id.trim()).filter(Boolean))
-  );
-
-  if (cleanGroupIds.length === 0) {
-    return {
-      posts: [],
-      cursor: null,
-      hasMore: false,
-    };
-  }
-
-  const safePageSize = Math.max(1, Math.min(params.pageSize, 20));
-  const previousLastDocs = params.cursor?.lastDocsByGroupId ?? {};
-  const previousBufferedPosts = params.cursor?.bufferedPosts ?? [];
-
-  const perGroupResults = await Promise.all(
-    cleanGroupIds.map(async (groupId) => {
-      try {
-        const lastDoc = previousLastDocs[groupId];
-
-        const snap = await getDocs(
-          query(
-            collection(db, "posts"),
-            where("groupId", "==", groupId),
-            where("isDeleted", "==", false),
-            orderBy("createdAt", "desc"),
-            ...(lastDoc ? [startAfter(lastDoc)] : []),
-            limit(safePageSize)
-          )
-        );
-
-        const posts = snap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as Omit<Post, "id">),
-        })) as Post[];
-
-        return {
-          groupId,
-          posts,
-          lastDoc: snap.docs[snap.docs.length - 1] ?? null,
-          hasMore: snap.docs.length === safePageSize,
-        };
-      } catch {
-        return {
-          groupId,
-          posts: [] as Post[],
-          lastDoc: null,
-          hasMore: false,
-        };
-      }
-    })
-  );
-
-  const fetchedPosts = perGroupResults.flatMap((result) => result.posts);
-
-  const dedupedPosts = Array.from(
-    new Map(
-      [...previousBufferedPosts, ...fetchedPosts].map((post) => [post.id, post])
-    ).values()
-  );
-
-  dedupedPosts.sort((a, b) => {
-    const aMs = a.createdAt?.toMillis?.() ?? 0;
-    const bMs = b.createdAt?.toMillis?.() ?? 0;
-    return bMs - aMs;
-  });
-
-  const pagePosts = dedupedPosts.slice(0, safePageSize);
-  const pagePostIds = new Set(pagePosts.map((post) => post.id));
-
-  const nextBufferedPosts = dedupedPosts.filter(
-    (post) => !pagePostIds.has(post.id)
-  );
-
-  const nextLastDocsByGroupId: Record<
-    string,
-    QueryDocumentSnapshot<DocumentData>
-  > = {
-    ...previousLastDocs,
-  };
-
-  perGroupResults.forEach((result) => {
-    if (result.lastDoc) {
-      nextLastDocsByGroupId[result.groupId] = result.lastDoc;
-    }
-  });
-
-  const hasMoreFromGroups = perGroupResults.some((result) => result.hasMore);
-  const hasMore = nextBufferedPosts.length > 0 || hasMoreFromGroups;
-
-  return {
-    posts: pagePosts,
-    cursor: hasMore
-      ? {
-          groupIds: cleanGroupIds,
-          lastDocsByGroupId: nextLastDocsByGroupId,
-          bufferedPosts: nextBufferedPosts,
-        }
-      : null,
-    hasMore,
-  };
-}
-
 async function getGroupWriteAccess(
   groupId: string,
   userUid: string
@@ -1201,24 +1045,36 @@ export async function fetchHomePostsPage(params: {
   assertValidId(params.userUid, "userUid");
 
   const safePageSize = Math.max(1, Math.min(params.pageSize ?? 10, 20));
+  const previousLastDoc = params.cursor?.lastDoc ?? null;
 
-  const groupIds =
-    params.cursor?.groupIds && params.cursor.groupIds.length > 0
-      ? params.cursor.groupIds
-      : await fetchAccessibleGroupIds(params.userUid);
+  const homeFeedSnap = await getDocs(
+    query(
+      collection(db, "users", params.userUid, "homeFeed"),
+      where("isVisible", "==", true),
+      orderBy("createdAt", "desc"),
+      ...(previousLastDoc ? [startAfter(previousLastDoc)] : []),
+      limit(safePageSize)
+    )
+  );
 
-  const page = await fetchHomePostsPageByAccessibleGroups({
-    groupIds,
-    pageSize: safePageSize,
-    cursor: params.cursor ?? null,
+  const rawPosts = homeFeedSnap.docs.map((feedDoc) => {
+    const data = feedDoc.data() as Record<string, any>;
+
+    return {
+      id: typeof data.postId === "string" ? data.postId : feedDoc.id,
+      ...(data.postSnapshot ?? {}),
+      canModerateGroupAuthor: data.canModerateGroupAuthor ?? false,
+      authorMemberStatus: data.authorMemberStatus ?? null,
+      authorMutedUntil: data.authorMutedUntil ?? null,
+    } as Post;
   });
 
   const [userMap, groupMap] = await Promise.all([
-    fetchUsersByIds(page.posts.map((post) => post.authorId)),
-    fetchGroupsByIds(page.posts.map((post) => post.groupId)),
+    fetchUsersByIds(rawPosts.map((post) => post.authorId)),
+    fetchGroupsByIds(rawPosts.map((post) => post.groupId)),
   ]);
 
-  const hydratedPosts = page.posts.map((post) => {
+  const hydratedPosts = rawPosts.map((post) => {
     const hydrated = hydratePost(post, userMap, groupMap);
 
     return {
@@ -1227,18 +1083,24 @@ export async function fetchHomePostsPage(params: {
     };
   });
 
-const postsWithViewerState = await attachViewerPostState(
-  hydratedPosts,
-  params.userUid
-);
+  const postsWithViewerState = await attachViewerPostState(
+    hydratedPosts,
+    params.userUid
+  );
 
-const sortedPosts = sortPostsWithPinnedPriority(postsWithViewerState);
+  const lastDoc = homeFeedSnap.docs[homeFeedSnap.docs.length - 1] ?? null;
+  const hasMore = homeFeedSnap.docs.length === safePageSize;
 
-return {
-  posts: sortedPosts,
-  cursor: page.cursor,
-  hasMore: page.hasMore,
-};
+  return {
+    posts: postsWithViewerState,
+    cursor:
+      hasMore && lastDoc
+        ? {
+            lastDoc,
+          }
+        : null,
+    hasMore,
+  };
 }
 
 export async function fetchHomePosts(userUid: string): Promise<Post[]> {
@@ -1418,6 +1280,10 @@ export async function createTextPost(params: {
 
   const groupMap = await fetchGroupsByIds([params.groupId]);
   const groupVisibility = groupMap[params.groupId]?.visibility ?? null;
+  if (!groupVisibility) {
+  throw new Error("No se pudo resolver la visibilidad del grupo.");
+}
+
 
   const shareMetadata = buildShareMetadata({
     text: cleanText,
@@ -1431,15 +1297,20 @@ export async function createTextPost(params: {
     playback: null,
   });
 
+const createdAt = serverTimestamp();
+const updatedAt = serverTimestamp();
+const searchTimestamp = Timestamp.now();
+
   await addDoc(collection(db, "posts"), {
     groupId: params.groupId,
+    groupVisibility,
     authorId: author.uid,
     authorName: author.authorName,
     authorAvatarUrl: author.authorAvatarUrl,
     authorUsername: author.authorUsername,
     text: cleanText,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    createdAt,
+    updatedAt,
     deletedAt: null,
     isDeleted: false,
     isPinnedInGroup: false,
@@ -1461,7 +1332,16 @@ counts: {
   likes: 0,
   saves: 0,
 },
-
+      search: buildPostSearchIndex({
+      text: cleanText,
+      groupId: params.groupId,
+      authorId: author.uid,
+      groupVisibility,
+      accessScope: "group",
+      isDeleted: false,
+createdAt: searchTimestamp,
+updatedAt: searchTimestamp,
+    }),
     postType: "text",
 
 accessModel: "free",
@@ -1517,6 +1397,9 @@ export async function createImagePost(params: {
 
   const groupMap = await fetchGroupsByIds([params.groupId]);
   const groupVisibility = groupMap[params.groupId]?.visibility ?? null;
+  if (!groupVisibility) {
+  throw new Error("No se pudo resolver la visibilidad del grupo.");
+}
 
   const shareMetadata = buildShareMetadata({
     text: cleanText,
@@ -1530,15 +1413,20 @@ export async function createImagePost(params: {
     playback: null,
   });
 
+const createdAt = serverTimestamp();
+const updatedAt = serverTimestamp();
+const searchTimestamp = Timestamp.now();
+
   await addDoc(collection(db, "posts"), {
     groupId: params.groupId,
+    groupVisibility,
     authorId: author.uid,
     authorName: author.authorName,
     authorAvatarUrl: author.authorAvatarUrl,
     authorUsername: author.authorUsername,
     text: cleanText,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    createdAt,
+    updatedAt,
     deletedAt: null,
     isDeleted: false,
     isPinnedInGroup: false,
@@ -1583,16 +1471,30 @@ counts: {
       errorMessage: null,
       updatedAt: null,
     },
+        search: buildPostSearchIndex({
+      text: cleanText,
+groupId: params.groupId,
+groupVisibility,
+authorId: author.uid,
+      accessScope: "group",
+      isDeleted: false,
+createdAt: searchTimestamp,
+updatedAt: searchTimestamp,
+    }),
   });
 }
 
 export async function softDeletePost(postId: string): Promise<void> {
   assertValidId(postId, "postId");
 
+  const updatedAt = serverTimestamp();
+
   await updateDoc(doc(db, "posts", postId), {
     isDeleted: true,
-    deletedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+    deletedAt: updatedAt,
+    updatedAt,
+    "search.isDeleted": true,
+    "search.updatedAt": updatedAt,
   });
 }
 

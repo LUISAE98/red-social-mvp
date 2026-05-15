@@ -55,6 +55,30 @@
         { "fieldPath": "isPinnedInGroup", "order": "ASCENDING" },
         { "fieldPath": "groupPinnedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "groupVisibility", "order": "ASCENDING" },
+        { "fieldPath": "isShareable", "order": "ASCENDING" },
+        { "fieldPath": "accessModel", "order": "ASCENDING" },
+        { "fieldPath": "requiresPayment", "order": "ASCENDING" },
+        { "fieldPath": "requiresSubscription", "order": "ASCENDING" },
+        { "fieldPath": "search.isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "search.visibility", "order": "ASCENDING" },
+        { "fieldPath": "search.prefixes", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "search.createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "homeFeed",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isVisible", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
