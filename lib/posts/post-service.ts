@@ -2212,11 +2212,7 @@ export async function fetchSavedPostsPage(params: {
     )
   );
 
-  const savedPostIds = savedSnap.docs
-    .map((savedDoc) => savedDoc.id)
-    .filter((postId) => postId.trim().length > 0);
-
-  if (savedPostIds.length === 0) {
+  if (savedSnap.empty) {
     return {
       posts: [],
       cursor: null,
@@ -2224,44 +2220,32 @@ export async function fetchSavedPostsPage(params: {
     };
   }
 
-  const postChunks: string[][] = [];
-
-  for (let index = 0; index < savedPostIds.length; index += 10) {
-    postChunks.push(savedPostIds.slice(index, index + 10));
-  }
-
-  const chunkResults = await Promise.all(
-    postChunks.map(async (chunk) => {
+  const rawPosts = await Promise.all(
+    savedSnap.docs.map(async (savedDoc) => {
       try {
-        const snap = await getDocs(
-          query(collection(db, "posts"), where(documentId(), "in", chunk))
-        );
+        const postSnap = await getDoc(doc(db, "posts", savedDoc.id));
 
-        return snap.docs.map((postDoc) => ({
-          id: postDoc.id,
-          ...(postDoc.data() as Omit<Post, "id">),
-        })) as Post[];
+        if (!postSnap.exists()) {
+          return null;
+        }
+
+        const post = {
+          id: postSnap.id,
+          ...(postSnap.data() as Omit<Post, "id">),
+        } as Post;
+
+        if (post.isDeleted === true) {
+          return null;
+        }
+
+        return post;
       } catch {
-        return [] as Post[];
+        return null;
       }
     })
   );
 
-  const rawPosts = chunkResults.flat().filter((post) => !post.isDeleted);
-  const postMap = new Map(rawPosts.map((post) => [post.id, post]));
-
-  const orderedPosts = savedPostIds
-    .map((postId) => postMap.get(postId))
-    .filter((post): post is Post => Boolean(post));
-
-  const accessibleGroupIds = new Set(
-    await fetchAccessibleGroupIds(params.userUid)
-  );
-
-  const visiblePosts = orderedPosts.filter((post) => {
-    const groupId = typeof post.groupId === "string" ? post.groupId.trim() : "";
-    return groupId && accessibleGroupIds.has(groupId);
-  });
+  const visiblePosts = rawPosts.filter((post): post is Post => Boolean(post));
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(visiblePosts.map((post) => post.authorId)),
@@ -2273,11 +2257,12 @@ export async function fetchSavedPostsPage(params: {
 
     return {
       ...hydrated,
+      viewerHasSaved: true,
       isLocked: isPostLocked(hydrated),
     };
   });
 
-  const postsWithViewerState = await attachViewerPostState(
+  const postsWithFlameState = await attachViewerFlameState(
     hydratedPosts,
     params.userUid
   );
@@ -2286,7 +2271,7 @@ export async function fetchSavedPostsPage(params: {
   const hasMore = savedSnap.docs.length === safePageSize;
 
   return {
-    posts: postsWithViewerState,
+    posts: postsWithFlameState,
     cursor:
       hasMore && lastSavedDoc
         ? {

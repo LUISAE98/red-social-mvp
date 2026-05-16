@@ -81,6 +81,14 @@
       ]
     },
     {
+  "collectionGroup": "savedPosts",
+  "queryScope": "COLLECTION",
+  "fields": [
+    { "fieldPath": "isVisible", "order": "ASCENDING" },
+    { "fieldPath": "savedAt", "order": "DESCENDING" }
+  ]
+},
+    {
       "collectionGroup": "profileFeed",
       "queryScope": "COLLECTION",
       "fields": [

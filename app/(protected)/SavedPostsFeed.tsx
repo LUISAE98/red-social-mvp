@@ -2,8 +2,6 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
-
 import { auth, db } from "@/lib/firebase";
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import {
@@ -67,136 +65,6 @@ function normalizeStatus(raw: unknown): MemberStatus {
   return "active";
 }
 
-async function getMembershipMetaForGroup(
-  groupId: string,
-  userId: string
-): Promise<{
-  status: MemberStatus;
-  mutedUntil: any | null;
-  role: GroupRole;
-}> {
-  try {
-    const memberRef = doc(db, "groups", groupId, "members", userId);
-    const memberSnap = await getDoc(memberRef);
-
-    if (!memberSnap.exists()) {
-      return { status: null, mutedUntil: null, role: null };
-    }
-
-    const data = memberSnap.data() as any;
-
-    return {
-      status: normalizeStatus(data?.status),
-      mutedUntil: data?.mutedUntil ?? null,
-      role: normalizeRole(data?.roleInGroup ?? data?.role),
-    };
-  } catch {
-    return { status: null, mutedUntil: null, role: null };
-  }
-}
-
-async function getViewerCanModerateGroup(
-  groupId: string,
-  currentUserId: string
-): Promise<boolean> {
-  try {
-    const groupSnap = await getDoc(doc(db, "groups", groupId));
-    if (!groupSnap.exists()) return false;
-
-    const groupData = groupSnap.data() as any;
-    if (groupData?.ownerId === currentUserId) {
-      return true;
-    }
-
-    const viewerMeta = await getMembershipMetaForGroup(groupId, currentUserId);
-
-    return (
-      viewerMeta.role === "mod" &&
-      viewerMeta.status !== "banned" &&
-      viewerMeta.status !== "removed"
-    );
-  } catch {
-    return false;
-  }
-}
-
-async function attachModerationFlags(
-  posts: Post[],
-  currentUserId: string
-): Promise<PostWithFlags[]> {
-  if (!posts.length) return posts as PostWithFlags[];
-
-  const uniqueGroupIds = Array.from(
-    new Set(
-      posts
-        .map((post) => post.groupId)
-        .filter(
-          (groupId): groupId is string =>
-            typeof groupId === "string" && groupId.trim().length > 0
-        )
-    )
-  );
-
-  const moderationEntries = await Promise.all(
-    uniqueGroupIds.map(async (groupId) => {
-      const canModerate = await getViewerCanModerateGroup(groupId, currentUserId);
-      return [groupId, canModerate] as const;
-    })
-  );
-
-  const moderationMap = new Map<string, boolean>(moderationEntries);
-
-  const authorPairs = Array.from(
-    new Set(
-      posts
-        .filter(
-          (post) =>
-            typeof post.groupId === "string" &&
-            post.groupId.trim().length > 0 &&
-            typeof post.authorId === "string" &&
-            post.authorId.trim().length > 0
-        )
-        .map((post) => `${post.groupId}__${post.authorId}`)
-    )
-  );
-
-  const authorEntries = await Promise.all(
-    authorPairs.map(async (pairKey) => {
-      const separatorIndex = pairKey.indexOf("__");
-      const groupId = pairKey.slice(0, separatorIndex);
-      const authorId = pairKey.slice(separatorIndex + 2);
-      const meta = await getMembershipMetaForGroup(groupId, authorId);
-      return [pairKey, meta] as const;
-    })
-  );
-
-  const authorMap = new Map<
-    string,
-    { status: MemberStatus; mutedUntil: any | null; role: GroupRole }
-  >(authorEntries);
-
-  return posts.map((post) => {
-    const groupId =
-      typeof post.groupId === "string" && post.groupId.trim().length > 0
-        ? post.groupId
-        : null;
-
-    const authorId =
-      typeof post.authorId === "string" && post.authorId.trim().length > 0
-        ? post.authorId
-        : null;
-
-    const authorMeta =
-      groupId && authorId ? authorMap.get(`${groupId}__${authorId}`) : null;
-
-    return {
-      ...post,
-      canModerateGroupAuthor: !!groupId && moderationMap.get(groupId) === true,
-      authorMemberStatus: authorMeta?.status ?? null,
-      authorMutedUntil: authorMeta?.mutedUntil ?? null,
-    };
-  });
-}
 
 function normalizeSavedFeedPost(post: PostWithFlags): PostWithFlags {
   return {
@@ -273,33 +141,33 @@ export default function SavedPostsFeed() {
     return () => mediaQuery.removeListener(sync);
   }, []);
 
-  const syncPostsState = useCallback(
-    (
-      updater:
-        | PostWithFlags[]
-        | ((currentPosts: PostWithFlags[]) => PostWithFlags[])
-    ) => {
-      setPosts((currentPosts) => {
-        const nextPosts =
-          typeof updater === "function" ? updater(currentPosts) : updater;
+const syncPostsState = useCallback(
+  (
+    updater:
+      | PostWithFlags[]
+      | ((currentPosts: PostWithFlags[]) => PostWithFlags[])
+  ) => {
+    setPosts((currentPosts) => {
+      const nextPosts =
+        typeof updater === "function" ? updater(currentPosts) : updater;
 
-        if (currentUserId) {
-          const cacheKey = currentUserId;
-          const existingCache = savedPostsMemoryCache.get(cacheKey);
+      if (currentUserId) {
+        const cacheKey = currentUserId;
+        const existingCache = savedPostsMemoryCache.get(cacheKey);
 
-          savedPostsMemoryCache.set(cacheKey, {
-            posts: nextPosts,
-            cursor: existingCache?.cursor ?? pageCursor,
-            hasMore: existingCache?.hasMore ?? hasMore,
-            timestamp: Date.now(),
-          });
-        }
+        savedPostsMemoryCache.set(cacheKey, {
+          posts: nextPosts,
+          cursor: existingCache?.cursor ?? pageCursor,
+          hasMore: existingCache?.hasMore ?? hasMore,
+          timestamp: Date.now(),
+        });
+      }
 
-        return nextPosts;
-      });
-    },
-    [currentUserId, hasMore, pageCursor]
-  );
+      return nextPosts;
+    });
+  },
+  [currentUserId, hasMore, pageCursor]
+);
 
   const loadPostsPage = useCallback(
     async ({ reset = false }: { reset?: boolean } = {}) => {
@@ -334,11 +202,9 @@ export default function SavedPostsFeed() {
           pageSize: SAVED_POSTS_PAGE_SIZE,
           cursor: nextCursor,
         });
+        const normalizedPosts = page.posts.map(normalizeSavedFeedPost);
 
-        const hydratedPosts = await attachModerationFlags(page.posts, currentUserId);
-        const normalizedPosts = hydratedPosts.map(normalizeSavedFeedPost);
-
-        setPosts((currentPosts) => {
+        syncPostsState((currentPosts) => {
           const nextPosts = reset
             ? normalizedPosts
             : mergeUniquePosts(currentPosts, normalizedPosts);
@@ -431,7 +297,7 @@ export default function SavedPostsFeed() {
         threshold: 0,
       }
     );
-
+if (!trigger.isConnected) return;
     observer.observe(trigger);
 
     return () => observer.disconnect();
@@ -761,7 +627,8 @@ export default function SavedPostsFeed() {
     overflowX: "hidden",
   };
 
-  const visiblePosts = activeSearch
+const visiblePosts = useMemo(() => {
+  return activeSearch
     ? posts.filter((post) => {
         const haystack = [
           post.text,
@@ -776,6 +643,7 @@ export default function SavedPostsFeed() {
         return haystack.includes(activeSearch);
       })
     : posts;
+}, [activeSearch, posts]);
 
   if (!currentUserId) {
     return (
