@@ -1,0 +1,1613 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // ==========================
+    // USERS / HANDLES
+    // ==========================
+    function validHandle(h) {
+      return h is string
+        && h.size() >= 3
+        && h.size() <= 20
+        && h.matches('^[a-z0-9_]+$');
+    }
+
+    function validSex(s) {
+      return s in ["male", "female", "other", "prefer_not_say"];
+    }
+
+    function validCurrency(c) {
+      return c in ["MXN", "USD"];
+    }
+
+    function validBirthDate(b) {
+      return b is string
+        && b.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function validNullableString(value) {
+      return value == null || value is string;
+    }
+
+    function validNonNegativeNumberOrNull(value) {
+      return value == null || (value is number && value >= 0);
+    }
+
+    function validPositiveNumberOrNull(value) {
+      return value == null || (value is number && value > 0);
+    }
+
+    function profileGreetingValid(pg) {
+      return pg is map
+        && ("enabled" in pg) && pg.enabled is bool
+        && (!("price" in pg) || validNonNegativeNumberOrNull(pg.price))
+        && (!("currency" in pg) || pg.currency == null || validCurrency(pg.currency));
+    }
+
+    function profileMonetizationValid(monetization) {
+      return monetization == null
+        || (
+          monetization is map
+          && (!("greetingsEnabled" in monetization) || monetization.greetingsEnabled is bool)
+          && (!("adviceEnabled" in monetization) || monetization.adviceEnabled is bool)
+          && (!("customClassEnabled" in monetization) || monetization.customClassEnabled is bool)
+          && (!("digitalMeetGreetEnabled" in monetization) || monetization.digitalMeetGreetEnabled is bool)
+          && (!("donationsEnabled" in monetization) || monetization.donationsEnabled is bool)
+        );
+    }
+
+    function profileServicesValid(profileServices) {
+      return profileServices is map
+        && (!("offerings" in profileServices) || offeringsValid(profileServices))
+        && (!("donation" in profileServices) || donationValid(profileServices))
+        && (!("monetization" in profileServices) || profileMonetizationValid(profileServices.monetization));
+    }
+
+    function validUserBase(data) {
+      return data.uid is string
+        && validHandle(data.handle)
+        && data.displayName is string
+        && data.displayName.size() >= 1
+        && data.displayName.size() <= 60
+        && data.firstName is string
+        && data.firstName.size() >= 1
+        && data.firstName.size() <= 40
+        && data.lastName is string
+        && data.lastName.size() >= 1
+        && data.lastName.size() <= 40
+        && validBirthDate(data.birthDate)
+        && validSex(data.sex)
+        && (data.photoURL == null || data.photoURL is string)
+        && (!("coverUrl" in data) || data.coverUrl == null || data.coverUrl is string)
+        && (!("showPosts" in data) || data.showPosts is bool)
+        && (!("showCreatedGroups" in data) || data.showCreatedGroups is bool)
+        && (!("profileRestricted" in data) || data.profileRestricted is bool)
+        && (
+          !("profileGreeting" in data)
+          || data.profileGreeting == null
+          || profileGreetingValid(data.profileGreeting)
+        )
+        && (
+          !("profileServices" in data)
+          || data.profileServices == null
+          || profileServicesValid(data.profileServices)
+        )
+        && offeringsValid(data)
+        && donationValid(data)
+&& (
+  !("monetization" in data)
+  || data.monetization == null
+  || profileMonetizationValid(data.monetization)
+)
+&& (
+  !("search" in data)
+  || validUserSearchIndex(data.search)
+);
+    }
+    
+    function validUserSearchIndex(search) {
+  return search == null
+    || (
+      search is map
+      && (!("nameNormalized" in search) || search.nameNormalized is string)
+      && (!("displayNameNormalized" in search) || search.displayNameNormalized is string)
+      && (!("firstNameNormalized" in search) || search.firstNameNormalized is string)
+      && (!("lastNameNormalized" in search) || search.lastNameNormalized is string)
+      && (!("handleNormalized" in search) || search.handleNormalized is string)
+      && (!("tokens" in search) || search.tokens is list)
+      && (!("prefixes" in search) || search.prefixes is list)
+      && (!("isActive" in search) || search.isActive is bool)
+      && (!("profileSearchable" in search) || search.profileSearchable is bool)
+      && (!("updatedAt" in search) || search.updatedAt is timestamp)
+      && (!("version" in search) || search.version == 1)
+    );
+}
+
+    match /users/{uid} {
+      allow get, list: if true;
+
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == uid
+        && validUserBase(request.resource.data);
+
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && (
+          (
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              "offerings",
+              "donation",
+              "monetization",
+              "showCreatedGroups",
+              "profileRestricted",
+              "updatedAt"
+            ])
+            && (!("showCreatedGroups" in request.resource.data)
+              || request.resource.data.showCreatedGroups is bool)
+            && (!("profileRestricted" in request.resource.data)
+              || request.resource.data.profileRestricted is bool)
+            && (!("offerings" in request.resource.data)
+              || request.resource.data.offerings == null
+              || (
+                request.resource.data.offerings is list
+                && request.resource.data.offerings.size() <= 10
+              ))
+            && (!("donation" in request.resource.data)
+              || request.resource.data.donation == null
+              || request.resource.data.donation is map)
+            && (!("monetization" in request.resource.data)
+              || request.resource.data.monetization == null
+              || profileMonetizationValid(request.resource.data.monetization))
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              "photoURL",
+              "coverUrl",
+              "updatedAt"
+            ])
+            && (!("photoURL" in request.resource.data)
+              || request.resource.data.photoURL == null
+              || request.resource.data.photoURL is string)
+            && (!("coverUrl" in request.resource.data)
+              || request.resource.data.coverUrl == null
+              || request.resource.data.coverUrl is string)
+          )
+        );
+
+      match /postFlames/{postId} {
+        allow get, list: if signedIn()
+          && request.auth.uid == uid;
+
+        allow create, update, delete: if false;
+      }
+
+match /savedPosts/{postId} {
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
+
+  allow create, update, delete: if false;
+}
+
+match /homeFeed/{postId} {
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
+
+  allow create, update, delete: if false;
+}
+
+match /profileFeed/{postId} {
+  allow get, list: if resource.data.authorId == uid
+    && resource.data.isDeleted == false;
+
+  allow create, update, delete: if false;
+}
+
+      match /commentFlames/{flameId} {
+        allow get, list: if signedIn()
+          && request.auth.uid == uid;
+
+        allow create, update, delete: if false;
+      }
+      
+      match /groupMemberships/{groupId} {
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
+
+  allow create, update: if signedIn()
+    && request.auth.uid == uid
+    && request.resource.data.userId == uid
+    && request.resource.data.groupId == groupId
+    && request.resource.data.status in ["active", "subscribed", "muted"]
+    && request.resource.data.roleInGroup in ["member", "mod", "moderator", "owner"]
+    && (
+      !("accessType" in request.resource.data)
+      || validMembershipAccessType(request.resource.data.accessType)
+    )
+    && (
+      !("requiresSubscription" in request.resource.data)
+      || request.resource.data.requiresSubscription is bool
+    )
+    && (
+      !("subscriptionActive" in request.resource.data)
+      || request.resource.data.subscriptionActive is bool
+    );
+
+  allow delete: if signedIn()
+    && request.auth.uid == uid;
+}
+
+      allow delete: if false;
+    }
+
+    match /handles/{handle} {
+      allow get, list: if true;
+
+      allow create: if signedIn()
+        && validHandle(handle)
+        && request.resource.data.uid == request.auth.uid
+        && !exists(/databases/$(database)/documents/handles/$(handle));
+
+      allow update, delete: if false;
+    }
+
+    // ==========================
+    // HELPERS GROUPS
+    // ==========================
+    function groupDoc(groupId) {
+      return get(/databases/$(database)/documents/groups/$(groupId));
+    }
+
+    function groupExists(groupId) {
+      return exists(/databases/$(database)/documents/groups/$(groupId));
+    }
+
+    function groupIsActive(groupId) {
+      return groupExists(groupId)
+        && (
+          !("isActive" in groupDoc(groupId).data)
+          || groupDoc(groupId).data.isActive == true
+        );
+    }
+
+    function memberDoc(groupId, uid) {
+      return get(/databases/$(database)/documents/groups/$(groupId)/members/$(uid));
+    }
+
+    function memberExists(groupId, uid) {
+      return exists(/databases/$(database)/documents/groups/$(groupId)/members/$(uid));
+    }
+
+    function isGroupPublic(groupId) {
+      return groupExists(groupId)
+        && groupDoc(groupId).data.visibility == "public";
+    }
+
+    function groupVisibility(groupId) {
+      return !groupExists(groupId)
+        ? null
+        : groupDoc(groupId).data.visibility;
+    }
+
+    function groupSubscriptionsEnabled(groupId) {
+      return groupExists(groupId)
+        && ("monetization" in groupDoc(groupId).data)
+        && groupDoc(groupId).data.monetization is map
+        && (
+          (
+            "subscriptionsEnabled" in groupDoc(groupId).data.monetization
+            && groupDoc(groupId).data.monetization.subscriptionsEnabled == true
+          )
+          || (
+            "isPaid" in groupDoc(groupId).data.monetization
+            && groupDoc(groupId).data.monetization.isPaid == true
+          )
+        );
+    }
+
+    function groupRequiresJoinRequest(groupId) {
+      return groupExists(groupId)
+        && groupVisibility(groupId) == "private"
+        && !groupSubscriptionsEnabled(groupId);
+    }
+
+    function isOwner(groupId) {
+      return signedIn()
+        && groupExists(groupId)
+        && groupDoc(groupId).data.ownerId == request.auth.uid;
+    }
+
+    function memberRole(groupId, uid) {
+      return !signedIn() || !memberExists(groupId, uid)
+        ? null
+        : (
+          "roleInGroup" in memberDoc(groupId, uid).data
+            ? memberDoc(groupId, uid).data.roleInGroup
+            : (
+              "role" in memberDoc(groupId, uid).data
+                ? memberDoc(groupId, uid).data.role
+                : "member"
+            )
+        );
+    }
+
+    function rawMemberStatus(groupId, uid) {
+      return !signedIn() || !memberExists(groupId, uid)
+        ? null
+        : (
+          memberDoc(groupId, uid).data.status is string
+            ? memberDoc(groupId, uid).data.status
+            : "active"
+        );
+    }
+
+    function effectiveMemberStatus(groupId, uid) {
+      return !signedIn() || !memberExists(groupId, uid)
+        ? null
+        : (
+          rawMemberStatus(groupId, uid) == "banned"
+            ? "banned"
+            : (
+              rawMemberStatus(groupId, uid) == "removed"
+                ? "removed"
+                : (
+                  rawMemberStatus(groupId, uid) == "kicked"
+                    ? "removed"
+                    : (
+                      rawMemberStatus(groupId, uid) == "expelled"
+                        ? "removed"
+                        : (
+                          rawMemberStatus(groupId, uid) == "muted"
+                          && (
+                            !("mutedUntil" in memberDoc(groupId, uid).data)
+                            || memberDoc(groupId, uid).data.mutedUntil == null
+                            || memberDoc(groupId, uid).data.mutedUntil > request.time
+                          )
+                            ? "muted"
+                            : (
+                              rawMemberStatus(groupId, uid) == "subscribed"
+                                ? "subscribed"
+                                : "active"
+                            )
+                        )
+                    )
+                )
+            )
+        );
+    }
+
+    function isReadableMemberStatus(status) {
+      return status == "active"
+        || status == "subscribed"
+        || status == "muted";
+    }
+
+    function isMember(groupId) {
+      return signedIn()
+        && isReadableMemberStatus(effectiveMemberStatus(groupId, request.auth.uid));
+    }
+
+    function isActiveMember(groupId) {
+      return signedIn()
+        && effectiveMemberStatus(groupId, request.auth.uid) == "active";
+    }
+
+    function isSubscribedMember(groupId) {
+      return signedIn()
+        && effectiveMemberStatus(groupId, request.auth.uid) == "subscribed";
+    }
+
+    function isMutedMember(groupId) {
+      return signedIn()
+        && effectiveMemberStatus(groupId, request.auth.uid) == "muted";
+    }
+
+    function isBannedMember(groupId) {
+      return signedIn()
+        && effectiveMemberStatus(groupId, request.auth.uid) == "banned";
+    }
+
+    function isRemovedMember(groupId) {
+      return signedIn()
+        && effectiveMemberStatus(groupId, request.auth.uid) == "removed";
+    }
+
+    function isModerator(groupId) {
+      return signedIn()
+        && memberExists(groupId, request.auth.uid)
+        && memberRole(groupId, request.auth.uid) in ["mod", "moderator"]
+        && isReadableMemberStatus(effectiveMemberStatus(groupId, request.auth.uid));
+    }
+
+    function canModerateGroup(groupId) {
+      return isOwner(groupId) || isModerator(groupId);
+    }
+        function membersListVisibility(groupId) {
+      return !groupExists(groupId)
+        ? "owner_only"
+        : (
+          !("settings" in groupDoc(groupId).data)
+          || groupDoc(groupId).data.settings == null
+          || !("membersListVisibility" in groupDoc(groupId).data.settings)
+        )
+          ? "owner_only"
+          : groupDoc(groupId).data.settings.membersListVisibility;
+    }
+
+    function canMemberListBeSeen(groupId) {
+      return signedIn()
+        && isMember(groupId)
+        && membersListVisibility(groupId) == "members";
+    }
+
+    function commentsEnabled(groupId) {
+      return !groupExists(groupId)
+        ? true
+        : (
+          !("permissions" in groupDoc(groupId).data)
+          || groupDoc(groupId).data.permissions == null
+          || !("commentsEnabled" in groupDoc(groupId).data.permissions)
+        )
+          ? true
+          : groupDoc(groupId).data.permissions.commentsEnabled == true;
+    }
+    
+function postingMode(groupId) {
+  return !groupExists(groupId)
+    ? "members"
+    : (
+      !("permissions" in groupDoc(groupId).data)
+      || groupDoc(groupId).data.permissions == null
+      || !("postingMode" in groupDoc(groupId).data.permissions)
+      || groupDoc(groupId).data.permissions.postingMode != "owner_only"
+    )
+      ? "members"
+      : "owner_only";
+}
+
+    function canReadGroupContent(groupId) {
+      return groupIsActive(groupId)
+        && (
+          isGroupPublic(groupId)
+          || isMember(groupId)
+          || isOwner(groupId)
+          || isModerator(groupId)
+        );
+    }
+
+    function canPostInGroup(groupId) {
+      let mode = postingMode(groupId);
+
+      return groupIsActive(groupId)
+        && (
+          isOwner(groupId)
+          || (
+            (isActiveMember(groupId) || isSubscribedMember(groupId))
+            && mode == "members"
+          )
+        );
+    }
+
+    function canCommentInGroup(groupId) {
+      return groupIsActive(groupId)
+        && (
+          isOwner(groupId)
+          || (
+            (isActiveMember(groupId) || isSubscribedMember(groupId))
+            && commentsEnabled(groupId)
+          )
+        );
+    }
+    
+function canWriteGroupComment(groupId) {
+  return signedIn()
+    && groupIsActive(groupId)
+    && commentsEnabled(groupId)
+    && (
+      isOwner(groupId)
+      || isModerator(groupId)
+      || isActiveMember(groupId)
+      || isSubscribedMember(groupId)
+    );
+}
+    // ==========================
+    // OFFERINGS VALIDATION
+    // ==========================
+    function validOfferingType(type) {
+      return type in [
+        "suscripcion",
+        "saludo",
+        "consejo",
+        "clase_personalizada",
+        "meet_greet_digital",
+        "donacion",
+        "mensaje"
+      ];
+    }
+
+    function validOfferingVisibility(value) {
+      return value in ["hidden", "members", "public"];
+    }
+
+    function validOfferingSourceScope(value) {
+      return value in ["group", "profile", "both"];
+    }
+
+    function validSubscriptionMeta(meta) {
+      return meta == null
+        || (
+          meta is map
+          && (
+            !("billingPeriod" in meta)
+            || meta.billingPeriod == null
+            || meta.billingPeriod in ["monthly"]
+          )
+        );
+    }
+
+    function validMeetGreetMeta(meta) {
+      return meta == null
+        || (
+          meta is map
+          && (
+            !("durationMinutes" in meta)
+            || meta.durationMinutes == null
+            || (
+              meta.durationMinutes is number
+              && meta.durationMinutes > 0
+            )
+          )
+        );
+    }
+
+    function validCustomClassMeta(meta) {
+      return meta == null
+        || (
+          meta is map
+          && (
+            !("durationMinutes" in meta)
+            || meta.durationMinutes == null
+            || (meta.durationMinutes is number && meta.durationMinutes > 0)
+          )
+          && (
+            !("availability" in meta)
+            || meta.availability == null
+            || meta.availability is map
+          )
+          && (
+            !("vacations" in meta)
+            || meta.vacations == null
+            || meta.vacations is list
+          )
+        );
+    }
+
+    function validOfferingMeta(o) {
+      return !("meta" in o)
+        || o.meta == null
+        || o.meta is map;
+    }
+
+    function offeringItemValid(o) {
+      return o is map
+        && ("type" in o)
+        && validOfferingType(o.type)
+
+        && (!("enabled" in o) || o.enabled is bool)
+        && (!("visible" in o) || o.visible is bool)
+
+        && (
+          !("visibility" in o)
+          || o.visibility == null
+          || validOfferingVisibility(o.visibility)
+        )
+
+        && (
+          !("sourceScope" in o)
+          || o.sourceScope == null
+          || validOfferingSourceScope(o.sourceScope)
+        )
+
+        && (
+          !("meta" in o)
+          || o.meta == null
+          || o.meta is map
+        );
+    }
+
+    function offeringsValid(data) {
+      return !("offerings" in data)
+        || data.offerings == null
+        || (
+          data.offerings is list
+          && data.offerings.size() <= 10
+          && (data.offerings.size() < 1 || data.offerings[0] is map)
+          && (data.offerings.size() < 2 || data.offerings[1] is map)
+          && (data.offerings.size() < 3 || data.offerings[2] is map)
+          && (data.offerings.size() < 4 || data.offerings[3] is map)
+          && (data.offerings.size() < 5 || data.offerings[4] is map)
+          && (data.offerings.size() < 6 || data.offerings[5] is map)
+          && (data.offerings.size() < 7 || data.offerings[6] is map)
+          && (data.offerings.size() < 8 || data.offerings[7] is map)
+          && (data.offerings.size() < 9 || data.offerings[8] is map)
+          && (data.offerings.size() < 10 || data.offerings[9] is map)
+        );
+    }
+
+    function offeringsValidForUpdate(data) {
+      return !("offerings" in data)
+        || data.offerings == null
+        || (
+          data.offerings is list
+          && data.offerings.size() <= 10
+          && (data.offerings.size() < 1 || offeringItemValid(data.offerings[0]))
+          && (data.offerings.size() < 2 || offeringItemValid(data.offerings[1]))
+          && (data.offerings.size() < 3 || offeringItemValid(data.offerings[2]))
+          && (data.offerings.size() < 4 || offeringItemValid(data.offerings[3]))
+          && (data.offerings.size() < 5 || offeringItemValid(data.offerings[4]))
+          && (data.offerings.size() < 6 || offeringItemValid(data.offerings[5]))
+          && (data.offerings.size() < 7 || offeringItemValid(data.offerings[6]))
+          && (data.offerings.size() < 8 || offeringItemValid(data.offerings[7]))
+          && (data.offerings.size() < 9 || offeringItemValid(data.offerings[8]))
+          && (data.offerings.size() < 10 || offeringItemValid(data.offerings[9]))
+        );
+    }
+
+    // ==========================
+    // DONATION VALIDATION
+    // ==========================
+    function validDonationMode(mode) {
+      return mode in ["none", "general", "wedding"];
+    }
+
+    function validDonationSourceScope(scope) {
+      return scope in ["group", "profile"];
+    }
+
+    function validDonationSuggestedAmounts(listValue) {
+      return listValue == null
+        || (
+          listValue is list
+          && listValue.size() <= 12
+          && (listValue.size() < 1 || validPositiveNumberOrNull(listValue[0]))
+          && (listValue.size() < 2 || validPositiveNumberOrNull(listValue[1]))
+          && (listValue.size() < 3 || validPositiveNumberOrNull(listValue[2]))
+          && (listValue.size() < 4 || validPositiveNumberOrNull(listValue[3]))
+          && (listValue.size() < 5 || validPositiveNumberOrNull(listValue[4]))
+          && (listValue.size() < 6 || validPositiveNumberOrNull(listValue[5]))
+          && (listValue.size() < 7 || validPositiveNumberOrNull(listValue[6]))
+          && (listValue.size() < 8 || validPositiveNumberOrNull(listValue[7]))
+          && (listValue.size() < 9 || validPositiveNumberOrNull(listValue[8]))
+          && (listValue.size() < 10 || validPositiveNumberOrNull(listValue[9]))
+          && (listValue.size() < 11 || validPositiveNumberOrNull(listValue[10]))
+          && (listValue.size() < 12 || validPositiveNumberOrNull(listValue[11]))
+        );
+    }
+
+    function donationValid(data) {
+      return !("donation" in data)
+        || data.donation == null
+        || (
+          data.donation is map
+          && (!("mode" in data.donation) || validDonationMode(data.donation.mode))
+          && (!("enabled" in data.donation) || data.donation.enabled is bool)
+          && (!("visible" in data.donation) || data.donation.visible is bool)
+          && (!("currency" in data.donation) || data.donation.currency == null || validCurrency(data.donation.currency))
+          && (!("sourceScope" in data.donation) || validDonationSourceScope(data.donation.sourceScope))
+          && (!("title" in data.donation) || validNullableString(data.donation.title))
+          && (!("description" in data.donation) || validNullableString(data.donation.description))
+          && (!("goalLabel" in data.donation) || validNullableString(data.donation.goalLabel))
+          && (!("suggestedAmounts" in data.donation) || validDonationSuggestedAmounts(data.donation.suggestedAmounts))
+        );
+    }
+
+    function donationValidForUpdate(data) {
+      return !("donation" in data)
+        || data.donation == null
+        || (
+          data.donation is map
+          && (!("mode" in data.donation) || validDonationMode(data.donation.mode))
+          && (!("enabled" in data.donation) || data.donation.enabled is bool)
+          && (!("visible" in data.donation) || data.donation.visible is bool)
+          && (!("currency" in data.donation) || data.donation.currency == null || validCurrency(data.donation.currency))
+          && (!("sourceScope" in data.donation) || validDonationSourceScope(data.donation.sourceScope))
+          && (!("title" in data.donation) || validNullableString(data.donation.title))
+          && (!("description" in data.donation) || validNullableString(data.donation.description))
+          && (!("goalLabel" in data.donation) || validNullableString(data.donation.goalLabel))
+          && (!("suggestedAmounts" in data.donation) || validDonationSuggestedAmounts(data.donation.suggestedAmounts))
+        );
+    }
+
+    // ==========================
+    // MONETIZATION TRANSITIONS
+    // ==========================
+    function validFreeToSubscriptionPolicy(value) {
+      return value in ["legacy_free", "require_subscription"];
+    }
+
+    function validSubscriptionToFreePolicy(value) {
+      return value in ["keep_members_free", "remove_all_members"];
+    }
+
+    function validMonetizationTransitions(transitions) {
+      return transitions == null
+        || (
+          transitions is map
+          && (
+            !("freeToSubscriptionPolicy" in transitions)
+            || transitions.freeToSubscriptionPolicy == null
+            || validFreeToSubscriptionPolicy(transitions.freeToSubscriptionPolicy)
+          )
+          && (
+            !("subscriptionToFreePolicy" in transitions)
+            || transitions.subscriptionToFreePolicy == null
+            || validSubscriptionToFreePolicy(transitions.subscriptionToFreePolicy)
+          )
+          && (
+            !("lastMonetizationChangeBy" in transitions)
+            || transitions.lastMonetizationChangeBy == null
+            || transitions.lastMonetizationChangeBy is string
+          )
+        );
+    }
+
+    function validSubscriptionVisibilityPolicy(data) {
+      return !("monetization" in data)
+        || data.monetization == null
+        || (
+          !(("subscriptionsEnabled" in data.monetization) && data.monetization.subscriptionsEnabled == true)
+          && !(("isPaid" in data.monetization) && data.monetization.isPaid == true)
+        )
+        || data.visibility in ["private", "hidden"];
+    }
+
+    // ==========================
+    // GROUP SHAPE HELPERS
+    // ==========================
+    function validPermissionsForCreate(data) {
+      return !("permissions" in data)
+        || data.permissions == null
+        || (
+          data.permissions is map
+          && (!("commentsEnabled" in data.permissions) || data.permissions.commentsEnabled is bool)
+          && (!("postingMode" in data.permissions) || data.permissions.postingMode in ["members", "owner_only"])
+        );
+    }
+
+    function validMonetizationForCreate(data) {
+      return !("monetization" in data)
+        || data.monetization == null
+        || (
+          data.monetization is map
+          // legacy
+          && (!("isPaid" in data.monetization) || data.monetization.isPaid is bool)
+          && (!("priceMonthly" in data.monetization) || validNonNegativeNumberOrNull(data.monetization.priceMonthly))
+          && (!("currency" in data.monetization) || data.monetization.currency == null || validCurrency(data.monetization.currency))
+          // new structural flags
+          && (!("subscriptionsEnabled" in data.monetization) || data.monetization.subscriptionsEnabled is bool)
+          && (!("subscriptionPriceMonthly" in data.monetization) || validNonNegativeNumberOrNull(data.monetization.subscriptionPriceMonthly))
+          && (!("subscriptionCurrency" in data.monetization) || data.monetization.subscriptionCurrency == null || validCurrency(data.monetization.subscriptionCurrency))
+          && (!("paidPostsEnabled" in data.monetization) || data.monetization.paidPostsEnabled is bool)
+          && (!("paidLivesEnabled" in data.monetization) || data.monetization.paidLivesEnabled is bool)
+          && (!("paidVodEnabled" in data.monetization) || data.monetization.paidVodEnabled is bool)
+          && (!("paidLiveCommentsEnabled" in data.monetization) || data.monetization.paidLiveCommentsEnabled is bool)
+          && (!("greetingsEnabled" in data.monetization) || data.monetization.greetingsEnabled is bool)
+          && (!("adviceEnabled" in data.monetization) || data.monetization.adviceEnabled is bool)
+          && (!("customClassEnabled" in data.monetization) || data.monetization.customClassEnabled is bool)
+          && (!("digitalMeetGreetEnabled" in data.monetization) || data.monetization.digitalMeetGreetEnabled is bool)
+          && (!("transitions" in data.monetization) || validMonetizationTransitions(data.monetization.transitions))
+        )
+        && validSubscriptionVisibilityPolicy(data);
+    }
+
+    function validMonetizationForUpdate(data) {
+      return !("monetization" in data)
+        || data.monetization == null
+        || (
+          data.monetization is map
+          && (!("isPaid" in data.monetization) || data.monetization.isPaid is bool)
+          && (!("priceMonthly" in data.monetization) || validNonNegativeNumberOrNull(data.monetization.priceMonthly))
+          && (!("currency" in data.monetization) || data.monetization.currency == null || validCurrency(data.monetization.currency))
+          && (!("subscriptionsEnabled" in data.monetization) || data.monetization.subscriptionsEnabled is bool)
+          && (!("subscriptionPriceMonthly" in data.monetization) || validNonNegativeNumberOrNull(data.monetization.subscriptionPriceMonthly))
+          && (!("subscriptionCurrency" in data.monetization) || data.monetization.subscriptionCurrency == null || validCurrency(data.monetization.subscriptionCurrency))
+          && (!("paidPostsEnabled" in data.monetization) || data.monetization.paidPostsEnabled is bool)
+          && (!("paidLivesEnabled" in data.monetization) || data.monetization.paidLivesEnabled is bool)
+          && (!("paidVodEnabled" in data.monetization) || data.monetization.paidVodEnabled is bool)
+          && (!("paidLiveCommentsEnabled" in data.monetization) || data.monetization.paidLiveCommentsEnabled is bool)
+          && (!("greetingsEnabled" in data.monetization) || data.monetization.greetingsEnabled is bool)
+          && (!("adviceEnabled" in data.monetization) || data.monetization.adviceEnabled is bool)
+          && (!("customClassEnabled" in data.monetization) || data.monetization.customClassEnabled is bool)
+          && (!("digitalMeetGreetEnabled" in data.monetization) || data.monetization.digitalMeetGreetEnabled is bool)
+          && (!("transitions" in data.monetization) || validMonetizationTransitions(data.monetization.transitions))
+        )
+        && validSubscriptionVisibilityPolicy(data);
+    }
+
+    function validSettingsForCreate(data) {
+      return !("settings" in data)
+        || data.settings == null
+        || (
+          data.settings is map
+          && (!("membersListVisibility" in data.settings) || data.settings.membersListVisibility in ["owner_only", "members"])
+        );
+    }
+    
+    function validGroupSearchIndex(search) {
+  return search == null
+    || (
+      search is map
+      && (!("nameNormalized" in search) || search.nameNormalized is string)
+      && (!("descriptionNormalized" in search) || search.descriptionNormalized is string)
+      && (!("categoryNormalized" in search) || search.categoryNormalized == null || search.categoryNormalized is string)
+      && (!("categoryLabelNormalized" in search) || search.categoryLabelNormalized is string)
+      && (!("tagsNormalized" in search) || search.tagsNormalized is list)
+      && (!("tokens" in search) || search.tokens is list)
+      && (!("prefixes" in search) || search.prefixes is list)
+      && (!("visibility" in search) || search.visibility in ["public", "private", "hidden"])
+      && (!("discoverable" in search) || search.discoverable is bool)
+      && (!("isActive" in search) || search.isActive is bool)
+      && (!("updatedAt" in search) || search.updatedAt is timestamp)
+      && (!("version" in search) || search.version == 1)
+    );
+}
+
+function validPostSearchIndex(search) {
+  return search == null
+    || (
+      search is map
+
+      && (!("textNormalized" in search) || search.textNormalized is string)
+      && (!("tokens" in search) || search.tokens is list)
+      && (!("prefixes" in search) || search.prefixes is list)
+
+      && (!("groupId" in search) || search.groupId == request.resource.data.groupId)
+      && (!("authorId" in search) || search.authorId == request.resource.data.authorId)
+
+      && (!("visibility" in search) || search.visibility in ["public", "private", "hidden"])
+      && (!("accessScope" in search) || search.accessScope in ["group", "profile"])
+
+      && (!("isDeleted" in search) || search.isDeleted == request.resource.data.isDeleted)
+
+      && (!("createdAt" in search) || search.createdAt is timestamp)
+      && (!("updatedAt" in search) || search.updatedAt is timestamp)
+
+      && (!("version" in search) || search.version == 1)
+    );
+}
+
+    function validGroupCreateShape(data) {
+      return data.ownerId == request.auth.uid
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 80
+        && (!("description" in data) || (data.description is string && data.description.size() <= 2000))
+        && data.visibility in ["public", "private", "hidden"]
+        && (!("discoverable" in data) || data.discoverable is bool)
+        && (!("isActive" in data) || data.isActive == true)
+        && validPermissionsForCreate(data)
+        && validMonetizationForCreate(data)
+        && validSettingsForCreate(data)
+        && offeringsValid(data)
+        && donationValid(data)
+&& (!("imageUrl" in data) || data.imageUrl == null || data.imageUrl is string)
+&& (!("coverUrl" in data) || data.coverUrl == null || data.coverUrl is string)
+&& (!("avatarUrl" in data) || data.avatarUrl == null || data.avatarUrl is string)
+&& (!("category" in data) || data.category is string)
+        && (!("tags" in data) || data.tags is list)
+&& (!("search" in data) || validGroupSearchIndex(data.search))
+&& (!("welcomeMessage" in data) || data.welcomeMessage == null || data.welcomeMessage is string)
+        && (!("ageMin" in data) || data.ageMin == null || data.ageMin is number)
+        && (!("ageMax" in data) || data.ageMax == null || data.ageMax is number);
+    }
+
+    // ==========================
+    // MEMBER SHAPE / ACCESS
+    // ==========================
+    function validMembershipAccessType(value) {
+      return value in [
+        "standard",
+        "subscription",
+        "legacy_free",
+        "requires_subscription"
+      ];
+    }
+
+    function validMemberCreateShape(groupId, userId) {
+      return request.resource.data.userId == userId
+        && (
+          request.resource.data.roleInGroup == "member"
+          || (
+            request.resource.data.roleInGroup == "owner"
+            && groupDoc(groupId).data.ownerId == request.auth.uid
+          )
+        )
+        && request.resource.data.status in ["active", "subscribed"]
+        && (
+          !("accessType" in request.resource.data)
+          || validMembershipAccessType(request.resource.data.accessType)
+        )
+        && (!("requiresSubscription" in request.resource.data) || request.resource.data.requiresSubscription is bool)
+        && (!("subscriptionActive" in request.resource.data) || request.resource.data.subscriptionActive is bool)
+        && (!("subscriptionPriceMonthly" in request.resource.data) || validNonNegativeNumberOrNull(request.resource.data.subscriptionPriceMonthly))
+        && (!("subscriptionCurrency" in request.resource.data) || request.resource.data.subscriptionCurrency == null || validCurrency(request.resource.data.subscriptionCurrency))
+        && (
+          // join normal en grupo público gratis
+          (
+            groupVisibility(groupId) == "public"
+            && request.resource.data.status == "active"
+            && (
+              !("accessType" in request.resource.data)
+              || request.resource.data.accessType == "standard"
+            )
+            && (
+              !("requiresSubscription" in request.resource.data)
+              || request.resource.data.requiresSubscription == false
+            )
+          )
+          ||
+          // join por suscripción en grupo privado/oculto con monetización activa
+          (
+            groupVisibility(groupId) in ["private", "hidden"]
+            && groupSubscriptionsEnabled(groupId)
+            && request.resource.data.status == "subscribed"
+            && (
+              !("accessType" in request.resource.data)
+              || request.resource.data.accessType == "subscription"
+            )
+          )
+          ||
+          // owner creando/inicializando casos especiales desde cliente
+          isOwner(groupId)
+        );
+    }
+        // ==========================
+    // GROUPS
+    // ==========================
+    match /groups/{groupId} {
+
+      allow get: if
+        resource.data.visibility == "public"
+        || resource.data.visibility == "private"
+        || (signedIn() && resource.data.ownerId == request.auth.uid)
+        || isMember(groupId)
+        || isOwner(groupId)
+        || isModerator(groupId);
+
+allow list: if
+  (
+    resource.data.search.isActive == true
+    && resource.data.search.discoverable == true
+    && resource.data.search.visibility in ["public", "private"]
+  )
+  || (signedIn() && resource.data.ownerId == request.auth.uid)
+  || resource.data.visibility == "public"
+  || resource.data.visibility == "private"
+  || isMember(groupId)
+  || isOwner(groupId)
+  || isModerator(groupId);
+
+      allow create: if signedIn()
+        && validGroupCreateShape(request.resource.data);
+
+      allow update: if isOwner(groupId)
+        && isValidGroupUpdate(groupId);
+
+      allow delete: if false;
+
+      function isValidGroupUpdate(groupId) {
+        let allowedKeys = [
+          "name",
+          "description",
+          "visibility",
+          "discoverable",
+          "category",
+          "tags",
+          "greetingsEnabled",
+          "welcomeMessage",
+          "ageMin",
+          "ageMax",
+          "permissions",
+          "monetization",
+          "coverUrl",
+          "avatarUrl",
+          "offerings",
+          "donation",
+          "settings",
+          "isActive",
+          "search",
+          "updatedAt"
+        ];
+
+        let changed = request.resource.data.diff(resource.data).changedKeys();
+
+        let commerceOnlyKeys = [
+          "greetingsEnabled",
+          "monetization",
+          "offerings",
+          "donation",
+          "updatedAt"
+        ];
+
+        let isCommerceOnlyUpdate = changed.hasOnly(commerceOnlyKeys);
+
+        return changed.hasOnly(allowedKeys)
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.createdAt == resource.data.createdAt
+
+          && request.resource.data.name is string
+          && request.resource.data.name.size() >= 1
+          && request.resource.data.name.size() <= 80
+
+          && (
+            !("description" in request.resource.data)
+            || (
+              request.resource.data.description is string
+              && request.resource.data.description.size() <= 2000
+            )
+          )
+
+          && request.resource.data.visibility in ["public", "private", "hidden"]
+          && (!("discoverable" in request.resource.data) || request.resource.data.discoverable is bool)
+          && (!("isActive" in request.resource.data) || request.resource.data.isActive is bool)
+          && (!("search" in request.resource.data) || validGroupSearchIndex(request.resource.data.search))
+          && (
+            isCommerceOnlyUpdate
+            ||
+            (
+              (!changed.hasAny(["permissions"]) || validPermissionsForCreate(request.resource.data))
+              && (!changed.hasAny(["monetization"]) || validMonetizationForUpdate(request.resource.data))
+              && (!changed.hasAny(["settings"]) || validSettingsForCreate(request.resource.data))
+              && (!changed.hasAny(["offerings"]) || offeringsValidForUpdate(request.resource.data))
+              && (!changed.hasAny(["donation"]) || donationValidForUpdate(request.resource.data))
+            )
+          )
+
+          && validSubscriptionVisibilityPolicy(request.resource.data);
+      }
+
+      match /members/{userId} {
+        allow get: if signedIn()
+          && (
+            request.auth.uid == userId
+            || canModerateGroup(groupId)
+            || canMemberListBeSeen(groupId)
+          );
+
+allow list: if signedIn()
+  && (
+    request.auth.uid == resource.data.userId
+    || (
+      exists(/databases/$(database)/documents/groups/$(groupId))
+      && (
+        get(/databases/$(database)/documents/groups/$(groupId)).data.visibility in ["public", "private"]
+        || canModerateGroup(groupId)
+      )
+      && (
+        !("isActive" in get(/databases/$(database)/documents/groups/$(groupId)).data)
+        || get(/databases/$(database)/documents/groups/$(groupId)).data.isActive == true
+      )
+    )
+  );
+
+        allow create: if signedIn()
+          && request.auth.uid == userId
+          && groupIsActive(groupId)
+          && !exists(/databases/$(database)/documents/groups/$(groupId)/members/$(userId))
+          && validMemberCreateShape(groupId, userId)
+          && (
+            groupVisibility(groupId) == "public"
+            || groupDoc(groupId).data.ownerId == request.auth.uid
+            || (
+              groupVisibility(groupId) in ["private", "hidden"]
+              && groupSubscriptionsEnabled(groupId)
+            )
+          );
+
+        allow delete: if signedIn()
+          && request.auth.uid == userId
+          && groupDoc(groupId).data.ownerId != request.auth.uid;
+
+        allow update: if false;
+      }
+
+      match /joinRequests/{reqId} {
+        allow get: if signedIn()
+          && (
+            request.auth.uid == reqId
+            || canModerateGroup(groupId)
+          );
+
+        allow list: if signedIn()
+          && canModerateGroup(groupId);
+
+        allow create: if signedIn()
+          && request.auth.uid == reqId
+          && groupRequiresJoinRequest(groupId)
+          && groupIsActive(groupId)
+          && request.resource.data.userId == reqId
+          && request.resource.data.status == "pending";
+
+        allow delete: if signedIn()
+          && request.auth.uid == reqId
+          && resource.data.status == "pending";
+
+        allow update: if false;
+      }
+
+      match /inviteLinks/{linkId} {
+        allow read, write: if false;
+      }
+    }
+
+    // ==========================
+    // GREETING REQUESTS
+    // ==========================
+    match /greetingRequests/{requestId} {
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+
+      allow get: if signedIn()
+        && (
+          resource.data.buyerId == request.auth.uid
+          || resource.data.creatorId == request.auth.uid
+        );
+
+      allow list: if signedIn()
+        && (
+          resource.data.buyerId == request.auth.uid
+          || resource.data.creatorId == request.auth.uid
+        );
+    }
+
+    // ==========================
+    // MEET & GREET REQUESTS
+    // ==========================
+    match /meetGreetRequests/{requestId} {
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+
+      allow get: if signedIn()
+        && (
+          resource.data.buyerId == request.auth.uid
+          || resource.data.creatorId == request.auth.uid
+        );
+
+      allow list: if signedIn()
+        && (
+          resource.data.buyerId == request.auth.uid
+          || resource.data.creatorId == request.auth.uid
+        );
+    }
+
+    // ==========================
+    // CUSTOM CLASS REQUESTS
+    // ==========================
+    match /customClassRequests/{requestId} {
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+
+      allow get: if signedIn()
+        && (
+          resource.data.buyerId == request.auth.uid
+          || resource.data.creatorId == request.auth.uid
+        );
+
+      allow list: if signedIn()
+        && (
+          resource.data.buyerId == request.auth.uid
+          || resource.data.creatorId == request.auth.uid
+        );
+    }
+
+    // ==========================
+    // EXCLUSIVE SESSION REQUESTS
+    // ==========================
+    match /exclusiveSessionRequests/{requestId} {
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+
+      allow get: if signedIn()
+        && (
+          resource.data.buyerId == request.auth.uid
+          || resource.data.creatorId == request.auth.uid
+        );
+
+      allow list: if signedIn()
+        && (
+          resource.data.buyerId == request.auth.uid
+          || resource.data.creatorId == request.auth.uid
+        );
+    }
+
+    // ==========================
+    // POSTS
+    // ==========================
+match /posts/{postId} {
+
+function canReadPublicSharedPost() {
+  return resource.data.isDeleted == false
+    && resource.data.groupId is string
+    && resource.data.groupVisibility == "public"
+
+    && (
+      !("search" in resource.data)
+      || (
+        resource.data.search is map
+        && (
+          !("visibility" in resource.data.search)
+          || resource.data.search.visibility == "public"
+        )
+      )
+    )
+
+    && (
+      !("isShareable" in resource.data)
+      || resource.data.isShareable == true
+    )
+
+    && (
+      !("accessModel" in resource.data)
+      || resource.data.accessModel == "free"
+    )
+
+    && (
+      !("requiresPayment" in resource.data)
+      || resource.data.requiresPayment == false
+    )
+
+    && (
+      !("requiresSubscription" in resource.data)
+      || resource.data.requiresSubscription == false
+    );
+}
+
+function canReadPost() {
+  return resource.data.isDeleted == false
+    && resource.data.groupId is string
+    && (
+      canReadPublicSharedPost()
+      || canReadGroupContent(resource.data.groupId)
+      || (
+        signedIn()
+        && resource.data.authorId == request.auth.uid
+      )
+    );
+}
+
+      function validCreatePost() {
+        return signedIn()
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.groupId is string
+          && canPostInGroup(request.resource.data.groupId)
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 5000
+          && (
+            request.resource.data.text.size() >= 1
+            || (
+              "media" in request.resource.data
+              && request.resource.data.media is list
+              && request.resource.data.media.size() > 0
+            )
+          )
+          && request.resource.data.isDeleted == false
+          && (!("isShareable" in request.resource.data) || request.resource.data.isShareable is bool)
+          && (!("publicSlug" in request.resource.data) || request.resource.data.publicSlug == null || request.resource.data.publicSlug is string)
+          && (!("shareTitle" in request.resource.data) || request.resource.data.shareTitle == null || request.resource.data.shareTitle is string)
+          && (!("shareDescription" in request.resource.data) || request.resource.data.shareDescription == null || request.resource.data.shareDescription is string)
+          && (!("shareImageUrl" in request.resource.data) || request.resource.data.shareImageUrl == null || request.resource.data.shareImageUrl is string)
+          && (!("access" in request.resource.data) || request.resource.data.access in ["free", "paid"])
+          && (
+  !("media" in request.resource.data)
+  || (
+    request.resource.data.media is list
+    && request.resource.data.media.size() <= 10
+  )
+)
+&& (
+  !("counts" in request.resource.data)
+  || (
+    request.resource.data.counts is map
+    && (
+      !("comments" in request.resource.data.counts)
+      || (
+        request.resource.data.counts.comments is int
+        && request.resource.data.counts.comments >= 0
+      )
+    )
+    && (
+      !("likes" in request.resource.data.counts)
+      || (
+        request.resource.data.counts.likes is int
+        && request.resource.data.counts.likes >= 0
+      )
+    )
+    && (
+      !("saves" in request.resource.data.counts)
+      || (
+        request.resource.data.counts.saves is int
+        && request.resource.data.counts.saves >= 0
+      )
+    )
+  )
+)
+
+&& (
+  !("search" in request.resource.data)
+  || request.resource.data.search is map
+);
+      }
+
+      function canSoftDeletePost() {
+return signedIn()
+  && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+    "isDeleted",
+    "deletedAt",
+    "updatedAt",
+    "search"
+  ])
+          && request.resource.data.isDeleted == true
+          && resource.data.isDeleted == false
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.groupId == resource.data.groupId
+          && request.resource.data.text == resource.data.text
+          && (
+            resource.data.authorId == request.auth.uid
+            || canModerateGroup(resource.data.groupId)
+          );
+      }
+
+function currentPostCommentCount() {
+  return ("counts" in resource.data)
+    && resource.data.counts is map
+    && ("comments" in resource.data.counts)
+    && resource.data.counts.comments is int
+      ? resource.data.counts.comments
+      : 0;
+}
+
+function currentPostLikeCount() {
+  return ("counts" in resource.data)
+    && resource.data.counts is map
+    && ("likes" in resource.data.counts)
+    && resource.data.counts.likes is int
+      ? resource.data.counts.likes
+      : 0;
+}
+
+function canUpdateCommentCount(delta) {
+  return signedIn()
+    && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+      "counts",
+      "updatedAt"
+    ])
+    && request.resource.data.authorId == resource.data.authorId
+    && request.resource.data.groupId == resource.data.groupId
+    && request.resource.data.text == resource.data.text
+    && request.resource.data.isDeleted == resource.data.isDeleted
+    && request.resource.data.counts is map
+    && request.resource.data.counts.comments is int
+    && request.resource.data.counts.comments >= 0
+    && request.resource.data.counts.comments == currentPostCommentCount() + delta
+    && request.resource.data.counts.likes is int
+    && request.resource.data.counts.likes == currentPostLikeCount()
+    && canWriteGroupComment(resource.data.groupId);
+}
+
+function canListPublicSearchablePost() {
+  return resource.data.isDeleted == false
+    && resource.data.groupId is string
+    && resource.data.groupVisibility == "public"
+
+    && (
+      !("isShareable" in resource.data)
+      || resource.data.isShareable == true
+    )
+
+    && (
+      !("accessModel" in resource.data)
+      || resource.data.accessModel == "free"
+    )
+
+    && (
+      !("requiresPayment" in resource.data)
+      || resource.data.requiresPayment == false
+    )
+
+    && (
+      !("requiresSubscription" in resource.data)
+      || resource.data.requiresSubscription == false
+    )
+
+    && (
+      !("search" in resource.data)
+      || (
+        resource.data.search is map
+        && (
+          !("isDeleted" in resource.data.search)
+          || resource.data.search.isDeleted == false
+        )
+        && (
+          !("visibility" in resource.data.search)
+          || resource.data.search.visibility == "public"
+        )
+      )
+    );
+}
+
+function canListReadableGroupSearchablePost() {
+  return signedIn()
+    && resource.data.isDeleted == false
+    && resource.data.groupId is string
+    && canReadGroupContent(resource.data.groupId)
+    && resource.data.search is map
+    && resource.data.search.isDeleted == false;
+}
+
+      allow get: if canReadPost();
+
+allow list: if canReadPost()
+  || canListPublicSearchablePost()
+  || canListReadableGroupSearchablePost();
+
+      allow create: if validCreatePost();
+
+      allow update: if canSoftDeletePost()
+        || canUpdateCommentCount(1)
+        || canUpdateCommentCount(-1);
+
+      allow delete: if false;
+
+      match /comments/{commentId} {
+
+        function parentPost() {
+          return get(/databases/$(database)/documents/posts/$(postId));
+        }
+
+        function canReadComment() {
+          return parentPost().data.isDeleted == false
+            && canReadGroupContent(parentPost().data.groupId);
+        }
+
+        function canCreateComment() {
+          return signedIn()
+            && request.resource.data.authorId == request.auth.uid
+            && request.resource.data.text is string
+            && request.resource.data.text.size() >= 1
+            && request.resource.data.text.size() <= 2000
+            && parentPost().data.isDeleted == false
+            && canReadGroupContent(parentPost().data.groupId)
+            && canWriteGroupComment(parentPost().data.groupId);
+        }
+
+        function canDeleteComment() {
+          return signedIn()
+            && (
+              resource.data.authorId == request.auth.uid
+              || canModerateGroup(parentPost().data.groupId)
+            );
+        }
+        
+        function currentReplyCount() {
+  return ("counts" in resource.data)
+    && resource.data.counts is map
+    && ("replies" in resource.data.counts)
+    && resource.data.counts.replies is int
+      ? resource.data.counts.replies
+      : 0;
+}
+
+function currentCommentLikeCount() {
+  return ("counts" in resource.data)
+    && resource.data.counts is map
+    && ("likes" in resource.data.counts)
+    && resource.data.counts.likes is int
+      ? resource.data.counts.likes
+      : 0;
+}
+
+function canUpdateReplyCount(delta) {
+  return signedIn()
+    && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+      "counts",
+      "updatedAt"
+    ])
+    && request.resource.data.authorId == resource.data.authorId
+    && request.resource.data.text == resource.data.text
+    && request.resource.data.counts is map
+    && request.resource.data.counts.replies is int
+    && request.resource.data.counts.replies >= 0
+    && request.resource.data.counts.replies == currentReplyCount() + delta
+    && request.resource.data.counts.likes is int
+    && request.resource.data.counts.likes == currentCommentLikeCount()
+    && canWriteGroupComment(parentPost().data.groupId);
+}
+
+        allow get, list: if canReadComment();
+
+        allow create: if canCreateComment();
+
+        allow update: if canUpdateReplyCount(1)
+  || canUpdateReplyCount(-1);
+
+        allow delete: if canDeleteComment();
+
+        match /replies/{replyId} {
+
+          function canReadReply() {
+            return canReadComment();
+          }
+
+          function canCreateReply() {
+            return signedIn()
+              && request.resource.data.authorId == request.auth.uid
+              && request.resource.data.text is string
+              && request.resource.data.text.size() >= 1
+              && request.resource.data.text.size() <= 2000
+              && parentPost().data.isDeleted == false
+              && canReadGroupContent(parentPost().data.groupId)
+              && canWriteGroupComment(parentPost().data.groupId);
+          }
+
+          function canDeleteReply() {
+            return signedIn()
+              && (
+                resource.data.authorId == request.auth.uid
+                || canModerateGroup(parentPost().data.groupId)
+              );
+          }
+
+          allow get, list: if canReadReply();
+
+          allow create: if canCreateReply();
+
+          allow update: if false;
+
+          allow delete: if canDeleteReply();
+        }
+      }
+
+      match /reactions/{userId} {
+        function parentPost() {
+          return get(/databases/$(database)/documents/posts/$(postId));
+        }
+
+        function canReadReactionsList() {
+          return signedIn()
+            && parentPost().data.isDeleted == false
+            && (
+              parentPost().data.authorId == request.auth.uid
+              || canReadGroupContent(parentPost().data.groupId)
+            );
+        }
+
+        function canReadOwnReaction() {
+          return signedIn()
+            && request.auth.uid == userId
+            && resource.data.userId == request.auth.uid
+            && canReadReactionsList();
+        }
+
+        allow get: if canReadOwnReaction() || canReadReactionsList();
+
+        allow list: if canReadReactionsList();
+
+        allow create, update, delete: if false;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

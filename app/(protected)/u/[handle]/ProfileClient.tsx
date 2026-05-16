@@ -1408,12 +1408,13 @@ await createExclusiveSessionRequest({
             {(isOwner || showPostsTab || isProfileRestrictedForVisitor) &&
               activeTab === "posts" && (
                 <div className="profile-tab-panel">
-                  <ProfilePostsFeed
-                    profileUid={userDoc.uid}
-                    viewerUid={viewer?.uid ?? null}
-                    isOwner={isOwner}
-                    showPosts={isOwner ? ownerShowPosts : visitorCanSeePosts}
-                  />
+<ProfilePostsFeed
+  profileUid={userDoc.uid}
+  viewerUid={viewer?.uid ?? null}
+  isOwner={isOwner}
+  showPosts={isOwner ? ownerShowPosts : visitorCanSeePosts}
+  profileRestricted={profileRestricted}
+/>
                 </div>
               )}
 

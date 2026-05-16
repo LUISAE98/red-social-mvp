@@ -111,8 +111,8 @@ export type HomePostsPageResult = {
 };
 
 export type UserProfilePostsPageCursor = {
-  lastDoc: QueryDocumentSnapshot<DocumentData> | null;
-  bufferedPosts: Post[];
+  lastCreatedAt: Timestamp | null;
+  lastPostId: string | null;
 };
 
 export type UserProfilePostsPageResult = {
@@ -1112,6 +1112,122 @@ export async function fetchHomePosts(userUid: string): Promise<Post[]> {
 
   return page.posts;
 }
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+
+  return chunks;
+}
+
+function isProfileRestricted(data: Record<string, unknown>): boolean {
+  return data.profileRestricted === true;
+}
+
+function normalizeProfileFeedPost(
+  snap: QueryDocumentSnapshot<DocumentData>
+): Post {
+  const data = snap.data() as Omit<Post, "id">;
+
+  return {
+    id: snap.id,
+    ...data,
+  } as Post;
+}
+
+async function fetchProfileFeedDocs(params: {
+  profileUid: string;
+  pageSize: number;
+  cursor?: UserProfilePostsPageCursor | null;
+  mode: "owner" | "public" | "groupIds";
+  groupIds?: string[];
+}): Promise<QueryDocumentSnapshot<DocumentData>[]> {
+  const profileFeedRef = collection(
+    db,
+    "users",
+    params.profileUid,
+    "profileFeed"
+  );
+
+  const cursorParts =
+    params.cursor?.lastCreatedAt && params.cursor?.lastPostId
+      ? [startAfter(params.cursor.lastCreatedAt, params.cursor.lastPostId)]
+      : [];
+
+  if (params.mode === "owner") {
+    const snap = await getDocs(
+      query(
+        profileFeedRef,
+        where("authorId", "==", params.profileUid),
+        where("isDeleted", "==", false),
+        orderBy("createdAt", "desc"),
+        orderBy(documentId(), "desc"),
+        ...cursorParts,
+        limit(params.pageSize)
+      )
+    );
+
+    return snap.docs;
+  }
+
+  if (params.mode === "public") {
+    const snap = await getDocs(
+      query(
+        profileFeedRef,
+        where("authorId", "==", params.profileUid),
+        where("isDeleted", "==", false),
+        where("groupVisibility", "==", "public"),
+        where("isShareable", "==", true),
+        where("accessModel", "==", "free"),
+        where("requiresPayment", "==", false),
+        where("requiresSubscription", "==", false),
+        orderBy("createdAt", "desc"),
+        orderBy(documentId(), "desc"),
+        ...cursorParts,
+        limit(params.pageSize)
+      )
+    );
+
+    return snap.docs;
+  }
+
+  const groupIds = Array.from(
+    new Set(
+      (params.groupIds || [])
+        .map((groupId) => groupId.trim())
+        .filter(Boolean)
+    )
+  );
+
+  if (groupIds.length === 0) {
+    return [];
+  }
+
+  const chunks = chunkArray(groupIds, 10);
+
+  const snaps = await Promise.all(
+    chunks.map((chunk) =>
+      getDocs(
+        query(
+          profileFeedRef,
+          where("authorId", "==", params.profileUid),
+          where("isDeleted", "==", false),
+          where("groupId", "in", chunk),
+          orderBy("createdAt", "desc"),
+          orderBy(documentId(), "desc"),
+          ...cursorParts,
+          limit(params.pageSize)
+        )
+      )
+    )
+  );
+
+  return snaps.flatMap((snap) => snap.docs);
+}
+
 export async function fetchUserProfilePostsPage(params: {
   profileUid: string;
   viewerUid?: string | null;
@@ -1121,10 +1237,11 @@ export async function fetchUserProfilePostsPage(params: {
   assertValidId(params.profileUid, "profileUid");
 
   const safePageSize = Math.max(1, Math.min(params.pageSize ?? 10, 20));
-  const viewerUid = params.viewerUid ?? null;
+  const viewerUid = params.viewerUid ?? auth.currentUser?.uid ?? null;
   const isOwner = viewerUid === params.profileUid;
 
   const profileSnap = await getDoc(doc(db, "users", params.profileUid));
+
   if (!profileSnap.exists()) {
     return {
       posts: [],
@@ -1135,8 +1252,9 @@ export async function fetchUserProfilePostsPage(params: {
 
   const profileData = profileSnap.data() as Record<string, unknown>;
   const showPosts = profileData.showPosts !== false;
+  const restricted = isProfileRestricted(profileData);
 
-  if (!showPosts && !isOwner) {
+  if (!isOwner && (!showPosts || restricted)) {
     return {
       posts: [],
       cursor: null,
@@ -1144,75 +1262,126 @@ export async function fetchUserProfilePostsPage(params: {
     };
   }
 
-  const visibleGroupIds = isOwner
-    ? null
-    : new Set(await fetchProfileVisibleGroupIds(viewerUid));
+  let feedDocs: QueryDocumentSnapshot<DocumentData>[] = [];
 
-  if (!isOwner && visibleGroupIds && visibleGroupIds.size === 0) {
-    return {
-      posts: [],
-      cursor: null,
-      hasMore: false,
-    };
-  }
+  if (isOwner) {
+    feedDocs = await fetchProfileFeedDocs({
+      profileUid: params.profileUid,
+      pageSize: safePageSize + 1,
+      cursor: params.cursor,
+      mode: "owner",
+    });
+  } else {
+    const publicDocsPromise = fetchProfileFeedDocs({
+      profileUid: params.profileUid,
+      pageSize: safePageSize + 1,
+      cursor: params.cursor,
+      mode: "public",
+    });
 
-  const previousLastDoc = params.cursor?.lastDoc ?? null;
-  const previousBufferedPosts = params.cursor?.bufferedPosts ?? [];
-  const queryLimit = isOwner ? safePageSize : safePageSize * 3;
+const privateDocsPromise = viewerUid
+  ? Promise.allSettled([
+  fetchOwnedGroupIds(viewerUid),
+  fetchMemberGroupIds(viewerUid),
+  fetchHiddenMemberGroupIds(viewerUid),
+]).then((results) => {
+  const ownedGroupIds =
+    results[0].status === "fulfilled" ? results[0].value : [];
 
-  const snap = await getDocs(
-    query(
-      collection(db, "posts"),
-      where("authorId", "==", params.profileUid),
-      where("isDeleted", "==", false),
-      orderBy("createdAt", "desc"),
-      ...(previousLastDoc ? [startAfter(previousLastDoc)] : []),
-      limit(queryLimit)
-    )
-  );
+  const memberGroupIds =
+    results[1].status === "fulfilled" ? results[1].value : [];
 
-  const rawPosts = snap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<Post, "id">),
-  })) as Post[];
+  const hiddenMemberGroupIds =
+    results[2].status === "fulfilled" ? results[2].value : [];
 
-  const visibleFetchedPosts = isOwner
-    ? rawPosts
-    : rawPosts.filter((post) => {
-        const groupId =
-          typeof post.groupId === "string" ? post.groupId.trim() : "";
-
-        return !!groupId && visibleGroupIds?.has(groupId);
-      });
-
-  const visiblePosts = Array.from(
-    new Map(
-      [...previousBufferedPosts, ...visibleFetchedPosts].map((post) => [
-        post.id,
-        post,
-      ])
-    ).values()
-  );
-
-  visiblePosts.sort((a, b) => {
-    const aMs = a.createdAt?.toMillis?.() ?? 0;
-    const bMs = b.createdAt?.toMillis?.() ?? 0;
-    return bMs - aMs;
+  console.log("[ProfileFeed] accessible groupIds debug", {
+    viewerUid,
+    profileUid: params.profileUid,
+    ownedGroupIds,
+    memberGroupIds,
+    hiddenMemberGroupIds,
+    results,
   });
 
-  const pagePosts = visiblePosts.slice(0, safePageSize);
-  const pagePostIds = new Set(pagePosts.map((post) => post.id));
-
-  const nextBufferedPosts = visiblePosts.filter(
-    (post) => !pagePostIds.has(post.id)
+  const groupIds = Array.from(
+    new Set([
+      ...ownedGroupIds,
+      ...memberGroupIds,
+      ...hiddenMemberGroupIds,
+    ])
   );
 
+  return fetchProfileFeedDocs({
+    profileUid: params.profileUid,
+    pageSize: safePageSize + 1,
+    cursor: params.cursor,
+    mode: "groupIds",
+    groupIds,
+  });
+})
+.catch((error) => {
+  console.warn("[ProfileFeed] private group lane failed", error);
+  return [];
+})
+  : Promise.resolve([]);
+
+    const [publicDocs, privateDocs] = await Promise.all([
+      publicDocsPromise,
+      privateDocsPromise,
+    ]);
+
+    feedDocs = [...publicDocs, ...privateDocs];
+  }
+
+  const uniqueDocs = Array.from(
+    new Map(feedDocs.map((feedDoc) => [feedDoc.id, feedDoc])).values()
+  );
+
+  uniqueDocs.sort((a, b) => {
+    const aData = a.data() as Record<string, unknown>;
+    const bData = b.data() as Record<string, unknown>;
+
+    const aPinned = aData.isPinnedOnProfile === true;
+    const bPinned = bData.isPinnedOnProfile === true;
+
+    if (aPinned !== bPinned) {
+      return aPinned ? -1 : 1;
+    }
+
+    if (aPinned && bPinned) {
+      const aPinnedMs =
+        (aData.profilePinnedAt as Timestamp | undefined)?.toMillis?.() ?? 0;
+      const bPinnedMs =
+        (bData.profilePinnedAt as Timestamp | undefined)?.toMillis?.() ?? 0;
+
+      if (aPinnedMs !== bPinnedMs) {
+        return bPinnedMs - aPinnedMs;
+      }
+    }
+
+    const aCreatedMs =
+      (aData.createdAt as Timestamp | undefined)?.toMillis?.() ?? 0;
+    const bCreatedMs =
+      (bData.createdAt as Timestamp | undefined)?.toMillis?.() ?? 0;
+
+    if (aCreatedMs !== bCreatedMs) {
+      return bCreatedMs - aCreatedMs;
+    }
+
+    return b.id.localeCompare(a.id);
+  });
+
+  const pageDocs = uniqueDocs.slice(0, safePageSize);
+  const hasMore = uniqueDocs.length > safePageSize;
+
+  const rawPosts = pageDocs.map(normalizeProfileFeedPost);
+
   const [userMap, groupMap] = await Promise.all([
-    fetchUsersByIds(pagePosts.map((post) => post.authorId)),
-    fetchGroupsByIds(pagePosts.map((post) => post.groupId)),
+    fetchUsersByIds(rawPosts.map((post) => post.authorId)),
+    fetchGroupsByIds(rawPosts.map((post) => post.groupId)),
   ]);
 
-  const hydratedPosts = pagePosts.map((post) => {
+  const hydratedPosts = rawPosts.map((post) => {
     const hydrated = hydratePost(post, userMap, groupMap);
 
     return {
@@ -1223,29 +1392,23 @@ export async function fetchUserProfilePostsPage(params: {
 
   const postsWithViewerState = await attachViewerPostState(
     hydratedPosts,
-    viewerUid || params.profileUid
+    viewerUid
   );
 
-  const sortedPosts = sortPostsWithPinnedPriority(postsWithViewerState);
-
-  const lastDoc = snap.docs[snap.docs.length - 1] ?? null;
-  const hasMoreFromQuery = snap.docs.length === queryLimit;
-  const hasMore = nextBufferedPosts.length > 0 || hasMoreFromQuery;
+  const lastDoc = pageDocs[pageDocs.length - 1] ?? null;
+  const lastData = lastDoc?.data() as Record<string, unknown> | undefined;
+  const lastCreatedAt =
+    lastData?.createdAt instanceof Timestamp ? lastData.createdAt : null;
 
   return {
-    posts: sortedPosts,
+    posts: postsWithViewerState,
     cursor:
-      hasMore && lastDoc
+      hasMore && lastDoc && lastCreatedAt
         ? {
-            lastDoc,
-            bufferedPosts: nextBufferedPosts,
+            lastCreatedAt,
+            lastPostId: lastDoc.id,
           }
-        : nextBufferedPosts.length > 0
-          ? {
-              lastDoc: previousLastDoc,
-              bufferedPosts: nextBufferedPosts,
-            }
-          : null,
+        : null,
     hasMore,
   };
 }

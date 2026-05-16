@@ -127,3 +127,10 @@ export {
   onHomeFeedMembershipDeleted,
   onHomeFeedMemberStatusChanged,
 } from "./home-feed";
+// Profile Feed materializado
+export {
+  onProfileFeedPostCreated,
+  onProfileFeedPostUpdated,
+  onProfileFeedPostDeleted,
+  onProfileFeedGroupUpdated,
+} from "./profile-feed";

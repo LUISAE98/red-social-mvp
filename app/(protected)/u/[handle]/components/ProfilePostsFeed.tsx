@@ -30,6 +30,7 @@ type ProfilePostsFeedProps = {
   viewerUid: string | null;
   isOwner: boolean;
   showPosts?: boolean;
+  profileRestricted?: boolean;
 };
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
@@ -67,21 +68,34 @@ async function getMembershipMetaForGroup(
   mutedUntil: any | null;
   role: GroupRole;
 }> {
+  const cacheKey = `${groupId}:${userId}`;
+  const cached = membershipMetaMemoryCache.get(cacheKey);
+
+  if (cached) {
+    return cached;
+  }
+
   try {
     const memberRef = doc(db, "groups", groupId, "members", userId);
     const memberSnap = await getDoc(memberRef);
 
     if (!memberSnap.exists()) {
-      return { status: null, mutedUntil: null, role: null };
+      const emptyMeta = { status: null, mutedUntil: null, role: null };
+      membershipMetaMemoryCache.set(cacheKey, emptyMeta);
+      return emptyMeta;
     }
 
     const data = memberSnap.data() as any;
 
-    return {
+    const meta = {
       status: normalizeStatus(data?.status),
       mutedUntil: data?.mutedUntil ?? null,
       role: normalizeRole(data?.roleInGroup ?? data?.role),
     };
+
+    membershipMetaMemoryCache.set(cacheKey, meta);
+
+    return meta;
   } catch {
     return { status: null, mutedUntil: null, role: null };
   }
@@ -91,21 +105,37 @@ async function getViewerCanModerateGroup(
   groupId: string,
   viewerUid: string
 ): Promise<boolean> {
+  const cacheKey = `${groupId}:${viewerUid}`;
+  const cached = viewerModerationMemoryCache.get(cacheKey);
+
+  if (typeof cached === "boolean") {
+    return cached;
+  }
+
   try {
     const groupSnap = await getDoc(doc(db, "groups", groupId));
-    if (!groupSnap.exists()) return false;
+    if (!groupSnap.exists()) {
+      viewerModerationMemoryCache.set(cacheKey, false);
+      return false;
+    }
 
     const groupData = groupSnap.data() as any;
+
     if (groupData?.ownerId === viewerUid) {
+      viewerModerationMemoryCache.set(cacheKey, true);
       return true;
     }
 
     const viewerMeta = await getMembershipMetaForGroup(groupId, viewerUid);
-    return (
+
+    const canModerate =
       viewerMeta.role === "mod" &&
       viewerMeta.status !== "banned" &&
-      viewerMeta.status !== "removed"
-    );
+      viewerMeta.status !== "removed";
+
+    viewerModerationMemoryCache.set(cacheKey, canModerate);
+
+    return canModerate;
   } catch {
     return false;
   }
@@ -317,12 +347,23 @@ type ProfileFeedCacheEntry = {
 };
 
 const profileFeedMemoryCache = new Map<string, ProfileFeedCacheEntry>();
+const membershipMetaMemoryCache = new Map<
+  string,
+  {
+    status: MemberStatus;
+    mutedUntil: any | null;
+    role: GroupRole;
+  }
+>();
+
+const viewerModerationMemoryCache = new Map<string, boolean>();
 
 function getProfileFeedCacheKey(params: {
   profileUid: string;
   viewerUid: string | null;
   isOwner: boolean;
   showPosts: boolean;
+  profileRestricted: boolean;
 }): string {
   return [
     "profile-feed",
@@ -330,8 +371,11 @@ function getProfileFeedCacheKey(params: {
     params.viewerUid ?? "guest",
     params.isOwner ? "owner" : "viewer",
     params.showPosts ? "show" : "hidden",
+    params.profileRestricted ? "restricted" : "open",
   ].join(":");
 }
+
+
 function sortProfileFeedPosts(posts: PostWithFlags[]): PostWithFlags[] {
   return [...posts].sort((a, b) => {
     const aPinned = a.isPinnedOnProfile === true;
@@ -376,6 +420,7 @@ export default function ProfilePostsFeed({
   viewerUid,
   isOwner,
   showPosts = true,
+  profileRestricted = false,
 }: ProfilePostsFeedProps) {
   const [posts, setPosts] = useState<PostWithFlags[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -399,16 +444,17 @@ export default function ProfilePostsFeed({
     pageCursorRef.current = pageCursor;
   }, [pageCursor]);
 
-  const cacheKey = useMemo(
-    () =>
-      getProfileFeedCacheKey({
-        profileUid,
-        viewerUid,
-        isOwner,
-        showPosts,
-      }),
-    [profileUid, viewerUid, isOwner, showPosts]
-  );
+const cacheKey = useMemo(
+  () =>
+    getProfileFeedCacheKey({
+      profileUid,
+      viewerUid,
+      isOwner,
+      showPosts,
+      profileRestricted,
+    }),
+  [profileUid, viewerUid, isOwner, showPosts, profileRestricted]
+);
 
   const syncPostsState = useCallback(
     (updater: (prev: PostWithFlags[]) => PostWithFlags[]) => {
@@ -458,7 +504,7 @@ export default function ProfilePostsFeed({
         return;
       }
 
-      if (!showPosts && !isOwner) {
+      if ((!showPosts || profileRestricted) && !isOwner) {
         setPosts([]);
         setPageCursor(null);
         setHasMore(false);
@@ -532,7 +578,7 @@ export default function ProfilePostsFeed({
         }
       }
     },
-    [cacheKey, profileUid, viewerUid, showPosts, isOwner]
+    [cacheKey, profileUid, viewerUid, showPosts, profileRestricted, isOwner]
   );
 
   const loadPosts = useCallback(async () => {
@@ -553,7 +599,7 @@ export default function ProfilePostsFeed({
         return;
       }
 
-      if (!showPosts && !isOwner) {
+      if ((!showPosts || profileRestricted) && !isOwner) {
         if (active) {
           setPosts([]);
           setPageCursor(null);
@@ -588,7 +634,15 @@ export default function ProfilePostsFeed({
     return () => {
       active = false;
     };
-  }, [profileUid, viewerUid, showPosts, isOwner, cacheKey, loadPostsPage]);
+ }, [
+  profileUid,
+  viewerUid,
+  showPosts,
+  profileRestricted,
+  isOwner,
+  cacheKey,
+  loadPostsPage,
+]);
 
   const infiniteScrollTriggerIndex = useMemo(() => {
     if (posts.length <= 5) return posts.length - 1;
@@ -621,14 +675,15 @@ export default function ProfilePostsFeed({
 
     return () => observer.disconnect();
   }, [
-    profileUid,
-    hasMore,
-    loadingInitial,
-    showPosts,
-    isOwner,
-    infiniteScrollTriggerIndex,
-    loadPostsPage,
-  ]);
+  profileUid,
+  hasMore,
+  loadingInitial,
+  showPosts,
+  profileRestricted,
+  isOwner,
+  infiniteScrollTriggerIndex,
+  loadPostsPage,
+]);
 
   async function handleToggleFlame(postId: string): Promise<void> {
     try {
@@ -968,7 +1023,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
     return recommendationSlots.size > 0;
   }, [recommendationSlots]);
 
-  if (!showPosts && !isOwner) {
+  if ((!showPosts || profileRestricted) && !isOwner) {
     return (
       <section style={shellStyle}>
         <div style={reservedStyle}>Perfil reservado</div>

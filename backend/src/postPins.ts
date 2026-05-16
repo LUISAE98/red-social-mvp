@@ -107,37 +107,60 @@ export const toggleProfilePostPin = onCall<TogglePostPinInput>(async (request) =
 
   const postId = getPostId(request.data);
   const postRef = db.collection("posts").doc(postId);
-  const postSnap = await postRef.get();
+  const profileFeedRef = db
+    .collection("users")
+    .doc(uid)
+    .collection("profileFeed")
+    .doc(postId);
 
-  if (!postSnap.exists) {
-    throw new HttpsError("not-found", "La publicación no existe.");
-  }
+  return db.runTransaction(async (tx) => {
+    const postSnap = await tx.get(postRef);
 
-  const post = postSnap.data();
+    if (!postSnap.exists) {
+      throw new HttpsError("not-found", "La publicación no existe.");
+    }
 
-  if (!post || post.isDeleted === true || post.deletedAt) {
-    throw new HttpsError("failed-precondition", "La publicación fue eliminada.");
-  }
+    const post = postSnap.data();
 
-  if (post.authorId !== uid) {
-    throw new HttpsError(
-      "permission-denied",
-      "Solo puedes fijar o desfijar publicaciones en tu propio perfil."
+    if (!post || post.isDeleted === true || post.deletedAt) {
+      throw new HttpsError("failed-precondition", "La publicación fue eliminada.");
+    }
+
+    if (post.authorId !== uid) {
+      throw new HttpsError(
+        "permission-denied",
+        "Solo puedes fijar o desfijar publicaciones en tu propio perfil."
+      );
+    }
+
+    const nextPinnedState = post.isPinnedOnProfile !== true;
+    const serverNow = FieldValue.serverTimestamp();
+
+    tx.update(postRef, {
+      isPinnedOnProfile: nextPinnedState,
+      profilePinnedAt: nextPinnedState ? serverNow : null,
+      profilePinnedBy: nextPinnedState ? uid : null,
+      updatedAt: serverNow,
+    });
+
+    tx.set(
+      profileFeedRef,
+      {
+        postId,
+        authorId: uid,
+        isPinnedOnProfile: nextPinnedState,
+        profilePinnedAt: nextPinnedState ? serverNow : null,
+        profilePinnedBy: nextPinnedState ? uid : null,
+        updatedAt: serverNow,
+        syncedAt: serverNow,
+      },
+      { merge: true }
     );
-  }
 
-  const nextPinnedState = post.isPinnedOnProfile !== true;
-
-  await postRef.update({
-    isPinnedOnProfile: nextPinnedState,
-    profilePinnedAt: nextPinnedState ? FieldValue.serverTimestamp() : null,
-    profilePinnedBy: nextPinnedState ? uid : null,
-    updatedAt: FieldValue.serverTimestamp(),
+    return {
+      ok: true,
+      postId,
+      isPinnedOnProfile: nextPinnedState,
+    };
   });
-
-  return {
-    ok: true,
-    postId,
-    isPinnedOnProfile: nextPinnedState,
-  };
 });
