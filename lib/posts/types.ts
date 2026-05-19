@@ -86,6 +86,8 @@ export type ScheduledStatus =
   | "cancelled"
   | "completed";
 
+export type VideoProvider = "mux" | "firebase_storage" | null;
+
 export type PlaybackProvider = "mux" | "hls" | "firebase_storage" | null;
 
 export type ProcessingStatus =
@@ -111,6 +113,7 @@ export type PostLiveData = {
 };
 
 export type PostVideoData = {
+  provider?: VideoProvider;
   status?: VideoStatus;
   assetId?: string | null;
   uploadId?: string | null;

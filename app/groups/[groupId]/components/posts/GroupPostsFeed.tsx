@@ -4,13 +4,14 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { auth, db } from "@/lib/firebase";
+import { auth, db, functions } from "@/lib/firebase";
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import {
   createImagePost,
   createPostComment,
   createPostCommentReply,
   createTextPost,
+  createVideoPost,
   deletePostComment,
   deletePostCommentReply,
   fetchCommentReplies,
@@ -27,8 +28,17 @@ import GroupPostCard from "./GroupPostCard";
 import GroupPostComposer from "./GroupPostComposer";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { uploadPostImages } from "@/lib/posts/image-upload";
+import { httpsCallable } from "firebase/functions";
 
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
+
+type CreateMuxDirectUploadResponse = {
+  provider: "mux";
+  uploadId: string;
+  uploadUrl: string;
+  postId: string;
+  status: string;
+};
 
 type GroupPostsFeedProps = {
   groupId: string;
@@ -170,6 +180,23 @@ function normalizeFeedPost(post: PostWithAuthorState): PostWithAuthorState {
   };
 }
 
+function isVideoPostStillProcessing(post: PostWithAuthorState): boolean {
+  if (post.postType !== "video") return false;
+  if (!post.id) return false;
+
+  const processingStatus = post.processing?.status;
+  const videoStatus = post.videoData?.status;
+  const playbackReady = post.playback?.isReady === true;
+
+  if (processingStatus === "ready") return false;
+  if (videoStatus === "ready") return false;
+  if (playbackReady) return false;
+  if (processingStatus === "error") return false;
+  if (videoStatus === "error") return false;
+
+  return true;
+}
+
 function buildPostBlockedMessage(reason: InteractionBlockedReason): string {
   if (reason === "login") {
     return "Inicia sesión para publicar en esta comunidad.";
@@ -203,6 +230,8 @@ function buildCommentBlockedMessage(reason: InteractionBlockedReason): string {
 }
 const GROUP_FEED_PAGE_SIZE = 10;
 const GROUP_FEED_CACHE_TTL_MS = 1000 * 60 * 5;
+const VIDEO_PROCESSING_POLL_MS = 1000 * 10;
+const VIDEO_PROCESSING_MAX_POLLS = 24;
 
 type GroupFeedCacheEntry = {
   posts: PostWithAuthorState[];
@@ -260,6 +289,38 @@ function mergeUniquePosts(
   return sortGroupFeedPosts(Array.from(map.values()));
 }
 
+function uploadVideoFileToMux(params: {
+  uploadUrl: string;
+  file: File;
+  onProgress: (progress: number) => void;
+}): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      params.onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(`Mux upload falló con status ${xhr.status}.`));
+    };
+
+    xhr.onerror = () => {
+      reject(new Error("Error de red al subir el video a Mux."));
+    };
+
+    xhr.open("PUT", params.uploadUrl);
+    xhr.setRequestHeader("Content-Type", params.file.type || "video/mp4");
+    xhr.send(params.file);
+  });
+}
+
 export default function GroupPostsFeed({
   groupId,
   isOwner = false,
@@ -276,6 +337,8 @@ export default function GroupPostsFeed({
   const [posts, setPosts] = useState<PostWithAuthorState[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [composerError, setComposerError] = useState<string | null>(null);
+  const [videoUploadProgress, setVideoUploadProgress] = useState<number | null>(null);
+  const [videoUploadStatus, setVideoUploadStatus] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -290,6 +353,7 @@ export default function GroupPostsFeed({
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(false);
   const pageCursorRef = useRef<GroupPostsPageCursor | null>(null);
+  const videoProcessingPollsRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     hasMoreRef.current = hasMore;
@@ -458,6 +522,86 @@ export default function GroupPostsFeed({
     return Math.max(0, posts.length - 5);
   }, [posts.length]);
 
+    const processingVideoPostIdsKey = useMemo(() => {
+    return posts
+      .filter(isVideoPostStillProcessing)
+      .map((post) => post.id)
+      .filter((postId): postId is string => Boolean(postId))
+      .sort()
+      .join("|");
+  }, [posts]);
+
+  useEffect(() => {
+    if (!groupId) return;
+    if (!processingVideoPostIdsKey) return;
+
+    const postIds = processingVideoPostIdsKey.split("|").filter(Boolean);
+    let cancelled = false;
+
+    async function refreshProcessingVideos() {
+      await Promise.all(
+        postIds.map(async (postId) => {
+          const currentPollCount = videoProcessingPollsRef.current[postId] ?? 0;
+
+          if (currentPollCount >= VIDEO_PROCESSING_MAX_POLLS) {
+            return;
+          }
+
+          videoProcessingPollsRef.current[postId] = currentPollCount + 1;
+
+          try {
+            const postSnap = await getDoc(doc(db, "posts", postId));
+
+            if (cancelled || !postSnap.exists()) return;
+
+const freshPost = normalizeFeedPost({
+  ...(postSnap.data() as Post),
+  id: postSnap.id,
+  forcedGroupId: groupId,
+} as PostWithAuthorState);
+
+            const isDone =
+              freshPost.processing?.status === "ready" ||
+              freshPost.videoData?.status === "ready" ||
+              freshPost.playback?.isReady === true ||
+              freshPost.processing?.status === "error" ||
+              freshPost.videoData?.status === "error";
+
+            syncPostsState((prev) =>
+              prev.map((post) =>
+                post.id === postId
+                  ? {
+                      ...freshPost,
+                      authorMemberStatus: post.authorMemberStatus,
+                      authorMutedUntil: post.authorMutedUntil,
+                      forcedGroupId: post.forcedGroupId ?? groupId,
+                    }
+                  : post
+              )
+            );
+
+            if (isDone) {
+              delete videoProcessingPollsRef.current[postId];
+            }
+          } catch {
+            // Se ignora para no romper el feed por una lectura fallida temporal.
+          }
+        })
+      );
+    }
+
+    void refreshProcessingVideos();
+
+    const intervalId = window.setInterval(() => {
+      void refreshProcessingVideos();
+    }, VIDEO_PROCESSING_POLL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [groupId, processingVideoPostIdsKey, syncPostsState]);
+
   useEffect(() => {
     if (!groupId) return;
     if (!hasMore) return;
@@ -536,19 +680,55 @@ export default function GroupPostsFeed({
   async function handleCreatePost(payload: {
     text: string;
     imageFiles?: File[];
+    videoFile?: File | null;
   }) {
     if (!guardCreatePost()) return;
 
     try {
       setError(null);
       setComposerError(null);
+      setVideoUploadProgress(null);
+      setVideoUploadStatus(null);
 
       const cleanText = payload.text.trim();
+      const imageFiles = payload.imageFiles ?? [];
 
-      if (payload.imageFiles && payload.imageFiles.length > 0) {
+      if (payload.videoFile) {
+        setVideoUploadProgress(0);
+        setVideoUploadStatus("Preparando subida de video...");
+
+        const callable = httpsCallable<
+          { groupId: string },
+          CreateMuxDirectUploadResponse
+        >(functions, "createMuxDirectUpload");
+
+        const result = await callable({ groupId });
+        const { uploadUrl, uploadId, postId } = result.data;
+
+        setVideoUploadStatus("Creando publicación de video...");
+
+        await createVideoPost({
+          groupId,
+          postId,
+          uploadId,
+          text: cleanText,
+        });
+
+        setVideoUploadStatus("Subiendo video a Mux...");
+
+        await uploadVideoFileToMux({
+          uploadUrl,
+          file: payload.videoFile,
+          onProgress: setVideoUploadProgress,
+        });
+
+        setVideoUploadStatus(
+          "Video subido. Mux lo está procesando; aparecerá listo en unos momentos."
+        );
+      } else if (imageFiles.length > 0) {
         const uploadedImages = await uploadPostImages({
           groupId,
-          files: payload.imageFiles,
+          files: imageFiles,
         });
 
         await createImagePost({
@@ -561,8 +741,15 @@ export default function GroupPostsFeed({
       }
 
       await loadPosts();
+
+      window.setTimeout(() => {
+        setVideoUploadProgress(null);
+        setVideoUploadStatus(null);
+      }, 2500);
     } catch (e: any) {
       setComposerError(e?.message ?? "No se pudo publicar.");
+      setVideoUploadStatus(null);
+      setVideoUploadProgress(null);
     }
   }
 
@@ -933,6 +1120,50 @@ export default function GroupPostsFeed({
       {canCreatePosts ? (
         <div style={cardShellStyle}>
           <GroupPostComposer onSubmit={handleCreatePost} />
+
+          {videoUploadStatus ? (
+            <div
+              style={{
+                marginTop: 10,
+                borderRadius: 14,
+                border: "1px solid rgba(255,255,255,0.1)",
+                background: "rgba(15, 23, 42, 0.72)",
+                padding: 12,
+                color: "rgba(255,255,255,0.84)",
+                fontSize: 13,
+              }}
+            >
+              <div style={{ marginBottom: 8 }}>{videoUploadStatus}</div>
+
+              {videoUploadProgress !== null ? (
+                <div
+                  style={{
+                    height: 8,
+                    width: "100%",
+                    overflow: "hidden",
+                    borderRadius: 999,
+                    background: "rgba(255,255,255,0.1)",
+                  }}
+                >
+                  <div
+                    style={{
+                      height: "100%",
+                      width: `${videoUploadProgress}%`,
+                      borderRadius: 999,
+                      background: "rgba(96,165,250,0.95)",
+                      transition: "width 160ms ease",
+                    }}
+                  />
+                </div>
+              ) : null}
+
+              {videoUploadProgress !== null ? (
+                <div style={{ marginTop: 6, fontSize: 12 }}>
+                  {videoUploadProgress}%
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : (
         <div style={interactionHintStyle}>

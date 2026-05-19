@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  setDoc,
   collectionGroup,
   deleteDoc,
   doc,
@@ -1646,6 +1647,146 @@ updatedAt: searchTimestamp,
     }),
   });
 }
+
+export async function createVideoPost(params: {
+  groupId: string;
+  postId: string;
+  uploadId: string;
+  text?: string;
+}): Promise<void> {
+  assertValidId(params.groupId, "groupId");
+  assertValidId(params.postId, "postId");
+  assertValidId(params.uploadId, "uploadId");
+
+  const cleanText = params.text?.trim() ?? "";
+
+  const author = await getCurrentAuthorSnapshot();
+  await ensureUserCanCreatePostInGroup(params.groupId, author.uid);
+
+  const groupMap = await fetchGroupsByIds([params.groupId]);
+  const groupVisibility = groupMap[params.groupId]?.visibility ?? null;
+
+  if (!groupVisibility) {
+    throw new Error("No se pudo resolver la visibilidad del grupo.");
+  }
+
+  const videoData: Post["videoData"] = {
+    provider: "mux",
+    status: "uploading",
+    assetId: null,
+    uploadId: params.uploadId,
+    playbackId: null,
+    duration: null,
+    thumbnailUrl: null,
+    sourceUrl: null,
+    sourcePath: null,
+  };
+
+  const playback: Post["playback"] = {
+    url: null,
+    hlsUrl: null,
+    thumbnailUrl: null,
+    provider: "mux",
+    playbackId: null,
+    duration: null,
+    isReady: false,
+  };
+
+  const shareMetadata = buildShareMetadata({
+    text: cleanText,
+    media: [],
+    authorName: author.authorName,
+    groupVisibility,
+    accessModel: "free",
+    requiresPayment: false,
+    requiresSubscription: false,
+    videoData,
+    playback,
+  });
+
+  const createdAt = serverTimestamp();
+  const updatedAt = serverTimestamp();
+  const searchTimestamp = Timestamp.now();
+
+  await setDoc(doc(db, "posts", params.postId), {
+    groupId: params.groupId,
+    groupVisibility,
+    authorId: author.uid,
+    authorName: author.authorName,
+    authorAvatarUrl: author.authorAvatarUrl,
+    authorUsername: author.authorUsername,
+    text: cleanText,
+    createdAt,
+    updatedAt,
+    deletedAt: null,
+    isDeleted: false,
+
+    isPinnedInGroup: false,
+    groupPinnedAt: null,
+    groupPinnedBy: null,
+
+    isPinnedOnProfile: false,
+    profilePinnedAt: null,
+    profilePinnedBy: null,
+
+    isShareable: shareMetadata.isShareable,
+    publicSlug: shareMetadata.publicSlug,
+    shareTitle: shareMetadata.shareTitle,
+    shareDescription: shareMetadata.shareDescription,
+    shareImageUrl: shareMetadata.shareImageUrl,
+
+    access: "free",
+    media: [
+      {
+        type: "video",
+        url: `mux://uploads/${params.uploadId}`,
+        thumbnailUrl: null,
+        altText: null,
+      },
+    ],
+
+    counts: {
+      comments: 0,
+      likes: 0,
+      saves: 0,
+    },
+
+    postType: "video",
+
+    accessModel: "free",
+    accessScope: "group",
+    requiresPayment: false,
+    requiresSubscription: false,
+    oneTimePrice: null,
+    currency: null,
+    purchaseType: "video",
+
+    liveData: null,
+    videoData,
+    scheduledData: null,
+    playback,
+
+    processing: {
+      status: "uploading",
+      provider: "mux",
+      errorCode: null,
+      errorMessage: null,
+      updatedAt: null,
+    },
+
+    search: buildPostSearchIndex({
+      text: cleanText,
+      groupId: params.groupId,
+      groupVisibility,
+      authorId: author.uid,
+      accessScope: "group",
+      isDeleted: false,
+      createdAt: searchTimestamp,
+      updatedAt: searchTimestamp,
+    }),
+  }, { merge: true });
+}
+
 
 export async function softDeletePost(postId: string): Promise<void> {
   assertValidId(postId, "postId");

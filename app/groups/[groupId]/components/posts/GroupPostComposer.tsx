@@ -19,6 +19,7 @@ import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 type GroupPostComposerSubmitPayload = {
   text: string;
   imageFiles?: File[];
+  videoFile?: File | null;
 };
 
 type GroupPostComposerProps = {
@@ -147,6 +148,8 @@ export default function GroupPostComposer({
   const [currentUserHandle, setCurrentUserHandle] = useState<string | null>(null);
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [selectedImagePreviews, setSelectedImagePreviews] = useState<string[]>([]);
+  const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
+  const [selectedVideoPreview, setSelectedVideoPreview] = useState<string | null>(null);
 const [localError, setLocalError] = useState<string | null>(null);
 const [processingImageSlots, setProcessingImageSlots] = useState(0);
 const [draggingPreviewIndex, setDraggingPreviewIndex] = useState<number | null>(null);
@@ -154,6 +157,7 @@ const [dragOverPreviewIndex, setDragOverPreviewIndex] = useState<number | null>(
 const [isReorderingPreview, setIsReorderingPreview] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const videoInputRef = useRef<HTMLInputElement | null>(null);
   const previewScrollerRef = useRef<HTMLDivElement | null>(null);
 const dragStartIndexRef = useRef<number | null>(null);
 const dragPointerIdRef = useRef<number | null>(null);
@@ -230,27 +234,33 @@ if (!cancelled) {
     return () => window.clearTimeout(timer);
   }, [localError]);
 
- useEffect(() => {
-  if (selectedImages.length === 0) {
-    setSelectedImagePreviews([]);
+useEffect(() => {
+  if (!selectedVideo) {
+    setSelectedVideoPreview(null);
     return;
   }
 
-  const objectUrls = selectedImages.map((file) => URL.createObjectURL(file));
-  setSelectedImagePreviews(objectUrls);
+  const objectUrl = URL.createObjectURL(selectedVideo);
+  setSelectedVideoPreview(objectUrl);
 
   return () => {
-    objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    URL.revokeObjectURL(objectUrl);
   };
-}, [selectedImages]);
+}, [selectedVideo]);
 
   const currentUserHref = currentUserHandle ? `/u/${currentUserHandle}` : "#";
-const hasContent = text.trim().length > 0 || selectedImages.length > 0;
+const hasContent =
+  text.trim().length > 0 || selectedImages.length > 0 || Boolean(selectedVideo);
 const isPreparingImages = processingImageSlots > 0;
 
   function handleOpenImagePicker() {
     if (creating || isPreparingImages) return;
     fileInputRef.current?.click();
+  }
+
+  function handleOpenVideoPicker() {
+    if (creating || isPreparingImages) return;
+    videoInputRef.current?.click();
   }
 
 function clearDragPressTimer() {
@@ -458,6 +468,13 @@ async function handleImagesSelected(files: File[]) {
     setLocalError(`Solo se agregaron ${availableSlots} imágenes. El máximo es ${MAX_POST_IMAGES}.`);
   }
 
+  setSelectedVideo(null);
+  setSelectedVideoPreview(null);
+
+  if (videoInputRef.current) {
+    videoInputRef.current.value = "";
+  }
+
   setPostType("image");
   setProcessingImageSlots((current) => current + filesToProcess.length);
 
@@ -506,6 +523,39 @@ function handleRemoveImage(indexToRemove: number) {
   }
 }
 
+function handleVideoSelected(file: File | null) {
+  setLocalError(null);
+
+  if (!file) return;
+
+  if (!file.type.startsWith("video/")) {
+    setLocalError("Selecciona un archivo de video válido.");
+    return;
+  }
+
+  setSelectedImages([]);
+  setSelectedImagePreviews([]);
+  setSelectedVideo(file);
+  setPostType("video");
+
+  if (fileInputRef.current) {
+    fileInputRef.current.value = "";
+  }
+}
+
+function handleRemoveVideo() {
+  setSelectedVideo(null);
+  setSelectedVideoPreview(null);
+
+  if (videoInputRef.current) {
+    videoInputRef.current.value = "";
+  }
+
+  if (text.trim().length === 0) {
+    setPostType("text");
+  }
+}
+
   async function handleSubmit() {
     if (creating || !hasContent) return;
 
@@ -516,15 +566,22 @@ function handleRemoveImage(indexToRemove: number) {
 await onSubmit({
   text: text.trim(),
   imageFiles: selectedImages,
+  videoFile: selectedVideo,
 });
 
       setText("");
 setSelectedImages([]);
 setSelectedImagePreviews([]);
+setSelectedVideo(null);
+setSelectedVideoPreview(null);
       setPostType("text");
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
+      }
+
+      if (videoInputRef.current) {
+        videoInputRef.current.value = "";
       }
     } catch (error: any) {
       setLocalError(error?.message ?? "No se pudo publicar.");
@@ -747,6 +804,17 @@ return (
   }}
 />
 
+<input
+  ref={videoInputRef}
+  type="file"
+  accept="video/*"
+  style={{ display: "none" }}
+  onChange={(event) => {
+    handleVideoSelected(event.currentTarget.files?.[0] ?? null);
+    event.currentTarget.value = "";
+  }}
+/>
+
       <div
         style={{
           display: "flex",
@@ -775,9 +843,11 @@ return (
             </Link>
 
             <div style={labelStyle}>
-              {postType === "image"
-                ? "Crear publicación con imagen"
-                : "Crear publicación"}
+{postType === "image"
+  ? "Crear publicación con imagen"
+  : postType === "video"
+    ? "Crear publicación con video"
+    : "Crear publicación"}
             </div>
           </div>
 
@@ -952,15 +1022,82 @@ style={{
   </div>
 )}
 
+{selectedVideoPreview && (
+  <div
+    style={{
+      marginTop: 10,
+      borderRadius: 14,
+      border: "1px solid rgba(255,255,255,0.1)",
+      background: "rgba(0,0,0,0.28)",
+      padding: 10,
+    }}
+  >
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 10,
+        marginBottom: 8,
+      }}
+    >
+      <div
+        style={{
+          minWidth: 0,
+          color: "rgba(255,255,255,0.82)",
+          fontSize: 12,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {selectedVideo?.name || "Video seleccionado"}
+      </div>
+
+      <button
+        type="button"
+        onClick={handleRemoveVideo}
+        disabled={creating}
+        style={{
+          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgba(255,255,255,0.06)",
+          color: "rgba(255,255,255,0.78)",
+          borderRadius: 999,
+          padding: "5px 10px",
+          fontSize: 12,
+          cursor: creating ? "not-allowed" : "pointer",
+          opacity: creating ? 0.5 : 1,
+        }}
+      >
+        Quitar
+      </button>
+    </div>
+
+    <video
+      src={selectedVideoPreview}
+      controls
+      preload="metadata"
+      style={{
+        display: "block",
+        width: "100%",
+        maxHeight: 320,
+        borderRadius: 12,
+        background: "#000",
+        objectFit: "contain",
+      }}
+    />
+  </div>
+)}
+
           {localError && <div style={localErrorStyle}>{localError}</div>}
 
           <div style={actionsRowStyle}>
 <button
   type="button"
   onClick={handleOpenImagePicker}
-  disabled={creating}
+  disabled={creating || Boolean(selectedVideo)}
   style={
-    creating
+    creating || Boolean(selectedVideo)
       ? {
           ...secondaryButtonStyle,
           opacity: 0.5,
@@ -971,6 +1108,24 @@ style={{
   aria-label="Agregar imágenes"
 >
   <span aria-hidden="true">🖼️</span>
+</button>
+
+<button
+  type="button"
+  onClick={handleOpenVideoPicker}
+  disabled={creating || isPreparingImages || selectedImages.length > 0}
+  style={
+    creating || isPreparingImages || selectedImages.length > 0
+      ? {
+          ...secondaryButtonStyle,
+          opacity: 0.5,
+          cursor: "not-allowed",
+        }
+      : secondaryButtonStyle
+  }
+  aria-label="Agregar video"
+>
+  <span aria-hidden="true">🎥</span>
 </button>
 
             <button

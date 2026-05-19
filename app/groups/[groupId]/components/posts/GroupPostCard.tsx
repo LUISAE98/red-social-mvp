@@ -1359,6 +1359,42 @@ const postImageStyle: CSSProperties = {
       )
     : [];
 
+  const videoPlaybackUrl =
+    typeof post.playback?.hlsUrl === "string" && post.playback.hlsUrl.trim()
+      ? post.playback.hlsUrl.trim()
+      : typeof post.playback?.url === "string" && post.playback.url.trim()
+        ? post.playback.url.trim()
+        : null;
+
+  const videoThumbnailUrl =
+    typeof post.playback?.thumbnailUrl === "string" &&
+    post.playback.thumbnailUrl.trim()
+      ? post.playback.thumbnailUrl.trim()
+      : typeof post.videoData?.thumbnailUrl === "string" &&
+          post.videoData.thumbnailUrl.trim()
+        ? post.videoData.thumbnailUrl.trim()
+        : null;
+
+  const isVideoPost = post.postType === "video" || post.videoData != null;
+  const isVideoReady =
+    isVideoPost &&
+    Boolean(videoPlaybackUrl) &&
+    (
+      post.processing?.status === "ready" ||
+      post.videoData?.status === "ready" ||
+      post.playback?.isReady === true
+    );
+
+  const isVideoProcessing =
+    isVideoPost &&
+    !isVideoReady &&
+    post.processing?.status !== "error" &&
+    post.videoData?.status !== "error";
+
+  const isVideoError =
+    isVideoPost &&
+    (post.processing?.status === "error" || post.videoData?.status === "error");
+
     const cleanPostText = typeof post.text === "string" ? post.text.trim() : "";
 const feedPostTextLimit = imageMedia.length > 0 ? 120 : 150;
 const feedPostTextMaxLines = imageMedia.length > 0 ? 3 : 5;
@@ -1628,6 +1664,95 @@ style={{
           </button>
         )}
       </span>
+    )}
+  </div>
+)}
+
+{isVideoPost && (
+  <div
+    style={{
+      marginTop: 10,
+      borderRadius: isMobile ? 0 : 14,
+      border: isMobile ? "none" : "1px solid rgba(255,255,255,0.08)",
+      overflow: "hidden",
+      background: "#050505",
+    }}
+  >
+    {isVideoReady && videoPlaybackUrl ? (
+      <video
+        src={videoPlaybackUrl}
+        controls
+        playsInline
+        preload="metadata"
+        poster={videoThumbnailUrl ?? undefined}
+        style={{
+          display: "block",
+          width: "100%",
+          maxHeight: isMobile ? 420 : 520,
+          background: "#000",
+          objectFit: "contain",
+        }}
+      />
+    ) : (
+      <div
+        style={{
+          minHeight: isMobile ? 220 : 280,
+          display: "grid",
+          placeItems: "center",
+          padding: 20,
+          background:
+            "linear-gradient(135deg, rgba(15,23,42,0.96), rgba(2,6,23,0.98))",
+          color: "rgba(255,255,255,0.82)",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ maxWidth: 340 }}>
+          <div
+            style={{
+              width: 52,
+              height: 52,
+              margin: "0 auto 12px",
+              borderRadius: 999,
+              display: "grid",
+              placeItems: "center",
+              background: isVideoError
+                ? "rgba(239,68,68,0.16)"
+                : "rgba(96,165,250,0.16)",
+              color: isVideoError
+                ? "rgba(252,165,165,0.95)"
+                : "rgba(147,197,253,0.95)",
+              fontSize: 24,
+            }}
+          >
+            {isVideoError ? "!" : "🎥"}
+          </div>
+
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 800,
+              marginBottom: 6,
+            }}
+          >
+            {isVideoError
+              ? "No se pudo procesar el video"
+              : "Video procesándose"}
+          </div>
+
+          <div
+            style={{
+              fontSize: 12.5,
+              lineHeight: 1.5,
+              color: "rgba(255,255,255,0.62)",
+            }}
+          >
+            {isVideoError
+              ? post.processing?.errorMessage ||
+                "Intenta subir el video nuevamente."
+              : "Mux está preparando la reproducción. El video aparecerá automáticamente cuando esté listo."}
+          </div>
+        </div>
+      </div>
     )}
   </div>
 )}
