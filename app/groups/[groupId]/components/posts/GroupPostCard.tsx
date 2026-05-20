@@ -494,11 +494,12 @@ onToggleProfilePin,
   const [loadedMediaUrls, setLoadedMediaUrls] = useState<Record<string, boolean>>({});
   const [mediaAspectRatios, setMediaAspectRatios] = useState<Record<string, number>>({});
   const [videoAspectRatio, setVideoAspectRatio] = useState<number | null>(null);
+  const [videoMetadataLoaded, setVideoMetadataLoaded] = useState(false);
   const [videoViewerOpen, setVideoViewerOpen] = useState(false);
-const [videoDragY, setVideoDragY] = useState(0);
-const videoDragStartYRef = useRef<number | null>(null);
+  const [videoDragY, setVideoDragY] = useState(0);
+  const videoDragStartYRef = useRef<number | null>(null);
   const [showExactPostDate, setShowExactPostDate] = useState(false);
-const [selectedImage, setSelectedImage] = useState<{
+  const [selectedImage, setSelectedImage] = useState<{
   url: string;
   altText?: string | null;
 } | null>(null);
@@ -1376,6 +1377,25 @@ const postImageStyle: CSSProperties = {
   objectFit: "cover",
   transition: "opacity 180ms ease",
 };
+const videoSkeletonAspectRatio =
+  typeof videoAspectRatio === "number"
+    ? videoAspectRatio >= 1
+      ? "16 / 9"
+      : isMobile
+        ? "4 / 5"
+        : "9 / 16"
+    : isMobile
+      ? "16 / 10"
+      : "16 / 9";
+
+const videoSkeletonStyle: CSSProperties = {
+  width: "100%",
+  aspectRatio: videoSkeletonAspectRatio,
+  background:
+    "linear-gradient(90deg, rgba(255,255,255,0.045), rgba(255,255,255,0.085), rgba(255,255,255,0.045))",
+  backgroundSize: "220% 100%",
+  animation: "vibraVideoSkeleton 1.25s ease-in-out infinite",
+};
   const shouldShowActionsMenu = availableActions.length > 0;
   const isPinned =
     post.isPinnedInGroup === true || post.isPinnedOnProfile === true;
@@ -1798,11 +1818,12 @@ style={{
         : null;
 
     setVideoAspectRatio(ratio);
+    setVideoMetadataLoaded(true);
   }}
   style={{
     position: "relative",
     zIndex: 1,
-    display: "block",
+    display: videoMetadataLoaded ? "block" : "none",
     width: "100%",
     height: "auto",
     maxHeight: isMobile ? "none" : 560,
@@ -1894,9 +1915,38 @@ style={{
             }}
           >
             {isVideoError
-              ? post.processing?.errorMessage || "Intenta subir el video nuevamente."
+              ? post.processing?.errorMessage ||
+                "Mux no pudo preparar este video. Puedes intentar subirlo nuevamente."
               : "Mux está preparando la reproducción. El video aparecerá automáticamente cuando esté listo."}
           </div>
+
+          {isVideoError && (
+            <button
+              type="button"
+              onClick={() => {
+                window.scrollTo({
+                  top: 0,
+                  behavior: "smooth",
+                });
+              }}
+              style={{
+                marginTop: 14,
+                minHeight: 36,
+                padding: "8px 12px",
+                borderRadius: 999,
+                border: "1px solid rgba(255,255,255,0.14)",
+                background: "rgba(255,255,255,0.08)",
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: 700,
+                fontFamily: fontStack,
+                cursor: "pointer",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              Subir otro video
+            </button>
+          )}
         </div>
       </div>
     )}
@@ -2537,7 +2587,7 @@ style={{
       >
         ×
       </button>
-
+{!videoMetadataLoaded && <div aria-hidden="true" style={videoSkeletonStyle} />}
       <video
         ref={fullscreenVideoRef}
         src={videoPlaybackUrl}
@@ -2556,6 +2606,18 @@ style={{
     </div>,
     document.body
   )}
+  <style>
+  {`
+    @keyframes vibraVideoSkeleton {
+      0% {
+        background-position: 120% 0;
+      }
+      100% {
+        background-position: -120% 0;
+      }
+    }
+  `}
+</style>
     </article>
   );
 }
