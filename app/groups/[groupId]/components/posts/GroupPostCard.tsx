@@ -493,6 +493,7 @@ onToggleProfilePin,
   const [failedMediaUrls, setFailedMediaUrls] = useState<Record<string, boolean>>({});
   const [loadedMediaUrls, setLoadedMediaUrls] = useState<Record<string, boolean>>({});
   const [mediaAspectRatios, setMediaAspectRatios] = useState<Record<string, number>>({});
+  const [videoAspectRatio, setVideoAspectRatio] = useState<number | null>(null);
   const [showExactPostDate, setShowExactPostDate] = useState(false);
 const [selectedImage, setSelectedImage] = useState<{
   url: string;
@@ -504,6 +505,7 @@ const [postTextExpanded, setPostTextExpanded] = useState(false);
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const flameUsersCacheRef = useRef<Record<string, PostFlameUser[]>>({});
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -531,6 +533,23 @@ const [postTextExpanded, setPostTextExpanded] = useState(false);
 
     return () => window.clearTimeout(timer);
   }, [inlineActionError]);
+
+      useEffect(() => {
+  function handleGlobalVideoPlay(event: Event) {
+    const currentVideo = videoRef.current;
+
+    if (!currentVideo) return;
+    if (event.target === currentVideo) return;
+
+    currentVideo.pause();
+  }
+
+  document.addEventListener("play", handleGlobalVideoPlay, true);
+
+  return () => {
+    document.removeEventListener("play", handleGlobalVideoPlay, true);
+  };
+}, []);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -1672,6 +1691,10 @@ style={{
   <div
     style={{
       marginTop: 10,
+      width: isMobile ? "calc(100% + 24px)" : "100%",
+      maxWidth: isMobile ? "calc(100% + 24px)" : "100%",
+      marginLeft: isMobile ? -12 : 0,
+      marginRight: isMobile ? -12 : 0,
       borderRadius: isMobile ? 0 : 14,
       border: isMobile ? "none" : "1px solid rgba(255,255,255,0.08)",
       overflow: "hidden",
@@ -1679,20 +1702,61 @@ style={{
     }}
   >
     {isVideoReady && videoPlaybackUrl ? (
-      <video
-        src={videoPlaybackUrl}
-        controls
-        playsInline
-        preload="metadata"
-        poster={videoThumbnailUrl ?? undefined}
+      <div
         style={{
-          display: "block",
+          position: "relative",
           width: "100%",
-          maxHeight: isMobile ? 420 : 520,
-          background: "#000",
-          objectFit: "contain",
+          overflow: "hidden",
+          background: "#050505",
         }}
-      />
+      >
+        {!isMobile && videoThumbnailUrl && videoAspectRatio !== null && videoAspectRatio < 1 && (
+          <img
+            src={videoThumbnailUrl}
+            alt=""
+            aria-hidden="true"
+            draggable={false}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              filter: "blur(30px)",
+              transform: "scale(1.12)",
+              opacity: 0.24,
+            }}
+          />
+        )}
+
+        <video
+          ref={videoRef}
+          src={videoPlaybackUrl}
+          controls
+          playsInline
+          preload="metadata"
+          poster={videoThumbnailUrl ?? undefined}
+          onLoadedMetadata={(event) => {
+            const video = event.currentTarget;
+            const ratio =
+              video.videoWidth > 0 && video.videoHeight > 0
+                ? video.videoWidth / video.videoHeight
+                : null;
+
+            setVideoAspectRatio(ratio);
+          }}
+          style={{
+            position: "relative",
+            zIndex: 1,
+            display: "block",
+            width: "100%",
+            height: "auto",
+            maxHeight: isMobile ? "none" : 560,
+            background: "transparent",
+            objectFit: "contain",
+          }}
+        />
+      </div>
     ) : (
       <div
         style={{
@@ -1727,16 +1791,8 @@ style={{
             {isVideoError ? "!" : "🎥"}
           </div>
 
-          <div
-            style={{
-              fontSize: 14,
-              fontWeight: 800,
-              marginBottom: 6,
-            }}
-          >
-            {isVideoError
-              ? "No se pudo procesar el video"
-              : "Video procesándose"}
+          <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 6 }}>
+            {isVideoError ? "No se pudo procesar el video" : "Video procesándose"}
           </div>
 
           <div
@@ -1747,8 +1803,7 @@ style={{
             }}
           >
             {isVideoError
-              ? post.processing?.errorMessage ||
-                "Intenta subir el video nuevamente."
+              ? post.processing?.errorMessage || "Intenta subir el video nuevamente."
               : "Mux está preparando la reproducción. El video aparecerá automáticamente cuando esté listo."}
           </div>
         </div>

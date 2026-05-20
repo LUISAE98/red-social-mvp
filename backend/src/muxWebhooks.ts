@@ -221,14 +221,6 @@ async function markAssetReady(event: MuxWebhookEvent) {
   }
 
   await batch.commit();
-
-  logger.info("muxWebhook asset.ready processed", {
-    assetId,
-    uploadId,
-    postId,
-    playbackId,
-    hasUploadDoc: Boolean(uploadRef),
-  });
 }
 
 async function markAssetError(event: MuxWebhookEvent) {
@@ -341,10 +333,6 @@ export const muxWebhook = onRequest(
       );
 
       event = JSON.parse(rawBody);
-
-      logger.info(
-        `muxWebhook parsed type=${event?.type ?? "unknown"}`
-      );
     } catch (error) {
       logger.warn("muxWebhook invalid signature", {
         error: error instanceof Error ? error.message : String(error),
@@ -365,13 +353,6 @@ export const muxWebhook = onRequest(
           break;
 
         default:
-          logger.info(
-            `muxWebhook ignored event type=${event.type ?? "unknown"} dataId=${
-              event.data?.id ?? "null"
-            } uploadId=${event.data?.upload_id ?? "null"} passthrough=${
-              event.data?.passthrough ?? "null"
-            }`
-          );
           break;
       }
 

@@ -230,8 +230,9 @@ function buildCommentBlockedMessage(reason: InteractionBlockedReason): string {
 }
 const GROUP_FEED_PAGE_SIZE = 10;
 const GROUP_FEED_CACHE_TTL_MS = 1000 * 60 * 5;
-const VIDEO_PROCESSING_POLL_MS = 1000 * 10;
-const VIDEO_PROCESSING_MAX_POLLS = 24;
+const VIDEO_PROCESSING_POLL_MS = 1000 * 15;
+const VIDEO_PROCESSING_MAX_POLLS = 20;
+const VIDEO_MAX_DURATION_SECONDS = 60 * 30;
 
 type GroupFeedCacheEntry = {
   posts: PostWithAuthorState[];
@@ -287,6 +288,27 @@ function mergeUniquePosts(
   });
 
   return sortGroupFeedPosts(Array.from(map.values()));
+}
+
+function getVideoDuration(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    const objectUrl = URL.createObjectURL(file);
+
+    video.preload = "metadata";
+
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(video.duration);
+    };
+
+    video.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("No se pudo leer la duración del video."));
+    };
+
+    video.src = objectUrl;
+  });
 }
 
 function uploadVideoFileToMux(params: {
@@ -537,8 +559,24 @@ export default function GroupPostsFeed({
 
     const postIds = processingVideoPostIdsKey.split("|").filter(Boolean);
     let cancelled = false;
+    let timeoutId: number | null = null;
 
     async function refreshProcessingVideos() {
+      if (cancelled) return;
+
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState !== "visible"
+      ) {
+        timeoutId = window.setTimeout(
+          refreshProcessingVideos,
+          VIDEO_PROCESSING_POLL_MS
+        );
+        return;
+      }
+
+      let shouldContinuePolling = false;
+
       await Promise.all(
         postIds.map(async (postId) => {
           const currentPollCount = videoProcessingPollsRef.current[postId] ?? 0;
@@ -547,6 +585,7 @@ export default function GroupPostsFeed({
             return;
           }
 
+          shouldContinuePolling = true;
           videoProcessingPollsRef.current[postId] = currentPollCount + 1;
 
           try {
@@ -554,11 +593,11 @@ export default function GroupPostsFeed({
 
             if (cancelled || !postSnap.exists()) return;
 
-const freshPost = normalizeFeedPost({
-  ...(postSnap.data() as Post),
-  id: postSnap.id,
-  forcedGroupId: groupId,
-} as PostWithAuthorState);
+            const freshPost = normalizeFeedPost({
+              ...(postSnap.data() as Post),
+              id: postSnap.id,
+              forcedGroupId: groupId,
+            } as PostWithAuthorState);
 
             const isDone =
               freshPost.processing?.status === "ready" ||
@@ -588,17 +627,23 @@ const freshPost = normalizeFeedPost({
           }
         })
       );
+
+      if (!cancelled && shouldContinuePolling) {
+        timeoutId = window.setTimeout(
+          refreshProcessingVideos,
+          VIDEO_PROCESSING_POLL_MS
+        );
+      }
     }
 
     void refreshProcessingVideos();
 
-    const intervalId = window.setInterval(() => {
-      void refreshProcessingVideos();
-    }, VIDEO_PROCESSING_POLL_MS);
-
     return () => {
       cancelled = true;
-      window.clearInterval(intervalId);
+
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
     };
   }, [groupId, processingVideoPostIdsKey, syncPostsState]);
 
@@ -695,6 +740,17 @@ const freshPost = normalizeFeedPost({
 
       if (payload.videoFile) {
         setVideoUploadProgress(0);
+        setVideoUploadStatus("Validando video...");
+
+        const duration = await getVideoDuration(payload.videoFile);
+
+        if (duration > VIDEO_MAX_DURATION_SECONDS) {
+          setVideoUploadProgress(null);
+          setVideoUploadStatus(null);
+          setComposerError("El video no puede durar más de 30 minutos.");
+          return;
+        }
+
         setVideoUploadStatus("Preparando subida de video...");
 
         const callable = httpsCallable<

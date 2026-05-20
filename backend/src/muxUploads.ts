@@ -17,6 +17,9 @@ if (!getApps().length) {
 
 const db = getFirestore();
 
+const MUX_UPLOAD_STALE_MS = 1000 * 60 * 60; // 1 hora
+const MUX_UPLOAD_CLEANUP_LIMIT = 25;
+
 type CreateMuxDirectUploadRequest = {
   groupId?: string;
 };
@@ -37,6 +40,45 @@ function isReadableMemberStatus(status: unknown) {
 
 function isPostingAllowedMemberStatus(status: unknown) {
   return status === "active" || status === "subscribed";
+}
+
+async function expireStaleMuxUploads(uid: string, groupId: string) {
+  const cutoff = Date.now() - MUX_UPLOAD_STALE_MS;
+
+  const staleCandidatesSnap = await db
+    .collection("muxUploads")
+    .where("authorId", "==", uid)
+    .where("groupId", "==", groupId)
+    .where("status", "==", "waiting_for_upload")
+    .limit(MUX_UPLOAD_CLEANUP_LIMIT)
+    .get();
+
+  if (staleCandidatesSnap.empty) return;
+
+  const batch = db.batch();
+  let hasUpdates = false;
+
+  staleCandidatesSnap.docs.forEach((uploadDoc) => {
+    const data = uploadDoc.data();
+    const createdAtMillis =
+      typeof data.createdAt?.toMillis === "function"
+        ? data.createdAt.toMillis()
+        : null;
+
+    if (createdAtMillis !== null && createdAtMillis < cutoff) {
+      batch.update(uploadDoc.ref, {
+        status: "expired",
+        statusReason: "upload_not_completed_before_expiration",
+        updatedAt: FieldValue.serverTimestamp(),
+      });
+
+      hasUpdates = true;
+    }
+  });
+
+  if (hasUpdates) {
+    await batch.commit();
+  }
 }
 
 async function assertCanCreateMuxUpload(uid: string, groupId: string) {
@@ -126,6 +168,7 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
     );
 
     await assertCanCreateMuxUpload(uid, groupId);
+    await expireStaleMuxUploads(uid, groupId);
 
     const postRef = db.collection("posts").doc();
     const postId = postRef.id;
