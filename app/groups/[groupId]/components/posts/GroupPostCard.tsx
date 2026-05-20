@@ -2534,10 +2534,20 @@ style={{
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 100000,
+        zIndex: 2147483647,
+        width: "100vw",
+        height: "100dvh",
+        minHeight: "100vh",
+        boxSizing: "border-box",
+        paddingTop: "max(14px, env(safe-area-inset-top))",
+        paddingBottom: "max(18px, env(safe-area-inset-bottom))",
+        paddingLeft: 0,
+        paddingRight: 0,
         background: "#000",
         display: "grid",
         placeItems: "center",
+        overflow: "hidden",
+        overscrollBehavior: "none",
         transform: `translateY(${videoDragY}px)`,
         transition: videoDragY === 0 ? "transform 180ms ease" : "none",
         touchAction: "none",
@@ -2570,7 +2580,7 @@ style={{
         aria-label="Cerrar video"
         style={{
           position: "absolute",
-          top: 14,
+          top: "max(14px, env(safe-area-inset-top))",
           right: 14,
           zIndex: 2,
           width: 38,
@@ -2599,6 +2609,8 @@ style={{
         style={{
           width: "100%",
           height: "100%",
+          maxHeight:
+            "calc(100dvh - max(14px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom)))",
           objectFit: "contain",
           background: "#000",
         }}
