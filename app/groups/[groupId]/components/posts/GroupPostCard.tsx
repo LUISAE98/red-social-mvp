@@ -494,6 +494,9 @@ onToggleProfilePin,
   const [loadedMediaUrls, setLoadedMediaUrls] = useState<Record<string, boolean>>({});
   const [mediaAspectRatios, setMediaAspectRatios] = useState<Record<string, number>>({});
   const [videoAspectRatio, setVideoAspectRatio] = useState<number | null>(null);
+  const [videoViewerOpen, setVideoViewerOpen] = useState(false);
+const [videoDragY, setVideoDragY] = useState(0);
+const videoDragStartYRef = useRef<number | null>(null);
   const [showExactPostDate, setShowExactPostDate] = useState(false);
 const [selectedImage, setSelectedImage] = useState<{
   url: string;
@@ -506,6 +509,7 @@ const [postTextExpanded, setPostTextExpanded] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const flameUsersCacheRef = useRef<Record<string, PostFlameUser[]>>({});
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const fullscreenVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -592,6 +596,8 @@ const [postTextExpanded, setPostTextExpanded] = useState(false);
       window.removeEventListener("scroll", updateMenuPosition, true);
     };
   }, [menuOpen, isMobile]);
+
+  
 
   useEffect(() => {
     if (!menuOpen && !muteModalOpen) return;
@@ -735,6 +741,18 @@ const [postTextExpanded, setPostTextExpanded] = useState(false);
     onDelete,
   ]);
 
+
+  function openVideoViewer() {
+  videoRef.current?.pause();
+  setVideoViewerOpen(true);
+}
+
+function closeVideoViewer() {
+  fullscreenVideoRef.current?.pause();
+  setVideoViewerOpen(false);
+  setVideoDragY(0);
+  videoDragStartYRef.current = null;
+}
   async function refreshAfterModeration() {
     await onModerationComplete?.();
   }
@@ -1414,6 +1432,31 @@ const postImageStyle: CSSProperties = {
     isVideoPost &&
     (post.processing?.status === "error" || post.videoData?.status === "error");
 
+      useEffect(() => {
+    const video = videoRef.current;
+
+    if (!video || isMobile || !videoPlaybackUrl) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+
+        if (entry.intersectionRatio < 0.35) {
+          video.pause();
+        }
+      },
+      {
+        threshold: [0, 0.35, 0.5, 0.75, 1],
+      }
+    );
+
+    observer.observe(video);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [isMobile, videoPlaybackUrl]);
+
     const cleanPostText = typeof post.text === "string" ? post.text.trim() : "";
 const feedPostTextLimit = imageMedia.length > 0 ? 120 : 150;
 const feedPostTextMaxLines = imageMedia.length > 0 ? 3 : 5;
@@ -1729,33 +1772,81 @@ style={{
           />
         )}
 
-        <video
-          ref={videoRef}
-          src={videoPlaybackUrl}
-          controls
-          playsInline
-          preload="metadata"
-          poster={videoThumbnailUrl ?? undefined}
-          onLoadedMetadata={(event) => {
-            const video = event.currentTarget;
-            const ratio =
-              video.videoWidth > 0 && video.videoHeight > 0
-                ? video.videoWidth / video.videoHeight
-                : null;
+<video
+  ref={videoRef}
+  src={videoPlaybackUrl}
+  controls={!isMobile}
+  playsInline
+  preload="metadata"
+  poster={videoThumbnailUrl ?? undefined}
+  onClick={() => {
+    if (isMobile) {
+      openVideoViewer();
+    }
+  }}
+  onPlay={(event) => {
+    if (isMobile) {
+      event.currentTarget.pause();
+      openVideoViewer();
+    }
+  }}
+  onLoadedMetadata={(event) => {
+    const video = event.currentTarget;
+    const ratio =
+      video.videoWidth > 0 && video.videoHeight > 0
+        ? video.videoWidth / video.videoHeight
+        : null;
 
-            setVideoAspectRatio(ratio);
-          }}
-          style={{
-            position: "relative",
-            zIndex: 1,
-            display: "block",
-            width: "100%",
-            height: "auto",
-            maxHeight: isMobile ? "none" : 560,
-            background: "transparent",
-            objectFit: "contain",
-          }}
-        />
+    setVideoAspectRatio(ratio);
+  }}
+  style={{
+    position: "relative",
+    zIndex: 1,
+    display: "block",
+    width: "100%",
+    height: "auto",
+    maxHeight: isMobile ? "none" : 560,
+    background: "transparent",
+    objectFit: "contain",
+    cursor: isMobile ? "pointer" : "default",
+  }}
+/>
+{isMobile && (
+  <button
+    type="button"
+    onClick={openVideoViewer}
+    aria-label="Reproducir video"
+    style={{
+      position: "absolute",
+      inset: 0,
+      zIndex: 2,
+      display: "grid",
+      placeItems: "center",
+      border: "none",
+      background: "transparent",
+      cursor: "pointer",
+      WebkitTapHighlightColor: "transparent",
+    }}
+  >
+    <span
+      aria-hidden="true"
+      style={{
+        width: 62,
+        height: 62,
+        borderRadius: 999,
+        display: "grid",
+        placeItems: "center",
+        background: "rgba(0,0,0,0.48)",
+        border: "1px solid rgba(255,255,255,0.22)",
+        color: "#fff",
+        fontSize: 28,
+        paddingLeft: 4,
+      }}
+    >
+      ▶
+    </span>
+  </button>
+)}
       </div>
     ) : (
       <div
@@ -2385,6 +2476,86 @@ style={{
     void handleOpenCommentsPanel();
   }}
 />
+{videoViewerOpen &&
+  videoPlaybackUrl &&
+  typeof document !== "undefined" &&
+  createPortal(
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 100000,
+        background: "#000",
+        display: "grid",
+        placeItems: "center",
+        transform: `translateY(${videoDragY}px)`,
+        transition: videoDragY === 0 ? "transform 180ms ease" : "none",
+        touchAction: "none",
+      }}
+      onTouchStart={(event) => {
+        videoDragStartYRef.current = event.touches[0]?.clientY ?? null;
+      }}
+      onTouchMove={(event) => {
+        const startY = videoDragStartYRef.current;
+        const currentY = event.touches[0]?.clientY ?? null;
+
+        if (startY === null || currentY === null) return;
+
+        const deltaY = Math.max(0, currentY - startY);
+        setVideoDragY(deltaY);
+      }}
+      onTouchEnd={() => {
+        if (videoDragY > 120) {
+          closeVideoViewer();
+          return;
+        }
+
+        setVideoDragY(0);
+        videoDragStartYRef.current = null;
+      }}
+    >
+      <button
+        type="button"
+        onClick={closeVideoViewer}
+        aria-label="Cerrar video"
+        style={{
+          position: "absolute",
+          top: 14,
+          right: 14,
+          zIndex: 2,
+          width: 38,
+          height: 38,
+          borderRadius: 999,
+          border: "1px solid rgba(255,255,255,0.18)",
+          background: "rgba(0,0,0,0.42)",
+          color: "#fff",
+          fontSize: 22,
+          lineHeight: 1,
+          display: "grid",
+          placeItems: "center",
+        }}
+      >
+        ×
+      </button>
+
+      <video
+        ref={fullscreenVideoRef}
+        src={videoPlaybackUrl}
+        controls
+        autoPlay
+        playsInline
+        preload="metadata"
+        poster={videoThumbnailUrl ?? undefined}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          background: "#000",
+        }}
+      />
+    </div>,
+    document.body
+  )}
     </article>
   );
 }

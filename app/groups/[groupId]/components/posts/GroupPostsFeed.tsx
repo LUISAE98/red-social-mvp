@@ -517,7 +517,10 @@ export default function GroupPostsFeed({
       const cacheIsFresh =
         !!cached && Date.now() - cached.updatedAt <= GROUP_FEED_CACHE_TTL_MS;
 
-      if (cacheIsFresh) {
+      const cacheHasProcessingVideos =
+        cached?.posts.some(isVideoPostStillProcessing) === true;
+
+      if (cacheIsFresh && !cacheHasProcessingVideos) {
         setPosts(cached.posts);
         setPageCursor(cached.cursor);
         setHasMore(cached.hasMore);
