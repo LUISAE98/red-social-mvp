@@ -1,3 +1,5 @@
+//muxWebhooks.ts
+
 import Mux from "@mux/mux-node";
 import { getApps, initializeApp } from "firebase-admin/app";
 import {
@@ -20,6 +22,8 @@ type MuxPassthrough = {
   postId?: string;
   authorId?: string;
   groupId?: string;
+  mediaId?: string;
+  mediaIndex?: number;
   source?: string;
 };
 
@@ -114,13 +118,19 @@ async function markAssetReady(event: MuxWebhookEvent) {
   let postId = passthrough.postId ?? null;
   let authorId = passthrough.authorId ?? null;
   let groupId = passthrough.groupId ?? null;
+  let mediaId = passthrough.mediaId ?? null;
+  let mediaIndex =
+    typeof passthrough.mediaIndex === "number" &&
+    Number.isInteger(passthrough.mediaIndex)
+      ? passthrough.mediaIndex
+      : null;
 
   const uploadRef = await findMuxUploadDoc({
     uploadId,
     postId,
   });
 
-  if ((!postId || !authorId || !groupId) && uploadRef) {
+  if ((!postId || !authorId || !groupId || !mediaId || mediaIndex === null) && uploadRef) {
     const uploadSnap = await uploadRef.get();
     const uploadData = uploadSnap.data() ?? {};
 
@@ -135,6 +145,17 @@ async function markAssetReady(event: MuxWebhookEvent) {
     groupId =
       groupId ??
       (typeof uploadData.groupId === "string" ? uploadData.groupId : null);
+
+    mediaId =
+      mediaId ??
+      (typeof uploadData.mediaId === "string" ? uploadData.mediaId : null);
+
+    mediaIndex =
+      mediaIndex ??
+      (typeof uploadData.mediaIndex === "number" &&
+      Number.isInteger(uploadData.mediaIndex)
+        ? uploadData.mediaIndex
+        : null);
   }
 
   if (!assetId || !postId || !playbackId) {
@@ -143,6 +164,8 @@ async function markAssetReady(event: MuxWebhookEvent) {
       postId,
       playbackId,
       uploadId,
+      mediaId,
+      mediaIndex,
       hasUploadDoc: Boolean(uploadRef),
     });
 
@@ -153,15 +176,113 @@ async function markAssetReady(event: MuxWebhookEvent) {
   const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg`;
 
   const now = FieldValue.serverTimestamp();
-
   const postRef = db.collection("posts").doc(postId);
 
-  const batch = db.batch();
+  await db.runTransaction(async (transaction) => {
+    const postSnap = await transaction.get(postRef);
 
-  batch.set(
-    postRef,
-    {
-      videoData: {
+    if (!postSnap.exists) {
+      logger.warn("muxWebhook asset.ready post not found", {
+        postId,
+        uploadId,
+        mediaId,
+        mediaIndex,
+      });
+
+      return;
+    }
+
+    const postData = postSnap.data() ?? {};
+    const currentMedia = Array.isArray(postData.media) ? postData.media : [];
+
+    let matchedMedia = false;
+
+    const nextMedia = currentMedia.map((item) => {
+      if (!item || typeof item !== "object") {
+        return item;
+      }
+
+      const mediaItem = item as Record<string, unknown>;
+
+      const matchesByMediaId =
+        mediaId &&
+        typeof mediaItem.id === "string" &&
+        mediaItem.id === mediaId;
+
+      const matchesByUploadId =
+        uploadId &&
+        typeof mediaItem.uploadId === "string" &&
+        mediaItem.uploadId === uploadId;
+
+      const matchesByIndex =
+        mediaIndex !== null &&
+        typeof mediaItem.index === "number" &&
+        mediaItem.index === mediaIndex;
+
+      if (mediaItem.type !== "video" || (!matchesByMediaId && !matchesByUploadId && !matchesByIndex)) {
+        return item;
+      }
+
+      matchedMedia = true;
+
+      return {
+        ...mediaItem,
+        type: "video",
+        id: typeof mediaItem.id === "string" ? mediaItem.id : mediaId ?? undefined,
+        index: typeof mediaItem.index === "number" ? mediaItem.index : mediaIndex ?? undefined,
+        url: hlsUrl,
+        thumbnailUrl,
+        provider: "mux",
+        status: "ready",
+        uploadId,
+        assetId,
+        playbackId,
+        hlsUrl,
+        duration,
+      };
+    });
+
+    const videoItems = nextMedia.filter((item) => {
+      return item && typeof item === "object" && (item as Record<string, unknown>).type === "video";
+    });
+
+    const allVideosReady =
+      videoItems.length > 0 &&
+      videoItems.every((item) => {
+        const mediaItem = item as Record<string, unknown>;
+        return mediaItem.status === "ready";
+      });
+
+    const firstVideo = videoItems[0] as Record<string, unknown> | undefined;
+
+    const shouldUpdateRootVideo =
+      !firstVideo ||
+      firstVideo.uploadId === uploadId ||
+      firstVideo.id === mediaId ||
+      postData.videoData == null ||
+      typeof (postData.videoData as Record<string, unknown>)?.playbackId !== "string";
+
+    const postUpdate: Record<string, unknown> = {
+      updatedAt: now,
+      processing: {
+        status: allVideosReady ? "ready" : "uploading",
+        provider: "mux",
+        errorCode: null,
+        errorMessage: null,
+        updatedAt: now,
+      },
+    };
+
+    if (matchedMedia) {
+      postUpdate.media = nextMedia;
+    }
+
+    if (!postData.shareImageUrl || shouldUpdateRootVideo) {
+      postUpdate.shareImageUrl = thumbnailUrl;
+    }
+
+    if (shouldUpdateRootVideo) {
+      postUpdate.videoData = {
         provider: "mux",
         status: "ready",
         assetId,
@@ -171,8 +292,9 @@ async function markAssetReady(event: MuxWebhookEvent) {
         thumbnailUrl,
         sourceUrl: null,
         sourcePath: null,
-      },
-      playback: {
+      };
+
+      postUpdate.playback = {
         url: hlsUrl,
         hlsUrl,
         thumbnailUrl,
@@ -180,47 +302,31 @@ async function markAssetReady(event: MuxWebhookEvent) {
         playbackId,
         duration,
         isReady: true,
-      },
-      processing: {
+      };
+    }
+
+    transaction.set(postRef, postUpdate, { merge: true });
+
+    if (uploadRef) {
+      const uploadUpdate: Record<string, unknown> = {
         status: "ready",
-        provider: "mux",
-        errorCode: null,
-        errorMessage: null,
+        assetId,
+        playbackId,
+        duration,
+        thumbnailUrl,
+        hlsUrl,
         updatedAt: now,
-      },
-      shareImageUrl: thumbnailUrl,
-      updatedAt: now,
-    },
-    { merge: true }
-  );
+      };
 
-  if (uploadRef) {
-    const uploadUpdate: Record<string, unknown> = {
-      status: "ready",
-      assetId,
-      playbackId,
-      duration,
-      thumbnailUrl,
-      hlsUrl,
-      updatedAt: now,
-    };
+      if (authorId) uploadUpdate.authorId = authorId;
+      if (groupId) uploadUpdate.groupId = groupId;
+      if (postId) uploadUpdate.postId = postId;
+      if (mediaId) uploadUpdate.mediaId = mediaId;
+      if (mediaIndex !== null) uploadUpdate.mediaIndex = mediaIndex;
 
-    if (authorId) {
-      uploadUpdate.authorId = authorId;
+      transaction.set(uploadRef, uploadUpdate, { merge: true });
     }
-
-    if (groupId) {
-      uploadUpdate.groupId = groupId;
-    }
-
-    if (postId) {
-      uploadUpdate.postId = postId;
-    }
-
-    batch.set(uploadRef, uploadUpdate, { merge: true });
-  }
-
-  await batch.commit();
+  });
 }
 
 async function markAssetError(event: MuxWebhookEvent) {
@@ -228,7 +334,14 @@ async function markAssetError(event: MuxWebhookEvent) {
   const uploadId = event.data?.upload_id ?? null;
   const passthrough = parsePassthrough(event.data?.passthrough);
 
-  const postId = passthrough.postId ?? null;
+  let postId = passthrough.postId ?? null;
+  let mediaId = passthrough.mediaId ?? null;
+  let mediaIndex =
+    typeof passthrough.mediaIndex === "number" &&
+    Number.isInteger(passthrough.mediaIndex)
+      ? passthrough.mediaIndex
+      : null;
+
   const errorCode = event.data?.errors?.type ?? "mux_processing_error";
   const errorMessage =
     Array.isArray(event.data?.errors?.messages) &&
@@ -252,28 +365,91 @@ async function markAssetError(event: MuxWebhookEvent) {
     postId,
   });
 
+  if ((!postId || !mediaId || mediaIndex === null) && uploadRef) {
+    const uploadSnap = await uploadRef.get();
+    const uploadData = uploadSnap.data() ?? {};
+
+    postId =
+      postId ??
+      (typeof uploadData.postId === "string" ? uploadData.postId : null);
+
+    mediaId =
+      mediaId ??
+      (typeof uploadData.mediaId === "string" ? uploadData.mediaId : null);
+
+    mediaIndex =
+      mediaIndex ??
+      (typeof uploadData.mediaIndex === "number" &&
+      Number.isInteger(uploadData.mediaIndex)
+        ? uploadData.mediaIndex
+        : null);
+  }
+
   const batch = db.batch();
 
   if (postId) {
-    batch.set(
-      db.collection("posts").doc(postId),
-      {
-        videoData: {
+    const postRef = db.collection("posts").doc(postId);
+    const postSnap = await postRef.get();
+
+    if (postSnap.exists) {
+      const postData = postSnap.data() ?? {};
+      const currentMedia = Array.isArray(postData.media) ? postData.media : [];
+
+      const nextMedia = currentMedia.map((item) => {
+        if (!item || typeof item !== "object") {
+          return item;
+        }
+
+        const mediaItem = item as Record<string, unknown>;
+
+        const matchesByMediaId =
+          mediaId &&
+          typeof mediaItem.id === "string" &&
+          mediaItem.id === mediaId;
+
+        const matchesByUploadId =
+          uploadId &&
+          typeof mediaItem.uploadId === "string" &&
+          mediaItem.uploadId === uploadId;
+
+        const matchesByIndex =
+          mediaIndex !== null &&
+          typeof mediaItem.index === "number" &&
+          mediaItem.index === mediaIndex;
+
+        if (mediaItem.type !== "video" || (!matchesByMediaId && !matchesByUploadId && !matchesByIndex)) {
+          return item;
+        }
+
+        return {
+          ...mediaItem,
           status: "error",
           assetId,
           uploadId,
-        },
-        processing: {
-          status: "error",
-          provider: "mux",
-          errorCode,
-          errorMessage,
+        };
+      });
+
+      batch.set(
+        postRef,
+        {
+          media: nextMedia,
+          videoData: {
+            status: "error",
+            assetId,
+            uploadId,
+          },
+          processing: {
+            status: "error",
+            provider: "mux",
+            errorCode,
+            errorMessage,
+            updatedAt: now,
+          },
           updatedAt: now,
         },
-        updatedAt: now,
-      },
-      { merge: true }
-    );
+        { merge: true }
+      );
+    }
   }
 
   if (uploadRef) {
@@ -296,6 +472,8 @@ async function markAssetError(event: MuxWebhookEvent) {
     assetId,
     uploadId,
     postId,
+    mediaId,
+    mediaIndex,
     errorCode,
   });
 }
@@ -323,7 +501,7 @@ export const muxWebhook = onRequest(
       webhookSecret: muxWebhookSecret.value(),
     });
 
-    let event: any;
+    let event: MuxWebhookEvent;
 
     try {
       mux.webhooks.verifySignature(
@@ -332,7 +510,7 @@ export const muxWebhook = onRequest(
         muxWebhookSecret.value()
       );
 
-      event = JSON.parse(rawBody);
+      event = JSON.parse(rawBody) as MuxWebhookEvent;
     } catch (error) {
       logger.warn("muxWebhook invalid signature", {
         error: error instanceof Error ? error.message : String(error),
@@ -359,7 +537,7 @@ export const muxWebhook = onRequest(
       res.status(200).json({ received: true });
     } catch (error) {
       logger.error("muxWebhook processing failed", {
-        type: event.type,
+        type: event.type ?? "unknown",
         error: error instanceof Error ? error.message : String(error),
       });
 

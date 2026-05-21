@@ -1,3 +1,5 @@
+//muxUploads.ts
+
 import { getApps, initializeApp } from "firebase-admin/app";
 import {
   FieldValue,
@@ -22,6 +24,8 @@ const MUX_UPLOAD_CLEANUP_LIMIT = 25;
 
 type CreateMuxDirectUploadRequest = {
   groupId?: string;
+  postId?: string;
+  mediaIndex?: number;
 };
 
 function normalizeRequiredString(value: unknown, fieldName: string) {
@@ -170,8 +174,21 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
     await assertCanCreateMuxUpload(uid, groupId);
     await expireStaleMuxUploads(uid, groupId);
 
-    const postRef = db.collection("posts").doc();
-    const postId = postRef.id;
+    const requestedPostId =
+      typeof request.data?.postId === "string"
+        ? request.data.postId.trim()
+        : "";
+
+    const postId = requestedPostId || db.collection("posts").doc().id;
+
+    const mediaIndex =
+      typeof request.data?.mediaIndex === "number" &&
+      Number.isInteger(request.data.mediaIndex) &&
+      request.data.mediaIndex >= 0
+        ? request.data.mediaIndex
+        : 0;
+
+    const mediaId = db.collection("posts").doc(postId).collection("media").doc().id;
 
     const originHeader = request.rawRequest.headers.origin;
     const corsOrigin =
@@ -190,6 +207,8 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
           postId,
           authorId: uid,
           groupId,
+          mediaId,
+          mediaIndex,
           source: "vibra-post-video",
         }),
       },
@@ -204,6 +223,8 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
       postId,
       authorId: uid,
       groupId,
+      mediaId,
+      mediaIndex,
       status: "waiting_for_upload",
       assetId: null,
       playbackId: null,
@@ -216,6 +237,7 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
       uploadId: upload.id,
       uploadUrl: upload.url,
       postId,
+      mediaId,
       status: "waiting_for_upload",
     };
   }
