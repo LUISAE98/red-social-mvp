@@ -202,8 +202,10 @@ export default function PostImageViewer({
   const [videoDuration, setVideoDuration] = useState(0);
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [videoPlaying, setVideoPlaying] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const desktopVideoShellRef = useRef<HTMLDivElement | null>(null);
   const chromeHideTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -333,7 +335,9 @@ export default function PostImageViewer({
     videoDuration > 0 ? Math.min(100, Math.max(0, (videoCurrentTime / videoDuration) * 100)) : 0;
 
   const shouldShowMobileMeta = mobileChromeVisible && !(isCurrentVideo && isLandscape);
-  const shouldShowMobileControls = !isCurrentVideo || mobileChromeVisible;
+  const shouldShowMobileControls = mobileChromeVisible;
+  const shouldShowMobileCounter =
+    canNavigateMedia && mobileChromeVisible && !(isCurrentVideo && isLandscape);
 
   const clearChromeTimer = useCallback(() => {
     if (chromeHideTimerRef.current !== null) {
@@ -361,16 +365,88 @@ export default function PostImageViewer({
     setCurrentMediaIndex((current) => (current >= totalMedia - 1 ? 0 : current + 1));
   }
 
-  function showMobileVideoChromeTemporarily() {
-    setMobileChromeVisible((visible) => !visible);
+  function toggleMobileChrome() {
+    if (!isMobile) return;
 
-    window.setTimeout(() => {
-      setMobileChromeVisible((visible) => {
-        if (!visible) return visible;
-        scheduleChromeHide();
-        return visible;
-      });
-    }, 0);
+    setMobileChromeVisible((visible) => {
+      const nextVisible = !visible;
+
+      if (nextVisible && isCurrentVideo) {
+        window.setTimeout(scheduleChromeHide, 0);
+      } else if (!nextVisible) {
+        clearChromeTimer();
+      }
+
+      return nextVisible;
+    });
+  }
+
+  function handleVideoPlayPause() {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.paused) {
+      const playPromise = video.play();
+      if (playPromise && typeof playPromise.catch === "function") {
+        playPromise.catch(() => undefined);
+      }
+    } else {
+      video.pause();
+    }
+  }
+
+  function handleVideoSeek(value: number) {
+    const video = videoRef.current;
+    if (!video || !Number.isFinite(value)) return;
+
+    video.currentTime = Math.min(
+      Math.max(0, value),
+      Number.isFinite(video.duration) && video.duration > 0 ? video.duration : value
+    );
+    setVideoCurrentTime(video.currentTime);
+
+    if (isMobile && isCurrentVideo) {
+      setMobileChromeVisible(true);
+      scheduleChromeHide();
+    }
+  }
+
+  async function handleDesktopPictureInPicture() {
+    const video = videoRef.current;
+
+    if (!video || typeof document === "undefined") return;
+
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+        return;
+      }
+
+      if (typeof video.requestPictureInPicture === "function") {
+        await video.requestPictureInPicture();
+      }
+    } catch {
+      // El navegador puede bloquear Picture in Picture si no hay interacción válida.
+    }
+  }
+
+  async function handleDesktopFullscreen() {
+    const shell = desktopVideoShellRef.current;
+
+    if (!shell || typeof document === "undefined") return;
+
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      if (typeof shell.requestFullscreen === "function") {
+        await shell.requestFullscreen();
+      }
+    } catch {
+      // El navegador puede bloquear fullscreen si no hay interacción válida.
+    }
   }
 
   useEffect(() => {
@@ -380,6 +456,7 @@ export default function PostImageViewer({
     setIsCurrentImagePinching(false);
     setVideoCurrentTime(0);
     setVideoDuration(currentMedia?.duration ?? 0);
+    setVideoPlaying(false);
     setMobileChromeVisible(true);
   }, [currentMedia?.url, currentMedia?.type, currentMedia?.duration]);
 
@@ -573,7 +650,7 @@ export default function PostImageViewer({
       return (
         <button
           type="button"
-          onClick={isMobile ? showMobileVideoChromeTemporarily : undefined}
+          onClick={undefined}
           aria-label="Mostrar u ocultar controles del video"
           style={{
             position: "absolute",
@@ -592,7 +669,7 @@ export default function PostImageViewer({
               ref={videoRef}
               src={currentVideoSrc}
               poster={currentVideoPoster}
-              controls={!isMobile}
+              controls={false}
               autoPlay
               playsInline
               preload="metadata"
@@ -607,7 +684,11 @@ export default function PostImageViewer({
               onTimeUpdate={(event) => {
                 setVideoCurrentTime(event.currentTarget.currentTime);
               }}
-              onPlay={scheduleChromeHide}
+              onPlay={() => {
+                setVideoPlaying(true);
+                scheduleChromeHide();
+              }}
+              onPause={() => setVideoPlaying(false)}
               style={{
                 width: "100%",
                 height: "100%",
@@ -671,7 +752,7 @@ export default function PostImageViewer({
 
   const mobileContent = (
     <div style={overlayStyle}>
-      {(!isCurrentVideo || mobileChromeVisible) && (
+      {mobileChromeVisible && (
         <button
           type="button"
           onClick={onClose}
@@ -770,13 +851,29 @@ export default function PostImageViewer({
           event.currentTarget.dataset.gestureAxis = "";
           setMobileGestureAxis(null);
 
-          if (!canNavigateMedia || axis !== "horizontal" || !touch || !startX) {
+          if (!touch || !startX) {
             setMobileDragOffsetX(0);
             return;
           }
 
           const diffX = touch.clientX - startX;
           const diffY = touch.clientY - startY;
+
+          if (axis === "vertical" && diffY > 120) {
+            onClose();
+            return;
+          }
+
+          if (!axis && Math.abs(diffX) < 10 && Math.abs(diffY) < 10) {
+            toggleMobileChrome();
+            setMobileDragOffsetX(0);
+            return;
+          }
+
+          if (!canNavigateMedia || axis !== "horizontal") {
+            setMobileDragOffsetX(0);
+            return;
+          }
 
           if (Math.abs(diffX) < 65 || Math.abs(diffY) > 90) {
             setMobileSwipeAnimating(true);
@@ -813,14 +910,12 @@ export default function PostImageViewer({
         {renderMediaPreview(nextMedia, "Siguiente")}
       </div>
 
-      {canNavigateMedia && shouldShowMobileControls && (
+      {shouldShowMobileCounter && (
         <div
           style={{
             position: "fixed",
             right: "calc(16px + env(safe-area-inset-right))",
-            bottom: isCurrentVideo
-              ? "calc(88px + env(safe-area-inset-bottom))"
-              : "calc(16px + env(safe-area-inset-bottom))",
+            bottom: "calc(16px + env(safe-area-inset-bottom))",
             zIndex: 2147483647,
             minHeight: 22,
             padding: "4px 0",
@@ -863,24 +958,34 @@ export default function PostImageViewer({
           >
             -{formatMediaDuration(remainingSeconds)}
           </div>
-          <div
-            aria-hidden="true"
-            style={{
-              position: "relative",
-              height: 3,
-              borderRadius: 999,
-              background: "rgba(255,255,255,0.28)",
-              overflow: "hidden",
+          <input
+            type="range"
+            min={0}
+            max={videoDuration > 0 ? videoDuration : 0}
+            step={0.05}
+            value={Math.min(videoCurrentTime, videoDuration > 0 ? videoDuration : videoCurrentTime)}
+            aria-label="Avanzar o retroceder video"
+            onClick={(event) => event.stopPropagation()}
+            onTouchStart={(event) => {
+              event.stopPropagation();
+              clearChromeTimer();
             }}
-          >
-            <div
-              style={{
-                width: `${progressPercent}%`,
-                height: "100%",
-                background: "#fff",
-              }}
-            />
-          </div>
+            onTouchMove={(event) => event.stopPropagation()}
+            onTouchEnd={(event) => {
+              event.stopPropagation();
+              scheduleChromeHide();
+            }}
+            onChange={(event) => handleVideoSeek(Number(event.currentTarget.value))}
+            style={{
+              width: "100%",
+              height: 18,
+              margin: 0,
+              padding: 0,
+              accentColor: "#fff",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+            }}
+          />
         </div>
       )}
 
@@ -1222,6 +1327,7 @@ export default function PostImageViewer({
         onClick={(event) => event.stopPropagation()}
       >
         <div
+          ref={desktopVideoShellRef}
           style={{
             position: "relative",
             minWidth: 0,
@@ -1250,7 +1356,7 @@ export default function PostImageViewer({
                 ref={videoRef}
                 src={currentVideoSrc}
                 poster={currentVideoPoster}
-                controls
+                controls={false}
                 autoPlay
                 playsInline
                 preload="metadata"
@@ -1263,6 +1369,8 @@ export default function PostImageViewer({
                   );
                 }}
                 onTimeUpdate={(event) => setVideoCurrentTime(event.currentTarget.currentTime)}
+                onPlay={() => setVideoPlaying(true)}
+                onPause={() => setVideoPlaying(false)}
                 style={{
                   display: "block",
                   maxWidth: "100%",
@@ -1294,24 +1402,170 @@ export default function PostImageViewer({
             />
           )}
 
-          {canNavigateMedia && (
+          {(currentMedia.type === "video" || canNavigateMedia) && (
             <div
               style={{
                 position: "absolute",
+                top: 14,
                 right: 14,
-                bottom: 14,
-                zIndex: 6,
-                minHeight: 24,
-                padding: "5px 8px",
-                borderRadius: 999,
-                background: "rgba(0,0,0,0.46)",
-                color: "rgba(255,255,255,0.88)",
-                fontSize: 11,
-                fontWeight: 650,
-                lineHeight: 1,
+                zIndex: 7,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
-              {currentMediaIndex + 1}/{totalMedia}
+              {currentMedia.type === "video" && currentVideoSrc && (
+                <button
+                  type="button"
+                  onClick={handleDesktopPictureInPicture}
+                  aria-label="Activar imagen en imagen"
+                  title="Imagen en imagen"
+                  style={{
+                    minHeight: 30,
+                    minWidth: 34,
+                    borderRadius: 999,
+                    border: "1px solid rgba(255,255,255,0.16)",
+                    background: "rgba(0,0,0,0.52)",
+                    color: "#fff",
+                    display: "grid",
+                    placeItems: "center",
+                    cursor: "pointer",
+                    fontSize: 15,
+                    fontWeight: 800,
+                  }}
+                >
+                  ⧉
+                </button>
+              )}
+
+              {canNavigateMedia && (
+                <div
+                  style={{
+                    minHeight: 30,
+                    padding: "8px 10px",
+                    borderRadius: 999,
+                    background: "rgba(0,0,0,0.52)",
+                    border: "1px solid rgba(255,255,255,0.16)",
+                    color: "rgba(255,255,255,0.92)",
+                    fontSize: 11,
+                    fontWeight: 750,
+                    lineHeight: 1,
+                    display: "grid",
+                    placeItems: "center",
+                  }}
+                >
+                  {currentMediaIndex + 1}/{totalMedia}
+                </div>
+              )}
+            </div>
+          )}
+
+          {currentMedia.type === "video" && currentVideoSrc && (
+            <div
+              style={{
+                position: "absolute",
+                left: 22,
+                right: 22,
+                bottom: 18,
+                zIndex: 7,
+                display: "grid",
+                gridTemplateColumns: "auto auto minmax(0, 1fr) auto auto auto",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 12px",
+                borderRadius: 999,
+                background: "linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.62))",
+                color: "#fff",
+              }}
+            >
+              <button
+                type="button"
+                onClick={handleVideoPlayPause}
+                aria-label={videoPlaying ? "Pausar video" : "Reproducir video"}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 999,
+                  border: "none",
+                  background: "rgba(255,255,255,0.14)",
+                  color: "#fff",
+                  display: "grid",
+                  placeItems: "center",
+                  cursor: "pointer",
+                  fontSize: 15,
+                  paddingLeft: videoPlaying ? 0 : 2,
+                }}
+              >
+                {videoPlaying ? "Ⅱ" : "▶"}
+              </button>
+
+              <span
+                style={{
+                  color: "rgba(255,255,255,0.92)",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {formatMediaDuration(videoCurrentTime)} / {formatMediaDuration(videoDuration)}
+              </span>
+
+              <input
+                type="range"
+                min={0}
+                max={videoDuration > 0 ? videoDuration : 0}
+                step={0.05}
+                value={Math.min(videoCurrentTime, videoDuration > 0 ? videoDuration : videoCurrentTime)}
+                aria-label="Avanzar o retroceder video"
+                onChange={(event) => handleVideoSeek(Number(event.currentTarget.value))}
+                style={{
+                  width: "100%",
+                  margin: 0,
+                  accentColor: "#fff",
+                  cursor: "pointer",
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() => {
+                  const video = videoRef.current;
+                  if (!video) return;
+                  video.muted = !video.muted;
+                }}
+                aria-label="Silenciar o activar sonido"
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 999,
+                  border: "none",
+                  background: "transparent",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: 16,
+                }}
+              >
+                ◔
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDesktopFullscreen}
+                aria-label="Ver video en pantalla completa"
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 999,
+                  border: "none",
+                  background: "transparent",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: 18,
+                  lineHeight: 1,
+                }}
+              >
+                ⛶
+              </button>
             </div>
           )}
 
