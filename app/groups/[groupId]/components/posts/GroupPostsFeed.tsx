@@ -1,3 +1,5 @@
+//GroupPostFeed.tsx
+
 "use client";
 
 import type { CSSProperties } from "react";
@@ -7,11 +9,10 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { auth, db, functions } from "@/lib/firebase";
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import {
-  createImagePost,
+  createMediaPost,
   createPostComment,
   createPostCommentReply,
   createTextPost,
-  createVideoPost,
   deletePostComment,
   deletePostCommentReply,
   fetchCommentReplies,
@@ -37,6 +38,7 @@ type CreateMuxDirectUploadResponse = {
   uploadId: string;
   uploadUrl: string;
   postId: string;
+  mediaId: string;
   status: string;
 };
 
@@ -728,7 +730,11 @@ export default function GroupPostsFeed({
   async function handleCreatePost(payload: {
     text: string;
     imageFiles?: File[];
-    videoFile?: File | null;
+    videoFiles?: File[];
+    mediaItems?: Array<{
+      type: "image" | "video";
+      file: File;
+    }>;
   }) {
     if (!guardCreatePost()) return;
 
@@ -739,61 +745,149 @@ export default function GroupPostsFeed({
       setVideoUploadStatus(null);
 
       const cleanText = payload.text.trim();
-      const imageFiles = payload.imageFiles ?? [];
+      const orderedMediaItems =
+        Array.isArray(payload.mediaItems) && payload.mediaItems.length > 0
+          ? payload.mediaItems
+          : [
+              ...(payload.imageFiles ?? []).map((file) => ({
+                type: "image" as const,
+                file,
+              })),
+              ...(payload.videoFiles ?? []).map((file) => ({
+                type: "video" as const,
+                file,
+              })),
+            ];
 
-      if (payload.videoFile) {
+      const imageItems = orderedMediaItems
+        .map((item, mediaIndex) => ({ ...item, mediaIndex }))
+        .filter((item) => item.type === "image");
+
+      const videoItems = orderedMediaItems
+        .map((item, mediaIndex) => ({ ...item, mediaIndex }))
+        .filter((item) => item.type === "video");
+
+      if (videoItems.length > 3) {
+        setComposerError("Puedes agregar máximo 3 videos por publicación.");
+        return;
+      }
+
+      if (videoItems.length > 0) {
         setVideoUploadProgress(0);
-        setVideoUploadStatus("Validando video...");
+        setVideoUploadStatus("Validando videos...");
 
-        const duration = await getVideoDuration(payload.videoFile);
+        for (const videoItem of videoItems) {
+          const duration = await getVideoDuration(videoItem.file);
 
-        if (duration > VIDEO_MAX_DURATION_SECONDS) {
-          setVideoUploadProgress(null);
-          setVideoUploadStatus(null);
-          setComposerError("El video no puede durar más de 30 minutos.");
-          return;
+          if (duration > VIDEO_MAX_DURATION_SECONDS) {
+            setVideoUploadProgress(null);
+            setVideoUploadStatus(null);
+            setComposerError("Cada video no puede durar más de 30 minutos.");
+            return;
+          }
         }
+      }
 
-        setVideoUploadStatus("Preparando subida de video...");
+      const uploadedImages =
+        imageItems.length > 0
+          ? (
+              await uploadPostImages({
+                groupId,
+                files: imageItems.map((item) => item.file),
+              })
+            ).map((media, index) => ({
+              ...media,
+              index: imageItems[index]?.mediaIndex ?? index,
+            }))
+          : [];
+
+      if (videoItems.length > 0) {
+        setVideoUploadStatus("Preparando subida de videos...");
 
         const callable = httpsCallable<
-          { groupId: string },
+          {
+            groupId: string;
+            postId?: string;
+            mediaIndex?: number;
+          },
           CreateMuxDirectUploadResponse
         >(functions, "createMuxDirectUpload");
 
-        const result = await callable({ groupId });
-        const { uploadUrl, uploadId, postId } = result.data;
+        const muxUploads: Array<{
+          uploadUrl: string;
+          uploadId: string;
+          postId: string;
+          mediaId: string;
+          file: File;
+          mediaIndex: number;
+        }> = [];
 
-        setVideoUploadStatus("Creando publicación de video...");
+        let sharedPostId: string | null = null;
 
-        await createVideoPost({
+        for (const videoItem of videoItems) {
+          const uploadResult = await callable({
+            groupId,
+            postId: sharedPostId ?? undefined,
+            mediaIndex: videoItem.mediaIndex,
+          });
+
+          const uploadData = uploadResult.data as CreateMuxDirectUploadResponse;
+
+          if (!sharedPostId) {
+            sharedPostId = uploadData.postId;
+          }
+
+          muxUploads.push({
+            uploadUrl: uploadData.uploadUrl,
+            uploadId: uploadData.uploadId,
+            postId: uploadData.postId,
+            mediaId: uploadData.mediaId,
+            file: videoItem.file,
+            mediaIndex: videoItem.mediaIndex,
+          });
+        }
+
+        if (!sharedPostId) {
+          throw new Error("No se pudo preparar la publicación de video.");
+        }
+
+        setVideoUploadStatus("Creando publicación con media...");
+
+        await createMediaPost({
           groupId,
-          postId,
-          uploadId,
+          postId: sharedPostId,
           text: cleanText,
+          imageMedia: uploadedImages,
+          videoUploads: muxUploads.map((upload) => ({
+            uploadId: upload.uploadId,
+            mediaId: upload.mediaId,
+            mediaIndex: upload.mediaIndex,
+          })),
         });
 
-        setVideoUploadStatus("Subiendo video a Mux...");
+        for (let index = 0; index < muxUploads.length; index += 1) {
+          const upload = muxUploads[index];
 
-        await uploadVideoFileToMux({
-          uploadUrl,
-          file: payload.videoFile,
-          onProgress: setVideoUploadProgress,
-        });
+          setVideoUploadStatus(
+            `Subiendo video ${index + 1} de ${muxUploads.length} a Mux...`
+          );
+
+          await uploadVideoFileToMux({
+            uploadUrl: upload.uploadUrl,
+            file: upload.file,
+            onProgress: setVideoUploadProgress,
+          });
+        }
 
         setVideoUploadStatus(
-          "Video subido. Mux lo está procesando; aparecerá listo en unos momentos."
+          "Videos subidos. Mux los está procesando; aparecerán listos en unos momentos."
         );
-      } else if (imageFiles.length > 0) {
-        const uploadedImages = await uploadPostImages({
-          groupId,
-          files: imageFiles,
-        });
-
-        await createImagePost({
+      } else if (uploadedImages.length > 0) {
+        await createMediaPost({
           groupId,
           text: cleanText,
-          media: uploadedImages,
+          imageMedia: uploadedImages,
+          videoUploads: [],
         });
       } else {
         await createTextPost({ groupId, text: cleanText });

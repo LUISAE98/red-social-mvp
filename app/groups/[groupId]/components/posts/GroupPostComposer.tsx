@@ -5,21 +5,28 @@ import { MAX_POST_IMAGES } from "@/lib/posts/types";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
-type CSSProperties,
-type PointerEvent as ReactPointerEvent,
-type TextareaHTMLAttributes,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type TextareaHTMLAttributes,
 } from "react";
 import { doc, getDoc } from "firebase/firestore";
 
 import { auth, db } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 
+type ComposerMediaItem = {
+  type: "image" | "video";
+  file: File;
+};
+
 type GroupPostComposerSubmitPayload = {
   text: string;
   imageFiles?: File[];
-  videoFile?: File | null;
+  videoFiles?: File[];
+  mediaItems?: ComposerMediaItem[];
 };
 
 type GroupPostComposerProps = {
@@ -27,6 +34,13 @@ type GroupPostComposerProps = {
 };
 
 type ComposerPostType = "text" | "image" | "video" | "live" | "scheduled_event";
+type SelectedMediaItem = ComposerMediaItem & {
+  id: string;
+  previewUrl: string;
+  durationSeconds: number | null;
+};
+
+const MAX_POST_VIDEOS = 3;
 
 const fontStack =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -35,6 +49,44 @@ function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   if (parts.length === 0) return "U";
   return parts.map((part) => part.charAt(0).toUpperCase()).join("");
+}
+
+function createLocalMediaId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function formatVideoDuration(durationSeconds: number | null) {
+  if (!Number.isFinite(durationSeconds ?? Number.NaN) || durationSeconds === null) {
+    return "0:00";
+  }
+
+  const totalSeconds = Math.max(0, Math.floor(durationSeconds));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function readVideoDurationFromUrl(previewUrl: string): Promise<number | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+
+    video.preload = "metadata";
+
+    video.onloadedmetadata = () => {
+      resolve(Number.isFinite(video.duration) ? video.duration : null);
+    };
+
+    video.onerror = () => {
+      resolve(null);
+    };
+
+    video.src = previewUrl;
+  });
 }
 
 function AutoGrowTextarea({
@@ -139,39 +191,59 @@ function Avatar({
   );
 }
 
-export default function GroupPostComposer({
-  onSubmit,
-}: GroupPostComposerProps) {
+export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) {
   const [text, setText] = useState("");
   const [creating, setCreating] = useState(false);
   const [postType, setPostType] = useState<ComposerPostType>("text");
   const [currentUserHandle, setCurrentUserHandle] = useState<string | null>(null);
-  const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  const [selectedImagePreviews, setSelectedImagePreviews] = useState<string[]>([]);
-  const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
-  const [selectedVideoPreview, setSelectedVideoPreview] = useState<string | null>(null);
-const [localError, setLocalError] = useState<string | null>(null);
-const [processingImageSlots, setProcessingImageSlots] = useState(0);
-const [draggingPreviewIndex, setDraggingPreviewIndex] = useState<number | null>(null);
-const [dragOverPreviewIndex, setDragOverPreviewIndex] = useState<number | null>(null);
-const [isReorderingPreview, setIsReorderingPreview] = useState(false);
+  const [selectedMediaItems, setSelectedMediaItems] = useState<SelectedMediaItem[]>([]);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [processingImageSlots, setProcessingImageSlots] = useState(0);
+  const [draggingPreviewIndex, setDraggingPreviewIndex] = useState<number | null>(null);
+  const [dragOverPreviewIndex, setDragOverPreviewIndex] = useState<number | null>(null);
+  const [isReorderingPreview, setIsReorderingPreview] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const videoInputRef = useRef<HTMLInputElement | null>(null);
   const previewScrollerRef = useRef<HTMLDivElement | null>(null);
-const dragStartIndexRef = useRef<number | null>(null);
-const dragPointerIdRef = useRef<number | null>(null);
-const dragPressTimerRef = useRef<number | null>(null);
-const dragStartPointRef = useRef<{ x: number; y: number } | null>(null);
-const previewDragActiveRef = useRef(false);
-const dragLastPointRef = useRef<{ x: number; y: number } | null>(null);
-const dragDidScrollRef = useRef(false);
+  const selectedMediaItemsRef = useRef<SelectedMediaItem[]>([]);
+  const dragStartIndexRef = useRef<number | null>(null);
+  const dragPointerIdRef = useRef<number | null>(null);
+  const dragPressTimerRef = useRef<number | null>(null);
+  const dragStartPointRef = useRef<{ x: number; y: number } | null>(null);
+  const previewDragActiveRef = useRef(false);
+  const dragLastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const dragDidScrollRef = useRef(false);
 
   const currentUser = auth.currentUser;
   const currentUserName = currentUser?.displayName?.trim() || "Tú";
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(
     currentUser?.photoURL || null
   );
+
+  const selectedImages = useMemo(
+    () => selectedMediaItems.filter((item) => item.type === "image").map((item) => item.file),
+    [selectedMediaItems]
+  );
+
+  const selectedVideos = useMemo(
+    () => selectedMediaItems.filter((item) => item.type === "video").map((item) => item.file),
+    [selectedMediaItems]
+  );
+
+  const orderedSubmitMediaItems = useMemo<ComposerMediaItem[]>(
+    () => selectedMediaItems.map((item) => ({ type: item.type, file: item.file })),
+    [selectedMediaItems]
+  );
+
+  useEffect(() => {
+    selectedMediaItemsRef.current = selectedMediaItems;
+  }, [selectedMediaItems]);
+
+  useEffect(() => {
+    return () => {
+      selectedMediaItemsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,17 +271,17 @@ const dragDidScrollRef = useRef(false);
             ? data.handle.trim()
             : null;
 
-            const avatarUrl =
-  typeof data.avatarUrl === "string" && data.avatarUrl.trim().length > 0
-    ? data.avatarUrl.trim()
-    : typeof data.photoURL === "string" && data.photoURL.trim().length > 0
-      ? data.photoURL.trim()
-      : currentUser?.photoURL || null;
+        const avatarUrl =
+          typeof data.avatarUrl === "string" && data.avatarUrl.trim().length > 0
+            ? data.avatarUrl.trim()
+            : typeof data.photoURL === "string" && data.photoURL.trim().length > 0
+              ? data.photoURL.trim()
+              : currentUser?.photoURL || null;
 
-if (!cancelled) {
-  setCurrentUserHandle(handle);
-  setCurrentUserAvatar(avatarUrl);
-}
+        if (!cancelled) {
+          setCurrentUserHandle(handle);
+          setCurrentUserAvatar(avatarUrl);
+        }
       } catch {
         if (!cancelled) {
           setCurrentUserHandle(null);
@@ -234,327 +306,363 @@ if (!cancelled) {
     return () => window.clearTimeout(timer);
   }, [localError]);
 
-useEffect(() => {
-  if (!selectedVideo) {
-    setSelectedVideoPreview(null);
-    return;
-  }
-
-  const objectUrl = URL.createObjectURL(selectedVideo);
-  setSelectedVideoPreview(objectUrl);
-
-  return () => {
-    URL.revokeObjectURL(objectUrl);
-  };
-}, [selectedVideo]);
-
   const currentUserHref = currentUserHandle ? `/u/${currentUserHandle}` : "#";
-const hasContent =
-  text.trim().length > 0 || selectedImages.length > 0 || Boolean(selectedVideo);
-const isPreparingImages = processingImageSlots > 0;
+  const hasContent = text.trim().length > 0 || selectedMediaItems.length > 0;
+  const isPreparingImages = processingImageSlots > 0;
+  const canAddMoreMedia =
+    selectedImages.length + processingImageSlots < MAX_POST_IMAGES ||
+    selectedVideos.length < MAX_POST_VIDEOS;
 
-  function handleOpenImagePicker() {
+  function handleOpenMediaPicker() {
     if (creating || isPreparingImages) return;
     fileInputRef.current?.click();
   }
 
-  function handleOpenVideoPicker() {
-    if (creating || isPreparingImages) return;
-    videoInputRef.current?.click();
+  function updatePostType(nextItems: SelectedMediaItem[]) {
+    const hasImages = nextItems.some((item) => item.type === "image");
+    const hasVideos = nextItems.some((item) => item.type === "video");
+
+    if (hasImages && hasVideos) {
+      setPostType("video");
+      return;
+    }
+
+    if (hasVideos) {
+      setPostType("video");
+      return;
+    }
+
+    if (hasImages) {
+      setPostType("image");
+      return;
+    }
+
+    setPostType(text.trim().length > 0 ? "text" : "text");
   }
 
-function clearDragPressTimer() {
-  if (dragPressTimerRef.current !== null) {
-    window.clearTimeout(dragPressTimerRef.current);
-    dragPressTimerRef.current = null;
-  }
-}
-
-function startPreviewReorder(
-  index: number,
-  event: ReactPointerEvent<HTMLDivElement>
-) {
-  previewDragActiveRef.current = true;
-  dragStartIndexRef.current = index;
-  dragPointerIdRef.current = event.pointerId;
-
-  setDraggingPreviewIndex(index);
-  setDragOverPreviewIndex(index);
-  setIsReorderingPreview(true);
-
-  if (event.pointerType !== "mouse") {
-    document.body.style.overflow = "hidden";
-
-    if (navigator.vibrate) {
-      navigator.vibrate(18);
+  function clearDragPressTimer() {
+    if (dragPressTimerRef.current !== null) {
+      window.clearTimeout(dragPressTimerRef.current);
+      dragPressTimerRef.current = null;
     }
   }
 
-  try {
-    event.currentTarget.setPointerCapture(event.pointerId);
-  } catch {}
-}
+  function startPreviewReorder(index: number, event: ReactPointerEvent<HTMLDivElement>) {
+    previewDragActiveRef.current = true;
+    dragStartIndexRef.current = index;
+    dragPointerIdRef.current = event.pointerId;
 
-function moveSelectedImage(fromIndex: number, toIndex: number) {
-  if (fromIndex === toIndex) return;
+    setDraggingPreviewIndex(index);
+    setDragOverPreviewIndex(index);
+    setIsReorderingPreview(true);
 
-  setSelectedImages((current) => {
-    if (
-      fromIndex < 0 ||
-      toIndex < 0 ||
-      fromIndex >= current.length ||
-      toIndex >= current.length
-    ) {
-      return current;
+    if (event.pointerType !== "mouse") {
+      document.body.style.overflow = "hidden";
+
+      if (navigator.vibrate) {
+        navigator.vibrate(18);
+      }
     }
 
-    const nextImages = [...current];
-    const [movedImage] = nextImages.splice(fromIndex, 1);
-    nextImages.splice(toIndex, 0, movedImage);
-
-    return nextImages;
-  });
-}
-
-function getPreviewIndexFromPoint(clientX: number) {
-  const scroller = previewScrollerRef.current;
-  if (!scroller) return null;
-
-  const items = Array.from(
-    scroller.querySelectorAll<HTMLElement>("[data-preview-index]")
-  );
-
-  if (items.length === 0) return null;
-
-  let closestIndex: number | null = null;
-  let closestDistance = Number.POSITIVE_INFINITY;
-
-  items.forEach((item) => {
-    const rect = item.getBoundingClientRect();
-    const centerX = rect.left + rect.width / 2;
-    const distance = Math.abs(clientX - centerX);
-    const index = Number(item.dataset.previewIndex);
-
-    if (Number.isInteger(index) && distance < closestDistance) {
-      closestDistance = distance;
-      closestIndex = index;
-    }
-  });
-
-  return closestIndex;
-}
-
-function handlePreviewPointerDown(
-  index: number,
-  event: ReactPointerEvent<HTMLDivElement>
-) {
-  if (creating) return;
-
-  clearDragPressTimer();
-
-  dragStartPointRef.current = {
-    x: event.clientX,
-    y: event.clientY,
-  };
-
-  dragLastPointRef.current = {
-    x: event.clientX,
-    y: event.clientY,
-  };
-
-  dragDidScrollRef.current = false;
-
-  if (event.pointerType === "mouse") {
-    startPreviewReorder(index, event);
-    return;
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {}
   }
 
-  dragPressTimerRef.current = window.setTimeout(() => {
-    if (!dragDidScrollRef.current) {
-      startPreviewReorder(index, event);
-    }
-  }, 260);
-}
+  function moveSelectedMedia(fromIndex: number, toIndex: number) {
+    if (fromIndex === toIndex) return;
 
-function handlePreviewPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-  const scroller = previewScrollerRef.current;
-  const startPoint = dragStartPointRef.current;
-  const lastPoint = dragLastPointRef.current;
-
-  if (!scroller || !startPoint) return;
-
-  if (!previewDragActiveRef.current) {
-    if (event.pointerType !== "mouse" && lastPoint) {
-      const moveX = event.clientX - lastPoint.x;
-      const moveY = event.clientY - lastPoint.y;
-      const totalX = event.clientX - startPoint.x;
-      const totalY = event.clientY - startPoint.y;
-
-      if (Math.abs(totalX) > 7 && Math.abs(totalX) > Math.abs(totalY)) {
-        clearDragPressTimer();
-        dragDidScrollRef.current = true;
-        scroller.scrollLeft -= moveX;
+    setSelectedMediaItems((current) => {
+      if (
+        fromIndex < 0 ||
+        toIndex < 0 ||
+        fromIndex >= current.length ||
+        toIndex >= current.length
+      ) {
+        return current;
       }
 
-      dragLastPointRef.current = {
-        x: event.clientX,
-        y: event.clientY,
-      };
+      const nextItems = [...current];
+      const [movedItem] = nextItems.splice(fromIndex, 1);
+      nextItems.splice(toIndex, 0, movedItem);
+
+      return nextItems;
+    });
+  }
+
+  function getPreviewIndexFromPoint(clientX: number) {
+    const scroller = previewScrollerRef.current;
+    if (!scroller) return null;
+
+    const items = Array.from(scroller.querySelectorAll<HTMLElement>("[data-preview-index]"));
+
+    if (items.length === 0) return null;
+
+    let closestIndex: number | null = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    items.forEach((item) => {
+      const rect = item.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const distance = Math.abs(clientX - centerX);
+      const index = Number(item.dataset.previewIndex);
+
+      if (Number.isInteger(index) && distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    });
+
+    return closestIndex;
+  }
+
+  function handlePreviewPointerDown(index: number, event: ReactPointerEvent<HTMLDivElement>) {
+    if (creating) return;
+
+    clearDragPressTimer();
+
+    dragStartPointRef.current = { x: event.clientX, y: event.clientY };
+    dragLastPointRef.current = { x: event.clientX, y: event.clientY };
+    dragDidScrollRef.current = false;
+
+    if (event.pointerType === "mouse") {
+      startPreviewReorder(index, event);
+      return;
+    }
+
+    dragPressTimerRef.current = window.setTimeout(() => {
+      if (!dragDidScrollRef.current) {
+        startPreviewReorder(index, event);
+      }
+    }, 260);
+  }
+
+  function handlePreviewPointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    const scroller = previewScrollerRef.current;
+    const startPoint = dragStartPointRef.current;
+    const lastPoint = dragLastPointRef.current;
+
+    if (!scroller || !startPoint) return;
+
+    if (!previewDragActiveRef.current) {
+      if (event.pointerType !== "mouse" && lastPoint) {
+        const moveX = event.clientX - lastPoint.x;
+        const totalX = event.clientX - startPoint.x;
+        const totalY = event.clientY - startPoint.y;
+
+        if (Math.abs(totalX) > 7 && Math.abs(totalX) > Math.abs(totalY)) {
+          clearDragPressTimer();
+          dragDidScrollRef.current = true;
+          scroller.scrollLeft -= moveX;
+        }
+
+        dragLastPointRef.current = { x: event.clientX, y: event.clientY };
+        return;
+      }
 
       return;
     }
 
-    return;
+    event.preventDefault();
+
+    const fromIndex = dragStartIndexRef.current;
+    const nextIndex = getPreviewIndexFromPoint(event.clientX);
+
+    if (fromIndex !== null && nextIndex !== null && fromIndex !== nextIndex) {
+      moveSelectedMedia(fromIndex, nextIndex);
+      dragStartIndexRef.current = nextIndex;
+      setDraggingPreviewIndex(nextIndex);
+      setDragOverPreviewIndex(nextIndex);
+    }
+
+    const rect = scroller.getBoundingClientRect();
+    const edgeSize = event.pointerType === "mouse" ? 110 : 58;
+    const scrollSpeed = event.pointerType === "mouse" ? 36 : 14;
+
+    if (event.clientX < rect.left + edgeSize) {
+      scroller.scrollLeft -= scrollSpeed;
+    }
+
+    if (event.clientX > rect.right - edgeSize) {
+      scroller.scrollLeft += scrollSpeed;
+    }
   }
 
-  event.preventDefault();
+  function handlePreviewPointerUp() {
+    clearDragPressTimer();
 
-  const fromIndex = dragStartIndexRef.current;
-  const nextIndex = getPreviewIndexFromPoint(event.clientX);
+    document.body.style.overflow = "";
 
-  if (fromIndex !== null && nextIndex !== null && fromIndex !== nextIndex) {
-    moveSelectedImage(fromIndex, nextIndex);
-    dragStartIndexRef.current = nextIndex;
-    setDraggingPreviewIndex(nextIndex);
-    setDragOverPreviewIndex(nextIndex);
+    previewDragActiveRef.current = false;
+    dragStartIndexRef.current = null;
+    dragPointerIdRef.current = null;
+    dragStartPointRef.current = null;
+    dragLastPointRef.current = null;
+    dragDidScrollRef.current = false;
+
+    setDraggingPreviewIndex(null);
+    setDragOverPreviewIndex(null);
+    setIsReorderingPreview(false);
   }
 
-  const rect = scroller.getBoundingClientRect();
-  const edgeSize = event.pointerType === "mouse" ? 110 : 58;
-  const scrollSpeed = event.pointerType === "mouse" ? 36 : 14;
+  async function handleImagesSelected(files: File[]) {
+    setLocalError(null);
 
-  if (event.clientX < rect.left + edgeSize) {
-    scroller.scrollLeft -= scrollSpeed;
+    if (files.length === 0) return;
+
+    const availableSlots = MAX_POST_IMAGES - selectedImages.length - processingImageSlots;
+
+    if (availableSlots <= 0) {
+      setLocalError(`Solo puedes subir hasta ${MAX_POST_IMAGES} imágenes por publicación.`);
+      return;
+    }
+
+    const filesToProcess = files.slice(0, availableSlots);
+
+    if (files.length > availableSlots) {
+      setLocalError(`Solo se agregaron ${availableSlots} imágenes. El máximo es ${MAX_POST_IMAGES}.`);
+    }
+
+    setProcessingImageSlots((current) => current + filesToProcess.length);
+
+    let failedCount = 0;
+
+    for (const file of filesToProcess) {
+      try {
+        const normalized = await normalizeImageFile(file, {
+          maxSizeBytes: 150 * 1024 * 1024,
+        });
+
+        const previewUrl = URL.createObjectURL(normalized.file);
+        const nextItem: SelectedMediaItem = {
+          id: createLocalMediaId(),
+          type: "image",
+          file: normalized.file,
+          previewUrl,
+          durationSeconds: null,
+        };
+
+        setSelectedMediaItems((current) => {
+          const nextItems = [...current, nextItem];
+          updatePostType(nextItems);
+          return nextItems;
+        });
+      } catch {
+        failedCount += 1;
+      } finally {
+        setProcessingImageSlots((current) => Math.max(0, current - 1));
+      }
+    }
+
+    if (failedCount > 0) {
+      setLocalError(
+        failedCount === 1
+          ? "No se pudo preparar una imagen."
+          : `No se pudieron preparar ${failedCount} imágenes.`
+      );
+    }
   }
 
-  if (event.clientX > rect.right - edgeSize) {
-    scroller.scrollLeft += scrollSpeed;
-  }
-}
+  function handleVideoSelected(files: File[]) {
+    setLocalError(null);
 
-function handlePreviewPointerUp() {
-  clearDragPressTimer();
+    if (files.length === 0) return;
 
-  document.body.style.overflow = "";
+    const validVideos = files.filter((file) => file.type.startsWith("video/"));
 
-  previewDragActiveRef.current = false;
-  dragStartIndexRef.current = null;
-  dragPointerIdRef.current = null;
-  dragStartPointRef.current = null;
-  dragLastPointRef.current = null;
-  dragDidScrollRef.current = false;
+    if (validVideos.length !== files.length) {
+      setLocalError("Uno o más archivos seleccionados no son videos válidos.");
+    }
 
-  setDraggingPreviewIndex(null);
-  setDragOverPreviewIndex(null);
-  setIsReorderingPreview(false);
-}
+    if (validVideos.length === 0) return;
 
-async function handleImagesSelected(files: File[]) {
-  setLocalError(null);
+    const availableSlots = MAX_POST_VIDEOS - selectedVideos.length;
 
-  if (files.length === 0) return;
+    if (availableSlots <= 0) {
+      setLocalError("Puedes agregar máximo 3 videos por publicación.");
+      return;
+    }
 
-  const availableSlots =
-    MAX_POST_IMAGES - selectedImages.length - processingImageSlots;
+    const videosToAdd = validVideos.slice(0, availableSlots);
 
-  if (availableSlots <= 0) {
-    setLocalError(`Solo puedes subir hasta ${MAX_POST_IMAGES} imágenes por publicación.`);
-    return;
-  }
+    if (validVideos.length > availableSlots) {
+      setLocalError("Puedes agregar máximo 3 videos por publicación.");
+    }
 
-  const filesToProcess = files.slice(0, availableSlots);
+    const nextItems = videosToAdd.map((file): SelectedMediaItem => ({
+      id: createLocalMediaId(),
+      type: "video",
+      file,
+      previewUrl: URL.createObjectURL(file),
+      durationSeconds: null,
+    }));
 
-  if (files.length > availableSlots) {
-    setLocalError(`Solo se agregaron ${availableSlots} imágenes. El máximo es ${MAX_POST_IMAGES}.`);
-  }
+    setSelectedMediaItems((current) => {
+      const mergedItems = [...current, ...nextItems];
+      updatePostType(mergedItems);
+      return mergedItems;
+    });
 
-  setSelectedVideo(null);
-  setSelectedVideoPreview(null);
-
-  if (videoInputRef.current) {
-    videoInputRef.current.value = "";
-  }
-
-  setPostType("image");
-  setProcessingImageSlots((current) => current + filesToProcess.length);
-
-  let failedCount = 0;
-
-  for (const file of filesToProcess) {
-    try {
-      const normalized = await normalizeImageFile(file, {
-        maxSizeBytes: 150 * 1024 * 1024,
+    nextItems.forEach((item) => {
+      void readVideoDurationFromUrl(item.previewUrl).then((durationSeconds) => {
+        setSelectedMediaItems((current) =>
+          current.map((currentItem) =>
+            currentItem.id === item.id ? { ...currentItem, durationSeconds } : currentItem
+          )
+        );
       });
-
-      setSelectedImages((current) => [...current, normalized.file]);
-    } catch {
-      failedCount += 1;
-    } finally {
-      setProcessingImageSlots((current) => Math.max(0, current - 1));
-    }
+    });
   }
 
-  if (failedCount > 0) {
-    setLocalError(
-      failedCount === 1
-        ? "No se pudo preparar una imagen."
-        : `No se pudieron preparar ${failedCount} imágenes.`
+  async function handleMediaSelected(files: File[]) {
+    if (files.length === 0) return;
+
+    const imageFiles = files.filter(
+      (file) =>
+        file.type.startsWith("image/") ||
+        file.name.toLowerCase().endsWith(".heic") ||
+        file.name.toLowerCase().endsWith(".heif")
     );
-  }
 
-  if (failedCount === filesToProcess.length && selectedImages.length === 0) {
-    setPostType("text");
-  }
-}
+    const videoFiles = files.filter((file) => file.type.startsWith("video/"));
+    const unsupportedFiles = files.length - imageFiles.length - videoFiles.length;
 
-function handleRemoveImage(indexToRemove: number) {
-  setSelectedImages((current) => {
-    const nextImages = current.filter((_, index) => index !== indexToRemove);
-
-    if (nextImages.length === 0) {
-      setPostType("text");
+    if (unsupportedFiles > 0) {
+      setLocalError("Uno o más archivos no son imágenes o videos válidos.");
     }
 
-    return nextImages;
-  });
+    if (imageFiles.length > 0) {
+      await handleImagesSelected(imageFiles);
+    }
 
-  if (fileInputRef.current) {
-    fileInputRef.current.value = "";
-  }
-}
-
-function handleVideoSelected(file: File | null) {
-  setLocalError(null);
-
-  if (!file) return;
-
-  if (!file.type.startsWith("video/")) {
-    setLocalError("Selecciona un archivo de video válido.");
-    return;
+    if (videoFiles.length > 0) {
+      handleVideoSelected(videoFiles);
+    }
   }
 
-  setSelectedImages([]);
-  setSelectedImagePreviews([]);
-  setSelectedVideo(file);
-  setPostType("video");
+  function handleRemoveMedia(indexToRemove: number) {
+    setSelectedMediaItems((current) => {
+      const itemToRemove = current[indexToRemove];
 
-  if (fileInputRef.current) {
-    fileInputRef.current.value = "";
+      if (itemToRemove) {
+        URL.revokeObjectURL(itemToRemove.previewUrl);
+      }
+
+      const nextItems = current.filter((_, index) => index !== indexToRemove);
+      updatePostType(nextItems);
+      return nextItems;
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   }
-}
 
-function handleRemoveVideo() {
-  setSelectedVideo(null);
-  setSelectedVideoPreview(null);
-
-  if (videoInputRef.current) {
-    videoInputRef.current.value = "";
+  function clearSelectedMedia() {
+    selectedMediaItemsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    selectedMediaItemsRef.current = [];
+    setSelectedMediaItems([]);
   }
-
-  if (text.trim().length === 0) {
-    setPostType("text");
-  }
-}
 
   async function handleSubmit() {
     if (creating || !hasContent) return;
@@ -563,25 +671,19 @@ function handleRemoveVideo() {
       setCreating(true);
       setLocalError(null);
 
-await onSubmit({
-  text: text.trim(),
-  imageFiles: selectedImages,
-  videoFile: selectedVideo,
-});
+      await onSubmit({
+        text: text.trim(),
+        imageFiles: selectedImages,
+        videoFiles: selectedVideos,
+        mediaItems: orderedSubmitMediaItems,
+      });
 
       setText("");
-setSelectedImages([]);
-setSelectedImagePreviews([]);
-setSelectedVideo(null);
-setSelectedVideoPreview(null);
+      clearSelectedMedia();
       setPostType("text");
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
-      }
-
-      if (videoInputRef.current) {
-        videoInputRef.current.value = "";
       }
     } catch (error: any) {
       setLocalError(error?.message ?? "No se pudo publicar.");
@@ -636,72 +738,111 @@ setSelectedVideoPreview(null);
     WebkitAppearance: "none",
   };
 
-const imagePreviewWrapStyle: CSSProperties = {
-  width: "clamp(76px, 22vw, 104px)",
-  height: "clamp(76px, 22vw, 104px)",
-  borderRadius: 12,
-  border: "1px solid rgba(255,255,255,0.08)",
-  overflow: "hidden",
-  background: "rgba(255,255,255,0.04)",
-  position: "relative",
-  flex: "0 0 auto",
-};
+  const mediaPreviewWrapStyle: CSSProperties = {
+    width: "clamp(76px, 22vw, 104px)",
+    height: "clamp(76px, 22vw, 104px)",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.08)",
+    overflow: "hidden",
+    background: "rgba(255,255,255,0.04)",
+    position: "relative",
+    flex: "0 0 auto",
+  };
 
-const imagePreviewStyle: CSSProperties = {
-  width: "100%",
-  height: "100%",
-  objectFit: "cover",
-  display: "block",
-  userSelect: "none",
-  WebkitUserSelect: "none",
-};
+  const mediaPreviewStyle: CSSProperties = {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+  };
 
-const removeImageButtonStyle: CSSProperties = {
-  position: "absolute",
-  top: 6,
-  right: 6,
-  width: 24,
-  height: 24,
-  borderRadius: 999,
-  border: "1px solid rgba(255,255,255,0.12)",
-  background: "rgba(0,0,0,0.68)",
-  color: "#fff",
-  cursor: "pointer",
-  fontSize: 13,
-  lineHeight: 1,
-};
+  const removeMediaButtonStyle: CSSProperties = {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.12)",
+    background: "rgba(0,0,0,0.68)",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: 13,
+    lineHeight: 1,
+    zIndex: 4,
+  };
 
-const imageNumberBadgeStyle: CSSProperties = {
-  position: "absolute",
-  left: 6,
-  top: 6,
-  minWidth: 22,
-  height: 22,
-  borderRadius: 999,
-  background: "rgba(0,0,0,0.62)",
-  color: "#fff",
-  display: "grid",
-  placeItems: "center",
-  fontSize: 11,
-  fontWeight: 700,
-  lineHeight: 1,
-};
+  const mediaNumberBadgeStyle: CSSProperties = {
+    position: "absolute",
+    left: 6,
+    top: 6,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 999,
+    background: "rgba(0,0,0,0.62)",
+    color: "#fff",
+    display: "grid",
+    placeItems: "center",
+    fontSize: 11,
+    fontWeight: 700,
+    lineHeight: 1,
+    zIndex: 3,
+  };
 
-const addMoreImagesButtonStyle: CSSProperties = {
-  width: "clamp(76px, 22vw, 104px)",
-  height: "clamp(76px, 22vw, 104px)",
-  borderRadius: 12,
-  border: "1px dashed rgba(255,255,255,0.24)",
-  background: "rgba(255,255,255,0.045)",
-  color: "rgba(255,255,255,0.78)",
-  display: "grid",
-  placeItems: "center",
-  cursor: "pointer",
-  fontSize: 24,
-  fontWeight: 300,
-  lineHeight: 1,
-  flex: "0 0 auto",
-};
+  const videoPlayBadgeStyle: CSSProperties = {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    transform: "translate(-50%, -50%)",
+    display: "grid",
+    placeItems: "center",
+    background: "rgba(0,0,0,0.58)",
+    border: "1px solid rgba(255,255,255,0.24)",
+    color: "#fff",
+    fontSize: 15,
+    lineHeight: 1,
+    pointerEvents: "none",
+    zIndex: 3,
+  };
+
+  const videoDurationBadgeStyle: CSSProperties = {
+    position: "absolute",
+    right: 6,
+    bottom: 6,
+    minHeight: 20,
+    padding: "3px 6px",
+    borderRadius: 999,
+    background: "rgba(0,0,0,0.68)",
+    color: "#fff",
+    fontSize: 10.5,
+    fontWeight: 700,
+    lineHeight: 1,
+    display: "inline-flex",
+    alignItems: "center",
+    zIndex: 3,
+  };
+
+  const addMoreMediaButtonStyle: CSSProperties = {
+    width: "clamp(76px, 22vw, 104px)",
+    height: "clamp(76px, 22vw, 104px)",
+    borderRadius: 12,
+    border: "1px dashed rgba(255,255,255,0.24)",
+    background: "rgba(255,255,255,0.045)",
+    color: "rgba(255,255,255,0.78)",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+    fontSize: 24,
+    fontWeight: 300,
+    lineHeight: 1,
+    flex: "0 0 auto",
+  };
+
   const actionsRowStyle: CSSProperties = {
     marginTop: 10,
     display: "flex",
@@ -711,24 +852,24 @@ const addMoreImagesButtonStyle: CSSProperties = {
     flexWrap: "wrap",
   };
 
-const secondaryButtonStyle: CSSProperties = {
-  width: 38,
-  height: 38,
-  minHeight: 38,
-  padding: 0,
-  borderRadius: 999,
-  border: "1px solid rgba(255,255,255,0.10)",
-  background: "rgba(255,255,255,0.04)",
-  color: "rgba(255,255,255,0.90)",
-  fontSize: 18,
-  fontWeight: 600,
-  fontFamily: fontStack,
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  flexShrink: 0,
-};
+  const secondaryButtonStyle: CSSProperties = {
+    width: 38,
+    height: 38,
+    minHeight: 38,
+    padding: 0,
+    borderRadius: 999,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(255,255,255,0.04)",
+    color: "rgba(255,255,255,0.90)",
+    fontSize: 18,
+    fontWeight: 600,
+    fontFamily: fontStack,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  };
 
   const primaryButtonStyle: CSSProperties = {
     minHeight: 34,
@@ -762,78 +903,52 @@ const secondaryButtonStyle: CSSProperties = {
     lineHeight: 1.4,
   };
 
-return (
-  <section style={cardStyle}>
-    <style>
-      {`
-        .composer-textarea-scroll {
-          scrollbar-width: thin;
-          scrollbar-color: rgba(255,255,255,0.18) transparent;
-        }
+  return (
+    <section style={cardStyle}>
+      <style>
+        {`
+          .composer-textarea-scroll {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.18) transparent;
+          }
 
-        .composer-textarea-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
+          .composer-textarea-scroll::-webkit-scrollbar {
+            width: 6px;
+          }
 
-        .composer-textarea-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
+          .composer-textarea-scroll::-webkit-scrollbar-track {
+            background: transparent;
+          }
 
-        .composer-textarea-scroll::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,0.18);
-          border-radius: 999px;
-        }
+          .composer-textarea-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.18);
+            border-radius: 999px;
+          }
 
-        .composer-textarea-scroll::-webkit-scrollbar-button {
-          display: none;
-          width: 0;
-          height: 0;
-        }
-      `}
-    </style>
-<input
-  ref={fileInputRef}
-  type="file"
-  accept="image/*,.heic,.heif"
-  multiple
-  style={{ display: "none" }}
-  onChange={async (event) => {
-    const files = Array.from(event.currentTarget.files ?? []);
-    await handleImagesSelected(files);
-    event.currentTarget.value = "";
-  }}
-/>
+          .composer-textarea-scroll::-webkit-scrollbar-button {
+            display: none;
+            width: 0;
+            height: 0;
+          }
+        `}
+      </style>
 
-<input
-  ref={videoInputRef}
-  type="file"
-  accept="video/*"
-  style={{ display: "none" }}
-  onChange={(event) => {
-    handleVideoSelected(event.currentTarget.files?.[0] ?? null);
-    event.currentTarget.value = "";
-  }}
-/>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 10,
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,.heic,.heif,video/*"
+        multiple
+        style={{ display: "none" }}
+        onChange={async (event) => {
+          const files = Array.from(event.currentTarget.files ?? []);
+          await handleMediaSelected(files);
+          event.currentTarget.value = "";
         }}
-      >
-        <Link
-          href={currentUserHref}
-          style={{
-            display: "inline-flex",
-            flexShrink: 0,
-          }}
-        >
-          <Avatar
-            name={currentUserName}
-            avatarUrl={currentUserAvatar}
-            size={36}
-          />
+      />
+
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+        <Link href={currentUserHref} style={{ display: "inline-flex", flexShrink: 0 }}>
+          <Avatar name={currentUserName} avatarUrl={currentUserAvatar} size={36} />
         </Link>
 
         <div style={{ minWidth: 0, flex: 1 }}>
@@ -843,300 +958,214 @@ return (
             </Link>
 
             <div style={labelStyle}>
-{postType === "image"
-  ? "Crear publicación con imagen"
-  : postType === "video"
-    ? "Crear publicación con video"
-    : "Crear publicación"}
+              {selectedImages.length > 0 && selectedVideos.length > 0
+                ? "Crear publicación con media"
+                : postType === "image"
+                  ? "Crear publicación con imagen"
+                  : postType === "video"
+                    ? "Crear publicación con video"
+                    : "Crear publicación"}
             </div>
           </div>
 
-<AutoGrowTextarea
-  className="composer-textarea-scroll"
-  value={text}
-  onChange={(e) => setText(e.target.value)}
-  placeholder="Escribe algo..."
-  maxRows={3}
-  style={textareaStyle}
-/>
+          <AutoGrowTextarea
+            className="composer-textarea-scroll"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Escribe algo..."
+            maxRows={3}
+            style={textareaStyle}
+          />
 
-{(selectedImagePreviews.length > 0 || processingImageSlots > 0) && (
-  <div
-    style={{
-      marginTop: 10,
-      position: "relative",
-      maxWidth: "100%",
-    }}
-  >
-<style>
-  {`
-    .post-preview-scroller::-webkit-scrollbar {
-      height: 6px;
-    }
+          {(selectedMediaItems.length > 0 || processingImageSlots > 0) && (
+            <div style={{ marginTop: 10, position: "relative", maxWidth: "100%" }}>
+              <style>
+                {`
+                  .post-preview-scroller::-webkit-scrollbar {
+                    height: 6px;
+                  }
 
-    .post-preview-scroller::-webkit-scrollbar-track {
-      background: transparent;
-    }
+                  .post-preview-scroller::-webkit-scrollbar-track {
+                    background: transparent;
+                  }
 
-    .post-preview-scroller::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.18);
-      border-radius: 999px;
-    }
+                  .post-preview-scroller::-webkit-scrollbar-thumb {
+                    background: rgba(255,255,255,0.18);
+                    border-radius: 999px;
+                  }
 
-    @keyframes post-preview-loading-pulse {
-      0% {
-        opacity: 0.42;
-      }
+                  @keyframes post-preview-loading-pulse {
+                    0% { opacity: 0.42; }
+                    50% { opacity: 0.78; }
+                    100% { opacity: 0.42; }
+                  }
 
-      50% {
-        opacity: 0.78;
-      }
+                  @media (max-width: 640px) {
+                    .post-preview-scroller::-webkit-scrollbar {
+                      display: none;
+                    }
+                  }
+                `}
+              </style>
 
-      100% {
-        opacity: 0.42;
-      }
-    }
+              <div
+                ref={previewScrollerRef}
+                className="post-preview-scroller"
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  maxWidth: "100%",
+                  overflowX: "auto",
+                  overflowY: "hidden",
+                  paddingBottom: 8,
+                  WebkitOverflowScrolling: "touch",
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "rgba(255,255,255,0.18) transparent",
+                  cursor: isReorderingPreview ? "grabbing" : "grab",
+                }}
+              >
+                {selectedMediaItems.map((item, index) => (
+                  <div
+                    key={item.id}
+                    data-preview-index={index}
+                    onDragStart={(event) => event.preventDefault()}
+                    onTouchMoveCapture={(event) => {
+                      if (previewDragActiveRef.current) {
+                        event.preventDefault();
+                      }
+                    }}
+                    onPointerDown={(event) => handlePreviewPointerDown(index, event)}
+                    onPointerMove={handlePreviewPointerMove}
+                    onPointerUp={handlePreviewPointerUp}
+                    onPointerCancel={handlePreviewPointerUp}
+                    style={{
+                      ...mediaPreviewWrapStyle,
+                      opacity: draggingPreviewIndex === index ? 0.62 : 1,
+                      transform:
+                        draggingPreviewIndex === index
+                          ? "scale(0.96)"
+                          : dragOverPreviewIndex === index
+                            ? "scale(1.035)"
+                            : "scale(1)",
+                      outline:
+                        dragOverPreviewIndex === index
+                          ? "2px solid rgba(255,255,255,0.42)"
+                          : "none",
+                      transition: "transform 140ms ease, opacity 140ms ease, outline 140ms ease",
+                      touchAction: "none",
+                      cursor: isReorderingPreview ? "grabbing" : "grab",
+                    }}
+                  >
+                    {item.type === "image" ? (
+                      <img
+                        src={item.previewUrl}
+                        alt={`Vista previa de imagen ${index + 1}`}
+                        style={mediaPreviewStyle}
+                        draggable={false}
+                        onDragStart={(event) => event.preventDefault()}
+                      />
+                    ) : (
+                      <>
+                        <video
+                          src={item.previewUrl}
+                          preload="metadata"
+                          muted
+                          playsInline
+                          style={mediaPreviewStyle}
+                          draggable={false}
+                          onDragStart={(event) => event.preventDefault()}
+                        />
 
-    @media (max-width: 640px) {
-      .post-preview-scroller::-webkit-scrollbar {
-        display: none;
-      }
-    }
-  `}
-</style>
+                        <div aria-hidden="true" style={videoPlayBadgeStyle}>
+                          ▶
+                        </div>
 
-<div
-  ref={previewScrollerRef}
-  className="post-preview-scroller"
-style={{
-  display: "flex",
-  gap: 8,
-  maxWidth: "100%",
-  overflowX: "auto",
-  overflowY: "hidden",
-  paddingBottom: 8,
-  WebkitOverflowScrolling: "touch",
-  scrollbarWidth: "thin",
-  scrollbarColor: "rgba(255,255,255,0.18) transparent",
-  cursor: isReorderingPreview ? "grabbing" : "grab",
-}}
->
-    {selectedImagePreviews.map((previewUrl, index) => (
-<div
-  key={previewUrl}
-  data-preview-index={index}
-  onDragStart={(event) => event.preventDefault()}
-  onTouchMoveCapture={(event) => {
-    if (previewDragActiveRef.current) {
-      event.preventDefault();
-    }
-  }}
-  onPointerDown={(event) => handlePreviewPointerDown(index, event)}
-  onPointerMove={handlePreviewPointerMove}
-  onPointerUp={handlePreviewPointerUp}
-  onPointerCancel={handlePreviewPointerUp}
-style={{
-  ...imagePreviewWrapStyle,
-  opacity: draggingPreviewIndex === index ? 0.62 : 1,
-  transform:
-    draggingPreviewIndex === index
-      ? "scale(0.96)"
-      : dragOverPreviewIndex === index
-        ? "scale(1.035)"
-        : "scale(1)",
-  outline:
-    dragOverPreviewIndex === index
-      ? "2px solid rgba(255,255,255,0.42)"
-      : "none",
-  transition: "transform 140ms ease, opacity 140ms ease, outline 140ms ease",
-  touchAction: "none",
-  cursor: isReorderingPreview ? "grabbing" : "grab",
-}}
->
-<img
-  src={previewUrl}
-  alt={`Vista previa de imagen ${index + 1}`}
-  style={imagePreviewStyle}
-  draggable={false}
-  onDragStart={(event) => event.preventDefault()}
-/>
+                        <div aria-hidden="true" style={videoDurationBadgeStyle}>
+                          {formatVideoDuration(item.durationSeconds)}
+                        </div>
+                      </>
+                    )}
 
-        <div style={imageNumberBadgeStyle}>{index + 1}</div>
+                    <div style={mediaNumberBadgeStyle}>{index + 1}</div>
 
-<button
-  type="button"
-  onPointerDown={(event) => event.stopPropagation()}
-  onClick={() => handleRemoveImage(index)}
-          style={removeImageButtonStyle}
-          aria-label={`Quitar imagen ${index + 1}`}
-          disabled={creating}
-        >
-          ×
-        </button>
-      </div>
-    ))}
+                    <button
+                      type="button"
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={() => handleRemoveMedia(index)}
+                      style={removeMediaButtonStyle}
+                      aria-label={`Quitar media ${index + 1}`}
+                      disabled={creating}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
 
-    {Array.from({ length: processingImageSlots }).map((_, index) => (
-      <div
-        key={`processing-image-${index}`}
-        aria-label="Preparando imagen"
-        style={{
-          ...imagePreviewWrapStyle,
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(255,255,255,0.055)",
-          animation: "post-preview-loading-pulse 1.6s ease-in-out infinite",
-        }}
-      >
-        <div
-          aria-hidden="true"
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(90deg, rgba(255,255,255,0.035), rgba(255,255,255,0.12), rgba(255,255,255,0.035))",
-          }}
-        />
-      </div>
-    ))}
+                {Array.from({ length: processingImageSlots }).map((_, index) => (
+                  <div
+                    key={`processing-image-${index}`}
+                    aria-label="Preparando imagen"
+                    style={{
+                      ...mediaPreviewWrapStyle,
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      background: "rgba(255,255,255,0.055)",
+                      animation: "post-preview-loading-pulse 1.6s ease-in-out infinite",
+                    }}
+                  >
+                    <div
+                      aria-hidden="true"
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        background:
+                          "linear-gradient(90deg, rgba(255,255,255,0.035), rgba(255,255,255,0.12), rgba(255,255,255,0.035))",
+                      }}
+                    />
+                  </div>
+                ))}
 
-    {selectedImages.length + processingImageSlots < MAX_POST_IMAGES && (
-      <button
-        type="button"
-        onClick={handleOpenImagePicker}
-        disabled={creating}
-        style={
-          creating
-            ? {
-                ...addMoreImagesButtonStyle,
-                opacity: 0.5,
-                cursor: "not-allowed",
-              }
-            : addMoreImagesButtonStyle
-        }
-        aria-label="Agregar otra imagen"
-      >
-        +
-      </button>
-    )}
-    </div>
-  </div>
-)}
-
-{selectedVideoPreview && (
-  <div
-    style={{
-      marginTop: 10,
-      borderRadius: 14,
-      border: "1px solid rgba(255,255,255,0.1)",
-      background: "rgba(0,0,0,0.28)",
-      padding: 10,
-    }}
-  >
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: 10,
-        marginBottom: 8,
-      }}
-    >
-      <div
-        style={{
-          minWidth: 0,
-          color: "rgba(255,255,255,0.82)",
-          fontSize: 12,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {selectedVideo?.name || "Video seleccionado"}
-      </div>
-
-      <button
-        type="button"
-        onClick={handleRemoveVideo}
-        disabled={creating}
-        style={{
-          border: "1px solid rgba(255,255,255,0.12)",
-          background: "rgba(255,255,255,0.06)",
-          color: "rgba(255,255,255,0.78)",
-          borderRadius: 999,
-          padding: "5px 10px",
-          fontSize: 12,
-          cursor: creating ? "not-allowed" : "pointer",
-          opacity: creating ? 0.5 : 1,
-        }}
-      >
-        Quitar
-      </button>
-    </div>
-
-    <video
-      src={selectedVideoPreview}
-      controls
-      preload="metadata"
-      style={{
-        display: "block",
-        width: "100%",
-        maxHeight: 320,
-        borderRadius: 12,
-        background: "#000",
-        objectFit: "contain",
-      }}
-    />
-  </div>
-)}
+                {canAddMoreMedia && (
+                  <button
+                    type="button"
+                    onClick={handleOpenMediaPicker}
+                    disabled={creating}
+                    style={
+                      creating
+                        ? { ...addMoreMediaButtonStyle, opacity: 0.5, cursor: "not-allowed" }
+                        : addMoreMediaButtonStyle
+                    }
+                    aria-label="Agregar otra media"
+                  >
+                    +
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {localError && <div style={localErrorStyle}>{localError}</div>}
 
           <div style={actionsRowStyle}>
-<button
-  type="button"
-  onClick={handleOpenImagePicker}
-  disabled={creating || Boolean(selectedVideo)}
-  style={
-    creating || Boolean(selectedVideo)
-      ? {
-          ...secondaryButtonStyle,
-          opacity: 0.5,
-          cursor: "not-allowed",
-        }
-      : secondaryButtonStyle
-  }
-  aria-label="Agregar imágenes"
->
-  <span aria-hidden="true">🖼️</span>
-</button>
-
-<button
-  type="button"
-  onClick={handleOpenVideoPicker}
-  disabled={creating || isPreparingImages || selectedImages.length > 0}
-  style={
-    creating || isPreparingImages || selectedImages.length > 0
-      ? {
-          ...secondaryButtonStyle,
-          opacity: 0.5,
-          cursor: "not-allowed",
-        }
-      : secondaryButtonStyle
-  }
-  aria-label="Agregar video"
->
-  <span aria-hidden="true">🎥</span>
-</button>
+            <button
+              type="button"
+              onClick={handleOpenMediaPicker}
+              disabled={creating || isPreparingImages}
+              style={
+                creating || isPreparingImages
+                  ? { ...secondaryButtonStyle, opacity: 0.5, cursor: "not-allowed" }
+                  : secondaryButtonStyle
+              }
+              aria-label="Agregar media"
+              title="Agregar media"
+            >
+              <span aria-hidden="true">＋</span>
+            </button>
 
             <button
               type="button"
               onClick={handleSubmit}
               disabled={creating || isPreparingImages || !hasContent}
-              style={
-              creating || isPreparingImages || !hasContent
-                  ? disabledButtonStyle
-                  : primaryButtonStyle
-              }
+              style={creating || isPreparingImages || !hasContent ? disabledButtonStyle : primaryButtonStyle}
             >
               {isPreparingImages ? "Preparando..." : creating ? "Publicando..." : "Publicar"}
             </button>

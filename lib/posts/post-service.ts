@@ -22,6 +22,11 @@ import {
 } from "firebase/firestore";
 import { auth, db, functions } from "@/lib/firebase";
 import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
+import {
+  MAX_POST_IMAGES,
+  MAX_POST_VIDEOS,
+} from "./types";
+
 import type {
   Comment,
   CommentReply,
@@ -1548,9 +1553,9 @@ export async function createImagePost(params: {
       )
     : [];
 
-    if (cleanMedia.length > 10) {
-  throw new Error("Solo puedes subir hasta 10 imágenes por publicación.");
-}
+  if (cleanMedia.length > MAX_POST_IMAGES) {
+    throw new Error(`Solo puedes subir hasta ${MAX_POST_IMAGES} imágenes por publicación.`);
+  }
 
   if (!cleanText && cleanMedia.length === 0) {
     throw new Error("Agrega texto o una imagen antes de publicar.");
@@ -1646,6 +1651,217 @@ createdAt: searchTimestamp,
 updatedAt: searchTimestamp,
     }),
   });
+}
+
+export async function createMediaPost(params: {
+  groupId: string;
+  postId?: string;
+  text?: string;
+  imageMedia?: PostMedia[];
+  videoUploads?: Array<{
+    uploadId: string;
+    mediaId: string;
+    mediaIndex: number;
+  }>;
+}): Promise<void> {
+  assertValidId(params.groupId, "groupId");
+
+  if (params.postId) {
+    assertValidId(params.postId, "postId");
+  }
+
+  const cleanText = params.text?.trim() ?? "";
+
+  const cleanImageMedia = Array.isArray(params.imageMedia)
+    ? params.imageMedia.filter(
+        (item) =>
+          item.type === "image" &&
+          typeof item.url === "string" &&
+          item.url.trim().length > 0
+      )
+    : [];
+
+  const cleanVideoUploads = Array.isArray(params.videoUploads)
+    ? params.videoUploads.filter(
+        (item) =>
+          typeof item.uploadId === "string" &&
+          item.uploadId.trim().length > 0 &&
+          typeof item.mediaId === "string" &&
+          item.mediaId.trim().length > 0 &&
+          Number.isInteger(item.mediaIndex) &&
+          item.mediaIndex >= 0
+      )
+    : [];
+
+  if (cleanImageMedia.length > MAX_POST_IMAGES) {
+    throw new Error(`Solo puedes subir hasta ${MAX_POST_IMAGES} imágenes por publicación.`);
+  }
+
+  if (cleanVideoUploads.length > MAX_POST_VIDEOS) {
+    throw new Error("Puedes agregar máximo 3 videos por publicación.");
+  }
+
+  if (!cleanText && cleanImageMedia.length === 0 && cleanVideoUploads.length === 0) {
+    throw new Error("Agrega texto, imagen o video antes de publicar.");
+  }
+
+  const author = await getCurrentAuthorSnapshot();
+  await ensureUserCanCreatePostInGroup(params.groupId, author.uid);
+
+  const groupMap = await fetchGroupsByIds([params.groupId]);
+  const groupVisibility = groupMap[params.groupId]?.visibility ?? null;
+
+  if (!groupVisibility) {
+    throw new Error("No se pudo resolver la visibilidad del grupo.");
+  }
+
+  const videoMedia: PostMedia[] = cleanVideoUploads.map((item) => ({
+    type: "video",
+    id: item.mediaId,
+    index: item.mediaIndex,
+    url: `mux://uploads/${item.uploadId}`,
+    thumbnailUrl: null,
+    altText: null,
+    provider: "mux",
+    status: "uploading",
+    uploadId: item.uploadId,
+    assetId: null,
+    playbackId: null,
+    hlsUrl: null,
+    duration: null,
+  }));
+
+  const media = [...cleanImageMedia, ...videoMedia].sort((a, b) => {
+    const aIndex = typeof a.index === "number" ? a.index : Number.MAX_SAFE_INTEGER;
+    const bIndex = typeof b.index === "number" ? b.index : Number.MAX_SAFE_INTEGER;
+
+    return aIndex - bIndex;
+  });
+
+  const hasVideos = videoMedia.length > 0;
+  const hasImages = cleanImageMedia.length > 0;
+
+  const firstVideo = videoMedia[0] ?? null;
+
+  const videoData: Post["videoData"] = firstVideo
+    ? {
+        provider: "mux",
+        status: "uploading",
+        assetId: null,
+        uploadId: firstVideo.uploadId ?? null,
+        playbackId: null,
+        duration: null,
+        thumbnailUrl: null,
+        sourceUrl: null,
+        sourcePath: null,
+      }
+    : null;
+
+  const playback: Post["playback"] = firstVideo
+    ? {
+        url: null,
+        hlsUrl: null,
+        thumbnailUrl: null,
+        provider: "mux",
+        playbackId: null,
+        duration: null,
+        isReady: false,
+      }
+    : null;
+
+  const shareMetadata = buildShareMetadata({
+    text: cleanText,
+    media,
+    authorName: author.authorName,
+    groupVisibility,
+    accessModel: "free",
+    requiresPayment: false,
+    requiresSubscription: false,
+    videoData,
+    playback,
+  });
+
+  const createdAt = serverTimestamp();
+  const updatedAt = serverTimestamp();
+  const searchTimestamp = Timestamp.now();
+
+  const postPayload = {
+    groupId: params.groupId,
+    groupVisibility,
+    authorId: author.uid,
+    authorName: author.authorName,
+    authorAvatarUrl: author.authorAvatarUrl,
+    authorUsername: author.authorUsername,
+    text: cleanText,
+    createdAt,
+    updatedAt,
+    deletedAt: null,
+    isDeleted: false,
+
+    isPinnedInGroup: false,
+    groupPinnedAt: null,
+    groupPinnedBy: null,
+
+    isPinnedOnProfile: false,
+    profilePinnedAt: null,
+    profilePinnedBy: null,
+
+    isShareable: shareMetadata.isShareable,
+    publicSlug: shareMetadata.publicSlug,
+    shareTitle: shareMetadata.shareTitle,
+    shareDescription: shareMetadata.shareDescription,
+    shareImageUrl: shareMetadata.shareImageUrl,
+
+    access: "free",
+    media,
+
+    counts: {
+      comments: 0,
+      likes: 0,
+      saves: 0,
+    },
+
+    postType: hasVideos ? "video" : hasImages ? "image" : "text",
+
+    accessModel: "free",
+    accessScope: "group",
+    requiresPayment: false,
+    requiresSubscription: false,
+    oneTimePrice: null,
+    currency: null,
+    purchaseType: hasVideos ? "video" : null,
+
+    liveData: null,
+    videoData,
+    scheduledData: null,
+    playback,
+
+    processing: {
+      status: hasVideos ? "uploading" : "ready",
+      provider: hasVideos ? "mux" : hasImages ? "firebase_storage" : null,
+      errorCode: null,
+      errorMessage: null,
+      updatedAt: null,
+    },
+
+    search: buildPostSearchIndex({
+      text: cleanText,
+      groupId: params.groupId,
+      groupVisibility,
+      authorId: author.uid,
+      accessScope: "group",
+      isDeleted: false,
+      createdAt: searchTimestamp,
+      updatedAt: searchTimestamp,
+    }),
+  };
+
+  if (params.postId) {
+    await setDoc(doc(db, "posts", params.postId), postPayload, { merge: true });
+    return;
+  }
+
+  await addDoc(collection(db, "posts"), postPayload);
 }
 
 export async function createVideoPost(params: {

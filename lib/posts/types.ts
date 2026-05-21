@@ -1,13 +1,33 @@
 import type { Timestamp } from "firebase/firestore";
 
 export const MAX_POST_IMAGES = 10;
+export const MAX_POST_VIDEOS = 3;
+
 export const POST_IMAGE_MEDIA_TYPE = "image";
+export const POST_VIDEO_MEDIA_TYPE = "video";
 
 export type PostMediaType = "image" | "video";
 
 export type PostMedia = {
   type: PostMediaType;
+
+  /**
+   * Para imágenes: URL final en Firebase Storage.
+   * Para videos Mux en proceso: puede iniciar vacío y llenarse cuando el webhook marque ready.
+   */
   url: string;
+
+  /**
+   * Identificador estable del item dentro de media[].
+   * Útil para actualizar videos individuales desde webhooks sin depender solo del índice.
+   */
+  id?: string;
+
+  /**
+   * Índice dentro de media[] al momento de crear el post.
+   */
+  index?: number;
+
   path?: string;
   width?: number;
   height?: number;
@@ -15,6 +35,19 @@ export type PostMedia = {
   mimeType?: string;
   thumbnailUrl?: string | null;
   altText?: string | null;
+
+  /**
+   * Campos para videos.
+   * Mantienen compatibilidad con videoData/playback raíz,
+   * pero permiten varios videos como items separados dentro de media[].
+   */
+  provider?: VideoProvider;
+  status?: VideoStatus;
+  uploadId?: string | null;
+  assetId?: string | null;
+  playbackId?: string | null;
+  hlsUrl?: string | null;
+  duration?: number | null;
 };
 
 export type PostCounts = {
