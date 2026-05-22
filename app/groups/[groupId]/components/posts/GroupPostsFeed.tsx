@@ -752,17 +752,26 @@ export default function GroupPostsFeed({
       setVideoUploadStatus(null);
 
       const cleanText = payload.text.trim();
-      const orderedMediaItems =
+
+      type OrderedComposerMediaItem = {
+        type: "image" | "video";
+        file: File;
+        coverFile?: File | null;
+      };
+
+      const orderedMediaItems: OrderedComposerMediaItem[] =
         Array.isArray(payload.mediaItems) && payload.mediaItems.length > 0
           ? payload.mediaItems
           : [
-              ...(payload.imageFiles ?? []).map((file) => ({
-                type: "image" as const,
+              ...(payload.imageFiles ?? []).map<OrderedComposerMediaItem>((file) => ({
+                type: "image",
                 file,
+                coverFile: null,
               })),
-              ...(payload.videoFiles ?? []).map((file) => ({
-                type: "video" as const,
+              ...(payload.videoFiles ?? []).map<OrderedComposerMediaItem>((file) => ({
+                type: "video",
                 file,
+                coverFile: null,
               })),
             ];
 
