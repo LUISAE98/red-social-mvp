@@ -1662,6 +1662,8 @@ export async function createMediaPost(params: {
     uploadId: string;
     mediaId: string;
     mediaIndex: number;
+    thumbnailUrl?: string | null;
+    thumbnailPath?: string | null;
   }>;
 }): Promise<void> {
   assertValidId(params.groupId, "groupId");
@@ -1720,7 +1722,10 @@ export async function createMediaPost(params: {
     id: item.mediaId,
     index: item.mediaIndex,
     url: `mux://uploads/${item.uploadId}`,
-    thumbnailUrl: null,
+    thumbnailUrl:
+      typeof item.thumbnailUrl === "string" && item.thumbnailUrl.trim().length > 0
+        ? item.thumbnailUrl.trim()
+        : null,
     altText: null,
     provider: "mux",
     status: "uploading",
@@ -1751,9 +1756,13 @@ export async function createMediaPost(params: {
         uploadId: firstVideo.uploadId ?? null,
         playbackId: null,
         duration: null,
-        thumbnailUrl: null,
+        thumbnailUrl: firstVideo.thumbnailUrl ?? null,
         sourceUrl: null,
-        sourcePath: null,
+        sourcePath:
+          typeof cleanVideoUploads[0]?.thumbnailPath === "string" &&
+          cleanVideoUploads[0].thumbnailPath.trim().length > 0
+            ? cleanVideoUploads[0].thumbnailPath.trim()
+            : null,
       }
     : null;
 
@@ -1761,7 +1770,7 @@ export async function createMediaPost(params: {
     ? {
         url: null,
         hlsUrl: null,
-        thumbnailUrl: null,
+        thumbnailUrl: firstVideo.thumbnailUrl ?? null,
         provider: "mux",
         playbackId: null,
         duration: null,
@@ -1869,12 +1878,22 @@ export async function createVideoPost(params: {
   postId: string;
   uploadId: string;
   text?: string;
+  thumbnailUrl?: string | null;
+  thumbnailPath?: string | null;
 }): Promise<void> {
   assertValidId(params.groupId, "groupId");
   assertValidId(params.postId, "postId");
   assertValidId(params.uploadId, "uploadId");
 
   const cleanText = params.text?.trim() ?? "";
+  const cleanThumbnailUrl =
+    typeof params.thumbnailUrl === "string" && params.thumbnailUrl.trim().length > 0
+      ? params.thumbnailUrl.trim()
+      : null;
+  const cleanThumbnailPath =
+    typeof params.thumbnailPath === "string" && params.thumbnailPath.trim().length > 0
+      ? params.thumbnailPath.trim()
+      : null;
 
   const author = await getCurrentAuthorSnapshot();
   await ensureUserCanCreatePostInGroup(params.groupId, author.uid);
@@ -1893,15 +1912,15 @@ export async function createVideoPost(params: {
     uploadId: params.uploadId,
     playbackId: null,
     duration: null,
-    thumbnailUrl: null,
+    thumbnailUrl: cleanThumbnailUrl,
     sourceUrl: null,
-    sourcePath: null,
+    sourcePath: cleanThumbnailPath,
   };
 
   const playback: Post["playback"] = {
     url: null,
     hlsUrl: null,
-    thumbnailUrl: null,
+    thumbnailUrl: cleanThumbnailUrl,
     provider: "mux",
     playbackId: null,
     duration: null,
@@ -1956,7 +1975,7 @@ export async function createVideoPost(params: {
       {
         type: "video",
         url: `mux://uploads/${params.uploadId}`,
-        thumbnailUrl: null,
+        thumbnailUrl: cleanThumbnailUrl,
         altText: null,
       },
     ],

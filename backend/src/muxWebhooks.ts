@@ -77,6 +77,24 @@ function getPublicPlaybackId(event: MuxWebhookEvent): string | null {
   return publicPlayback?.id ?? playbackIds[0]?.id ?? null;
 }
 
+function pickString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function resolveCustomThumbnailUrl(value: Record<string, unknown> | null | undefined): string | null {
+  if (!value) return null;
+
+  return (
+    pickString(value.customThumbnailUrl) ||
+    pickString(value.coverUrl) ||
+    pickString(value.coverImageUrl) ||
+    pickString(value.thumbnailUrl) ||
+    null
+  );
+}
+
 async function findMuxUploadDoc(params: {
   uploadId?: string | null;
   postId?: string | null;
@@ -124,6 +142,7 @@ async function markAssetReady(event: MuxWebhookEvent) {
     Number.isInteger(passthrough.mediaIndex)
       ? passthrough.mediaIndex
       : null;
+  let uploadCustomThumbnailUrl: string | null = null;
 
   const uploadRef = await findMuxUploadDoc({
     uploadId,
@@ -158,6 +177,11 @@ async function markAssetReady(event: MuxWebhookEvent) {
         : null);
   }
 
+  if (uploadRef) {
+    const uploadSnap = await uploadRef.get();
+    uploadCustomThumbnailUrl = resolveCustomThumbnailUrl(uploadSnap.data() ?? {});
+  }
+
   if (!assetId || !postId || !playbackId) {
     logger.warn("muxWebhook asset.ready missing required data", {
       assetId,
@@ -173,7 +197,7 @@ async function markAssetReady(event: MuxWebhookEvent) {
   }
 
   const hlsUrl = `https://stream.mux.com/${playbackId}.m3u8`;
-  const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg`;
+  const muxThumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg`;
 
   const now = FieldValue.serverTimestamp();
   const postRef = db.collection("posts").doc(postId);
@@ -196,6 +220,7 @@ async function markAssetReady(event: MuxWebhookEvent) {
     const currentMedia = Array.isArray(postData.media) ? postData.media : [];
 
     let matchedMedia = false;
+    let matchedThumbnailUrl = uploadCustomThumbnailUrl;
 
     const nextMedia = currentMedia.map((item) => {
       if (!item || typeof item !== "object") {
@@ -225,6 +250,10 @@ async function markAssetReady(event: MuxWebhookEvent) {
 
       matchedMedia = true;
 
+      const existingThumbnailUrl = resolveCustomThumbnailUrl(mediaItem);
+      const thumbnailUrl = existingThumbnailUrl || uploadCustomThumbnailUrl || muxThumbnailUrl;
+      matchedThumbnailUrl = thumbnailUrl;
+
       return {
         ...mediaItem,
         type: "video",
@@ -232,6 +261,8 @@ async function markAssetReady(event: MuxWebhookEvent) {
         index: typeof mediaItem.index === "number" ? mediaItem.index : mediaIndex ?? undefined,
         url: hlsUrl,
         thumbnailUrl,
+        customThumbnailUrl: existingThumbnailUrl || uploadCustomThumbnailUrl || null,
+        muxThumbnailUrl,
         provider: "mux",
         status: "ready",
         uploadId,
@@ -262,6 +293,22 @@ async function markAssetReady(event: MuxWebhookEvent) {
       postData.videoData == null ||
       typeof (postData.videoData as Record<string, unknown>)?.playbackId !== "string";
 
+    const currentVideoData =
+      postData.videoData && typeof postData.videoData === "object"
+        ? (postData.videoData as Record<string, unknown>)
+        : null;
+
+    const currentPlayback =
+      postData.playback && typeof postData.playback === "object"
+        ? (postData.playback as Record<string, unknown>)
+        : null;
+
+    const rootThumbnailUrl =
+      matchedThumbnailUrl ||
+      resolveCustomThumbnailUrl(currentVideoData) ||
+      resolveCustomThumbnailUrl(currentPlayback) ||
+      muxThumbnailUrl;
+
     const postUpdate: Record<string, unknown> = {
       updatedAt: now,
       processing: {
@@ -277,27 +324,35 @@ async function markAssetReady(event: MuxWebhookEvent) {
       postUpdate.media = nextMedia;
     }
 
-    if (!postData.shareImageUrl || shouldUpdateRootVideo) {
-      postUpdate.shareImageUrl = thumbnailUrl;
+    if (!postData.shareImageUrl) {
+      postUpdate.shareImageUrl = rootThumbnailUrl;
     }
 
     if (shouldUpdateRootVideo) {
       postUpdate.videoData = {
+        ...(currentVideoData ?? {}),
         provider: "mux",
         status: "ready",
         assetId,
         uploadId,
         playbackId,
         duration,
-        thumbnailUrl,
+        thumbnailUrl: rootThumbnailUrl,
+        customThumbnailUrl:
+          resolveCustomThumbnailUrl(currentVideoData) || uploadCustomThumbnailUrl || null,
+        muxThumbnailUrl,
         sourceUrl: null,
         sourcePath: null,
       };
 
       postUpdate.playback = {
+        ...(currentPlayback ?? {}),
         url: hlsUrl,
         hlsUrl,
-        thumbnailUrl,
+        thumbnailUrl: rootThumbnailUrl,
+        customThumbnailUrl:
+          resolveCustomThumbnailUrl(currentPlayback) || uploadCustomThumbnailUrl || null,
+        muxThumbnailUrl,
         provider: "mux",
         playbackId,
         duration,
@@ -313,7 +368,9 @@ async function markAssetReady(event: MuxWebhookEvent) {
         assetId,
         playbackId,
         duration,
-        thumbnailUrl,
+        thumbnailUrl: rootThumbnailUrl,
+        customThumbnailUrl: uploadCustomThumbnailUrl,
+        muxThumbnailUrl,
         hlsUrl,
         updatedAt: now,
       };

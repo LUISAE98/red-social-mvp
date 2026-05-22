@@ -62,7 +62,7 @@ type PostWithAuthorState = Post & {
 
 async function getGroupMemberMeta(
   groupId: string,
-  userId: string
+  userId: string,
 ): Promise<{ status: MemberStatus; mutedUntil: any | null }> {
   try {
     const memberRef = doc(db, "groups", groupId, "members", userId);
@@ -100,7 +100,7 @@ async function getGroupMemberMeta(
 
 async function attachAuthorMemberState(
   groupId: string,
-  posts: Post[]
+  posts: Post[],
 ): Promise<PostWithAuthorState[]> {
   if (!posts.length) return posts as PostWithAuthorState[];
 
@@ -110,16 +110,16 @@ async function attachAuthorMemberState(
         .map((post) => post.authorId)
         .filter(
           (authorId): authorId is string =>
-            typeof authorId === "string" && authorId.trim().length > 0
-        )
-    )
+            typeof authorId === "string" && authorId.trim().length > 0,
+        ),
+    ),
   );
 
   const authorStatusEntries = await Promise.all(
     uniqueAuthorIds.map(async (authorId) => {
       const meta = await getGroupMemberMeta(groupId, authorId);
       return [authorId, meta] as const;
-    })
+    }),
   );
 
   const authorStatusMap = new Map<
@@ -252,7 +252,9 @@ function getGroupFeedCacheKey(params: {
   return ["group-feed", params.groupId, params.currentUid ?? "guest"].join(":");
 }
 
-function sortGroupFeedPosts(posts: PostWithAuthorState[]): PostWithAuthorState[] {
+function sortGroupFeedPosts(
+  posts: PostWithAuthorState[],
+): PostWithAuthorState[] {
   return [...posts].sort((a, b) => {
     const aPinned = a.isPinnedInGroup === true;
     const bPinned = b.isPinnedInGroup === true;
@@ -277,7 +279,7 @@ function sortGroupFeedPosts(posts: PostWithAuthorState[]): PostWithAuthorState[]
 
 function mergeUniquePosts(
   currentPosts: PostWithAuthorState[],
-  nextPosts: PostWithAuthorState[]
+  nextPosts: PostWithAuthorState[],
 ): PostWithAuthorState[] {
   const map = new Map<string, PostWithAuthorState>();
 
@@ -361,16 +363,20 @@ export default function GroupPostsFeed({
   const [posts, setPosts] = useState<PostWithAuthorState[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [composerError, setComposerError] = useState<string | null>(null);
-  const [videoUploadProgress, setVideoUploadProgress] = useState<number | null>(null);
-  const [videoUploadStatus, setVideoUploadStatus] = useState<string | null>(null);
+  const [videoUploadProgress, setVideoUploadProgress] = useState<number | null>(
+    null,
+  );
+  const [videoUploadStatus, setVideoUploadStatus] = useState<string | null>(
+    null,
+  );
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [pageCursor, setPageCursor] = useState<GroupPostsPageCursor | null>(
-    null
+    null,
   );
   const [currentUid, setCurrentUid] = useState<string | null>(
-    auth.currentUser?.uid ?? null
+    auth.currentUser?.uid ?? null,
   );
 
   const infiniteScrollTargetRef = useRef<HTMLDivElement | null>(null);
@@ -393,7 +399,7 @@ export default function GroupPostsFeed({
         groupId,
         currentUid,
       }),
-    [groupId, currentUid]
+    [groupId, currentUid],
   );
 
   const syncPostsState = useCallback(
@@ -413,7 +419,7 @@ export default function GroupPostsFeed({
         return next;
       });
     },
-    [cacheKey, groupId]
+    [cacheKey, groupId],
   );
 
   useEffect(() => {
@@ -465,7 +471,7 @@ export default function GroupPostsFeed({
 
         const hydratedPosts = await attachAuthorMemberState(
           groupId,
-          result.posts
+          result.posts,
         );
 
         const normalizedPosts = hydratedPosts.map(normalizeFeedPost);
@@ -504,7 +510,7 @@ export default function GroupPostsFeed({
         }
       }
     },
-    [cacheKey, groupId, currentUid]
+    [cacheKey, groupId, currentUid],
   );
 
   const loadPosts = useCallback(async () => {
@@ -549,7 +555,7 @@ export default function GroupPostsFeed({
     return Math.max(0, posts.length - 5);
   }, [posts.length]);
 
-    const processingVideoPostIdsKey = useMemo(() => {
+  const processingVideoPostIdsKey = useMemo(() => {
     return posts
       .filter(isVideoPostStillProcessing)
       .map((post) => post.id)
@@ -575,7 +581,7 @@ export default function GroupPostsFeed({
       ) {
         timeoutId = window.setTimeout(
           refreshProcessingVideos,
-          VIDEO_PROCESSING_POLL_MS
+          VIDEO_PROCESSING_POLL_MS,
         );
         return;
       }
@@ -620,8 +626,8 @@ export default function GroupPostsFeed({
                       authorMutedUntil: post.authorMutedUntil,
                       forcedGroupId: post.forcedGroupId ?? groupId,
                     }
-                  : post
-              )
+                  : post,
+              ),
             );
 
             if (isDone) {
@@ -630,13 +636,13 @@ export default function GroupPostsFeed({
           } catch {
             // Se ignora para no romper el feed por una lectura fallida temporal.
           }
-        })
+        }),
       );
 
       if (!cancelled && shouldContinuePolling) {
         timeoutId = window.setTimeout(
           refreshProcessingVideos,
-          VIDEO_PROCESSING_POLL_MS
+          VIDEO_PROCESSING_POLL_MS,
         );
       }
     }
@@ -670,7 +676,7 @@ export default function GroupPostsFeed({
         root: null,
         rootMargin: "240px 0px",
         threshold: 0.01,
-      }
+      },
     );
 
     observer.observe(target);
@@ -687,7 +693,7 @@ export default function GroupPostsFeed({
   function redirectToLogin() {
     const nextPath = buildCurrentPathWithSearch(
       pathname || `/groups/${groupId}`,
-      searchParams
+      searchParams,
     );
 
     router.push(`/login?next=${encodeURIComponent(nextPath)}`);
@@ -734,6 +740,7 @@ export default function GroupPostsFeed({
     mediaItems?: Array<{
       type: "image" | "video";
       file: File;
+      coverFile?: File | null;
     }>;
   }) {
     if (!guardCreatePost()) return;
@@ -801,6 +808,27 @@ export default function GroupPostsFeed({
             }))
           : [];
 
+      const videoCoverItems = videoItems.filter(
+        (item) => item.coverFile instanceof File,
+      );
+
+      const uploadedVideoCovers =
+        videoCoverItems.length > 0
+          ? (setVideoUploadStatus("Subiendo portadas de videos..."),
+            await uploadPostImages({
+              groupId,
+              files: videoCoverItems.map((item) => item.coverFile as File),
+            })).map((media, index) => ({
+              mediaIndex: videoCoverItems[index]?.mediaIndex ?? index,
+              thumbnailUrl: media.url,
+              thumbnailPath: media.path ?? null,
+            }))
+          : [];
+
+      const videoCoversByMediaIndex = new Map(
+        uploadedVideoCovers.map((cover) => [cover.mediaIndex, cover]),
+      );
+
       if (videoItems.length > 0) {
         setVideoUploadStatus("Preparando subida de videos...");
 
@@ -820,6 +848,8 @@ export default function GroupPostsFeed({
           mediaId: string;
           file: File;
           mediaIndex: number;
+          thumbnailUrl: string | null;
+          thumbnailPath: string | null;
         }> = [];
 
         let sharedPostId: string | null = null;
@@ -837,6 +867,9 @@ export default function GroupPostsFeed({
             sharedPostId = uploadData.postId;
           }
 
+          const cover =
+            videoCoversByMediaIndex.get(videoItem.mediaIndex) ?? null;
+
           muxUploads.push({
             uploadUrl: uploadData.uploadUrl,
             uploadId: uploadData.uploadId,
@@ -844,6 +877,8 @@ export default function GroupPostsFeed({
             mediaId: uploadData.mediaId,
             file: videoItem.file,
             mediaIndex: videoItem.mediaIndex,
+            thumbnailUrl: cover?.thumbnailUrl ?? null,
+            thumbnailPath: cover?.thumbnailPath ?? null,
           });
         }
 
@@ -853,23 +888,27 @@ export default function GroupPostsFeed({
 
         setVideoUploadStatus("Creando publicación con media...");
 
+        const videoUploadsPayload = muxUploads.map((upload) => ({
+          uploadId: upload.uploadId,
+          mediaId: upload.mediaId,
+          mediaIndex: upload.mediaIndex,
+          thumbnailUrl: upload.thumbnailUrl,
+          thumbnailPath: upload.thumbnailPath,
+        }));
+
         await createMediaPost({
           groupId,
           postId: sharedPostId,
           text: cleanText,
           imageMedia: uploadedImages,
-          videoUploads: muxUploads.map((upload) => ({
-            uploadId: upload.uploadId,
-            mediaId: upload.mediaId,
-            mediaIndex: upload.mediaIndex,
-          })),
+          videoUploads: videoUploadsPayload,
         });
 
         for (let index = 0; index < muxUploads.length; index += 1) {
           const upload = muxUploads[index];
 
           setVideoUploadStatus(
-            `Subiendo video ${index + 1} de ${muxUploads.length} a Mux...`
+            `Subiendo video ${index + 1} de ${muxUploads.length} a Mux...`,
           );
 
           await uploadVideoFileToMux({
@@ -880,7 +919,7 @@ export default function GroupPostsFeed({
         }
 
         setVideoUploadStatus(
-          "Videos subidos. Mux los está procesando; aparecerán listos en unos momentos."
+          "Videos subidos. Mux los está procesando; aparecerán listos en unos momentos.",
         );
       } else if (uploadedImages.length > 0) {
         await createMediaPost({
@@ -923,8 +962,8 @@ export default function GroupPostsFeed({
                   likes: result.likes,
                 },
               }
-            : post
-        )
+            : post,
+        ),
       );
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar la flamita.");
@@ -932,7 +971,7 @@ export default function GroupPostsFeed({
     }
   }
 
-    async function handleToggleGroupPin(postId: string): Promise<void> {
+  async function handleToggleGroupPin(postId: string): Promise<void> {
     try {
       setError(null);
 
@@ -946,15 +985,13 @@ export default function GroupPostsFeed({
                   ...post,
                   isPinnedInGroup: result.isPinnedInGroup,
                   groupPinnedAt: result.isPinnedInGroup
-                    ? post.groupPinnedAt ?? null
+                    ? (post.groupPinnedAt ?? null)
                     : null,
-                  groupPinnedBy: result.isPinnedInGroup
-                    ? currentUid
-                    : null,
+                  groupPinnedBy: result.isPinnedInGroup ? currentUid : null,
                 }
-              : post
-          )
-        )
+              : post,
+          ),
+        ),
       );
 
       await loadPosts();
@@ -963,7 +1000,7 @@ export default function GroupPostsFeed({
       throw e;
     }
   }
-    async function handleToggleProfilePin(postId: string): Promise<void> {
+  async function handleToggleProfilePin(postId: string): Promise<void> {
     try {
       setError(null);
 
@@ -976,18 +1013,19 @@ export default function GroupPostsFeed({
                 ...post,
                 isPinnedOnProfile: result.isPinnedOnProfile,
                 profilePinnedAt: result.isPinnedOnProfile
-                  ? post.profilePinnedAt ?? null
+                  ? (post.profilePinnedAt ?? null)
                   : null,
                 profilePinnedBy: result.isPinnedOnProfile ? currentUid : null,
               }
-            : post
-        )
+            : post,
+        ),
       );
 
       await loadPosts();
     } catch (e: any) {
       setError(
-        e?.message ?? "No se pudo fijar o desfijar la publicación en tu perfil."
+        e?.message ??
+          "No se pudo fijar o desfijar la publicación en tu perfil.",
       );
       throw e;
     }
@@ -1016,7 +1054,7 @@ export default function GroupPostsFeed({
               saves: nextSaves,
             },
           };
-        })
+        }),
       );
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar el guardado.");
@@ -1061,7 +1099,7 @@ export default function GroupPostsFeed({
         } catch {
           return comment.counts?.replies ?? 0;
         }
-      })
+      }),
     );
 
     const total =
@@ -1077,8 +1115,8 @@ export default function GroupPostsFeed({
                 comments: total,
               },
             }
-          : post
-      )
+          : post,
+      ),
     );
 
     return comments;
@@ -1086,7 +1124,7 @@ export default function GroupPostsFeed({
 
   async function handleCreateComment(
     postId: string,
-    text: string
+    text: string,
   ): Promise<Comment[]> {
     if (!guardCreateComment()) {
       throw new Error(buildCommentBlockedMessage(commentBlockedReason));
@@ -1104,7 +1142,7 @@ export default function GroupPostsFeed({
 
   async function handleDeleteComment(
     postId: string,
-    commentId: string
+    commentId: string,
   ): Promise<Comment[]> {
     try {
       setError(null);
@@ -1119,7 +1157,7 @@ export default function GroupPostsFeed({
 
   async function handleLoadReplies(
     postId: string,
-    commentId: string
+    commentId: string,
   ): Promise<CommentReply[]> {
     try {
       setError(null);
@@ -1133,7 +1171,7 @@ export default function GroupPostsFeed({
   async function handleCreateReply(
     postId: string,
     commentId: string,
-    text: string
+    text: string,
   ): Promise<CommentReply[]> {
     if (!guardCreateComment()) {
       throw new Error(buildCommentBlockedMessage(commentBlockedReason));
@@ -1155,7 +1193,7 @@ export default function GroupPostsFeed({
   async function handleDeleteReply(
     postId: string,
     commentId: string,
-    replyId: string
+    replyId: string,
   ): Promise<CommentReply[]> {
     try {
       setError(null);
@@ -1397,7 +1435,9 @@ export default function GroupPostsFeed({
       )}
 
       {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
-        <div style={noticeStyle}>Ya viste todas las publicaciones disponibles.</div>
+        <div style={noticeStyle}>
+          Ya viste todas las publicaciones disponibles.
+        </div>
       )}
     </section>
   );

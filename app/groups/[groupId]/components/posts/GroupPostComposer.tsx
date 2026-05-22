@@ -20,6 +20,7 @@ import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 type ComposerMediaItem = {
   type: "image" | "video";
   file: File;
+  coverFile?: File | null;
 };
 
 type GroupPostComposerSubmitPayload = {
@@ -38,6 +39,10 @@ type SelectedMediaItem = ComposerMediaItem & {
   id: string;
   previewUrl: string;
   durationSeconds: number | null;
+  coverPreviewUrl?: string | null;
+  autoCoverUrl?: string | null;
+  autoCoverFile?: File | null;
+  coverStatus?: "loading" | "ready" | "error";
 };
 
 const MAX_POST_VIDEOS = 3;
@@ -60,7 +65,10 @@ function createLocalMediaId() {
 }
 
 function formatVideoDuration(durationSeconds: number | null) {
-  if (!Number.isFinite(durationSeconds ?? Number.NaN) || durationSeconds === null) {
+  if (
+    !Number.isFinite(durationSeconds ?? Number.NaN) ||
+    durationSeconds === null
+  ) {
     return "0:00";
   }
 
@@ -89,6 +97,99 @@ function readVideoDurationFromUrl(previewUrl: string): Promise<number | null> {
   });
 }
 
+function captureFirstVideoFrame(
+  previewUrl: string,
+  fileName: string,
+): Promise<{ file: File; previewUrl: string } | null> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    const canvas = document.createElement("canvas");
+
+    let settled = false;
+
+    function finish(value: { file: File; previewUrl: string } | null) {
+      if (settled) return;
+      settled = true;
+      video.removeAttribute("src");
+      video.load();
+      resolve(value);
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      finish(null);
+    }, 8000);
+
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    video.crossOrigin = "anonymous";
+
+    video.onerror = () => {
+      window.clearTimeout(timeoutId);
+      finish(null);
+    };
+
+    video.onloadedmetadata = () => {
+      const seekTime =
+        Number.isFinite(video.duration) && video.duration > 0 ? 0.01 : 0;
+
+      try {
+        video.currentTime = seekTime;
+      } catch {
+        window.clearTimeout(timeoutId);
+        finish(null);
+      }
+    };
+
+    video.onseeked = () => {
+      try {
+        const width = video.videoWidth || 720;
+        const height = video.videoHeight || 1280;
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const context = canvas.getContext("2d");
+
+        if (!context) {
+          window.clearTimeout(timeoutId);
+          finish(null);
+          return;
+        }
+
+        context.drawImage(video, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            window.clearTimeout(timeoutId);
+
+            if (!blob) {
+              finish(null);
+              return;
+            }
+
+            const safeBaseName =
+              fileName.replace(/\.[^.]+$/, "") || "video-cover";
+            const file = new File([blob], `${safeBaseName}-cover.jpg`, {
+              type: "image/jpeg",
+              lastModified: Date.now(),
+            });
+
+            finish({ file, previewUrl: URL.createObjectURL(file) });
+          },
+          "image/jpeg",
+          0.86,
+        );
+      } catch {
+        window.clearTimeout(timeoutId);
+        finish(null);
+      }
+    };
+
+    video.src = previewUrl;
+  });
+}
+
 function AutoGrowTextarea({
   value,
   maxRows = 3,
@@ -109,12 +210,17 @@ function AutoGrowTextarea({
     const computed = window.getComputedStyle(el);
     const lineHeight = Number.parseFloat(computed.lineHeight || "20") || 20;
     const borderTop = Number.parseFloat(computed.borderTopWidth || "0") || 0;
-    const borderBottom = Number.parseFloat(computed.borderBottomWidth || "0") || 0;
+    const borderBottom =
+      Number.parseFloat(computed.borderBottomWidth || "0") || 0;
     const paddingTop = Number.parseFloat(computed.paddingTop || "0") || 0;
     const paddingBottom = Number.parseFloat(computed.paddingBottom || "0") || 0;
 
     const maxHeight =
-      lineHeight * maxRows + paddingTop + paddingBottom + borderTop + borderBottom;
+      lineHeight * maxRows +
+      paddingTop +
+      paddingBottom +
+      borderTop +
+      borderBottom;
 
     const nextHeight = Math.min(el.scrollHeight, maxHeight);
     el.style.height = `${nextHeight}px`;
@@ -191,19 +297,32 @@ function Avatar({
   );
 }
 
-export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) {
+export default function GroupPostComposer({
+  onSubmit,
+}: GroupPostComposerProps) {
   const [text, setText] = useState("");
   const [creating, setCreating] = useState(false);
   const [postType, setPostType] = useState<ComposerPostType>("text");
-  const [currentUserHandle, setCurrentUserHandle] = useState<string | null>(null);
-  const [selectedMediaItems, setSelectedMediaItems] = useState<SelectedMediaItem[]>([]);
+  const [currentUserHandle, setCurrentUserHandle] = useState<string | null>(
+    null,
+  );
+  const [selectedMediaItems, setSelectedMediaItems] = useState<
+    SelectedMediaItem[]
+  >([]);
   const [localError, setLocalError] = useState<string | null>(null);
   const [processingImageSlots, setProcessingImageSlots] = useState(0);
-  const [draggingPreviewIndex, setDraggingPreviewIndex] = useState<number | null>(null);
-  const [dragOverPreviewIndex, setDragOverPreviewIndex] = useState<number | null>(null);
+  const [processingVideoSlots, setProcessingVideoSlots] = useState(0);
+  const [draggingPreviewIndex, setDraggingPreviewIndex] = useState<
+    number | null
+  >(null);
+  const [dragOverPreviewIndex, setDragOverPreviewIndex] = useState<
+    number | null
+  >(null);
   const [isReorderingPreview, setIsReorderingPreview] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
+  const pendingCoverVideoIdRef = useRef<string | null>(null);
   const previewScrollerRef = useRef<HTMLDivElement | null>(null);
   const selectedMediaItemsRef = useRef<SelectedMediaItem[]>([]);
   const dragStartIndexRef = useRef<number | null>(null);
@@ -217,22 +336,36 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
   const currentUser = auth.currentUser;
   const currentUserName = currentUser?.displayName?.trim() || "Tú";
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(
-    currentUser?.photoURL || null
+    currentUser?.photoURL || null,
   );
 
   const selectedImages = useMemo(
-    () => selectedMediaItems.filter((item) => item.type === "image").map((item) => item.file),
-    [selectedMediaItems]
+    () =>
+      selectedMediaItems
+        .filter((item) => item.type === "image")
+        .map((item) => item.file),
+    [selectedMediaItems],
   );
 
   const selectedVideos = useMemo(
-    () => selectedMediaItems.filter((item) => item.type === "video").map((item) => item.file),
-    [selectedMediaItems]
+    () =>
+      selectedMediaItems
+        .filter((item) => item.type === "video")
+        .map((item) => item.file),
+    [selectedMediaItems],
   );
 
   const orderedSubmitMediaItems = useMemo<ComposerMediaItem[]>(
-    () => selectedMediaItems.map((item) => ({ type: item.type, file: item.file })),
-    [selectedMediaItems]
+    () =>
+      selectedMediaItems.map((item) => ({
+        type: item.type,
+        file: item.file,
+        coverFile:
+          item.type === "video"
+            ? (item.coverFile ?? item.autoCoverFile ?? null)
+            : null,
+      })),
+    [selectedMediaItems],
   );
 
   useEffect(() => {
@@ -241,7 +374,11 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
 
   useEffect(() => {
     return () => {
-      selectedMediaItemsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+      selectedMediaItemsRef.current.forEach((item) => {
+        URL.revokeObjectURL(item.previewUrl);
+        if (item.coverPreviewUrl) URL.revokeObjectURL(item.coverPreviewUrl);
+        if (item.autoCoverUrl) URL.revokeObjectURL(item.autoCoverUrl);
+      });
     };
   }, []);
 
@@ -274,7 +411,8 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
         const avatarUrl =
           typeof data.avatarUrl === "string" && data.avatarUrl.trim().length > 0
             ? data.avatarUrl.trim()
-            : typeof data.photoURL === "string" && data.photoURL.trim().length > 0
+            : typeof data.photoURL === "string" &&
+                data.photoURL.trim().length > 0
               ? data.photoURL.trim()
               : currentUser?.photoURL || null;
 
@@ -308,10 +446,11 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
 
   const currentUserHref = currentUserHandle ? `/u/${currentUserHandle}` : "#";
   const hasContent = text.trim().length > 0 || selectedMediaItems.length > 0;
-  const isPreparingImages = processingImageSlots > 0;
+  const isPreparingImages =
+    processingImageSlots > 0 || processingVideoSlots > 0;
   const canAddMoreMedia =
     selectedImages.length + processingImageSlots < MAX_POST_IMAGES ||
-    selectedVideos.length < MAX_POST_VIDEOS;
+    selectedVideos.length + processingVideoSlots < MAX_POST_VIDEOS;
 
   function handleOpenMediaPicker() {
     if (creating || isPreparingImages) return;
@@ -347,7 +486,10 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
     }
   }
 
-  function startPreviewReorder(index: number, event: ReactPointerEvent<HTMLDivElement>) {
+  function startPreviewReorder(
+    index: number,
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) {
     previewDragActiveRef.current = true;
     dragStartIndexRef.current = index;
     dragPointerIdRef.current = event.pointerId;
@@ -394,7 +536,9 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
     const scroller = previewScrollerRef.current;
     if (!scroller) return null;
 
-    const items = Array.from(scroller.querySelectorAll<HTMLElement>("[data-preview-index]"));
+    const items = Array.from(
+      scroller.querySelectorAll<HTMLElement>("[data-preview-index]"),
+    );
 
     if (items.length === 0) return null;
 
@@ -416,7 +560,10 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
     return closestIndex;
   }
 
-  function handlePreviewPointerDown(index: number, event: ReactPointerEvent<HTMLDivElement>) {
+  function handlePreviewPointerDown(
+    index: number,
+    event: ReactPointerEvent<HTMLDivElement>,
+  ) {
     if (creating) return;
 
     clearDragPressTimer();
@@ -510,17 +657,22 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
 
     if (files.length === 0) return;
 
-    const availableSlots = MAX_POST_IMAGES - selectedImages.length - processingImageSlots;
+    const availableSlots =
+      MAX_POST_IMAGES - selectedImages.length - processingImageSlots;
 
     if (availableSlots <= 0) {
-      setLocalError(`Solo puedes subir hasta ${MAX_POST_IMAGES} imágenes por publicación.`);
+      setLocalError(
+        `Solo puedes subir hasta ${MAX_POST_IMAGES} imágenes por publicación.`,
+      );
       return;
     }
 
     const filesToProcess = files.slice(0, availableSlots);
 
     if (files.length > availableSlots) {
-      setLocalError(`Solo se agregaron ${availableSlots} imágenes. El máximo es ${MAX_POST_IMAGES}.`);
+      setLocalError(
+        `Solo se agregaron ${availableSlots} imágenes. El máximo es ${MAX_POST_IMAGES}.`,
+      );
     }
 
     setProcessingImageSlots((current) => current + filesToProcess.length);
@@ -558,7 +710,7 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
       setLocalError(
         failedCount === 1
           ? "No se pudo preparar una imagen."
-          : `No se pudieron preparar ${failedCount} imágenes.`
+          : `No se pudieron preparar ${failedCount} imágenes.`,
       );
     }
   }
@@ -589,13 +741,20 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
       setLocalError("Puedes agregar máximo 3 videos por publicación.");
     }
 
-    const nextItems = videosToAdd.map((file): SelectedMediaItem => ({
-      id: createLocalMediaId(),
-      type: "video",
-      file,
-      previewUrl: URL.createObjectURL(file),
-      durationSeconds: null,
-    }));
+    const nextItems = videosToAdd.map(
+      (file): SelectedMediaItem => ({
+        id: createLocalMediaId(),
+        type: "video",
+        file,
+        previewUrl: URL.createObjectURL(file),
+        durationSeconds: null,
+        coverFile: null,
+        coverPreviewUrl: null,
+        autoCoverUrl: null,
+        autoCoverFile: null,
+        coverStatus: "loading",
+      }),
+    );
 
     setSelectedMediaItems((current) => {
       const mergedItems = [...current, ...nextItems];
@@ -607,10 +766,40 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
       void readVideoDurationFromUrl(item.previewUrl).then((durationSeconds) => {
         setSelectedMediaItems((current) =>
           current.map((currentItem) =>
-            currentItem.id === item.id ? { ...currentItem, durationSeconds } : currentItem
-          )
+            currentItem.id === item.id
+              ? { ...currentItem, durationSeconds }
+              : currentItem,
+          ),
         );
       });
+
+      void captureFirstVideoFrame(item.previewUrl, item.file.name).then(
+        (cover) => {
+          setSelectedMediaItems((current) =>
+            current.map((currentItem) => {
+              if (currentItem.id !== item.id) return currentItem;
+
+              if (!cover) {
+                return { ...currentItem, coverStatus: "error" };
+              }
+
+              if (
+                currentItem.autoCoverUrl &&
+                currentItem.autoCoverUrl !== cover.previewUrl
+              ) {
+                URL.revokeObjectURL(currentItem.autoCoverUrl);
+              }
+
+              return {
+                ...currentItem,
+                autoCoverFile: cover.file,
+                autoCoverUrl: cover.previewUrl,
+                coverStatus: "ready",
+              };
+            }),
+          );
+        },
+      );
     });
   }
 
@@ -621,22 +810,41 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
       (file) =>
         file.type.startsWith("image/") ||
         file.name.toLowerCase().endsWith(".heic") ||
-        file.name.toLowerCase().endsWith(".heif")
+        file.name.toLowerCase().endsWith(".heif"),
     );
 
     const videoFiles = files.filter((file) => file.type.startsWith("video/"));
-    const unsupportedFiles = files.length - imageFiles.length - videoFiles.length;
+    const unsupportedFiles =
+      files.length - imageFiles.length - videoFiles.length;
 
     if (unsupportedFiles > 0) {
       setLocalError("Uno o más archivos no son imágenes o videos válidos.");
     }
 
-    if (imageFiles.length > 0) {
-      await handleImagesSelected(imageFiles);
+    const availableVideoSlots = Math.max(
+      0,
+      MAX_POST_VIDEOS - selectedVideos.length - processingVideoSlots,
+    );
+    const videosReserved = Math.min(videoFiles.length, availableVideoSlots);
+
+    if (videosReserved > 0) {
+      setProcessingVideoSlots((current) => current + videosReserved);
     }
 
-    if (videoFiles.length > 0) {
-      handleVideoSelected(videoFiles);
+    try {
+      if (imageFiles.length > 0) {
+        await handleImagesSelected(imageFiles);
+      }
+
+      if (videoFiles.length > 0) {
+        handleVideoSelected(videoFiles);
+      }
+    } finally {
+      if (videosReserved > 0) {
+        setProcessingVideoSlots((current) =>
+          Math.max(0, current - videosReserved),
+        );
+      }
     }
   }
 
@@ -646,6 +854,10 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
 
       if (itemToRemove) {
         URL.revokeObjectURL(itemToRemove.previewUrl);
+        if (itemToRemove.coverPreviewUrl)
+          URL.revokeObjectURL(itemToRemove.coverPreviewUrl);
+        if (itemToRemove.autoCoverUrl)
+          URL.revokeObjectURL(itemToRemove.autoCoverUrl);
       }
 
       const nextItems = current.filter((_, index) => index !== indexToRemove);
@@ -659,9 +871,64 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
   }
 
   function clearSelectedMedia() {
-    selectedMediaItemsRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl));
+    selectedMediaItemsRef.current.forEach((item) => {
+      URL.revokeObjectURL(item.previewUrl);
+      if (item.coverPreviewUrl) URL.revokeObjectURL(item.coverPreviewUrl);
+      if (item.autoCoverUrl) URL.revokeObjectURL(item.autoCoverUrl);
+    });
     selectedMediaItemsRef.current = [];
     setSelectedMediaItems([]);
+  }
+
+  function handleChooseVideoCover(videoId: string) {
+    if (creating) return;
+    pendingCoverVideoIdRef.current = videoId;
+    coverInputRef.current?.click();
+  }
+
+  async function handleCoverSelected(file: File | null) {
+    const videoId = pendingCoverVideoIdRef.current;
+    pendingCoverVideoIdRef.current = null;
+
+    if (!videoId || !file) return;
+
+    const isSupportedImage =
+      file.type.startsWith("image/") ||
+      file.name.toLowerCase().endsWith(".heic") ||
+      file.name.toLowerCase().endsWith(".heif");
+
+    if (!isSupportedImage) {
+      setLocalError("Selecciona una imagen válida para la portada del video.");
+      return;
+    }
+
+    try {
+      const normalized = await normalizeImageFile(file, {
+        maxSizeBytes: 150 * 1024 * 1024,
+      });
+
+      const coverPreviewUrl = URL.createObjectURL(normalized.file);
+
+      setSelectedMediaItems((current) =>
+        current.map((item) => {
+          if (item.id !== videoId) return item;
+
+          if (item.coverPreviewUrl) URL.revokeObjectURL(item.coverPreviewUrl);
+
+          return {
+            ...item,
+            coverFile: normalized.file,
+            coverPreviewUrl,
+          };
+        }),
+      );
+    } catch {
+      setLocalError("No se pudo preparar la portada del video.");
+    } finally {
+      if (coverInputRef.current) {
+        coverInputRef.current.value = "";
+      }
+    }
   }
 
   async function handleSubmit() {
@@ -756,6 +1023,45 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
     display: "block",
     userSelect: "none",
     WebkitUserSelect: "none",
+  };
+
+  const mediaPreviewItemColumnStyle: CSSProperties = {
+    width: "clamp(76px, 22vw, 104px)",
+    flex: "0 0 auto",
+    display: "grid",
+    gap: 7,
+  };
+
+  const videoCoverButtonStyle: CSSProperties = {
+    width: "100%",
+    minHeight: 30,
+    padding: "6px 8px",
+    borderRadius: 10,
+    border: "1px solid rgba(168,85,247,0.34)",
+    background: "rgba(168,85,247,0.14)",
+    color: "rgba(237,233,254,0.96)",
+    fontSize: 10.5,
+    fontWeight: 700,
+    fontFamily: fontStack,
+    lineHeight: 1.1,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+
+  const videoCoverLoadingStyle: CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    display: "grid",
+    placeItems: "center",
+    background:
+      "linear-gradient(135deg, rgba(76,29,149,0.78), rgba(168,85,247,0.34), rgba(49,46,129,0.72))",
+    backgroundSize: "220% 220%",
+    animation: "post-preview-video-cover-loading 1.45s ease-in-out infinite",
+    color: "rgba(255,255,255,0.92)",
+    textAlign: "center",
+    padding: 10,
+    boxSizing: "border-box",
+    zIndex: 2,
   };
 
   const removeMediaButtonStyle: CSSProperties = {
@@ -940,15 +1246,35 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
         multiple
         style={{ display: "none" }}
         onChange={async (event) => {
-          const files = Array.from(event.currentTarget.files ?? []);
+          const input = event.currentTarget;
+          const files = Array.from(input.files ?? []);
           await handleMediaSelected(files);
+          input.value = "";
+        }}
+      />
+
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/*,.heic,.heif"
+        style={{ display: "none" }}
+        onChange={async (event) => {
+          const file = event.currentTarget.files?.[0] ?? null;
+          await handleCoverSelected(file);
           event.currentTarget.value = "";
         }}
       />
 
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-        <Link href={currentUserHref} style={{ display: "inline-flex", flexShrink: 0 }}>
-          <Avatar name={currentUserName} avatarUrl={currentUserAvatar} size={36} />
+        <Link
+          href={currentUserHref}
+          style={{ display: "inline-flex", flexShrink: 0 }}
+        >
+          <Avatar
+            name={currentUserName}
+            avatarUrl={currentUserAvatar}
+            size={36}
+          />
         </Link>
 
         <div style={{ minWidth: 0, flex: 1 }}>
@@ -978,7 +1304,9 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
           />
 
           {(selectedMediaItems.length > 0 || processingImageSlots > 0) && (
-            <div style={{ marginTop: 10, position: "relative", maxWidth: "100%" }}>
+            <div
+              style={{ marginTop: 10, position: "relative", maxWidth: "100%" }}
+            >
               <style>
                 {`
                   .post-preview-scroller::-webkit-scrollbar {
@@ -998,6 +1326,12 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
                     0% { opacity: 0.42; }
                     50% { opacity: 0.78; }
                     100% { opacity: 0.42; }
+                  }
+
+                  @keyframes post-preview-video-cover-loading {
+                    0% { background-position: 0% 50%; }
+                    50% { background-position: 100% 50%; }
+                    100% { background-position: 0% 50%; }
                   }
 
                   @media (max-width: 640px) {
@@ -1024,105 +1358,245 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
                   cursor: isReorderingPreview ? "grabbing" : "grab",
                 }}
               >
-                {selectedMediaItems.map((item, index) => (
-                  <div
-                    key={item.id}
-                    data-preview-index={index}
-                    onDragStart={(event) => event.preventDefault()}
-                    onTouchMoveCapture={(event) => {
-                      if (previewDragActiveRef.current) {
-                        event.preventDefault();
-                      }
-                    }}
-                    onPointerDown={(event) => handlePreviewPointerDown(index, event)}
-                    onPointerMove={handlePreviewPointerMove}
-                    onPointerUp={handlePreviewPointerUp}
-                    onPointerCancel={handlePreviewPointerUp}
-                    style={{
-                      ...mediaPreviewWrapStyle,
-                      opacity: draggingPreviewIndex === index ? 0.62 : 1,
-                      transform:
-                        draggingPreviewIndex === index
-                          ? "scale(0.96)"
-                          : dragOverPreviewIndex === index
-                            ? "scale(1.035)"
-                            : "scale(1)",
-                      outline:
-                        dragOverPreviewIndex === index
-                          ? "2px solid rgba(255,255,255,0.42)"
-                          : "none",
-                      transition: "transform 140ms ease, opacity 140ms ease, outline 140ms ease",
-                      touchAction: "none",
-                      cursor: isReorderingPreview ? "grabbing" : "grab",
-                    }}
-                  >
-                    {item.type === "image" ? (
-                      <img
-                        src={item.previewUrl}
-                        alt={`Vista previa de imagen ${index + 1}`}
-                        style={mediaPreviewStyle}
-                        draggable={false}
+                {selectedMediaItems.map((item, index) => {
+                  const videoCoverPreviewUrl =
+                    item.type === "video"
+                      ? item.coverPreviewUrl || item.autoCoverUrl || null
+                      : null;
+                  const isVideoCoverLoading =
+                    item.type === "video" &&
+                    !videoCoverPreviewUrl &&
+                    item.coverStatus !== "error";
+                  const hasManualCover =
+                    item.type === "video" && Boolean(item.coverPreviewUrl);
+
+                  return (
+                    <div key={item.id} style={mediaPreviewItemColumnStyle}>
+                      <div
+                        data-preview-index={index}
                         onDragStart={(event) => event.preventDefault()}
-                      />
-                    ) : (
-                      <>
-                        <video
-                          src={item.previewUrl}
-                          preload="metadata"
-                          muted
-                          playsInline
-                          style={mediaPreviewStyle}
-                          draggable={false}
-                          onDragStart={(event) => event.preventDefault()}
-                        />
+                        onTouchMoveCapture={(event) => {
+                          if (previewDragActiveRef.current) {
+                            event.preventDefault();
+                          }
+                        }}
+                        onPointerDown={(event) =>
+                          handlePreviewPointerDown(index, event)
+                        }
+                        onPointerMove={handlePreviewPointerMove}
+                        onPointerUp={handlePreviewPointerUp}
+                        onPointerCancel={handlePreviewPointerUp}
+                        style={{
+                          ...mediaPreviewWrapStyle,
+                          opacity: draggingPreviewIndex === index ? 0.62 : 1,
+                          transform:
+                            draggingPreviewIndex === index
+                              ? "scale(0.96)"
+                              : dragOverPreviewIndex === index
+                                ? "scale(1.035)"
+                                : "scale(1)",
+                          outline:
+                            dragOverPreviewIndex === index
+                              ? "2px solid rgba(255,255,255,0.42)"
+                              : "none",
+                          transition:
+                            "transform 140ms ease, opacity 140ms ease, outline 140ms ease",
+                          touchAction: "none",
+                          cursor: isReorderingPreview ? "grabbing" : "grab",
+                        }}
+                      >
+                        {item.type === "image" ? (
+                          <img
+                            src={item.previewUrl}
+                            alt={`Vista previa de imagen ${index + 1}`}
+                            style={mediaPreviewStyle}
+                            draggable={false}
+                            onDragStart={(event) => event.preventDefault()}
+                          />
+                        ) : (
+                          <>
+                            {videoCoverPreviewUrl ? (
+                              <img
+                                src={videoCoverPreviewUrl}
+                                alt={`Portada del video ${index + 1}`}
+                                style={mediaPreviewStyle}
+                                draggable={false}
+                                onDragStart={(event) => event.preventDefault()}
+                              />
+                            ) : (
+                              <div
+                                aria-hidden="true"
+                                style={videoCoverLoadingStyle}
+                              >
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gap: 6,
+                                    justifyItems: "center",
+                                  }}
+                                >
+                                  <span style={{ fontSize: 21, lineHeight: 1 }}>
+                                    🎥
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 10.5,
+                                      fontWeight: 800,
+                                      lineHeight: 1.15,
+                                    }}
+                                  >
+                                    Cargando video
+                                  </span>
+                                </div>
+                              </div>
+                            )}
 
-                        <div aria-hidden="true" style={videoPlayBadgeStyle}>
-                          ▶
-                        </div>
+                            {isVideoCoverLoading && (
+                              <div
+                                aria-hidden="true"
+                                style={{
+                                  position: "absolute",
+                                  inset: 0,
+                                  background:
+                                    "linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.14), rgba(255,255,255,0.02))",
+                                  opacity: 0.52,
+                                  animation:
+                                    "post-preview-loading-pulse 1.2s ease-in-out infinite",
+                                  zIndex: 2,
+                                }}
+                              />
+                            )}
 
-                        <div aria-hidden="true" style={videoDurationBadgeStyle}>
-                          {formatVideoDuration(item.durationSeconds)}
-                        </div>
-                      </>
-                    )}
+                            <div aria-hidden="true" style={videoPlayBadgeStyle}>
+                              ▶
+                            </div>
 
-                    <div style={mediaNumberBadgeStyle}>{index + 1}</div>
+                            <div
+                              aria-hidden="true"
+                              style={videoDurationBadgeStyle}
+                            >
+                              {formatVideoDuration(item.durationSeconds)}
+                            </div>
+                          </>
+                        )}
 
-                    <button
-                      type="button"
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={() => handleRemoveMedia(index)}
-                      style={removeMediaButtonStyle}
-                      aria-label={`Quitar media ${index + 1}`}
-                      disabled={creating}
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                        <div style={mediaNumberBadgeStyle}>{index + 1}</div>
 
-                {Array.from({ length: processingImageSlots }).map((_, index) => (
-                  <div
-                    key={`processing-image-${index}`}
-                    aria-label="Preparando imagen"
-                    style={{
-                      ...mediaPreviewWrapStyle,
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      background: "rgba(255,255,255,0.055)",
-                      animation: "post-preview-loading-pulse 1.6s ease-in-out infinite",
-                    }}
-                  >
+                        <button
+                          type="button"
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={() => handleRemoveMedia(index)}
+                          style={removeMediaButtonStyle}
+                          aria-label={`Quitar media ${index + 1}`}
+                          disabled={creating}
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      {item.type === "video" && (
+                        <button
+                          type="button"
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={() => handleChooseVideoCover(item.id)}
+                          disabled={creating}
+                          style={
+                            creating
+                              ? {
+                                  ...videoCoverButtonStyle,
+                                  opacity: 0.55,
+                                  cursor: "not-allowed",
+                                }
+                              : videoCoverButtonStyle
+                          }
+                        >
+                          {hasManualCover
+                            ? "Cambiar portada"
+                            : "Elegir portada"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {Array.from({ length: processingImageSlots }).map(
+                  (_, index) => (
                     <div
-                      aria-hidden="true"
+                      key={`processing-image-${index}`}
+                      aria-label="Preparando imagen"
                       style={{
-                        position: "absolute",
-                        inset: 0,
-                        background:
-                          "linear-gradient(90deg, rgba(255,255,255,0.035), rgba(255,255,255,0.12), rgba(255,255,255,0.035))",
+                        ...mediaPreviewWrapStyle,
+                        border: "1px solid rgba(255,255,255,0.08)",
+                        background: "rgba(255,255,255,0.055)",
+                        animation:
+                          "post-preview-loading-pulse 1.6s ease-in-out infinite",
                       }}
-                    />
-                  </div>
-                ))}
+                    >
+                      <div
+                        aria-hidden="true"
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          background:
+                            "linear-gradient(90deg, rgba(255,255,255,0.035), rgba(255,255,255,0.12), rgba(255,255,255,0.035))",
+                        }}
+                      />
+                    </div>
+                  ),
+                )}
+
+                {Array.from({ length: processingVideoSlots }).map(
+                  (_, index) => (
+                    <div
+                      key={`processing-video-${index}`}
+                      aria-label="Preparando video"
+                      style={{
+                        ...mediaPreviewWrapStyle,
+                        border: "1px solid rgba(168,85,247,0.24)",
+                        background:
+                          "linear-gradient(135deg, rgba(76,29,149,0.72), rgba(168,85,247,0.22), rgba(49,46,129,0.68))",
+                        backgroundSize: "220% 220%",
+                        animation:
+                          "post-preview-video-cover-loading 1.45s ease-in-out infinite",
+                      }}
+                    >
+                      <div
+                        aria-hidden="true"
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          display: "grid",
+                          placeItems: "center",
+                          color: "rgba(255,255,255,0.92)",
+                          textAlign: "center",
+                          padding: 10,
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "grid",
+                            gap: 6,
+                            justifyItems: "center",
+                          }}
+                        >
+                          <span style={{ fontSize: 21, lineHeight: 1 }}>
+                            🎥
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 10.5,
+                              fontWeight: 800,
+                              lineHeight: 1.15,
+                            }}
+                          >
+                            Preparando video
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ),
+                )}
 
                 {canAddMoreMedia && (
                   <button
@@ -1131,7 +1605,11 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
                     disabled={creating}
                     style={
                       creating
-                        ? { ...addMoreMediaButtonStyle, opacity: 0.5, cursor: "not-allowed" }
+                        ? {
+                            ...addMoreMediaButtonStyle,
+                            opacity: 0.5,
+                            cursor: "not-allowed",
+                          }
                         : addMoreMediaButtonStyle
                     }
                     aria-label="Agregar otra media"
@@ -1152,7 +1630,11 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
               disabled={creating || isPreparingImages}
               style={
                 creating || isPreparingImages
-                  ? { ...secondaryButtonStyle, opacity: 0.5, cursor: "not-allowed" }
+                  ? {
+                      ...secondaryButtonStyle,
+                      opacity: 0.5,
+                      cursor: "not-allowed",
+                    }
                   : secondaryButtonStyle
               }
               aria-label="Agregar media"
@@ -1165,9 +1647,17 @@ export default function GroupPostComposer({ onSubmit }: GroupPostComposerProps) 
               type="button"
               onClick={handleSubmit}
               disabled={creating || isPreparingImages || !hasContent}
-              style={creating || isPreparingImages || !hasContent ? disabledButtonStyle : primaryButtonStyle}
+              style={
+                creating || isPreparingImages || !hasContent
+                  ? disabledButtonStyle
+                  : primaryButtonStyle
+              }
             >
-              {isPreparingImages ? "Preparando..." : creating ? "Publicando..." : "Publicar"}
+              {isPreparingImages
+                ? "Preparando..."
+                : creating
+                  ? "Publicando..."
+                  : "Publicar"}
             </button>
           </div>
         </div>

@@ -1500,16 +1500,23 @@ const displayMedia = mediaFromPost
           status === "created" ||
           status === null;
 
-        if (!playbackUrl && !thumbnailUrl) {
-          if (!shouldReserveVideoSlot) {
+        const isReadyVideo =
+          status === "ready" ||
+          Boolean(playbackUrl) ||
+          Boolean(item.hlsUrl);
+
+        const previewUrl = thumbnailUrl || playbackUrl || "";
+
+        if (!isReadyVideo) {
+          if (!shouldReserveVideoSlot && !thumbnailUrl) {
             return null;
           }
 
           return {
             type: "video" as const,
-            url: `video-processing-placeholder-${post.id}-${index}`,
-            thumbnailUrl: null,
-            altText: item.altText ?? "Video procesándose",
+            url: previewUrl || `video-processing-placeholder-${post.id}-${index}`,
+            thumbnailUrl,
+            altText: item.altText ?? "Video preparándose",
             duration: item.duration ?? null,
             playbackUrl: null,
             hlsUrl: item.hlsUrl ?? null,
@@ -1518,8 +1525,6 @@ const displayMedia = mediaFromPost
             isPlaceholder: true,
           };
         }
-
-        const previewUrl = thumbnailUrl || playbackUrl || "";
 
         if (!previewUrl || failedMediaUrls[previewUrl]) {
           return null;
@@ -2187,6 +2192,7 @@ style={{
       const remainingCount = Math.max(0, totalMedia - 3);
 
       function openMedia(media: DisplayMediaItem) {
+        if (media.isPlaceholder) return;
         openMediaViewer(media.url);
       }
 
@@ -2251,7 +2257,16 @@ style={{
         );
       }
 
-      function renderVideoProcessingPlaceholder() {
+      function renderVideoProcessingPlaceholder(media?: DisplayMediaItem) {
+        const coverUrl =
+          typeof media?.thumbnailUrl === "string" && media.thumbnailUrl.trim().length > 0
+            ? media.thumbnailUrl.trim()
+            : typeof media?.url === "string" &&
+                media.url.trim().length > 0 &&
+                !media.url.startsWith("video-processing-placeholder-")
+              ? media.url.trim()
+              : null;
+
         return (
           <div
             aria-hidden="true"
@@ -2263,18 +2278,47 @@ style={{
               padding: 14,
               boxSizing: "border-box",
               background:
-                "linear-gradient(135deg, rgba(126,58,242,0.20), rgba(191,128,255,0.16), rgba(126,58,242,0.22))",
+                "linear-gradient(135deg, rgba(16,16,18,0.96), rgba(34,20,52,0.94))",
               overflow: "hidden",
             }}
           >
+            {coverUrl && (
+              <img
+                src={coverUrl}
+                alt=""
+                draggable={false}
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "cover",
+                  opacity: 0.78,
+                  filter: "saturate(0.92)",
+                }}
+              />
+            )}
+
+            {!coverUrl && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background:
+                    "linear-gradient(135deg, rgba(126,58,242,0.20), rgba(191,128,255,0.16), rgba(126,58,242,0.22))",
+                }}
+              />
+            )}
+
             <div
               style={{
                 position: "absolute",
                 inset: 0,
-                background:
-                  "linear-gradient(90deg, transparent, rgba(221,190,255,0.20), transparent)",
-                backgroundSize: "220% 100%",
-                animation: "vibraVideoSkeleton 1.25s ease-in-out infinite",
+                background: coverUrl
+                  ? "linear-gradient(180deg, rgba(0,0,0,0.22), rgba(0,0,0,0.54))"
+                  : "linear-gradient(90deg, transparent, rgba(221,190,255,0.20), transparent)",
+                backgroundSize: coverUrl ? undefined : "220% 100%",
+                animation: coverUrl ? undefined : "vibraVideoSkeleton 1.25s ease-in-out infinite",
               }}
             />
 
@@ -2284,36 +2328,38 @@ style={{
                 zIndex: 1,
                 display: "grid",
                 placeItems: "center",
-                gap: 8,
+                gap: 9,
                 textAlign: "center",
-                color: "rgba(255,255,255,0.92)",
+                color: "rgba(255,255,255,0.96)",
+                textShadow: "0 2px 12px rgba(0,0,0,0.55)",
               }}
             >
-              <div
+              <span
                 style={{
-                  width: 46,
-                  height: 46,
+                  width: 34,
+                  height: 34,
                   borderRadius: 999,
-                  display: "grid",
-                  placeItems: "center",
-                  background: "rgba(126,58,242,0.34)",
-                  border: "1px solid rgba(221,190,255,0.32)",
-                  boxShadow: "0 10px 28px rgba(126,58,242,0.24)",
-                  fontSize: 22,
+                  border: "3px solid rgba(255,255,255,0.28)",
+                  borderTopColor: "#fff",
+                  animation: "vibraVideoSpinner 0.85s linear infinite",
+                  boxSizing: "border-box",
                 }}
-              >
-                🎥
-              </div>
+              />
 
               <div
                 style={{
-                  fontSize: 12,
+                  minHeight: 24,
+                  padding: "6px 10px",
+                  borderRadius: 999,
+                  background: "rgba(0,0,0,0.42)",
+                  border: "1px solid rgba(255,255,255,0.16)",
+                  fontSize: 11.5,
                   fontWeight: 800,
-                  lineHeight: 1.15,
+                  lineHeight: 1,
                   letterSpacing: "-0.01em",
                 }}
               >
-                Cargando video
+                Preparando video
               </div>
             </div>
           </div>
@@ -2326,7 +2372,7 @@ style={{
         loading: "eager" | "lazy" = "lazy"
       ) {
         if (media.isPlaceholder) {
-          return renderVideoProcessingPlaceholder();
+          return renderVideoProcessingPlaceholder(media);
         }
 
         return (
@@ -2445,7 +2491,7 @@ style={{
             )}
 
             {first.isPlaceholder ? (
-              renderVideoProcessingPlaceholder()
+              renderVideoProcessingPlaceholder(first)
             ) : (
               <img
                 src={first.url}
@@ -2900,6 +2946,15 @@ style={{
       }
       100% {
         background-position: -120% 0;
+      }
+    }
+
+    @keyframes vibraVideoSpinner {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
       }
     }
   `}

@@ -1,5 +1,3 @@
-//muxUploads.ts
-
 import { getApps, initializeApp } from "firebase-admin/app";
 import {
   FieldValue,
@@ -26,6 +24,8 @@ type CreateMuxDirectUploadRequest = {
   groupId?: string;
   postId?: string;
   mediaIndex?: number;
+  customThumbnailUrl?: string | null;
+  thumbnailUrl?: string | null;
 };
 
 function normalizeRequiredString(value: unknown, fieldName: string) {
@@ -36,6 +36,25 @@ function normalizeRequiredString(value: unknown, fieldName: string) {
   }
 
   return normalized;
+}
+
+function normalizeOptionalUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+
+  const cleanValue = value.trim();
+
+  if (!cleanValue) return null;
+
+  if (
+    cleanValue.startsWith("https://") ||
+    cleanValue.startsWith("http://") ||
+    cleanValue.startsWith("blob:") ||
+    cleanValue.startsWith("data:image/")
+  ) {
+    return cleanValue;
+  }
+
+  return null;
 }
 
 function isReadableMemberStatus(status: unknown) {
@@ -188,6 +207,10 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
         ? request.data.mediaIndex
         : 0;
 
+    const customThumbnailUrl =
+      normalizeOptionalUrl(request.data?.customThumbnailUrl) ||
+      normalizeOptionalUrl(request.data?.thumbnailUrl);
+
     const mediaId = db.collection("posts").doc(postId).collection("media").doc().id;
 
     const originHeader = request.rawRequest.headers.origin;
@@ -198,21 +221,34 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
 
     const mux = createMuxClient();
 
-    const upload = await mux.video.uploads.create({
-      cors_origin: corsOrigin,
-      new_asset_settings: {
-        playback_policy: ["public"],
-        video_quality: "basic",
-        passthrough: JSON.stringify({
-          postId,
-          authorId: uid,
-          groupId,
-          mediaId,
-          mediaIndex,
-          source: "vibra-post-video",
-        }),
-      },
-    });
+    let upload: Awaited<ReturnType<typeof mux.video.uploads.create>>;
+
+    try {
+      upload = await mux.video.uploads.create({
+        cors_origin: corsOrigin,
+        new_asset_settings: {
+          playback_policy: ["public"],
+          video_quality: "basic",
+          // No mandamos la portada custom en passthrough.
+          // Mux limita el tamaño de este campo y una URL de Firebase Storage puede provocar 500/INTERNAL.
+          // La portada se guarda en muxUploads y el webhook la recupera con upload_id.
+          passthrough: JSON.stringify({
+            postId,
+            authorId: uid,
+            groupId,
+            mediaId,
+            mediaIndex,
+            source: "vibra-post-video",
+          }),
+        },
+      });
+    } catch (error) {
+      console.error("createMuxDirectUpload Mux upload creation failed", error);
+      throw new HttpsError(
+        "internal",
+        "No se pudo crear la subida de video en Mux."
+      );
+    }
 
     const now = FieldValue.serverTimestamp();
 
@@ -225,6 +261,9 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
       groupId,
       mediaId,
       mediaIndex,
+      customThumbnailUrl,
+      thumbnailUrl: customThumbnailUrl,
+      hasCustomThumbnail: Boolean(customThumbnailUrl),
       status: "waiting_for_upload",
       assetId: null,
       playbackId: null,
@@ -238,6 +277,10 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
       uploadUrl: upload.url,
       postId,
       mediaId,
+      mediaIndex,
+      customThumbnailUrl,
+      thumbnailUrl: customThumbnailUrl,
+      hasCustomThumbnail: Boolean(customThumbnailUrl),
       status: "waiting_for_upload",
     };
   }
