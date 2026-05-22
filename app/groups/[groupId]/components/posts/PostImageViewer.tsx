@@ -213,10 +213,15 @@ export default function PostImageViewer({
   const [desktopSpeedMenuOpen, setDesktopSpeedMenuOpen] = useState(false);
   const [mobileSpeedGestureActive, setMobileSpeedGestureActive] =
     useState(false);
+  const [desktopControlsVisible, setDesktopControlsVisible] = useState(true);
+  const [desktopFullscreenActive, setDesktopFullscreenActive] = useState(false);
+  const [mobileLandscapeSpeedMenuOpen, setMobileLandscapeSpeedMenuOpen] =
+    useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const desktopVideoShellRef = useRef<HTMLDivElement | null>(null);
   const chromeHideTimerRef = useRef<number | null>(null);
+  const desktopControlsHideTimerRef = useRef<number | null>(null);
   const mobileSpeedHoldTimerRef = useRef<number | null>(null);
   const mobileSpeedHoldActiveRef = useRef(false);
   const mobileSpeedStartYRef = useRef<number | null>(null);
@@ -383,6 +388,7 @@ export default function PostImageViewer({
   const shouldShowMobileControls = mobileChromeVisible;
   const shouldShowMobileCounter =
     canNavigateMedia && mobileChromeVisible && !(isCurrentVideo && isLandscape);
+  const playbackRates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 
   const clearChromeTimer = useCallback(() => {
     if (chromeHideTimerRef.current !== null) {
@@ -397,6 +403,33 @@ export default function PostImageViewer({
       mobileSpeedHoldTimerRef.current = null;
     }
   }, []);
+
+  const clearDesktopControlsTimer = useCallback(() => {
+    if (desktopControlsHideTimerRef.current !== null) {
+      window.clearTimeout(desktopControlsHideTimerRef.current);
+      desktopControlsHideTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleDesktopControlsHide = useCallback(() => {
+    if (!desktopFullscreenActive || !isCurrentVideo) return;
+
+    clearDesktopControlsTimer();
+    desktopControlsHideTimerRef.current = window.setTimeout(() => {
+      setDesktopControlsVisible(false);
+      setDesktopSpeedMenuOpen(false);
+    }, 2800);
+  }, [clearDesktopControlsTimer, desktopFullscreenActive, isCurrentVideo]);
+
+  const revealDesktopControls = useCallback(() => {
+    if (!desktopFullscreenActive) return;
+
+    setDesktopControlsVisible(true);
+
+    if (isCurrentVideo && videoPlaying) {
+      scheduleDesktopControlsHide();
+    }
+  }, [desktopFullscreenActive, isCurrentVideo, scheduleDesktopControlsHide, videoPlaying]);
 
   const setVideoPlaybackRate = useCallback((rate: number) => {
     const safeRate = Number.isFinite(rate)
@@ -418,6 +451,7 @@ export default function PostImageViewer({
     mobileSpeedHoldActiveRef.current = false;
     mobileSpeedStartYRef.current = null;
     setMobileSpeedGestureActive(false);
+    setMobileLandscapeSpeedMenuOpen(false);
     setVideoPlaybackRate(1);
   }, [clearMobileSpeedHold, setVideoPlaybackRate]);
 
@@ -569,6 +603,45 @@ export default function PostImageViewer({
   }
 
   useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    const handleFullscreenChange = () => {
+      const isShellFullscreen =
+        document.fullscreenElement === desktopVideoShellRef.current;
+
+      setDesktopFullscreenActive(isShellFullscreen);
+      setDesktopControlsVisible(true);
+
+      if (!isShellFullscreen) {
+        clearDesktopControlsTimer();
+        setDesktopSpeedMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    };
+  }, [clearDesktopControlsTimer]);
+
+  useEffect(() => {
+    if (desktopFullscreenActive && isCurrentVideo && videoPlaying) {
+      scheduleDesktopControlsHide();
+      return;
+    }
+
+    clearDesktopControlsTimer();
+    setDesktopControlsVisible(true);
+  }, [
+    clearDesktopControlsTimer,
+    desktopFullscreenActive,
+    isCurrentVideo,
+    scheduleDesktopControlsHide,
+    videoPlaying,
+  ]);
+
+  useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
@@ -585,6 +658,8 @@ export default function PostImageViewer({
     setVideoPlaying(false);
     setVideoReady(false);
     setDesktopSpeedMenuOpen(false);
+    setDesktopControlsVisible(true);
+    setMobileLandscapeSpeedMenuOpen(false);
     resetMobileVideoSpeed();
     setMobileChromeVisible(true);
   }, [
@@ -617,6 +692,9 @@ export default function PostImageViewer({
       setMobilePostTextExpanded(false);
       setDesktopPostTextExpanded(false);
       clearChromeTimer();
+      clearDesktopControlsTimer();
+      setDesktopControlsVisible(true);
+      setDesktopFullscreenActive(false);
       resetMobileVideoSpeed();
       return;
     }
@@ -634,7 +712,7 @@ export default function PostImageViewer({
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
     };
-  }, [clearChromeTimer, open, onClose, totalMedia]);
+  }, [clearChromeTimer, clearDesktopControlsTimer, open, onClose, totalMedia]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -1162,7 +1240,9 @@ export default function PostImageViewer({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "34px minmax(0, 1fr)",
+              gridTemplateColumns: isLandscape
+                ? "34px minmax(0, 1fr) 46px"
+                : "34px minmax(0, 1fr)",
               alignItems: "center",
               gap: 10,
             }}
@@ -1230,6 +1310,97 @@ export default function PostImageViewer({
                 WebkitTapHighlightColor: "transparent",
               }}
             />
+
+            {isLandscape && (
+              <div style={{ position: "relative", width: 46, height: 34 }}>
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setMobileLandscapeSpeedMenuOpen((prev) => !prev);
+                    setMobileChromeVisible(true);
+                    clearChromeTimer();
+                  }}
+                  aria-label="Elegir velocidad de reproducción"
+                  aria-expanded={mobileLandscapeSpeedMenuOpen}
+                  style={{
+                    width: 46,
+                    height: 34,
+                    borderRadius: 999,
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    background: "rgba(0,0,0,0.58)",
+                    color: "#fff",
+                    display: "grid",
+                    placeItems: "center",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    fontFamily: fontStack,
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  {videoPlaybackRate.toFixed(
+                    videoPlaybackRate % 1 === 0 ? 0 : 2,
+                  )}
+                  x
+                </button>
+
+                {mobileLandscapeSpeedMenuOpen && (
+                  <div
+                    role="menu"
+                    aria-label="Velocidad de reproducción"
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      bottom: 42,
+                      minWidth: 88,
+                      padding: 5,
+                      borderRadius: 12,
+                      border: "1px solid rgba(255,255,255,0.16)",
+                      background: "rgba(10,10,10,0.94)",
+                      boxShadow: "0 12px 30px rgba(0,0,0,0.38)",
+                      display: "grid",
+                      gap: 3,
+                    }}
+                  >
+                    {playbackRates.map((rate) => (
+                      <button
+                        key={rate}
+                        type="button"
+                        role="menuitem"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setVideoPlaybackRate(rate);
+                          setMobileLandscapeSpeedMenuOpen(false);
+                          setMobileChromeVisible(true);
+                          scheduleChromeHide();
+                        }}
+                        style={{
+                          minHeight: 28,
+                          borderRadius: 8,
+                          border: "none",
+                          background:
+                            videoPlaybackRate === rate
+                              ? "rgba(255,255,255,0.16)"
+                              : "transparent",
+                          color: "#fff",
+                          fontSize: 12,
+                          fontWeight: videoPlaybackRate === rate ? 850 : 700,
+                          fontFamily: fontStack,
+                          textAlign: "left",
+                          padding: "6px 9px",
+                          WebkitTapHighlightColor: "transparent",
+                        }}
+                      >
+                        {rate
+                          .toFixed(rate % 1 === 0 ? 0 : 2)
+                          .replace(/\.00$/, "")}
+                        x
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1606,6 +1777,8 @@ export default function PostImageViewer({
       >
         <div
           ref={desktopVideoShellRef}
+          onMouseMove={revealDesktopControls}
+          onClick={revealDesktopControls}
           style={{
             position: "relative",
             minWidth: 0,
@@ -1619,14 +1792,16 @@ export default function PostImageViewer({
             overflow: "hidden",
           }}
         >
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar visor"
-            style={closeButtonStyle}
-          >
-            ×
-          </button>
+          {(!desktopFullscreenActive || desktopControlsVisible) && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar visor"
+              style={closeButtonStyle}
+            >
+              ×
+            </button>
+          )}
 
           {currentMedia.type === "video" ? (
             currentVideoSrc ? (
@@ -1650,8 +1825,16 @@ export default function PostImageViewer({
                 onTimeUpdate={(event) =>
                   setVideoCurrentTime(event.currentTarget.currentTime)
                 }
-                onPlay={() => setVideoPlaying(true)}
-                onPause={() => setVideoPlaying(false)}
+                onPlay={() => {
+                  setVideoPlaying(true);
+                  setDesktopControlsVisible(true);
+                  scheduleDesktopControlsHide();
+                }}
+                onPause={() => {
+                  setVideoPlaying(false);
+                  setDesktopControlsVisible(true);
+                  clearDesktopControlsTimer();
+                }}
                 style={{
                   display: "block",
                   maxWidth: "100%",
@@ -1683,7 +1866,8 @@ export default function PostImageViewer({
             />
           )}
 
-          {(currentMedia.type === "video" || canNavigateMedia) && (
+          {(!desktopFullscreenActive || desktopControlsVisible) &&
+            (currentMedia.type === "video" || canNavigateMedia) && (
             <div
               style={{
                 position: "absolute",
@@ -1741,7 +1925,9 @@ export default function PostImageViewer({
             </div>
           )}
 
-          {currentMedia.type === "video" && currentVideoSrc && (
+          {(!desktopFullscreenActive || desktopControlsVisible) &&
+            currentMedia.type === "video" &&
+            currentVideoSrc && (
             <div
               style={{
                 position: "absolute",
@@ -1880,7 +2066,7 @@ export default function PostImageViewer({
                       gap: 3,
                     }}
                   >
-                    {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                    {playbackRates.map((rate) => (
                       <button
                         key={rate}
                         type="button"
@@ -1937,7 +2123,8 @@ export default function PostImageViewer({
             </div>
           )}
 
-          {canNavigateMedia && (
+          {(!desktopFullscreenActive || desktopControlsVisible) &&
+            canNavigateMedia && (
             <>
               <button
                 type="button"
