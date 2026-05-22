@@ -15,15 +15,16 @@ export default function RootChrome({
   const pathname = usePathname();
   const router = useRouter();
 
-  const isPublicRoute =
-    pathname === "/" ||
-    pathname === "/login" ||
-    pathname === "/register" ||
-    pathname === "/forgot-password" ||
-    pathname === "/reset-password" ||
-    pathname.startsWith("/search") ||
-    pathname.startsWith("/groups") ||
-    pathname.startsWith("/u/");
+const isPublicRoute =
+  pathname === "/" ||
+  pathname === "/login" ||
+  pathname === "/register" ||
+  pathname === "/forgot-password" ||
+  pathname === "/reset-password" ||
+  pathname.startsWith("/search") ||
+  pathname.startsWith("/groups") ||
+  pathname.startsWith("/u/") ||
+  pathname.startsWith("/p/");
 
   useEffect(() => {
     if (!loading && !user && !isPublicRoute) {
