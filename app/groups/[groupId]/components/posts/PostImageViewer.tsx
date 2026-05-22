@@ -357,7 +357,11 @@ export default function PostImageViewer({
     currentMedia?.type === "video"
       ? (currentMedia.thumbnailUrl ?? undefined)
       : undefined;
-  const useMobileLayout = isMobile;
+  const useMobileLayout =
+    isMobile ||
+    (isTouchCapable &&
+      typeof window !== "undefined" &&
+      Math.min(window.innerWidth, window.innerHeight) <= 600);
 
   const cleanPostText = typeof post.text === "string" ? post.text.trim() : "";
   const shouldShowMobilePostText = cleanPostText.length > 0;
@@ -668,6 +672,9 @@ export default function PostImageViewer({
     placeItems: useMobileLayout ? undefined : "center",
     padding: useMobileLayout ? 0 : "22px 0 22px 22px",
     boxSizing: "border-box",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    WebkitTouchCallout: "none",
   };
 
   const closeButtonStyle: CSSProperties = {
@@ -800,6 +807,9 @@ export default function PostImageViewer({
             transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
             cursor: useMobileLayout ? "pointer" : "default",
             WebkitTapHighlightColor: "transparent",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            WebkitTouchCallout: "none",
           }}
         >
           {currentVideoSrc ? (
@@ -970,6 +980,14 @@ export default function PostImageViewer({
 
           if (isCurrentVideo) {
             updateMobileVideoSpeedHold(touch.clientY);
+
+            if (mobileSpeedHoldActiveRef.current) {
+              event.preventDefault();
+              event.currentTarget.dataset.gestureAxis = "speed";
+              setMobileGestureAxis(null);
+              setMobileDragOffsetX(0);
+              return;
+            }
           }
           const absX = Math.abs(diffX);
           const absY = Math.abs(diffY);
@@ -977,6 +995,7 @@ export default function PostImageViewer({
           let axis = event.currentTarget.dataset.gestureAxis as
             | "horizontal"
             | "vertical"
+            | "speed"
             | "";
 
           if (!axis && (absX > 10 || absY > 10)) {
@@ -1032,7 +1051,7 @@ export default function PostImageViewer({
           const diffX = touch.clientX - startX;
           const diffY = touch.clientY - startY;
 
-          if (wasSpeedGestureActive) {
+          if (wasSpeedGestureActive || axis === "speed") {
             setMobileDragOffsetX(0);
             return;
           }
@@ -1082,6 +1101,9 @@ export default function PostImageViewer({
           overflow: "hidden",
           touchAction: "none",
           background: "#000",
+          userSelect: "none",
+          WebkitUserSelect: "none",
+          WebkitTouchCallout: "none",
         }}
       >
         {renderMediaPreview(previousMedia, "Anterior")}
