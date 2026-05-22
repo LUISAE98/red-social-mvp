@@ -77,7 +77,11 @@ function getInitials(name: string) {
 }
 
 function formatMediaDuration(seconds?: number | null): string {
-  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds <= 0) {
+  if (
+    typeof seconds !== "number" ||
+    !Number.isFinite(seconds) ||
+    seconds <= 0
+  ) {
     return "0:00";
   }
 
@@ -203,13 +207,29 @@ export default function PostImageViewer({
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
   const [isLandscape, setIsLandscape] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(false);
+  const [videoReady, setVideoReady] = useState(false);
+  const [isTouchCapable, setIsTouchCapable] = useState(false);
+  const [videoPlaybackRate, setVideoPlaybackRateState] = useState(1);
+  const [desktopSpeedMenuOpen, setDesktopSpeedMenuOpen] = useState(false);
+  const [mobileSpeedGestureActive, setMobileSpeedGestureActive] =
+    useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const desktopVideoShellRef = useRef<HTMLDivElement | null>(null);
   const chromeHideTimerRef = useRef<number | null>(null);
+  const mobileSpeedHoldTimerRef = useRef<number | null>(null);
+  const mobileSpeedHoldActiveRef = useRef(false);
+  const mobileSpeedStartYRef = useRef<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
+
+    if (typeof window !== "undefined") {
+      setIsTouchCapable(
+        window.matchMedia?.("(pointer: coarse)")?.matches === true ||
+          navigator.maxTouchPoints > 0,
+      );
+    }
   }, []);
 
   useEffect(() => {
@@ -232,12 +252,17 @@ export default function PostImageViewer({
   const mediaList = useMemo<ViewerMediaItem[]>(() => {
     if (Array.isArray(mediaItems) && mediaItems.length > 0) {
       return mediaItems.filter((item) => {
-        if (!item || typeof item.url !== "string" || item.url.trim().length === 0) {
+        if (
+          !item ||
+          typeof item.url !== "string" ||
+          item.url.trim().length === 0
+        ) {
           return false;
         }
 
         if (item.type === "image") return true;
-        if (item.type === "video") return Boolean(getVideoSrc(item) || item.thumbnailUrl);
+        if (item.type === "video")
+          return Boolean(getVideoSrc(item) || item.thumbnailUrl);
         return false;
       });
     }
@@ -246,7 +271,10 @@ export default function PostImageViewer({
       ? post.media
           .map<ViewerMediaItem | null>((item) => {
             if (item.type === "image") {
-              if (typeof item.url !== "string" || item.url.trim().length === 0) {
+              if (
+                typeof item.url !== "string" ||
+                item.url.trim().length === 0
+              ) {
                 return null;
               }
 
@@ -310,11 +338,15 @@ export default function PostImageViewer({
   const currentMedia = mediaList[currentMediaIndex] ?? mediaList[0] ?? null;
   const previousMedia =
     mediaList.length > 1
-      ? mediaList[currentMediaIndex <= 0 ? mediaList.length - 1 : currentMediaIndex - 1]
+      ? mediaList[
+          currentMediaIndex <= 0 ? mediaList.length - 1 : currentMediaIndex - 1
+        ]
       : null;
   const nextMedia =
     mediaList.length > 1
-      ? mediaList[currentMediaIndex >= mediaList.length - 1 ? 0 : currentMediaIndex + 1]
+      ? mediaList[
+          currentMediaIndex >= mediaList.length - 1 ? 0 : currentMediaIndex + 1
+        ]
       : null;
 
   const totalMedia = mediaList.length;
@@ -322,7 +354,10 @@ export default function PostImageViewer({
   const isCurrentVideo = currentMedia?.type === "video";
   const currentVideoSrc = getVideoSrc(currentMedia);
   const currentVideoPoster =
-    currentMedia?.type === "video" ? currentMedia.thumbnailUrl ?? undefined : undefined;
+    currentMedia?.type === "video"
+      ? (currentMedia.thumbnailUrl ?? undefined)
+      : undefined;
+  const useMobileLayout = isMobile;
 
   const cleanPostText = typeof post.text === "string" ? post.text.trim() : "";
   const shouldShowMobilePostText = cleanPostText.length > 0;
@@ -330,11 +365,17 @@ export default function PostImageViewer({
   const shouldShowDesktopPostText = cleanPostText.length > 0;
   const shouldClampDesktopPostText = cleanPostText.length > 160;
 
-  const remainingSeconds = Math.max(0, Math.ceil(videoDuration - videoCurrentTime));
+  const remainingSeconds = Math.max(
+    0,
+    Math.ceil(videoDuration - videoCurrentTime),
+  );
   const progressPercent =
-    videoDuration > 0 ? Math.min(100, Math.max(0, (videoCurrentTime / videoDuration) * 100)) : 0;
+    videoDuration > 0
+      ? Math.min(100, Math.max(0, (videoCurrentTime / videoDuration) * 100))
+      : 0;
 
-  const shouldShowMobileMeta = mobileChromeVisible && !(isCurrentVideo && isLandscape);
+  const shouldShowMobileMeta =
+    mobileChromeVisible && !(isCurrentVideo && isLandscape);
   const shouldShowMobileControls = mobileChromeVisible;
   const shouldShowMobileCounter =
     canNavigateMedia && mobileChromeVisible && !(isCurrentVideo && isLandscape);
@@ -346,27 +387,99 @@ export default function PostImageViewer({
     }
   }, []);
 
+  const clearMobileSpeedHold = useCallback(() => {
+    if (mobileSpeedHoldTimerRef.current !== null) {
+      window.clearTimeout(mobileSpeedHoldTimerRef.current);
+      mobileSpeedHoldTimerRef.current = null;
+    }
+  }, []);
+
+  const setVideoPlaybackRate = useCallback((rate: number) => {
+    const safeRate = Number.isFinite(rate)
+      ? Math.min(2, Math.max(0.25, rate))
+      : 1;
+    const video = videoRef.current;
+
+    if (video && video.playbackRate !== safeRate) {
+      video.playbackRate = safeRate;
+    }
+
+    setVideoPlaybackRateState((currentRate) =>
+      currentRate === safeRate ? currentRate : safeRate,
+    );
+  }, []);
+
+  const resetMobileVideoSpeed = useCallback(() => {
+    clearMobileSpeedHold();
+    mobileSpeedHoldActiveRef.current = false;
+    mobileSpeedStartYRef.current = null;
+    setMobileSpeedGestureActive(false);
+    setVideoPlaybackRate(1);
+  }, [clearMobileSpeedHold, setVideoPlaybackRate]);
+
+  const startMobileVideoSpeedHold = useCallback(
+    (clientY: number) => {
+      if (!useMobileLayout || !isCurrentVideo) return;
+
+      clearMobileSpeedHold();
+      mobileSpeedHoldActiveRef.current = false;
+      mobileSpeedStartYRef.current = clientY;
+
+      mobileSpeedHoldTimerRef.current = window.setTimeout(() => {
+        mobileSpeedHoldActiveRef.current = true;
+        setMobileSpeedGestureActive(true);
+        setVideoPlaybackRate(1.5);
+        setMobileChromeVisible(true);
+        clearChromeTimer();
+      }, 320);
+    },
+    [
+      clearChromeTimer,
+      clearMobileSpeedHold,
+      isCurrentVideo,
+      setVideoPlaybackRate,
+      useMobileLayout,
+    ],
+  );
+
+  const updateMobileVideoSpeedHold = useCallback(
+    (clientY: number) => {
+      if (!useMobileLayout || !isCurrentVideo) return;
+
+      const startY = mobileSpeedStartYRef.current;
+      if (startY === null || !mobileSpeedHoldActiveRef.current) return;
+
+      const deltaY = clientY - startY;
+      setVideoPlaybackRate(deltaY > 42 ? 2 : 1.5);
+    },
+    [isCurrentVideo, setVideoPlaybackRate, useMobileLayout],
+  );
+
   const scheduleChromeHide = useCallback(() => {
-    if (!isMobile || !isCurrentVideo) return;
+    if (!useMobileLayout || !isCurrentVideo) return;
 
     clearChromeTimer();
     chromeHideTimerRef.current = window.setTimeout(() => {
       setMobileChromeVisible(false);
     }, 2600);
-  }, [clearChromeTimer, isCurrentVideo, isMobile]);
+  }, [clearChromeTimer, isCurrentVideo, useMobileLayout]);
 
   function goToPreviousMedia() {
     if (!canNavigateMedia) return;
-    setCurrentMediaIndex((current) => (current <= 0 ? totalMedia - 1 : current - 1));
+    setCurrentMediaIndex((current) =>
+      current <= 0 ? totalMedia - 1 : current - 1,
+    );
   }
 
   function goToNextMedia() {
     if (!canNavigateMedia) return;
-    setCurrentMediaIndex((current) => (current >= totalMedia - 1 ? 0 : current + 1));
+    setCurrentMediaIndex((current) =>
+      current >= totalMedia - 1 ? 0 : current + 1,
+    );
   }
 
   function toggleMobileChrome() {
-    if (!isMobile) return;
+    if (!useMobileLayout) return;
 
     setMobileChromeVisible((visible) => {
       const nextVisible = !visible;
@@ -401,11 +514,13 @@ export default function PostImageViewer({
 
     video.currentTime = Math.min(
       Math.max(0, value),
-      Number.isFinite(video.duration) && video.duration > 0 ? video.duration : value
+      Number.isFinite(video.duration) && video.duration > 0
+        ? video.duration
+        : value,
     );
     setVideoCurrentTime(video.currentTime);
 
-    if (isMobile && isCurrentVideo) {
+    if (useMobileLayout && isCurrentVideo) {
       setMobileChromeVisible(true);
       scheduleChromeHide();
     }
@@ -450,6 +565,13 @@ export default function PostImageViewer({
   }
 
   useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.playbackRate = videoPlaybackRate;
+  }, [videoPlaybackRate]);
+
+  useEffect(() => {
     setMobileGestureAxis(null);
     setMobileDragOffsetX(0);
     setIsCurrentImageZoomed(false);
@@ -457,8 +579,16 @@ export default function PostImageViewer({
     setVideoCurrentTime(0);
     setVideoDuration(currentMedia?.duration ?? 0);
     setVideoPlaying(false);
+    setVideoReady(false);
+    setDesktopSpeedMenuOpen(false);
+    resetMobileVideoSpeed();
     setMobileChromeVisible(true);
-  }, [currentMedia?.url, currentMedia?.type, currentMedia?.duration]);
+  }, [
+    currentMedia?.url,
+    currentMedia?.type,
+    currentMedia?.duration,
+    resetMobileVideoSpeed,
+  ]);
 
   useEffect(() => {
     if (!open || mediaList.length === 0) return;
@@ -470,7 +600,7 @@ export default function PostImageViewer({
             item.url === selectedUrl ||
             item.thumbnailUrl === selectedUrl ||
             item.playbackUrl === selectedUrl ||
-            item.hlsUrl === selectedUrl
+            item.hlsUrl === selectedUrl,
         )
       : 0;
 
@@ -483,6 +613,7 @@ export default function PostImageViewer({
       setMobilePostTextExpanded(false);
       setDesktopPostTextExpanded(false);
       clearChromeTimer();
+      resetMobileVideoSpeed();
       return;
     }
 
@@ -507,6 +638,7 @@ export default function PostImageViewer({
 
     video.pause();
     video.currentTime = 0;
+    video.playbackRate = videoPlaybackRate;
 
     if (open && isCurrentVideo && currentVideoSrc) {
       const playPromise = video.play();
@@ -515,7 +647,13 @@ export default function PostImageViewer({
       }
       scheduleChromeHide();
     }
-  }, [currentMediaIndex, currentVideoSrc, isCurrentVideo, open, scheduleChromeHide]);
+  }, [
+    currentMediaIndex,
+    currentVideoSrc,
+    isCurrentVideo,
+    open,
+    scheduleChromeHide,
+  ]);
 
   if (!mounted || !open || !currentMedia) return null;
 
@@ -523,19 +661,19 @@ export default function PostImageViewer({
     position: "fixed",
     inset: 0,
     zIndex: 2147483647,
-    background: isMobile ? "#000" : "rgba(0,0,0,0.82)",
+    background: useMobileLayout ? "#000" : "rgba(0,0,0,0.82)",
     color: "#fff",
     fontFamily: fontStack,
-    display: isMobile ? "block" : "grid",
-    placeItems: isMobile ? undefined : "center",
-    padding: isMobile ? 0 : "22px 0 22px 22px",
+    display: useMobileLayout ? "block" : "grid",
+    placeItems: useMobileLayout ? undefined : "center",
+    padding: useMobileLayout ? 0 : "22px 0 22px 22px",
     boxSizing: "border-box",
   };
 
   const closeButtonStyle: CSSProperties = {
     position: "absolute",
-    top: isMobile ? "calc(10px + env(safe-area-inset-top))" : 14,
-    left: isMobile ? "calc(10px + env(safe-area-inset-left))" : 14,
+    top: useMobileLayout ? "calc(10px + env(safe-area-inset-top))" : 14,
+    left: useMobileLayout ? "calc(10px + env(safe-area-inset-left))" : 14,
     zIndex: 8,
     width: 38,
     height: 38,
@@ -660,42 +798,66 @@ export default function PostImageViewer({
             background: "#000",
             transform: `translateX(${mobileDragOffsetX}px)`,
             transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
-            cursor: isMobile ? "pointer" : "default",
+            cursor: useMobileLayout ? "pointer" : "default",
             WebkitTapHighlightColor: "transparent",
           }}
         >
           {currentVideoSrc ? (
-            <video
-              ref={videoRef}
-              src={currentVideoSrc}
-              poster={currentVideoPoster}
-              controls={false}
-              autoPlay
-              playsInline
-              preload="metadata"
-              onLoadedMetadata={(event) => {
-                const duration = event.currentTarget.duration;
-                setVideoDuration(
-                  Number.isFinite(duration) && duration > 0
-                    ? duration
-                    : currentMedia.duration ?? 0
-                );
-              }}
-              onTimeUpdate={(event) => {
-                setVideoCurrentTime(event.currentTarget.currentTime);
-              }}
-              onPlay={() => {
-                setVideoPlaying(true);
-                scheduleChromeHide();
-              }}
-              onPause={() => setVideoPlaying(false)}
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: isMobile && isLandscape ? "cover" : "contain",
-                background: "#000",
-              }}
-            />
+            <>
+              {currentVideoPoster && !videoReady ? (
+                <img
+                  src={currentVideoPoster}
+                  alt={currentMedia.altText || "Portada del video"}
+                  draggable={false}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "contain",
+                    background: "#000",
+                    pointerEvents: "none",
+                  }}
+                />
+              ) : null}
+
+              <video
+                ref={videoRef}
+                src={currentVideoSrc}
+                poster={currentVideoPoster}
+                controls={false}
+                autoPlay
+                playsInline
+                preload="metadata"
+                onLoadedMetadata={(event) => {
+                  event.currentTarget.playbackRate = videoPlaybackRate;
+                  const duration = event.currentTarget.duration;
+                  setVideoDuration(
+                    Number.isFinite(duration) && duration > 0
+                      ? duration
+                      : (currentMedia.duration ?? 0),
+                  );
+                }}
+                onLoadedData={() => setVideoReady(true)}
+                onCanPlay={() => setVideoReady(true)}
+                onTimeUpdate={(event) => {
+                  setVideoCurrentTime(event.currentTarget.currentTime);
+                }}
+                onPlay={() => {
+                  setVideoPlaying(true);
+                  scheduleChromeHide();
+                }}
+                onPause={() => setVideoPlaying(false)}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  objectFit: "contain",
+                  background: "#000",
+                  opacity: videoReady || !currentVideoPoster ? 1 : 0,
+                  pointerEvents: "none",
+                }}
+              />
+            </>
           ) : (
             <div
               style={{
@@ -724,7 +886,7 @@ export default function PostImageViewer({
           background: "#000",
         }}
       >
-        {isMobile ? (
+        {useMobileLayout ? (
           <PostPinchZoomImage
             src={currentMedia.url}
             alt={currentMedia.altText || "Imagen de la publicación"}
@@ -778,6 +940,10 @@ export default function PostImageViewer({
 
           event.currentTarget.dataset.startX = String(touch.clientX);
           event.currentTarget.dataset.startY = String(touch.clientY);
+
+          if (isCurrentVideo) {
+            startMobileVideoSpeedHold(touch.clientY);
+          }
           event.currentTarget.dataset.gestureAxis = "";
 
           setMobileGestureAxis(null);
@@ -801,6 +967,10 @@ export default function PostImageViewer({
 
           const diffX = touch.clientX - startX;
           const diffY = touch.clientY - startY;
+
+          if (isCurrentVideo) {
+            updateMobileVideoSpeedHold(touch.clientY);
+          }
           const absX = Math.abs(diffX);
           const absY = Math.abs(diffY);
 
@@ -851,6 +1021,9 @@ export default function PostImageViewer({
           event.currentTarget.dataset.gestureAxis = "";
           setMobileGestureAxis(null);
 
+          const wasSpeedGestureActive = mobileSpeedHoldActiveRef.current;
+          resetMobileVideoSpeed();
+
           if (!touch || !startX) {
             setMobileDragOffsetX(0);
             return;
@@ -858,6 +1031,11 @@ export default function PostImageViewer({
 
           const diffX = touch.clientX - startX;
           const diffY = touch.clientY - startY;
+
+          if (wasSpeedGestureActive) {
+            setMobileDragOffsetX(0);
+            return;
+          }
 
           if (axis === "vertical" && diffY > 120) {
             onClose();
@@ -883,7 +1061,8 @@ export default function PostImageViewer({
           }
 
           const direction = diffX < 0 ? "next" : "prev";
-          const targetOffset = direction === "next" ? -window.innerWidth : window.innerWidth;
+          const targetOffset =
+            direction === "next" ? -window.innerWidth : window.innerWidth;
 
           setMobileSwipeAnimating(true);
           setMobileDragOffsetX(targetOffset);
@@ -958,34 +1137,102 @@ export default function PostImageViewer({
           >
             -{formatMediaDuration(remainingSeconds)}
           </div>
-          <input
-            type="range"
-            min={0}
-            max={videoDuration > 0 ? videoDuration : 0}
-            step={0.05}
-            value={Math.min(videoCurrentTime, videoDuration > 0 ? videoDuration : videoCurrentTime)}
-            aria-label="Avanzar o retroceder video"
-            onClick={(event) => event.stopPropagation()}
-            onTouchStart={(event) => {
-              event.stopPropagation();
-              clearChromeTimer();
-            }}
-            onTouchMove={(event) => event.stopPropagation()}
-            onTouchEnd={(event) => {
-              event.stopPropagation();
-              scheduleChromeHide();
-            }}
-            onChange={(event) => handleVideoSeek(Number(event.currentTarget.value))}
+          <div
             style={{
-              width: "100%",
-              height: 18,
-              margin: 0,
-              padding: 0,
-              accentColor: "#fff",
-              cursor: "pointer",
-              WebkitTapHighlightColor: "transparent",
+              display: "grid",
+              gridTemplateColumns: "34px minmax(0, 1fr)",
+              alignItems: "center",
+              gap: 10,
             }}
-          />
+            onClick={(event) => event.stopPropagation()}
+            onTouchStart={(event) => event.stopPropagation()}
+            onTouchMove={(event) => event.stopPropagation()}
+            onTouchEnd={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleVideoPlayPause();
+                setMobileChromeVisible(true);
+                scheduleChromeHide();
+              }}
+              aria-label={videoPlaying ? "Pausar video" : "Reproducir video"}
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: 999,
+                border: "1px solid rgba(255,255,255,0.18)",
+                background: "rgba(0,0,0,0.58)",
+                color: "#fff",
+                display: "grid",
+                placeItems: "center",
+                fontSize: 15,
+                fontWeight: 800,
+                paddingLeft: videoPlaying ? 0 : 2,
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              {videoPlaying ? "Ⅱ" : "▶"}
+            </button>
+
+            <input
+              type="range"
+              min={0}
+              max={videoDuration > 0 ? videoDuration : 0}
+              step={0.05}
+              value={Math.min(
+                videoCurrentTime,
+                videoDuration > 0 ? videoDuration : videoCurrentTime,
+              )}
+              aria-label="Avanzar o retroceder video"
+              onTouchStart={(event) => {
+                event.stopPropagation();
+                clearChromeTimer();
+              }}
+              onTouchMove={(event) => event.stopPropagation()}
+              onTouchEnd={(event) => {
+                event.stopPropagation();
+                scheduleChromeHide();
+              }}
+              onChange={(event) =>
+                handleVideoSeek(Number(event.currentTarget.value))
+              }
+              style={{
+                width: "100%",
+                height: 18,
+                margin: 0,
+                padding: 0,
+                accentColor: "#fff",
+                cursor: "pointer",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {isCurrentVideo && mobileSpeedGestureActive && (
+        <div
+          style={{
+            position: "fixed",
+            left: "50%",
+            top: "calc(54px + env(safe-area-inset-top))",
+            transform: "translateX(-50%)",
+            zIndex: 2147483647,
+            minHeight: 30,
+            padding: "7px 12px",
+            borderRadius: 999,
+            background: "rgba(0,0,0,0.66)",
+            border: "1px solid rgba(255,255,255,0.18)",
+            color: "#fff",
+            fontSize: 12,
+            fontWeight: 800,
+            lineHeight: 1,
+            pointerEvents: "none",
+          }}
+        >
+          {videoPlaybackRate.toFixed(videoPlaybackRate % 1 === 0 ? 0 : 1)}x
         </div>
       )}
 
@@ -1057,7 +1304,11 @@ export default function PostImageViewer({
                         overflow: "hidden",
                       }}
                     >
-                      <Avatar name={group.name} avatarUrl={group.avatarUrl} size={15} />
+                      <Avatar
+                        name={group.name}
+                        avatarUrl={group.avatarUrl}
+                        size={15}
+                      />
                       <span
                         style={{
                           overflow: "hidden",
@@ -1081,7 +1332,11 @@ export default function PostImageViewer({
                         overflow: "hidden",
                       }}
                     >
-                      <Avatar name={group.name} avatarUrl={group.avatarUrl} size={15} />
+                      <Avatar
+                        name={group.name}
+                        avatarUrl={group.avatarUrl}
+                        size={15}
+                      />
                       <span
                         style={{
                           overflow: "hidden",
@@ -1251,7 +1506,8 @@ export default function PostImageViewer({
                 style={{
                   ...actionButtonStyle,
                   opacity: !onOpenFlames || likesCount === 0 ? 0.55 : 1,
-                  cursor: !onOpenFlames || likesCount === 0 ? "default" : "pointer",
+                  cursor:
+                    !onOpenFlames || likesCount === 0 ? "default" : "pointer",
                 }}
               >
                 {likesCount}
@@ -1361,14 +1617,17 @@ export default function PostImageViewer({
                 playsInline
                 preload="metadata"
                 onLoadedMetadata={(event) => {
+                  event.currentTarget.playbackRate = videoPlaybackRate;
                   const duration = event.currentTarget.duration;
                   setVideoDuration(
                     Number.isFinite(duration) && duration > 0
                       ? duration
-                      : currentMedia.duration ?? 0
+                      : (currentMedia.duration ?? 0),
                   );
                 }}
-                onTimeUpdate={(event) => setVideoCurrentTime(event.currentTarget.currentTime)}
+                onTimeUpdate={(event) =>
+                  setVideoCurrentTime(event.currentTarget.currentTime)
+                }
                 onPlay={() => setVideoPlaying(true)}
                 onPause={() => setVideoPlaying(false)}
                 style={{
@@ -1474,7 +1733,8 @@ export default function PostImageViewer({
                 gap: 10,
                 padding: "10px 12px",
                 borderRadius: 999,
-                background: "linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.62))",
+                background:
+                  "linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.62))",
                 color: "#fff",
               }}
             >
@@ -1507,7 +1767,8 @@ export default function PostImageViewer({
                   whiteSpace: "nowrap",
                 }}
               >
-                {formatMediaDuration(videoCurrentTime)} / {formatMediaDuration(videoDuration)}
+                {formatMediaDuration(videoCurrentTime)} /{" "}
+                {formatMediaDuration(videoDuration)}
               </span>
 
               <input
@@ -1515,9 +1776,14 @@ export default function PostImageViewer({
                 min={0}
                 max={videoDuration > 0 ? videoDuration : 0}
                 step={0.05}
-                value={Math.min(videoCurrentTime, videoDuration > 0 ? videoDuration : videoCurrentTime)}
+                value={Math.min(
+                  videoCurrentTime,
+                  videoDuration > 0 ? videoDuration : videoCurrentTime,
+                )}
                 aria-label="Avanzar o retroceder video"
-                onChange={(event) => handleVideoSeek(Number(event.currentTarget.value))}
+                onChange={(event) =>
+                  handleVideoSeek(Number(event.currentTarget.value))
+                }
                 style={{
                   width: "100%",
                   margin: 0,
@@ -1547,6 +1813,86 @@ export default function PostImageViewer({
               >
                 ◔
               </button>
+
+              <div style={{ position: "relative", width: 36, height: 30 }}>
+                <button
+                  type="button"
+                  onClick={() => setDesktopSpeedMenuOpen((prev) => !prev)}
+                  aria-label="Elegir velocidad de reproducción"
+                  aria-expanded={desktopSpeedMenuOpen}
+                  style={{
+                    width: 36,
+                    height: 30,
+                    borderRadius: 999,
+                    border: "none",
+                    background: "transparent",
+                    color: "#fff",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    lineHeight: 1,
+                    fontFamily: fontStack,
+                  }}
+                >
+                  {videoPlaybackRate.toFixed(
+                    videoPlaybackRate % 1 === 0 ? 0 : 1,
+                  )}
+                  x
+                </button>
+
+                {desktopSpeedMenuOpen && (
+                  <div
+                    role="menu"
+                    aria-label="Velocidad de reproducción"
+                    style={{
+                      position: "absolute",
+                      right: 0,
+                      bottom: 38,
+                      minWidth: 86,
+                      padding: 5,
+                      borderRadius: 12,
+                      border: "1px solid rgba(255,255,255,0.16)",
+                      background: "rgba(10,10,10,0.94)",
+                      boxShadow: "0 12px 30px rgba(0,0,0,0.38)",
+                      display: "grid",
+                      gap: 3,
+                    }}
+                  >
+                    {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 2].map((rate) => (
+                      <button
+                        key={rate}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setVideoPlaybackRate(rate);
+                          setDesktopSpeedMenuOpen(false);
+                        }}
+                        style={{
+                          minHeight: 28,
+                          borderRadius: 8,
+                          border: "none",
+                          background:
+                            videoPlaybackRate === rate
+                              ? "rgba(255,255,255,0.16)"
+                              : "transparent",
+                          color: "#fff",
+                          fontSize: 12,
+                          fontWeight: videoPlaybackRate === rate ? 850 : 700,
+                          fontFamily: fontStack,
+                          cursor: "pointer",
+                          textAlign: "left",
+                          padding: "6px 9px",
+                        }}
+                      >
+                        {rate
+                          .toFixed(rate % 1 === 0 ? 0 : 2)
+                          .replace(/\.00$/, "")}
+                        x
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <button
                 type="button"
@@ -1647,7 +1993,11 @@ export default function PostImageViewer({
             }}
           >
             <Link href={author.profileHref} style={{ flexShrink: 0 }}>
-              <Avatar name={author.authorName} avatarUrl={author.avatarUrl} size={38} />
+              <Avatar
+                name={author.authorName}
+                avatarUrl={author.avatarUrl}
+                size={38}
+              />
             </Link>
 
             <div style={{ minWidth: 0, flex: 1 }}>
@@ -1702,7 +2052,11 @@ export default function PostImageViewer({
                           overflow: "hidden",
                         }}
                       >
-                        <Avatar name={group.name} avatarUrl={group.avatarUrl} size={16} />
+                        <Avatar
+                          name={group.name}
+                          avatarUrl={group.avatarUrl}
+                          size={16}
+                        />
                         <span
                           style={{
                             overflow: "hidden",
@@ -1726,7 +2080,11 @@ export default function PostImageViewer({
                           overflow: "hidden",
                         }}
                       >
-                        <Avatar name={group.name} avatarUrl={group.avatarUrl} size={16} />
+                        <Avatar
+                          name={group.name}
+                          avatarUrl={group.avatarUrl}
+                          size={16}
+                        />
                         <span
                           style={{
                             overflow: "hidden",
@@ -1826,7 +2184,9 @@ export default function PostImageViewer({
                     {shouldClampDesktopPostText && (
                       <button
                         type="button"
-                        onClick={() => setDesktopPostTextExpanded((prev) => !prev)}
+                        onClick={() =>
+                          setDesktopPostTextExpanded((prev) => !prev)
+                        }
                         style={{
                           marginLeft: 6,
                           border: "none",
@@ -1894,7 +2254,8 @@ export default function PostImageViewer({
                   style={{
                     ...actionButtonStyle,
                     opacity: !onOpenFlames || likesCount === 0 ? 0.55 : 1,
-                    cursor: !onOpenFlames || likesCount === 0 ? "default" : "pointer",
+                    cursor:
+                      !onOpenFlames || likesCount === 0 ? "default" : "pointer",
                   }}
                 >
                   {likesCount}
@@ -1907,7 +2268,10 @@ export default function PostImageViewer({
                 aria-label="Abrir comentarios"
                 style={{ ...actionButtonStyle, gap: 3 }}
               >
-                <span aria-hidden="true" style={{ fontSize: 19, lineHeight: 1 }}>
+                <span
+                  aria-hidden="true"
+                  style={{ fontSize: 19, lineHeight: 1 }}
+                >
                   💬
                 </span>
                 <span>{commentsCount}</span>
@@ -1951,5 +2315,8 @@ export default function PostImageViewer({
     </div>
   );
 
-  return createPortal(isMobile ? mobileContent : desktopContent, document.body);
+  return createPortal(
+    useMobileLayout ? mobileContent : desktopContent,
+    document.body,
+  );
 }
