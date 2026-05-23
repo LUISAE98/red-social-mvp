@@ -217,31 +217,74 @@ match /profileFeed/{postId} {
       }
       
       match /groupMemberships/{groupId} {
-  allow get, list: if signedIn()
-    && request.auth.uid == uid;
+        allow get, list: if signedIn()
+          && request.auth.uid == uid;
 
-  allow create, update: if signedIn()
-    && request.auth.uid == uid
-    && request.resource.data.userId == uid
-    && request.resource.data.groupId == groupId
-    && request.resource.data.status in ["active", "subscribed", "muted"]
-    && request.resource.data.roleInGroup in ["member", "mod", "moderator", "owner"]
-    && (
-      !("accessType" in request.resource.data)
-      || validMembershipAccessType(request.resource.data.accessType)
-    )
-    && (
-      !("requiresSubscription" in request.resource.data)
-      || request.resource.data.requiresSubscription is bool
-    )
-    && (
-      !("subscriptionActive" in request.resource.data)
-      || request.resource.data.subscriptionActive is bool
-    );
+        allow create, update: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.userId == uid
+          && request.resource.data.groupId == groupId
+          && request.resource.data.status in ["active", "subscribed", "muted"]
+          && request.resource.data.roleInGroup in ["member", "mod", "moderator", "owner"]
+          && (
+            !("accessType" in request.resource.data)
+            || validMembershipAccessType(request.resource.data.accessType)
+          )
+          && (
+            !("requiresSubscription" in request.resource.data)
+            || request.resource.data.requiresSubscription is bool
+          )
+          && (
+            !("subscriptionActive" in request.resource.data)
+            || request.resource.data.subscriptionActive is bool
+          )
+          && (
+            (
+              request.resource.data.roleInGroup == "owner"
+              && request.resource.data.status == "active"
+              && request.resource.data.accessType == "standard"
+              && request.resource.data.requiresSubscription == false
+              && request.resource.data.subscriptionActive == false
+              && (
+                (
+                  groupExists(groupId)
+                  && memberExists(groupId, uid)
+                  && groupDoc(groupId).data.ownerId == uid
+                  && memberDoc(groupId, uid).data.roleInGroup == "owner"
+                  && memberDoc(groupId, uid).data.status == "active"
+                )
+                ||
+                (
+                  groupExistsAfter(groupId)
+                  && groupDocAfter(groupId).data.ownerId == uid
+                  && memberDocAfter(groupId, uid).data.roleInGroup == "owner"
+                  && memberDocAfter(groupId, uid).data.status == "active"
+                )
+              )
+            )
+            ||
+            (
+              request.resource.data.roleInGroup != "owner"
+              && (
+                (
+                  memberExists(groupId, uid)
+                  && memberDoc(groupId, uid).data.userId == uid
+                  && memberDoc(groupId, uid).data.roleInGroup == request.resource.data.roleInGroup
+                  && memberDoc(groupId, uid).data.status == request.resource.data.status
+                )
+                ||
+                (
+                  memberDocAfter(groupId, uid).data.userId == uid
+                  && memberDocAfter(groupId, uid).data.roleInGroup == request.resource.data.roleInGroup
+                  && memberDocAfter(groupId, uid).data.status == request.resource.data.status
+                )
+              )
+            )
+          );
 
-  allow delete: if signedIn()
-    && request.auth.uid == uid;
-}
+        allow delete: if signedIn()
+          && request.auth.uid == uid;
+      }
 
       allow delete: if false;
     }
@@ -264,8 +307,16 @@ match /profileFeed/{postId} {
       return get(/databases/$(database)/documents/groups/$(groupId));
     }
 
+    function groupDocAfter(groupId) {
+      return getAfter(/databases/$(database)/documents/groups/$(groupId));
+    }
+
     function groupExists(groupId) {
       return exists(/databases/$(database)/documents/groups/$(groupId));
+    }
+
+    function groupExistsAfter(groupId) {
+      return existsAfter(/databases/$(database)/documents/groups/$(groupId));
     }
 
     function groupIsActive(groupId) {
@@ -278,6 +329,10 @@ match /profileFeed/{postId} {
 
     function memberDoc(groupId, uid) {
       return get(/databases/$(database)/documents/groups/$(groupId)/members/$(uid));
+    }
+
+    function memberDocAfter(groupId, uid) {
+      return getAfter(/databases/$(database)/documents/groups/$(groupId)/members/$(uid));
     }
 
     function memberExists(groupId, uid) {
@@ -920,12 +975,14 @@ function validPostSearchIndex(search) {
     }
 
     function validMemberCreateShape(groupId, userId) {
+      let afterGroup = groupDocAfter(groupId).data;
+
       return request.resource.data.userId == userId
         && (
           request.resource.data.roleInGroup == "member"
           || (
             request.resource.data.roleInGroup == "owner"
-            && groupDoc(groupId).data.ownerId == request.auth.uid
+            && afterGroup.ownerId == request.auth.uid
           )
         )
         && request.resource.data.status in ["active", "subscribed"]
@@ -938,9 +995,8 @@ function validPostSearchIndex(search) {
         && (!("subscriptionPriceMonthly" in request.resource.data) || validNonNegativeNumberOrNull(request.resource.data.subscriptionPriceMonthly))
         && (!("subscriptionCurrency" in request.resource.data) || request.resource.data.subscriptionCurrency == null || validCurrency(request.resource.data.subscriptionCurrency))
         && (
-          // join normal en grupo público gratis
           (
-            groupVisibility(groupId) == "public"
+            afterGroup.visibility == "public"
             && request.resource.data.status == "active"
             && (
               !("accessType" in request.resource.data)
@@ -952,10 +1008,24 @@ function validPostSearchIndex(search) {
             )
           )
           ||
-          // join por suscripción en grupo privado/oculto con monetización activa
           (
-            groupVisibility(groupId) in ["private", "hidden"]
-            && groupSubscriptionsEnabled(groupId)
+            afterGroup.visibility in ["private", "hidden"]
+            && (
+              (
+                "monetization" in afterGroup
+                && afterGroup.monetization is map
+                && (
+                  (
+                    "subscriptionsEnabled" in afterGroup.monetization
+                    && afterGroup.monetization.subscriptionsEnabled == true
+                  )
+                  || (
+                    "isPaid" in afterGroup.monetization
+                    && afterGroup.monetization.isPaid == true
+                  )
+                )
+              )
+            )
             && request.resource.data.status == "subscribed"
             && (
               !("accessType" in request.resource.data)
@@ -963,8 +1033,10 @@ function validPostSearchIndex(search) {
             )
           )
           ||
-          // owner creando/inicializando casos especiales desde cliente
-          isOwner(groupId)
+          (
+            request.resource.data.roleInGroup == "owner"
+            && afterGroup.ownerId == request.auth.uid
+          )
         );
     }
         // ==========================
@@ -1098,17 +1170,13 @@ allow list: if signedIn()
 
         allow create: if signedIn()
           && request.auth.uid == userId
-          && groupIsActive(groupId)
-          && !exists(/databases/$(database)/documents/groups/$(groupId)/members/$(userId))
-          && validMemberCreateShape(groupId, userId)
+          && groupExistsAfter(groupId)
           && (
-            groupVisibility(groupId) == "public"
-            || groupDoc(groupId).data.ownerId == request.auth.uid
-            || (
-              groupVisibility(groupId) in ["private", "hidden"]
-              && groupSubscriptionsEnabled(groupId)
-            )
-          );
+            !("isActive" in groupDocAfter(groupId).data)
+            || groupDocAfter(groupId).data.isActive == true
+          )
+          && !exists(/databases/$(database)/documents/groups/$(groupId)/members/$(userId))
+          && validMemberCreateShape(groupId, userId);
 
         allow delete: if signedIn()
           && request.auth.uid == userId

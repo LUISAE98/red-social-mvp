@@ -45,7 +45,7 @@ import {
 } from "@/types/group";
 
 import { db } from "@/lib/firebase";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 
 import { uploadFile } from "@/lib/storage/uploadFile";
 import { buildFileName } from "@/lib/storage/fileNaming";
@@ -623,36 +623,64 @@ const onCropComplete = useCallback(
       let coverUrl: string | null = null;
 
       if (avatarFile) {
-        const fileName = buildFileName(user.uid, avatarFile.name);
-        const path = `groups/${groupId}/avatar/${fileName}`;
-        avatarUrl = await uploadFile({
-          file: avatarFile,
-          path,
-          onProgress: (p) => setAvatarUploadPct(Math.round(p)),
-        });
+        try {
+          const fileName = buildFileName(user.uid, avatarFile.name);
+          const path = `groups/${groupId}/avatar/${fileName}`;
+
+          avatarUrl = await uploadFile({
+            file: avatarFile,
+            path,
+            onProgress: (p) => setAvatarUploadPct(Math.round(p)),
+          });
+        } catch (uploadErr: any) {
+          throw new Error(
+            `El grupo sí se creó, pero falló la subida del avatar: ${
+              uploadErr?.message ?? "permiso insuficiente en Storage"
+            }`
+          );
+        }
       }
 
       if (coverFile) {
-        const fileName = buildFileName(user.uid, coverFile.name);
-        const path = `groups/${groupId}/cover/${fileName}`;
-        coverUrl = await uploadFile({
-          file: coverFile,
-          path,
-          onProgress: (p) => setCoverUploadPct(Math.round(p)),
-        });
+        try {
+          const fileName = buildFileName(user.uid, coverFile.name);
+          const path = `groups/${groupId}/cover/${fileName}`;
+
+          coverUrl = await uploadFile({
+            file: coverFile,
+            path,
+            onProgress: (p) => setCoverUploadPct(Math.round(p)),
+          });
+        } catch (uploadErr: any) {
+          throw new Error(
+            `El grupo sí se creó, pero falló la subida de portada: ${
+              uploadErr?.message ?? "permiso insuficiente en Storage"
+            }`
+          );
+        }
       }
 
       if (avatarUrl || coverUrl) {
-        const ref = doc(db, "groups", groupId);
-        await updateDoc(ref, {
-          ...(avatarUrl ? { avatarUrl } : {}),
-          ...(coverUrl ? { coverUrl } : {}),
-          updatedAt: Date.now(),
-        });
+        try {
+          const ref = doc(db, "groups", groupId);
+
+          await updateDoc(ref, {
+            ...(avatarUrl ? { avatarUrl } : {}),
+            ...(coverUrl ? { coverUrl } : {}),
+            updatedAt: serverTimestamp(),
+          });
+        } catch (updateErr: any) {
+          throw new Error(
+            `El grupo sí se creó y la imagen sí subió, pero falló actualizar avatar/portada en Firestore: ${
+              updateErr?.message ?? "permiso insuficiente en Firestore"
+            }`
+          );
+        }
       }
 
       router.push(`/groups/${groupId}`);
     } catch (err: any) {
+      console.error("CREATE_GROUP_ERROR", err);
       setError(err?.message ?? "Error creando comunidad.");
     } finally {
       setLoading(false);

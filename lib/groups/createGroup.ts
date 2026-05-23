@@ -1,9 +1,9 @@
 import {
-  addDoc,
   collection,
   doc,
   serverTimestamp,
   setDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { buildGroupSearchIndex } from "@/lib/groups/groupSearchIndex";
@@ -125,14 +125,61 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
     }),
   };
 
-  const groupRef = await addDoc(collection(db, "groups"), payload);
+  const groupRef = doc(collection(db, "groups"));
   const groupId = groupRef.id;
 
-  await setDoc(doc(db, "groups", groupId, "members", input.ownerId), {
+  const memberRef = doc(db, "groups", groupId, "members", input.ownerId);
+  const userMembershipRef = doc(
+    db,
+    "users",
+    input.ownerId,
+    "groupMemberships",
+    groupId
+  );
+
+  const batch = writeBatch(db);
+
+  batch.set(groupRef, payload);
+
+  batch.set(memberRef, {
     userId: input.ownerId,
     roleInGroup: "owner",
     status: "active",
+
+    accessType: "standard",
+    requiresSubscription: false,
+    subscriptionActive: false,
+
     createdAt: serverTimestamp(),
+    joinedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  await batch.commit();
+
+  await setDoc(userMembershipRef, {
+    groupId,
+    userId: input.ownerId,
+
+    roleInGroup: "owner",
+    status: "active",
+    accessType: "standard",
+    requiresSubscription: false,
+    subscriptionActive: false,
+
+    groupName: baseGroup.name,
+    groupDescription: baseGroup.description,
+    groupImageUrl: baseGroup.imageUrl ?? null,
+    groupAvatarUrl: baseGroup.avatarUrl ?? null,
+    groupCoverUrl: baseGroup.coverUrl ?? null,
+    groupOwnerId: baseGroup.ownerId,
+    groupVisibility: baseGroup.visibility,
+    groupDiscoverable: baseGroup.discoverable,
+    groupIsActive: baseGroup.isActive,
+    groupCategory: baseGroup.category ?? null,
+
+    createdAt: serverTimestamp(),
+    joinedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
 

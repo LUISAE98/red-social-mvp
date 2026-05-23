@@ -1,10 +1,8 @@
 import {
-  deleteDoc,
   deleteField,
   doc,
   getDoc,
   serverTimestamp,
-  setDoc,
   writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -125,7 +123,6 @@ async function getGroupMembershipSummary(
 
 export async function joinGroup(groupId: string, uid: string) {
   const memberRef = doc(db, "groups", groupId, "members", uid);
-  const joinRequestRef = doc(db, "groups", groupId, "joinRequests", uid);
   const userMembershipRef = doc(db, "users", uid, "groupMemberships", groupId);
 
   const groupSummary = await getGroupMembershipSummary(groupId);
@@ -186,7 +183,6 @@ export async function joinGroupWithSubscription(
   options?: JoinWithSubscriptionOptions
 ) {
   const memberRef = doc(db, "groups", groupId, "members", uid);
-  const joinRequestRef = doc(db, "groups", groupId, "joinRequests", uid);
   const userMembershipRef = doc(db, "users", uid, "groupMemberships", groupId);
 
   const groupSummary = await getGroupMembershipSummary(groupId);
@@ -238,14 +234,11 @@ export async function joinGroupWithSubscription(
     { merge: true }
   );
 
-  batch.delete(joinRequestRef);
-
   await batch.commit();
 }
 
 export async function joinGroupAsLegacyFree(groupId: string, uid: string) {
   const memberRef = doc(db, "groups", groupId, "members", uid);
-  const joinRequestRef = doc(db, "groups", groupId, "joinRequests", uid);
   const userMembershipRef = doc(db, "users", uid, "groupMemberships", groupId);
 
   const groupSummary = await getGroupMembershipSummary(groupId);
@@ -295,7 +288,6 @@ export async function joinGroupAsLegacyFree(groupId: string, uid: string) {
     { merge: true }
   );
 
-  batch.delete(joinRequestRef);
 
   await batch.commit();
 }
