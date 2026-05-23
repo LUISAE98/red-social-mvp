@@ -1,8 +1,12 @@
+//HomePostsFeed.tsx
 "use client";
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { doc, getDoc } from "firebase/firestore";
+
+import { db } from "@/lib/firebase";
 
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import {
@@ -65,6 +69,23 @@ function normalizeHomeFeedPost(post: PostWithFlags): PostWithFlags {
   };
 }
 
+function isVideoPostStillProcessing(post: PostWithFlags): boolean {
+  if (post.postType !== "video") return false;
+  if (!post.id) return false;
+
+  const processingStatus = post.processing?.status;
+  const videoStatus = post.videoData?.status;
+  const playbackReady = post.playback?.isReady === true;
+
+  if (processingStatus === "ready") return false;
+  if (videoStatus === "ready") return false;
+  if (playbackReady) return false;
+  if (processingStatus === "error") return false;
+  if (videoStatus === "error") return false;
+
+  return true;
+}
+
 function buildStableFeedSeed(
   currentUserId: string,
   posts: Array<{ id?: string; createdAt?: any }>
@@ -95,6 +116,8 @@ function buildStableFeedSeed(
 
 const HOME_FEED_PAGE_SIZE = 10;
 const HOME_FEED_CACHE_TTL_MS = 1000 * 60 * 5;
+const VIDEO_PROCESSING_POLL_MS = 15_000;
+const VIDEO_PROCESSING_MAX_POLLS = 20;
 
 type HomeFeedCacheEntry = {
   posts: PostWithFlags[];
@@ -139,6 +162,7 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(false);
   const pageCursorRef = useRef<HomePostsPageCursor | null>(null);
+  const videoProcessingPollsRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     hasMoreRef.current = hasMore;
@@ -284,7 +308,10 @@ const normalizedPosts = result.posts.map((post) =>
       const cacheIsFresh =
         !!cached && Date.now() - cached.updatedAt <= HOME_FEED_CACHE_TTL_MS;
 
-      if (cacheIsFresh) {
+      const cacheHasProcessingVideos =
+        cached?.posts.some(isVideoPostStillProcessing) === true;
+
+      if (cacheIsFresh && !cacheHasProcessingVideos) {
         setPosts(cached.posts);
         setPageCursor(cached.cursor);
         setHasMore(cached.hasMore);
@@ -310,6 +337,111 @@ const normalizedPosts = result.posts.map((post) =>
     if (posts.length <= 5) return posts.length - 1;
     return Math.max(0, posts.length - 5);
   }, [posts.length]);
+
+
+  const processingVideoPostIdsKey = useMemo(() => {
+    return posts
+      .filter(isVideoPostStillProcessing)
+      .map((post) => post.id)
+      .filter((postId): postId is string => Boolean(postId))
+      .sort()
+      .join("|");
+  }, [posts]);
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    if (!processingVideoPostIdsKey) return;
+
+    const postIds = processingVideoPostIdsKey.split("|").filter(Boolean);
+    let cancelled = false;
+    let timeoutId: number | null = null;
+
+    async function refreshProcessingVideos() {
+      if (cancelled) return;
+
+      if (
+        typeof document !== "undefined" &&
+        document.visibilityState !== "visible"
+      ) {
+        timeoutId = window.setTimeout(
+          refreshProcessingVideos,
+          VIDEO_PROCESSING_POLL_MS
+        );
+        return;
+      }
+
+      let shouldContinuePolling = false;
+
+      await Promise.all(
+        postIds.map(async (postId) => {
+          const currentPollCount = videoProcessingPollsRef.current[postId] ?? 0;
+
+          if (currentPollCount >= VIDEO_PROCESSING_MAX_POLLS) {
+            return;
+          }
+
+          shouldContinuePolling = true;
+          videoProcessingPollsRef.current[postId] = currentPollCount + 1;
+
+          try {
+            const postSnap = await getDoc(doc(db, "posts", postId));
+
+            if (cancelled || !postSnap.exists()) return;
+
+            const freshPost = normalizeHomeFeedPost({
+              ...(postSnap.data() as Post),
+              id: postSnap.id,
+            } as PostWithFlags);
+
+            const isDone =
+              freshPost.processing?.status === "ready" ||
+              freshPost.videoData?.status === "ready" ||
+              freshPost.playback?.isReady === true ||
+              freshPost.processing?.status === "error" ||
+              freshPost.videoData?.status === "error";
+
+            syncPostsState((prev) =>
+              prev.map((post) =>
+                post.id === postId
+                  ? {
+                      ...freshPost,
+                      canModerateGroupAuthor: post.canModerateGroupAuthor,
+                      authorMemberStatus: post.authorMemberStatus,
+                      authorMutedUntil: post.authorMutedUntil,
+                      viewerHasFlamed: post.viewerHasFlamed,
+                      viewerHasSaved: post.viewerHasSaved,
+                    }
+                  : post
+              )
+            );
+
+            if (isDone) {
+              delete videoProcessingPollsRef.current[postId];
+            }
+          } catch {
+            // Se ignora para no romper el feed por una lectura fallida temporal.
+          }
+        })
+      );
+
+      if (!cancelled && shouldContinuePolling) {
+        timeoutId = window.setTimeout(
+          refreshProcessingVideos,
+          VIDEO_PROCESSING_POLL_MS
+        );
+      }
+    }
+
+    void refreshProcessingVideos();
+
+    return () => {
+      cancelled = true;
+
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [currentUserId, processingVideoPostIdsKey, syncPostsState]);
 
   useEffect(() => {
     if (!currentUserId) return;

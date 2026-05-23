@@ -14,6 +14,7 @@ export default function RootChrome({
   const { user, loading, authTransitionMode, startAuthTransition } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  const isPublicPostRoute = pathname.startsWith("/p/");
 
 const isPublicRoute =
   pathname === "/" ||
@@ -48,9 +49,13 @@ if (user && isAuthPage) {
   return null;
 }
 
-  if (user) {
-    return <>{children}</>;
-  }
+if (user) {
+  return <>{children}</>;
+}
+
+if (isPublicPostRoute) {
+  return <>{children}</>;
+}
 
   return (
     <>

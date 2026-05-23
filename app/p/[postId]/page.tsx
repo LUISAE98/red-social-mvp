@@ -61,19 +61,39 @@ function toPublicPostView(post: any): PublicPostView {
   const media = Array.isArray(post.media)
     ? post.media
         .filter((item: any) => {
+          if (!item || (item.type !== "image" && item.type !== "video")) {
+            return false;
+          }
+
+          if (item.type === "image") {
+            return typeof item.url === "string" && item.url.trim().length > 0;
+          }
+
           return (
-            item &&
-            (item.type === "image" || item.type === "video") &&
-            typeof item.url === "string" &&
-            item.url.trim().length > 0
+            (typeof item.url === "string" && item.url.trim().length > 0) ||
+            (typeof item.hlsUrl === "string" && item.hlsUrl.trim().length > 0) ||
+            (typeof item.thumbnailUrl === "string" &&
+              item.thumbnailUrl.trim().length > 0) ||
+            (typeof item.status === "string" && item.status.trim().length > 0)
           );
         })
         .map((item: any) => ({
           type: item.type,
-          url: item.url,
+          url: typeof item.url === "string" ? item.url : "",
           thumbnailUrl:
             typeof item.thumbnailUrl === "string" ? item.thumbnailUrl : null,
           altText: typeof item.altText === "string" ? item.altText : null,
+
+          id: typeof item.id === "string" ? item.id : undefined,
+          index: typeof item.index === "number" ? item.index : undefined,
+          provider: typeof item.provider === "string" ? item.provider : null,
+          status: typeof item.status === "string" ? item.status : null,
+          uploadId: typeof item.uploadId === "string" ? item.uploadId : null,
+          assetId: typeof item.assetId === "string" ? item.assetId : null,
+          playbackId:
+            typeof item.playbackId === "string" ? item.playbackId : null,
+          hlsUrl: typeof item.hlsUrl === "string" ? item.hlsUrl : null,
+          duration: typeof item.duration === "number" ? item.duration : null,
         }))
     : [];
 
@@ -118,6 +138,11 @@ function toPublicPostView(post: any): PublicPostView {
       comments:
         typeof post.counts?.comments === "number" ? post.counts.comments : 0,
     },
+
+    postType: typeof post.postType === "string" ? post.postType : "text",
+    videoData: post.videoData ?? null,
+    playback: post.playback ?? null,
+    processing: post.processing ?? null,
 
     media,
   };
