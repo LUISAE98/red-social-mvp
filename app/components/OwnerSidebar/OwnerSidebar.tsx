@@ -12,11 +12,9 @@ import {
   collection,
   doc,
   getDoc,
-  getDocs,
   limit,
   onSnapshot,
   query,
-
   where,
   Timestamp,
 } from "firebase/firestore";
@@ -31,14 +29,12 @@ import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import {
   acceptMeetGreetRequest,
-  expireMeetGreetNoShows,
   proposeMeetGreetSchedule,
   rejectMeetGreetRequest,
   requestMeetGreetRefund,
   requestMeetGreetReschedule,
   setMeetGreetPreparing,
 } from "@/lib/meetGreet/meetGreetRequests";
-import { expireExclusiveSessionNoShows } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import OwnerSidebarTabNav from "./OwnerSidebarTabNav";
 import OwnerSidebarMyGroups from "./OwnerSidebarMyGroups";
 import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
@@ -797,6 +793,13 @@ useEffect(() => {
   const [groupMetaMap, setGroupMetaMap] = useState<Record<string, GroupDocLite>>(
     () => ownerSidebarCache?.groupMetaMap ?? {}
   );
+    const groupMetaMapRef = useRef<Record<string, GroupDocLite>>(
+    ownerSidebarCache?.groupMetaMap ?? {}
+  );
+
+  useEffect(() => {
+    groupMetaMapRef.current = groupMetaMap;
+  }, [groupMetaMap]);
 
   const joinUnsubsRef = useRef<Array<() => void>>([]);
 
@@ -1020,45 +1023,6 @@ miniItem: {
     return () => unsub();
   }, []);
 
-  useEffect(() => {
-    if (!viewer?.uid) return;
-
-    let cancelled = false;
-
-    async function expireNoShows() {
-      try {
-        await Promise.all([
-          expireMeetGreetNoShows(),
-          expireExclusiveSessionNoShows(),
-        ]);
-      } catch (error) {
-        if (!cancelled) {
-          console.error("expireScheduledServiceNoShows error", error);
-        }
-      }
-    }
-
-    void expireNoShows();
-
-    const interval = window.setInterval(() => {
-      void expireNoShows();
-    }, 60_000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [viewer?.uid]);
-
-  const [ownerSidebarNowMs, setOwnerSidebarNowMs] = useState(() => Date.now());
-
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setOwnerSidebarNowMs(Date.now());
-    }, 30_000);
-
-    return () => window.clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     async function loadCurrentUser() {
@@ -1101,29 +1065,29 @@ miniItem: {
     }
 
     loadCurrentUser();
-  }, [viewer?.uid, pathname]);
+  }, [viewer?.uid]);
 
   useEffect(() => {
-    async function loadMyCommunities() {
-      if (!viewer?.uid) {
-        setMyGroups([]);
-        setOpenCommunities({});
-        return;
-      }
+    if (!viewer?.uid) {
+      setMyGroups([]);
+      setOpenCommunities({});
+      setLoadingGroups(false);
+      return;
+    }
 
-      setLoadingGroups(true);
-      setGroupsErr(null);
+    setLoadingGroups(true);
+    setGroupsErr(null);
 
-      try {
-        const gq = query(
-          collection(db, "groups"),
-          where("ownerId", "==", viewer.uid),
-          limit(50)
-        );
+    const gq = query(
+      collection(db, "groups"),
+      where("ownerId", "==", viewer.uid),
+      limit(50)
+    );
 
-        const gs = await getDocs(gq);
-
-        const rows: GroupDocLite[] = gs.docs.map((d) => ({
+    const unsub = onSnapshot(
+      gq,
+      (snap) => {
+        const rows: GroupDocLite[] = snap.docs.map((d) => ({
           ...(d.data() as Omit<GroupDocLite, "id">),
           id: d.id,
         }));
@@ -1149,16 +1113,17 @@ miniItem: {
         setGreetingSectionOpen((prev) => ({ ...initialGreetingOpen, ...prev }));
         setJoinSectionOpen((prev) => ({ ...initialJoinOpen, ...prev }));
         setGroupMetaMap((prev) => ({ ...prev, ...initialGroupMeta }));
-      } catch (e: any) {
+        setLoadingGroups(false);
+      },
+      (e: any) => {
         setGroupsErr(e?.message ?? "No se pudieron cargar tus comunidades.");
         setMyGroups([]);
         setOpenCommunities({});
-      } finally {
         setLoadingGroups(false);
       }
-    }
+    );
 
-    loadMyCommunities();
+    return () => unsub();
   }, [viewer?.uid]);
 
   useEffect(() => {
@@ -1624,10 +1589,15 @@ miniItem: {
 
         setBuyerPending(rows);
 
-       const missingGroupIds = rows
-  .map((r) => r.data.groupId)
-  .filter((groupId): groupId is string => typeof groupId === "string" && groupId.trim().length > 0)
-  .filter((groupId) => !groupMetaMap[groupId]);
+        const currentGroupMetaMap = groupMetaMapRef.current;
+
+        const missingGroupIds = rows
+          .map((r) => r.data.groupId)
+          .filter(
+            (groupId): groupId is string =>
+              typeof groupId === "string" && groupId.trim().length > 0
+          )
+          .filter((groupId) => !currentGroupMetaMap[groupId]);
 
         if (missingGroupIds.length > 0) {
           const fetched = await Promise.all(
@@ -1665,7 +1635,7 @@ miniItem: {
       unsubIncoming();
       unsubBuyer();
     };
-  }, [viewer?.uid, groupMetaMap]);
+  }, [viewer?.uid]);
 
     useEffect(() => {
     if (!viewer?.uid) {
@@ -1695,13 +1665,10 @@ miniItem: {
         > = {};
 
         snap.docs.forEach((d) => {
-          const data = normalizeOwnerSidebarNoShowStatus(
-            {
-              ...(d.data() as MeetGreetRequestDoc),
-              id: d.id,
-            },
-            ownerSidebarNowMs
-          );
+          const data = normalizeOwnerSidebarNoShowStatus({
+            ...(d.data() as MeetGreetRequestDoc),
+            id: d.id,
+          });
 
           const bucketKey = getServiceBucketKey(data);
 
@@ -1731,13 +1698,10 @@ miniItem: {
       async (snap) => {
         const rows = snap.docs.map((d) => ({
           id: d.id,
-          data: normalizeOwnerSidebarNoShowStatus(
-            {
-              ...(d.data() as MeetGreetRequestDoc),
-              id: d.id,
-            },
-            ownerSidebarNowMs
-          ),
+          data: normalizeOwnerSidebarNoShowStatus({
+            ...(d.data() as MeetGreetRequestDoc),
+            id: d.id,
+          }),
         }));
 
         setBuyerMeetGreets(rows);
@@ -1745,7 +1709,7 @@ miniItem: {
         const missingGroupIds = rows
           .map((r) => r.data.groupId)
           .filter((groupId): groupId is string => !!groupId)
-          .filter((groupId) => !groupMetaMap[groupId]);
+          .filter((groupId) => !groupMetaMapRef.current[groupId]);
 
         if (missingGroupIds.length > 0) {
           const fetched = await Promise.all(
@@ -1784,7 +1748,7 @@ miniItem: {
       unsubCreator();
       unsubBuyer();
     };
-  }, [viewer?.uid, groupMetaMap, ownerSidebarNowMs]);
+  }, [viewer?.uid]);
 
 
     useEffect(() => {
@@ -1815,14 +1779,11 @@ miniItem: {
         > = {};
 
         snap.docs.forEach((d) => {
-          const data = normalizeOwnerSidebarNoShowStatus(
-            {
-              ...(d.data() as ExclusiveSessionRequestDoc),
-              id: d.id,
-              type: "digital_exclusive_session",
-            },
-            ownerSidebarNowMs
-          ) as ExclusiveSessionRequestDoc;
+          const data = normalizeOwnerSidebarNoShowStatus({
+            ...(d.data() as ExclusiveSessionRequestDoc),
+            id: d.id,
+            type: "digital_exclusive_session",
+          }) as ExclusiveSessionRequestDoc;
 
           const bucketKey = getServiceBucketKey(data);
 
@@ -1853,14 +1814,11 @@ miniItem: {
       async (snap) => {
         const rows = snap.docs.map((d) => ({
           id: d.id,
-          data: normalizeOwnerSidebarNoShowStatus(
-            {
-              ...(d.data() as ExclusiveSessionRequestDoc),
-              id: d.id,
-              type: "digital_exclusive_session",
-            },
-            ownerSidebarNowMs
-          ) as ExclusiveSessionRequestDoc,
+          data: normalizeOwnerSidebarNoShowStatus({
+            ...(d.data() as ExclusiveSessionRequestDoc),
+            id: d.id,
+            type: "digital_exclusive_session",
+          }) as ExclusiveSessionRequestDoc,
         }));
 
         setBuyerExclusiveSessions(rows);
@@ -1868,7 +1826,7 @@ miniItem: {
         const missingGroupIds = rows
           .map((r) => r.data.groupId)
           .filter((groupId): groupId is string => !!groupId)
-          .filter((groupId) => !groupMetaMap[groupId]);
+          .filter((groupId) => !groupMetaMapRef.current[groupId]);
 
         if (missingGroupIds.length > 0) {
           const fetched = await Promise.all(
@@ -1908,7 +1866,7 @@ miniItem: {
       unsubCreator();
       unsubBuyer();
     };
-  }, [viewer?.uid, groupMetaMap, ownerSidebarNowMs]);
+  }, [viewer?.uid]);
 
   useEffect(() => {
     const profileBucketKey = viewer?.uid ? `profile:${viewer.uid}` : null;

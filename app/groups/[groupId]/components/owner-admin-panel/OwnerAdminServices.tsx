@@ -6,6 +6,7 @@ import {
   collection,
   doc,
   onSnapshot,
+  serverTimestamp,
   updateDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -1901,9 +1902,9 @@ export default function OwnerAdminServices({
           ? workingDraft.subscription.currency
           : currentMonetization?.transitions?.subscriptionPriceChangeCurrency ??
             null,
-        lastMonetizationChangeAt: isTransitioningSubscriptionModel
-          ? Date.now()
-          : currentMonetization?.transitions?.lastMonetizationChangeAt ?? null,
+lastMonetizationChangeAt: isTransitioningSubscriptionModel
+  ? serverTimestamp()
+  : currentMonetization?.transitions?.lastMonetizationChangeAt ?? null,
         lastMonetizationChangeBy: isTransitioningSubscriptionModel
           ? currentUserId
           : currentMonetization?.transitions?.lastMonetizationChangeBy ?? null,

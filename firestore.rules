@@ -216,75 +216,61 @@ match /profileFeed/{postId} {
         allow create, update, delete: if false;
       }
       
-      match /groupMemberships/{groupId} {
-        allow get, list: if signedIn()
-          && request.auth.uid == uid;
+match /groupMemberships/{groupId} {
+  allow get, list: if signedIn()
+    && request.auth.uid == uid;
 
-        allow create, update: if signedIn()
-          && request.auth.uid == uid
-          && request.resource.data.userId == uid
-          && request.resource.data.groupId == groupId
-          && request.resource.data.status in ["active", "subscribed", "muted"]
-          && request.resource.data.roleInGroup in ["member", "mod", "moderator", "owner"]
-          && (
-            !("accessType" in request.resource.data)
-            || validMembershipAccessType(request.resource.data.accessType)
+  allow create, update: if signedIn()
+    && request.auth.uid == uid
+    && request.resource.data.userId == uid
+    && request.resource.data.groupId == groupId
+    && request.resource.data.status in ["active", "subscribed", "muted"]
+    && request.resource.data.roleInGroup in ["member", "mod", "moderator", "owner"]
+    && (
+      !("accessType" in request.resource.data)
+      || validMembershipAccessType(request.resource.data.accessType)
+    )
+    && (
+      !("requiresSubscription" in request.resource.data)
+      || request.resource.data.requiresSubscription is bool
+    )
+    && (
+      !("subscriptionActive" in request.resource.data)
+      || request.resource.data.subscriptionActive is bool
+    )
+    && (
+      (
+        request.resource.data.roleInGroup == "owner"
+        && request.resource.data.status == "active"
+        && request.resource.data.accessType == "standard"
+        && request.resource.data.requiresSubscription == false
+        && request.resource.data.subscriptionActive == false
+        && groupExistsAfter(groupId)
+        && groupDocAfter(groupId).data.ownerId == uid
+      )
+      ||
+      (
+        request.resource.data.roleInGroup != "owner"
+        && (
+          (
+            memberExists(groupId, uid)
+            && memberDoc(groupId, uid).data.userId == uid
+            && memberDoc(groupId, uid).data.roleInGroup == request.resource.data.roleInGroup
+            && memberDoc(groupId, uid).data.status == request.resource.data.status
           )
-          && (
-            !("requiresSubscription" in request.resource.data)
-            || request.resource.data.requiresSubscription is bool
+          ||
+          (
+            memberDocAfter(groupId, uid).data.userId == uid
+            && memberDocAfter(groupId, uid).data.roleInGroup == request.resource.data.roleInGroup
+            && memberDocAfter(groupId, uid).data.status == request.resource.data.status
           )
-          && (
-            !("subscriptionActive" in request.resource.data)
-            || request.resource.data.subscriptionActive is bool
-          )
-          && (
-            (
-              request.resource.data.roleInGroup == "owner"
-              && request.resource.data.status == "active"
-              && request.resource.data.accessType == "standard"
-              && request.resource.data.requiresSubscription == false
-              && request.resource.data.subscriptionActive == false
-              && (
-                (
-                  groupExists(groupId)
-                  && memberExists(groupId, uid)
-                  && groupDoc(groupId).data.ownerId == uid
-                  && memberDoc(groupId, uid).data.roleInGroup == "owner"
-                  && memberDoc(groupId, uid).data.status == "active"
-                )
-                ||
-                (
-                  groupExistsAfter(groupId)
-                  && groupDocAfter(groupId).data.ownerId == uid
-                  && memberDocAfter(groupId, uid).data.roleInGroup == "owner"
-                  && memberDocAfter(groupId, uid).data.status == "active"
-                )
-              )
-            )
-            ||
-            (
-              request.resource.data.roleInGroup != "owner"
-              && (
-                (
-                  memberExists(groupId, uid)
-                  && memberDoc(groupId, uid).data.userId == uid
-                  && memberDoc(groupId, uid).data.roleInGroup == request.resource.data.roleInGroup
-                  && memberDoc(groupId, uid).data.status == request.resource.data.status
-                )
-                ||
-                (
-                  memberDocAfter(groupId, uid).data.userId == uid
-                  && memberDocAfter(groupId, uid).data.roleInGroup == request.resource.data.roleInGroup
-                  && memberDocAfter(groupId, uid).data.status == request.resource.data.status
-                )
-              )
-            )
-          );
+        )
+      )
+    );
 
-        allow delete: if signedIn()
-          && request.auth.uid == uid;
-      }
+  allow delete: if signedIn()
+    && request.auth.uid == uid;
+}
 
       allow delete: if false;
     }
@@ -682,16 +668,6 @@ function canWriteGroupComment(groupId) {
         || (
           data.offerings is list
           && data.offerings.size() <= 10
-          && (data.offerings.size() < 1 || data.offerings[0] is map)
-          && (data.offerings.size() < 2 || data.offerings[1] is map)
-          && (data.offerings.size() < 3 || data.offerings[2] is map)
-          && (data.offerings.size() < 4 || data.offerings[3] is map)
-          && (data.offerings.size() < 5 || data.offerings[4] is map)
-          && (data.offerings.size() < 6 || data.offerings[5] is map)
-          && (data.offerings.size() < 7 || data.offerings[6] is map)
-          && (data.offerings.size() < 8 || data.offerings[7] is map)
-          && (data.offerings.size() < 9 || data.offerings[8] is map)
-          && (data.offerings.size() < 10 || data.offerings[9] is map)
         );
     }
 
@@ -790,27 +766,68 @@ function canWriteGroupComment(groupId) {
       return value in ["keep_members_free", "remove_all_members"];
     }
 
-    function validMonetizationTransitions(transitions) {
-      return transitions == null
-        || (
-          transitions is map
-          && (
-            !("freeToSubscriptionPolicy" in transitions)
-            || transitions.freeToSubscriptionPolicy == null
-            || validFreeToSubscriptionPolicy(transitions.freeToSubscriptionPolicy)
-          )
-          && (
-            !("subscriptionToFreePolicy" in transitions)
-            || transitions.subscriptionToFreePolicy == null
-            || validSubscriptionToFreePolicy(transitions.subscriptionToFreePolicy)
-          )
-          && (
-            !("lastMonetizationChangeBy" in transitions)
-            || transitions.lastMonetizationChangeBy == null
-            || transitions.lastMonetizationChangeBy is string
-          )
-        );
-    }
+function validMonetizationTransitions(transitions) {
+  return transitions == null
+    || (
+      transitions is map
+      && (
+        !("freeToSubscriptionPolicy" in transitions)
+        || transitions.freeToSubscriptionPolicy == null
+        || validFreeToSubscriptionPolicy(transitions.freeToSubscriptionPolicy)
+      )
+      && (
+        !("subscriptionToFreePolicy" in transitions)
+        || transitions.subscriptionToFreePolicy == null
+        || validSubscriptionToFreePolicy(transitions.subscriptionToFreePolicy)
+      )
+      && (
+        !("subscriptionPriceIncreasePolicy" in transitions)
+        || transitions.subscriptionPriceIncreasePolicy == null
+        || transitions.subscriptionPriceIncreasePolicy in [
+          "keep_legacy_price",
+          "require_resubscribe_new_price"
+        ]
+      )
+      && (
+        !("previousSubscriptionPriceMonthly" in transitions)
+        || validNonNegativeNumberOrNull(transitions.previousSubscriptionPriceMonthly)
+      )
+      && (
+        !("nextSubscriptionPriceMonthly" in transitions)
+        || validNonNegativeNumberOrNull(transitions.nextSubscriptionPriceMonthly)
+      )
+      && (
+        !("subscriptionPriceChangeCurrency" in transitions)
+        || transitions.subscriptionPriceChangeCurrency == null
+        || validCurrency(transitions.subscriptionPriceChangeCurrency)
+      )
+      && (
+        !("lastMonetizationChangeAt" in transitions)
+        || transitions.lastMonetizationChangeAt == null
+        || transitions.lastMonetizationChangeAt is timestamp
+      )
+      && (
+        !("lastMonetizationChangeBy" in transitions)
+        || transitions.lastMonetizationChangeBy == null
+        || transitions.lastMonetizationChangeBy is string
+      )
+      && (
+        !("lastAppliedTransitionKey" in transitions)
+        || transitions.lastAppliedTransitionKey == null
+        || transitions.lastAppliedTransitionKey is string
+      )
+      && (
+        !("lastAppliedTransitionAt" in transitions)
+        || transitions.lastAppliedTransitionAt == null
+        || transitions.lastAppliedTransitionAt is timestamp
+      )
+      && (
+        !("lastAppliedTransitionBy" in transitions)
+        || transitions.lastAppliedTransitionBy == null
+        || transitions.lastAppliedTransitionBy is string
+      )
+    );
+}
 
     function validSubscriptionVisibilityPolicy(data) {
       return !("monetization" in data)
@@ -974,17 +991,31 @@ function validPostSearchIndex(search) {
       ];
     }
 
-    function validMemberCreateShape(groupId, userId) {
-      let afterGroup = groupDocAfter(groupId).data;
+function validMemberCreateShape(groupId, userId) {
+  let afterGroup = groupDocAfter(groupId).data;
 
-      return request.resource.data.userId == userId
+  return request.resource.data.userId == userId
+    && (
+      (
+        request.resource.data.roleInGroup == "owner"
+        && afterGroup.ownerId == request.auth.uid
+        && request.resource.data.status == "active"
         && (
-          request.resource.data.roleInGroup == "member"
-          || (
-            request.resource.data.roleInGroup == "owner"
-            && afterGroup.ownerId == request.auth.uid
-          )
+          !("accessType" in request.resource.data)
+          || request.resource.data.accessType == "standard"
         )
+        && (
+          !("requiresSubscription" in request.resource.data)
+          || request.resource.data.requiresSubscription == false
+        )
+        && (
+          !("subscriptionActive" in request.resource.data)
+          || request.resource.data.subscriptionActive == false
+        )
+      )
+      ||
+      (
+        request.resource.data.roleInGroup == "member"
         && request.resource.data.status in ["active", "subscribed"]
         && (
           !("accessType" in request.resource.data)
@@ -1011,18 +1042,16 @@ function validPostSearchIndex(search) {
           (
             afterGroup.visibility in ["private", "hidden"]
             && (
-              (
-                "monetization" in afterGroup
-                && afterGroup.monetization is map
-                && (
-                  (
-                    "subscriptionsEnabled" in afterGroup.monetization
-                    && afterGroup.monetization.subscriptionsEnabled == true
-                  )
-                  || (
-                    "isPaid" in afterGroup.monetization
-                    && afterGroup.monetization.isPaid == true
-                  )
+              "monetization" in afterGroup
+              && afterGroup.monetization is map
+              && (
+                (
+                  "subscriptionsEnabled" in afterGroup.monetization
+                  && afterGroup.monetization.subscriptionsEnabled == true
+                )
+                || (
+                  "isPaid" in afterGroup.monetization
+                  && afterGroup.monetization.isPaid == true
                 )
               )
             )
@@ -1032,13 +1061,10 @@ function validPostSearchIndex(search) {
               || request.resource.data.accessType == "subscription"
             )
           )
-          ||
-          (
-            request.resource.data.roleInGroup == "owner"
-            && afterGroup.ownerId == request.auth.uid
-          )
-        );
-    }
+        )
+      )
+    );
+}
         // ==========================
     // GROUPS
     // ==========================

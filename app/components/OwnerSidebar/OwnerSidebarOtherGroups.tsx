@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { leaveGroup } from "@/lib/groups/membership";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 import type {
   GroupDocLite,
@@ -692,7 +692,6 @@ export default function OwnerSidebarOtherGroups({
   onCreateCommunity,
 }: Props) {
   const router = useRouter();
-  const pathname = usePathname();
   const [dismissedGroupIds, setDismissedGroupIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -735,7 +734,6 @@ async function handleConfirmLeaveGroup() {
   try {
     await leaveGroup(leaveTargetGroup.id, currentUserId);
     setLeaveTargetGroup(null);
-    router.refresh();
   } catch (error) {
     console.error("leaveGroup error", error);
   } finally {
@@ -914,99 +912,26 @@ return (
               return (
                 <div
                   key={g.id}
-style={{
-  ...styles.card,
-  display: "grid",
-  gap: 9,
-  border: "none",
-  background:
-    pathname === `/groups/${g.id}`
-      ? "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)"
-      : "transparent",
-  boxShadow:
-    pathname === `/groups/${g.id}`
-      ? "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)"
-      : "none",
-}}
+                  style={{
+                    display: "grid",
+                    gap: 9,
+                  }}
                 >
                   <div
                     style={{
-                      display: "flex",
+                      display: "grid",
+                      gridTemplateColumns: "minmax(0, 1fr) auto",
                       alignItems: "center",
-                      justifyContent: "space-between",
-                      gap: 10,
+                      gap: 8,
                     }}
                   >
-                    <button
-                      type="button"
-                      onClick={() => {}}
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        padding: 0,
-                        color: "#fff",
-                        textAlign: "left",
-                        cursor: "default",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        minWidth: 0,
-                        flex: 1,
-                      }}
-                    >
-                      {g.avatarUrl ? (
-                        <img
-                          src={g.avatarUrl}
-                          alt={communityName}
-                          style={{
-                            width: 30,
-                            height: 30,
-                            borderRadius: "50%",
-                            objectFit: "cover",
-                            border: "1px solid rgba(255,255,255,0.10)",
-                            flexShrink: 0,
-                          }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: 30,
-                            height: 30,
-                            borderRadius: "50%",
-                            background: "rgba(255,255,255,0.06)",
-                            border: "1px solid rgba(255,255,255,0.10)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 11,
-                            fontWeight: 700,
-                            color: "#fff",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {avatarFallback}
-                        </div>
-                      )}
-
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            color: "#fff",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {communityName}
-                        </div>
-
-                        <div style={styles.subtle}>
-                          {buildJoinedSubtitle(g, isMobile)}
-                        </div>
-                      </div>
-                    </button>
+                    <LeaveGroupActionCard
+                      group={g}
+                      isMobile={isMobile}
+                      renderCommunityCard={renderCommunityCard}
+                      subtitle={buildJoinedSubtitle(g, isMobile)}
+                      onLeave={openLeaveConfirm}
+                    />
 
                     <button
                       type="button"

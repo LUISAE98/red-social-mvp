@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   acceptMeetGreetRequest,
   proposeMeetGreetSchedule,
@@ -32,7 +32,10 @@ import ScheduleDateTimeSelector, {
 } from "@/app/(protected)/wallet/components/ScheduleDateTimeSelector";
 import ScheduleCalendarOverlay from "@/app/(protected)/wallet/components/ScheduleCalendarOverlay";
 import { WalletServiceRow } from "@/app/(protected)/wallet/components/WalletUi";
-import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
+import {
+  getWalletScheduleConflictResult,
+  type WalletServiceItem,
+} from "@/lib/wallet/ownerWallet";
 
 type ScheduledServiceKind = "meet_greet" | "exclusive_session";
 
@@ -722,6 +725,7 @@ export default function OwnerSidebarGreetings({
   const [calendarOpenMap, setCalendarOpenMap] = useState<ToggleMap>({});
   const [schedulePartsMap, setSchedulePartsMap] = useState<Record<string, ScheduleParts>>({});
 
+
   const incomingMeetGreets = useMemo<ScheduledRow[]>(
     () =>
       Object.entries(meetGreetsByGroup).flatMap(([groupId, rows]) =>
@@ -750,6 +754,28 @@ export default function OwnerSidebarGreetings({
     () => [...incomingMeetGreets, ...incomingExclusiveSessions],
     [incomingMeetGreets, incomingExclusiveSessions]
   );
+
+      const hasTimedScheduledServices = useMemo(() => {
+    return [...buyerScheduledServices, ...incomingScheduledServices].some(
+      (row) =>
+        row.data.scheduledAt &&
+        (row.data.status === "scheduled" ||
+          row.data.status === "ready_to_prepare" ||
+          row.data.status === "in_preparation")
+    );
+  }, [buyerScheduledServices, incomingScheduledServices]);
+
+  const [, setOwnerSidebarGreetingsUiTick] = useState(0);
+
+  useEffect(() => {
+    if (!hasTimedScheduledServices) return;
+
+    const interval = window.setInterval(() => {
+      setOwnerSidebarGreetingsUiTick((value) => value + 1);
+    }, 30_000);
+
+    return () => window.clearInterval(interval);
+  }, [hasTimedScheduledServices]);
 
   const requestedRows = useMemo<DisplayRow[]>(() => {
     const rows: DisplayRow[] = [
@@ -867,12 +893,36 @@ export default function OwnerSidebarGreetings({
     }
   }
 
- async function handleCreatorSchedule(requestId: string, kind: ScheduledServiceKind) {
+async function handleCreatorSchedule(
+  requestId: string,
+  kind: ScheduledServiceKind
+) {
   const parts = schedulePartsMap[requestId];
   const scheduledAt = parts ? schedulePartsToIso(parts) : null;
 
   if (!scheduledAt) {
     setError(requestId, "Selecciona día, mes, año, hora y minuto.");
+    return;
+  }
+
+  const selectedScheduleDate = new Date(scheduledAt);
+
+  const scheduleConflict = getWalletScheduleConflictResult(
+    {
+      id: requestId,
+      source: kind,
+      scheduledAt: selectedScheduleDate,
+      durationMinutes: kind === "exclusive_session" ? 60 : 30,
+    },
+    buildCalendarItems
+  );
+
+  if (scheduleConflict.hasConflict) {
+    setError(
+      requestId,
+      scheduleConflict.message ??
+        "Ese horario ya está ocupado. Selecciona otra hora disponible."
+    );
     return;
   }
 
@@ -1498,6 +1548,28 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
 
       const scheduleParts =
       schedulePartsMap[row.id] ?? getSchedulePartsFromDate(toDateSafe(req.scheduledAt));
+            const selectedScheduleIso = schedulePartsToIso(scheduleParts);
+
+      const selectedScheduleDate = selectedScheduleIso
+        ? new Date(selectedScheduleIso)
+        : null;
+
+      const scheduleConflict = getWalletScheduleConflictResult(
+        {
+          id: row.id,
+          source: row.serviceKind,
+          scheduledAt: selectedScheduleDate,
+          durationMinutes:
+            typeof req.durationMinutes === "number" && req.durationMinutes > 0
+              ? req.durationMinutes
+              : row.serviceKind === "exclusive_session"
+                ? 60
+                : 30,
+        },
+        buildCalendarItems
+      );
+
+      const scheduleConflictMessage = scheduleConflict.message;
 
         const updateScheduleParts = (nextParts: ScheduleParts) => {
       setSchedulePartsMap((prev) => ({
@@ -1669,6 +1741,22 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
   disabled={busy}
 />
 
+{scheduleConflictMessage ? (
+  <div
+    style={{
+      borderRadius: 10,
+      border: "1px solid rgba(248,113,113,0.18)",
+      background: "rgba(248,113,113,0.08)",
+      padding: "7px 8px",
+      fontSize: 12,
+      lineHeight: 1.3,
+      color: "#fecaca",
+    }}
+  >
+    {scheduleConflictMessage}
+  </div>
+) : null}
+
             <textarea
               value={scheduleNoteMap[row.id] ?? getCreatorScheduleNote(req) ?? ""}
               onChange={(e) => setScheduleNoteMap((prev) => ({ ...prev, [row.id]: e.target.value }))}
@@ -1677,7 +1765,16 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
             />
 
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <button type="button" onClick={() => handleCreatorSchedule(row.id, row.serviceKind)} disabled={busy} style={{ ...styles.buttonPrimary, opacity: busy ? 0.8 : 1, cursor: busy ? "not-allowed" : "pointer" }}>
+              <button
+  type="button"
+  onClick={() => handleCreatorSchedule(row.id, row.serviceKind)}
+  disabled={busy || scheduleConflict.hasConflict}
+  style={{
+    ...styles.buttonPrimary,
+    opacity: busy || scheduleConflict.hasConflict ? 0.55 : 1,
+    cursor: busy || scheduleConflict.hasConflict ? "not-allowed" : "pointer",
+  }}
+>
                 {busy ? "Procesando..." : "Guardar fecha"}
               </button>
               <button

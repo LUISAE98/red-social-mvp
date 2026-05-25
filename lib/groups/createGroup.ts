@@ -1,3 +1,4 @@
+//createGroup.ts
 import {
   collection,
   doc,
@@ -58,9 +59,9 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
   }
 
   const commerce = buildNormalizedGroupCommerceState({
-    offerings: Array.isArray(input.offerings) ? input.offerings : [],
+    offerings: [],
     monetization: input.monetization,
-    donation: input.donation,
+    donation: null,
     legacyGreetingsEnabled:
       typeof input.greetingsEnabled === "boolean"
         ? input.greetingsEnabled
@@ -103,27 +104,46 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
     },
 
     monetization: commerce.monetization,
-    offerings: commerce.offerings,
-    donation: commerce.donation,
 
     isActive: typeof input.isActive === "boolean" ? input.isActive : true,
   };
 
   const payload: Omit<Group, "id"> = {
-    ...baseGroup,
-    createdAt: now,
-    updatedAt: now,
+    name: baseGroup.name,
+    description: baseGroup.description,
+    ownerId: baseGroup.ownerId,
+    visibility: baseGroup.visibility,
+    discoverable: baseGroup.discoverable,
+    isActive: true,
+
+    imageUrl: null,
+    coverUrl: null,
+    avatarUrl: null,
+
+    category: baseGroup.category,
+    tags: baseGroup.tags,
+
+    permissions: {
+      postingMode: baseGroup.permissions.postingMode,
+      commentsEnabled: baseGroup.permissions.commentsEnabled,
+    },
+
+    monetization: commerce.monetization,
+
+    greetingsEnabled: false,
+    welcomeMessage: null,
+
+    ageMin: baseGroup.ageMin,
+    ageMax: baseGroup.ageMax,
+
     search: buildGroupSearchIndex({
-      name: baseGroup.name,
-      description: baseGroup.description,
-      category: baseGroup.category,
-      tags: baseGroup.tags,
-      visibility: baseGroup.visibility,
-      discoverable: baseGroup.discoverable,
-      isActive: baseGroup.isActive,
+      ...baseGroup,
       updatedAt: now,
     }),
-  };
+
+    createdAt: now,
+    updatedAt: now,
+  } as Omit<Group, "id">;
 
   const groupRef = doc(collection(db, "groups"));
   const groupId = groupRef.id;
@@ -137,35 +157,33 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
     groupId
   );
 
-  const batch = writeBatch(db);
+  const ownerMembershipStatus = "active";
+  const ownerAccessType = "standard";
+  const ownerRequiresSubscription = false;
 
-  batch.set(groupRef, payload);
-
-  batch.set(memberRef, {
+  const ownerMemberPayload = {
     userId: input.ownerId,
     roleInGroup: "owner",
-    status: "active",
+    status: ownerMembershipStatus,
 
-    accessType: "standard",
-    requiresSubscription: false,
-    subscriptionActive: false,
+    accessType: ownerAccessType,
+    requiresSubscription: ownerRequiresSubscription,
+    subscriptionActive: ownerRequiresSubscription,
 
-    createdAt: serverTimestamp(),
-    joinedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+    createdAt: now,
+    joinedAt: now,
+    updatedAt: now,
+  };
 
-  await batch.commit();
-
-  await setDoc(userMembershipRef, {
+  const userMembershipPayload = {
     groupId,
     userId: input.ownerId,
 
     roleInGroup: "owner",
-    status: "active",
-    accessType: "standard",
-    requiresSubscription: false,
-    subscriptionActive: false,
+    status: ownerMembershipStatus,
+    accessType: ownerAccessType,
+    requiresSubscription: ownerRequiresSubscription,
+    subscriptionActive: ownerRequiresSubscription,
 
     groupName: baseGroup.name,
     groupDescription: baseGroup.description,
@@ -178,10 +196,55 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
     groupIsActive: baseGroup.isActive,
     groupCategory: baseGroup.category ?? null,
 
-    createdAt: serverTimestamp(),
-    joinedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+    createdAt: now,
+    joinedAt: now,
+    updatedAt: now,
+  };
+
+  try {
+    await setDoc(groupRef, payload);
+  } catch (error: any) {
+    console.error("CREATE_GROUP_STEP_GROUP_DOC_FAILED", {
+      error,
+      payload,
+    });
+
+    throw new Error(
+      `Falló creando groups/${groupId}: ${
+        error?.message ?? "Missing or insufficient permissions"
+      }`
+    );
+  }
+
+  try {
+    await setDoc(memberRef, ownerMemberPayload);
+  } catch (error: any) {
+    console.error("CREATE_GROUP_STEP_OWNER_MEMBER_FAILED", {
+      error,
+      ownerMemberPayload,
+    });
+
+    throw new Error(
+      `Falló creando groups/${groupId}/members/${input.ownerId}: ${
+        error?.message ?? "Missing or insufficient permissions"
+      }`
+    );
+  }
+
+  try {
+    await setDoc(userMembershipRef, userMembershipPayload);
+  } catch (error: any) {
+    console.error("CREATE_GROUP_STEP_USER_MEMBERSHIP_FAILED", {
+      error,
+      userMembershipPayload,
+    });
+
+    throw new Error(
+      `Falló creando users/${input.ownerId}/groupMemberships/${groupId}: ${
+        error?.message ?? "Missing or insufficient permissions"
+      }`
+    );
+  }
 
   return groupId;
 }

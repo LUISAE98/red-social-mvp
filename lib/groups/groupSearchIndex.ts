@@ -67,7 +67,7 @@ export function buildGroupSearchIndex(
     discoverable: group.discoverable !== false,
     isActive: group.isActive !== false,
     version: 1,
-    updatedAt: group.updatedAt ?? null,
+    updatedAt: group.updatedAt,
   };
 }
 

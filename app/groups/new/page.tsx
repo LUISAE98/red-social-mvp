@@ -1,3 +1,5 @@
+//page.tsx
+
 "use client";
 
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -35,7 +37,6 @@ import { createGroup } from "@/lib/groups/createGroup";
 import type {
   CanonicalGroupCategory,
   Currency,
-  GroupOffering,
   GroupVisibility,
   PostingMode,
 } from "@/types/group";
@@ -323,10 +324,6 @@ const { user, loading: authLoading } = useAuth();
     }
   }, [subscriptionAllowed, monetizationMode]);
 
-  const [sellSaludo, setSellSaludo] = useState(false);
-  const [saludoPrice, setSaludoPrice] = useState<string>("");
-  const [offerCurrency, setOfferCurrency] = useState<Currency>("MXN");
-
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
 
@@ -546,33 +543,6 @@ const onCropComplete = useCallback(
       }
     }
 
-    const sPrice = saludoPrice ? Number(saludoPrice) : null;
-
-    if (sellSaludo) {
-      if (sPrice == null || !(sPrice > 0) || !Number.isFinite(sPrice)) {
-        setError("Precio de saludo inválido.");
-        return;
-      }
-    }
-
-    const offerings: GroupOffering[] = sellSaludo
-      ? [
-          {
-            type: "saludo",
-            enabled: true,
-            visible: true,
-            visibility: "public",
-            displayOrder: 1,
-            memberPrice: sPrice,
-            publicPrice: sPrice,
-            currency: offerCurrency,
-            requiresApproval: true,
-            sourceScope: "group",
-            price: sPrice,
-          },
-        ]
-      : [];
-
     setLoading(true);
     setAvatarUploadPct(0);
     setCoverUploadPct(0);
@@ -614,7 +584,6 @@ const onCropComplete = useCallback(
           customClassEnabled: false,
           digitalMeetGreetEnabled: false,
         },
-        offerings,
         imageUrl: null,
         isActive: true,
       });
@@ -1574,121 +1543,7 @@ const onCropComplete = useCallback(
                 </div>
               )}
             </section>
-
-            <section
-              style={{
-                borderRadius: 14,
-                border: "1px solid rgba(255,255,255,0.18)",
-                background: "rgba(12,12,12,0.92)",
-                boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
-                padding: 16,
-                display: "grid",
-                gap: 12,
-              }}
-            >
-              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
-                Servicios del creador
-              </h2>
-
-              <div
-                style={{
-                  borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.03)",
-                  padding: 12,
-                  display: "grid",
-                  gap: 12,
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                  }}
-                >
-                  <div>
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: "#fff" }}>
-                      Vender saludos
-                    </p>
-                    <p
-                      style={{
-                        margin: "2px 0 0 0",
-                        fontSize: 12,
-                        color: "rgba(255,255,255,0.55)",
-                      }}
-                    >
-                      Activa esta opción para ofrecer saludos pagados dentro de la comunidad.
-                    </p>
-                  </div>
-
-                  <ToggleSwitch checked={sellSaludo} onChange={setSellSaludo} />
-                </div>
-
-                {sellSaludo && (
-                  <div style={{ display: "grid", gap: 10, paddingTop: 2 }}>
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: 6,
-                          fontSize: 12,
-                          fontWeight: 500,
-                          color: "rgba(255,255,255,0.92)",
-                        }}
-                      >
-                        Precio saludo
-                      </label>
-                      <input
-                        type="number"
-                        style={{
-                          width: "100%",
-                          borderRadius: 9,
-                          border: "1px solid rgba(255,255,255,0.14)",
-                          background: "rgba(255,255,255,0.04)",
-                          color: "#fff",
-                          padding: "9px 11px",
-                          fontSize: 13,
-                          outline: "none",
-                          boxSizing: "border-box",
-                        }}
-                        value={saludoPrice}
-                        onChange={(e) => setSaludoPrice(e.target.value)}
-                        placeholder="Ej: 500"
-                      />
-                    </div>
-
-                    <div>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: 6,
-                          fontSize: 12,
-                          fontWeight: 500,
-                          color: "rgba(255,255,255,0.92)",
-                        }}
-                      >
-                        Moneda
-                      </label>
-                      <SelectField
-                        value={offerCurrency}
-                        onChange={(value) => setOfferCurrency(value as Currency)}
-                      >
-                        <option value="MXN">MXN</option>
-                        <option value="USD">USD</option>
-                      </SelectField>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
-                Nota: por ahora el precio público y el precio miembro serán iguales. Luego
-                habilitamos dos precios.
-              </p>
-            </section>
-
+            
             <button
               type="submit"
               disabled={loading}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import {
   VibraNavigationIcon,
@@ -466,6 +466,47 @@ useEffect(() => {
     -1
   );
 
+    const hasTimedScheduledServices = useMemo(() => {
+    const hasMeetGreetTimedService = Object.values(meetGreetsByGroup).some(
+      (rows) =>
+        rows.some((row) =>
+          Boolean(
+            row.data.scheduledAt &&
+              (row.data.status === "scheduled" ||
+                row.data.status === "ready_to_prepare" ||
+                row.data.status === "in_preparation")
+          )
+        )
+    );
+
+    const hasExclusiveSessionTimedService = Object.values(
+      exclusiveSessionsByGroup
+    ).some((rows) =>
+      rows.some((row) =>
+        Boolean(
+          row.data.scheduledAt &&
+            (row.data.status === "scheduled" ||
+              row.data.status === "ready_to_prepare" ||
+              row.data.status === "in_preparation")
+        )
+      )
+    );
+
+    return hasMeetGreetTimedService || hasExclusiveSessionTimedService;
+  }, [meetGreetsByGroup, exclusiveSessionsByGroup]);
+
+  const [, setOwnerSidebarUiTick] = useState(0);
+
+  useEffect(() => {
+    if (!hasTimedScheduledServices) return;
+
+    const interval = window.setInterval(() => {
+      setOwnerSidebarUiTick((value) => value + 1);
+    }, 30_000);
+
+    return () => window.clearInterval(interval);
+  }, [hasTimedScheduledServices]);
+
   function setMeetGreetBusy(requestId: string, value: boolean) {
     setMeetGreetBusyMap((prev) => ({
       ...prev,
@@ -569,8 +610,6 @@ useEffect(() => {
       return;
     }
     const selectedScheduleDate = new Date(scheduledAt);
-const calendarItems = buildOwnerCalendarItems();
-
 const scheduleConflict = getWalletScheduleConflictResult(
   {
     id: requestId,
@@ -578,7 +617,7 @@ const scheduleConflict = getWalletScheduleConflictResult(
     scheduledAt: selectedScheduleDate,
     durationMinutes: kind === "exclusive_session" ? 60 : 30,
   },
-  calendarItems
+  ownerCalendarItems
 );
 
 if (scheduleConflict.hasConflict) {
@@ -724,7 +763,7 @@ if (scheduleConflict.hasConflict) {
     );
   }
 
-  function buildOwnerCalendarItems(): WalletServiceItem[] {
+  const ownerCalendarItems = useMemo<WalletServiceItem[]>(() => {
     const groupNameById = new Map(
       myGroups.map((group) => [group.id, group.name ?? null])
     );
@@ -781,7 +820,8 @@ if (scheduleConflict.hasConflict) {
         updatedAt: toDateSafe(row.data.updatedAt),
       }))
     );
-        const exclusiveSessionItems: WalletServiceItem[] = Object.entries(
+
+    const exclusiveSessionItems: WalletServiceItem[] = Object.entries(
       exclusiveSessionsByGroup
     ).flatMap(([groupId, rows]) =>
       rows.map((row) => ({
@@ -835,7 +875,7 @@ if (scheduleConflict.hasConflict) {
     );
 
     return [...meetGreetItems, ...exclusiveSessionItems];
-  }
+  }, [myGroups, meetGreetsByGroup, exclusiveSessionsByGroup]);
 
   return (
     <>
@@ -1949,7 +1989,7 @@ boxShadow:
     ? req.durationMinutes
     : null,
   },
-  buildOwnerCalendarItems()
+  ownerCalendarItems
 );
 
 const scheduleConflictMessage = scheduleConflict.message;
@@ -2450,7 +2490,7 @@ const scheduleConflictMessage = scheduleConflict.message;
    <ScheduleCalendarOverlay
   open={!!calendarOpenMap[r.id]}
   title="Calendario del creador"
-  items={buildOwnerCalendarItems()}
+  items={ownerCalendarItems}
   excludeId={r.id}
   selectedDate={selectedScheduleDate}
   conflictMessage={scheduleConflictMessage}
@@ -2472,7 +2512,7 @@ const scheduleConflictMessage = scheduleConflict.message;
       <WalletServiceRow
         row={calendarRow}
         open={isCalendarRowOpen}
-        calendarItems={buildOwnerCalendarItems()}
+                calendarItems={ownerCalendarItems}
         onToggle={() =>
           setCalendarEventOpenKey((prev) =>
             prev === calendarRowKey ? null : calendarRowKey

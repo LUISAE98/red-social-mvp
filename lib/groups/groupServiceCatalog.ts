@@ -293,7 +293,7 @@ export function normalizeSingleService(
   const requiresApproval =
     typeof raw.requiresApproval === "boolean"
       ? raw.requiresApproval
-      : type !== "mensaje";
+      : true;
 
   const sourceScope = normalizeServiceSourceScope(
     raw.sourceScope,
@@ -414,72 +414,35 @@ export function buildDefaultServiceCatalog(params?: {
       meta: null,
       price: null,
     },
-    {
-      type: "meet_greet_digital",
-      enabled: false,
-      visible: false,
-      visibility: "hidden",
-      displayOrder: 3,
-      memberPrice: null,
-      publicPrice: null,
-      currency: null,
-      requiresApproval: true,
-      sourceScope,
-      meta: {
-        meetGreet: {
-          durationMinutes: null,
-        },
-      },
-      price: null,
-    },
-    {
-      type: "clase_personalizada",
-      enabled: false,
-      visible: false,
-      visibility: "hidden",
-      displayOrder: 4,
-      memberPrice: null,
-      publicPrice: null,
-      currency: null,
-      requiresApproval: true,
-      sourceScope,
-      meta: {
-        customClass: {
-          durationMinutes: null,
-          availability: {
-            monday: [],
-            tuesday: [],
-            wednesday: [],
-            thursday: [],
-            friday: [],
-            saturday: [],
-            sunday: [],
-          },
-          bufferMinutes: null,
-          advanceBookingHours: null,
-          maxBookingsPerDay: null,
-        },
-      },
-      price: null,
-    },
+{
+  type: "meet_greet_digital",
+  enabled: false,
+  visible: false,
+  visibility: "hidden",
+  displayOrder: 3,
+  memberPrice: null,
+  publicPrice: null,
+  currency: null,
+  requiresApproval: true,
+  sourceScope,
+  meta: null,
+  price: null,
+},
+{
+  type: "clase_personalizada",
+  enabled: false,
+  visible: false,
+  visibility: "hidden",
+  displayOrder: 4,
+  memberPrice: null,
+  publicPrice: null,
+  currency: null,
+  requiresApproval: true,
+  sourceScope,
+  meta: null,
+  price: null,
+},
   ];
-
-  if (params?.includeLegacyMessage === true) {
-    base.push({
-      type: "mensaje",
-      enabled: false,
-      visible: false,
-      visibility: "hidden",
-      displayOrder: 99,
-      memberPrice: null,
-      publicPrice: null,
-      currency: null,
-      requiresApproval: true,
-      sourceScope,
-      meta: null,
-      price: null,
-    });
-  }
 
   return base;
 }
@@ -501,7 +464,7 @@ export function mergeWithDefaultCatalog(
 ): GroupServiceCatalog {
   const defaults = buildDefaultGroupServiceCatalog({
     currency: currency ?? DEFAULT_CURRENCY,
-    includeLegacyMessage: true,
+    includeLegacyMessage: false,
   });
 
   const normalizedIncoming = normalizeServiceCatalog(offerings, "group");
