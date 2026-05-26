@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import type { SVGProps } from "react";
 
 type VibraFlameIconProps = SVGProps<SVGSVGElement> & {
@@ -13,6 +14,15 @@ export default function VibraFlameIcon({
   className,
   ...props
 }: VibraFlameIconProps) {
+  const reactId = useId();
+  const safeId = reactId.replace(/:/g, "");
+
+  const bodyActiveId = `vibraFlameBodyActive-${safeId}`;
+  const tipActiveId = `vibraFlameTipActive-${safeId}`;
+  const coreActiveId = `vibraFlameCoreActive-${safeId}`;
+  const bodyInactiveId = `vibraFlameBodyInactive-${safeId}`;
+  const tipInactiveId = `vibraFlameTipInactive-${safeId}`;
+
   return (
     <svg
       width={size}
@@ -55,7 +65,7 @@ export default function VibraFlameIcon({
 
       <defs>
         <linearGradient
-          id="vibraFlameBodyActive"
+          id={bodyActiveId}
           x1="11"
           y1="2"
           x2="11"
@@ -71,7 +81,7 @@ export default function VibraFlameIcon({
         </linearGradient>
 
         <linearGradient
-          id="vibraFlameTipActive"
+          id={tipActiveId}
           x1="17"
           y1="7"
           x2="15"
@@ -86,7 +96,7 @@ export default function VibraFlameIcon({
         </linearGradient>
 
         <linearGradient
-          id="vibraFlameCoreActive"
+          id={coreActiveId}
           x1="12"
           y1="12"
           x2="12"
@@ -99,7 +109,7 @@ export default function VibraFlameIcon({
         </linearGradient>
 
         <linearGradient
-          id="vibraFlameBodyInactive"
+          id={bodyInactiveId}
           x1="11"
           y1="2"
           x2="11"
@@ -111,7 +121,7 @@ export default function VibraFlameIcon({
         </linearGradient>
 
         <linearGradient
-          id="vibraFlameTipInactive"
+          id={tipInactiveId}
           x1="17"
           y1="7"
           x2="15"
@@ -126,26 +136,18 @@ export default function VibraFlameIcon({
       <g className={active ? "vibra-flame-like-pop" : undefined}>
         <path
           d="M12.05 21.45c-3.95 0-7.15-2.95-7.15-6.92 0-2.72 1.47-4.72 3.02-6.46 1.42-1.6 2.86-2.93 3.06-5.2.04-.42.56-.57.84-.25 1.73 1.95 2.88 3.82 3.02 5.86.07 1.02-.14 1.9-.53 2.68.9-.38 1.68-1.1 2.08-2.16.15-.4.7-.46.93-.1 1.12 1.72 1.82 3.6 1.82 5.66 0 3.93-3.13 6.89-7.09 6.89Z"
-          fill={
-            active
-              ? "url(#vibraFlameBodyActive)"
-              : "url(#vibraFlameBodyInactive)"
-          }
+          fill={active ? `url(#${bodyActiveId})` : `url(#${bodyInactiveId})`}
         />
 
         <path
           d="M12.15 21.45c3.85-.05 6.99-2.98 6.99-6.89 0-2.06-.7-3.94-1.82-5.66-.23-.36-.78-.3-.93.1-.4 1.06-1.18 1.78-2.08 2.16-.52.22-.76.8-.53 1.32.54 1.2.8 2.25.64 3.45-.18 1.43-.9 2.85-2.27 5.52Z"
-          fill={
-            active
-              ? "url(#vibraFlameTipActive)"
-              : "url(#vibraFlameTipInactive)"
-          }
+          fill={active ? `url(#${tipActiveId})` : `url(#${tipInactiveId})`}
           opacity={active ? 0.9 : 0.42}
         />
 
         <path
           d="M11.65 20.05c-1.75-.42-2.95-1.78-2.95-3.42 0-1.28.66-2.17 1.43-2.96.68-.7 1.37-1.25 1.62-2.12.09-.32.52-.4.75-.15 1.03 1.12 1.95 2.42 1.95 4.02 0 2.2-1.12 3.82-2.8 4.63Z"
-          fill={active ? "url(#vibraFlameCoreActive)" : "#d1d5db"}
+          fill={active ? `url(#${coreActiveId})` : "#d1d5db"}
           opacity={active ? 0.82 : 0.34}
         />
       </g>

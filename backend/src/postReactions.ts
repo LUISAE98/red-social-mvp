@@ -57,6 +57,8 @@ export const togglePostFlame = onCall<TogglePostFlameRequest>(
           ? postData.counts.likes
           : 0;
 
+      const now = FieldValue.serverTimestamp();
+
       if (reactionSnap.exists) {
         const nextLikes = Math.max(0, currentLikes - 1);
 
@@ -64,7 +66,7 @@ export const togglePostFlame = onCall<TogglePostFlameRequest>(
         transaction.delete(userPostFlameRef);
         transaction.update(postRef, {
           "counts.likes": nextLikes,
-          updatedAt: FieldValue.serverTimestamp(),
+          updatedAt: now,
         });
 
         return {
@@ -74,7 +76,6 @@ export const togglePostFlame = onCall<TogglePostFlameRequest>(
       }
 
       const nextLikes = currentLikes + 1;
-      const now = FieldValue.serverTimestamp();
 
       transaction.set(reactionRef, {
         type: "flame",
@@ -92,7 +93,7 @@ export const togglePostFlame = onCall<TogglePostFlameRequest>(
 
       transaction.update(postRef, {
         "counts.likes": nextLikes,
-        updatedAt: FieldValue.serverTimestamp(),
+        updatedAt: now,
       });
 
       return {

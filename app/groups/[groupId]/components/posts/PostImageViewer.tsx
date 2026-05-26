@@ -796,6 +796,14 @@ export default function PostImageViewer({
     gap: 2,
   };
 
+  const flameButtonStyle: CSSProperties = {
+  ...actionButtonStyle,
+  opacity: flameBusy ? 0.72 : 1,
+  cursor: flameBusy ? "not-allowed" : "pointer",
+  transform: viewerHasFlamed ? "scale(1.04)" : "scale(1)",
+  transition: "transform 140ms ease, opacity 140ms ease",
+};
+
   function renderMediaPreview(media: ViewerMediaItem | null, label: string) {
     if (!media) return null;
 
@@ -1666,19 +1674,14 @@ export default function PostImageViewer({
 <button
   type="button"
   onClick={onToggleFlame}
+  disabled={flameBusy}
   aria-pressed={viewerHasFlamed}
   aria-label={
     viewerHasFlamed
       ? "Quitar flamita de la publicación"
       : "Dar flamita a la publicación"
   }
-  style={{
-    ...actionButtonStyle,
-    opacity: 1,
-    cursor: "pointer",
-    transform: viewerHasFlamed ? "scale(1.04)" : "scale(1)",
-    transition: "transform 140ms ease, opacity 140ms ease",
-  }}
+  style={flameButtonStyle}
 >
   <span
     aria-hidden="true"
@@ -2430,19 +2433,14 @@ export default function PostImageViewer({
 <button
   type="button"
   onClick={onToggleFlame}
+  disabled={flameBusy}
   aria-pressed={viewerHasFlamed}
   aria-label={
     viewerHasFlamed
       ? "Quitar flamita de la publicación"
       : "Dar flamita a la publicación"
   }
-  style={{
-    ...actionButtonStyle,
-    opacity: 1,
-    cursor: "pointer",
-    transform: viewerHasFlamed ? "scale(1.04)" : "scale(1)",
-    transition: "transform 140ms ease, opacity 140ms ease",
-  }}
+  style={flameButtonStyle}
 >
   <span
     aria-hidden="true"

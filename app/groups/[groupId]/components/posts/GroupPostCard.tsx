@@ -542,6 +542,7 @@ useEffect(() => {
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const flameUsersCacheRef = useRef<Record<string, PostFlameUser[]>>({});
+  const flameRequestInFlightRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const feedVideoShellRef = useRef<HTMLDivElement | null>(null);
 
@@ -824,20 +825,22 @@ async function handleToggleFlame() {
     return;
   }
 
-  if (!onToggleFlame || flameBusy) return;
+  if (!onToggleFlame || flameBusy || flameRequestInFlightRef.current) return;
+
+  flameRequestInFlightRef.current = true;
 
   const previousViewerHasFlamed = optimisticViewerHasFlamed;
   const previousLikesCount = optimisticLikesCount;
   const nextViewerHasFlamed = !previousViewerHasFlamed;
 
+  setFlameBusy(true);
+  setInlineActionError(null);
   setOptimisticViewerHasFlamed(nextViewerHasFlamed);
   setOptimisticLikesCount((current) =>
     Math.max(0, current + (nextViewerHasFlamed ? 1 : -1))
   );
 
   try {
-    setFlameBusy(true);
-    setInlineActionError(null);
     await onToggleFlame(post.id);
     delete flameUsersCacheRef.current[post.id];
   } catch (e: any) {
@@ -845,6 +848,7 @@ async function handleToggleFlame() {
     setOptimisticLikesCount(previousLikesCount);
     setInlineActionError(e?.message ?? "No se pudo actualizar la flamita.");
   } finally {
+    flameRequestInFlightRef.current = false;
     setFlameBusy(false);
   }
 }
@@ -1308,8 +1312,8 @@ const flameButtonStyle: CSSProperties = {
   padding: 0,
   display: "inline-grid",
   placeItems: "center",
-  cursor: "pointer",
-  opacity: 1,
+  cursor: flameBusy ? "not-allowed" : "pointer",
+  opacity: flameBusy ? 0.72 : 1,
   transform: optimisticViewerHasFlamed ? "scale(1.04)" : "scale(1)",
   transition: "transform 140ms ease, opacity 140ms ease",
   WebkitTapHighlightColor: "transparent",
@@ -2674,6 +2678,7 @@ style={{
 <button
   type="button"
   onClick={handleToggleFlame}
+  disabled={flameBusy}
   aria-pressed={optimisticViewerHasFlamed}
   aria-label={
     optimisticViewerHasFlamed

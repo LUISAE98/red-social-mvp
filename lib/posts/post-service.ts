@@ -2548,7 +2548,9 @@ export async function fetchPostFlameUsers(
   });
 }
 
-export async function togglePostFlame(postId: string): Promise<TogglePostFlameResponse> {
+export async function togglePostFlame(
+  postId: string
+): Promise<TogglePostFlameResponse> {
   assertValidId(postId, "postId");
 
   if (!auth.currentUser?.uid) {
@@ -2562,9 +2564,11 @@ export async function togglePostFlame(postId: string): Promise<TogglePostFlameRe
 
   const result = await callable({ postId });
 
+  const likes = Number(result.data?.likes ?? 0);
+
   return {
-    liked: Boolean(result.data.liked),
-    likes: Number(result.data.likes ?? 0),
+    liked: result.data?.liked === true,
+    likes: Number.isFinite(likes) ? Math.max(0, likes) : 0,
   };
 }
 
