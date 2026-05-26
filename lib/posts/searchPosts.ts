@@ -1,6 +1,8 @@
 import {
   collection,
+  collectionGroup,
   doc,
+  documentId,
   getDoc,
   getDocs,
   limit,
@@ -105,11 +107,21 @@ function dedupePosts(posts: Post[]): Post[] {
 async function fetchReadableGroupIds(viewerId?: string | null): Promise<string[]> {
   if (!viewerId) return [];
 
-  const membershipSnap = await getDocs(
-    query(collection(db, "users", viewerId, "groupMemberships"))
-  );
+  const [userMembershipSnap, groupMembershipSnap, ownedGroupsSnap] =
+    await Promise.all([
+      getDocs(query(collection(db, "users", viewerId, "groupMemberships"))),
+      getDocs(
+        query(
+          collectionGroup(db, "members"),
+          where(documentId(), "==", viewerId)
+        )
+      ),
+      getDocs(query(collection(db, "groups"), where("ownerId", "==", viewerId))),
+    ]);
 
-  const memberGroupIds = membershipSnap.docs
+  const readableStatuses = new Set(["active", "subscribed", "muted"]);
+
+  const userMembershipGroupIds = userMembershipSnap.docs
     .map((docSnap) => {
       const data = docSnap.data() as Record<string, unknown>;
 
@@ -118,27 +130,31 @@ async function fetchReadableGroupIds(viewerId?: string | null): Promise<string[]
           ? data.groupId.trim()
           : docSnap.id;
 
-      const status = data.status;
+      const status = typeof data.status === "string" ? data.status : "active";
 
-      if (
-        status !== "active" &&
-        status !== "subscribed" &&
-        status !== "muted"
-      ) {
-        return null;
-      }
-
-      return groupId;
+      return readableStatuses.has(status) ? groupId : null;
     })
     .filter((groupId): groupId is string => Boolean(groupId));
 
-  const ownedGroupsSnap = await getDocs(
-    query(collection(db, "groups"), where("ownerId", "==", viewerId))
-  );
+  const groupMembershipGroupIds = groupMembershipSnap.docs
+    .map((docSnap) => {
+      const data = docSnap.data() as Record<string, unknown>;
+      const status = typeof data.status === "string" ? data.status : "active";
+      const groupId = docSnap.ref.parent.parent?.id ?? null;
+
+      return groupId && readableStatuses.has(status) ? groupId : null;
+    })
+    .filter((groupId): groupId is string => Boolean(groupId));
 
   const ownedGroupIds = ownedGroupsSnap.docs.map((docSnap) => docSnap.id);
 
-  return Array.from(new Set([...memberGroupIds, ...ownedGroupIds]));
+  return Array.from(
+    new Set([
+      ...userMembershipGroupIds,
+      ...groupMembershipGroupIds,
+      ...ownedGroupIds,
+    ])
+  );
 }
 
 async function fetchSearchGroupsByIds(
@@ -255,16 +271,9 @@ export async function searchPosts(
 
   const readableGroupIds = await fetchReadableGroupIds(params.viewerId);
 
-  console.log("[searchPosts diagnóstico] viewerId:", params.viewerId);
-  console.log("[searchPosts diagnóstico] search:", normalizedSearch);
-  console.log("[searchPosts diagnóstico] prefixes:", prefixes);
-  console.log("[searchPosts diagnóstico] readableGroupIds:", readableGroupIds);
-  console.log("[searchPosts diagnóstico] publicDocs:", publicSnap.docs.length);
-
   const memberSnaps = await Promise.all(
     readableGroupIds.map(async (groupId) => {
       try {
-        console.log("[searchPosts diagnóstico] buscando grupo:", groupId);
 
         const snap = await getDocs(
           query(
@@ -276,16 +285,8 @@ export async function searchPosts(
           )
         );
 
-        console.log(
-          "[searchPosts diagnóstico] grupo:",
-          groupId,
-          "docs encontrados:",
-          snap.docs.length
-        );
-
         return snap;
-      } catch (error) {
-        console.warn("[searchPosts diagnóstico] grupo bloqueado:", groupId, error);
+      } catch {
         return null;
       }
     })
@@ -310,9 +311,6 @@ export async function searchPosts(
   );
 
   const posts = hydratePostsWithGroups(rawPosts, groupMap);
-
-  console.log("[searchPosts diagnóstico] totalDocs:", allDocs.length);
-  console.log("[searchPosts diagnóstico] postsFinales:", posts.length);
 
   return {
     posts,

@@ -26,6 +26,11 @@ import {
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import { buildRandomRecommendationSlots } from "@/app/components/GroupRecommendations/recommendation-engine";
+import {
+  patchPostInAllFeedCaches,
+  registerPostFeedCacheListener,
+  removePostFromAllFeedCaches,
+} from "@/lib/posts/post-feed-cache";
 
 type HomePostsFeedProps = {
   currentUserId: string | null;
@@ -202,6 +207,41 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
     },
     [currentUserId]
   );
+
+    useEffect(() => {
+    return registerPostFeedCacheListener({
+      removePost: (postId) => {
+        syncPostsState((prev) => prev.filter((post) => post.id !== postId));
+      },
+      patchPost: (postId, patch) => {
+        syncPostsState((prev) =>
+          prev.map((post) =>
+            post.id === postId
+              ? normalizeHomeFeedPost({
+                  ...post,
+                  ...patch,
+                  counts: {
+                    ...post.counts,
+                    ...patch.counts,
+                  },
+                } as PostWithFlags)
+              : post
+          )
+        );
+      },
+      clear: () => {
+        if (currentUserId) {
+          homeFeedMemoryCache.delete(getHomeFeedCacheKey(currentUserId));
+        }
+
+        setPosts([]);
+        setPageCursor(null);
+        setHasMore(false);
+        pageCursorRef.current = null;
+        hasMoreRef.current = false;
+      },
+    });
+  }, [currentUserId, syncPostsState]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -489,20 +529,12 @@ const normalizedPosts = result.posts
 
       const result = await togglePostFlame(postId);
 
-      syncPostsState((prev) =>
-        prev.map((post) =>
-          post.id === postId
-            ? {
-                ...post,
-                viewerHasFlamed: result.liked,
-                counts: {
-                  ...post.counts,
-                  likes: result.likes,
-                },
-              }
-            : post
-        )
-      );
+      patchPostInAllFeedCaches(postId, {
+        viewerHasFlamed: result.liked,
+        counts: {
+          likes: result.likes,
+        } as Post["counts"],
+      });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar la flamita.");
       throw e;
@@ -515,25 +547,20 @@ const normalizedPosts = result.posts
 
       const result = await togglePostSave(postId);
 
-      syncPostsState((prev) =>
-        prev.map((post) => {
-          if (post.id !== postId) {
-            return post;
-          }
+      syncPostsState((prev) => {
+        const targetPost = prev.find((post) => post.id === postId);
+        const currentSaves = targetPost?.counts?.saves ?? 0;
+        const nextSaves = Math.max(0, currentSaves + result.delta);
 
-          const currentSaves = post.counts?.saves ?? 0;
-          const nextSaves = Math.max(0, currentSaves + result.delta);
+        patchPostInAllFeedCaches(postId, {
+          viewerHasSaved: result.saved,
+          counts: {
+            saves: nextSaves,
+          } as Post["counts"],
+        });
 
-          return {
-            ...post,
-            viewerHasSaved: result.saved,
-            counts: {
-              ...post.counts,
-              saves: nextSaves,
-            },
-          };
-        })
-      );
+        return prev;
+      });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar el guardado.");
       throw e;
@@ -545,7 +572,7 @@ const normalizedPosts = result.posts
       setError(null);
       await softDeletePost(postId);
 
-      syncPostsState((prev) => prev.filter((post) => post.id !== postId));
+      removePostFromAllFeedCaches(postId);
     } catch (e: any) {
       setError(e?.message ?? "Error desconocido");
       throw e;

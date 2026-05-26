@@ -28,5 +28,6 @@ export function buildPublicPostPath(postId: string): string {
 }
 
 export function buildPublicPostUrl(postId: string): string {
-  return `${getBaseAppUrl()}${buildPublicPostPath(postId)}`;
+  const path = buildPublicPostPath(postId);
+  return `${getBaseAppUrl()}${path}`;
 }

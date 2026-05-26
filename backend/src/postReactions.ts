@@ -35,31 +35,39 @@ export const togglePostFlame = onCall<TogglePostFlameRequest>(
       .doc(postId);
 
     return await db.runTransaction(async (transaction) => {
-      const postSnap = await transaction.get(postRef);
+      const [postSnap, reactionSnap, userPostFlameSnap] = await Promise.all([
+        transaction.get(postRef),
+        transaction.get(reactionRef),
+        transaction.get(userPostFlameRef),
+      ]);
 
       if (!postSnap.exists) {
         throw new HttpsError("not-found", "La publicación no existe.");
       }
 
       const postData = postSnap.data() || {};
+      const searchData =
+        postData.search && typeof postData.search === "object"
+          ? postData.search
+          : {};
 
-      if (postData.isDeleted === true) {
+      if (postData.isDeleted === true || searchData.isDeleted === true) {
         throw new HttpsError(
           "failed-precondition",
           "No puedes reaccionar a una publicación eliminada."
         );
       }
 
-      const reactionSnap = await transaction.get(reactionRef);
-
       const currentLikes =
-        typeof postData.counts?.likes === "number"
-          ? postData.counts.likes
+        typeof postData.counts?.likes === "number" &&
+        Number.isFinite(postData.counts.likes)
+          ? Math.max(0, postData.counts.likes)
           : 0;
 
       const now = FieldValue.serverTimestamp();
+      const alreadyLiked = reactionSnap.exists || userPostFlameSnap.exists;
 
-      if (reactionSnap.exists) {
+      if (alreadyLiked) {
         const nextLikes = Math.max(0, currentLikes - 1);
 
         transaction.delete(reactionRef);
@@ -77,19 +85,27 @@ export const togglePostFlame = onCall<TogglePostFlameRequest>(
 
       const nextLikes = currentLikes + 1;
 
-      transaction.set(reactionRef, {
-        type: "flame",
-        userId: uid,
-        postId,
-        createdAt: now,
-      });
+      transaction.set(
+        reactionRef,
+        {
+          type: "flame",
+          userId: uid,
+          postId,
+          createdAt: now,
+        },
+        { merge: true }
+      );
 
-      transaction.set(userPostFlameRef, {
-        type: "flame",
-        userId: uid,
-        postId,
-        createdAt: now,
-      });
+      transaction.set(
+        userPostFlameRef,
+        {
+          type: "flame",
+          userId: uid,
+          postId,
+          createdAt: now,
+        },
+        { merge: true }
+      );
 
       transaction.update(postRef, {
         "counts.likes": nextLikes,

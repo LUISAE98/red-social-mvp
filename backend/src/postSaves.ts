@@ -2,14 +2,20 @@ import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 
-
 const db = getFirestore();
 
 type TogglePostSavePayload = {
   postId?: unknown;
 };
 
-type MemberStatus = "active" | "subscribed" | "muted" | "banned" | "removed" | null;
+type MemberStatus =
+  | "active"
+  | "subscribed"
+  | "muted"
+  | "banned"
+  | "removed"
+  | null;
+
 type MemberRole = "owner" | "mod" | "moderator" | "member" | null;
 
 function normalizePostId(value: unknown): string {
@@ -31,7 +37,10 @@ function normalizeMemberStatus(value: unknown): MemberStatus {
   if (value === "subscribed") return "subscribed";
   if (value === "muted") return "muted";
   if (value === "banned") return "banned";
-  if (value === "removed" || value === "kicked" || value === "expelled") return "removed";
+  if (value === "removed" || value === "kicked" || value === "expelled") {
+    return "removed";
+  }
+
   return null;
 }
 
@@ -40,6 +49,7 @@ function normalizeMemberRole(value: unknown): MemberRole {
   if (value === "mod") return "mod";
   if (value === "moderator") return "moderator";
   if (value === "member") return "member";
+
   return null;
 }
 
@@ -57,14 +67,29 @@ function getCurrentSaveCount(postData: FirebaseFirestore.DocumentData): number {
   return value;
 }
 
+function isPostDeleted(postData: FirebaseFirestore.DocumentData): boolean {
+  const searchData =
+    postData.search && typeof postData.search === "object"
+      ? postData.search
+      : {};
+
+  return (
+    postData.isDeleted === true ||
+    searchData.isDeleted === true ||
+    Boolean(postData.deletedAt)
+  );
+}
+
 function isFreePublicPost(postData: FirebaseFirestore.DocumentData): boolean {
   return (
-    postData.isDeleted !== true &&
+    !isPostDeleted(postData) &&
     typeof postData.groupId === "string" &&
     postData.groupVisibility === "public" &&
     (postData.accessModel === undefined || postData.accessModel === "free") &&
-    (postData.requiresPayment === undefined || postData.requiresPayment === false) &&
-    (postData.requiresSubscription === undefined || postData.requiresSubscription === false)
+    (postData.requiresPayment === undefined ||
+      postData.requiresPayment === false) &&
+    (postData.requiresSubscription === undefined ||
+      postData.requiresSubscription === false)
   );
 }
 
@@ -82,7 +107,10 @@ async function assertUserCanSavePost(params: {
   const groupId = typeof postData.groupId === "string" ? postData.groupId : null;
 
   if (!groupId) {
-    throw new HttpsError("permission-denied", "No tienes acceso a esta publicación.");
+    throw new HttpsError(
+      "permission-denied",
+      "No tienes acceso a esta publicación."
+    );
   }
 
   const groupRef = db.collection("groups").doc(groupId);
@@ -94,7 +122,10 @@ async function assertUserCanSavePost(params: {
   ]);
 
   if (!groupSnap.exists) {
-    throw new HttpsError("permission-denied", "No tienes acceso a esta publicación.");
+    throw new HttpsError(
+      "permission-denied",
+      "No tienes acceso a esta publicación."
+    );
   }
 
   const groupData = groupSnap.data() ?? {};
@@ -110,7 +141,9 @@ async function assertUserCanSavePost(params: {
       : null;
 
   const memberStatus = normalizeMemberStatus(memberData?.status);
-  const memberRole = normalizeMemberRole(memberData?.roleInGroup ?? memberData?.role);
+  const memberRole = normalizeMemberRole(
+    memberData?.roleInGroup ?? memberData?.role
+  );
 
   const isOwner = ownerId === uid;
   const isModerator =
@@ -118,59 +151,139 @@ async function assertUserCanSavePost(params: {
     isReadableMemberStatus(memberStatus);
 
   const isMember = isReadableMemberStatus(memberStatus);
+  const isAuthor = postData.authorId === uid;
 
   const canReadGroupContent =
     groupIsActive &&
     (groupVisibility === "public" || isMember || isOwner || isModerator);
 
-  const isAuthor = postData.authorId === uid;
-
   if (!canReadGroupContent && !isAuthor) {
-    throw new HttpsError("permission-denied", "No tienes acceso a esta publicación.");
+    throw new HttpsError(
+      "permission-denied",
+      "No tienes acceso a esta publicación."
+    );
   }
 
   if (memberStatus === "banned" || memberStatus === "removed") {
-    throw new HttpsError("permission-denied", "No puedes guardar publicaciones de este grupo.");
+    throw new HttpsError(
+      "permission-denied",
+      "No puedes guardar publicaciones de este grupo."
+    );
   }
 }
 
-export const togglePostSave = onCall<TogglePostSavePayload>(async (request) => {
-  const uid = request.auth?.uid;
+export const togglePostSave = onCall<TogglePostSavePayload>(
+  {
+    region: "us-central1",
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
 
-  if (!uid) {
-    throw new HttpsError("unauthenticated", "Debes iniciar sesión para guardar publicaciones.");
-  }
-
-  const postId = normalizePostId(request.data?.postId);
-
-  const postRef = db.collection("posts").doc(postId);
-  const saveRef = postRef.collection("saves").doc(uid);
-  const userSavedPostRef = db.collection("users").doc(uid).collection("savedPosts").doc(postId);
-
-  return db.runTransaction(async (tx) => {
-    const [postSnap, saveSnap] = await Promise.all([
-      tx.get(postRef),
-      tx.get(saveRef),
-    ]);
-
-    if (!postSnap.exists) {
-      throw new HttpsError("not-found", "La publicación no existe.");
+    if (!uid) {
+      throw new HttpsError(
+        "unauthenticated",
+        "Debes iniciar sesión para guardar publicaciones."
+      );
     }
 
-    const postData = postSnap.data() ?? {};
+    const postId = normalizePostId(request.data?.postId);
 
-    if (postData.isDeleted === true || postData.deletedAt) {
-      throw new HttpsError("failed-precondition", "No puedes guardar una publicación eliminada.");
-    }
+    const postRef = db.collection("posts").doc(postId);
+    const saveRef = postRef.collection("saves").doc(uid);
+    const userSavedPostRef = db
+      .collection("users")
+      .doc(uid)
+      .collection("savedPosts")
+      .doc(postId);
 
-    const now = FieldValue.serverTimestamp();
-    const currentSaves = getCurrentSaveCount(postData);
+    return db.runTransaction(async (tx) => {
+      const [postSnap, saveSnap, userSavedPostSnap] = await Promise.all([
+        tx.get(postRef),
+        tx.get(saveRef),
+        tx.get(userSavedPostRef),
+      ]);
 
-    if (saveSnap.exists) {
-      const nextSaves = Math.max(0, currentSaves - 1);
+      if (!postSnap.exists) {
+        throw new HttpsError("not-found", "La publicación no existe.");
+      }
 
-      tx.delete(saveRef);
-      tx.delete(userSavedPostRef);
+      const postData = postSnap.data() ?? {};
+
+      if (isPostDeleted(postData)) {
+        throw new HttpsError(
+          "failed-precondition",
+          "No puedes guardar una publicación eliminada."
+        );
+      }
+
+      const now = FieldValue.serverTimestamp();
+      const currentSaves = getCurrentSaveCount(postData);
+      const alreadySaved = saveSnap.exists || userSavedPostSnap.exists;
+
+      if (alreadySaved) {
+        const nextSaves = Math.max(0, currentSaves - 1);
+
+        tx.delete(saveRef);
+        tx.delete(userSavedPostRef);
+
+        tx.update(postRef, {
+          "counts.saves": nextSaves,
+          updatedAt: now,
+        });
+
+        return {
+          postId,
+          saved: false,
+          delta: -1,
+        };
+      }
+
+      await assertUserCanSavePost({
+        tx,
+        uid,
+        postData,
+      });
+
+      const nextSaves = currentSaves + 1;
+
+      tx.set(
+        saveRef,
+        {
+          postId,
+          userId: uid,
+          createdAt: now,
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+
+      tx.set(
+        userSavedPostRef,
+        {
+          postId,
+          userId: uid,
+          groupId: typeof postData.groupId === "string" ? postData.groupId : null,
+          authorId:
+            typeof postData.authorId === "string" ? postData.authorId : null,
+          savedAt: now,
+          postCreatedAt: postData.createdAt ?? null,
+          isVisible: true,
+          isDeleted: false,
+          groupVisibility:
+            typeof postData.groupVisibility === "string"
+              ? postData.groupVisibility
+              : null,
+          accessModel:
+            typeof postData.accessModel === "string"
+              ? postData.accessModel
+              : "free",
+          requiresPayment: postData.requiresPayment === true,
+          requiresSubscription: postData.requiresSubscription === true,
+          updatedAt: now,
+          version: 1,
+        },
+        { merge: true }
+      );
 
       tx.update(postRef, {
         "counts.saves": nextSaves,
@@ -179,55 +292,12 @@ export const togglePostSave = onCall<TogglePostSavePayload>(async (request) => {
 
       return {
         postId,
-        saved: false,
-        delta: -1,
+        saved: true,
+        delta: 1,
       };
-    }
-
-    await assertUserCanSavePost({
-      tx,
-      uid,
-      postData,
     });
-
-    const nextSaves = currentSaves + 1;
-
-    tx.set(saveRef, {
-      postId,
-      userId: uid,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    tx.set(userSavedPostRef, {
-      postId,
-      userId: uid,
-      groupId: typeof postData.groupId === "string" ? postData.groupId : null,
-      authorId: typeof postData.authorId === "string" ? postData.authorId : null,
-      savedAt: now,
-      postCreatedAt: postData.createdAt ?? null,
-      isVisible: true,
-      isDeleted: false,
-      groupVisibility: typeof postData.groupVisibility === "string" ? postData.groupVisibility : null,
-      accessModel: typeof postData.accessModel === "string" ? postData.accessModel : "free",
-      requiresPayment: postData.requiresPayment === true,
-      requiresSubscription: postData.requiresSubscription === true,
-      updatedAt: now,
-      version: 1,
-    });
-
-    tx.update(postRef, {
-      "counts.saves": nextSaves,
-      updatedAt: now,
-    });
-
-    return {
-      postId,
-      saved: true,
-      delta: 1,
-    };
-  });
-});
+  }
+);
 
 export const onSavedPostsPostDeleted = onDocumentUpdated(
   {
@@ -242,10 +312,10 @@ export const onSavedPostsPostDeleted = onDocumentUpdated(
       return;
     }
 
-    if (
-      beforeData.isDeleted === true ||
-      afterData.isDeleted !== true
-    ) {
+    const beforeDeleted = isPostDeleted(beforeData);
+    const afterDeleted = isPostDeleted(afterData);
+
+    if (beforeDeleted || !afterDeleted) {
       return;
     }
 
@@ -256,10 +326,18 @@ export const onSavedPostsPostDeleted = onDocumentUpdated(
       .where("postId", "==", postId)
       .get();
 
-    const writes = savedPostsSnap.docs.map((docSnap) =>
-      docSnap.ref.delete()
-    );
+    const batches = [];
 
-    await Promise.all(writes);
+    for (let i = 0; i < savedPostsSnap.docs.length; i += 450) {
+      const batch = db.batch();
+
+      savedPostsSnap.docs.slice(i, i + 450).forEach((docSnap) => {
+        batch.delete(docSnap.ref);
+      });
+
+      batches.push(batch.commit());
+    }
+
+    await Promise.all(batches);
   }
 );

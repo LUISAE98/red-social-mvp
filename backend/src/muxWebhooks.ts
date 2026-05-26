@@ -83,6 +83,19 @@ function pickString(value: unknown): string | null {
     : null;
 }
 
+function isPostDeleted(postData: Record<string, unknown>): boolean {
+  const searchData =
+    postData.search && typeof postData.search === "object"
+      ? (postData.search as Record<string, unknown>)
+      : {};
+
+  return (
+    postData.isDeleted === true ||
+    searchData.isDeleted === true ||
+    Boolean(postData.deletedAt)
+  );
+}
+
 function resolveCustomThumbnailUrl(value: Record<string, unknown> | null | undefined): string | null {
   if (!value) return null;
 
@@ -217,6 +230,16 @@ async function markAssetReady(event: MuxWebhookEvent) {
     }
 
     const postData = postSnap.data() ?? {};
+        if (isPostDeleted(postData)) {
+      logger.info("muxWebhook asset.ready ignored for deleted post", {
+        postId,
+        uploadId,
+        mediaId,
+        mediaIndex,
+      });
+
+      return;
+    }
     const currentMedia = Array.isArray(postData.media) ? postData.media : [];
 
     let matchedMedia = false;
@@ -450,6 +473,16 @@ async function markAssetError(event: MuxWebhookEvent) {
 
     if (postSnap.exists) {
       const postData = postSnap.data() ?? {};
+            if (isPostDeleted(postData)) {
+        logger.info("muxWebhook asset.error ignored for deleted post", {
+          postId,
+          uploadId,
+          mediaId,
+          mediaIndex,
+        });
+
+        return;
+      }
       const currentMedia = Array.isArray(postData.media) ? postData.media : [];
 
       const nextMedia = currentMedia.map((item) => {

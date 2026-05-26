@@ -1312,11 +1312,12 @@ const flameButtonStyle: CSSProperties = {
   padding: 0,
   display: "inline-grid",
   placeItems: "center",
-  cursor: flameBusy ? "not-allowed" : "pointer",
-  opacity: flameBusy ? 0.72 : 1,
+  cursor: "pointer",
+  opacity: 1,
   transform: optimisticViewerHasFlamed ? "scale(1.04)" : "scale(1)",
-  transition: "transform 140ms ease, opacity 140ms ease",
+  transition: "transform 140ms ease",
   WebkitTapHighlightColor: "transparent",
+  touchAction: "manipulation",
 };
 
 const flameIconStyle: CSSProperties = {
@@ -2678,7 +2679,6 @@ style={{
 <button
   type="button"
   onClick={handleToggleFlame}
-  disabled={flameBusy}
   aria-pressed={optimisticViewerHasFlamed}
   aria-label={
     optimisticViewerHasFlamed

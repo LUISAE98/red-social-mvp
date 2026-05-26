@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -25,6 +26,11 @@ import {
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+import {
+  patchPostInAllFeedCaches,
+  registerPostFeedCacheListener,
+  removePostFromAllFeedCaches,
+} from "@/lib/posts/post-feed-cache";
 const MIN_POST_SEARCH_LENGTH = 2;
 
 type SearchPostsResultsProps = {
@@ -232,6 +238,42 @@ const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
 
+  const syncPostsState = useCallback(
+    (updater: (prev: PostWithFlags[]) => PostWithFlags[]) => {
+      setPosts((prev) => updater(prev));
+    },
+    []
+  );
+
+  useEffect(() => {
+    return registerPostFeedCacheListener({
+      removePost: (postId) => {
+        syncPostsState((prev) => prev.filter((post) => post.id !== postId));
+      },
+      patchPost: (postId, patch) => {
+        syncPostsState((prev) =>
+          prev
+            .map((post) =>
+              post.id === postId
+                ? normalizeSearchPost({
+                    ...post,
+                    ...patch,
+                    counts: {
+                      ...post.counts,
+                      ...patch.counts,
+                    },
+                  } as PostWithFlags)
+                : post
+            )
+            .filter((post) => post.isDeleted !== true)
+        );
+      },
+      clear: () => {
+        setPosts([]);
+      },
+    });
+  }, [syncPostsState]);
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (!filtersPanelRef.current) return;
@@ -312,7 +354,7 @@ setError(e?.message ?? "Error");
     try {
       setError(null);
       await softDeletePost(postId);
-      setPosts((prev) => prev.filter((post) => post.id !== postId));
+      removePostFromAllFeedCaches(postId);
     } catch (e: any) {
       setError(e?.message ?? "No se pudo eliminar la publicación.");
       throw e;
@@ -325,20 +367,12 @@ setError(e?.message ?? "Error");
 
       const result = await togglePostFlame(postId);
 
-      setPosts((prev) =>
-        prev.map((post) =>
-          post.id === postId
-            ? {
-                ...post,
-                viewerHasFlamed: result.liked,
-                counts: {
-                  ...post.counts,
-                  likes: result.likes,
-                },
-              }
-            : post
-        )
-      );
+      patchPostInAllFeedCaches(postId, {
+        viewerHasFlamed: result.liked,
+        counts: {
+          likes: result.likes,
+        } as Post["counts"],
+      });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar la flamita.");
       throw e;
@@ -350,26 +384,21 @@ setError(e?.message ?? "Error");
       setError(null);
 
       const result = await togglePostSave(postId);
+      let nextSaves = 0;
 
-      setPosts((prev) =>
-        prev.map((post) => {
-          if (post.id !== postId) {
-            return post;
-          }
+      syncPostsState((prev) => {
+        const targetPost = prev.find((post) => post.id === postId);
+        const currentSaves = targetPost?.counts?.saves ?? 0;
+        nextSaves = Math.max(0, currentSaves + result.delta);
+        return prev;
+      });
 
-          const currentSaves = post.counts?.saves ?? 0;
-          const nextSaves = Math.max(0, currentSaves + result.delta);
-
-          return {
-            ...post,
-            viewerHasSaved: result.saved,
-            counts: {
-              ...post.counts,
-              saves: nextSaves,
-            },
-          };
-        })
-      );
+      patchPostInAllFeedCaches(postId, {
+        viewerHasSaved: result.saved,
+        counts: {
+          saves: nextSaves,
+        } as Post["counts"],
+      });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar el guardado.");
       throw e;

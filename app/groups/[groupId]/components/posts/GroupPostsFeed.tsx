@@ -30,6 +30,11 @@ import GroupPostComposer from "./GroupPostComposer";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { uploadPostImages } from "@/lib/posts/image-upload";
 import { httpsCallable } from "firebase/functions";
+import {
+  patchPostInAllFeedCaches,
+  registerPostFeedCacheListener,
+  removePostFromAllFeedCaches,
+} from "@/lib/posts/post-feed-cache";
 
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 
@@ -428,6 +433,42 @@ export default function GroupPostsFeed({
   );
 
   useEffect(() => {
+    return registerPostFeedCacheListener({
+      removePost: (postId) => {
+        syncPostsState((prev) => prev.filter((post) => post.id !== postId));
+      },
+      patchPost: (postId, patch) => {
+        syncPostsState((prev) =>
+          sortGroupFeedPosts(
+            prev
+              .map((post) =>
+                post.id === postId
+                  ? normalizeFeedPost({
+                      ...post,
+                      ...patch,
+                      counts: {
+                        ...post.counts,
+                        ...patch.counts,
+                      },
+                    } as PostWithAuthorState)
+                  : post,
+              )
+              .filter((post) => post.isDeleted !== true),
+          ),
+        );
+      },
+      clear: () => {
+        groupFeedMemoryCache.delete(cacheKey);
+        setPosts([]);
+        setPageCursor(null);
+        setHasMore(false);
+        pageCursorRef.current = null;
+        hasMoreRef.current = false;
+      },
+    });
+  }, [cacheKey, syncPostsState]);
+
+  useEffect(() => {
     const unsub = auth.onAuthStateChanged((user) => {
       setCurrentUid(user?.uid ?? null);
     });
@@ -624,8 +665,12 @@ export default function GroupPostsFeed({
               freshPost.processing?.status === "error" ||
               freshPost.videoData?.status === "error";
 
-            syncPostsState((prev) =>
-              prev.map((post) =>
+            syncPostsState((prev) => {
+              if (freshPost.isDeleted === true) {
+                return prev.filter((post) => post.id !== postId);
+              }
+
+              return prev.map((post) =>
                 post.id === postId
                   ? {
                       ...freshPost,
@@ -634,8 +679,8 @@ export default function GroupPostsFeed({
                       forcedGroupId: post.forcedGroupId ?? groupId,
                     }
                   : post,
-              ),
-            );
+              );
+            });
 
             if (isDone) {
               delete videoProcessingPollsRef.current[postId];
@@ -967,20 +1012,12 @@ export default function GroupPostsFeed({
 
       const result = await togglePostFlame(postId);
 
-      syncPostsState((prev) =>
-        prev.map((post) =>
-          post.id === postId
-            ? {
-                ...post,
-                viewerHasFlamed: result.liked,
-                counts: {
-                  ...post.counts,
-                  likes: result.likes,
-                },
-              }
-            : post,
-        ),
-      );
+      patchPostInAllFeedCaches(postId, {
+        viewerHasFlamed: result.liked,
+        counts: {
+          likes: result.likes,
+        } as Post["counts"],
+      });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar la flamita.");
       throw e;
@@ -993,22 +1030,11 @@ export default function GroupPostsFeed({
 
       const result = await toggleGroupPostPin(postId);
 
-      syncPostsState((prev) =>
-        sortGroupFeedPosts(
-          prev.map((post) =>
-            post.id === postId
-              ? {
-                  ...post,
-                  isPinnedInGroup: result.isPinnedInGroup,
-                  groupPinnedAt: result.isPinnedInGroup
-                    ? (post.groupPinnedAt ?? null)
-                    : null,
-                  groupPinnedBy: result.isPinnedInGroup ? currentUid : null,
-                }
-              : post,
-          ),
-        ),
-      );
+      patchPostInAllFeedCaches(postId, {
+        isPinnedInGroup: result.isPinnedInGroup,
+        groupPinnedAt: result.isPinnedInGroup ? null : null,
+        groupPinnedBy: result.isPinnedInGroup ? currentUid : null,
+      });
 
       await loadPosts();
     } catch (e: any) {
@@ -1022,20 +1048,11 @@ export default function GroupPostsFeed({
 
       const result = await toggleProfilePostPin(postId);
 
-      syncPostsState((prev) =>
-        prev.map((post) =>
-          post.id === postId
-            ? {
-                ...post,
-                isPinnedOnProfile: result.isPinnedOnProfile,
-                profilePinnedAt: result.isPinnedOnProfile
-                  ? (post.profilePinnedAt ?? null)
-                  : null,
-                profilePinnedBy: result.isPinnedOnProfile ? currentUid : null,
-              }
-            : post,
-        ),
-      );
+      patchPostInAllFeedCaches(postId, {
+        isPinnedOnProfile: result.isPinnedOnProfile,
+        profilePinnedAt: result.isPinnedOnProfile ? null : null,
+        profilePinnedBy: result.isPinnedOnProfile ? currentUid : null,
+      });
 
       await loadPosts();
     } catch (e: any) {
@@ -1052,26 +1069,21 @@ export default function GroupPostsFeed({
       setError(null);
 
       const result = await togglePostSave(postId);
+      let nextSaves = 0;
 
-      syncPostsState((prev) =>
-        prev.map((post) => {
-          if (post.id !== postId) {
-            return post;
-          }
+      syncPostsState((prev) => {
+        const targetPost = prev.find((post) => post.id === postId);
+        const currentSaves = targetPost?.counts?.saves ?? 0;
+        nextSaves = Math.max(0, currentSaves + result.delta);
+        return prev;
+      });
 
-          const currentSaves = post.counts?.saves ?? 0;
-          const nextSaves = Math.max(0, currentSaves + result.delta);
-
-          return {
-            ...post,
-            viewerHasSaved: result.saved,
-            counts: {
-              ...post.counts,
-              saves: nextSaves,
-            },
-          };
-        }),
-      );
+      patchPostInAllFeedCaches(postId, {
+        viewerHasSaved: result.saved,
+        counts: {
+          saves: nextSaves,
+        } as Post["counts"],
+      });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar el guardado.");
       throw e;
@@ -1083,7 +1095,7 @@ export default function GroupPostsFeed({
       setError(null);
       await softDeletePost(postId);
 
-      syncPostsState((prev) => prev.filter((post) => post.id !== postId));
+      removePostFromAllFeedCaches(postId);
     } catch (e: any) {
       setError(e?.message ?? "No se pudo eliminar la publicación.");
       throw e;

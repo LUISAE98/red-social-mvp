@@ -26,9 +26,13 @@ function normalizeBoolean(value: unknown, fallback = false): boolean {
   return typeof value === "boolean" ? value : fallback;
 }
 
-function normalizeAccessModel(postData: PostData): "free" | "paid" {
-  if (postData.accessModel === "paid" || postData.access === "paid") {
-    return "paid";
+function normalizeAccessModel(postData: PostData): string {
+  if (typeof postData.accessModel === "string" && postData.accessModel.trim()) {
+    return postData.accessModel.trim();
+  }
+
+  if (typeof postData.access === "string" && postData.access.trim()) {
+    return postData.access.trim();
   }
 
   return "free";
@@ -36,6 +40,28 @@ function normalizeAccessModel(postData: PostData): "free" | "paid" {
 
 function normalizeCreatedAt(value: unknown): Timestamp {
   return value instanceof Timestamp ? value : Timestamp.now();
+}
+
+
+function normalizeGroupVisibility(value: unknown): "public" | "private" | "hidden" {
+  if (value === "public" || value === "private" || value === "hidden") {
+    return value;
+  }
+
+  return "private";
+}
+
+function isPostDeleted(postData: PostData): boolean {
+  const searchData =
+    postData.search && typeof postData.search === "object"
+      ? postData.search
+      : {};
+
+  return (
+    postData.isDeleted === true ||
+    searchData.isDeleted === true ||
+    Boolean(postData.deletedAt)
+  );
 }
 
 async function getGroupData(groupId: string): Promise<GroupData | null> {
@@ -67,25 +93,33 @@ function buildProfileFeedPayload(params: {
     return null;
   }
 
-  const groupVisibility =
-    groupData?.visibility === "private" || groupData?.visibility === "hidden"
-      ? groupData.visibility
-      : "public";
+  const groupVisibility = normalizeGroupVisibility(
+    groupData?.visibility ?? postData.groupVisibility
+  );
 
   const accessModel = normalizeAccessModel(postData);
 
   return {
     postId,
+    id: postId,
     authorId,
     groupId,
+
+    ...postData,
 
     groupVisibility,
     groupIsActive: groupData?.isActive !== false,
 
-    isDeleted: postData.isDeleted === true,
+    isDeleted: isPostDeleted(postData),
     isShareable: postData.isShareable !== false,
+    access: typeof postData.access === "string" ? postData.access : accessModel,
     accessModel,
-    requiresPayment: normalizeBoolean(postData.requiresPayment, accessModel === "paid"),
+    accessScope:
+      typeof postData.accessScope === "string" ? postData.accessScope : "group",
+    requiresPayment: normalizeBoolean(
+      postData.requiresPayment,
+      accessModel !== "free"
+    ),
     requiresSubscription: normalizeBoolean(postData.requiresSubscription, false),
 
     isPinnedOnProfile: postData.isPinnedOnProfile === true,
@@ -97,7 +131,20 @@ function buildProfileFeedPayload(params: {
 
     counts:
       postData.counts && typeof postData.counts === "object"
-        ? postData.counts
+        ? {
+            comments:
+              typeof postData.counts.comments === "number"
+                ? postData.counts.comments
+                : 0,
+            likes:
+              typeof postData.counts.likes === "number"
+                ? postData.counts.likes
+                : 0,
+            saves:
+              typeof postData.counts.saves === "number"
+                ? postData.counts.saves
+                : 0,
+          }
         : {
             comments: 0,
             likes: 0,
@@ -123,6 +170,23 @@ function buildProfileFeedPayload(params: {
       typeof groupData?.avatarUrl === "string"
         ? groupData.avatarUrl
         : postData.groupAvatarUrl ?? null,
+
+    postType: postData.postType ?? "text",
+    liveData: postData.liveData ?? null,
+    videoData: postData.videoData ?? null,
+    scheduledData: postData.scheduledData ?? null,
+    playback: postData.playback ?? null,
+    processing: postData.processing ?? {
+      status: "none",
+      provider: null,
+      errorCode: null,
+      errorMessage: null,
+      updatedAt: null,
+    },
+
+    shareTitle: postData.shareTitle ?? null,
+    shareDescription: postData.shareDescription ?? null,
+    shareImageUrl: postData.shareImageUrl ?? null,
 
     syncedAt: FieldValue.serverTimestamp(),
   };
@@ -218,9 +282,9 @@ export const onProfileFeedPostCreated = onDocumentCreated(
     const postId = event.params.postId;
     const postData = snapshot.data();
 
-    if (!postData || postData.isDeleted === true) {
-      return;
-    }
+if (!postData || isPostDeleted(postData)) {
+  return;
+}
 
     await upsertProfileFeedEntry({
       postId,
@@ -259,7 +323,7 @@ export const onProfileFeedPostUpdated = onDocumentUpdated(
       });
     }
 
-    if (afterData.isDeleted === true) {
+if (isPostDeleted(afterData)) {
       if (afterAuthorId) {
         await deleteProfileFeedEntry({
           postId,

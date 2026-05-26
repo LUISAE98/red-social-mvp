@@ -12,8 +12,7 @@ type PostShareButtonProps = {
 const fontStack =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-
-  function buildShortShareText(value: string, maxLength = 45): string {
+function buildShortShareText(value: string, maxLength = 45): string {
   const cleanText = value.trim().replace(/\s+/g, " ");
 
   if (!cleanText) {
@@ -26,11 +25,11 @@ const fontStack =
 
   const sliced = cleanText.slice(0, maxLength).trim();
   const lastSpace = sliced.lastIndexOf(" ");
-  const safeText =
-    lastSpace > 20 ? sliced.slice(0, lastSpace).trim() : sliced;
+  const safeText = lastSpace > 20 ? sliced.slice(0, lastSpace).trim() : sliced;
 
   return `${safeText}... Ver más`;
 }
+
 export default function PostShareButton({
   postId,
   title = "Publicación",
@@ -38,6 +37,8 @@ export default function PostShareButton({
 }: PostShareButtonProps) {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const canShare = typeof postId === "string" && postId.trim().length > 0;
 
   const buttonStyle: CSSProperties = {
     width: 20,
@@ -51,47 +52,46 @@ export default function PostShareButton({
     fontSize: 14,
     fontFamily: fontStack,
     lineHeight: 1,
-    cursor: busy ? "not-allowed" : "pointer",
-    opacity: busy ? 0.62 : 1,
+    cursor: canShare ? "pointer" : "default",
+    opacity: canShare ? 1 : 0.45,
     WebkitTapHighlightColor: "transparent",
+    touchAction: "manipulation",
     flexShrink: 0,
   };
 
-  async function handleShare() {
-    if (busy) return;
+  async function copyUrl(url: string) {
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
 
-    const url = buildPublicPostUrl(postId);
+    window.setTimeout(() => {
+      setCopied(false);
+    }, 1400);
+  }
+
+  async function handleShare() {
+    if (!canShare || busy) return;
+
+    const url = buildPublicPostUrl(postId.trim());
+    const shareText = buildShortShareText(
+      text || "Mira esta publicación en Vibra"
+    );
 
     try {
       setBusy(true);
 
-const shareText = buildShortShareText(
-  text || "Mira esta publicación en Vibra"
-);
+      if (navigator.share) {
+        await navigator.share({
+          title,
+          text: shareText,
+          url,
+        });
+        return;
+      }
 
-if (navigator.share) {
-  await navigator.share({
-    title,
-    text: shareText,
-    url,
-  });
-  return;
-}
-
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-
-      window.setTimeout(() => {
-        setCopied(false);
-      }, 1400);
+      await copyUrl(url);
     } catch {
       try {
-        await navigator.clipboard.writeText(url);
-        setCopied(true);
-
-        window.setTimeout(() => {
-          setCopied(false);
-        }, 1400);
+        await copyUrl(url);
       } catch {
         window.alert("No se pudo copiar el link.");
       }
@@ -104,7 +104,6 @@ if (navigator.share) {
     <button
       type="button"
       onClick={handleShare}
-      disabled={busy}
       aria-label={copied ? "Link copiado" : "Compartir publicación"}
       title={copied ? "Link copiado" : "Compartir publicación"}
       style={buttonStyle}

@@ -22,6 +22,11 @@ import {
 } from "@/lib/posts/post-service";
 
 import { db } from "@/lib/firebase";
+import {
+  patchPostInAllFeedCaches,
+  registerPostFeedCacheListener,
+  removePostFromAllFeedCaches,
+} from "@/lib/posts/post-feed-cache";
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import { buildRandomRecommendationSlots } from "@/app/components/GroupRecommendations/recommendation-engine";
@@ -504,6 +509,42 @@ const cacheKey = useMemo(
   );
 
   useEffect(() => {
+    return registerPostFeedCacheListener({
+      removePost: (postId) => {
+        syncPostsState((prev) => prev.filter((post) => post.id !== postId));
+      },
+      patchPost: (postId, patch) => {
+        syncPostsState((prev) =>
+          sortProfileFeedPosts(
+            prev
+              .map((post) =>
+                post.id === postId
+                  ? normalizeProfileFeedPost({
+                      ...post,
+                      ...patch,
+                      counts: {
+                        ...post.counts,
+                        ...patch.counts,
+                      },
+                    } as PostWithFlags)
+                  : post
+              )
+              .filter((post) => post.isDeleted !== true)
+          )
+        );
+      },
+      clear: () => {
+        profileFeedMemoryCache.delete(cacheKey);
+        setPosts([]);
+        setPageCursor(null);
+        setHasMore(false);
+        pageCursorRef.current = null;
+        hasMoreRef.current = false;
+      },
+    });
+  }, [cacheKey, syncPostsState]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const mediaQuery = window.matchMedia("(max-width: 900px)");
@@ -832,20 +873,12 @@ const cacheKey = useMemo(
 
       const result = await togglePostFlame(postId);
 
-      syncPostsState((prev) =>
-        prev.map((post) =>
-          post.id === postId
-            ? {
-                ...post,
-                viewerHasFlamed: result.liked,
-                counts: {
-                  ...post.counts,
-                  likes: result.likes,
-                },
-              }
-            : post
-        )
-      );
+      patchPostInAllFeedCaches(postId, {
+        viewerHasFlamed: result.liked,
+        counts: {
+          likes: result.likes,
+        } as Post["counts"],
+      });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar la flamita.");
       throw e;
@@ -861,23 +894,14 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
     setError(null);
 
     const result = await toggleProfilePostPin(postId);
+    const profilePinnedAt = result.isPinnedOnProfile ? Timestamp.now() : null;
+    const profilePinnedBy = result.isPinnedOnProfile ? viewerUid : null;
 
-    syncPostsState((prev) =>
-      sortProfileFeedPosts(
-        prev.map((post) =>
-          post.id === postId
-            ? {
-                ...post,
-                isPinnedOnProfile: result.isPinnedOnProfile,
-                profilePinnedAt: result.isPinnedOnProfile
-                  ? Timestamp.now()
-                  : null,
-                profilePinnedBy: result.isPinnedOnProfile ? viewerUid : null,
-              }
-            : post
-        )
-      )
-    );
+    patchPostInAllFeedCaches(postId, {
+      isPinnedOnProfile: result.isPinnedOnProfile,
+      profilePinnedAt,
+      profilePinnedBy,
+    });
   } catch (e: any) {
     setError(
       e?.message ?? "No se pudo fijar o desfijar la publicación en tu perfil."
@@ -891,26 +915,21 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       setError(null);
 
       const result = await togglePostSave(postId);
+      let nextSaves = 0;
 
-      syncPostsState((prev) =>
-        prev.map((post) => {
-          if (post.id !== postId) {
-            return post;
-          }
+      syncPostsState((prev) => {
+        const targetPost = prev.find((post) => post.id === postId);
+        const currentSaves = targetPost?.counts?.saves ?? 0;
+        nextSaves = Math.max(0, currentSaves + result.delta);
+        return prev;
+      });
 
-          const currentSaves = post.counts?.saves ?? 0;
-          const nextSaves = Math.max(0, currentSaves + result.delta);
-
-          return {
-            ...post,
-            viewerHasSaved: result.saved,
-            counts: {
-              ...post.counts,
-              saves: nextSaves,
-            },
-          };
-        })
-      );
+      patchPostInAllFeedCaches(postId, {
+        viewerHasSaved: result.saved,
+        counts: {
+          saves: nextSaves,
+        } as Post["counts"],
+      });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar el guardado.");
       throw e;
@@ -922,7 +941,7 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       setError(null);
       await softDeletePost(postId);
 
-      syncPostsState((prev) => prev.filter((post) => post.id !== postId));
+      removePostFromAllFeedCaches(postId);
     } catch (e: any) {
       setError(e?.message ?? "Error desconocido");
       throw e;

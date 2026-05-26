@@ -21,6 +21,11 @@ import {
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+import {
+  patchPostInAllFeedCaches,
+  registerPostFeedCacheListener,
+  removePostFromAllFeedCaches,
+} from "@/lib/posts/post-feed-cache";
 
 const SAVED_POSTS_PAGE_SIZE = 10;
 const SAVED_POSTS_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -203,6 +208,41 @@ const syncPostsState = useCallback(
   },
   [currentUserId, hasMore, pageCursor]
 );
+
+  useEffect(() => {
+    return registerPostFeedCacheListener({
+      removePost: (postId) => {
+        syncPostsState((prev) => prev.filter((post) => post.id !== postId));
+      },
+      patchPost: (postId, patch) => {
+        syncPostsState((prev) =>
+          prev
+            .map((post) =>
+              post.id === postId
+                ? normalizeSavedFeedPost({
+                    ...post,
+                    ...patch,
+                    counts: {
+                      ...post.counts,
+                      ...patch.counts,
+                    },
+                  } as PostWithFlags)
+                : post
+            )
+            .filter((post) => post.isDeleted !== true)
+        );
+      },
+      clear: () => {
+        if (currentUserId) {
+          savedPostsMemoryCache.delete(currentUserId);
+        }
+
+        setPosts([]);
+        setPageCursor(null);
+        setHasMore(false);
+      },
+    });
+  }, [currentUserId, syncPostsState]);
 
   const loadPostsPage = useCallback(
     async ({ reset = false }: { reset?: boolean } = {}) => {
@@ -458,20 +498,12 @@ if (!trigger.isConnected) return;
 
       const result = await togglePostFlame(postId);
 
-      syncPostsState((prev) =>
-        prev.map((post) =>
-          post.id === postId
-            ? {
-                ...post,
-                viewerHasFlamed: result.liked,
-                counts: {
-                  ...post.counts,
-                  likes: result.likes,
-                },
-              }
-            : post
-        )
-      );
+      patchPostInAllFeedCaches(postId, {
+        viewerHasFlamed: result.liked,
+        counts: {
+          likes: result.likes,
+        } as Post["counts"],
+      });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar la flamita.");
       throw e;
@@ -483,6 +515,7 @@ if (!trigger.isConnected) return;
       setError(null);
 
       const result = await togglePostSave(postId);
+      let nextSaves = 0;
 
       syncPostsState((prev) =>
         prev
@@ -492,7 +525,7 @@ if (!trigger.isConnected) return;
             }
 
             const currentSaves = post.counts?.saves ?? 0;
-            const nextSaves = Math.max(0, currentSaves + result.delta);
+            nextSaves = Math.max(0, currentSaves + result.delta);
 
             return {
               ...post,
@@ -505,6 +538,13 @@ if (!trigger.isConnected) return;
           })
           .filter((post) => post.viewerHasSaved === true)
       );
+
+      patchPostInAllFeedCaches(postId, {
+        viewerHasSaved: result.saved,
+        counts: {
+          saves: nextSaves,
+        } as Post["counts"],
+      });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar el guardado.");
       throw e;
@@ -516,7 +556,7 @@ if (!trigger.isConnected) return;
       setError(null);
       await softDeletePost(postId);
 
-      syncPostsState((prev) => prev.filter((post) => post.id !== postId));
+      removePostFromAllFeedCaches(postId);
     } catch (e: any) {
       setError(e?.message ?? "No se pudo eliminar la publicación.");
       throw e;

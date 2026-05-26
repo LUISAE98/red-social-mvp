@@ -23,27 +23,35 @@ async function addPostToUserHomeFeed(params: {
 }) {
   const { uid, postId, postData } = params;
 
+  const groupId =
+    typeof postData.groupId === "string" && postData.groupId.trim().length > 0
+      ? postData.groupId.trim()
+      : null;
+
   await db
     .collection("users")
     .doc(uid)
     .collection("homeFeed")
     .doc(postId)
-    .set({
-      postId,
-      isVisible: true,
-      createdAt:
-        postData.createdAt instanceof Timestamp
-          ? postData.createdAt
-          : Timestamp.now(),
+    .set(
+      {
+        postId,
+        groupId,
+        isVisible: postData.isDeleted !== true,
+        createdAt:
+          postData.createdAt instanceof Timestamp
+            ? postData.createdAt
+            : Timestamp.now(),
 
-      postSnapshot: {
-        ...postData,
+        postSnapshot: {
+          ...postData,
+        },
+
+        syncedAt: FieldValue.serverTimestamp(),
       },
-
-      syncedAt: FieldValue.serverTimestamp(),
-    });
+      { merge: true }
+    );
 }
-
 
 export const onHomeFeedPostCreated = onDocumentCreated(
   {
@@ -60,26 +68,37 @@ export const onHomeFeedPostCreated = onDocumentCreated(
     const postId = snapshot.id;
     const postData = snapshot.data();
 
-    if (!postData) {
-      return;
-    }
-
-    if (postData.isDeleted === true) {
+    if (!postData || postData.isDeleted === true) {
       return;
     }
 
     const groupId =
-      typeof postData.groupId === "string"
-        ? postData.groupId
+      typeof postData.groupId === "string" && postData.groupId.trim()
+        ? postData.groupId.trim()
         : null;
 
     if (!groupId) {
       return;
     }
 
+    const groupSnap = await db.collection("groups").doc(groupId).get();
+    const groupData = groupSnap.exists ? groupSnap.data() ?? {} : {};
+
+    const ownerId =
+      typeof groupData.ownerId === "string" && groupData.ownerId.trim()
+        ? groupData.ownerId.trim()
+        : null;
+
+    const authorId =
+      typeof postData.authorId === "string" && postData.authorId.trim()
+        ? postData.authorId.trim()
+        : null;
+
     logger.info("onHomeFeedPostCreated", {
       postId,
       groupId,
+      ownerId,
+      authorId,
     });
 
     const membersSnap = await db
@@ -89,24 +108,39 @@ export const onHomeFeedPostCreated = onDocumentCreated(
       .where("status", "in", ["active", "subscribed", "muted"])
       .get();
 
-    const writes = membersSnap.docs.map((memberDoc) => {
-      const uid =
-        typeof memberDoc.data().userId === "string"
-          ? memberDoc.data().userId
-          : memberDoc.id;
+    const memberIds = membersSnap.docs
+      .map((memberDoc) => {
+        const uid =
+          typeof memberDoc.data().userId === "string" &&
+          memberDoc.data().userId.trim()
+            ? memberDoc.data().userId.trim()
+            : memberDoc.id;
 
-      return addPostToUserHomeFeed({
+        return uid;
+      })
+      .filter(Boolean);
+
+    const targetUserIds = Array.from(
+      new Set([
+        ...(ownerId ? [ownerId] : []),
+        ...(authorId ? [authorId] : []),
+        ...memberIds,
+      ])
+    );
+
+    const writes = targetUserIds.map((uid) =>
+      addPostToUserHomeFeed({
         uid,
         postId,
         postData,
-      });
-    });
+      })
+    );
 
     await Promise.all(writes);
   }
 );
 
-export const onHomeFeedPostDeleted = onDocumentUpdated(
+export const onHomeFeedPostUpdated = onDocumentUpdated(
   {
     document: "posts/{postId}",
     region: "us-central1",
@@ -119,33 +153,86 @@ export const onHomeFeedPostDeleted = onDocumentUpdated(
       return;
     }
 
-    if (
-      beforeData.isDeleted === true ||
-      afterData.isDeleted !== true
-    ) {
-      return;
-    }
-
     const postId = event.params.postId;
-
-    logger.info("onHomeFeedPostDeleted", {
-      postId,
-      groupId:
-        typeof afterData.groupId === "string"
-          ? afterData.groupId
-          : null,
-    });
 
     const homeFeedSnap = await db
       .collectionGroup("homeFeed")
       .where("postId", "==", postId)
       .get();
 
-    const writes = homeFeedSnap.docs.map((docSnap) =>
-      docSnap.ref.delete()
-    );
+    if (homeFeedSnap.empty) {
+      return;
+    }
 
-    await Promise.all(writes);
+    if (afterData.isDeleted === true) {
+      logger.info("onHomeFeedPostUpdated deleting homeFeed copies", {
+        postId,
+        groupId:
+          typeof afterData.groupId === "string"
+            ? afterData.groupId
+            : null,
+        copies: homeFeedSnap.size,
+      });
+
+      const batches = [];
+
+      for (let i = 0; i < homeFeedSnap.docs.length; i += 450) {
+        const batch = db.batch();
+
+        homeFeedSnap.docs.slice(i, i + 450).forEach((docSnap) => {
+          batch.delete(docSnap.ref);
+        });
+
+        batches.push(batch.commit());
+      }
+
+      await Promise.all(batches);
+      return;
+    }
+
+    logger.info("onHomeFeedPostUpdated syncing homeFeed snapshots", {
+      postId,
+      groupId:
+        typeof afterData.groupId === "string"
+          ? afterData.groupId
+          : null,
+      copies: homeFeedSnap.size,
+    });
+
+    const groupId =
+      typeof afterData.groupId === "string" && afterData.groupId.trim().length > 0
+        ? afterData.groupId.trim()
+        : null;
+
+    const batches = [];
+
+    for (let i = 0; i < homeFeedSnap.docs.length; i += 450) {
+      const batch = db.batch();
+
+      homeFeedSnap.docs.slice(i, i + 450).forEach((docSnap) => {
+        batch.set(
+          docSnap.ref,
+          {
+            postId,
+            groupId,
+            isVisible: true,
+            createdAt:
+              afterData.createdAt instanceof Timestamp
+                ? afterData.createdAt
+                : Timestamp.now(),
+            postSnapshot: {
+              ...afterData,
+            },
+            syncedAt: FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      });
+
+      batches.push(batch.commit());
+    }
+
+    await Promise.all(batches);
   }
 );
 

@@ -18,9 +18,11 @@ function normalizeGroupVisibility(value: unknown): GroupVisibility | null {
 
 function isFreePublicPost(post: Post): boolean {
   const accessModel = post.accessModel ?? "free";
+  const searchData = (post as any).search;
 
   return (
     post.isDeleted !== true &&
+    searchData?.isDeleted !== true &&
     post.groupVisibility === "public" &&
     post.isShareable !== false &&
     accessModel === "free" &&

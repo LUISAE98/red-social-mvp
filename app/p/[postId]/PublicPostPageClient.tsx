@@ -359,7 +359,13 @@ export default function PublicPostPageClient({
           : "text"),
     videoData: post.videoData ?? null,
     playback: post.playback ?? null,
-    processing: post.processing ?? null,
+        processing: post.processing ?? {
+      status: "none",
+      provider: null,
+      errorCode: null,
+      errorMessage: null,
+      updatedAt: null,
+    },
   };
 
   function requireLogin(message: string) {
@@ -393,19 +399,31 @@ export default function PublicPostPageClient({
 
     if (flameBusy) return;
 
+    const previousViewerHasFlamed = viewerHasFlamed;
+    const previousLikesCount = likesCount;
+    const nextViewerHasFlamed = !previousViewerHasFlamed;
+
+    setInlineError(null);
+    setViewerHasFlamed(nextViewerHasFlamed);
+    setLikesCount((current) =>
+      Math.max(0, current + (nextViewerHasFlamed ? 1 : -1))
+    );
+
     try {
       setFlameBusy(true);
-      setInlineError(null);
 
       const result = await togglePostFlame(post.id);
       setViewerHasFlamed(result.liked);
       setLikesCount(result.likes);
     } catch (e: any) {
+      setViewerHasFlamed(previousViewerHasFlamed);
+      setLikesCount(previousLikesCount);
       setInlineError(e?.message ?? "No se pudo actualizar la flamita.");
     } finally {
       setFlameBusy(false);
     }
   }
+
   async function handleToggleSave() {
     if (!currentUserId) {
       requireLogin("Inicia sesión para guardar publicaciones.");
@@ -414,20 +432,31 @@ export default function PublicPostPageClient({
 
     if (saveBusy) return;
 
+    const previousViewerHasSaved = viewerHasSaved;
+    const previousSavesCount = savesCount;
+    const nextViewerHasSaved = !previousViewerHasSaved;
+
+    setInlineError(null);
+    setViewerHasSaved(nextViewerHasSaved);
+    setSavesCount((current) =>
+      Math.max(0, current + (nextViewerHasSaved ? 1 : -1))
+    );
+
     try {
       setSaveBusy(true);
-      setInlineError(null);
 
       const result = await togglePostSave(post.id);
-
       setViewerHasSaved(result.saved);
-      setSavesCount((prev) => Math.max(0, prev + result.delta));
+      setSavesCount(Math.max(0, previousSavesCount + result.delta));
     } catch (e: any) {
+      setViewerHasSaved(previousViewerHasSaved);
+      setSavesCount(previousSavesCount);
       setInlineError(e?.message ?? "No se pudo actualizar el guardado.");
     } finally {
       setSaveBusy(false);
     }
   }
+
   async function handleOpenFlamesPanel() {
     if (!currentUserId) {
       requireLogin("Inicia sesión para ver quién dio flamita.");

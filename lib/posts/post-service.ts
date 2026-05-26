@@ -1101,20 +1101,79 @@ export async function fetchHomePostsPage(params: {
     )
   );
 
-  const rawPosts = homeFeedSnap.docs
-    .map((feedDoc) => {
-      const data = feedDoc.data() as Record<string, any>;
-      const postSnapshot = data.postSnapshot ?? {};
+  if (homeFeedSnap.empty) {
+    return {
+      posts: [],
+      cursor: null,
+      hasMore: false,
+    };
+  }
+
+  const feedRows = homeFeedSnap.docs.map((feedDoc) => {
+    const data = feedDoc.data() as Record<string, any>;
+    const postId =
+      typeof data.postId === "string" && data.postId.trim().length > 0
+        ? data.postId.trim()
+        : feedDoc.id;
+
+    return {
+      feedDoc,
+      postId,
+      canModerateGroupAuthor: data.canModerateGroupAuthor ?? false,
+      authorMemberStatus: data.authorMemberStatus ?? null,
+      authorMutedUntil: data.authorMutedUntil ?? null,
+    };
+  });
+
+  const uniquePostIds = Array.from(
+    new Set(
+      feedRows
+        .map((row) => row.postId)
+        .filter((postId) => postId.trim().length > 0)
+    )
+  );
+
+  const postsById = new Map<string, Post>();
+
+  await Promise.all(
+    chunkArray(uniquePostIds, 10).map(async (chunk) => {
+      try {
+        const postsSnap = await getDocs(
+          query(collection(db, "posts"), where(documentId(), "in", chunk))
+        );
+
+        postsSnap.docs.forEach((postDoc) => {
+          const post = {
+            id: postDoc.id,
+            ...(postDoc.data() as Omit<Post, "id">),
+          } as Post;
+
+          if (post.isDeleted !== true) {
+            postsById.set(postDoc.id, post);
+          }
+        });
+      } catch {
+        // Si falla un bloque, no rompemos todo el feed.
+      }
+    })
+  );
+
+  const rawPosts = feedRows
+    .map((row) => {
+      const livePost = postsById.get(row.postId);
+
+      if (!livePost || livePost.isDeleted === true) {
+        return null;
+      }
 
       return {
-        id: typeof data.postId === "string" ? data.postId : feedDoc.id,
-        ...postSnapshot,
-        canModerateGroupAuthor: data.canModerateGroupAuthor ?? false,
-        authorMemberStatus: data.authorMemberStatus ?? null,
-        authorMutedUntil: data.authorMutedUntil ?? null,
+        ...livePost,
+        canModerateGroupAuthor: row.canModerateGroupAuthor,
+        authorMemberStatus: row.authorMemberStatus,
+        authorMutedUntil: row.authorMutedUntil,
       } as Post;
     })
-    .filter((post) => post.isDeleted !== true);
+    .filter((post): post is Post => post !== null);
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(rawPosts.map((post) => post.authorId)),

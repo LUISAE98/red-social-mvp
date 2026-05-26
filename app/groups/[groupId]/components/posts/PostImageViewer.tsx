@@ -796,12 +796,13 @@ export default function PostImageViewer({
     gap: 2,
   };
 
-  const flameButtonStyle: CSSProperties = {
+const flameButtonStyle: CSSProperties = {
   ...actionButtonStyle,
-  opacity: flameBusy ? 0.72 : 1,
-  cursor: flameBusy ? "not-allowed" : "pointer",
+  opacity: 1,
+  cursor: "pointer",
   transform: viewerHasFlamed ? "scale(1.04)" : "scale(1)",
-  transition: "transform 140ms ease, opacity 140ms ease",
+  transition: "transform 140ms ease",
+  touchAction: "manipulation",
 };
 
   function renderMediaPreview(media: ViewerMediaItem | null, label: string) {
@@ -1674,7 +1675,6 @@ export default function PostImageViewer({
 <button
   type="button"
   onClick={onToggleFlame}
-  disabled={flameBusy}
   aria-pressed={viewerHasFlamed}
   aria-label={
     viewerHasFlamed
@@ -2433,7 +2433,6 @@ export default function PostImageViewer({
 <button
   type="button"
   onClick={onToggleFlame}
-  disabled={flameBusy}
   aria-pressed={viewerHasFlamed}
   aria-label={
     viewerHasFlamed

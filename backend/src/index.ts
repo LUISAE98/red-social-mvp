@@ -123,7 +123,7 @@ export { toggleGroupPostPin, toggleProfilePostPin } from "./postPins";
 // Home Feed materializado
 export {
   onHomeFeedPostCreated,
-  onHomeFeedPostDeleted,
+  onHomeFeedPostUpdated,
   onHomeFeedMembershipCreated,
   onHomeFeedMembershipDeleted,
   onHomeFeedMemberStatusChanged,
