@@ -40,6 +40,7 @@ type PostWithFlags = Post & {
 function normalizeHomeFeedPost(post: PostWithFlags): PostWithFlags {
   return {
     ...post,
+    isDeleted: post.isDeleted === true,
     postType: post.postType ?? "text",
     access: post.access ?? "free",
     accessModel: post.accessModel ?? "free",
@@ -139,16 +140,19 @@ function mergeUniquePosts(
   const map = new Map<string, PostWithFlags>();
 
   currentPosts.forEach((post) => {
-    if (post.id) map.set(post.id, post);
+    if (post.id && post.isDeleted !== true) {
+      map.set(post.id, post);
+    }
   });
 
   nextPosts.forEach((post) => {
-    if (post.id) map.set(post.id, post);
+    if (post.id && post.isDeleted !== true) {
+      map.set(post.id, post);
+    }
   });
 
   return Array.from(map.values());
 }
-
 export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
   const [posts, setPosts] = useState<PostWithFlags[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -244,9 +248,9 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
           cursor: mode === "more" ? pageCursorRef.current : null,
         });
 
-const normalizedPosts = result.posts.map((post) =>
-  normalizeHomeFeedPost(post as PostWithFlags)
-);
+const normalizedPosts = result.posts
+  .map((post) => normalizeHomeFeedPost(post as PostWithFlags))
+  .filter((post) => post.isDeleted !== true);
 
         const nextCursor = result.cursor;
         const nextHasMore = result.hasMore;
@@ -312,7 +316,7 @@ const normalizedPosts = result.posts.map((post) =>
         cached?.posts.some(isVideoPostStillProcessing) === true;
 
       if (cacheIsFresh && !cacheHasProcessingVideos) {
-        setPosts(cached.posts);
+        setPosts(cached.posts.filter((post) => post.isDeleted !== true));
         setPageCursor(cached.cursor);
         setHasMore(cached.hasMore);
         pageCursorRef.current = cached.cursor;
@@ -400,8 +404,12 @@ const normalizedPosts = result.posts.map((post) =>
               freshPost.processing?.status === "error" ||
               freshPost.videoData?.status === "error";
 
-            syncPostsState((prev) =>
-              prev.map((post) =>
+            syncPostsState((prev) => {
+              if (freshPost.isDeleted === true) {
+                return prev.filter((post) => post.id !== postId);
+              }
+
+              return prev.map((post) =>
                 post.id === postId
                   ? {
                       ...freshPost,
@@ -412,8 +420,8 @@ const normalizedPosts = result.posts.map((post) =>
                       viewerHasSaved: post.viewerHasSaved,
                     }
                   : post
-              )
-            );
+              );
+            });
 
             if (isDone) {
               delete videoProcessingPollsRef.current[postId];

@@ -44,19 +44,6 @@ async function addPostToUserHomeFeed(params: {
     });
 }
 
-async function removePostFromUserHomeFeed(params: {
-  uid: string;
-  postId: string;
-}) {
-  const { uid, postId } = params;
-
-  await db
-    .collection("users")
-    .doc(uid)
-    .collection("homeFeed")
-    .doc(postId)
-    .delete();
-}
 
 export const onHomeFeedPostCreated = onDocumentCreated(
   {
@@ -139,42 +126,24 @@ export const onHomeFeedPostDeleted = onDocumentUpdated(
       return;
     }
 
-    const postId =
-      typeof afterData.id === "string"
-        ? afterData.id
-        : event.params.postId;
-
-    const groupId =
-      typeof afterData.groupId === "string"
-        ? afterData.groupId
-        : null;
-
-    if (!groupId) {
-      return;
-    }
+    const postId = event.params.postId;
 
     logger.info("onHomeFeedPostDeleted", {
       postId,
-      groupId,
+      groupId:
+        typeof afterData.groupId === "string"
+          ? afterData.groupId
+          : null,
     });
 
-    const membersSnap = await db
-      .collection("groups")
-      .doc(groupId)
-      .collection("members")
+    const homeFeedSnap = await db
+      .collectionGroup("homeFeed")
+      .where("postId", "==", postId)
       .get();
 
-    const writes = membersSnap.docs.map((memberDoc) => {
-      const uid =
-        typeof memberDoc.data().userId === "string"
-          ? memberDoc.data().userId
-          : memberDoc.id;
-
-      return removePostFromUserHomeFeed({
-        uid,
-        postId,
-      });
-    });
+    const writes = homeFeedSnap.docs.map((docSnap) =>
+      docSnap.ref.delete()
+    );
 
     await Promise.all(writes);
   }

@@ -113,7 +113,10 @@ export { togglePostFlame } from "./postReactions";
 export { toggleCommentFlame } from "./postComments";
 
 // Post saves
-export { togglePostSave } from "./postSaves";
+export {
+  togglePostSave,
+  onSavedPostsPostDeleted,
+} from "./postSaves";
 
 // Post pins
 export { toggleGroupPostPin, toggleProfilePostPin } from "./postPins";

@@ -1443,18 +1443,41 @@ function canReadPost() {
       }
 
       function canSoftDeletePost() {
-return signedIn()
-  && request.resource.data.diff(resource.data).changedKeys().hasOnly([
-    "isDeleted",
-    "deletedAt",
-    "updatedAt",
-    "search"
-  ])
+        return signedIn()
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            "isDeleted",
+            "deletedAt",
+            "deletedBy",
+            "updatedAt",
+            "isPinnedInGroup",
+            "groupPinnedAt",
+            "groupPinnedBy",
+            "isPinnedOnProfile",
+            "profilePinnedAt",
+            "profilePinnedBy",
+            "search"
+          ])
           && request.resource.data.isDeleted == true
           && resource.data.isDeleted == false
+          && request.resource.data.deletedBy == request.auth.uid
+          && request.resource.data.deletedAt is timestamp
+          && request.resource.data.updatedAt is timestamp
+          && request.resource.data.isPinnedInGroup == false
+          && request.resource.data.groupPinnedAt == null
+          && request.resource.data.groupPinnedBy == null
+          && request.resource.data.isPinnedOnProfile == false
+          && request.resource.data.profilePinnedAt == null
+          && request.resource.data.profilePinnedBy == null
           && request.resource.data.authorId == resource.data.authorId
           && request.resource.data.groupId == resource.data.groupId
           && request.resource.data.text == resource.data.text
+          && (
+            !("search" in request.resource.data)
+            || (
+              request.resource.data.search is map
+              && request.resource.data.search.isDeleted == true
+            )
+          )
           && (
             resource.data.authorId == request.auth.uid
             || canModerateGroup(resource.data.groupId)

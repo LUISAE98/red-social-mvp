@@ -218,7 +218,7 @@ export const onProfileFeedPostCreated = onDocumentCreated(
     const postId = event.params.postId;
     const postData = snapshot.data();
 
-    if (!postData) {
+    if (!postData || postData.isDeleted === true) {
       return;
     }
 
@@ -257,6 +257,17 @@ export const onProfileFeedPostUpdated = onDocumentUpdated(
         postId,
         authorId: beforeAuthorId,
       });
+    }
+
+    if (afterData.isDeleted === true) {
+      if (afterAuthorId) {
+        await deleteProfileFeedEntry({
+          postId,
+          authorId: afterAuthorId,
+        });
+      }
+
+      return;
     }
 
     await upsertProfileFeedEntry({

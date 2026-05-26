@@ -1063,17 +1063,20 @@ export async function fetchHomePostsPage(params: {
     )
   );
 
-  const rawPosts = homeFeedSnap.docs.map((feedDoc) => {
-    const data = feedDoc.data() as Record<string, any>;
+  const rawPosts = homeFeedSnap.docs
+    .map((feedDoc) => {
+      const data = feedDoc.data() as Record<string, any>;
+      const postSnapshot = data.postSnapshot ?? {};
 
-    return {
-      id: typeof data.postId === "string" ? data.postId : feedDoc.id,
-      ...(data.postSnapshot ?? {}),
-      canModerateGroupAuthor: data.canModerateGroupAuthor ?? false,
-      authorMemberStatus: data.authorMemberStatus ?? null,
-      authorMutedUntil: data.authorMutedUntil ?? null,
-    } as Post;
-  });
+      return {
+        id: typeof data.postId === "string" ? data.postId : feedDoc.id,
+        ...postSnapshot,
+        canModerateGroupAuthor: data.canModerateGroupAuthor ?? false,
+        authorMemberStatus: data.authorMemberStatus ?? null,
+        authorMutedUntil: data.authorMutedUntil ?? null,
+      } as Post;
+    })
+    .filter((post) => post.isDeleted !== true);
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(rawPosts.map((post) => post.authorId)),
@@ -2022,16 +2025,41 @@ export async function createVideoPost(params: {
   }, { merge: true });
 }
 
-
 export async function softDeletePost(postId: string): Promise<void> {
   assertValidId(postId, "postId");
 
+  const user = auth.currentUser;
+
+  if (!user?.uid) {
+    throw new Error("Debes iniciar sesión para eliminar una publicación.");
+  }
+
+  const postRef = doc(db, "posts", postId);
+  const postSnap = await getDoc(postRef);
+
+  if (!postSnap.exists()) {
+    throw new Error("La publicación no existe.");
+  }
+
+  const postData = postSnap.data() as Record<string, unknown>;
+
+  if (postData.isDeleted === true) {
+    return;
+  }
+
   const updatedAt = serverTimestamp();
 
-  await updateDoc(doc(db, "posts", postId), {
+  await updateDoc(postRef, {
     isDeleted: true,
     deletedAt: updatedAt,
+    deletedBy: user.uid,
     updatedAt,
+    isPinnedInGroup: false,
+    groupPinnedAt: null,
+    groupPinnedBy: null,
+    isPinnedOnProfile: false,
+    profilePinnedAt: null,
+    profilePinnedBy: null,
     "search.isDeleted": true,
     "search.updatedAt": updatedAt,
   });

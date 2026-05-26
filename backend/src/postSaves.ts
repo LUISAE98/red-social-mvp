@@ -1,5 +1,7 @@
 import { FieldValue, getFirestore } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
+import { onDocumentUpdated } from "firebase-functions/v2/firestore";
+
 
 const db = getFirestore();
 
@@ -226,3 +228,38 @@ export const togglePostSave = onCall<TogglePostSavePayload>(async (request) => {
     };
   });
 });
+
+export const onSavedPostsPostDeleted = onDocumentUpdated(
+  {
+    document: "posts/{postId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    const beforeData = event.data?.before.data();
+    const afterData = event.data?.after.data();
+
+    if (!beforeData || !afterData) {
+      return;
+    }
+
+    if (
+      beforeData.isDeleted === true ||
+      afterData.isDeleted !== true
+    ) {
+      return;
+    }
+
+    const postId = event.params.postId;
+
+    const savedPostsSnap = await db
+      .collectionGroup("savedPosts")
+      .where("postId", "==", postId)
+      .get();
+
+    const writes = savedPostsSnap.docs.map((docSnap) =>
+      docSnap.ref.delete()
+    );
+
+    await Promise.all(writes);
+  }
+);

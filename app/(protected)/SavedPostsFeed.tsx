@@ -46,9 +46,21 @@ type SavedPostsCacheEntry = {
 const savedPostsMemoryCache = new Map<string, SavedPostsCacheEntry>();
 
 function mergeUniquePosts(currentPosts: PostWithFlags[], nextPosts: PostWithFlags[]) {
-  return Array.from(
-    new Map([...currentPosts, ...nextPosts].map((post) => [post.id, post])).values()
-  );
+  const map = new Map<string, PostWithFlags>();
+
+  currentPosts.forEach((post) => {
+    if (post.id && post.isDeleted !== true) {
+      map.set(post.id, post);
+    }
+  });
+
+  nextPosts.forEach((post) => {
+    if (post.id && post.isDeleted !== true) {
+      map.set(post.id, post);
+    }
+  });
+
+  return Array.from(map.values());
 }
 
 function normalizeRole(raw: unknown): GroupRole {
@@ -73,6 +85,7 @@ function normalizeStatus(raw: unknown): MemberStatus {
 function normalizeSavedFeedPost(post: PostWithFlags): PostWithFlags {
   return {
     ...post,
+    isDeleted: post.isDeleted === true,
     postType: post.postType ?? "text",
     access: post.access ?? "free",
     accessModel: post.accessModel ?? "free",
@@ -224,7 +237,9 @@ const syncPostsState = useCallback(
           pageSize: SAVED_POSTS_PAGE_SIZE,
           cursor: nextCursor,
         });
-        const normalizedPosts = page.posts.map(normalizeSavedFeedPost);
+        const normalizedPosts = page.posts
+          .map(normalizeSavedFeedPost)
+          .filter((post) => post.isDeleted !== true);
 
         syncPostsState((currentPosts) => {
           const nextPosts = reset
@@ -284,7 +299,7 @@ const syncPostsState = useCallback(
         cache?.posts.some(isVideoPostStillProcessing) === true;
 
       if (cacheIsFresh && !cacheHasProcessingVideos) {
-        setPosts(cache.posts);
+        setPosts(cache.posts.filter((post) => post.isDeleted !== true));
         setPageCursor(cache.cursor);
         setHasMore(cache.hasMore);
         setLoadingInitial(false);
@@ -363,8 +378,12 @@ const syncPostsState = useCallback(
               freshPost.processing?.status === "error" ||
               freshPost.videoData?.status === "error";
 
-            syncPostsState((prev) =>
-              prev.map((post) =>
+            syncPostsState((prev) => {
+              if (freshPost.isDeleted === true) {
+                return prev.filter((post) => post.id !== postId);
+              }
+
+              return prev.map((post) =>
                 post.id === postId
                   ? {
                       ...freshPost,
@@ -375,8 +394,8 @@ const syncPostsState = useCallback(
                       viewerHasSaved: post.viewerHasSaved,
                     }
                   : post
-              )
-            );
+              );
+            });
 
             if (isDone) {
               delete videoProcessingPollsRef.current[postId];

@@ -272,6 +272,7 @@ async function attachModerationFlags(
 function normalizeProfileFeedPost(post: PostWithFlags): PostWithFlags {
   return {
     ...post,
+    isDeleted: post.isDeleted === true,
     postType: post.postType ?? "text",
     access: post.access ?? "free",
     accessModel: post.accessModel ?? "free",
@@ -418,6 +419,7 @@ function sortProfileFeedPosts(posts: PostWithFlags[]): PostWithFlags[] {
     return bCreatedAt - aCreatedAt;
   });
 }
+
 function mergeUniquePosts(
   currentPosts: PostWithFlags[],
   nextPosts: PostWithFlags[]
@@ -425,11 +427,15 @@ function mergeUniquePosts(
   const map = new Map<string, PostWithFlags>();
 
   currentPosts.forEach((post) => {
-    if (post.id) map.set(post.id, post);
+    if (post.id && post.isDeleted !== true) {
+      map.set(post.id, post);
+    }
   });
 
   nextPosts.forEach((post) => {
-    if (post.id) map.set(post.id, post);
+    if (post.id && post.isDeleted !== true) {
+      map.set(post.id, post);
+    }
   });
 
   return sortProfileFeedPosts(Array.from(map.values()));
@@ -563,7 +569,9 @@ const cacheKey = useMemo(
           viewerUid
         );
 
-        const normalizedPosts = hydratedPosts.map(normalizeProfileFeedPost);
+        const normalizedPosts = hydratedPosts
+          .map(normalizeProfileFeedPost)
+          .filter((post) => post.isDeleted !== true);
 
         const nextCursor = result.cursor;
         const nextHasMore = result.hasMore;
@@ -639,7 +647,7 @@ const cacheKey = useMemo(
         cached?.posts.some(isVideoPostStillProcessing) === true;
 
       if (cacheIsFresh && !cacheHasProcessingVideos) {
-        setPosts(cached.posts);
+        setPosts(cached.posts.filter((post) => post.isDeleted !== true));
         setPageCursor(cached.cursor);
         setHasMore(cached.hasMore);
         pageCursorRef.current = cached.cursor;
@@ -735,8 +743,12 @@ const cacheKey = useMemo(
               freshPost.processing?.status === "error" ||
               freshPost.videoData?.status === "error";
 
-            syncPostsState((prev) =>
-              prev.map((post) =>
+            syncPostsState((prev) => {
+              if (freshPost.isDeleted === true) {
+                return prev.filter((post) => post.id !== postId);
+              }
+
+              return prev.map((post) =>
                 post.id === postId
                   ? {
                       ...freshPost,
@@ -747,8 +759,8 @@ const cacheKey = useMemo(
                       viewerHasSaved: post.viewerHasSaved,
                     }
                   : post
-              )
-            );
+              );
+            });
 
             if (isDone) {
               delete videoProcessingPollsRef.current[postId];

@@ -145,6 +145,7 @@ async function attachAuthorMemberState(
 function normalizeFeedPost(post: PostWithAuthorState): PostWithAuthorState {
   return {
     ...post,
+    isDeleted: post.isDeleted === true,
     postType: post.postType ?? "text",
     access: post.access ?? "free",
     accessModel: post.accessModel ?? "free",
@@ -284,11 +285,15 @@ function mergeUniquePosts(
   const map = new Map<string, PostWithAuthorState>();
 
   currentPosts.forEach((post) => {
-    if (post.id) map.set(post.id, post);
+    if (post.id && post.isDeleted !== true) {
+      map.set(post.id, post);
+    }
   });
 
   nextPosts.forEach((post) => {
-    if (post.id) map.set(post.id, post);
+    if (post.id && post.isDeleted !== true) {
+      map.set(post.id, post);
+    }
   });
 
   return sortGroupFeedPosts(Array.from(map.values()));
@@ -474,7 +479,9 @@ export default function GroupPostsFeed({
           result.posts,
         );
 
-        const normalizedPosts = hydratedPosts.map(normalizeFeedPost);
+        const normalizedPosts = hydratedPosts
+          .map(normalizeFeedPost)
+          .filter((post) => post.isDeleted !== true);
 
         const nextCursor = result.cursor;
         const nextHasMore = result.hasMore;
@@ -529,7 +536,7 @@ export default function GroupPostsFeed({
         cached?.posts.some(isVideoPostStillProcessing) === true;
 
       if (cacheIsFresh && !cacheHasProcessingVideos) {
-        setPosts(cached.posts);
+        setPosts(cached.posts.filter((post) => post.isDeleted !== true));
         setPageCursor(cached.cursor);
         setHasMore(cached.hasMore);
         pageCursorRef.current = cached.cursor;

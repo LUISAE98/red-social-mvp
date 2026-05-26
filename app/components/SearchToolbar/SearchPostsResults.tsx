@@ -181,6 +181,7 @@ async function attachModerationFlags(posts: Post[], userId: string) {
 function normalizeSearchPost(post: PostWithFlags): PostWithFlags {
   return {
     ...post,
+    isDeleted: post.isDeleted === true,
     postType: post.postType ?? "text",
     access: post.access ?? "free",
     accessModel: post.accessModel ?? "free",
@@ -284,7 +285,13 @@ const result = await searchPosts({
         }
 
         if (!active) return;
-        setPosts(finalPosts.slice(0, 60).map(normalizeSearchPost));
+
+        setPosts(
+          finalPosts
+            .slice(0, 60)
+            .map(normalizeSearchPost)
+            .filter((post) => post.isDeleted !== true)
+        );
       } catch (e: any) {
         if (!active) return;
         console.error("searchPosts error completo:", e);
@@ -489,7 +496,7 @@ setError(e?.message ?? "Error");
     return true;
   }
 
-const filteredPosts = posts;
+const filteredPosts = posts.filter((post) => post.isDeleted !== true);
 
 const hasResults = filteredPosts.length > 0;
 
