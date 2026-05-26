@@ -381,6 +381,18 @@ export const consumeInviteLink = onCall(async (request) => {
       const memberRef = groupRef.collection("members").doc(callerUid);
       const joinRequestRef = groupRef.collection("joinRequests").doc(callerUid);
 
+      const userMembershipRef = db
+        .collection("users")
+        .doc(callerUid)
+        .collection("groupMemberships")
+        .doc(groupId);
+
+      const userJoinRequestSentRef = db
+        .collection("users")
+        .doc(callerUid)
+        .collection("joinRequestsSent")
+        .doc(groupId);
+
       const groupSnap = await tx.get(groupRef);
       const memberSnap = await tx.get(memberRef);
       const joinRequestSnap = await tx.get(joinRequestRef);
@@ -394,6 +406,12 @@ export const consumeInviteLink = onCall(async (request) => {
         visibility?: GroupVisibility;
         isActive?: boolean;
         name?: string;
+        description?: string | null;
+        imageUrl?: string | null;
+        avatarUrl?: string | null;
+        coverUrl?: string | null;
+        discoverable?: boolean | null;
+        category?: string | null;
       };
 
       logger.info("consumeInviteLink transaction state", {
@@ -491,6 +509,8 @@ export const consumeInviteLink = onCall(async (request) => {
             : {}),
         });
 
+        tx.delete(userJoinRequestSentRef);
+
         return {
           success: true,
           groupId,
@@ -502,12 +522,84 @@ export const consumeInviteLink = onCall(async (request) => {
       }
 
       if (groupData?.visibility === "hidden") {
+        const groupName =
+          typeof groupData?.name === "string" ? groupData.name : null;
+        const groupDescription =
+          typeof groupData?.description === "string"
+            ? groupData.description
+            : null;
+        const groupImageUrl =
+          typeof groupData?.imageUrl === "string" ? groupData.imageUrl : null;
+        const groupAvatarUrl =
+          typeof groupData?.avatarUrl === "string"
+            ? groupData.avatarUrl
+            : null;
+        const groupCoverUrl =
+          typeof groupData?.coverUrl === "string" ? groupData.coverUrl : null;
+        const groupOwnerId =
+          typeof groupData?.ownerId === "string" ? groupData.ownerId : null;
+        const groupVisibility =
+          typeof groupData?.visibility === "string"
+            ? groupData.visibility
+            : null;
+        const groupDiscoverable =
+          typeof groupData?.discoverable === "boolean"
+            ? groupData.discoverable
+            : null;
+        const groupIsActive =
+          typeof groupData?.isActive === "boolean" ? groupData.isActive : null;
+        const groupCategory =
+          typeof groupData?.category === "string" ? groupData.category : null;
+
+        const memberPatch = {
+          userId: callerUid,
+          roleInGroup: "member",
+          role: "member",
+          status: "active",
+          accessType: "standard",
+          requiresSubscription: false,
+          subscriptionActive: false,
+          joinedAt: FieldValue.serverTimestamp(),
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+
+        tx.set(memberRef, memberPatch, { merge: true });
+
         tx.set(
-          memberRef,
+          userMembershipRef,
           {
+            groupId,
             userId: callerUid,
+
             roleInGroup: "member",
+            role: "member",
             status: "active",
+            accessType: "standard",
+            requiresSubscription: false,
+            subscriptionActive: false,
+
+            groupName,
+            groupDescription,
+            groupImageUrl,
+            groupAvatarUrl,
+            groupCoverUrl,
+            groupOwnerId,
+            groupVisibility,
+            groupDiscoverable,
+            groupIsActive,
+            groupCategory,
+
+            name: groupName,
+            description: groupDescription,
+            imageUrl: groupImageUrl,
+            avatarUrl: groupAvatarUrl,
+            coverUrl: groupCoverUrl,
+            ownerId: groupOwnerId,
+            visibility: groupVisibility,
+            discoverable: groupDiscoverable,
+            isActive: groupIsActive,
+            category: groupCategory,
+
             joinedAt: FieldValue.serverTimestamp(),
             updatedAt: FieldValue.serverTimestamp(),
           },
@@ -517,17 +609,24 @@ export const consumeInviteLink = onCall(async (request) => {
         if (joinRequestSnap.exists) {
           tx.delete(joinRequestRef);
         }
+
+        tx.delete(userJoinRequestSentRef);
       } else {
         if (!joinRequestSnap.exists) {
+          const joinRequestPatch = {
+            userId: callerUid,
+            groupId,
+            status: "pending",
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+            source: "invite_link",
+          };
+
+          tx.set(joinRequestRef, joinRequestPatch, { merge: true });
+
           tx.set(
-            joinRequestRef,
-            {
-              userId: callerUid,
-              status: "pending",
-              createdAt: FieldValue.serverTimestamp(),
-              updatedAt: FieldValue.serverTimestamp(),
-              source: "invite_link",
-            },
+            userJoinRequestSentRef,
+            joinRequestPatch,
             { merge: true }
           );
         }

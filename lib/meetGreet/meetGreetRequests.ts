@@ -98,11 +98,6 @@ export type SetMeetGreetPreparingResult = {
   role: MeetGreetUserRole;
 };
 
-export type ExpireMeetGreetNoShowsResult = {
-  ok: boolean;
-  expiredCount: number;
-};
-
 function normalizeOptionalString(value?: string | null): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -356,21 +351,6 @@ export async function setMeetGreetPreparing(
       requestId: assertNonEmptyString(input.requestId, "requestId"),
       role: input.role,
     });
-
-    return result.data;
-  } catch (error: any) {
-    throw normalizeCallableError(error);
-  }
-}
-
-export async function expireMeetGreetNoShows(): Promise<ExpireMeetGreetNoShowsResult> {
-  try {
-    const callable = httpsCallable<Record<string, never>, ExpireMeetGreetNoShowsResult>(
-      functions,
-      "expireMeetGreetNoShows"
-    );
-
-    const result = await callable({});
 
     return result.data;
   } catch (error: any) {

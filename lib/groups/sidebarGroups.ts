@@ -1,5 +1,10 @@
+import {
+  collection,
+  onSnapshot,
+  type Unsubscribe,
+} from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
-import { functions } from "@/lib/firebase";
+import { db, functions } from "@/lib/firebase";
 
 export type MembershipAccessType =
   | "standard"
@@ -18,6 +23,9 @@ export type SidebarGroupState =
 export type SidebarGroup = {
   id: string;
   name?: string | null;
+  description?: string | null;
+  imageUrl?: string | null;
+  coverUrl?: string | null;
   ownerId?: string | null;
   visibility?: "public" | "private" | "hidden" | string | null;
   avatarUrl?: string | null;
@@ -82,6 +90,132 @@ type DismissHiddenGroupTransitionResult = {
 
 function normalizeGroupId(groupId: string): string {
   return typeof groupId === "string" ? groupId.trim() : "";
+}
+
+function normalizeSidebarGroupFromUserMembership(
+  id: string,
+  data: Record<string, unknown>
+): SidebarGroup | null {
+  const groupId =
+    typeof data.groupId === "string" && data.groupId.trim()
+      ? data.groupId.trim()
+      : id.trim();
+
+  if (!groupId) return null;
+
+  const status =
+    typeof data.status === "string" ? data.status : null;
+
+  if (status === "removed" || status === "kicked" || status === "expelled") {
+    return null;
+  }
+
+  return {
+    id: groupId,
+    name:
+      typeof data.name === "string"
+        ? data.name
+        : typeof data.groupName === "string"
+          ? data.groupName
+          : null,
+    description:
+      typeof data.description === "string"
+        ? data.description
+        : typeof data.groupDescription === "string"
+          ? data.groupDescription
+          : null,
+    imageUrl:
+      typeof data.imageUrl === "string"
+        ? data.imageUrl
+        : typeof data.groupImageUrl === "string"
+          ? data.groupImageUrl
+          : null,
+    avatarUrl:
+      typeof data.avatarUrl === "string"
+        ? data.avatarUrl
+        : typeof data.groupAvatarUrl === "string"
+          ? data.groupAvatarUrl
+          : null,
+    coverUrl:
+      typeof data.coverUrl === "string"
+        ? data.coverUrl
+        : typeof data.groupCoverUrl === "string"
+          ? data.groupCoverUrl
+          : null,
+    ownerId:
+      typeof data.ownerId === "string"
+        ? data.ownerId
+        : typeof data.groupOwnerId === "string"
+          ? data.groupOwnerId
+          : null,
+    visibility:
+      typeof data.visibility === "string"
+        ? data.visibility
+        : typeof data.groupVisibility === "string"
+          ? data.groupVisibility
+          : null,
+
+    memberStatus: status as SidebarGroup["memberStatus"],
+    memberRole:
+      typeof data.roleInGroup === "string"
+        ? data.roleInGroup
+        : typeof data.role === "string"
+          ? data.role
+          : "member",
+
+    membershipAccessType:
+      typeof data.accessType === "string"
+        ? (data.accessType as MembershipAccessType)
+        : null,
+    requiresSubscription: data.requiresSubscription === true,
+    subscriptionActive: data.subscriptionActive === true,
+    legacyComplimentary: data.legacyComplimentary === true,
+    transitionPendingAction: data.transitionPendingAction === true,
+    transitionReason:
+      typeof data.removedReason === "string" ? data.removedReason : null,
+    canDismiss: data.canDismiss === true,
+    sidebarState:
+      status === "banned"
+        ? "banned"
+        : data.accessType === "legacy_free" || data.legacyComplimentary === true
+          ? "legacy_free"
+          : data.requiresSubscription === true
+            ? "requires_subscription"
+            : "joined",
+  };
+}
+
+export function subscribeToMySidebarGroups(
+  uid: string,
+  onNext: (groups: SidebarGroup[]) => void,
+  onError?: (error: Error) => void
+): Unsubscribe {
+  const normalizedUid = typeof uid === "string" ? uid.trim() : "";
+
+  if (!normalizedUid) {
+    onNext([]);
+    return () => {};
+  }
+
+  return onSnapshot(
+    collection(db, "users", normalizedUid, "groupMemberships"),
+    (snap) => {
+      const groups = snap.docs
+        .map((docSnap) =>
+          normalizeSidebarGroupFromUserMembership(
+            docSnap.id,
+            docSnap.data() as Record<string, unknown>
+          )
+        )
+        .filter((group): group is SidebarGroup => group !== null);
+
+      onNext(groups);
+    },
+    (error) => {
+      onError?.(error);
+      onNext([]);
+    }
+  );
 }
 
 export async function getMyHiddenJoinedGroups(): Promise<SidebarGroup[]> {

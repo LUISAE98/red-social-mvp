@@ -52,8 +52,14 @@ type GroupOffering = {
 type GroupData = {
   ownerId?: string;
   name?: string;
+  description?: string | null;
   visibility?: string;
+  imageUrl?: string | null;
   avatarUrl?: string | null;
+  coverUrl?: string | null;
+  discoverable?: boolean | null;
+  isActive?: boolean | null;
+  category?: string | null;
   monetization?: GroupMonetization | null;
   offerings?: GroupOffering[] | null;
 };
@@ -73,11 +79,27 @@ type MemberData = {
 
 type UserGroupMembershipData = MemberData & {
   groupId?: string;
+
+  name?: string | null;
+  description?: string | null;
+  imageUrl?: string | null;
+  avatarUrl?: string | null;
+  coverUrl?: string | null;
+  ownerId?: string | null;
+  visibility?: string | null;
+  discoverable?: boolean | null;
+  isActive?: boolean | null;
+  category?: string | null;
+
   groupName?: string | null;
+  groupDescription?: string | null;
+  groupImageUrl?: string | null;
   groupOwnerId?: string | null;
   groupVisibility?: string | null;
   groupAvatarUrl?: string | null;
+  groupCoverUrl?: string | null;
   groupIsActive?: boolean | null;
+  groupCategory?: string | null;
 };
 
 type HiddenGroupTransitionData = {
@@ -101,9 +123,12 @@ type HiddenGroupTransitionData = {
 type SidebarGroupRow = {
   id: string;
   name?: string | null;
+  description?: string | null;
+  imageUrl?: string | null;
   ownerId?: string | null;
   visibility?: string | null;
   avatarUrl?: string | null;
+  coverUrl?: string | null;
 
   memberStatus?: MemberStatus;
   membershipAccessType?: SidebarMembershipAccessType | null;
@@ -315,9 +340,30 @@ function buildSidebarRowFromIndexedMembership(params: {
       : params.membershipId;
 
   if (!groupId) return null;
-  if (params.data.groupOwnerId === params.callerUid) return null;
-  if (params.data.groupVisibility !== "hidden") return null;
-  if (params.data.groupIsActive === false) return null;
+  const indexedOwnerId =
+    typeof params.data.ownerId === "string"
+      ? params.data.ownerId
+      : typeof params.data.groupOwnerId === "string"
+      ? params.data.groupOwnerId
+      : null;
+
+  const indexedVisibility =
+    typeof params.data.visibility === "string"
+      ? params.data.visibility
+      : typeof params.data.groupVisibility === "string"
+      ? params.data.groupVisibility
+      : null;
+
+  const indexedIsActive =
+    typeof params.data.isActive === "boolean"
+      ? params.data.isActive
+      : typeof params.data.groupIsActive === "boolean"
+      ? params.data.groupIsActive
+      : null;
+
+  if (indexedOwnerId === params.callerUid) return null;
+  if (indexedVisibility !== "hidden") return null;
+  if (indexedIsActive === false) return null;
 
   const memberStatus = normalizeSidebarMemberStatus(
     params.data.status ?? "active"
@@ -344,18 +390,36 @@ function buildSidebarRowFromIndexedMembership(params: {
   return {
     id: groupId,
     name:
-      typeof params.data.groupName === "string" ? params.data.groupName : null,
-    ownerId:
-      typeof params.data.groupOwnerId === "string"
-        ? params.data.groupOwnerId
+      typeof params.data.name === "string"
+        ? params.data.name
+        : typeof params.data.groupName === "string"
+        ? params.data.groupName
         : null,
-    visibility:
-      typeof params.data.groupVisibility === "string"
-        ? params.data.groupVisibility
+    description:
+      typeof params.data.description === "string"
+        ? params.data.description
+        : typeof params.data.groupDescription === "string"
+        ? params.data.groupDescription
         : null,
+    imageUrl:
+      typeof params.data.imageUrl === "string"
+        ? params.data.imageUrl
+        : typeof params.data.groupImageUrl === "string"
+        ? params.data.groupImageUrl
+        : null,
+    ownerId: indexedOwnerId,
+    visibility: indexedVisibility,
     avatarUrl:
-      typeof params.data.groupAvatarUrl === "string"
+      typeof params.data.avatarUrl === "string"
+        ? params.data.avatarUrl
+        : typeof params.data.groupAvatarUrl === "string"
         ? params.data.groupAvatarUrl
+        : null,
+    coverUrl:
+      typeof params.data.coverUrl === "string"
+        ? params.data.coverUrl
+        : typeof params.data.groupCoverUrl === "string"
+        ? params.data.groupCoverUrl
         : null,
 
     memberStatus,

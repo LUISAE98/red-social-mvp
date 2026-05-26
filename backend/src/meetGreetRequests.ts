@@ -648,6 +648,16 @@ if (source === "profile") {
 
     const resolvedPriceSnapshot = priceSnapshot ?? offeringPrice ?? null;
     const resolvedDurationMinutes = durationMinutes ?? offeringDuration ?? null;
+    if (
+  typeof resolvedDurationMinutes !== "number" ||
+  !Number.isFinite(resolvedDurationMinutes) ||
+  resolvedDurationMinutes <= 0
+) {
+  throw new HttpsError(
+    "failed-precondition",
+    "El servicio de Meet & Greet necesita una duración válida para poder agendarse."
+  );
+}
     const payload = {
       id: docRef.id,
       type: "digital_meet_greet",
@@ -742,12 +752,16 @@ if (source === "profile") {
       creatorId,
      });
 
-    return {
-      ok: true,
-      requestId: docRef.id,
-      status: payload.status,
-      creatorId,
-    };
+return {
+  ok: true,
+  requestId: docRef.id,
+  status: payload.status,
+  creatorId,
+  source,
+  requestSource: source,
+  groupId: source === "group" ? groupId : null,
+  profileUserId: source === "profile" ? profileUserId : null,
+};
   }
 );
 
@@ -1143,21 +1157,3 @@ export async function expireMeetGreetNoShowsHandler() {
 
   return expiredCount;
 }
-
-export const expireMeetGreetNoShows = onCall(
-  {
-    region: REGION,
-    cors: true,
-  },
-  async (request) => {
-    const uid = requireAuth(request.auth?.uid);
-    void uid;
-
-    const expiredCount = await expireMeetGreetNoShowsHandler();
-
-    return {
-      ok: true,
-      expiredCount,
-    };
-  }
-);

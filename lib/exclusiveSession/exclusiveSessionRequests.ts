@@ -6,10 +6,6 @@ type CallablePayload = Record<string, unknown>;
 
 export type ExclusiveSessionSource = "group" | "profile";
 
-export type ExpireExclusiveSessionNoShowsResult = {
-  ok: boolean;
-  expiredCount: number;
-};
 
 function normalizeCallableError(error: any): Error {
   const rawMessage =
@@ -37,6 +33,17 @@ function assertNonEmptyString(value: string, fieldName: string): string {
   }
 
   return trimmed;
+}
+
+function assertIsoDateString(value: string, fieldName: string): string {
+  const trimmed = assertNonEmptyString(value, fieldName);
+  const date = new Date(trimmed);
+
+  if (Number.isNaN(date.getTime())) {
+    throw new Error(`El campo ${fieldName} debe ser una fecha válida en formato ISO.`);
+  }
+
+  return date.toISOString();
 }
 
 function assertOptionalNumber(
@@ -163,7 +170,7 @@ export function proposeExclusiveSessionSchedule(payload: {
 }) {
   return callExclusiveSessionFunction("proposeExclusiveSessionSchedule", {
     requestId: assertNonEmptyString(payload.requestId, "requestId"),
-    scheduledAt: assertNonEmptyString(payload.scheduledAt, "scheduledAt"),
+    scheduledAt: assertIsoDateString(payload.scheduledAt, "scheduledAt"),
     note: normalizeOptionalString(payload.note),
   });
 }
@@ -196,11 +203,4 @@ export function setExclusiveSessionPreparing(payload: {
     requestId: assertNonEmptyString(payload.requestId, "requestId"),
     role: payload.role,
   });
-}
-
-export function expireExclusiveSessionNoShows() {
-  return callExclusiveSessionFunction<ExpireExclusiveSessionNoShowsResult>(
-    "expireExclusiveSessionNoShows",
-    {}
-  );
 }

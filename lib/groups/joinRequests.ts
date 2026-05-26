@@ -4,6 +4,7 @@ import {
   getDoc,
   serverTimestamp,
   setDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -51,10 +52,32 @@ export async function requestToJoin(groupId: string, uid: string) {
   }
 
   const ref = doc(db, "groups", groupId, "joinRequests", uid);
+  const userJoinRequestRef = doc(
+    db,
+    "users",
+    uid,
+    "joinRequestsSent",
+    groupId
+  );
 
-  await setDoc(
+  const batch = writeBatch(db);
+
+  batch.set(
     ref,
     {
+      userId: uid,
+      groupId,
+      status: "pending",
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  batch.set(
+    userJoinRequestRef,
+    {
+      groupId,
       userId: uid,
       status: "pending",
       createdAt: serverTimestamp(),
@@ -62,9 +85,24 @@ export async function requestToJoin(groupId: string, uid: string) {
     },
     { merge: true }
   );
+
+  await batch.commit();
 }
 
 export async function cancelJoinRequest(groupId: string, uid: string) {
   const ref = doc(db, "groups", groupId, "joinRequests", uid);
-  await deleteDoc(ref);
+  const userJoinRequestRef = doc(
+    db,
+    "users",
+    uid,
+    "joinRequestsSent",
+    groupId
+  );
+
+  const batch = writeBatch(db);
+
+  batch.delete(ref);
+  batch.delete(userJoinRequestRef);
+
+  await batch.commit();
 }

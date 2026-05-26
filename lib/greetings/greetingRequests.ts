@@ -6,6 +6,51 @@ export type GreetingType = "saludo" | "consejo" | "mensaje";
 export type GreetingSource = "group" | "profile";
 export type GreetingStatus = "pending" | "accepted" | "rejected";
 
+type CreateGreetingRequestParams = {
+  groupId: string | null;
+  profileUserId: string | null;
+  creatorId: string | null;
+  type: GreetingType;
+  toName: string;
+  instructions: string;
+  source: GreetingSource;
+  requestSource: GreetingSource;
+};
+
+type CreateGreetingRequestResult = {
+  ok: true;
+  requestId: string;
+  creatorId: string;
+  source: GreetingSource;
+  requestSource?: GreetingSource;
+  groupId?: string | null;
+  profileUserId?: string | null;
+};
+
+type RespondGreetingRequestParams = {
+  requestId: string;
+  action: "accept" | "reject";
+};
+
+type RespondGreetingRequestResult = {
+  ok: true;
+};
+
+function normalizeOptionalId(value: string | null | undefined): string | null {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  return normalized || null;
+}
+
+function normalizeRequiredText(value: string, label: string): string {
+  const normalized = typeof value === "string" ? value.trim() : "";
+
+  if (!normalized) {
+    throw new Error(`${label} es requerido.`);
+  }
+
+  return normalized;
+}
+
 export async function createGreetingRequest(input: {
   groupId?: string | null;
   profileUserId?: string | null;
@@ -16,50 +61,57 @@ export async function createGreetingRequest(input: {
   source?: GreetingSource;
   requestSource?: GreetingSource;
 }) {
-  const source: GreetingSource = input.source ?? (input.profileUserId ? "profile" : "group");
+  const groupId = normalizeOptionalId(input.groupId);
+  const profileUserId = normalizeOptionalId(input.profileUserId);
+  const creatorId = normalizeOptionalId(input.creatorId);
+  const source: GreetingSource =
+    input.source ?? (profileUserId ? "profile" : "group");
+  const requestSource: GreetingSource = input.requestSource ?? source;
 
-  if (source === "group" && !input.groupId) {
+  if (source === "group" && !groupId) {
     throw new Error("Falta el ID del grupo para crear la solicitud.");
   }
 
-  if (source === "profile" && !input.profileUserId && !input.creatorId) {
+  if (source === "profile" && !profileUserId && !creatorId) {
     throw new Error("Falta el ID del perfil para crear la solicitud.");
   }
 
-  const fn = httpsCallable(functions, "createGreetingRequest");
-
-const res = await fn({
-  groupId: input.groupId ?? null,
-  profileUserId: input.profileUserId ?? input.creatorId ?? null,
-  creatorId: input.creatorId ?? input.profileUserId ?? null,
-  type: input.type,
-  toName: input.toName,
-  instructions: input.instructions,
-  source,
-  requestSource: input.requestSource ?? source,
-});
-
-  return res.data as {
-    ok: true;
-    requestId: string;
-    creatorId: string;
-    source: GreetingSource;
-    requestSource?: GreetingSource;
-    groupId?: string | null;
-    profileUserId?: string | null;
+  const payload: CreateGreetingRequestParams = {
+    groupId,
+    profileUserId: profileUserId ?? creatorId,
+    creatorId: creatorId ?? profileUserId,
+    type: input.type,
+    toName: normalizeRequiredText(input.toName, "toName"),
+    instructions: normalizeRequiredText(input.instructions, "instructions"),
+    source,
+    requestSource,
   };
+
+  const fn = httpsCallable<
+    CreateGreetingRequestParams,
+    CreateGreetingRequestResult
+  >(functions, "createGreetingRequest");
+
+  const res = await fn(payload);
+
+  return res.data;
 }
 
 export async function respondGreetingRequest(input: {
   requestId: string;
   action: "accept" | "reject";
 }) {
-  const fn = httpsCallable(functions, "respondGreetingRequest");
+  const requestId = normalizeRequiredText(input.requestId, "requestId");
+
+  const fn = httpsCallable<
+    RespondGreetingRequestParams,
+    RespondGreetingRequestResult
+  >(functions, "respondGreetingRequest");
 
   const res = await fn({
-    requestId: input.requestId,
+    requestId,
     action: input.action,
   });
 
-  return res.data as { ok: true };
+  return res.data;
 }

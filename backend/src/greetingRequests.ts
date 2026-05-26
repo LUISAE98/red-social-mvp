@@ -381,6 +381,10 @@ const profileUserId =
       ok: true,
       requestId: result.requestId,
       creatorId: result.creatorId,
+      source,
+      requestSource: source,
+      groupId,
+      profileUserId,
     };
   }
 );
@@ -436,6 +440,11 @@ export const respondGreetingRequest = onCall(
       tx.update(reqRef, {
         status: newStatus,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        respondedAt: admin.firestore.FieldValue.serverTimestamp(),
+        respondedBy: actorId,
+        ...(newStatus === "accepted"
+          ? { acceptedAt: admin.firestore.FieldValue.serverTimestamp() }
+          : { rejectedAt: admin.firestore.FieldValue.serverTimestamp() }),
       });
     });
 

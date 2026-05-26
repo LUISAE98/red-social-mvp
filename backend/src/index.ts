@@ -71,7 +71,6 @@ export {
   requestMeetGreetReschedule,
   requestMeetGreetRefund,
   setMeetGreetPreparing,
-  expireMeetGreetNoShows,
 } from "./meetGreetRequests";
 
 // Exclusive session requests
@@ -83,7 +82,6 @@ export {
   requestExclusiveSessionReschedule,
   requestExclusiveSessionRefund,
   setExclusiveSessionPreparing,
-  expireExclusiveSessionNoShows,
 } from "./exclusiveSessionRequests";
 
 // Group moderation

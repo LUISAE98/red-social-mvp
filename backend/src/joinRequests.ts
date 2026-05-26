@@ -30,6 +30,88 @@ function normalizeStatus(raw: unknown): CanonicalMemberStatus {
   return "active";
 }
 
+function buildUserMembershipSummaryFields(params: {
+  groupId: string;
+  userId: string;
+  groupData: Record<string, any>;
+}) {
+  const groupName =
+    typeof params.groupData?.name === "string" ? params.groupData.name : null;
+  const groupDescription =
+    typeof params.groupData?.description === "string"
+      ? params.groupData.description
+      : null;
+  const groupImageUrl =
+    typeof params.groupData?.imageUrl === "string"
+      ? params.groupData.imageUrl
+      : null;
+  const groupAvatarUrl =
+    typeof params.groupData?.avatarUrl === "string"
+      ? params.groupData.avatarUrl
+      : null;
+  const groupCoverUrl =
+    typeof params.groupData?.coverUrl === "string"
+      ? params.groupData.coverUrl
+      : null;
+  const groupOwnerId =
+    typeof params.groupData?.ownerId === "string"
+      ? params.groupData.ownerId
+      : null;
+  const groupVisibility =
+    typeof params.groupData?.visibility === "string"
+      ? params.groupData.visibility
+      : null;
+  const groupDiscoverable =
+    typeof params.groupData?.discoverable === "boolean"
+      ? params.groupData.discoverable
+      : null;
+  const groupIsActive =
+    typeof params.groupData?.isActive === "boolean"
+      ? params.groupData.isActive
+      : null;
+  const groupCategory =
+    typeof params.groupData?.category === "string"
+      ? params.groupData.category
+      : null;
+
+  return {
+    groupId: params.groupId,
+    userId: params.userId,
+
+    roleInGroup: "member",
+    role: "member",
+    status: "active",
+
+    accessType: "standard",
+    requiresSubscription: false,
+    subscriptionActive: false,
+
+    groupName,
+    groupDescription,
+    groupImageUrl,
+    groupAvatarUrl,
+    groupCoverUrl,
+    groupOwnerId,
+    groupVisibility,
+    groupDiscoverable,
+    groupIsActive,
+    groupCategory,
+
+    name: groupName,
+    description: groupDescription,
+    imageUrl: groupImageUrl,
+    avatarUrl: groupAvatarUrl,
+    coverUrl: groupCoverUrl,
+    ownerId: groupOwnerId,
+    visibility: groupVisibility,
+    discoverable: groupDiscoverable,
+    isActive: groupIsActive,
+    category: groupCategory,
+
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+}
+
 async function getActorContextOrThrow(groupId: string, actorUid: string) {
   const groupRef = db.collection("groups").doc(groupId);
   const groupSnap = await groupRef.get();
@@ -47,6 +129,7 @@ async function getActorContextOrThrow(groupId: string, actorUid: string) {
       actorRole: "owner" as CanonicalGroupRole,
       ownerId,
       groupRef,
+      groupData,
     };
   }
 
@@ -80,6 +163,7 @@ async function getActorContextOrThrow(groupId: string, actorUid: string) {
     actorRole,
     ownerId,
     groupRef,
+    groupData,
   };
 }
 
@@ -100,9 +184,23 @@ export const approveJoinRequest = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "groupId y userId son requeridos.");
   }
 
-  const { groupRef } = await getActorContextOrThrow(groupId, callerUid);
+  const { groupRef, groupData } = await getActorContextOrThrow(
+    groupId,
+    callerUid
+  );
+
   const joinRequestRef = groupRef.collection("joinRequests").doc(userId);
   const memberRef = groupRef.collection("members").doc(userId);
+  const userMembershipRef = db
+    .collection("users")
+    .doc(userId)
+    .collection("groupMemberships")
+    .doc(groupId);
+  const userJoinRequestRef = db
+    .collection("users")
+    .doc(userId)
+    .collection("joinRequestsSent")
+    .doc(groupId);
 
   await db.runTransaction(async (tx) => {
     const joinSnap = await tx.get(joinRequestRef);
@@ -130,7 +228,22 @@ export const approveJoinRequest = onCall(async (request) => {
       },
       { merge: true }
     );
+    tx.set(
+      userMembershipRef,
+      {
+        ...buildUserMembershipSummaryFields({
+          groupId,
+          userId,
+          groupData,
+        }),
+        joinedAt: FieldValue.serverTimestamp(),
+        approvedAt: FieldValue.serverTimestamp(),
+        approvedBy: callerUid,
+      },
+      { merge: true }
+    );
 
+    tx.delete(userJoinRequestRef);
     tx.delete(joinRequestRef);
   });
 
@@ -154,7 +267,13 @@ export const rejectJoinRequest = onCall(async (request) => {
   }
 
   const { groupRef } = await getActorContextOrThrow(groupId, callerUid);
+
   const joinRequestRef = groupRef.collection("joinRequests").doc(userId);
+  const userJoinRequestRef = db
+    .collection("users")
+    .doc(userId)
+    .collection("joinRequestsSent")
+    .doc(groupId);
 
   await db.runTransaction(async (tx) => {
     const joinSnap = await tx.get(joinRequestRef);
@@ -166,7 +285,7 @@ export const rejectJoinRequest = onCall(async (request) => {
     if (joinData?.status !== "pending") {
       throw new HttpsError("failed-precondition", "Solicitud ya procesada.");
     }
-
+    tx.delete(userJoinRequestRef);
     tx.delete(joinRequestRef);
   });
 

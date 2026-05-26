@@ -597,13 +597,29 @@ if (source === "profile") {
             : null;
 
     const offeringDuration =
-      typeof exclusiveSessionOffering?.meta?.customClass?.durationMinutes === "number" &&
-      Number.isFinite(exclusiveSessionOffering.meta.customClass.durationMinutes)
-        ? exclusiveSessionOffering.meta.customClass.durationMinutes
-        : null;
+      typeof exclusiveSessionOffering?.durationMinutes === "number" &&
+      Number.isFinite(exclusiveSessionOffering.durationMinutes)
+        ? exclusiveSessionOffering.durationMinutes
+        : typeof exclusiveSessionOffering?.meta?.exclusiveSession?.durationMinutes === "number" &&
+            Number.isFinite(exclusiveSessionOffering.meta.exclusiveSession.durationMinutes)
+          ? exclusiveSessionOffering.meta.exclusiveSession.durationMinutes
+          : typeof exclusiveSessionOffering?.meta?.customClass?.durationMinutes === "number" &&
+              Number.isFinite(exclusiveSessionOffering.meta.customClass.durationMinutes)
+            ? exclusiveSessionOffering.meta.customClass.durationMinutes
+            : null;
 
     const resolvedPriceSnapshot = priceSnapshot ?? offeringPrice ?? null;
     const resolvedDurationMinutes = durationMinutes ?? offeringDuration ?? null;
+        if (
+      typeof resolvedDurationMinutes !== "number" ||
+      !Number.isFinite(resolvedDurationMinutes) ||
+      resolvedDurationMinutes <= 0
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "El servicio de sesión exclusiva necesita una duración válida para poder agendarse."
+      );
+    }
     const payload = {
       id: docRef.id,
       type: "digital_exclusive_session",
@@ -701,6 +717,10 @@ if (source === "profile") {
       requestId: docRef.id,
       status: payload.status,
       creatorId,
+      source,
+      requestSource: source,
+      groupId: source === "group" ? groupId : null,
+      profileUserId: source === "profile" ? profileUserId : null,
     };
   }
 );
@@ -1093,21 +1113,3 @@ export async function expireExclusiveSessionNoShowsHandler() {
 
   return expiredCount;
 }
-
-export const expireExclusiveSessionNoShows = onCall(
-  {
-    region: REGION,
-    cors: true,
-  },
-  async (request) => {
-    const uid = requireAuth(request.auth?.uid);
-    void uid;
-
-    const expiredCount = await expireExclusiveSessionNoShowsHandler();
-
-    return {
-      ok: true,
-      expiredCount,
-    };
-  }
-);

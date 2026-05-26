@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
@@ -9,7 +9,67 @@ import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
+import {
+  VibraNavigationIcon,
+  VibraNavigationIconsStyles,
+  type VibraNavigationIconType,
+} from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 
+function usePersistentSidebarScroll(key: string, restoreSignal?: unknown) {
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const isRestoringRef = useRef(false);
+
+  const restoreScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const saved = sessionStorage.getItem(key);
+    if (saved === null) return;
+
+    const target = Number(saved);
+    if (!Number.isFinite(target)) return;
+
+    isRestoringRef.current = true;
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        el.scrollTop = target;
+
+        setTimeout(() => {
+          el.scrollTop = target;
+          isRestoringRef.current = false;
+        }, 80);
+      });
+    });
+  };
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const saveScroll = () => {
+      if (isRestoringRef.current) return;
+
+      const canScroll = el.scrollHeight > el.clientHeight + 1;
+      if (!canScroll) return;
+
+      sessionStorage.setItem(key, String(el.scrollTop));
+    };
+
+    el.addEventListener("scroll", saveScroll, { passive: true });
+
+    return () => {
+      saveScroll();
+      el.removeEventListener("scroll", saveScroll);
+    };
+  }, [key]);
+
+  useLayoutEffect(() => {
+    restoreScroll();
+  }, [key, restoreSignal]);
+
+  return scrollRef;
+}
 function HeaderIconButton({
   onClick,
   href,
@@ -73,8 +133,30 @@ function HeaderIconButton({
   );
 }
 
+function WalletHeaderButton({
+  href = "/wallet/finanzas",
+  size = 42,
+}: {
+  href?: string;
+  size?: number;
+}) {
+  return (
+    <HeaderIconButton
+      href={href}
+      title="Wallet"
+      ariaLabel="Ir a wallet"
+      size={size}
+      borderRadius={999}
+      background="#ffffff"
+      color="#000000"
+      border="1px solid rgba(255,255,255,0.95)"
+    >
+      <VibraNavigationIcon type="finance" size={20} />
+    </HeaderIconButton>
+  );
+}
 type WalletRailTab = "finances" | "calendar" | "pending" | "history";
-type MainRailTab = "home" | "saved" | "createGroup";
+type MainRailTab = "home" | "saved";
 
 function resolveWalletRailTab(pathname: string): WalletRailTab | null {
   if (pathname.startsWith("/wallet/finanzas")) return "finances";
@@ -87,7 +169,6 @@ function resolveWalletRailTab(pathname: string): WalletRailTab | null {
 function resolveMainRailTab(pathname: string): MainRailTab | null {
   if (pathname === "/" || pathname.startsWith("/home")) return "home";
   if (pathname.startsWith("/saved")) return "saved";
-  if (pathname.startsWith("/groups/new")) return "createGroup";
   return null;
 }
 
@@ -102,164 +183,462 @@ function WalletDesktopRail({
     key: WalletRailTab;
     label: string;
     href: string;
-    emoji: string;
+    icon: VibraNavigationIconType;
   }> = [
-    { key: "finances", label: "Finanzas", href: "/wallet/finanzas", emoji: "📈" },
-    { key: "calendar", label: "Calendario", href: "/wallet/calendario", emoji: "📅" },
-    { key: "pending", label: "Pendientes", href: "/wallet/pendientes", emoji: "⏳" },
-    { key: "history", label: "Historial", href: "/wallet/historial", emoji: "🧾" },
+    {
+      key: "finances",
+      label: "Finanzas",
+      href: "/wallet/finanzas",
+      icon: "finance",
+    },
+    {
+      key: "calendar",
+      label: "Calendario",
+      href: "/wallet/calendario",
+      icon: "calendar",
+    },
+    {
+      key: "pending",
+      label: "Pendientes",
+      href: "/wallet/pendientes",
+      icon: "pending",
+    },
+    {
+      key: "history",
+      label: "Historial",
+      href: "/wallet/historial",
+      icon: "history",
+    },
   ];
 
   const mainItems: Array<{
     key: MainRailTab;
     label: string;
     href: string;
-    emoji: string;
+    icon: VibraNavigationIconType;
   }> = [
-    { key: "home", label: "Inicio", href: "/", emoji: "🏠" },
-    { key: "saved", label: "Guardados", href: "/saved", emoji: "🔖" },
-    { key: "createGroup", label: "Crear nuevo grupo", href: "/groups/new", emoji: "🧩" },
+    {
+      key: "home",
+      label: "Inicio",
+      href: "/",
+      icon: "home",
+    },
+    {
+      key: "saved",
+      label: "Guardados",
+      href: "/saved",
+      icon: "saved",
+    },
   ];
 
   const activeWalletTab = resolveWalletRailTab(activePath);
   const activeMainTab = resolveMainRailTab(activePath);
+const sidebarScrollRef = usePersistentSidebarScroll(
+  "vibra-wallet-rail-scroll",
+  showWallet
+);
 
   return (
     <>
+      <VibraNavigationIconsStyles />
+
       <style jsx>{`
 .walletRail {
-  position: fixed;
-  top: calc(env(safe-area-inset-top) + 86px);
-  width: var(--wallet-rail-width);
+  width: min(100%, 250px);
+  height: 100%;
+  min-height: 0;
+  margin-left: auto;
+  margin-right: auto;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  display: flex;
+  flex-direction: column;
+}
+.walletRailCenter {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: clamp(12px, 2vh, 20px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 18px;
+  scrollbar-width: none;
 }
 
-        .railSection {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
+.walletRailCenter::-webkit-scrollbar {
+  display: none;
+}
 
-        .railSection + .railSection {
-          margin-top: 34px;
-          padding-top: 26px;
-          border-top: 1px solid rgba(255, 255, 255, 0.12);
-        }
+.railSection {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
 
-        .walletTitle,
-        .secondaryTitle {
-          margin: 0 0 10px;
-          font-size: 17px;
-          line-height: 1.2;
-          font-weight: 700;
-          letter-spacing: -0.02em;
-          color: #fff;
-        }
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 
-        .walletNav {
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
-        }
+  padding: 14px 14px;
+  box-sizing: border-box;
 
-        .walletLink {
-          position: relative;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          min-height: 46px;
-          padding: 6px 0 6px 14px;
-          color: rgba(255, 255, 255, 0.74);
-          text-decoration: none;
-          font-size: 15px;
-          line-height: 1.2;
-          font-weight: 500;
-        }
+  border-radius: 12px;
+  border: 1px solid rgba(168, 85, 255, 0.08);
 
-        .walletLinkActive {
-          color: #ffffff;
-          font-weight: 700;
-        }
+  background:
+    linear-gradient(
+      135deg,
+      rgb(3, 3, 6) 0%,
+      rgb(8, 5, 13) 48%,
+      rgb(0, 0, 0) 100%
+    );
 
-        .walletLinkActive::before {
-          content: "";
-          position: absolute;
-          left: 0;
-          top: 4px;
-          bottom: 4px;
-          width: 3px;
-          border-radius: 999px;
-          background: #ffffff;
-        }
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 
-        .walletEmoji {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 22px;
-          min-width: 22px;
-          font-size: 17px;
-          line-height: 1;
-          margin-right: 6px;
-        }
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.035),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.015),
+    inset 0 0 14px rgba(168, 85, 255, 0.012),
+    0 0 8px rgba(168, 85, 255, 0.022),
+    0 18px 54px rgba(0, 0, 0, 0.68);
+}
 
-        .walletLabel {
-          white-space: nowrap;
-        }
+.railSection::before {
+  content: "";
+  position: absolute;
+  inset: -38%;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.045), transparent 34%),
+    radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.032), transparent 36%),
+    radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.025), transparent 40%);
+  filter: blur(24px);
+  opacity: 0.32;
+  z-index: 0;
+}
+  
+.railSection::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 18px rgba(79, 70, 255, 0.045),
+    inset 0 0 14px rgba(168, 85, 255, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  z-index: 1;
+}
 
-        .floatingLogoutWrap {
-          position: fixed;
-          right: calc(18px + env(safe-area-inset-right));
-          bottom: calc(18px + env(safe-area-inset-bottom));
-          z-index: 2147483005;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
+.railSection > * {
+  position: relative;
+  z-index: 2;
+}
 
-        .floatingLogoutWrap :global(button) {
-          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
-        }
+.railSection + .railSection {
+  margin-top: 0;
+}
 
-        @media (max-width: 900px) {
-          .floatingLogoutWrap {
-            right: calc(12px + env(safe-area-inset-right));
-            bottom: calc(82px + env(safe-area-inset-bottom));
-          }
-        }
+.createCommunitySection + .railSection {
+  margin-top: 0;
+}
 
+.logoutSection {
+  width: 100%;
+  margin-top: 14px;
+  flex: 0 0 auto;
+}
+
+.logoutSection :global(button) {
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+}
+
+@media (max-height: 760px) {
+  .createCommunitySection {
+    transform: none;
+  }
+
+  .walletRailCenter {
+    gap: 10px;
+  }
+
+  .railSection {
+    padding: 12px 14px;
+    gap: 6px;
+  }
+
+  .createCommunityImage {
+    width: 108px;
+    max-width: 108px;
+    margin: -12px auto -20px;
+  }
+
+  .createCommunityCopy {
+    margin-bottom: 2px;
+  }
+
+  .createCommunityCopy strong {
+    font-size: 14px;
+  }
+
+  .createCommunityCopy span {
+    font-size: 11px;
+    line-height: 1.12;
+  }
+
+  .createCommunitySection :global(.createCommunityButton) {
+    height: 36px;
+    min-height: 36px;
+  }
+
+  .logoutSection :global(button) {
+    height: 38px;
+    min-height: 38px;
+  }
+}
+
+.walletTitle {
+  margin: 0 0 2px;
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 550;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.secondaryTitle {
+  margin: 0 0 2px;
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 550;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+@keyframes railAuraMove {
+  from {
+    transform: translate3d(-2%, -1%, 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(2%, 1.5%, 0) scale(1.06);
+  }
+}
+
+.createCommunitySection {
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: visible;
+  margin-top: 0;
+  gap: clamp(3px, 0.55vh, 6px);
+  align-items: center;
+
+  transform: none;
+}
+
+.createCommunitySection::before,
+.createCommunitySection::after {
+  display: none;
+}
+
+.createCommunityImage {
+  width: 300px;
+  max-width: 300px;
+  height: auto;
+  display: block;
+  margin: -6px auto -14px;
+  object-fit: contain;
+  transform: translateX(-35px);
+}
+
+.createCommunityCopy {
+  margin-bottom: 5px;
+  display: grid;
+  gap: 2px;
+  color: #fff;
+  text-align: center;
+  justify-items: center;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+}
+
+.createCommunityCopy strong {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+
+.createCommunityCopy span {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.28;
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.createCommunitySection :global(.createCommunityButton) {
+opacity: 0.85;
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+
+  padding: 8px 14px;
+
+  border-radius: 10px;
+  border: none;
+  background-image: linear-gradient(
+    100deg,
+    #ff2fb3 0%,
+    #a855ff 35%,
+    #4f46ff 70%,
+    #ff2fb3 100%
+  );
+  background-size: 280% 280%;
+  background-position: 0% 50%;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 10px 28px rgba(168, 85, 255, 0.22);
+  overflow: hidden;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+.walletNav {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.walletLink:hover {
+  color: rgba(255, 255, 255, 0.84);
+  transform: translateX(2px);
+}
+
+.walletLink:hover .walletIcon {
+  color: rgba(255, 255, 255, 0.72);
+  opacity: 0.86;
+  filter: saturate(0.7) brightness(1);
+}
+
+.walletIcon {
+  width: 22px;
+  min-width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.68);
+  opacity: 0.82;
+  filter: saturate(0.65) brightness(0.96);
+  transform: translateY(3.5px);
+  margin-right: 8px;
+  transition:
+    color 180ms ease,
+    opacity 180ms ease,
+    filter 180ms ease;
+}
+
+.walletLabel {
+  min-width: 0;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.74);
+  transition: color 180ms ease;
+}
+
+:global(.walletLinkActive) .walletIcon {
+  color: #a855ff;
+  opacity: 1;
+  filter: saturate(1) brightness(1);
+}
+
+:global(.walletLinkActive) .walletLabel {
+  color: #ffffff;
+}
+
+:global(.walletLinkActive) {
+  color: #ffffff;
+  font-weight: 700;
+  border-radius: 15px;
+  position: relative;
+  overflow: hidden;
+
+  background:
+    radial-gradient(circle at 18% 50%, rgba(236, 72, 153, 0.23), transparent 34%),
+    radial-gradient(circle at 80% 45%, rgba(79, 70, 229, 0.25), transparent 36%),
+    radial-gradient(circle at 50% 50%, rgba(124, 58, 237, 0.23), transparent 42%),
+    linear-gradient(
+      135deg,
+      #09090f 0%,
+      #050509 52%,
+      #000000 100%
+    );
+
+  padding: 3px 12px;
+  margin-left: -2px;
+  margin-right: -2px;
+
+  box-shadow:
+    inset 0 0 10px rgba(255, 255, 255, 0.04),
+    inset 0 0 18px rgba(124, 58, 237, 0.16),
+    0 0 14px rgba(124, 58, 237, 0.20);
+}
+
+:global(.walletLinkActive)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+
+  background:
+    linear-gradient(
+      110deg,
+      transparent 0%,
+      rgba(236, 72, 153, 0.13) 25%,
+      rgba(124, 58, 237, 0.18) 50%,
+      rgba(79, 70, 229, 0.13) 75%,
+      transparent 100%
+    );
+
+  opacity: 0.82;
+}
+
+@keyframes walletActiveAura {
+  0% {
+    transform: translateX(-8%);
+  }
+
+  100% {
+    transform: translateX(8%);
+  }
+}
       `}</style>
 
       <aside className="walletRail" aria-label="Accesos directos">
-        <section className="railSection" aria-label="Navegación principal">
-          <h3 className="secondaryTitle">Menú</h3>
-
-          <nav className="walletNav">
-            {mainItems.map((item) => {
-              const isActive = activeMainTab === item.key;
-
-              return (
-                <Link
-                  key={item.key}
-                  href={item.href}
-                  className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
-                >
-                  <span className="walletEmoji" aria-hidden="true">
-                    {item.emoji}
-                  </span>
-                  <span className="walletLabel">{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </section>
-
-        {showWallet ? (
-          <section className="railSection" aria-label="Wallet">
-            <h3 className="walletTitle">Wallet</h3>
+        <div className="walletRailCenter" ref={sidebarScrollRef}>
+          <section className="railSection mainMenuSection" aria-label="Navegación principal">
+            <h3 className="secondaryTitle">Menú</h3>
 
             <nav className="walletNav">
-              {walletItems.map((item) => {
-                const isActive = activeWalletTab === item.key;
+              {mainItems.map((item) => {
+                const isActive = activeMainTab === item.key;
 
                 return (
                   <Link
@@ -267,69 +646,112 @@ function WalletDesktopRail({
                     href={item.href}
                     className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
                   >
-                    <span className="walletEmoji" aria-hidden="true">
-                      {item.emoji}
+                    <span className="walletIcon" aria-hidden="true">
+                      <VibraNavigationIcon type={item.icon} size={21} />
                     </span>
                     <span className="walletLabel">{item.label}</span>
+
                   </Link>
                 );
               })}
             </nav>
           </section>
-        ) : null}
+
+          <section className="railSection createCommunitySection" aria-label="Crear comunidad">
+            <img
+              src="/Crear-comunidad.png"
+              alt=""
+              className="createCommunityImage"
+              aria-hidden="true"
+            />
+
+            <div className="createCommunityCopy">
+              <strong>Crea tu comunidad</strong>
+              <span>
+                Conecta, comparte y
+                <br />
+                monetiza tu pasión.
+              </span>
+            </div>
+
+            <Link href="/groups/new" className="createCommunityButton">
+              Crear comunidad
+            </Link>
+          </section>
+
+          {showWallet ? (
+            <section className="railSection" aria-label="Wallet">
+              <h3 className="walletTitle">Wallet</h3>
+
+              <nav className="walletNav">
+                {walletItems.map((item) => {
+                  const isActive = activeWalletTab === item.key;
+
+                  return (
+                    <Link
+                      key={item.key}
+                      href={item.href}
+                      className={`walletLink ${isActive ? "walletLinkActive" : ""}`}
+                    >
+                      <span className="walletIcon" aria-hidden="true">
+                        <VibraNavigationIcon type={item.icon} size={21} />
+                      </span>
+                      <span className="walletLabel">{item.label}</span>
+
+
+                    </Link>
+                  );
+                })}
+              </nav>
+            </section>
+          ) : null}
+        </div>
+
+        <section className="logoutSection" aria-label="Cerrar sesión">
+          <LogoutButton variant="settings" />
+        </section>
       </aside>
     </>
   );
 }
 
-function PublicSearchShell({ children }: { children: React.ReactNode }) {
+function PublicSearchShell({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <>
       <style jsx>{`
         .layout {
-          min-height: 100vh;
-          min-height: 100dvh;
-          background: #000;
+          position: relative;
+          z-index: 1;
+          width: 100%;
+          min-width: 0;
+          min-height: auto;
+          background: transparent;
           color: #fff;
+          overflow-x: hidden;
         }
 
-.contentArea {
-  width: min(620px, calc(100% - 28px));
-  margin: 0 auto;
-  padding-top: 24px;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom));
-  box-sizing: border-box;
-}
+        .contentArea {
+          position: relative;
+          z-index: 2;
+          width: min(820px, calc(100% - 28px));
+          min-width: 0;
+          margin: 0 auto;
+          padding-top: 24px;
+          padding-bottom: calc(48px + env(safe-area-inset-bottom));
+          box-sizing: border-box;
+        }
 
         @media (max-width: 900px) {
           .contentArea {
             width: 100%;
             padding-top: 10px;
-            padding-bottom: calc(18px + env(safe-area-inset-bottom));
+            padding-bottom: calc(32px + env(safe-area-inset-bottom));
           }
         }
-
-        .floatingLogoutWrap {
-          position: fixed;
-          right: calc(18px + env(safe-area-inset-right));
-          bottom: calc(18px + env(safe-area-inset-bottom));
-          z-index: 2147483005;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .floatingLogoutWrap :global(button) {
-          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
-        }
-
-        @media (max-width: 900px) {
-          .floatingLogoutWrap {
-            right: calc(12px + env(safe-area-inset-right));
-            bottom: calc(82px + env(safe-area-inset-bottom));
-          }
-        }
-
       `}</style>
 
       <div className="layout">
@@ -339,7 +761,12 @@ function PublicSearchShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AuthenticatedSearchShell({ children }: { children: React.ReactNode }) {
+function AuthenticatedSearchShell({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+
   const pathname = usePathname();
   const { user } = useAuth();
 
@@ -347,25 +774,19 @@ const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 const [mobileHeaderOffset, setMobileHeaderOffset] = useState(0);
 const lastScrollYRef = useRef(0);
 const headerRef = useRef<HTMLElement | null>(null);
-const contentAreaScrollRef = useRef<HTMLDivElement | null>(null);
 
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
- useEffect(() => {
-  setMobileSearchOpen(false);
-}, [pathname]);
+  useEffect(() => {
+    setMobileSearchOpen(false);
+  }, [pathname]);
 
-useEffect(() => {
-  setMobileHeaderOffset(0);
-  lastScrollYRef.current = 0;
-
-  if (contentAreaScrollRef.current) {
-    contentAreaScrollRef.current.scrollTop = 0;
-  }
-}, [pathname]);
+// No reseteamos el scroll/header en cada cambio de ruta.
+// Esto evita el parpadeo visual al pasar de inicio a búsqueda
+// y mantiene la navegación más fluida.
 
 useEffect(() => {
   if (mobileSearchOpen) {
@@ -373,19 +794,14 @@ useEffect(() => {
     return;
   }
 
-  const scrollElement = contentAreaScrollRef.current;
-  if (!scrollElement) return;
-
-  function handleScroll(event: Event) {
-    const target = event.currentTarget as HTMLDivElement;
-
+  function handleScroll() {
     if (window.innerWidth > 900) {
       setMobileHeaderOffset(0);
-      lastScrollYRef.current = target.scrollTop;
+      lastScrollYRef.current = window.scrollY;
       return;
     }
 
-    const currentScrollY = target.scrollTop;
+    const currentScrollY = window.scrollY;
     const previousScrollY = lastScrollYRef.current;
     const scrollDifference = currentScrollY - previousScrollY;
 
@@ -405,12 +821,14 @@ useEffect(() => {
     lastScrollYRef.current = currentScrollY;
   }
 
-  scrollElement.addEventListener("scroll", handleScroll, { passive: true });
+  window.addEventListener("scroll", handleScroll, { passive: true });
 
   return () => {
-    scrollElement.removeEventListener("scroll", handleScroll);
+    window.removeEventListener("scroll", handleScroll);
   };
 }, [mobileSearchOpen]);
+
+const contentAreaClassName = "contentArea contentAreaWithWallet";
 
   return (
     <>
@@ -418,18 +836,19 @@ useEffect(() => {
         .layout {
           --shell-gutter: 16px;
           --sidebar-width: 300px;
-          --wallet-rail-width: 220px;
-          --main-max-width: 1040px;
+          --wallet-rail-width: 280px;
+          --main-max-width: 860px;
           --shell-column-gap: 24px;
           --desktop-search-width: 920px;
+          --desktop-search-gap: 8px;
+          --desktop-create-size: 35px;
 
-          height: 100vh;
-          height: 100dvh;
-          background: #000;
+          min-height: 100vh;
+          min-height: 100dvh;
+          background: #000000;
           color: #fff;
           display: flex;
           flex-direction: column;
-          overflow: hidden;
         }
 
 .header {
@@ -437,8 +856,8 @@ useEffect(() => {
   top: 0;
   z-index: 80;
   padding-top: env(safe-area-inset-top);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  background: #000000;
+  border-bottom: none;
+  background: transparent;
   transform: translateY(var(--mobile-header-offset-y, 0px));
   will-change: transform, margin-bottom;
 }
@@ -452,13 +871,20 @@ useEffect(() => {
           box-sizing: border-box;
         }
 
-        .desktopHeader {
-          display: grid;
-          grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--wallet-rail-width);
-          gap: var(--shell-column-gap);
+ .desktopHeader {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr) var(--wallet-rail-width);
+  gap: var(--shell-column-gap);
+  align-items: center;
+  min-height: 40px;
+  width: 100%;
+}
+
+        .brandCol {
+          min-width: 0;
+          display: flex;
           align-items: center;
-          min-height: 40px;
-          width: 100%;
+          justify-content: flex-start;
         }
 
         .brand {
@@ -470,10 +896,130 @@ useEffect(() => {
           text-decoration: none;
         }
 
-        .desktopSearchCol {
-          min-width: 0;
-          width: min(var(--desktop-search-width), 100%);
-          justify-self: center;
+
+
+.vibraLogoImage {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 112px;
+  height: auto;
+  object-fit: contain;
+  animation: vibraLogoShake 5.8s ease-in-out infinite;
+}
+
+
+
+.vibraAnimatedLogo.isMobile .vibraWord {
+  left: 44px;
+  font-size: 18px;
+}
+
+.brandLogo {
+  display: block;
+  width: 112px;
+  height: auto;
+  object-fit: contain;
+}
+
+.mobileBrandLogo {
+  display: block;
+  width: 96px;
+  height: auto;
+  object-fit: contain;
+}
+
+@keyframes vibraTextFlow {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes vibraLetterCycle {
+  0%, 10% {
+    opacity: 0;
+    transform: translateX(-28px) translateY(0) scale(0.92);
+  }
+
+  18% {
+    opacity: 1;
+    transform: translateX(0) translateY(calc(var(--i) * -3px)) scale(1);
+  }
+
+  27% {
+    opacity: 1;
+    transform: translateX(0) translateY(calc(var(--i) * -7px)) scale(1.04);
+  }
+
+  38%, 68% {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
+
+  82%, 100% {
+    opacity: 0;
+    transform: translateX(-28px) translateY(0) scale(0.92);
+  }
+}
+
+@keyframes vibraLogoShake {
+  0%, 8%, 76%, 100% {
+    transform: translateX(0) rotate(0deg);
+  }
+
+  11% {
+    transform: translateX(-1px) rotate(-1deg);
+  }
+
+  13% {
+    transform: translateX(2px) rotate(1.2deg);
+  }
+
+  15% {
+    transform: translateX(-1px) rotate(-0.8deg);
+  }
+
+  17% {
+    transform: translateX(0) rotate(0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vibraLogoImage,
+  .vibraLetter {
+    animation: none !important;
+  }
+
+  .vibraLetter {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.desktopMainCluster {
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--desktop-search-gap);
+}
+
+.desktopSearchCol {
+  min-width: 0;
+  width: min(var(--desktop-search-width), 100%);
+  flex: 0 1 auto;
+}
+
+        .desktopCreateButtonWrap {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex: 0 0 auto;
         }
 
         .desktopLogoutWrap {
@@ -498,6 +1044,7 @@ useEffect(() => {
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+          flex: 0 1 auto;
           max-width: 34vw;
         }
 
@@ -506,33 +1053,57 @@ useEffect(() => {
           align-items: center;
           gap: 8px;
           margin-left: auto;
+          flex-shrink: 0;
         }
 
-        .contentArea {
-          display: grid;
-          grid-template-columns: var(--sidebar-width) minmax(0, var(--main-max-width)) var(--wallet-rail-width);
-          gap: var(--shell-column-gap);
-          width: 100%;
-          flex: 1;
-          min-height: 0;
-          overflow-y: auto;
-          padding-left: var(--shell-gutter);
-          padding-right: var(--shell-gutter);
-          padding-top: 24px;
-          padding-bottom: calc(24px + env(safe-area-inset-bottom));
-          box-sizing: border-box;
-        }
-
- .sidebarCol {
-  position: sticky;
-  top: calc(env(safe-area-inset-top) + 86px);
-  align-self: start;
-  min-width: 0;
-  z-index: 2;
+.mobileSearchRow {
+  width: 100%;
+  overflow: visible;
+  animation: mobile-search-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transform-origin: top center;
 }
 
-.walletCol {
+@keyframes mobile-search-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scaleX(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scaleX(1);
+  }
+}
+
+        .mobileSearchCol {
+          min-width: 0;
+          width: 100%;
+        }
+
+.contentArea {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) minmax(0, var(--main-max-width));
+  gap: var(--shell-column-gap);
+  width: 100%;
+  flex: 1;
+  padding-left: var(--shell-gutter);
+  padding-right: var(--shell-gutter);
+  padding-top: 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+.contentAreaWithWallet {
+  grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+  padding-right: calc(var(--wallet-rail-width) + var(--shell-column-gap) + var(--shell-gutter));
+}
+
+.sidebarCol {
+  position: sticky;
+  top: calc(env(safe-area-inset-top) + 112px);
+  align-self: start;
   min-width: 0;
+  z-index: 90;
 }
 
         .mainCol {
@@ -543,26 +1114,66 @@ useEffect(() => {
           padding-bottom: 90px;
         }
 
-        .mainInner {
-          width: min(var(--main-max-width), 100%);
-        }
+.mainInner {
+  width: min(var(--main-max-width), 100%);
+  margin-left: auto;
+  margin-right: auto;
+}
+.walletCol {
+  position: fixed;
+  top: calc(env(safe-area-inset-top) + 90px);
+  right: max(var(--shell-gutter), env(safe-area-inset-right));
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  width: var(--wallet-rail-width);
+  min-width: 0;
 
-        @media (max-width: 1180px) {
-          .layout {
-            --shell-gutter: 14px;
-            --sidebar-width: 260px;
-            --wallet-rail-width: 210px;
-            --shell-column-gap: 18px;
-            --main-max-width: 900px;
-          }
-        }
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 
-@media (max-width: 900px) {
-  .header {
-    margin-bottom: var(--mobile-header-offset-y, 0px);
+  overflow: hidden;
+  box-sizing: border-box;
+  z-index: 20;
+}
+.walletLogoutWrap {
+  width: 250px;
+  margin: clamp(18px, 3vh, 34px) auto 0;
+  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.walletLogoutWrap :global(button) {
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+  background: #7c3aed !important;
+  background-image: none !important;
+  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.22);
+}
+
+@media (max-width: 1180px) {
+  .layout {
+    --shell-gutter: 14px;
+    --sidebar-width: 260px;
+    --wallet-rail-width: 260px;
+    --shell-column-gap: 18px;
+    --main-max-width: 780px;
   }
+}
 
-  .desktopHeader {
+        @media (max-width: 900px) {
+
+          .header {
+            margin-bottom: var(--mobile-header-offset-y, 0px);
+          }
+          .headerInner {
+            width: 100%;
+            padding-top: 6px;
+            padding-bottom: 6px;
+          }
+
+          .desktopHeader {
             display: none;
           }
 
@@ -570,15 +1181,17 @@ useEffect(() => {
             display: flex;
             align-items: center;
             gap: 10px;
+            min-width: 0;
           }
 
           .mobileSearchRow {
             display: block;
-            width: 100%;
           }
 
-          .contentArea {
+          .contentArea,
+          .contentAreaWithWallet {
             grid-template-columns: 1fr;
+            width: 100%;
             gap: 0;
             padding-left: 0;
             padding-right: 0;
@@ -592,6 +1205,8 @@ useEffect(() => {
           }
 
           .mainCol {
+            width: 100%;
+            min-width: 0;
             padding-bottom: calc(100px + env(safe-area-inset-bottom));
           }
 
@@ -600,26 +1215,25 @@ useEffect(() => {
           }
         }
 
-        .floatingLogoutWrap {
-          position: fixed;
-          right: calc(18px + env(safe-area-inset-right));
-          bottom: calc(18px + env(safe-area-inset-bottom));
-          z-index: 2147483005;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .floatingLogoutWrap :global(button) {
-          box-shadow: 0 14px 34px rgba(0, 0, 0, 0.36);
-        }
-
 @media (max-width: 900px) {
   .floatingLogoutWrap {
     display: none;
   }
 }
 
+        @media (max-width: 520px) {
+          .mobileHeaderRow {
+            gap: 8px;
+          }
+
+          .mobileBrand {
+            max-width: 28vw;
+          }
+
+          .mobileActions {
+            gap: 6px;
+          }
+        }
       `}</style>
 
       <div className="layout">
@@ -632,16 +1246,20 @@ useEffect(() => {
         >
           <div className="headerInner">
             <div className="desktopHeader">
-              <Link href="/" className="brand">
-                Red Social MVP
-              </Link>
+              <div className="brandCol">
+<Link href="/" className="brand" aria-label="Ir al inicio">
+  <img src="/logotipo.png" alt="Vibra" className="brandLogo" />
+</Link>
+              </div>
 
-              <div className="desktopSearchCol">
-                <GroupsSearchPanel
-                  fontStack={fontStack}
-                  showCreateGroup={false}
-                  createGroupHref="/groups/new"
-                />
+              <div className="desktopMainCluster">
+                <div className="desktopSearchCol">
+                  <GroupsSearchPanel
+                    fontStack={fontStack}
+                    showCreateGroup={false}
+                    createGroupHref="/groups/new"
+                  />
+                </div>
               </div>
 
               <div className="desktopLogoutWrap">
@@ -651,37 +1269,48 @@ useEffect(() => {
 
             {!mobileSearchOpen ? (
               <div className="mobileHeaderRow">
-                <strong className="mobileBrand">Red Social MVP</strong>
+                <Link href="/" className="mobileBrand" aria-label="Ir al inicio">
+  <img src="/logotipo.png" alt="Vibra" className="mobileBrandLogo" />
+</Link>
 
-                <div className="mobileActions">
-                  <HeaderIconButton
-                    onClick={() => setMobileSearchOpen(true)}
-                    title="Buscar"
-                    ariaLabel="Buscar"
-                  >
-                    <span aria-hidden="true">🔍</span>
-                  </HeaderIconButton>
-                </div>
+<div className="mobileActions">
+  <HeaderIconButton
+    onClick={() => setMobileSearchOpen(true)}
+    title="Buscar comunidad"
+    ariaLabel="Buscar comunidad"
+  >
+    <span
+      aria-hidden="true"
+      style={{
+        fontSize: 18,
+        lineHeight: 1,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      🔍
+    </span>
+  </HeaderIconButton>
+</div>
               </div>
             ) : (
               <div className="mobileSearchRow">
-                <GroupsSearchPanel
-                  fontStack={fontStack}
-                  showCreateGroup={false}
-                  createGroupHref="/groups/new"
-                  showCloseSearch={true}
-                  onCloseSearch={() => setMobileSearchOpen(false)}
-                />
+                <div className="mobileSearchCol">
+                  <GroupsSearchPanel
+                    fontStack={fontStack}
+                    showCreateGroup={false}
+                    createGroupHref="/groups/new"
+                    showCloseSearch={true}
+                    onCloseSearch={() => setMobileSearchOpen(false)}
+                  />
+                </div>
               </div>
             )}
           </div>
         </header>
 
-        <div className="floatingLogoutWrap">
-          <LogoutButton />
-        </div>
-
-       <div className="contentArea" ref={contentAreaScrollRef}>
+        <div className={contentAreaClassName}>
           <div className="sidebarCol">
             <OwnerSidebar />
           </div>
@@ -690,20 +1319,27 @@ useEffect(() => {
             <div className="mainInner">{children}</div>
           </main>
 
-          <div className="walletCol">
-            <WalletDesktopRail activePath={pathname} showWallet={showWalletRail} />
-          </div>
+<div className="walletCol">
+  <WalletDesktopRail
+    activePath={pathname}
+    showWallet={showWalletRail}
+  />
+
+</div>
         </div>
 
-        <MobileBottomNav showWallet={showWalletRail} />
+       <MobileBottomNav showWallet={showWalletRail} />
       </div>
     </>
   );
 }
 
-export default function SearchLayout({ children }: { children: React.ReactNode }) {
+export default function SearchLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { user } = useAuth();
-
 
   if (user) {
     return <AuthenticatedSearchShell>{children}</AuthenticatedSearchShell>;

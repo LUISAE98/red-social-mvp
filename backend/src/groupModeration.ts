@@ -217,6 +217,22 @@ function buildRoleDowngradePatch(actorUid: string) {
   };
 }
 
+function getUserMembershipRef(groupId: string, targetUserId: string) {
+  return db
+    .collection("users")
+    .doc(targetUserId)
+    .collection("groupMemberships")
+    .doc(groupId);
+}
+
+function getUserJoinRequestSentRef(groupId: string, targetUserId: string) {
+  return db
+    .collection("users")
+    .doc(targetUserId)
+    .collection("joinRequestsSent")
+    .doc(groupId);
+}
+
 export const promoteGroupMemberToAdmin = onCall(async (request) => {
   const actorUid = requireAuth(request);
   const groupId = normalizeString(request.data?.groupId, "groupId");
@@ -238,16 +254,21 @@ export const promoteGroupMemberToAdmin = onCall(async (request) => {
     );
   }
 
-  await memberRef.set(
-    {
-      roleInGroup: "mod",
-      role: "mod",
-      updatedAt: FieldValue.serverTimestamp(),
-      roleUpdatedAt: FieldValue.serverTimestamp(),
-      roleUpdatedBy: actorUid,
-    },
-    { merge: true }
-  );
+  const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
+  const batch = db.batch();
+
+  const patch = {
+    roleInGroup: "mod",
+    role: "mod",
+    updatedAt: FieldValue.serverTimestamp(),
+    roleUpdatedAt: FieldValue.serverTimestamp(),
+    roleUpdatedBy: actorUid,
+  };
+
+  batch.set(memberRef, patch, { merge: true });
+  batch.set(userMembershipRef, patch, { merge: true });
+
+  await batch.commit();
 
   return { ok: true, roleInGroup: "mod" };
 });
@@ -266,16 +287,21 @@ export const demoteGroupAdminToMember = onCall(async (request) => {
     return { ok: true, roleInGroup: "member" };
   }
 
-  await memberRef.set(
-    {
-      roleInGroup: "member",
-      role: "member",
-      updatedAt: FieldValue.serverTimestamp(),
-      roleUpdatedAt: FieldValue.serverTimestamp(),
-      roleUpdatedBy: actorUid,
-    },
-    { merge: true }
-  );
+  const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
+  const batch = db.batch();
+
+  const patch = {
+    roleInGroup: "member",
+    role: "member",
+    updatedAt: FieldValue.serverTimestamp(),
+    roleUpdatedAt: FieldValue.serverTimestamp(),
+    roleUpdatedBy: actorUid,
+  };
+
+  batch.set(memberRef, patch, { merge: true });
+  batch.set(userMembershipRef, patch, { merge: true });
+
+  await batch.commit();
 
   return { ok: true, roleInGroup: "member" };
 });
@@ -295,16 +321,21 @@ export const muteGroupMember = onCall(async (request) => {
     Date.now() + durationDays * 24 * 60 * 60 * 1000
   );
 
-  await memberRef.set(
-    {
-      status: "muted",
-      mutedUntil: Timestamp.fromDate(mutedUntilDate),
-      updatedAt: FieldValue.serverTimestamp(),
-      moderatedBy: actorUid,
-      ...buildRoleDowngradePatch(actorUid),
-    },
-    { merge: true }
-  );
+  const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
+  const batch = db.batch();
+
+  const patch = {
+    status: "muted",
+    mutedUntil: Timestamp.fromDate(mutedUntilDate),
+    updatedAt: FieldValue.serverTimestamp(),
+    moderatedBy: actorUid,
+    ...buildRoleDowngradePatch(actorUid),
+  };
+
+  batch.set(memberRef, patch, { merge: true });
+  batch.set(userMembershipRef, patch, { merge: true });
+
+  await batch.commit();
 
   return {
     ok: true,
@@ -322,15 +353,20 @@ export const unmuteGroupMember = onCall(async (request) => {
 
   ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
 
-  await memberRef.set(
-    {
-      status: "active",
-      mutedUntil: null,
-      updatedAt: FieldValue.serverTimestamp(),
-      moderatedBy: actorUid,
-    },
-    { merge: true }
-  );
+  const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
+  const batch = db.batch();
+
+  const patch = {
+    status: "active",
+    mutedUntil: null,
+    updatedAt: FieldValue.serverTimestamp(),
+    moderatedBy: actorUid,
+  };
+
+  batch.set(memberRef, patch, { merge: true });
+  batch.set(userMembershipRef, patch, { merge: true });
+
+  await batch.commit();
 
   return { ok: true };
 });
@@ -346,6 +382,11 @@ export const banGroupMember = onCall(async (request) => {
   ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
 
   const joinRequestRef = getJoinRequestRef(groupId, targetUserId);
+    const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
+  const userJoinRequestSentRef = getUserJoinRequestSentRef(
+    groupId,
+    targetUserId
+  );
   const batch = db.batch();
 
   batch.set(
@@ -360,8 +401,21 @@ export const banGroupMember = onCall(async (request) => {
     },
     { merge: true }
   );
+    batch.set(
+    userMembershipRef,
+    {
+      status: "banned",
+      mutedUntil: null,
+      bannedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+      moderatedBy: actorUid,
+      ...buildRoleDowngradePatch(actorUid),
+    },
+    { merge: true }
+  );
 
   batch.delete(joinRequestRef);
+  batch.delete(userJoinRequestSentRef);
 
   await batch.commit();
 
@@ -379,6 +433,11 @@ export const unbanGroupMember = onCall(async (request) => {
   ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
 
   const joinRequestRef = getJoinRequestRef(groupId, targetUserId);
+  const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
+  const userJoinRequestSentRef = getUserJoinRequestSentRef(
+    groupId,
+    targetUserId
+  );
   const batch = db.batch();
 
   batch.set(
@@ -393,7 +452,20 @@ export const unbanGroupMember = onCall(async (request) => {
     { merge: true }
   );
 
+    batch.set(
+    userMembershipRef,
+    {
+      status: "active",
+      mutedUntil: null,
+      updatedAt: FieldValue.serverTimestamp(),
+      unbannedAt: FieldValue.serverTimestamp(),
+      moderatedBy: actorUid,
+    },
+    { merge: true }
+  );
+
   batch.delete(joinRequestRef);
+  batch.delete(userJoinRequestSentRef);
 
   await batch.commit();
 
@@ -411,6 +483,11 @@ export const removeGroupMember = onCall(async (request) => {
   ensureActorCanModerateTarget(actorRole, actorUid, targetUserId, targetRole);
 
   const joinRequestRef = getJoinRequestRef(groupId, targetUserId);
+    const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
+  const userJoinRequestSentRef = getUserJoinRequestSentRef(
+    groupId,
+    targetUserId
+  );
   const batch = db.batch();
 
   batch.set(
@@ -427,7 +504,8 @@ export const removeGroupMember = onCall(async (request) => {
   );
 
   batch.delete(joinRequestRef);
-
+  batch.delete(userMembershipRef);
+  batch.delete(userJoinRequestSentRef);
   await batch.commit();
 
   return { ok: true };
@@ -464,15 +542,22 @@ export const cleanupExpiredGroupMutes = onSchedule(
       const batch = db.batch();
 
       snap.docs.forEach((docSnap) => {
-        batch.set(
-          docSnap.ref,
-          {
-            status: "active",
-            mutedUntil: null,
-            updatedAt: FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        );
+        const targetUserId = docSnap.id;
+        const groupRef = docSnap.ref.parent.parent;
+        const groupId = groupRef?.id ?? null;
+
+        const patch = {
+          status: "active",
+          mutedUntil: null,
+          updatedAt: FieldValue.serverTimestamp(),
+        };
+
+        batch.set(docSnap.ref, patch, { merge: true });
+
+        if (groupId) {
+          const userMembershipRef = getUserMembershipRef(groupId, targetUserId);
+          batch.set(userMembershipRef, patch, { merge: true });
+        }
       });
 
       await batch.commit();

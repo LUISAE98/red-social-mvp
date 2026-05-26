@@ -67,6 +67,17 @@ function buildUserMembershipBaseFields(params: {
   subscriptionActive: boolean;
   groupSummary: GroupMembershipSummary | null;
 }) {
+  const groupName = params.groupSummary?.name ?? null;
+  const groupDescription = params.groupSummary?.description ?? null;
+  const groupImageUrl = params.groupSummary?.imageUrl ?? null;
+  const groupAvatarUrl = params.groupSummary?.avatarUrl ?? null;
+  const groupCoverUrl = params.groupSummary?.coverUrl ?? null;
+  const groupOwnerId = params.groupSummary?.ownerId ?? null;
+  const groupVisibility = params.groupSummary?.visibility ?? null;
+  const groupDiscoverable = params.groupSummary?.discoverable ?? null;
+  const groupIsActive = params.groupSummary?.isActive ?? null;
+  const groupCategory = params.groupSummary?.category ?? null;
+
   return {
     groupId: params.groupId,
     userId: params.uid,
@@ -77,16 +88,38 @@ function buildUserMembershipBaseFields(params: {
     requiresSubscription: params.requiresSubscription,
     subscriptionActive: params.subscriptionActive,
 
-    groupName: params.groupSummary?.name ?? null,
-    groupDescription: params.groupSummary?.description ?? null,
-    groupImageUrl: params.groupSummary?.imageUrl ?? null,
-    groupAvatarUrl: params.groupSummary?.avatarUrl ?? null,
-    groupCoverUrl: params.groupSummary?.coverUrl ?? null,
-    groupOwnerId: params.groupSummary?.ownerId ?? null,
-    groupVisibility: params.groupSummary?.visibility ?? null,
-    groupDiscoverable: params.groupSummary?.discoverable ?? null,
-    groupIsActive: params.groupSummary?.isActive ?? null,
-    groupCategory: params.groupSummary?.category ?? null,
+    groupName,
+    groupDescription,
+    groupImageUrl,
+    groupAvatarUrl,
+    groupCoverUrl,
+    groupOwnerId,
+    groupVisibility,
+    groupDiscoverable,
+    groupIsActive,
+    groupCategory,
+
+    name: groupName,
+    description: groupDescription,
+    imageUrl: groupImageUrl,
+    avatarUrl: groupAvatarUrl,
+    coverUrl: groupCoverUrl,
+    ownerId: groupOwnerId,
+    visibility: groupVisibility,
+    discoverable: groupDiscoverable,
+    isActive: groupIsActive,
+    category: groupCategory,
+
+    removedAt: deleteField(),
+    removedBy: deleteField(),
+    removedReason: deleteField(),
+    removedDueToSubscriptionTransition: deleteField(),
+    transitionPendingAction: false,
+    transitionDirection: deleteField(),
+    transitionResolvedAt: deleteField(),
+
+    subscriptionEndedAt: deleteField(),
+    subscriptionEndedBy: deleteField(),
 
     updatedAt: serverTimestamp(),
   };
