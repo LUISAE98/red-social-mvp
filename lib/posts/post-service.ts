@@ -582,17 +582,31 @@ async function attachViewerFlameState(
     )
   );
 
+  if (uniquePostIds.length === 0) {
+    return posts.map((post) => ({
+      ...post,
+      viewerHasFlamed: false,
+    }));
+  }
+
   const likedPostIds = new Set<string>();
+  const chunks = chunkArray(uniquePostIds, 10);
 
   await Promise.all(
-    uniquePostIds.map(async (postId) => {
+    chunks.map(async (chunk) => {
       try {
-        const snap = await getDoc(doc(db, "users", uid, "postFlames", postId));
-        if (snap.exists()) {
-          likedPostIds.add(postId);
-        }
+        const snap = await getDocs(
+          query(
+            collection(db, "users", uid, "postFlames"),
+            where(documentId(), "in", chunk)
+          )
+        );
+
+        snap.docs.forEach((flameDoc) => {
+          likedPostIds.add(flameDoc.id);
+        });
       } catch {
-        // Si falla una lectura puntual, no rompemos el feed.
+        // Si falla una lectura por bloque, no rompemos el feed.
       }
     })
   );
@@ -602,6 +616,8 @@ async function attachViewerFlameState(
     viewerHasFlamed: likedPostIds.has(post.id),
   }));
 }
+
+
 async function attachViewerSavedState(
   posts: Post[],
   viewerUid?: string | null
@@ -689,37 +705,59 @@ async function attachViewerCommentFlameState(
     }));
   }
 
-  const commentIds = new Set(comments.map((comment) => comment.id));
-  const likedCommentIds = new Set<string>();
+  const commentIds = Array.from(
+    new Set(
+      comments
+        .map((comment) => comment.id)
+        .filter(
+          (commentId): commentId is string =>
+            typeof commentId === "string" && commentId.trim().length > 0
+        )
+    )
+  );
 
-  try {
-    const snap = await getDocs(collection(db, "users", uid, "commentFlames"));
-
-    snap.docs.forEach((flameDoc) => {
-      const data = flameDoc.data() as Record<string, unknown>;
-
-      const flamePostId =
-        typeof data.postId === "string" ? data.postId.trim() : "";
-
-      const flameCommentId =
-        typeof data.commentId === "string" ? data.commentId.trim() : "";
-
-      if (flamePostId === postId && commentIds.has(flameCommentId)) {
-        likedCommentIds.add(flameCommentId);
-      }
-    });
-  } catch {
+  if (commentIds.length === 0) {
     return comments.map((comment) => ({
       ...comment,
       viewerHasFlamed: false,
     }));
   }
 
+  const likedCommentIds = new Set<string>();
+  const chunks = chunkArray(commentIds, 10);
+
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      try {
+        const snap = await getDocs(
+          query(
+            collection(db, "users", uid, "commentFlames"),
+            where("postId", "==", postId),
+            where("commentId", "in", chunk)
+          )
+        );
+
+        snap.docs.forEach((flameDoc) => {
+          const data = flameDoc.data() as Record<string, unknown>;
+          const flameCommentId =
+            typeof data.commentId === "string" ? data.commentId.trim() : "";
+
+          if (flameCommentId) {
+            likedCommentIds.add(flameCommentId);
+          }
+        });
+      } catch {
+        // Si falla una lectura por bloque, no rompemos los comentarios.
+      }
+    })
+  );
+
   return comments.map((comment) => ({
     ...comment,
     viewerHasFlamed: likedCommentIds.has(comment.id),
   }));
 }
+
 
 function hydrateCommentReply(
   raw: CommentReply,

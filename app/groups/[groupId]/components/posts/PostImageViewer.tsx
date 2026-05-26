@@ -13,6 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import type { Post } from "@/lib/posts/types";
 import PostPinchZoomImage from "./PostPinchZoomImage";
+import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 
 type ImageMedia = {
   url: string;
@@ -1662,34 +1663,34 @@ export default function PostImageViewer({
             }}
           >
             <div style={actionGroupStyle}>
-              <button
-                type="button"
-                onClick={onToggleFlame}
-                disabled={flameBusy}
-                aria-pressed={viewerHasFlamed}
-                aria-label={
-                  viewerHasFlamed
-                    ? "Quitar flamita de la publicación"
-                    : "Dar flamita a la publicación"
-                }
-                style={{
-                  ...actionButtonStyle,
-                  opacity: flameBusy ? 0.62 : 1,
-                  cursor: flameBusy ? "not-allowed" : "pointer",
-                }}
-              >
-                <span
-                  aria-hidden="true"
-                  style={{
-                    fontSize: 21,
-                    lineHeight: 1,
-                    filter: viewerHasFlamed ? "none" : "grayscale(1)",
-                    opacity: viewerHasFlamed ? 1 : 0.6,
-                  }}
-                >
-                  🔥
-                </span>
-              </button>
+<button
+  type="button"
+  onClick={onToggleFlame}
+  aria-pressed={viewerHasFlamed}
+  aria-label={
+    viewerHasFlamed
+      ? "Quitar flamita de la publicación"
+      : "Dar flamita a la publicación"
+  }
+  style={{
+    ...actionButtonStyle,
+    opacity: 1,
+    cursor: "pointer",
+    transform: viewerHasFlamed ? "scale(1.04)" : "scale(1)",
+    transition: "transform 140ms ease, opacity 140ms ease",
+  }}
+>
+  <span
+    aria-hidden="true"
+    style={{
+      display: "inline-grid",
+      placeItems: "center",
+      lineHeight: 1,
+    }}
+  >
+    <VibraFlameIcon active={viewerHasFlamed} size={23} />
+  </span>
+</button>
 
               <button
                 type="button"
@@ -2426,34 +2427,34 @@ export default function PostImageViewer({
               }}
             >
               <div style={actionGroupStyle}>
-                <button
-                  type="button"
-                  onClick={onToggleFlame}
-                  disabled={flameBusy}
-                  aria-pressed={viewerHasFlamed}
-                  aria-label={
-                    viewerHasFlamed
-                      ? "Quitar flamita de la publicación"
-                      : "Dar flamita a la publicación"
-                  }
-                  style={{
-                    ...actionButtonStyle,
-                    opacity: flameBusy ? 0.62 : 1,
-                    cursor: flameBusy ? "not-allowed" : "pointer",
-                  }}
-                >
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      fontSize: 19,
-                      lineHeight: 1,
-                      filter: viewerHasFlamed ? "none" : "grayscale(1)",
-                      opacity: viewerHasFlamed ? 1 : 0.6,
-                    }}
-                  >
-                    🔥
-                  </span>
-                </button>
+<button
+  type="button"
+  onClick={onToggleFlame}
+  aria-pressed={viewerHasFlamed}
+  aria-label={
+    viewerHasFlamed
+      ? "Quitar flamita de la publicación"
+      : "Dar flamita a la publicación"
+  }
+  style={{
+    ...actionButtonStyle,
+    opacity: 1,
+    cursor: "pointer",
+    transform: viewerHasFlamed ? "scale(1.04)" : "scale(1)",
+    transition: "transform 140ms ease, opacity 140ms ease",
+  }}
+>
+  <span
+    aria-hidden="true"
+    style={{
+      display: "inline-grid",
+      placeItems: "center",
+      lineHeight: 1,
+    }}
+  >
+    <VibraFlameIcon active={viewerHasFlamed} size={21} />
+  </span>
+</button>
 
                 <button
                   type="button"

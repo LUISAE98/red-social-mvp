@@ -20,6 +20,7 @@ import PostImageViewer from "./PostImageViewer";
 import { fetchPostFlameUsers } from "@/lib/posts/post-service";
 import PostShareButton from "@/components/ui/PostShareButton";
 import PostSaveButton from "@/components/ui/PostSaveButton";
+import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 import {
   banGroupMember,
   muteGroupMember,
@@ -526,7 +527,17 @@ onToggleProfilePin,
   const [showExactPostDate, setShowExactPostDate] = useState(false);
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | null>(null);
 const [postTextExpanded, setPostTextExpanded] = useState(false);
+const [optimisticViewerHasFlamed, setOptimisticViewerHasFlamed] = useState(
+  post.viewerHasFlamed === true
+);
+const [optimisticLikesCount, setOptimisticLikesCount] = useState(
+  post.counts?.likes ?? 0
+);
 
+useEffect(() => {
+  setOptimisticViewerHasFlamed(post.viewerHasFlamed === true);
+  setOptimisticLikesCount(post.counts?.likes ?? 0);
+}, [post.viewerHasFlamed, post.counts?.likes]);
 
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -807,25 +818,36 @@ const [postTextExpanded, setPostTextExpanded] = useState(false);
   }
 }
 
-  async function handleToggleFlame() {
-    if (!currentUserId) {
-      setInlineActionError("Inicia sesión para dar flamita.");
-      return;
-    }
-
-    if (!onToggleFlame || flameBusy) return;
-
-    try {
-      setFlameBusy(true);
-      setInlineActionError(null);
-      await onToggleFlame(post.id);
-      delete flameUsersCacheRef.current[post.id];
-    } catch (e: any) {
-      setInlineActionError(e?.message ?? "No se pudo actualizar la flamita.");
-    } finally {
-      setFlameBusy(false);
-    }
+async function handleToggleFlame() {
+  if (!currentUserId) {
+    setInlineActionError("Inicia sesión para dar flamita.");
+    return;
   }
+
+  if (!onToggleFlame || flameBusy) return;
+
+  const previousViewerHasFlamed = optimisticViewerHasFlamed;
+  const previousLikesCount = optimisticLikesCount;
+  const nextViewerHasFlamed = !previousViewerHasFlamed;
+
+  setOptimisticViewerHasFlamed(nextViewerHasFlamed);
+  setOptimisticLikesCount((current) =>
+    Math.max(0, current + (nextViewerHasFlamed ? 1 : -1))
+  );
+
+  try {
+    setFlameBusy(true);
+    setInlineActionError(null);
+    await onToggleFlame(post.id);
+    delete flameUsersCacheRef.current[post.id];
+  } catch (e: any) {
+    setOptimisticViewerHasFlamed(previousViewerHasFlamed);
+    setOptimisticLikesCount(previousLikesCount);
+    setInlineActionError(e?.message ?? "No se pudo actualizar la flamita.");
+  } finally {
+    setFlameBusy(false);
+  }
+}
 
     async function handleToggleSave() {
     if (!currentUserId) {
@@ -1277,26 +1299,27 @@ const cardStyle: CSSProperties = {
     fontSize: 12,
     lineHeight: 1.4,
   };
-const flameButtonStyle: CSSProperties = {
-  width: 22,
-  height: 22,
-    border: "none",
-    background: "transparent",
-    padding: 0,
-    display: "inline-grid",
-    placeItems: "center",
-    cursor: flameBusy ? "not-allowed" : "pointer",
-    opacity: flameBusy ? 0.65 : 1,
-    WebkitTapHighlightColor: "transparent",
-  };
 
-  const flameIconStyle: CSSProperties = {
-    display: "inline-block",
-    fontSize: 16,
-    lineHeight: 1,
-    filter: post.viewerHasFlamed ? "none" : "grayscale(1)",
-    opacity: post.viewerHasFlamed ? 1 : 0.52,
-  };
+const flameButtonStyle: CSSProperties = {
+  width: 24,
+  height: 24,
+  border: "none",
+  background: "transparent",
+  padding: 0,
+  display: "inline-grid",
+  placeItems: "center",
+  cursor: "pointer",
+  opacity: 1,
+  transform: optimisticViewerHasFlamed ? "scale(1.04)" : "scale(1)",
+  transition: "transform 140ms ease, opacity 140ms ease",
+  WebkitTapHighlightColor: "transparent",
+};
+
+const flameIconStyle: CSSProperties = {
+  display: "inline-grid",
+  placeItems: "center",
+  lineHeight: 1,
+};
 
 
     const interactionRowStyle: CSSProperties = {
@@ -2648,22 +2671,21 @@ style={{
         gap: 2,
       }}
     >
-      <button
-        type="button"
-        onClick={handleToggleFlame}
-        disabled={flameBusy}
-        aria-pressed={post.viewerHasFlamed === true}
-        aria-label={
-          post.viewerHasFlamed
-            ? "Quitar flamita de la publicación"
-            : "Dar flamita a la publicación"
-        }
-        style={flameButtonStyle}
-      >
-        <span aria-hidden="true" style={flameIconStyle}>
-          🔥
-        </span>
-      </button>
+<button
+  type="button"
+  onClick={handleToggleFlame}
+  aria-pressed={optimisticViewerHasFlamed}
+  aria-label={
+    optimisticViewerHasFlamed
+      ? "Quitar flamita de la publicación"
+      : "Dar flamita a la publicación"
+  }
+  style={flameButtonStyle}
+>
+  <span aria-hidden="true" style={flameIconStyle}>
+    <VibraFlameIcon active={optimisticViewerHasFlamed} size={22} />
+  </span>
+</button>
 
       <button
         type="button"
@@ -2671,7 +2693,7 @@ style={{
         style={flameCountButtonStyle}
         aria-label="Ver usuarios que dieron flamita"
       >
-        {post.counts?.likes ?? 0}
+       {optimisticLikesCount}
       </button>
     </div>
 
@@ -2902,9 +2924,9 @@ style={{
   authorStatusBadge={authorStatusBadge}
   relativeDate={formatRelativeDate(post.createdAt)}
   exactDate={formatExactDate(post.createdAt)}
-  likesCount={post.counts?.likes ?? 0}
+  likesCount={optimisticLikesCount}
+  viewerHasFlamed={optimisticViewerHasFlamed}
   commentsCount={visibleCommentsTotal}
-  viewerHasFlamed={post.viewerHasFlamed === true}
   flameBusy={flameBusy}
   commentsContent={
     <PostCommentsPanel

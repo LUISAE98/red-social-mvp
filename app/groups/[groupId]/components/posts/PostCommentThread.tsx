@@ -11,6 +11,7 @@ import {
 } from "react";
 import type { Comment, CommentReply } from "@/lib/posts/types";
 import { toggleCommentFlame } from "@/lib/posts/post-service";
+import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 
 type PostCommentThreadProps = {
   postId: string;
@@ -336,13 +337,20 @@ const [exactReplyDates, setExactReplyDates] = useState<Record<string, boolean>>(
     }
   }
 
-  async function handleToggleCommentFlame() {
+async function handleToggleCommentFlame() {
   if (!currentUserId) {
     setInlineError("Inicia sesión para dar flamita.");
     return;
   }
 
   if (commentFlameBusy) return;
+
+  const previousLiked = commentLiked;
+  const previousLikes = commentLikes;
+  const nextLiked = !previousLiked;
+
+  setCommentLiked(nextLiked);
+  setCommentLikes((current) => Math.max(0, current + (nextLiked ? 1 : -1)));
 
   try {
     setCommentFlameBusy(true);
@@ -356,6 +364,8 @@ const [exactReplyDates, setExactReplyDates] = useState<Record<string, boolean>>(
     setCommentLiked(result.liked);
     setCommentLikes(result.likes);
   } catch (e: any) {
+    setCommentLiked(previousLiked);
+    setCommentLikes(previousLikes);
     setInlineError(e?.message ?? "No se pudo actualizar la flamita.");
   } finally {
     setCommentFlameBusy(false);
@@ -524,42 +534,42 @@ const [exactReplyDates, setExactReplyDates] = useState<Record<string, boolean>>(
     flexShrink: 0,
   }}
 >
-  <button
-    type="button"
-    onClick={handleToggleCommentFlame}
-    disabled={commentFlameBusy}
-    aria-pressed={commentLiked}
-    aria-label={
-      commentLiked
-        ? "Quitar flamita del comentario"
-        : "Dar flamita al comentario"
-    }
+<button
+  type="button"
+  onClick={handleToggleCommentFlame}
+  aria-pressed={commentLiked}
+  aria-label={
+    commentLiked
+      ? "Quitar flamita del comentario"
+      : "Dar flamita al comentario"
+  }
+  style={{
+    width: 22,
+    height: 22,
+    border: "none",
+    background: "transparent",
+    padding: 0,
+    display: "inline-grid",
+    placeItems: "center",
+    cursor: "pointer",
+    opacity: 1,
+    transform: commentLiked ? "scale(1.04)" : "scale(1)",
+    transition: "transform 140ms ease, opacity 140ms ease",
+    WebkitTapHighlightColor: "transparent",
+    flexShrink: 0,
+  }}
+>
+  <span
+    aria-hidden="true"
     style={{
-      width: 22,
-      height: 22,
-      border: "none",
-      background: "transparent",
-      padding: 0,
       display: "inline-grid",
       placeItems: "center",
-      cursor: commentFlameBusy ? "not-allowed" : "pointer",
-      opacity: commentFlameBusy ? 0.62 : 1,
-      WebkitTapHighlightColor: "transparent",
-      flexShrink: 0,
+      lineHeight: 1,
     }}
   >
-    <span
-      aria-hidden="true"
-      style={{
-        fontSize: 15,
-        lineHeight: 1,
-        filter: commentLiked ? "none" : "grayscale(1)",
-        opacity: commentLiked ? 1 : 0.52,
-      }}
-    >
-      🔥
-    </span>
-  </button>
+    <VibraFlameIcon active={commentLiked} size={18} />
+  </span>
+</button>
 
   <span
     aria-label={`${commentLikes} flamitas`}
