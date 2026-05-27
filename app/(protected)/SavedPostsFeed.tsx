@@ -855,8 +855,6 @@ const visiblePosts = useMemo(() => {
         <div style={titleRowStyle}>
           <h2 style={titleStyle}>Guardados</h2>
         </div>
-
-        <p style={subtitleStyle}>Publicaciones que guardaste con 🔖.</p>
       </div>
 
       <form

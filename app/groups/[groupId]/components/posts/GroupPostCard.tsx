@@ -21,6 +21,7 @@ import { fetchPostFlameUsers } from "@/lib/posts/post-service";
 import PostShareButton from "@/components/ui/PostShareButton";
 import PostSaveButton from "@/components/ui/PostSaveButton";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
+import VibraCommentIcon from "@/app/components/VibraServiceIcons/VibraCommentIcon";
 import {
   banGroupMember,
   muteGroupMember,
@@ -534,15 +535,28 @@ const [optimisticLikesCount, setOptimisticLikesCount] = useState(
   post.counts?.likes ?? 0
 );
 
+const [optimisticViewerHasSaved, setOptimisticViewerHasSaved] = useState(
+  post.viewerHasSaved === true
+);
+const [optimisticSavesCount, setOptimisticSavesCount] = useState(
+  post.counts?.saves ?? 0
+);
+
 useEffect(() => {
   setOptimisticViewerHasFlamed(post.viewerHasFlamed === true);
   setOptimisticLikesCount(post.counts?.likes ?? 0);
 }, [post.viewerHasFlamed, post.counts?.likes]);
 
+useEffect(() => {
+  setOptimisticViewerHasSaved(post.viewerHasSaved === true);
+  setOptimisticSavesCount(post.counts?.saves ?? 0);
+}, [post.viewerHasSaved, post.counts?.saves]);
+
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const flameUsersCacheRef = useRef<Record<string, PostFlameUser[]>>({});
   const flameRequestInFlightRef = useRef(false);
+  const saveRequestInFlightRef = useRef(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const feedVideoShellRef = useRef<HTMLDivElement | null>(null);
 
@@ -853,24 +867,38 @@ async function handleToggleFlame() {
   }
 }
 
-    async function handleToggleSave() {
-    if (!currentUserId) {
-      setInlineActionError("Inicia sesión para guardar publicaciones.");
-      return;
-    }
-
-    if (!onToggleSave || saveBusy) return;
-
-    try {
-      setSaveBusy(true);
-      setInlineActionError(null);
-      await onToggleSave(post.id);
-    } catch (e: any) {
-      setInlineActionError(e?.message ?? "No se pudo actualizar el guardado.");
-    } finally {
-      setSaveBusy(false);
-    }
+async function handleToggleSave() {
+  if (!currentUserId) {
+    setInlineActionError("Inicia sesión para guardar publicaciones.");
+    return;
   }
+
+  if (!onToggleSave || saveBusy || saveRequestInFlightRef.current) return;
+
+  saveRequestInFlightRef.current = true;
+
+  const previousViewerHasSaved = optimisticViewerHasSaved;
+  const previousSavesCount = optimisticSavesCount;
+  const nextViewerHasSaved = !previousViewerHasSaved;
+
+  setSaveBusy(true);
+  setInlineActionError(null);
+  setOptimisticViewerHasSaved(nextViewerHasSaved);
+  setOptimisticSavesCount((current) =>
+    Math.max(0, current + (nextViewerHasSaved ? 1 : -1))
+  );
+
+  try {
+    await onToggleSave(post.id);
+  } catch (e: any) {
+    setOptimisticViewerHasSaved(previousViewerHasSaved);
+    setOptimisticSavesCount(previousSavesCount);
+    setInlineActionError(e?.message ?? "No se pudo actualizar el guardado.");
+  } finally {
+    saveRequestInFlightRef.current = false;
+    setSaveBusy(false);
+  }
+}
 
  async function handleOpenCommentsPanel() {
   setCommentsPanelOpen(true);
@@ -2747,10 +2775,10 @@ style={{
         WebkitTapHighlightColor: "transparent",
       }}
     >
-      <span aria-hidden="true" style={{ fontSize: 16, lineHeight: 1 }}>
-        💬
-      </span>
-      <span>{visibleCommentsTotal}</span>
+<span aria-hidden="true">
+  <VibraCommentIcon size={18} color="rgba(255,255,255,0.88)" />
+</span>
+<span>{visibleCommentsTotal}</span>
     </button>
   </div>
 
@@ -2763,13 +2791,13 @@ style={{
       flexShrink: 0,
     }}
   >
-    <PostSaveButton
-      count={post.counts?.saves ?? 0}
-      saved={post.viewerHasSaved === true}
-      loading={saveBusy}
-      disabled={saveBusy}
-      onClick={handleToggleSave}
-    />
+<PostSaveButton
+  count={optimisticSavesCount}
+  saved={optimisticViewerHasSaved}
+  loading={false}
+  disabled={false}
+  onClick={handleToggleSave}
+/>
 
     {post.isShareable === true && (
       <PostShareButton

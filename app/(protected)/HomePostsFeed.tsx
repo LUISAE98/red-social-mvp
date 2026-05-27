@@ -5,6 +5,7 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { doc, getDoc } from "firebase/firestore";
+import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 
 import { db } from "@/lib/firebase";
 
@@ -844,8 +845,10 @@ const normalizedPosts = result.posts
                 flexShrink: 0,
               }}
             >
-              <span aria-hidden="true">🔖</span>
-              <span>Guardados</span>
+<span aria-hidden="true">
+  <VibraSavedPostIcon saved={false} size={17} color="#a855ff" />
+</span>
+<span>Guardados</span>
             </Link>
           ) : null}
         </div>

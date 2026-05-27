@@ -1,5 +1,7 @@
 "use client";
 
+import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
+
 type PostSaveButtonProps = {
   count?: number;
   saved?: boolean;
@@ -43,21 +45,14 @@ export default function PostSaveButton({
         "inline-flex items-center gap-1 border-0 bg-transparent p-0 text-xs font-semibold transition",
         "focus:outline-none",
         "disabled:cursor-not-allowed disabled:opacity-60",
-        saved ? "text-neutral-400" : "text-neutral-400",
         className,
       ].join(" ")}
     >
-      <span
-        aria-hidden="true"
-        className={[
-          "text-base leading-none",
-          saved ? "" : "grayscale opacity-60",
-        ].join(" ")}
-      >
-        🔖
+      <span aria-hidden="true" className="inline-flex leading-none">
+        <VibraSavedPostIcon saved={saved} size={20} color="#a855ff" />
       </span>
 
-      <span className="min-w-[1ch] tabular-nums">
+      <span className="min-w-[1ch] tabular-nums text-neutral-400">
         {formatCount(safeCount)}
       </span>
     </button>
