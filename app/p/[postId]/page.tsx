@@ -36,7 +36,10 @@ function formatExactDate(date: Date | null): string | null {
   }
 }
 
-function buildPreviewText(value: string | null | undefined, maxLength = 45): string {
+function buildPreviewText(
+  value: string | null | undefined,
+  maxLength = 90
+): string {
   const cleanText = (value || "").trim().replace(/\s+/g, " ");
 
   if (!cleanText) {
@@ -52,7 +55,7 @@ function buildPreviewText(value: string | null | undefined, maxLength = 45): str
   const safeText =
     lastSpace > 20 ? sliced.slice(0, lastSpace).trim() : sliced;
 
-  return `${safeText}... + Ver más`;
+  return `${safeText}...`;
 }
 
 function toPublicPostView(post: any): PublicPostView {
@@ -137,7 +140,7 @@ function toPublicPostView(post: any): PublicPostView {
     shareTitle:
       typeof post.shareTitle === "string" && post.shareTitle.trim()
         ? post.shareTitle
-        : "Publicación",
+        : "Publicación en Vibra",
     shareDescription:
       typeof post.shareDescription === "string" ? post.shareDescription : null,
     shareImageUrl:
@@ -170,25 +173,31 @@ export async function generateMetadata({
     return {
       title: "Publicación no disponible",
       description: "Esta publicación no existe o no está disponible públicamente.",
+      openGraph: {
+        title: "Publicación no disponible",
+        description: "Esta publicación no existe o no está disponible públicamente.",
+        siteName: "Vibra",
+        type: "website",
+      },
     };
   }
 
   const publicPost = toPublicPostView(post);
   const title = buildPreviewText(publicPost.text || publicPost.shareTitle);
-  const description = "";
   const url = buildPublicPostUrl(publicPost.id);
   const imageUrl = publicPost.shareImageUrl || undefined;
 
   return {
     title,
-    description,
+    description: undefined,
     alternates: {
       canonical: url,
     },
     openGraph: {
       title,
-      description,
+      description: undefined,
       url,
+      siteName: "Vibra",
       type: "article",
       images: imageUrl
         ? [
@@ -204,7 +213,7 @@ export async function generateMetadata({
     twitter: {
       card: imageUrl ? "summary_large_image" : "summary",
       title,
-      description,
+      description: undefined,
       images: imageUrl ? [imageUrl] : undefined,
     },
   };
