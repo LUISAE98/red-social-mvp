@@ -196,6 +196,8 @@ export default function PostImageViewer({
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [mobileCommentsOpen, setMobileCommentsOpen] = useState(false);
   const [mobileDragOffsetX, setMobileDragOffsetX] = useState(0);
+  const [mobileDragOffsetY, setMobileDragOffsetY] = useState(0);
+  const [mobileVerticalClosing, setMobileVerticalClosing] = useState(false);
   const [mobileSwipeAnimating, setMobileSwipeAnimating] = useState(false);
   const [mobileGestureAxis, setMobileGestureAxis] = useState<
     "horizontal" | "vertical" | null
@@ -205,8 +207,6 @@ export default function PostImageViewer({
   const [isCurrentVideoZoomed, setIsCurrentVideoZoomed] = useState(false);
   const [isCurrentVideoPinching, setIsCurrentVideoPinching] = useState(false);
   const [mobileVideoTrueFullscreen, setMobileVideoTrueFullscreen] =
-    useState(false);
-  const [mobileVideoFullscreenTransitioning, setMobileVideoFullscreenTransitioning] =
     useState(false);
   const [mobilePostTextExpanded, setMobilePostTextExpanded] = useState(false);
   const [desktopPostTextExpanded, setDesktopPostTextExpanded] = useState(false);
@@ -235,7 +235,6 @@ export default function PostImageViewer({
   const mobileSpeedStartYRef = useRef<number | null>(null);
   const mobileSingleTapTimerRef = useRef<number | null>(null);
   const mobileLastVideoTapRef = useRef<{ at: number; x: number; y: number } | null>(null);
-  const mobileVideoFullscreenTransitionTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -540,33 +539,19 @@ export default function PostImageViewer({
     }, 2600);
   }, [clearChromeTimer, isCurrentVideo, useMobileLayout]);
 
-  function clearMobileVideoFullscreenTransitionTimer() {
-    if (mobileVideoFullscreenTransitionTimerRef.current !== null) {
-      window.clearTimeout(mobileVideoFullscreenTransitionTimerRef.current);
-      mobileVideoFullscreenTransitionTimerRef.current = null;
-    }
-  }
-
   const setMobileVideoTrueFullscreenActive = useCallback(
     (active: boolean) => {
       if (!useMobileLayout || !isCurrentVideo) return;
 
       resetMobileVideoSpeed();
       clearChromeTimer();
-      clearMobileVideoFullscreenTransitionTimer();
       setIsCurrentVideoZoomed(false);
       setIsCurrentVideoPinching(false);
-      setMobileVideoFullscreenTransitioning(true);
       setMobileVideoTrueFullscreen(active);
       setMobileChromeVisible(!active);
 
-      mobileVideoFullscreenTransitionTimerRef.current = window.setTimeout(() => {
-        setMobileVideoFullscreenTransitioning(false);
-        mobileVideoFullscreenTransitionTimerRef.current = null;
-      }, 260);
-
       if (!active && isCurrentVideo) {
-        window.setTimeout(scheduleChromeHide, 260);
+        window.setTimeout(scheduleChromeHide, 0);
       }
     },
     [
@@ -775,13 +760,13 @@ export default function PostImageViewer({
   useEffect(() => {
     setMobileGestureAxis(null);
     setMobileDragOffsetX(0);
+    setMobileDragOffsetY(0);
+    setMobileVerticalClosing(false);
     setIsCurrentImageZoomed(false);
     setIsCurrentImagePinching(false);
     setIsCurrentVideoZoomed(false);
     setIsCurrentVideoPinching(false);
     setMobileVideoTrueFullscreen(false);
-    setMobileVideoFullscreenTransitioning(false);
-    clearMobileVideoFullscreenTransitionTimer();
     setVideoCurrentTime(0);
     setVideoDuration(currentMedia?.duration ?? 0);
     setVideoPlaying(false);
@@ -829,8 +814,6 @@ export default function PostImageViewer({
       setIsCurrentVideoZoomed(false);
       setIsCurrentVideoPinching(false);
       setMobileVideoTrueFullscreen(false);
-      setMobileVideoFullscreenTransitioning(false);
-      clearMobileVideoFullscreenTransitionTimer();
       resetMobileVideoSpeed();
       return;
     }
@@ -848,7 +831,6 @@ export default function PostImageViewer({
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
       clearMobileSingleTapTimer();
-      clearMobileVideoFullscreenTransitionTimer();
       mobileLastVideoTapRef.current = null;
     };
   }, [clearChromeTimer, clearDesktopControlsTimer, open, onClose, totalMedia]);
@@ -942,6 +924,14 @@ const flameButtonStyle: CSSProperties = {
   transition: "transform 140ms ease",
   touchAction: "manipulation",
 };
+
+  const mobileVerticalProgress = useMobileLayout
+    ? Math.min(1, Math.max(0, mobileDragOffsetY / Math.max(1, window.innerHeight)))
+    : 0;
+  const mobileOverlayOpacity = mobileVerticalClosing
+    ? 0
+    : 1 - Math.min(0.72, mobileVerticalProgress * 1.4);
+  const mobileVerticalScale = 1 - Math.min(0.08, mobileVerticalProgress * 0.12);
 
   function renderMediaPreview(media: ViewerMediaItem | null, label: string) {
     if (!media) return null;
@@ -1042,17 +1032,6 @@ const flameButtonStyle: CSSProperties = {
             userSelect: "none",
             WebkitUserSelect: "none",
             WebkitTouchCallout: "none",
-            transition:
-              useMobileLayout
-                ? "transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease"
-                : undefined,
-            transform:
-              useMobileLayout && mobileVideoFullscreenTransitioning
-                ? mobileVideoTrueFullscreen
-                  ? "scale(1.012)"
-                  : "scale(0.988)"
-                : "scale(1)",
-            willChange: useMobileLayout ? "transform" : undefined,
           }}
         >
           {currentVideoSrc ? (
@@ -1072,8 +1051,6 @@ const flameButtonStyle: CSSProperties = {
                         ? "cover"
                         : "contain",
                     background: "#000",
-                    transition: "opacity 180ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
-                    transform: "translateZ(0)",
                     pointerEvents: "none",
                   }}
                 />
@@ -1115,8 +1092,6 @@ const flameButtonStyle: CSSProperties = {
                       : "contain",
                   background: "#000",
                   opacity: videoReady || !currentVideoPoster ? 1 : 0,
-                  transition: "opacity 180ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
-                  transform: "translateZ(0)",
                   pointerEvents: "none",
                 }}
               />
@@ -1143,17 +1118,18 @@ const flameButtonStyle: CSSProperties = {
           style={{
             position: "absolute",
             inset: 0,
-            transform: `translateX(${mobileDragOffsetX}px)`,
-            transition:
-              mobileSwipeAnimating || mobileVideoFullscreenTransitioning
-                ? "transform 220ms ease"
-                : "none",
+            transform:
+              mobileGestureAxis === "vertical"
+                ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
+                : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
+            transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
+            opacity: mobileOverlayOpacity,
             background: "#000",
           }}
         >
           {useMobileLayout ? (
             <PostPinchZoomVideo
-              resetKey={`${currentMedia.url}:${mobileVideoTrueFullscreen ? "fullscreen" : "normal"}`}
+              resetKey={currentMedia.url}
               onClose={onClose}
               onZoomStateChange={setIsCurrentVideoZoomed}
               onPinchStateChange={setIsCurrentVideoPinching}
@@ -1173,8 +1149,12 @@ const flameButtonStyle: CSSProperties = {
         style={{
           position: "absolute",
           inset: 0,
-          transform: `translateX(${mobileDragOffsetX}px)`,
+          transform:
+            mobileGestureAxis === "vertical"
+              ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
+              : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
           transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
+          opacity: mobileOverlayOpacity,
           background: "#000",
         }}
       >
@@ -1185,7 +1165,7 @@ const flameButtonStyle: CSSProperties = {
             onClose={onClose}
             onZoomStateChange={setIsCurrentImageZoomed}
             onPinchStateChange={setIsCurrentImagePinching}
-            swipeAxis={mobileGestureAxis}
+            swipeAxis="horizontal"
           />
         ) : (
           <img
@@ -1224,6 +1204,7 @@ const flameButtonStyle: CSSProperties = {
             event.currentTarget.dataset.gestureAxis = "";
             setMobileGestureAxis(null);
             setMobileDragOffsetX(0);
+            setMobileDragOffsetY(0);
             return;
           }
 
@@ -1240,6 +1221,7 @@ const flameButtonStyle: CSSProperties = {
 
           setMobileGestureAxis(null);
           setMobileDragOffsetX(0);
+          setMobileDragOffsetY(0);
         }}
         onTouchMove={(event) => {
           if (
@@ -1250,6 +1232,7 @@ const flameButtonStyle: CSSProperties = {
             isCurrentVideoPinching
           ) {
             setMobileDragOffsetX(0);
+            setMobileDragOffsetY(0);
             return;
           }
 
@@ -1259,6 +1242,7 @@ const flameButtonStyle: CSSProperties = {
             event.currentTarget.dataset.gestureAxis = "";
             setMobileGestureAxis(null);
             setMobileDragOffsetX(0);
+            setMobileDragOffsetY(0);
             return;
           }
 
@@ -1279,6 +1263,7 @@ const flameButtonStyle: CSSProperties = {
               event.currentTarget.dataset.gestureAxis = "speed";
               setMobileGestureAxis(null);
               setMobileDragOffsetX(0);
+              setMobileDragOffsetY(0);
               return;
             }
           }
@@ -1312,11 +1297,14 @@ const flameButtonStyle: CSSProperties = {
           if (axis === "horizontal") {
             event.preventDefault();
             setMobileDragOffsetX(diffX);
+            setMobileDragOffsetY(0);
             return;
           }
 
           if (axis === "vertical") {
+            event.preventDefault();
             setMobileDragOffsetX(0);
+            setMobileDragOffsetY(Math.max(0, diffY));
           }
         }}
         onTouchEnd={(event) => {
@@ -1329,6 +1317,7 @@ const flameButtonStyle: CSSProperties = {
           ) {
             setMobileGestureAxis(null);
             setMobileDragOffsetX(0);
+            setMobileDragOffsetY(0);
             return;
           }
 
@@ -1345,6 +1334,7 @@ const flameButtonStyle: CSSProperties = {
 
           if (!touch || !startX) {
             setMobileDragOffsetX(0);
+            setMobileDragOffsetY(0);
             return;
           }
 
@@ -1353,11 +1343,30 @@ const flameButtonStyle: CSSProperties = {
 
           if (wasSpeedGestureActive || axis === "speed") {
             setMobileDragOffsetX(0);
+            setMobileDragOffsetY(0);
             return;
           }
 
           if (axis === "vertical" && diffY > 120) {
-            onClose();
+            setMobileVerticalClosing(true);
+            setMobileSwipeAnimating(true);
+            setMobileDragOffsetX(0);
+            setMobileDragOffsetY(window.innerHeight);
+
+            window.setTimeout(() => {
+              onClose();
+              setMobileDragOffsetY(0);
+              setMobileDragOffsetX(0);
+              setMobileVerticalClosing(false);
+              setMobileSwipeAnimating(false);
+            }, 180);
+            return;
+          }
+
+          if (axis === "vertical") {
+            setMobileSwipeAnimating(true);
+            setMobileDragOffsetY(0);
+            window.setTimeout(() => setMobileSwipeAnimating(false), 180);
             return;
           }
 
@@ -1368,17 +1377,20 @@ const flameButtonStyle: CSSProperties = {
               toggleMobileChrome();
             }
             setMobileDragOffsetX(0);
+            setMobileDragOffsetY(0);
             return;
           }
 
           if (!canNavigateMedia || axis !== "horizontal") {
             setMobileDragOffsetX(0);
+            setMobileDragOffsetY(0);
             return;
           }
 
           if (Math.abs(diffX) < 65 || Math.abs(diffY) > 90) {
             setMobileSwipeAnimating(true);
             setMobileDragOffsetX(0);
+            setMobileDragOffsetY(0);
             window.setTimeout(() => setMobileSwipeAnimating(false), 180);
             return;
           }
@@ -1395,6 +1407,7 @@ const flameButtonStyle: CSSProperties = {
             else goToPreviousMedia();
 
             setMobileDragOffsetX(0);
+            setMobileDragOffsetY(0);
             setMobileSwipeAnimating(false);
           }, 180);
         }}
