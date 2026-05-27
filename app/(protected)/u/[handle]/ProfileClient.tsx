@@ -1105,6 +1105,13 @@ await createExclusiveSessionRequest({
             box-sizing: border-box;
           }
 
+          @media (max-width: 640px) {
+            .profile-card button[aria-label="Cambiar foto de perfil"][title="Cambiar foto de perfil"] {
+              right: -10px !important;
+              bottom: -2px !important;
+            }
+          }
+
 @media (max-width: 900px) {
   .profile-shell {
     max-width: none;
@@ -1220,41 +1227,80 @@ await createExclusiveSessionRequest({
   }}
 />
 
-<div
-  style={{
-    position: "absolute",
-    right: 18,
-    top: 18,
-    zIndex: 40,
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-  }}
->
+<>
+  <div
+    style={{
+      position: "absolute",
+      right: 18,
+      top: 18,
+      zIndex: 40,
+    }}
+  >
+    <CopyLinkButton
+      href={profileShareHref}
+      copiedLabel="Link del perfil copiado correctamente"
+      title="Copiar link del perfil"
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: "50%",
+        border: "none",
+        background:
+          "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
+        boxShadow:
+          "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+      }}
+    />
+  </div>
+
   {isOwner && (
     <button
       onClick={handlePickCover}
       disabled={uploading}
       type="button"
+      aria-label="Elegir portada"
+      title="Elegir portada"
       style={{
-        ...styles.tinyGhostButton,
+        position: "absolute",
+        right: 14,
+        bottom: 14,
+        zIndex: 40,
+        width: 34,
+        height: 34,
+        borderRadius: "50%",
+        border: "none",
+        background:
+          "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
+        color: "rgba(168,85,247,0.98)",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 0,
         opacity: uploading ? 0.7 : 1,
         cursor: uploading ? "not-allowed" : "pointer",
+        boxShadow:
+          "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
       }}
-      title="Elegir portada"
     >
-      {uploading && cropMode === "cover"
-        ? "Subiendo..."
-        : "Elegir portada"}
+      <span
+        aria-hidden="true"
+        style={{
+          fontSize: 17,
+          lineHeight: 1,
+          transform:
+            uploading && cropMode === "cover" ? "scale(0.9)" : "scale(1)",
+          transition: "transform 160ms ease",
+        }}
+      >
+        ✎
+      </span>
     </button>
   )}
-
-  <CopyLinkButton
-    href={profileShareHref}
-    copiedLabel="Link del perfil copiado correctamente"
-    title="Copiar link del perfil"
-  />
-</div>
+</>
             </div>
 
             <div className="profile-content">
@@ -1335,20 +1381,25 @@ await createExclusiveSessionRequest({
                         bottom: 8,
                         width: 34,
                         height: 34,
-                        borderRadius: 999,
-                        border: "1px solid rgba(255,255,255,0.16)",
-                        background: "rgba(12,12,12,0.92)",
-                        color: "#fff",
+                        borderRadius: "50%",
+                        border: "none",
+                        background:
+                          "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
+                        color: "rgba(168,85,247,0.98)",
                         cursor: uploading ? "not-allowed" : "pointer",
-                        fontSize: 13,
+                        fontSize: 17,
                         fontWeight: 600,
                         display: "grid",
                         placeItems: "center",
-                        boxShadow: ui.shadow,
+                        boxShadow:
+                          "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
                         backdropFilter: "blur(10px)",
+                        WebkitBackdropFilter: "blur(10px)",
                         zIndex: 200,
                         pointerEvents: "auto",
                         fontFamily: fontStack,
+                        lineHeight: 1,
+                        padding: 0,
                       }}
                       title="Cambiar foto de perfil"
                       aria-label="Cambiar foto de perfil"

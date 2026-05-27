@@ -1136,7 +1136,7 @@ const openCropWithFile = useCallback(
 
   if (loading) {
     return (
-      <main style={pageWrap}>
+      <main style={{ ...pageWrap, background: "transparent" }}>
         <div style={container}>
           <div style={{ ...cardStyle, padding: 18 }}>
             <div style={textStyle}>Cargando comunidad...</div>
@@ -1148,7 +1148,7 @@ const openCropWithFile = useCallback(
 
   if (error && !group) {
     return (
-      <main style={pageWrap}>
+      <main style={{ ...pageWrap, background: "transparent" }}>
         <div style={container}>
           <div style={{ ...cardStyle, padding: 18 }}>
             <div style={{ ...messageBox, color: "#fff" }}>{error}</div>
@@ -1187,6 +1187,57 @@ const groupVisualUi = {
   avatarSize: "clamp(112px, 24vw, 220px)",
   avatarOffsetTop: "calc(clamp(112px, 24vw, 220px) / -2)",
   contentTopPadding: "calc((clamp(112px, 24vw, 220px) / 2) + 22px)",
+};
+
+const groupHeaderCardStyle = {
+  ...cardStyle,
+  borderRadius: 18,
+  border: "1px solid rgba(168,85,255,0.08)",
+  background:
+    "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
+  boxShadow: "0 18px 54px rgba(0,0,0,0.68)",
+  backdropFilter: "none",
+};
+
+const groupRoundIconButtonStyle = {
+  width: 34,
+  height: 34,
+  borderRadius: "50%",
+  border: "none",
+  background:
+    "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
+  color: "rgba(168,85,247,0.98)",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: 0,
+  boxShadow:
+    "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
+  backdropFilter: "blur(10px)",
+  WebkitBackdropFilter: "blur(10px)",
+};
+
+const groupCoverAuraStyle = {
+  position: "absolute" as const,
+  inset: 0,
+  zIndex: 8,
+  pointerEvents: "none" as const,
+  background:
+    "radial-gradient(circle at 18% 10%, rgba(168,85,255,0.075), transparent 34%), radial-gradient(circle at 86% 18%, rgba(126,34,206,0.055), transparent 36%), radial-gradient(circle at 22% 92%, rgba(168,85,255,0.045), transparent 40%)",
+  boxShadow:
+    "inset 0 0 24px rgba(79,70,255,0.07), inset 0 0 20px rgba(168,85,255,0.065), inset 0 1px 0 rgba(255,255,255,0.05)",
+};
+
+const groupCoverGradientStyle = {
+  position: "absolute" as const,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  height: "82%",
+  zIndex: 10,
+  pointerEvents: "none" as const,
+  background:
+    "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.12) 14%, rgba(0,0,0,0.26) 28%, rgba(0,0,0,0.44) 44%, rgba(0,0,0,0.62) 60%, rgba(0,0,0,0.78) 76%, rgba(0,0,0,0.9) 90%, rgba(0,0,0,0.96) 100%)",
 };
 
 const avatarNode = (
@@ -1261,25 +1312,19 @@ const avatarNode = (
           }}
           disabled={uploading}
           style={{
+            ...groupRoundIconButtonStyle,
             position: "absolute",
             right: 8,
             bottom: 8,
-            width: 34,
-            height: 34,
-            borderRadius: 999,
-            border: "1px solid rgba(255,255,255,0.16)",
-            background: "rgba(12,12,12,0.92)",
-            color: "#fff",
             cursor: uploading ? "not-allowed" : "pointer",
-            fontSize: 13,
+            fontSize: 17,
             fontWeight: 600,
             display: "grid",
             placeItems: "center",
-            boxShadow: groupVisualUi.shadow,
-            backdropFilter: "blur(10px)",
             zIndex: 200,
             pointerEvents: "auto",
             fontFamily: groupPageFontStack,
+            lineHeight: 1,
           }}
           title="Cambiar avatar de la comunidad"
           aria-label="Cambiar avatar de la comunidad"
@@ -1308,7 +1353,7 @@ const avatarNode = (
 
     return (
       <>
-        <main style={pageWrap}>
+        <main style={{ ...pageWrap, background: "transparent" }}>
           <style jsx>{`
             .group-shell {
               width: 100%;
@@ -1318,15 +1363,49 @@ const avatarNode = (
             }
 
             .group-card {
+              position: relative;
               overflow: hidden;
               min-width: 0;
+            }
+
+            .group-card::before {
+              content: "";
+              position: absolute;
+              inset: -42%;
+              border-radius: inherit;
+              pointer-events: none;
+              background:
+                radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.075), transparent 34%),
+                radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.055), transparent 36%),
+                radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.045), transparent 40%);
+              filter: blur(26px);
+              opacity: 0.42;
+              z-index: 0;
+            }
+
+            .group-card::after {
+              content: "";
+              position: absolute;
+              inset: 0;
+              pointer-events: none;
+              border-radius: inherit;
+              box-shadow:
+                inset 0 0 24px rgba(79, 70, 255, 0.07),
+                inset 0 0 20px rgba(168, 85, 255, 0.065),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05),
+                0 0 18px rgba(168, 85, 255, 0.055);
+              z-index: 1;
+            }
+
+            .group-card > * {
+              position: relative;
+              z-index: 2;
             }
 
             .group-content {
   position: relative;
   padding: 0 18px 20px;
   min-width: 0;
-  background: #000;
 }
 
 .group-header-copy {
@@ -1354,8 +1433,8 @@ const avatarNode = (
 
             .group-actions-wrap {
               margin-top: 18px;
-              border-top: 1px solid rgba(255, 255, 255, 0.1);
-              padding-top: 14px;
+              border-top: 0;
+              padding-top: 0;
               display: grid;
               gap: 12px;
               min-width: 0;
@@ -1394,7 +1473,6 @@ const avatarNode = (
     border-radius: 0 !important;
     border-left: 0 !important;
     border-right: 0 !important;
-    box-shadow: none !important;
   }
 
   .group-content {
@@ -1410,17 +1488,13 @@ const avatarNode = (
           <div style={container} className="group-shell">
             <section
   className="group-card"
-  style={{
-    ...cardStyle,
-    background: "#000",
-    backdropFilter: "none",
-  }}
+  style={groupHeaderCardStyle}
 >
 <div
   style={{
     position: "relative",
     height: groupVisualUi.coverHeight,
-    background: "#000",
+    background: "#0b0b0b",
   }}
 >
                 <img
@@ -1434,24 +1508,19 @@ const avatarNode = (
                   }}
                 />
 
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background:
-                      "linear-gradient(180deg, rgba(0,0,0,0.10) 0%, rgba(0,0,0,0.52) 58%, rgba(0,0,0,0.88) 100%)",
-                  }}
-                />
+                <div style={groupCoverAuraStyle} />
+                <div style={groupCoverGradientStyle} />
                 {canShareGroup && (
   <CopyLinkButton
     href={groupShareHref}
     copiedLabel="Link del grupo copiado correctamente"
     title="Copiar link del grupo"
     style={{
+      ...groupRoundIconButtonStyle,
       position: "absolute",
       right: 18,
       top: 18,
-      zIndex: 30,
+      zIndex: 40,
     }}
   />
 )}
@@ -1780,7 +1849,7 @@ const avatarNode = (
 
   return (
     <>
-      <main style={pageWrap}>
+      <main style={{ ...pageWrap, background: "transparent" }}>
         <style jsx>{`
           .group-shell {
             width: 100%;
@@ -1790,19 +1859,53 @@ const avatarNode = (
           }
 
           .group-card {
+            position: relative;
             overflow: hidden;
             min-width: 0;
+          }
+
+          .group-card::before {
+            content: "";
+            position: absolute;
+            inset: -42%;
+            border-radius: inherit;
+            pointer-events: none;
+            background:
+              radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.075), transparent 34%),
+              radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.055), transparent 36%),
+              radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.045), transparent 40%);
+            filter: blur(26px);
+            opacity: 0.42;
+            z-index: 0;
+          }
+
+          .group-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            border-radius: inherit;
+            box-shadow:
+              inset 0 0 24px rgba(79, 70, 255, 0.07),
+              inset 0 0 20px rgba(168, 85, 255, 0.065),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05),
+              0 0 18px rgba(168, 85, 255, 0.055);
+            z-index: 1;
+          }
+
+          .group-card > * {
+            position: relative;
+            z-index: 2;
           }
 
 .group-content {
   position: relative;
   padding: 0 18px 20px;
   min-width: 0;
-  background: #000;
 }
 
           .group-header-copy {
-            padding-top: 92px;
+            padding-top: calc((clamp(112px, 24vw, 220px) / 2) + 22px);
             position: relative;
             z-index: 1;
             min-height: 110px;
@@ -1838,9 +1941,9 @@ const avatarNode = (
           }
 
           .group-subnav-wrap {
-            margin-top: 16px;
+            margin-top: 12px;
             width: 100%;
-            max-width: 720px;
+            max-width: none;
             margin-left: auto;
             margin-right: auto;
             min-width: 0;
@@ -1848,8 +1951,8 @@ const avatarNode = (
 
           .group-actions-wrap {
             margin-top: 18px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            padding-top: 14px;
+            border-top: 0;
+            padding-top: 0;
             display: grid;
             gap: 12px;
             min-width: 0;
@@ -1879,16 +1982,18 @@ const avatarNode = (
             max-width: 100%;
           }
 
-          @media (min-width: 700px) {
-            .group-header-copy {
-              padding-top: 126px;
-            }
+          .group-tab-content {
+            width: 100%;
+            min-width: 0;
+            overflow: hidden;
+            box-sizing: border-box;
           }
 
-          @media (min-width: 1024px) {
-            .group-header-copy {
-              padding-top: 150px;
-            }
+          .group-tab-panel {
+            width: 100%;
+            min-width: 0;
+            overflow: hidden;
+            box-sizing: border-box;
           }
 
 @media (max-width: 900px) {
@@ -1907,7 +2012,6 @@ const avatarNode = (
     border-radius: 0 !important;
     border-left: 0 !important;
     border-right: 0 !important;
-    box-shadow: none !important;
   }
 
   .group-content {
@@ -1942,18 +2046,13 @@ const avatarNode = (
         <div style={container} className="group-shell">
           <section
   className="group-card"
-  style={{
-    ...cardStyle,
-    background: "#000",
-    backgroundColor: "#000",
-    backdropFilter: "none",
-  }}
+  style={groupHeaderCardStyle}
 >
 <div
   style={{
     position: "relative",
     height: groupVisualUi.coverHeight,
-    background: "#000",
+    background: "#0b0b0b",
   }}
 >
               <img
@@ -1967,19 +2066,8 @@ const avatarNode = (
                 }}
               />
 
-<div
-  style={{
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: "92%",
-    zIndex: 10,
-    pointerEvents: "none",
-    background:
-      "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.12) 14%, rgba(0,0,0,0.26) 28%, rgba(0,0,0,0.44) 44%, rgba(0,0,0,0.62) 60%, rgba(0,0,0,0.78) 76%, rgba(0,0,0,0.9) 90%, rgba(0,0,0,0.96) 100%)",
-  }}
-/>
+<div style={groupCoverAuraStyle} />
+<div style={groupCoverGradientStyle} />
 
               {canShareGroup && (
   <CopyLinkButton
@@ -1987,10 +2075,11 @@ const avatarNode = (
     copiedLabel="Link del grupo copiado correctamente"
     title="Copiar link del grupo"
     style={{
+      ...groupRoundIconButtonStyle,
       position: "absolute",
       right: 18,
       top: 18,
-      zIndex: 30,
+      zIndex: 40,
     }}
   />
 )}
@@ -2014,19 +2103,29 @@ const avatarNode = (
                   disabled={uploading}
                   type="button"
                   style={{
-                    ...tinyGhostButton,
+                    ...groupRoundIconButtonStyle,
                     position: "absolute",
-                    right: canShareGroup ? 62 : 12,
-                    top: 18,
+                    right: 14,
+                    bottom: 14,
                     opacity: uploading ? 0.7 : 1,
                     cursor: uploading ? "not-allowed" : "pointer",
-                    zIndex: 3,
+                    zIndex: 40,
                   }}
                   title="Elegir portada"
+                  aria-label="Elegir portada"
                 >
-                  {uploading && cropMode === "cover"
-                    ? "Subiendo..."
-                    : "Elegir portada"}
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      fontSize: 17,
+                      lineHeight: 1,
+                      transform:
+                        uploading && cropMode === "cover" ? "scale(0.9)" : "scale(1)",
+                      transition: "transform 160ms ease",
+                    }}
+                  >
+                    {uploading && cropMode === "cover" ? "..." : "✎"}
+                  </span>
                 </button>
               )}
             </div>
@@ -2091,16 +2190,6 @@ const avatarNode = (
       />
     </div>
   )}
-
-                  {effectiveIsMember && (
-                    <div className="group-subnav-wrap">
-                      <GroupSubnav
-                        activeTab={activeTab}
-                        onChange={setActiveTab}
-                        canManage={isOwner}
-                      />
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -2153,72 +2242,90 @@ const avatarNode = (
                     {error}
                   </div>
                 )}
-
-                {canViewPublicFeed && activeTab === "feed" && (
-                  <section className="group-feed-wrap">
-                    <div className="group-feed-item">
-                      <GroupPostsFeed
-                        groupId={groupId}
-                        isOwner={isOwner}
-                        isModerator={isModerator}
-                        canCreatePosts={canCreatePosts}
-                        canCommentOnPosts={canCommentOnPosts}
-                        postBlockedReason={postBlockedReason}
-                        commentBlockedReason={commentBlockedReason}
-                      />
-                    </div>
-
-                    {user?.uid ? (
-                      <div className="group-feed-item">
-                        <GroupRecommendationsRail
-                          currentUserId={user.uid}
-                          context="group"
-                        />
-                      </div>
-                    ) : null}
-                  </section>
-                )}
-
-                {effectiveIsMember && activeTab === "members" && (
-                  <GroupMembersTab
-                    groupId={groupId}
-                    isOwner={isOwner}
-                    isModerator={isModerator}
-                    canMembersViewList={canMembersViewList}
-                  />
-                )}
-
-                {activeTab === "services" && isOwner && user && group.ownerId && (
-  <OwnerAdminServices
-    groupId={groupId}
-    ownerId={group.ownerId}
-    currentUserId={user.uid}
-    currentVisibility={normalizeVisibility(group.visibility)}
-    currentMonetization={normalizedCurrentMonetization}
-    currentOfferings={normalizedCurrentOfferings}
-    currentDonation={normalizedCurrentDonation}
-  />
-)}
-
-                {activeTab === "settings" && isOwner && user && group.ownerId && (
-   <OwnerAdminPanel
-  groupId={groupId}
-  ownerId={group.ownerId}
-  currentUserId={user.uid}
-  currentName={group.name ?? ""}
-  currentDescription={group.description ?? ""}
-  currentCategory={group.category ?? null}
-  currentTags={group.tags ?? []}
-  currentAvatarUrl={group.avatarUrl ?? null}
-  currentCoverUrl={group.coverUrl ?? null}
-  currentVisibility={normalizeVisibility(group.visibility)}
-  currentPostingMode={currentPostingMode}
-  currentCommentsEnabled={currentCommentsEnabled}
-/>
-                )}
               </div>
             </div>
           </section>
+
+          {effectiveIsMember && (
+            <div className="group-subnav-wrap" style={{ marginTop: 12 }}>
+              <GroupSubnav
+                activeTab={activeTab}
+                onChange={setActiveTab}
+                canManage={isOwner}
+              />
+            </div>
+          )}
+
+          <div className="group-tab-content" style={{ width: "100%", minWidth: 0 }}>
+            {canViewPublicFeed && activeTab === "feed" && (
+              <section className="group-tab-panel group-feed-wrap" style={{ marginTop: 12 }}>
+                <div className="group-feed-item">
+                  <GroupPostsFeed
+                    groupId={groupId}
+                    isOwner={isOwner}
+                    isModerator={isModerator}
+                    canCreatePosts={canCreatePosts}
+                    canCommentOnPosts={canCommentOnPosts}
+                    postBlockedReason={postBlockedReason}
+                    commentBlockedReason={commentBlockedReason}
+                  />
+                </div>
+
+                {user?.uid ? (
+                  <div className="group-feed-item">
+                    <GroupRecommendationsRail
+                      currentUserId={user.uid}
+                      context="group"
+                    />
+                  </div>
+                ) : null}
+              </section>
+            )}
+
+            {effectiveIsMember && activeTab === "members" && (
+              <div className="group-tab-panel" style={{ marginTop: 12 }}>
+                <GroupMembersTab
+                  groupId={groupId}
+                  isOwner={isOwner}
+                  isModerator={isModerator}
+                  canMembersViewList={canMembersViewList}
+                />
+              </div>
+            )}
+
+            {activeTab === "services" && isOwner && user && group.ownerId && (
+              <section className="group-tab-panel" style={{ ...panelStyle, marginTop: 12 }}>
+                <OwnerAdminServices
+                  groupId={groupId}
+                  ownerId={group.ownerId}
+                  currentUserId={user.uid}
+                  currentVisibility={normalizeVisibility(group.visibility)}
+                  currentMonetization={normalizedCurrentMonetization}
+                  currentOfferings={normalizedCurrentOfferings}
+                  currentDonation={normalizedCurrentDonation}
+                />
+              </section>
+            )}
+
+            {activeTab === "settings" && isOwner && user && group.ownerId && (
+              <section className="group-tab-panel" style={{ ...panelStyle, marginTop: 12 }}>
+                <OwnerAdminPanel
+                  groupId={groupId}
+                  ownerId={group.ownerId}
+                  currentUserId={user.uid}
+                  currentName={group.name ?? ""}
+                  currentDescription={group.description ?? ""}
+                  currentCategory={group.category ?? null}
+                  currentTags={group.tags ?? []}
+                  currentAvatarUrl={group.avatarUrl ?? null}
+                  currentCoverUrl={group.coverUrl ?? null}
+                  currentVisibility={normalizeVisibility(group.visibility)}
+                  currentPostingMode={currentPostingMode}
+                  currentCommentsEnabled={currentCommentsEnabled}
+                />
+              </section>
+            )}
+          </div>
 
           <input
             ref={avatarInputRef}

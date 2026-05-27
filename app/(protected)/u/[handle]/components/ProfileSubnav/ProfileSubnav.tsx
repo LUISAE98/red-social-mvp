@@ -196,13 +196,13 @@ export default function ProfileSubnav({
       <style jsx>{`
         @media (max-width: 768px) {
           .profile-subnav-mobile-full {
-            --profile-subnav-bg: rgba(14, 4, 24, 0.98);
+            --profile-subnav-bg: rgba(19, 6, 32, 0.98);
             --profile-subnav-shadow:
-              inset 0 1px 0 rgba(255,255,255,0.025),
-              inset 0 -1px 0 rgba(255,255,255,0.012),
-              inset 0 0 14px rgba(168,85,255,0.022),
-              0 0 10px rgba(168,85,255,0.035),
-              0 14px 38px rgba(0,0,0,0.46);
+              inset 0 1px 0 rgba(255,255,255,0.03),
+              inset 0 -1px 0 rgba(255,255,255,0.014),
+              inset 0 0 16px rgba(168,85,255,0.028),
+              0 0 14px rgba(168,85,255,0.048),
+              0 14px 42px rgba(0,0,0,0.44);
 
             width: 100vw !important;
             margin-left: calc(50% - 50vw) !important;
