@@ -14,6 +14,8 @@ type Props = {
   onClose?: () => void;
   onZoomStateChange?: (isZoomed: boolean) => void;
   onPinchStateChange?: (isPinching: boolean) => void;
+  isTrueFullscreen?: boolean;
+  onExitTrueFullscreen?: () => void;
   swipeAxis?: "horizontal" | "vertical" | null;
 };
 
@@ -55,6 +57,8 @@ export default function PostPinchZoomVideo({
   resetKey,
   onZoomStateChange,
   onPinchStateChange,
+  isTrueFullscreen = false,
+  onExitTrueFullscreen,
 }: Props) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -221,6 +225,13 @@ export default function PostPinchZoomVideo({
           const secondTouch = event.touches[1]!;
           const midpoint = getMidpoint(firstTouch, secondTouch);
           const distance = getDistance(firstTouch, secondTouch);
+          const pinchRatio = distance / Math.max(gesture.startDistance, 1);
+
+          if (isTrueFullscreen && gesture.startScale <= 1.02 && pinchRatio <= 0.88) {
+            resetTransform(true);
+            onExitTrueFullscreen?.();
+            return;
+          }
 
           const rect = frame.getBoundingClientRect();
           const centerX = rect.left + rect.width / 2;
