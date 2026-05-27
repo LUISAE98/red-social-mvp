@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -33,12 +34,20 @@ export type ViewerMediaItem = {
   status?: string | null;
 };
 
+export type ViewerMediaOriginRect = {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+};
+
 type PostImageViewerProps = {
   open: boolean;
   isMobile: boolean;
   image?: ImageMedia | null;
   mediaItems?: ViewerMediaItem[];
   initialMediaUrl?: string | null;
+  mediaOriginRect?: ViewerMediaOriginRect | null;
   post: Post;
   author: {
     authorName: string;
@@ -175,6 +184,7 @@ export default function PostImageViewer({
   image = null,
   mediaItems,
   initialMediaUrl = null,
+  mediaOriginRect = null,
   post,
   author,
   group = null,
@@ -198,6 +208,12 @@ export default function PostImageViewer({
   const [mobileDragOffsetX, setMobileDragOffsetX] = useState(0);
   const [mobileDragOffsetY, setMobileDragOffsetY] = useState(0);
   const [mobileVerticalClosing, setMobileVerticalClosing] = useState(false);
+  const [mobileReturnToOriginRect, setMobileReturnToOriginRect] =
+    useState<ViewerMediaOriginRect | null>(null);
+  const [mobileOpeningAnimating, setMobileOpeningAnimating] = useState(false);
+  const [mobileOpeningSettled, setMobileOpeningSettled] = useState(true);
+  const [mobileOpeningOriginRect, setMobileOpeningOriginRect] =
+    useState<ViewerMediaOriginRect | null>(null);
   const [mobileSwipeAnimating, setMobileSwipeAnimating] = useState(false);
   const [mobileGestureAxis, setMobileGestureAxis] = useState<
     "horizontal" | "vertical" | null
@@ -231,6 +247,10 @@ export default function PostImageViewer({
   const chromeHideTimerRef = useRef<number | null>(null);
   const desktopControlsHideTimerRef = useRef<number | null>(null);
   const mobileSpeedHoldTimerRef = useRef<number | null>(null);
+  const mobileVerticalCloseTimerRef = useRef<number | null>(null);
+  const mobileOpeningTimerRef = useRef<number | null>(null);
+  const mobileOpeningFrameRef = useRef<number | null>(null);
+  const mobileSecondOpeningFrameRef = useRef<number | null>(null);
   const mobileSpeedHoldActiveRef = useRef(false);
   const mobileSpeedStartYRef = useRef<number | null>(null);
   const mobileSingleTapTimerRef = useRef<number | null>(null);
@@ -420,6 +440,30 @@ export default function PostImageViewer({
     }
   }, []);
 
+  const clearMobileVerticalCloseTimer = useCallback(() => {
+    if (mobileVerticalCloseTimerRef.current !== null) {
+      window.clearTimeout(mobileVerticalCloseTimerRef.current);
+      mobileVerticalCloseTimerRef.current = null;
+    }
+  }, []);
+
+  const clearMobileOpeningAnimation = useCallback(() => {
+    if (mobileOpeningFrameRef.current !== null) {
+      window.cancelAnimationFrame(mobileOpeningFrameRef.current);
+      mobileOpeningFrameRef.current = null;
+    }
+
+    if (mobileSecondOpeningFrameRef.current !== null) {
+      window.cancelAnimationFrame(mobileSecondOpeningFrameRef.current);
+      mobileSecondOpeningFrameRef.current = null;
+    }
+
+    if (mobileOpeningTimerRef.current !== null) {
+      window.clearTimeout(mobileOpeningTimerRef.current);
+      mobileOpeningTimerRef.current = null;
+    }
+  }, []);
+
   const clearDesktopControlsTimer = useCallback(() => {
     if (desktopControlsHideTimerRef.current !== null) {
       window.clearTimeout(desktopControlsHideTimerRef.current);
@@ -470,6 +514,70 @@ export default function PostImageViewer({
     setMobileLandscapeSpeedMenuOpen(false);
     setVideoPlaybackRate(1);
   }, [clearMobileSpeedHold, setVideoPlaybackRate]);
+
+  const getSafeMediaOriginRect = useCallback((): ViewerMediaOriginRect | null => {
+    if (!mediaOriginRect || typeof window === "undefined") return null;
+
+    const width = Number.isFinite(mediaOriginRect.width)
+      ? mediaOriginRect.width
+      : 0;
+    const height = Number.isFinite(mediaOriginRect.height)
+      ? mediaOriginRect.height
+      : 0;
+
+    if (width <= 0 || height <= 0) return null;
+
+    return {
+      left: Math.max(
+        0,
+        Math.min(
+          Number.isFinite(mediaOriginRect.left) ? mediaOriginRect.left : 0,
+          window.innerWidth,
+        ),
+      ),
+      top: Math.max(
+        0,
+        Math.min(
+          Number.isFinite(mediaOriginRect.top) ? mediaOriginRect.top : 0,
+          window.innerHeight,
+        ),
+      ),
+      width: Math.max(1, Math.min(width, window.innerWidth)),
+      height: Math.max(1, Math.min(height, window.innerHeight)),
+    };
+  }, [mediaOriginRect]);
+
+  const handleMobileVerticalClose = useCallback(() => {
+    if (typeof window === "undefined") {
+      onClose();
+      return;
+    }
+
+    clearMobileVerticalCloseTimer();
+
+    const originRect = getSafeMediaOriginRect();
+
+    setMobileVerticalClosing(true);
+    setMobileSwipeAnimating(true);
+    setMobileDragOffsetX(0);
+    setMobileReturnToOriginRect(originRect);
+
+    if (originRect) {
+      setMobileDragOffsetY(0);
+    } else {
+      setMobileDragOffsetY(window.innerHeight);
+    }
+
+    mobileVerticalCloseTimerRef.current = window.setTimeout(() => {
+      onClose();
+      setMobileDragOffsetX(0);
+      setMobileDragOffsetY(0);
+      setMobileReturnToOriginRect(null);
+      setMobileVerticalClosing(false);
+      setMobileSwipeAnimating(false);
+      mobileVerticalCloseTimerRef.current = null;
+    }, originRect ? 320 : 220);
+  }, [clearMobileVerticalCloseTimer, getSafeMediaOriginRect, onClose]);
 
   const canUseMobileVideoTrueFullscreen = useCallback(() => {
     if (!useMobileLayout || !isCurrentVideo || typeof window === "undefined") {
@@ -762,6 +870,12 @@ export default function PostImageViewer({
     setMobileDragOffsetX(0);
     setMobileDragOffsetY(0);
     setMobileVerticalClosing(false);
+    setMobileReturnToOriginRect(null);
+    setMobileOpeningAnimating(false);
+    setMobileOpeningSettled(true);
+    setMobileOpeningOriginRect(null);
+    clearMobileVerticalCloseTimer();
+    clearMobileOpeningAnimation();
     setIsCurrentImageZoomed(false);
     setIsCurrentImagePinching(false);
     setIsCurrentVideoZoomed(false);
@@ -780,6 +894,8 @@ export default function PostImageViewer({
     currentMedia?.url,
     currentMedia?.type,
     currentMedia?.duration,
+    clearMobileOpeningAnimation,
+    clearMobileVerticalCloseTimer,
     resetMobileVideoSpeed,
   ]);
 
@@ -808,7 +924,16 @@ export default function PostImageViewer({
       clearChromeTimer();
       clearDesktopControlsTimer();
       clearMobileSingleTapTimer();
+      clearMobileVerticalCloseTimer();
+      clearMobileOpeningAnimation();
       mobileLastVideoTapRef.current = null;
+      setMobileDragOffsetX(0);
+      setMobileDragOffsetY(0);
+      setMobileReturnToOriginRect(null);
+      setMobileVerticalClosing(false);
+      setMobileOpeningAnimating(false);
+      setMobileOpeningSettled(true);
+      setMobileOpeningOriginRect(null);
       setDesktopControlsVisible(true);
       setDesktopFullscreenActive(false);
       setIsCurrentVideoZoomed(false);
@@ -831,9 +956,19 @@ export default function PostImageViewer({
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
       clearMobileSingleTapTimer();
+      clearMobileVerticalCloseTimer();
+      clearMobileOpeningAnimation();
       mobileLastVideoTapRef.current = null;
     };
-  }, [clearChromeTimer, clearDesktopControlsTimer, open, onClose, totalMedia]);
+  }, [
+    clearChromeTimer,
+    clearDesktopControlsTimer,
+    clearMobileOpeningAnimation,
+    clearMobileVerticalCloseTimer,
+    open,
+    onClose,
+    totalMedia,
+  ]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -858,13 +993,135 @@ export default function PostImageViewer({
     scheduleChromeHide,
   ]);
 
+  useLayoutEffect(() => {
+    if (!open || !useMobileLayout || typeof window === "undefined") {
+      clearMobileOpeningAnimation();
+      setMobileOpeningAnimating(false);
+      setMobileOpeningSettled(true);
+      setMobileOpeningOriginRect(null);
+      return;
+    }
+
+    const originRect = getSafeMediaOriginRect();
+
+    clearMobileOpeningAnimation();
+    setMobileOpeningOriginRect(originRect);
+
+    if (!originRect) {
+      setMobileOpeningAnimating(false);
+      setMobileOpeningSettled(true);
+      return;
+    }
+
+    setMobileOpeningAnimating(true);
+    setMobileOpeningSettled(false);
+    setMobileChromeVisible(false);
+
+    mobileOpeningFrameRef.current = window.requestAnimationFrame(() => {
+      mobileSecondOpeningFrameRef.current = window.requestAnimationFrame(() => {
+        setMobileOpeningSettled(true);
+        setMobileChromeVisible(true);
+      });
+    });
+
+    mobileOpeningTimerRef.current = window.setTimeout(() => {
+      setMobileOpeningAnimating(false);
+      setMobileOpeningOriginRect(null);
+      mobileOpeningTimerRef.current = null;
+    }, 380);
+
+    return () => {
+      clearMobileOpeningAnimation();
+    };
+  }, [
+    clearMobileOpeningAnimation,
+    getSafeMediaOriginRect,
+    open,
+    currentMedia?.url,
+    useMobileLayout,
+  ]);
+
   if (!mounted || !open || !currentMedia) return null;
+
+  const viewportWidth =
+    typeof window !== "undefined" ? Math.max(1, window.innerWidth) : 1;
+  const viewportHeight =
+    typeof window !== "undefined" ? Math.max(1, window.innerHeight) : 1;
+
+  function buildOriginTransform(rect: ViewerMediaOriginRect) {
+    return `translate3d(${rect.left}px, ${rect.top}px, 0) scale(${rect.width / viewportWidth}, ${rect.height / viewportHeight})`;
+  }
+
+  const mobileVerticalProgress = useMobileLayout
+    ? Math.min(1, Math.max(0, mobileDragOffsetY / viewportHeight))
+    : 0;
+  const mobileDragBackdropOpacity = mobileVerticalClosing
+    ? 0
+    : 1 - Math.min(0.72, mobileVerticalProgress * 1.4);
+  const mobileOpeningBackdropOpacity =
+    mobileOpeningAnimating && !mobileOpeningSettled ? 0 : 1;
+  const mobileOverlayOpacity = Math.min(
+    mobileDragBackdropOpacity,
+    mobileOpeningBackdropOpacity,
+  );
+  const mobileUiOpacity =
+    mobileVerticalClosing || (mobileOpeningAnimating && !mobileOpeningSettled)
+      ? 0
+      : 1;
+  const mobileVerticalScale = 1 - Math.min(0.08, mobileVerticalProgress * 0.12);
+  const mobileOpeningTransform =
+    useMobileLayout &&
+    mobileOpeningAnimating &&
+    !mobileOpeningSettled &&
+    mobileOpeningOriginRect
+      ? buildOriginTransform(mobileOpeningOriginRect)
+      : null;
+  const mobileReturnToOriginTransform =
+    useMobileLayout && mobileVerticalClosing && mobileReturnToOriginRect
+      ? buildOriginTransform(mobileReturnToOriginRect)
+      : null;
+  const mobileVerticalTransform =
+    mobileReturnToOriginTransform ??
+    `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`;
+  const mobileCurrentMediaTransform =
+    mobileOpeningTransform ??
+    (useMobileLayout && mobileGestureAxis === "vertical"
+      ? mobileVerticalTransform
+      : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`);
+  const mobileMediaTransformOrigin =
+    useMobileLayout &&
+    ((mobileOpeningAnimating && mobileOpeningOriginRect) ||
+      (mobileVerticalClosing && mobileReturnToOriginRect))
+      ? "top left"
+      : "center center";
+  const mobileMediaTransition =
+    mobileOpeningAnimating || mobileSwipeAnimating
+      ? mobileVerticalClosing || mobileOpeningAnimating
+        ? "transform 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 240ms ease, border-radius 320ms ease"
+        : "transform 180ms ease"
+      : "none";
+  const mobileMediaOpacity =
+    mobileVerticalClosing && mobileReturnToOriginRect ? 0.96 : 1;
+  const mobileMediaBorderRadius =
+    useMobileLayout &&
+    ((mobileVerticalClosing && mobileReturnToOriginRect) ||
+      (mobileOpeningAnimating && !mobileOpeningSettled && mobileOpeningOriginRect))
+      ? 12
+      : 0;
+  const mobileFadeStyle: CSSProperties = {
+    opacity: useMobileLayout ? mobileUiOpacity : 1,
+    transition: useMobileLayout ? "opacity 180ms ease" : undefined,
+    pointerEvents: mobileUiOpacity === 0 ? "none" : undefined,
+  };
 
   const overlayStyle: CSSProperties = {
     position: "fixed",
     inset: 0,
     zIndex: 2147483647,
-    background: useMobileLayout ? "#000" : "rgba(0,0,0,0.82)",
+    background: useMobileLayout
+      ? `rgba(0,0,0,${mobileOverlayOpacity})`
+      : "rgba(0,0,0,0.82)",
+    transition: useMobileLayout ? "background 240ms ease" : undefined,
     color: "#fff",
     fontFamily: fontStack,
     display: useMobileLayout ? "block" : "grid",
@@ -924,14 +1181,6 @@ const flameButtonStyle: CSSProperties = {
   transition: "transform 140ms ease",
   touchAction: "manipulation",
 };
-
-  const mobileVerticalProgress = useMobileLayout
-    ? Math.min(1, Math.max(0, mobileDragOffsetY / Math.max(1, window.innerHeight)))
-    : 0;
-  const mobileOverlayOpacity = mobileVerticalClosing
-    ? 0
-    : 1 - Math.min(0.72, mobileVerticalProgress * 1.4);
-  const mobileVerticalScale = 1 - Math.min(0.08, mobileVerticalProgress * 0.12);
 
   function renderMediaPreview(media: ViewerMediaItem | null, label: string) {
     if (!media) return null;
@@ -1118,13 +1367,16 @@ const flameButtonStyle: CSSProperties = {
           style={{
             position: "absolute",
             inset: 0,
-            transform:
-              mobileGestureAxis === "vertical"
-                ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
-                : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
-            transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
-            opacity: mobileOverlayOpacity,
+            transform: useMobileLayout
+              ? mobileCurrentMediaTransform
+              : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
+            transformOrigin: mobileMediaTransformOrigin,
+            transition: mobileMediaTransition,
+            opacity: useMobileLayout ? mobileMediaOpacity : 1,
+            borderRadius: mobileMediaBorderRadius,
+            overflow: "hidden",
             background: "#000",
+            willChange: useMobileLayout ? "transform, opacity" : undefined,
           }}
         >
           {useMobileLayout ? (
@@ -1348,18 +1600,7 @@ const flameButtonStyle: CSSProperties = {
           }
 
           if (axis === "vertical" && diffY > 120) {
-            setMobileVerticalClosing(true);
-            setMobileSwipeAnimating(true);
-            setMobileDragOffsetX(0);
-            setMobileDragOffsetY(window.innerHeight);
-
-            window.setTimeout(() => {
-              onClose();
-              setMobileDragOffsetY(0);
-              setMobileDragOffsetX(0);
-              setMobileVerticalClosing(false);
-              setMobileSwipeAnimating(false);
-            }, 180);
+            handleMobileVerticalClose();
             return;
           }
 
@@ -1431,6 +1672,7 @@ const flameButtonStyle: CSSProperties = {
       {shouldShowMobileCounter && (
         <div
           style={{
+            ...mobileFadeStyle,
             position: "fixed",
             right: "calc(16px + env(safe-area-inset-right))",
             bottom: "calc(16px + env(safe-area-inset-bottom))",
@@ -1451,6 +1693,7 @@ const flameButtonStyle: CSSProperties = {
       {isCurrentVideo && shouldShowMobileControls && (
         <div
           style={{
+            ...mobileFadeStyle,
             position: "fixed",
             left: 16,
             right: 16,
@@ -1647,6 +1890,7 @@ const flameButtonStyle: CSSProperties = {
       {isCurrentVideo && mobileSpeedGestureActive && (
         <div
           style={{
+            ...mobileFadeStyle,
             position: "fixed",
             left: "50%",
             top: "calc(54px + env(safe-area-inset-top))",
@@ -1671,6 +1915,7 @@ const flameButtonStyle: CSSProperties = {
       {shouldShowMobileMeta && (
         <div
           style={{
+            ...mobileFadeStyle,
             position: "fixed",
             left: 0,
             right: 0,
