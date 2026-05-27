@@ -110,9 +110,9 @@ export default function ProfileSubnav({
     borderRadius: 18,
     width: "100%",
     border: "1px solid rgba(168,85,255,0.08)",
-    background: "rgba(24,8,40,0.96)",
+    background: "var(--profile-subnav-bg, rgba(24,8,40,0.96))",
     boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.035), inset 0 -1px 0 rgba(255,255,255,0.015), inset 0 0 18px rgba(168,85,255,0.035), 0 0 18px rgba(168,85,255,0.065), 0 18px 54px rgba(0,0,0,0.42)",
+      "var(--profile-subnav-shadow, inset 0 1px 0 rgba(255,255,255,0.035), inset 0 -1px 0 rgba(255,255,255,0.015), inset 0 0 18px rgba(168,85,255,0.035), 0 0 18px rgba(168,85,255,0.065), 0 18px 54px rgba(0,0,0,0.42))",
     padding: "10px 10px",
     display: "grid",
     gridTemplateColumns: `repeat(${safeTabCount}, minmax(0, 1fr))`,
@@ -192,7 +192,29 @@ export default function ProfileSubnav({
   };
 
   return (
-    <div style={wrapStyle}>
+    <>
+      <style jsx>{`
+        @media (max-width: 768px) {
+          .profile-subnav-mobile-full {
+            --profile-subnav-bg: rgba(14, 4, 24, 0.98);
+            --profile-subnav-shadow:
+              inset 0 1px 0 rgba(255,255,255,0.025),
+              inset 0 -1px 0 rgba(255,255,255,0.012),
+              inset 0 0 14px rgba(168,85,255,0.022),
+              0 0 10px rgba(168,85,255,0.035),
+              0 14px 38px rgba(0,0,0,0.46);
+
+            width: 100vw !important;
+            margin-left: calc(50% - 50vw) !important;
+            margin-right: calc(50% - 50vw) !important;
+            border-radius: 0 !important;
+            border-left: 0 !important;
+            border-right: 0 !important;
+          }
+        }
+      `}</style>
+
+      <div className="profile-subnav-mobile-full" style={wrapStyle}>
        <span style={indicatorStyle}>
         <span
           style={{
@@ -248,6 +270,7 @@ export default function ProfileSubnav({
           </button>
         );
       })}
-    </div>
+      </div>
+    </>
   );
 }

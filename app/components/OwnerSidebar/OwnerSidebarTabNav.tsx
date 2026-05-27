@@ -59,6 +59,13 @@ export default function OwnerSidebarTabNav({
     !hasRequests && activeView === "greetings" ? "owned" : activeView;
 
   const badgeText = requestedCount > 99 ? "99+" : String(requestedCount);
+    const activeIndex = Math.max(
+    0,
+    tabs.findIndex((tab) => tab.key === safeActiveView)
+  );
+
+  const safeTabCount = Math.max(tabs.length, 1);
+  const indicatorTranslatePercent = activeIndex * 100;
 
   const wrapStyle: CSSProperties = {
     width: "100%",
@@ -215,25 +222,38 @@ const labelStyle: CSSProperties = {
   justifyContent: "center",
 };
 
-  const indicatorStyle = (active: boolean): CSSProperties => ({
+  const indicatorTrackStyle: CSSProperties = {
+    position: "absolute",
+    left: 8,
+    bottom: 8,
+    width: `calc((100% - 16px) / ${safeTabCount})`,
+    height: 3,
+    pointerEvents: "none",
+    transform: `translate3d(${indicatorTranslatePercent}%, 0, 0)`,
+    transition: "transform 420ms cubic-bezier(0.2, 0.9, 0.2, 1)",
+    willChange: "transform",
+    zIndex: 4,
+  };
+
+  const indicatorBarStyle: CSSProperties = {
     position: "absolute",
     left: "50%",
-    bottom: 8,
-    transform: "translateX(-50%)",
     width: 68,
     height: 3,
     borderRadius: 999,
     background: "#a855ff",
-    opacity: active ? 0.75 : 0,
-    transition: "opacity 0.2s ease",
-    zIndex: 4,
-  });
+    opacity: 0.75,
+    transform: "translateX(-50%)",
+  };
 
   return (
     <>
       <VibraNavigationIconsStyles />
 
-      <div style={wrapStyle}>
+            <div style={{ ...wrapStyle, position: "relative" }}>
+        <span style={indicatorTrackStyle}>
+          <span style={indicatorBarStyle} />
+        </span>
         {tabs.map((tab) => {
           const active = safeActiveView === tab.key;
 
@@ -274,8 +294,6 @@ const labelStyle: CSSProperties = {
 
                 <span style={labelStyle}>{tab.label}</span>
               </span>
-
-              <span style={indicatorStyle(active)} />
             </button>
           );
         })}
