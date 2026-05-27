@@ -342,10 +342,11 @@ const ui = {
   body: 14,
   micro: 12,
   label: 12,
-  shadow: "0 18px 48px rgba(0,0,0,0.55)",
-  borderSoft: "1px solid rgba(255,255,255,0.16)",
+  shadow: "0 18px 54px rgba(0,0,0,0.68)",
+  borderSoft: "1px solid rgba(168,85,255,0.08)",
   borderFaint: "1px solid rgba(255,255,255,0.10)",
-  cardBg: "#000",
+  cardBg:
+    "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
   panelBg: "rgba(255,255,255,0.03)",
 };
 
@@ -977,7 +978,7 @@ await createExclusiveSessionRequest({
   style={{
     minHeight: "calc(100dvh - 70px)",
     padding: "0 0 calc(120px + env(safe-area-inset-bottom))",
-    background: "#000",
+    background: "transparent",
     color: "#fff",
     fontFamily: fontStack,
   }}
@@ -993,8 +994,43 @@ await createExclusiveSessionRequest({
           }
 
           .profile-card {
+            position: relative;
             overflow: hidden;
             min-width: 0;
+          }
+
+          .profile-card::before {
+            content: "";
+            position: absolute;
+            inset: -42%;
+            border-radius: inherit;
+            pointer-events: none;
+            background:
+              radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.075), transparent 34%),
+              radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.055), transparent 36%),
+              radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.045), transparent 40%);
+            filter: blur(26px);
+            opacity: 0.42;
+            z-index: 0;
+          }
+
+          .profile-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            border-radius: inherit;
+            box-shadow:
+              inset 0 0 24px rgba(79, 70, 255, 0.07),
+              inset 0 0 20px rgba(168, 85, 255, 0.065),
+              inset 0 1px 0 rgba(255, 255, 255, 0.05),
+              0 0 18px rgba(168, 85, 255, 0.055);
+            z-index: 1;
+          }
+
+          .profile-card > * {
+            position: relative;
+            z-index: 2;
           }
 
 .profile-content {
@@ -1084,7 +1120,6 @@ await createExclusiveSessionRequest({
     border-radius: 0 !important;
     border-left: 0 !important;
     border-right: 0 !important;
-    box-shadow: none !important;
   }
 
   .profile-content {

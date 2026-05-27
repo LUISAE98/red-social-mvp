@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties } from "react";
+import { CSSProperties, useMemo } from "react";
 
 export type ProfileTabKey = "posts" | "groups" | "services" | "settings";
 
@@ -29,8 +29,8 @@ function EmojiIcon({
         fontSize: active ? 22 : 20,
         lineHeight: 1,
         transform: active ? "scale(1.03)" : "scale(1)",
-        transition: "transform 0.15s ease, opacity 0.2s ease",
-        opacity: active ? 1 : 0.78,
+        transition: "transform 0.18s ease, opacity 0.2s ease",
+        opacity: active ? 1 : 0.9,
       }}
     >
       {emoji}
@@ -95,59 +95,91 @@ export default function ProfileSubnav({
       : []),
   ];
 
+  const activeIndex = Math.max(
+    0,
+    tabs.findIndex((tab) => tab.key === activeTab)
+  );
+
+  const safeTabCount = Math.max(tabs.length, 1);
+  const selectorWidthPercent = 100 / safeTabCount;
+  const selectorTranslatePercent = activeIndex * 100;
+
   const wrapStyle: CSSProperties = {
+    position: "relative",
+    overflow: "visible",
+    borderRadius: 18,
     width: "100%",
-    borderTop: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(20,20,22,0.95)",
-    backdropFilter: "blur(20px)",
-    WebkitBackdropFilter: "blur(20px)",
-    boxShadow: "0 -8px 24px rgba(0,0,0,0.12)",
+    border: "1px solid rgba(168,85,255,0.08)",
+    background: "rgba(24,8,40,0.96)",
+    boxShadow:
+      "inset 0 1px 0 rgba(255,255,255,0.035), inset 0 -1px 0 rgba(255,255,255,0.015), inset 0 0 18px rgba(168,85,255,0.035), 0 0 18px rgba(168,85,255,0.065), 0 18px 54px rgba(0,0,0,0.42)",
     padding: "10px 10px",
     display: "grid",
-    gridTemplateColumns: `repeat(${Math.max(
-      tabs.length,
-      1
-    )}, minmax(0, 1fr))`,
+    gridTemplateColumns: `repeat(${safeTabCount}, minmax(0, 1fr))`,
     alignItems: "center",
     gap: 0,
     fontFamily: fontStack,
   };
 
+  const selectorStyle: CSSProperties = {
+    position: "absolute",
+    left: 10,
+    bottom: 10,
+    width: `calc((100% - 20px) / ${safeTabCount})`,
+    height: 68,
+    padding: "0 0",
+    boxSizing: "border-box",
+    pointerEvents: "none",
+    transform: `translate3d(${selectorTranslatePercent}%, 0, 0)`,
+    transition: "transform 420ms cubic-bezier(0.2, 0.9, 0.2, 1)",
+    willChange: "transform",
+    zIndex: 0,
+  };
+
+  const selectorInnerStyle: CSSProperties = {
+    width: "100%",
+    height: "100%",
+    borderRadius: 16,
+    background:
+      "linear-gradient(90deg, rgba(168,85,247,0.11) 0%, rgba(168,85,247,0.09) 50%, rgba(168,85,247,0.075) 100%)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
+    transform: "scaleX(1)",
+    transition: "transform 360ms cubic-bezier(0.34, 1.56, 0.64, 1)",
+  };
+
+  const indicatorStyle: CSSProperties = {
+    position: "absolute",
+    left: 10,
+    top: -1,
+    width: `calc((100% - 20px) / ${safeTabCount})`,
+    height: 2,
+    pointerEvents: "none",
+    transform: `translate3d(${selectorTranslatePercent}%, 0, 0)`,
+    transition: "transform 420ms cubic-bezier(0.2, 0.9, 0.2, 1)",
+    willChange: "transform",
+    zIndex: 2,
+  };
+
   const itemBase: CSSProperties = {
     position: "relative",
+    zIndex: 1,
     minHeight: 52,
     display: "grid",
     placeItems: "center",
-    color: "rgba(255,255,255,0.5)",
+    color: "rgba(255,255,255,0.68)",
     background: "transparent",
     border: "none",
     borderRadius: 16,
     cursor: "pointer",
-    transition: "color 0.2s ease, transform 0.15s ease, background 0.2s ease",
+    transition: "color 0.2s ease, transform 0.15s ease",
     WebkitTapHighlightColor: "transparent",
     padding: "8px 6px",
-  };
-
-  const activeStyle: CSSProperties = {
-    color: "#fff",
-    background: "rgba(255,255,255,0.04)",
   };
 
   const itemInner: CSSProperties = {
     display: "grid",
     justifyItems: "center",
     gap: 4,
-  };
-
-  const indicatorBase: CSSProperties = {
-    position: "absolute",
-    top: -10,
-    width: 24,
-    height: 3,
-    borderRadius: 999,
-    background: "transparent",
-    opacity: 0,
-    transition: "background 0.2s ease, opacity 0.2s ease",
   };
 
   const labelStyle: CSSProperties = {
@@ -161,6 +193,24 @@ export default function ProfileSubnav({
 
   return (
     <div style={wrapStyle}>
+       <span style={indicatorStyle}>
+        <span
+          style={{
+            position: "absolute",
+            left: "50%",
+            width: 72,
+            height: 2,
+            borderRadius: 999,
+            background: "rgba(168,85,247,0.95)",
+            transform: "translateX(-50%)",
+          }}
+        />
+      </span>
+
+      <span style={selectorStyle}>
+        <span style={selectorInnerStyle} />
+      </span>
+
       {tabs.map((tab) => {
         const active = activeTab === tab.key;
 
@@ -174,21 +224,9 @@ export default function ProfileSubnav({
             title={tab.title}
             style={{
               ...itemBase,
-              ...(active ? activeStyle : {}),
+              color: active ? "#fff" : itemBase.color,
             }}
           >
-            <span
-              style={{
-                ...indicatorBase,
-                ...(active
-                  ? {
-                      background: "#fff",
-                      opacity: 1,
-                    }
-                  : {}),
-              }}
-            />
-
             <span style={itemInner}>
               <EmojiIcon emoji={tab.emoji} active={active} />
 
@@ -201,7 +239,7 @@ export default function ProfileSubnav({
                     lineHeight: 1,
                   }}
                 >
-<span>{isOwner ? "Mis comunidades" : "Sus comunidades"}</span>
+                  <span>{isOwner ? "Mis comunidades" : "Sus comunidades"}</span>
                 </span>
               ) : (
                 <span style={labelStyle}>{tab.label}</span>
