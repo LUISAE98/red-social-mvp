@@ -4,13 +4,14 @@ import {
   useEffect,
   useRef,
   type CSSProperties,
-  type Touch as ReactTouch,
   type ReactNode,
+  type Touch as ReactTouch,
 } from "react";
 
 type Props = {
   children: ReactNode;
-  onClose: () => void;
+  resetKey: string;
+  onClose?: () => void;
   onZoomStateChange?: (isZoomed: boolean) => void;
   onPinchStateChange?: (isPinching: boolean) => void;
   onFastFullscreenGesture?: () => void;
@@ -31,9 +32,12 @@ type GestureState = {
   startMidX: number;
   startMidY: number;
   pinchStartAt: number;
+  maxDistanceDelta: number;
   fastFullscreenTriggered: boolean;
   isPinching: boolean;
   isDragging: boolean;
+  lastZoomed: boolean;
+  lastPinching: boolean;
 };
 
 function getDistance(a: ReactTouch, b: ReactTouch) {
@@ -53,11 +57,10 @@ function clamp(value: number, min: number, max: number) {
 
 export default function PostPinchZoomVideo({
   children,
-  onClose,
+  resetKey,
   onZoomStateChange,
   onPinchStateChange,
   onFastFullscreenGesture,
-  swipeAxis = null,
   allowFastFullscreenGesture = true,
 }: Props) {
   const frameRef = useRef<HTMLDivElement | null>(null);
@@ -76,17 +79,35 @@ export default function PostPinchZoomVideo({
     startMidX: 0,
     startMidY: 0,
     pinchStartAt: 0,
+    maxDistanceDelta: 0,
     fastFullscreenTriggered: false,
     isPinching: false,
     isDragging: false,
+    lastZoomed: false,
+    lastPinching: false,
   });
+
+  function setZoomedState(isZoomed: boolean) {
+    const gesture = gestureRef.current;
+    if (gesture.lastZoomed === isZoomed) return;
+
+    gesture.lastZoomed = isZoomed;
+    onZoomStateChange?.(isZoomed);
+  }
+
+  function setPinchingState(isPinching: boolean) {
+    const gesture = gestureRef.current;
+    if (gesture.lastPinching === isPinching) return;
+
+    gesture.lastPinching = isPinching;
+    onPinchStateChange?.(isPinching);
+  }
 
   function applyTransform(animate = false) {
     const content = contentRef.current;
     if (!content) return;
 
     const gesture = gestureRef.current;
-
     content.style.transition = animate ? "transform 160ms ease" : "none";
     content.style.transform = `translate3d(${gesture.x}px, ${gesture.y}px, 0) scale(${gesture.scale})`;
   }
@@ -112,7 +133,7 @@ export default function PostPinchZoomVideo({
     gesture.y = clamp(gesture.y, -maxY, maxY);
   }
 
-  useEffect(() => {
+  function resetTransform(animate = false) {
     const gesture = gestureRef.current;
 
     gesture.scale = 1;
@@ -122,14 +143,28 @@ export default function PostPinchZoomVideo({
     gesture.startX = 0;
     gesture.startY = 0;
     gesture.startDistance = 0;
+    gesture.maxDistanceDelta = 0;
     gesture.fastFullscreenTriggered = false;
     gesture.isPinching = false;
     gesture.isDragging = false;
 
-    applyTransform(false);
-    onZoomStateChange?.(false);
-    onPinchStateChange?.(false);
-  }, [children, onZoomStateChange, onPinchStateChange]);
+    setZoomedState(false);
+    setPinchingState(false);
+    applyTransform(animate);
+  }
+
+  function triggerFastFullscreen() {
+    const gesture = gestureRef.current;
+    if (!allowFastFullscreenGesture || gesture.fastFullscreenTriggered) return;
+
+    gesture.fastFullscreenTriggered = true;
+    resetTransform(true);
+    onFastFullscreenGesture?.();
+  }
+
+  useEffect(() => {
+    resetTransform(false);
+  }, [resetKey]);
 
   const frameStyle: CSSProperties = {
     position: "absolute",
@@ -153,6 +188,8 @@ export default function PostPinchZoomVideo({
     userSelect: "none",
     WebkitUserSelect: "none",
     WebkitTouchCallout: "none",
+    backfaceVisibility: "hidden",
+    WebkitBackfaceVisibility: "hidden",
   };
 
   return (
@@ -162,20 +199,8 @@ export default function PostPinchZoomVideo({
       onTouchStart={(event) => {
         const gesture = gestureRef.current;
 
-        if (event.touches.length === 1) {
-          const touch = event.touches[0]!;
-
-          gesture.startTouchX = touch.clientX;
-          gesture.startTouchY = touch.clientY;
-          gesture.startX = gesture.x;
-          gesture.startY = gesture.y;
-          gesture.isDragging = true;
-          gesture.isPinching = false;
-        }
-
         if (event.touches.length === 2) {
           event.preventDefault();
-          onPinchStateChange?.(true);
 
           const firstTouch = event.touches[0]!;
           const secondTouch = event.touches[1]!;
@@ -187,10 +212,25 @@ export default function PostPinchZoomVideo({
           gesture.startY = gesture.y;
           gesture.startMidX = midpoint.x;
           gesture.startMidY = midpoint.y;
-          gesture.pinchStartAt = Date.now();
+          gesture.pinchStartAt = performance.now();
+          gesture.maxDistanceDelta = 0;
           gesture.fastFullscreenTriggered = false;
           gesture.isPinching = true;
           gesture.isDragging = false;
+
+          setPinchingState(true);
+          return;
+        }
+
+        if (event.touches.length === 1 && gesture.scale > 1.02) {
+          const touch = event.touches[0]!;
+
+          gesture.startTouchX = touch.clientX;
+          gesture.startTouchY = touch.clientY;
+          gesture.startX = gesture.x;
+          gesture.startY = gesture.y;
+          gesture.isDragging = true;
+          gesture.isPinching = false;
         }
       }}
       onTouchMove={(event) => {
@@ -206,18 +246,21 @@ export default function PostPinchZoomVideo({
           const midpoint = getMidpoint(firstTouch, secondTouch);
           const distance = getDistance(firstTouch, secondTouch);
 
-          const elapsed = Date.now() - gesture.pinchStartAt;
+          const elapsed = performance.now() - gesture.pinchStartAt;
           const distanceDelta = distance - gesture.startDistance;
+          gesture.maxDistanceDelta = Math.max(
+            gesture.maxDistanceDelta,
+            distanceDelta,
+          );
 
           if (
             allowFastFullscreenGesture &&
-            !gesture.fastFullscreenTriggered &&
             gesture.startScale <= 1.02 &&
-            elapsed <= 180 &&
-            distanceDelta >= 42
+            elapsed <= 240 &&
+            distanceDelta >= 52
           ) {
-            gesture.fastFullscreenTriggered = true;
-            onFastFullscreenGesture?.();
+            triggerFastFullscreen();
+            return;
           }
 
           const rect = frame.getBoundingClientRect();
@@ -225,78 +268,85 @@ export default function PostPinchZoomVideo({
           const centerY = rect.top + rect.height / 2;
 
           const nextScale = clamp(
-            gesture.startScale * (distance / Math.max(gesture.startDistance, 1)),
+            gesture.startScale *
+              (distance / Math.max(gesture.startDistance, 1)),
             1,
-            4
+            4,
           );
 
-          const scaleRatio = nextScale / gesture.startScale;
-
+          const scaleRatio = nextScale / Math.max(gesture.startScale, 1);
           const pointX = gesture.startMidX - centerX - gesture.startX;
           const pointY = gesture.startMidY - centerY - gesture.startY;
 
           gesture.scale = nextScale;
-          onZoomStateChange?.(nextScale > 1.02);
-
           gesture.x =
             gesture.startX +
             (midpoint.x - gesture.startMidX) -
             pointX * (scaleRatio - 1);
-
           gesture.y =
             gesture.startY +
             (midpoint.y - gesture.startMidY) -
             pointY * (scaleRatio - 1);
 
           clampPosition();
+          setZoomedState(nextScale > 1.02);
           applyTransform(false);
           return;
         }
 
-        if (event.touches.length === 1 && gesture.isDragging) {
+        if (event.touches.length === 1 && gesture.isDragging && gesture.scale > 1.02) {
+          event.preventDefault();
+
           const touch = event.touches[0]!;
           const deltaX = touch.clientX - gesture.startTouchX;
           const deltaY = touch.clientY - gesture.startTouchY;
 
-          if (gesture.scale > 1) {
-            event.preventDefault();
+          gesture.x = gesture.startX + deltaX;
+          gesture.y = gesture.startY + deltaY;
 
-            gesture.x = gesture.startX + deltaX;
-            gesture.y = gesture.startY + deltaY;
-
-            clampPosition();
-            applyTransform(false);
-            return;
-          }
-
-          if (deltaY > 0 && swipeAxis !== "horizontal") {
-            gesture.y = deltaY;
-            applyTransform(false);
-          }
+          clampPosition();
+          applyTransform(false);
         }
       }}
       onTouchEnd={() => {
         const gesture = gestureRef.current;
 
-        if (gesture.scale <= 1.02 && gesture.y > 120) {
-          onClose();
+        if (
+          allowFastFullscreenGesture &&
+          !gesture.fastFullscreenTriggered &&
+          gesture.startScale <= 1.02 &&
+          gesture.maxDistanceDelta >= 48 &&
+          performance.now() - gesture.pinchStartAt <= 280
+        ) {
+          triggerFastFullscreen();
           return;
         }
 
         if (gesture.scale <= 1.02) {
-          gesture.scale = 1;
-          gesture.x = 0;
-          gesture.y = 0;
-          onZoomStateChange?.(false);
-        } else {
-          onZoomStateChange?.(true);
+          resetTransform(true);
+          return;
         }
-
-        onPinchStateChange?.(false);
 
         clampPosition();
         gesture.isDragging = false;
         gesture.isPinching = false;
+        setZoomedState(true);
+        setPinchingState(false);
+        applyTransform(true);
+      }}
+      onTouchCancel={() => {
+        const gesture = gestureRef.current;
+
+        gesture.isDragging = false;
+        gesture.isPinching = false;
+        setPinchingState(false);
+
+        if (gesture.scale <= 1.02) {
+          resetTransform(true);
+          return;
+        }
+
+        clampPosition();
         applyTransform(true);
       }}
     >

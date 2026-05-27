@@ -491,6 +491,8 @@ export default function PostImageViewer({
 
     resetMobileVideoSpeed();
     clearChromeTimer();
+    setIsCurrentVideoZoomed(false);
+    setIsCurrentVideoPinching(false);
     setMobileVideoTrueFullscreen(true);
     setMobileChromeVisible(false);
   }, [
@@ -1046,6 +1048,7 @@ const flameButtonStyle: CSSProperties = {
         >
           {useMobileLayout ? (
             <PostPinchZoomVideo
+              resetKey={currentMedia.url}
               onClose={onClose}
               onZoomStateChange={setIsCurrentVideoZoomed}
               onPinchStateChange={setIsCurrentVideoPinching}
@@ -1112,6 +1115,7 @@ const flameButtonStyle: CSSProperties = {
           }
 
           if (isCurrentVideo && event.touches.length > 1) {
+            event.preventDefault();
             resetMobileVideoSpeed();
             event.currentTarget.dataset.gestureAxis = "";
             setMobileGestureAxis(null);
@@ -1146,6 +1150,7 @@ const flameButtonStyle: CSSProperties = {
           }
 
           if (isCurrentVideo && event.touches.length > 1) {
+            event.preventDefault();
             resetMobileVideoSpeed();
             event.currentTarget.dataset.gestureAxis = "";
             setMobileGestureAxis(null);
