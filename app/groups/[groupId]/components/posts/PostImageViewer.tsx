@@ -206,6 +206,8 @@ export default function PostImageViewer({
   const [isCurrentVideoPinching, setIsCurrentVideoPinching] = useState(false);
   const [mobileVideoTrueFullscreen, setMobileVideoTrueFullscreen] =
     useState(false);
+  const [mobileVideoFullscreenTransitioning, setMobileVideoFullscreenTransitioning] =
+    useState(false);
   const [mobilePostTextExpanded, setMobilePostTextExpanded] = useState(false);
   const [desktopPostTextExpanded, setDesktopPostTextExpanded] = useState(false);
   const [mobileChromeVisible, setMobileChromeVisible] = useState(true);
@@ -233,6 +235,7 @@ export default function PostImageViewer({
   const mobileSpeedStartYRef = useRef<number | null>(null);
   const mobileSingleTapTimerRef = useRef<number | null>(null);
   const mobileLastVideoTapRef = useRef<{ at: number; x: number; y: number } | null>(null);
+  const mobileVideoFullscreenTransitionTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -537,19 +540,33 @@ export default function PostImageViewer({
     }, 2600);
   }, [clearChromeTimer, isCurrentVideo, useMobileLayout]);
 
+  function clearMobileVideoFullscreenTransitionTimer() {
+    if (mobileVideoFullscreenTransitionTimerRef.current !== null) {
+      window.clearTimeout(mobileVideoFullscreenTransitionTimerRef.current);
+      mobileVideoFullscreenTransitionTimerRef.current = null;
+    }
+  }
+
   const setMobileVideoTrueFullscreenActive = useCallback(
     (active: boolean) => {
       if (!useMobileLayout || !isCurrentVideo) return;
 
       resetMobileVideoSpeed();
       clearChromeTimer();
+      clearMobileVideoFullscreenTransitionTimer();
       setIsCurrentVideoZoomed(false);
       setIsCurrentVideoPinching(false);
+      setMobileVideoFullscreenTransitioning(true);
       setMobileVideoTrueFullscreen(active);
       setMobileChromeVisible(!active);
 
+      mobileVideoFullscreenTransitionTimerRef.current = window.setTimeout(() => {
+        setMobileVideoFullscreenTransitioning(false);
+        mobileVideoFullscreenTransitionTimerRef.current = null;
+      }, 260);
+
       if (!active && isCurrentVideo) {
-        window.setTimeout(scheduleChromeHide, 0);
+        window.setTimeout(scheduleChromeHide, 260);
       }
     },
     [
@@ -763,6 +780,8 @@ export default function PostImageViewer({
     setIsCurrentVideoZoomed(false);
     setIsCurrentVideoPinching(false);
     setMobileVideoTrueFullscreen(false);
+    setMobileVideoFullscreenTransitioning(false);
+    clearMobileVideoFullscreenTransitionTimer();
     setVideoCurrentTime(0);
     setVideoDuration(currentMedia?.duration ?? 0);
     setVideoPlaying(false);
@@ -810,6 +829,8 @@ export default function PostImageViewer({
       setIsCurrentVideoZoomed(false);
       setIsCurrentVideoPinching(false);
       setMobileVideoTrueFullscreen(false);
+      setMobileVideoFullscreenTransitioning(false);
+      clearMobileVideoFullscreenTransitionTimer();
       resetMobileVideoSpeed();
       return;
     }
@@ -827,6 +848,7 @@ export default function PostImageViewer({
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
       clearMobileSingleTapTimer();
+      clearMobileVideoFullscreenTransitionTimer();
       mobileLastVideoTapRef.current = null;
     };
   }, [clearChromeTimer, clearDesktopControlsTimer, open, onClose, totalMedia]);
@@ -1020,6 +1042,17 @@ const flameButtonStyle: CSSProperties = {
             userSelect: "none",
             WebkitUserSelect: "none",
             WebkitTouchCallout: "none",
+            transition:
+              useMobileLayout
+                ? "transform 260ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease"
+                : undefined,
+            transform:
+              useMobileLayout && mobileVideoFullscreenTransitioning
+                ? mobileVideoTrueFullscreen
+                  ? "scale(1.012)"
+                  : "scale(0.988)"
+                : "scale(1)",
+            willChange: useMobileLayout ? "transform" : undefined,
           }}
         >
           {currentVideoSrc ? (
@@ -1039,6 +1072,8 @@ const flameButtonStyle: CSSProperties = {
                         ? "cover"
                         : "contain",
                     background: "#000",
+                    transition: "opacity 180ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
+                    transform: "translateZ(0)",
                     pointerEvents: "none",
                   }}
                 />
@@ -1080,6 +1115,8 @@ const flameButtonStyle: CSSProperties = {
                       : "contain",
                   background: "#000",
                   opacity: videoReady || !currentVideoPoster ? 1 : 0,
+                  transition: "opacity 180ms ease, transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
+                  transform: "translateZ(0)",
                   pointerEvents: "none",
                 }}
               />
@@ -1107,18 +1144,19 @@ const flameButtonStyle: CSSProperties = {
             position: "absolute",
             inset: 0,
             transform: `translateX(${mobileDragOffsetX}px)`,
-            transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
+            transition:
+              mobileSwipeAnimating || mobileVideoFullscreenTransitioning
+                ? "transform 220ms ease"
+                : "none",
             background: "#000",
           }}
         >
           {useMobileLayout ? (
             <PostPinchZoomVideo
-              resetKey={currentMedia.url}
+              resetKey={`${currentMedia.url}:${mobileVideoTrueFullscreen ? "fullscreen" : "normal"}`}
               onClose={onClose}
               onZoomStateChange={setIsCurrentVideoZoomed}
               onPinchStateChange={setIsCurrentVideoPinching}
-              isTrueFullscreen={mobileVideoTrueFullscreen}
-              onExitTrueFullscreen={() => setMobileVideoTrueFullscreenActive(false)}
               swipeAxis={mobileGestureAxis}
             >
               {videoSurface}
