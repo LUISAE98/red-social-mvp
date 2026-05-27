@@ -13,6 +13,7 @@ import {
 import { createPortal } from "react-dom";
 import type { Post } from "@/lib/posts/types";
 import PostPinchZoomImage from "./PostPinchZoomImage";
+import PostPinchZoomVideo from "./PostPinchZoomVideo";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 
 type ImageMedia = {
@@ -201,6 +202,10 @@ export default function PostImageViewer({
   >(null);
   const [isCurrentImageZoomed, setIsCurrentImageZoomed] = useState(false);
   const [isCurrentImagePinching, setIsCurrentImagePinching] = useState(false);
+  const [isCurrentVideoZoomed, setIsCurrentVideoZoomed] = useState(false);
+  const [isCurrentVideoPinching, setIsCurrentVideoPinching] = useState(false);
+  const [mobileVideoTrueFullscreen, setMobileVideoTrueFullscreen] =
+    useState(false);
   const [mobilePostTextExpanded, setMobilePostTextExpanded] = useState(false);
   const [desktopPostTextExpanded, setDesktopPostTextExpanded] = useState(false);
   const [mobileChromeVisible, setMobileChromeVisible] = useState(true);
@@ -385,10 +390,16 @@ export default function PostImageViewer({
       : 0;
 
   const shouldShowMobileMeta =
-    mobileChromeVisible && !(isCurrentVideo && isLandscape);
-  const shouldShowMobileControls = mobileChromeVisible;
+    mobileChromeVisible &&
+    !mobileVideoTrueFullscreen &&
+    !(isCurrentVideo && isLandscape);
+  const shouldShowMobileControls =
+    mobileChromeVisible && !mobileVideoTrueFullscreen;
   const shouldShowMobileCounter =
-    canNavigateMedia && mobileChromeVisible && !(isCurrentVideo && isLandscape);
+    canNavigateMedia &&
+    mobileChromeVisible &&
+    !mobileVideoTrueFullscreen &&
+    !(isCurrentVideo && isLandscape);
   const playbackRates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 
   const clearChromeTimer = useCallback(() => {
@@ -456,6 +467,40 @@ export default function PostImageViewer({
     setVideoPlaybackRate(1);
   }, [clearMobileSpeedHold, setVideoPlaybackRate]);
 
+  const handleMobileVideoFastFullscreenGesture = useCallback(() => {
+    if (!useMobileLayout || !isCurrentVideo || typeof window === "undefined") {
+      return;
+    }
+
+    const video = videoRef.current;
+    const hasVideoSize =
+      video &&
+      Number.isFinite(video.videoWidth) &&
+      Number.isFinite(video.videoHeight) &&
+      video.videoWidth > 0 &&
+      video.videoHeight > 0;
+
+    const videoIsLandscape = hasVideoSize
+      ? video.videoWidth >= video.videoHeight
+      : isLandscape;
+    const screenIsLandscape = window.innerWidth > window.innerHeight;
+
+    if (videoIsLandscape !== screenIsLandscape) {
+      return;
+    }
+
+    resetMobileVideoSpeed();
+    clearChromeTimer();
+    setMobileVideoTrueFullscreen(true);
+    setMobileChromeVisible(false);
+  }, [
+    clearChromeTimer,
+    isCurrentVideo,
+    isLandscape,
+    resetMobileVideoSpeed,
+    useMobileLayout,
+  ]);
+
   const startMobileVideoSpeedHold = useCallback(
     (clientY: number) => {
       if (!useMobileLayout || !isCurrentVideo) return;
@@ -522,6 +567,10 @@ export default function PostImageViewer({
 
     setMobileChromeVisible((visible) => {
       const nextVisible = !visible;
+
+      if (nextVisible) {
+        setMobileVideoTrueFullscreen(false);
+      }
 
       if (nextVisible && isCurrentVideo) {
         window.setTimeout(scheduleChromeHide, 0);
@@ -654,6 +703,9 @@ export default function PostImageViewer({
     setMobileDragOffsetX(0);
     setIsCurrentImageZoomed(false);
     setIsCurrentImagePinching(false);
+    setIsCurrentVideoZoomed(false);
+    setIsCurrentVideoPinching(false);
+    setMobileVideoTrueFullscreen(false);
     setVideoCurrentTime(0);
     setVideoDuration(currentMedia?.duration ?? 0);
     setVideoPlaying(false);
@@ -696,6 +748,9 @@ export default function PostImageViewer({
       clearDesktopControlsTimer();
       setDesktopControlsVisible(true);
       setDesktopFullscreenActive(false);
+      setIsCurrentVideoZoomed(false);
+      setIsCurrentVideoPinching(false);
+      setMobileVideoTrueFullscreen(false);
       resetMobileVideoSpeed();
       return;
     }
@@ -886,7 +941,7 @@ const flameButtonStyle: CSSProperties = {
 
   function renderCurrentMedia() {
     if (currentMedia.type === "video") {
-      return (
+      const videoSurface = (
         <button
           type="button"
           onClick={undefined}
@@ -894,11 +949,11 @@ const flameButtonStyle: CSSProperties = {
           style={{
             position: "absolute",
             inset: 0,
+            width: "100%",
+            height: "100%",
             border: "none",
             padding: 0,
             background: "#000",
-            transform: `translateX(${mobileDragOffsetX}px)`,
-            transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
             cursor: useMobileLayout ? "pointer" : "default",
             WebkitTapHighlightColor: "transparent",
             userSelect: "none",
@@ -978,6 +1033,32 @@ const flameButtonStyle: CSSProperties = {
           )}
         </button>
       );
+
+      return (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            transform: `translateX(${mobileDragOffsetX}px)`,
+            transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
+            background: "#000",
+          }}
+        >
+          {useMobileLayout ? (
+            <PostPinchZoomVideo
+              onClose={onClose}
+              onZoomStateChange={setIsCurrentVideoZoomed}
+              onPinchStateChange={setIsCurrentVideoPinching}
+              onFastFullscreenGesture={handleMobileVideoFastFullscreenGesture}
+              swipeAxis={mobileGestureAxis}
+            >
+              {videoSurface}
+            </PostPinchZoomVideo>
+          ) : (
+            videoSurface
+          )}
+        </div>
+      );
     }
 
     return (
@@ -1018,24 +1099,23 @@ const flameButtonStyle: CSSProperties = {
 
   const mobileContent = (
     <div style={overlayStyle}>
-      {mobileChromeVisible && (
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Cerrar visor"
-          style={closeButtonStyle}
-        >
-          ×
-        </button>
-      )}
-
       <div
         onTouchStart={(event) => {
           if (
             mobileSwipeAnimating ||
             isCurrentImageZoomed ||
-            isCurrentImagePinching
+            isCurrentImagePinching ||
+            isCurrentVideoZoomed ||
+            isCurrentVideoPinching
           ) {
+            return;
+          }
+
+          if (isCurrentVideo && event.touches.length > 1) {
+            resetMobileVideoSpeed();
+            event.currentTarget.dataset.gestureAxis = "";
+            setMobileGestureAxis(null);
+            setMobileDragOffsetX(0);
             return;
           }
 
@@ -1057,8 +1137,18 @@ const flameButtonStyle: CSSProperties = {
           if (
             mobileSwipeAnimating ||
             isCurrentImageZoomed ||
-            isCurrentImagePinching
+            isCurrentImagePinching ||
+            isCurrentVideoZoomed ||
+            isCurrentVideoPinching
           ) {
+            setMobileDragOffsetX(0);
+            return;
+          }
+
+          if (isCurrentVideo && event.touches.length > 1) {
+            resetMobileVideoSpeed();
+            event.currentTarget.dataset.gestureAxis = "";
+            setMobileGestureAxis(null);
             setMobileDragOffsetX(0);
             return;
           }
@@ -1119,7 +1209,9 @@ const flameButtonStyle: CSSProperties = {
           if (
             mobileSwipeAnimating ||
             isCurrentImageZoomed ||
-            isCurrentImagePinching
+            isCurrentImagePinching ||
+            isCurrentVideoZoomed ||
+            isCurrentVideoPinching
           ) {
             setMobileGestureAxis(null);
             setMobileDragOffsetX(0);
