@@ -1,3 +1,5 @@
+//home-feed
+
 import {
   onDocumentCreated,
   onDocumentDeleted,
@@ -16,12 +18,48 @@ initializeApp();
 
 const db = getFirestore();
 
+const READABLE_MEMBER_STATUSES = ["active", "subscribed", "muted"];
+
+function isReadableMemberStatus(status: unknown): boolean {
+  const cleanStatus =
+    typeof status === "string" && status.trim().length > 0
+      ? status.trim()
+      : "active";
+
+  return READABLE_MEMBER_STATUSES.includes(cleanStatus);
+}
+
+function getMembershipUid(params: {
+  memberDocId: string;
+  membershipData?: Record<string, any> | null;
+}): string | null {
+  const dataUserId =
+    typeof params.membershipData?.userId === "string" &&
+    params.membershipData.userId.trim().length > 0
+      ? params.membershipData.userId.trim()
+      : null;
+
+  const docUserId =
+    typeof params.memberDocId === "string" &&
+    params.memberDocId.trim().length > 0
+      ? params.memberDocId.trim()
+      : null;
+
+  return dataUserId || docUserId;
+}
+
 async function addPostToUserHomeFeed(params: {
   uid: string;
   postId: string;
   postData: Record<string, any>;
 }) {
   const { uid, postId, postData } = params;
+
+  const cleanUid = uid.trim();
+
+  if (!cleanUid) {
+    return;
+  }
 
   const groupId =
     typeof postData.groupId === "string" && postData.groupId.trim().length > 0
@@ -30,7 +68,7 @@ async function addPostToUserHomeFeed(params: {
 
   await db
     .collection("users")
-    .doc(uid)
+    .doc(cleanUid)
     .collection("homeFeed")
     .doc(postId)
     .set(
@@ -51,6 +89,67 @@ async function addPostToUserHomeFeed(params: {
       },
       { merge: true }
     );
+}
+
+async function syncLatestGroupPostsToUser(params: {
+  groupId: string;
+  uid: string;
+}) {
+  const { groupId, uid } = params;
+
+  if (!groupId.trim() || !uid.trim()) {
+    return;
+  }
+
+  const postsSnap = await db
+    .collection("posts")
+    .where("groupId", "==", groupId)
+    .where("isDeleted", "==", false)
+    .orderBy("createdAt", "desc")
+    .limit(100)
+    .get();
+
+  const writes = postsSnap.docs.map((postDoc) =>
+    addPostToUserHomeFeed({
+      uid,
+      postId: postDoc.id,
+      postData: postDoc.data(),
+    })
+  );
+
+  await Promise.all(writes);
+}
+
+async function deleteUserHomeFeedByGroup(params: {
+  uid: string;
+  groupId: string;
+}) {
+  const { uid, groupId } = params;
+
+  if (!uid.trim() || !groupId.trim()) {
+    return;
+  }
+
+  const feedSnap = await db
+    .collection("users")
+    .doc(uid)
+    .collection("homeFeed")
+    .where("groupId", "==", groupId)
+    .get();
+
+  const batches = [];
+
+  for (let i = 0; i < feedSnap.docs.length; i += 450) {
+    const batch = db.batch();
+
+    feedSnap.docs.slice(i, i + 450).forEach((docSnap) => {
+      batch.delete(docSnap.ref);
+    });
+
+    batches.push(batch.commit());
+  }
+
+  await Promise.all(batches);
 }
 
 export const onHomeFeedPostCreated = onDocumentCreated(
@@ -105,20 +204,17 @@ export const onHomeFeedPostCreated = onDocumentCreated(
       .collection("groups")
       .doc(groupId)
       .collection("members")
-      .where("status", "in", ["active", "subscribed", "muted"])
+      .where("status", "in", READABLE_MEMBER_STATUSES)
       .get();
 
     const memberIds = membersSnap.docs
-      .map((memberDoc) => {
-        const uid =
-          typeof memberDoc.data().userId === "string" &&
-          memberDoc.data().userId.trim()
-            ? memberDoc.data().userId.trim()
-            : memberDoc.id;
-
-        return uid;
-      })
-      .filter(Boolean);
+      .map((memberDoc) =>
+        getMembershipUid({
+          memberDocId: memberDoc.id,
+          membershipData: memberDoc.data(),
+        })
+      )
+      .filter((uid): uid is string => Boolean(uid));
 
     const targetUserIds = Array.from(
       new Set([
@@ -146,10 +242,9 @@ export const onHomeFeedPostUpdated = onDocumentUpdated(
     region: "us-central1",
   },
   async (event) => {
-    const beforeData = event.data?.before.data();
     const afterData = event.data?.after.data();
 
-    if (!beforeData || !afterData) {
+    if (!afterData) {
       return;
     }
 
@@ -250,40 +345,29 @@ export const onHomeFeedMembershipCreated = onDocumentCreated(
 
     const membership = snapshot.data();
 
-    const status =
-      typeof membership.status === "string"
-        ? membership.status
-        : "active";
-
-    if (!["active", "subscribed", "muted"].includes(status)) {
+    if (!isReadableMemberStatus(membership.status)) {
       return;
     }
 
     const groupId = event.params.groupId;
-    const userId = event.params.userId;
+    const userId = getMembershipUid({
+      memberDocId: event.params.userId,
+      membershipData: membership,
+    });
+
+    if (!userId) {
+      return;
+    }
 
     logger.info("onHomeFeedMembershipCreated", {
       groupId,
       userId,
     });
 
-    const postsSnap = await db
-      .collection("posts")
-      .where("groupId", "==", groupId)
-      .where("isDeleted", "==", false)
-      .orderBy("createdAt", "desc")
-      .limit(100)
-      .get();
-
-    const writes = postsSnap.docs.map((postDoc) => {
-      return addPostToUserHomeFeed({
-        uid: userId,
-        postId: postDoc.id,
-        postData: postDoc.data(),
-      });
+    await syncLatestGroupPostsToUser({
+      groupId,
+      uid: userId,
     });
-
-    await Promise.all(writes);
   }
 );
 
@@ -293,26 +377,27 @@ export const onHomeFeedMembershipDeleted = onDocumentDeleted(
     region: "us-central1",
   },
   async (event) => {
+    const membership = event.data?.data() ?? null;
+
     const groupId = event.params.groupId;
-    const userId = event.params.userId;
+    const userId = getMembershipUid({
+      memberDocId: event.params.userId,
+      membershipData: membership,
+    });
+
+    if (!userId) {
+      return;
+    }
 
     logger.info("onHomeFeedMembershipDeleted", {
       groupId,
       userId,
     });
 
-    const feedSnap = await db
-      .collection("users")
-      .doc(userId)
-      .collection("homeFeed")
-      .where("postSnapshot.groupId", "==", groupId)
-      .get();
-
-    const writes = feedSnap.docs.map((docSnap) =>
-      docSnap.ref.delete()
-    );
-
-    await Promise.all(writes);
+    await deleteUserHomeFeedByGroup({
+      uid: userId,
+      groupId,
+    });
   }
 );
 
@@ -329,73 +414,40 @@ export const onHomeFeedMemberStatusChanged = onDocumentUpdated(
       return;
     }
 
-    const beforeStatus =
-      typeof beforeData.status === "string"
-        ? beforeData.status
-        : "active";
-
-    const afterStatus =
-      typeof afterData.status === "string"
-        ? afterData.status
-        : "active";
-
-    const readableStatuses = [
-      "active",
-      "subscribed",
-      "muted",
-    ];
-
-    const wasReadable =
-      readableStatuses.includes(beforeStatus);
-
-    const isReadable =
-      readableStatuses.includes(afterStatus);
+    const wasReadable = isReadableMemberStatus(beforeData.status);
+    const isReadable = isReadableMemberStatus(afterData.status);
 
     const groupId = event.params.groupId;
-    const userId = event.params.userId;
+    const userId = getMembershipUid({
+      memberDocId: event.params.userId,
+      membershipData: afterData,
+    });
+
+    if (!userId) {
+      return;
+    }
 
     logger.info("onHomeFeedMemberStatusChanged", {
       groupId,
       userId,
-      beforeStatus,
-      afterStatus,
+      beforeStatus: beforeData.status,
+      afterStatus: afterData.status,
     });
 
     if (!wasReadable && isReadable) {
-      const postsSnap = await db
-        .collection("posts")
-        .where("groupId", "==", groupId)
-        .where("isDeleted", "==", false)
-        .orderBy("createdAt", "desc")
-        .limit(100)
-        .get();
-
-      const writes = postsSnap.docs.map((postDoc) => {
-        return addPostToUserHomeFeed({
-          uid: userId,
-          postId: postDoc.id,
-          postData: postDoc.data(),
-        });
+      await syncLatestGroupPostsToUser({
+        groupId,
+        uid: userId,
       });
-
-      await Promise.all(writes);
 
       return;
     }
 
     if (wasReadable && !isReadable) {
-      const feedSnap = await db
-        .collection("users")
-        .doc(userId)
-        .collection("homeFeed")
-        .where("postSnapshot.groupId", "==", groupId)
-        .get();
-
-      const writes = feedSnap.docs.map((docSnap) =>
-        docSnap.ref.delete()
-      );
-
-      await Promise.all(writes);
+      await deleteUserHomeFeedByGroup({
+        uid: userId,
+        groupId,
+      });
     }
   }
 );

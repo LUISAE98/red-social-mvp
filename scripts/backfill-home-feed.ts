@@ -23,46 +23,16 @@ function initializeAdmin() {
   });
 }
 
-function getPostCreatedAt(data: FirebaseFirestore.DocumentData) {
-  return data.createdAt instanceof admin.firestore.Timestamp
-    ? data.createdAt
-    : admin.firestore.Timestamp.now();
-}
+function pickPostId(
+  feedDoc: FirebaseFirestore.QueryDocumentSnapshot
+): string {
+  const data = feedDoc.data();
 
-async function getHomeFeedUserIdsForGroup(
-  db: FirebaseFirestore.Firestore,
-  groupId: string
-): Promise<string[]> {
-  const groupSnap = await db.collection("groups").doc(groupId).get();
-
-  if (!groupSnap.exists) {
-    return [];
+  if (typeof data.postId === "string" && data.postId.trim()) {
+    return data.postId.trim();
   }
 
-  const groupData = groupSnap.data() ?? {};
-  const ownerId =
-    typeof groupData.ownerId === "string" && groupData.ownerId.trim()
-      ? groupData.ownerId.trim()
-      : null;
-
-  const membersSnap = await db
-    .collection("groups")
-    .doc(groupId)
-    .collection("members")
-    .where("status", "in", ["active", "subscribed", "muted"])
-    .get();
-
-  const memberIds = membersSnap.docs
-    .map((memberDoc) => {
-      const data = memberDoc.data();
-
-      return typeof data.userId === "string" && data.userId.trim()
-        ? data.userId.trim()
-        : memberDoc.id;
-    })
-    .filter(Boolean);
-
-  return Array.from(new Set([...(ownerId ? [ownerId] : []), ...memberIds]));
+  return feedDoc.id;
 }
 
 async function main() {
@@ -70,101 +40,102 @@ async function main() {
 
   const db = admin.firestore();
 
-  const postsSnap = await db
-    .collection("posts")
-    .where("isDeleted", "==", false)
-    .orderBy("createdAt", "desc")
-    .get();
+  const homeFeedSnap = await db.collectionGroup("homeFeed").get();
 
-  const groupUsersCache = new Map<string, Promise<string[]>>();
-
-  let postsProcessed = 0;
-  let feedEntriesWritten = 0;
+  let checked = 0;
+  let deletedMissingPost = 0;
+  let deletedSoftDeletedPost = 0;
+  let refreshed = 0;
   let skipped = 0;
 
   let batch = db.batch();
-  let batchWrites = 0;
+  let batchOps = 0;
 
   async function commitBatchIfNeeded(force = false) {
-    if (batchWrites === 0) return;
-    if (!force && batchWrites < 400) return;
+    if (batchOps === 0) return;
 
-    await batch.commit();
-    batch = db.batch();
-    batchWrites = 0;
+    if (force || batchOps >= 450) {
+      await batch.commit();
+      batch = db.batch();
+      batchOps = 0;
+    }
   }
 
-  for (const postDoc of postsSnap.docs) {
-    const postData = postDoc.data();
+  for (const feedDoc of homeFeedSnap.docs) {
+    checked += 1;
+
+    const feedData = feedDoc.data();
+    const postId = pickPostId(feedDoc);
+
+    const postRef = db.collection("posts").doc(postId);
+    const postSnap = await postRef.get();
+
+    if (!postSnap.exists) {
+      batch.delete(feedDoc.ref);
+      batchOps += 1;
+      deletedMissingPost += 1;
+      await commitBatchIfNeeded();
+      console.log(`DELETE ${feedDoc.ref.path} -> post no existe`);
+      continue;
+    }
+
+    const postData = postSnap.data() ?? {};
 
     if (postData.isDeleted === true) {
-      skipped += 1;
+      batch.delete(feedDoc.ref);
+      batchOps += 1;
+      deletedSoftDeletedPost += 1;
+      await commitBatchIfNeeded();
+      console.log(`DELETE ${feedDoc.ref.path} -> post eliminado`);
       continue;
     }
 
-    const groupId =
-      typeof postData.groupId === "string" && postData.groupId.trim()
-        ? postData.groupId.trim()
-        : null;
+    const currentSnapshot = feedData.postSnapshot;
 
-    if (!groupId) {
-      skipped += 1;
-      continue;
-    }
-
-    if (!groupUsersCache.has(groupId)) {
-      groupUsersCache.set(groupId, getHomeFeedUserIdsForGroup(db, groupId));
-    }
-
-    const userIds = await groupUsersCache.get(groupId);
-
-    if (!userIds || userIds.length === 0) {
-      skipped += 1;
-      continue;
-    }
-
-    for (const uid of userIds) {
-      const feedRef = db
-        .collection("users")
-        .doc(uid)
-        .collection("homeFeed")
-        .doc(postDoc.id);
-
+    if (
+      !currentSnapshot ||
+      currentSnapshot.isDeleted === true ||
+      currentSnapshot.updatedAt !== postData.updatedAt
+    ) {
       batch.set(
-        feedRef,
+        feedDoc.ref,
         {
-          postId: postDoc.id,
-          groupId,
+          postId,
           isVisible: true,
-          createdAt: getPostCreatedAt(postData),
+          groupId: postData.groupId ?? feedData.groupId ?? null,
+          authorId: postData.authorId ?? feedData.authorId ?? null,
+          createdAt: postData.createdAt ?? feedData.createdAt ?? null,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           postSnapshot: {
             ...postData,
+            id: postId,
           },
-          syncedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         { merge: true }
       );
 
-      batchWrites += 1;
-      feedEntriesWritten += 1;
-
+      batchOps += 1;
+      refreshed += 1;
       await commitBatchIfNeeded();
+      console.log(`REFRESH ${feedDoc.ref.path}`);
+      continue;
     }
 
-    postsProcessed += 1;
-    console.log(`OK post ${postDoc.id} -> ${userIds.length} usuarios`);
+    skipped += 1;
   }
 
   await commitBatchIfNeeded(true);
 
   console.log("");
   console.log("Backfill homeFeed terminado.");
-  console.log(`Posts procesados: ${postsProcessed}`);
-  console.log(`Entradas homeFeed escritas: ${feedEntriesWritten}`);
+  console.log(`Revisados: ${checked}`);
+  console.log(`Eliminados por post inexistente: ${deletedMissingPost}`);
+  console.log(`Eliminados por post borrado: ${deletedSoftDeletedPost}`);
+  console.log(`Snapshots actualizados: ${refreshed}`);
   console.log(`Saltados: ${skipped}`);
 }
 
 main().catch((error) => {
-  console.error("Backfill homeFeed falló:", error);
+  console.error("Backfill falló:", error);
   process.exit(1);
 });

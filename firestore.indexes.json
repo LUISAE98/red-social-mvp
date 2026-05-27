@@ -31,13 +31,6 @@
       ]
     },
     {
-      "collectionGroup": "members",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "userId", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
@@ -81,13 +74,13 @@
       ]
     },
     {
-  "collectionGroup": "savedPosts",
-  "queryScope": "COLLECTION",
-  "fields": [
-    { "fieldPath": "isVisible", "order": "ASCENDING" },
-    { "fieldPath": "savedAt", "order": "DESCENDING" }
-  ]
-},
+      "collectionGroup": "savedPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "isVisible", "order": "ASCENDING" },
+        { "fieldPath": "savedAt", "order": "DESCENDING" }
+      ]
+    },
     {
       "collectionGroup": "profileFeed",
       "queryScope": "COLLECTION",
@@ -125,5 +118,16 @@
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "homeFeed",
+      "fieldPath": "postId",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    }
+  ]
 }

@@ -1379,6 +1379,13 @@ function canReadPost() {
     );
 }
 
+function canReadPostFromOwnHomeFeed() {
+  return signedIn()
+    && resource.data.isDeleted == false
+    && exists(/databases/$(database)/documents/users/$(request.auth.uid)/homeFeed/$(postId))
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)/homeFeed/$(postId)).data.isVisible == true;
+}
+
       function validCreatePost() {
         return signedIn()
           && request.resource.data.authorId == request.auth.uid
@@ -1571,9 +1578,11 @@ function canListReadableGroupSearchablePost() {
     && resource.data.search.isDeleted == false;
 }
 
-      allow get: if canReadPost();
+      allow get: if canReadPost()
+  || canReadPostFromOwnHomeFeed();
 
 allow list: if canReadPost()
+  || canReadPostFromOwnHomeFeed()
   || canListPublicSearchablePost()
   || canListReadableGroupSearchablePost();
 

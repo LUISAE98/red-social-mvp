@@ -17,23 +17,39 @@ export function registerPostFeedCacheListener(listener: FeedCacheListener) {
 }
 
 export function removePostFromAllFeedCaches(postId: string) {
-  if (!postId.trim()) return;
+  const cleanPostId = postId.trim();
 
-  listeners.forEach((listener) => {
-    listener.removePost?.(postId);
+  if (!cleanPostId) return;
+
+  Array.from(listeners).forEach((listener) => {
+    try {
+      listener.removePost?.(cleanPostId);
+    } catch {
+      // No permitimos que un listener roto impida limpiar otros feeds.
+    }
   });
 }
 
 export function patchPostInAllFeedCaches(postId: string, patch: Partial<Post>) {
-  if (!postId.trim()) return;
+  const cleanPostId = postId.trim();
 
-  listeners.forEach((listener) => {
-    listener.patchPost?.(postId, patch);
+  if (!cleanPostId) return;
+
+  Array.from(listeners).forEach((listener) => {
+    try {
+      listener.patchPost?.(cleanPostId, patch);
+    } catch {
+      // No permitimos que un listener roto impida actualizar otros feeds.
+    }
   });
 }
 
 export function clearAllPostFeedCaches() {
-  listeners.forEach((listener) => {
-    listener.clear?.();
+  Array.from(listeners).forEach((listener) => {
+    try {
+      listener.clear?.();
+    } catch {
+      // No permitimos que un listener roto impida limpiar otros feeds.
+    }
   });
 }

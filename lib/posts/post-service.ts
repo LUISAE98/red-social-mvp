@@ -1,8 +1,9 @@
+//post-service
+
 import {
   addDoc,
   collection,
   setDoc,
-  collectionGroup,
   deleteDoc,
   doc,
   documentId,
@@ -790,15 +791,12 @@ async function fetchMemberGroupIds(userUid: string): Promise<string[]> {
   if (!userUid.trim()) return [];
 
   const snap = await getDocs(
-    query(
-      collectionGroup(db, "members"),
-      where("userId", "==", userUid)
-    )
+    collection(db, "users", userUid, "groupMemberships")
   );
 
   const groupIds = snap.docs
-    .map((memberDoc) => {
-      const data = memberDoc.data() as Record<string, unknown>;
+    .map((membershipDoc) => {
+      const data = membershipDoc.data() as Record<string, unknown>;
 
       const status = resolveEffectiveMembershipStatus(
         data.status,
@@ -813,7 +811,7 @@ async function fetchMemberGroupIds(userUid: string): Promise<string[]> {
         return null;
       }
 
-      return memberDoc.ref.parent.parent?.id ?? null;
+      return pickString(data.groupId) || membershipDoc.id;
     })
     .filter((id): id is string => typeof id === "string" && id.trim().length > 0);
 
@@ -1081,6 +1079,61 @@ export async function fetchGroupPosts(
   return page.posts;
 }
 
+function normalizeHomeFeedPostSnapshot(params: {
+  feedDocId: string;
+  feedData: Record<string, any>;
+}): Post | null {
+  const { feedDocId, feedData } = params;
+
+  if (feedData.isVisible !== true) {
+    return null;
+  }
+
+  const snapshot =
+    feedData.postSnapshot && typeof feedData.postSnapshot === "object"
+      ? (feedData.postSnapshot as Record<string, unknown>)
+      : null;
+
+  if (!snapshot) {
+    return null;
+  }
+
+  const postId =
+    typeof feedData.postId === "string" && feedData.postId.trim().length > 0
+      ? feedData.postId.trim()
+      : feedDocId;
+
+  if (!postId) {
+    return null;
+  }
+
+  if (snapshot.isDeleted === true || feedData.isDeleted === true) {
+    return null;
+  }
+
+  const groupId =
+    typeof snapshot.groupId === "string" && snapshot.groupId.trim().length > 0
+      ? snapshot.groupId.trim()
+      : null;
+
+  const authorId =
+    typeof snapshot.authorId === "string" && snapshot.authorId.trim().length > 0
+      ? snapshot.authorId.trim()
+      : null;
+
+  if (!groupId || !authorId) {
+    return null;
+  }
+
+  return {
+    id: postId,
+    ...(snapshot as Omit<Post, "id">),
+    canModerateGroupAuthor: feedData.canModerateGroupAuthor ?? false,
+    authorMemberStatus: feedData.authorMemberStatus ?? null,
+    authorMutedUntil: feedData.authorMutedUntil ?? null,
+  } as Post;
+}
+
 export async function fetchHomePostsPage(params: {
   userUid: string;
   pageSize?: number;
@@ -1101,79 +1154,48 @@ export async function fetchHomePostsPage(params: {
     )
   );
 
-  if (homeFeedSnap.empty) {
+const rawPosts = (
+  await Promise.all(
+    homeFeedSnap.docs.map(async (feedDoc) => {
+      const normalizedPost = normalizeHomeFeedPostSnapshot({
+        feedDocId: feedDoc.id,
+        feedData: feedDoc.data() as Record<string, any>,
+      });
+
+      if (!normalizedPost) {
+        return null;
+      }
+
+      try {
+        const realPostSnap = await getDoc(
+          doc(db, "posts", normalizedPost.id)
+        );
+
+        if (!realPostSnap.exists()) {
+          return null;
+        }
+
+        const realPostData = realPostSnap.data() as Record<string, unknown>;
+
+        if (realPostData.isDeleted === true) {
+          return null;
+        }
+
+        return normalizedPost;
+      } catch {
+        return null;
+      }
+    })
+  )
+).filter((post): post is Post => post !== null);
+
+  if (rawPosts.length === 0) {
     return {
       posts: [],
       cursor: null,
       hasMore: false,
     };
   }
-
-  const feedRows = homeFeedSnap.docs.map((feedDoc) => {
-    const data = feedDoc.data() as Record<string, any>;
-    const postId =
-      typeof data.postId === "string" && data.postId.trim().length > 0
-        ? data.postId.trim()
-        : feedDoc.id;
-
-    return {
-      feedDoc,
-      postId,
-      canModerateGroupAuthor: data.canModerateGroupAuthor ?? false,
-      authorMemberStatus: data.authorMemberStatus ?? null,
-      authorMutedUntil: data.authorMutedUntil ?? null,
-    };
-  });
-
-  const uniquePostIds = Array.from(
-    new Set(
-      feedRows
-        .map((row) => row.postId)
-        .filter((postId) => postId.trim().length > 0)
-    )
-  );
-
-  const postsById = new Map<string, Post>();
-
-  await Promise.all(
-    chunkArray(uniquePostIds, 10).map(async (chunk) => {
-      try {
-        const postsSnap = await getDocs(
-          query(collection(db, "posts"), where(documentId(), "in", chunk))
-        );
-
-        postsSnap.docs.forEach((postDoc) => {
-          const post = {
-            id: postDoc.id,
-            ...(postDoc.data() as Omit<Post, "id">),
-          } as Post;
-
-          if (post.isDeleted !== true) {
-            postsById.set(postDoc.id, post);
-          }
-        });
-      } catch {
-        // Si falla un bloque, no rompemos todo el feed.
-      }
-    })
-  );
-
-  const rawPosts = feedRows
-    .map((row) => {
-      const livePost = postsById.get(row.postId);
-
-      if (!livePost || livePost.isDeleted === true) {
-        return null;
-      }
-
-      return {
-        ...livePost,
-        canModerateGroupAuthor: row.canModerateGroupAuthor,
-        authorMemberStatus: row.authorMemberStatus,
-        authorMutedUntil: row.authorMutedUntil,
-      } as Post;
-    })
-    .filter((post): post is Post => post !== null);
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(rawPosts.map((post) => post.authorId)),
@@ -1195,7 +1217,8 @@ export async function fetchHomePostsPage(params: {
   );
 
   const lastDoc = homeFeedSnap.docs[homeFeedSnap.docs.length - 1] ?? null;
-  const hasMore = homeFeedSnap.docs.length === safePageSize;
+  const hasMore =
+    !homeFeedSnap.empty && homeFeedSnap.docs.length === safePageSize;
 
   return {
     posts: postsWithViewerState,

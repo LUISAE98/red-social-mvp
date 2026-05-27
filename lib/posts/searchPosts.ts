@@ -1,6 +1,7 @@
+//searchPosts
+
 import {
   collection,
-  collectionGroup,
   doc,
   documentId,
   getDoc,
@@ -107,17 +108,10 @@ function dedupePosts(posts: Post[]): Post[] {
 async function fetchReadableGroupIds(viewerId?: string | null): Promise<string[]> {
   if (!viewerId) return [];
 
-  const [userMembershipSnap, groupMembershipSnap, ownedGroupsSnap] =
-    await Promise.all([
-      getDocs(query(collection(db, "users", viewerId, "groupMemberships"))),
-      getDocs(
-        query(
-          collectionGroup(db, "members"),
-          where(documentId(), "==", viewerId)
-        )
-      ),
-      getDocs(query(collection(db, "groups"), where("ownerId", "==", viewerId))),
-    ]);
+  const [userMembershipSnap, ownedGroupsSnap] = await Promise.all([
+    getDocs(collection(db, "users", viewerId, "groupMemberships")),
+    getDocs(query(collection(db, "groups"), where("ownerId", "==", viewerId))),
+  ]);
 
   const readableStatuses = new Set(["active", "subscribed", "muted"]);
 
@@ -136,25 +130,9 @@ async function fetchReadableGroupIds(viewerId?: string | null): Promise<string[]
     })
     .filter((groupId): groupId is string => Boolean(groupId));
 
-  const groupMembershipGroupIds = groupMembershipSnap.docs
-    .map((docSnap) => {
-      const data = docSnap.data() as Record<string, unknown>;
-      const status = typeof data.status === "string" ? data.status : "active";
-      const groupId = docSnap.ref.parent.parent?.id ?? null;
-
-      return groupId && readableStatuses.has(status) ? groupId : null;
-    })
-    .filter((groupId): groupId is string => Boolean(groupId));
-
   const ownedGroupIds = ownedGroupsSnap.docs.map((docSnap) => docSnap.id);
 
-  return Array.from(
-    new Set([
-      ...userMembershipGroupIds,
-      ...groupMembershipGroupIds,
-      ...ownedGroupIds,
-    ])
-  );
+  return Array.from(new Set([...userMembershipGroupIds, ...ownedGroupIds]));
 }
 
 async function fetchSearchGroupsByIds(

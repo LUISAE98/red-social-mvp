@@ -190,14 +190,14 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
           const cacheKey = getHomeFeedCacheKey(currentUserId);
           const previousCache = homeFeedMemoryCache.get(cacheKey);
 
-          homeFeedMemoryCache.set(cacheKey, {
-            posts: next,
-            cursor: pageCursorRef.current,
-            hasMore: hasMoreRef.current,
-            updatedAt: Date.now(),
-          });
-
-          if (!previousCache && next.length === 0) {
+          if (next.length > 0) {
+            homeFeedMemoryCache.set(cacheKey, {
+              posts: next,
+              cursor: pageCursorRef.current,
+              hasMore: hasMoreRef.current,
+              updatedAt: Date.now(),
+            });
+          } else {
             homeFeedMemoryCache.delete(cacheKey);
           }
         }
@@ -306,12 +306,16 @@ const normalizedPosts = result.posts
               ? mergeUniquePosts(prev, normalizedPosts)
               : normalizedPosts;
 
-          homeFeedMemoryCache.set(getHomeFeedCacheKey(currentUserId), {
-            posts: nextPosts,
-            cursor: nextCursor,
-            hasMore: nextHasMore,
-            updatedAt: Date.now(),
-          });
+          if (nextPosts.length > 0) {
+            homeFeedMemoryCache.set(getHomeFeedCacheKey(currentUserId), {
+              posts: nextPosts,
+              cursor: nextCursor,
+              hasMore: nextHasMore,
+              updatedAt: Date.now(),
+            });
+          } else {
+            homeFeedMemoryCache.delete(getHomeFeedCacheKey(currentUserId));
+          }
 
           return nextPosts;
         });
@@ -355,7 +359,11 @@ const normalizedPosts = result.posts
       const cacheHasProcessingVideos =
         cached?.posts.some(isVideoPostStillProcessing) === true;
 
-      if (cacheIsFresh && !cacheHasProcessingVideos) {
+      if (
+        cacheIsFresh &&
+        !cacheHasProcessingVideos &&
+        cached.posts.length > 0
+      ) {
         setPosts(cached.posts.filter((post) => post.isDeleted !== true));
         setPageCursor(cached.cursor);
         setHasMore(cached.hasMore);
@@ -363,6 +371,10 @@ const normalizedPosts = result.posts
         hasMoreRef.current = cached.hasMore;
         setLoadingInitial(false);
         return;
+      }
+
+      if (cached && cached.posts.length === 0) {
+        homeFeedMemoryCache.delete(cacheKey);
       }
 
       if (active) {

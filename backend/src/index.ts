@@ -1,3 +1,5 @@
+//index
+
 import { onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
@@ -120,6 +122,7 @@ export {
 
 // Post pins
 export { toggleGroupPostPin, toggleProfilePostPin } from "./postPins";
+
 // Home Feed materializado
 export {
   onHomeFeedPostCreated,
@@ -128,6 +131,7 @@ export {
   onHomeFeedMembershipDeleted,
   onHomeFeedMemberStatusChanged,
 } from "./home-feed";
+
 // Profile Feed materializado
 export {
   onProfileFeedPostCreated,
@@ -135,7 +139,9 @@ export {
   onProfileFeedPostDeleted,
   onProfileFeedGroupUpdated,
 } from "./profile-feed";
+
 // Mux uploads
 export { createMuxDirectUpload } from "./muxUploads";
+
 // Mux webhooks
 export { muxWebhook } from "./muxWebhooks";
