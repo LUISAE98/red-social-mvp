@@ -1052,7 +1052,6 @@ const flameButtonStyle: CSSProperties = {
               onClose={onClose}
               onZoomStateChange={setIsCurrentVideoZoomed}
               onPinchStateChange={setIsCurrentVideoPinching}
-              onFastFullscreenGesture={handleMobileVideoFastFullscreenGesture}
               swipeAxis={mobileGestureAxis}
             >
               {videoSurface}

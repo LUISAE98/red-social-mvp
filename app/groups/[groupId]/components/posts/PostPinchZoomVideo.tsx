@@ -14,9 +14,7 @@ type Props = {
   onClose?: () => void;
   onZoomStateChange?: (isZoomed: boolean) => void;
   onPinchStateChange?: (isPinching: boolean) => void;
-  onFastFullscreenGesture?: () => void;
   swipeAxis?: "horizontal" | "vertical" | null;
-  allowFastFullscreenGesture?: boolean;
 };
 
 type GestureState = {
@@ -31,9 +29,6 @@ type GestureState = {
   startDistance: number;
   startMidX: number;
   startMidY: number;
-  pinchStartAt: number;
-  maxDistanceDelta: number;
-  fastFullscreenTriggered: boolean;
   isPinching: boolean;
   isDragging: boolean;
   lastZoomed: boolean;
@@ -60,8 +55,6 @@ export default function PostPinchZoomVideo({
   resetKey,
   onZoomStateChange,
   onPinchStateChange,
-  onFastFullscreenGesture,
-  allowFastFullscreenGesture = true,
 }: Props) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -78,9 +71,6 @@ export default function PostPinchZoomVideo({
     startDistance: 0,
     startMidX: 0,
     startMidY: 0,
-    pinchStartAt: 0,
-    maxDistanceDelta: 0,
-    fastFullscreenTriggered: false,
     isPinching: false,
     isDragging: false,
     lastZoomed: false,
@@ -143,23 +133,12 @@ export default function PostPinchZoomVideo({
     gesture.startX = 0;
     gesture.startY = 0;
     gesture.startDistance = 0;
-    gesture.maxDistanceDelta = 0;
-    gesture.fastFullscreenTriggered = false;
     gesture.isPinching = false;
     gesture.isDragging = false;
 
     setZoomedState(false);
     setPinchingState(false);
     applyTransform(animate);
-  }
-
-  function triggerFastFullscreen() {
-    const gesture = gestureRef.current;
-    if (!allowFastFullscreenGesture || gesture.fastFullscreenTriggered) return;
-
-    gesture.fastFullscreenTriggered = true;
-    resetTransform(true);
-    onFastFullscreenGesture?.();
   }
 
   useEffect(() => {
@@ -212,9 +191,6 @@ export default function PostPinchZoomVideo({
           gesture.startY = gesture.y;
           gesture.startMidX = midpoint.x;
           gesture.startMidY = midpoint.y;
-          gesture.pinchStartAt = performance.now();
-          gesture.maxDistanceDelta = 0;
-          gesture.fastFullscreenTriggered = false;
           gesture.isPinching = true;
           gesture.isDragging = false;
 
@@ -245,23 +221,6 @@ export default function PostPinchZoomVideo({
           const secondTouch = event.touches[1]!;
           const midpoint = getMidpoint(firstTouch, secondTouch);
           const distance = getDistance(firstTouch, secondTouch);
-
-          const elapsed = performance.now() - gesture.pinchStartAt;
-          const distanceDelta = distance - gesture.startDistance;
-          gesture.maxDistanceDelta = Math.max(
-            gesture.maxDistanceDelta,
-            distanceDelta,
-          );
-
-          if (
-            allowFastFullscreenGesture &&
-            gesture.startScale <= 1.02 &&
-            elapsed <= 240 &&
-            distanceDelta >= 52
-          ) {
-            triggerFastFullscreen();
-            return;
-          }
 
           const rect = frame.getBoundingClientRect();
           const centerX = rect.left + rect.width / 2;
@@ -294,7 +253,11 @@ export default function PostPinchZoomVideo({
           return;
         }
 
-        if (event.touches.length === 1 && gesture.isDragging && gesture.scale > 1.02) {
+        if (
+          event.touches.length === 1 &&
+          gesture.isDragging &&
+          gesture.scale > 1.02
+        ) {
           event.preventDefault();
 
           const touch = event.touches[0]!;
@@ -310,17 +273,6 @@ export default function PostPinchZoomVideo({
       }}
       onTouchEnd={() => {
         const gesture = gestureRef.current;
-
-        if (
-          allowFastFullscreenGesture &&
-          !gesture.fastFullscreenTriggered &&
-          gesture.startScale <= 1.02 &&
-          gesture.maxDistanceDelta >= 48 &&
-          performance.now() - gesture.pinchStartAt <= 280
-        ) {
-          triggerFastFullscreen();
-          return;
-        }
 
         if (gesture.scale <= 1.02) {
           resetTransform(true);
