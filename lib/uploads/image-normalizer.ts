@@ -1,5 +1,3 @@
-
-
 export type NormalizedImageFile = {
   file: File;
   wasConverted: boolean;
@@ -7,11 +5,19 @@ export type NormalizedImageFile = {
   originalName: string;
 };
 
+export type NormalizedImageThumbnail = {
+  file: File;
+};
+
 const DEFAULT_MAX_IMAGE_SIZE_BYTES = 150 * 1024 * 1024;
 
 const OUTPUT_MAX_WIDTH = 2000;
 const OUTPUT_MAX_HEIGHT = 2000;
 const OUTPUT_QUALITY = 0.82;
+
+const THUMBNAIL_MAX_WIDTH = 720;
+const THUMBNAIL_MAX_HEIGHT = 720;
+const THUMBNAIL_QUALITY = 0.72;
 
 const WEB_SAFE_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -75,12 +81,13 @@ function assertMaxSize(file: File, maxSizeBytes: number) {
   }
 }
 
-function getOutputSize(width: number, height: number) {
-  const ratio = Math.min(
-    OUTPUT_MAX_WIDTH / width,
-    OUTPUT_MAX_HEIGHT / height,
-    1
-  );
+function getOutputSize(
+  width: number,
+  height: number,
+  maxWidth: number,
+  maxHeight: number
+) {
+  const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
 
   return {
     width: Math.max(1, Math.round(width * ratio)),
@@ -107,7 +114,15 @@ function loadImageFromFile(file: File): Promise<HTMLImageElement> {
   });
 }
 
-async function compressImageToJpeg(file: File): Promise<File> {
+async function compressImageToJpeg(
+  file: File,
+  options?: {
+    maxWidth?: number;
+    maxHeight?: number;
+    quality?: number;
+    fileNameSuffix?: string;
+  }
+): Promise<File> {
   const image = await loadImageFromFile(file);
 
   const sourceWidth = image.naturalWidth || image.width;
@@ -117,7 +132,12 @@ async function compressImageToJpeg(file: File): Promise<File> {
     throw new Error("No se pudo leer el tamaño de la imagen.");
   }
 
-  const outputSize = getOutputSize(sourceWidth, sourceHeight);
+  const outputSize = getOutputSize(
+    sourceWidth,
+    sourceHeight,
+    options?.maxWidth ?? OUTPUT_MAX_WIDTH,
+    options?.maxHeight ?? OUTPUT_MAX_HEIGHT
+  );
 
   const canvas = document.createElement("canvas");
   canvas.width = outputSize.width;
@@ -142,11 +162,12 @@ async function compressImageToJpeg(file: File): Promise<File> {
         resolve(result);
       },
       "image/jpeg",
-      OUTPUT_QUALITY
+      options?.quality ?? OUTPUT_QUALITY
     );
   });
 
-  const nextName = `${getSafeBaseName(file.name)}.jpg`;
+  const suffix = options?.fileNameSuffix ? `-${options.fileNameSuffix}` : "";
+  const nextName = `${getSafeBaseName(file.name)}${suffix}.jpg`;
 
   return new File([blob], nextName, {
     type: "image/jpeg",
@@ -190,6 +211,21 @@ async function convertHeicToJpeg(file: File): Promise<File> {
       lastModified: Date.now(),
     })
   );
+}
+
+export async function createImageThumbnailFile(
+  file: File
+): Promise<NormalizedImageThumbnail> {
+  const thumbnailFile = await compressImageToJpeg(file, {
+    maxWidth: THUMBNAIL_MAX_WIDTH,
+    maxHeight: THUMBNAIL_MAX_HEIGHT,
+    quality: THUMBNAIL_QUALITY,
+    fileNameSuffix: "thumb",
+  });
+
+  return {
+    file: thumbnailFile,
+  };
 }
 
 export async function normalizeImageFile(

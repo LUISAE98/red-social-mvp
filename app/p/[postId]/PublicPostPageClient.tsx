@@ -22,7 +22,6 @@ import PostFlamesPanel, {
 } from "@/app/groups/[groupId]/components/posts/PostFlamesPanel";
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
 
-
 export type PublicPostView = {
   id: string;
   text: string;
@@ -58,6 +57,7 @@ export type PublicPostView = {
     type: "image" | "video";
     url: string;
     thumbnailUrl?: string | null;
+    thumbnailPath?: string | null;
     altText?: string | null;
     id?: string;
     index?: number;
@@ -75,56 +75,6 @@ type PublicPostPageClientProps = {
   post: PublicPostView;
   postUrl: string;
 };
-
-function getInitials(name?: string | null): string {
-  const cleanName = name?.trim();
-  if (!cleanName) return "U";
-
-  return cleanName
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-}
-
-function formatRelativeFromMs(value: number | null): string {
-  if (!value) return "Ahora mismo";
-
-  const diffMs = Date.now() - value;
-  const diffSeconds = Math.max(0, Math.floor(diffMs / 1000));
-  const diffMinutes = Math.floor(diffSeconds / 60);
-  const diffHours = Math.floor(diffMinutes / 60);
-  const diffDays = Math.floor(diffHours / 24);
-  const diffWeeks = Math.floor(diffDays / 7);
-  const diffMonths = Math.floor(diffDays / 30);
-  const diffYears = Math.floor(diffDays / 365);
-
-  if (diffSeconds < 30) return "Ahora mismo";
-  if (diffSeconds < 60) return `hace ${diffSeconds} segundos`;
-  if (diffMinutes === 1) return "hace 1 minuto";
-  if (diffMinutes < 60) return `hace ${diffMinutes} minutos`;
-  if (diffHours === 1) return "hace 1 hora";
-  if (diffHours < 24) return `hace ${diffHours} horas`;
-  if (diffDays === 1) return "hace 1 día";
-  if (diffDays < 7) return `hace ${diffDays} días`;
-  if (diffWeeks === 1) return "hace 1 semana";
-  if (diffWeeks < 5) return `hace ${diffWeeks} semanas`;
-  if (diffMonths === 1) return "hace 1 mes";
-  if (diffMonths < 12) return `hace ${diffMonths} meses`;
-  if (diffYears === 1) return "hace 1 año";
-
-  return `hace ${diffYears} años`;
-}
-
-function truncatePostText(text: string, maxLength: number) {
-  if (text.length <= maxLength) return text;
-
-  const sliced = text.slice(0, maxLength).trim();
-  const lastSpace = sliced.lastIndexOf(" ");
-
-  return `${sliced.slice(0, lastSpace > 40 ? lastSpace : sliced.length).trim()}...`;
-}
 
 export default function PublicPostPageClient({
   post,
@@ -160,15 +110,6 @@ export default function PublicPostPageClient({
   const [loadingFlameUsers, setLoadingFlameUsers] = useState(false);
   const [flameUsersError, setFlameUsersError] = useState<string | null>(null);
 
-  const [selectedImage, setSelectedImage] = useState<{
-    url: string;
-    altText?: string | null;
-  } | null>(null);
-
-  const [showExactPostDate, setShowExactPostDate] = useState(false);
-  const [postTextExpanded, setPostTextExpanded] = useState(false);
-  const [relativeDateLabel, setRelativeDateLabel] = useState("");
-
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((user) => {
       setCurrentUserId(user?.uid ?? null);
@@ -193,16 +134,6 @@ export default function PublicPostPageClient({
   }, []);
 
   useEffect(() => {
-    setRelativeDateLabel(formatRelativeFromMs(post.createdAtMs));
-
-    const timer = window.setInterval(() => {
-      setRelativeDateLabel(formatRelativeFromMs(post.createdAtMs));
-    }, 60000);
-
-    return () => window.clearInterval(timer);
-  }, [post.createdAtMs]);
-
-  useEffect(() => {
     if (!inlineError) return;
 
     const timer = window.setTimeout(() => {
@@ -213,19 +144,12 @@ export default function PublicPostPageClient({
   }, [inlineError]);
 
   const entryHref = currentUserId ? "/" : "/login";
-  const authorName = post.authorName || "Usuario";
-  const groupName = post.groupName || "Comunidad";
-
-  const authorHref = post.authorUsername
-    ? `/u/${post.authorUsername}`
-    : post.authorId
-      ? `/u/${post.authorId}`
-      : "/login";
-
-  const groupHref = post.groupId ? `/groups/${post.groupId}` : "/";
 
   const imageMedia = useMemo(
-    () => post.media.filter((item) => item.type === "image" && item.url),
+    () =>
+      post.media.filter(
+        (item) => item.type === "image" && item.url.trim().length > 0
+      ),
     [post.media]
   );
 
@@ -297,8 +221,7 @@ export default function PublicPostPageClient({
           ? post.videoData.thumbnailUrl.trim()
           : null;
 
-    const rootStatus =
-      post.videoData?.status || post.processing?.status || null;
+    const rootStatus = post.videoData?.status || post.processing?.status || null;
 
     return [
       {
@@ -359,7 +282,7 @@ export default function PublicPostPageClient({
           : "text"),
     videoData: post.videoData ?? null,
     playback: post.playback ?? null,
-        processing: post.processing ?? {
+    processing: post.processing ?? {
       status: "none",
       provider: null,
       errorCode: null,
@@ -371,24 +294,6 @@ export default function PublicPostPageClient({
   function requireLogin(message: string) {
     setInlineError(message);
     router.push(`/login?next=${encodeURIComponent(`/p/${post.id}`)}`);
-  }
-
-  async function handleShare() {
-    const shareTitle = post.shareTitle || "Publicación";
-    const shareText =
-      post.shareDescription || post.text || "Mira esta publicación.";
-
-    if (navigator.share) {
-      await navigator.share({
-        title: shareTitle,
-        text: shareText,
-        url: postUrl,
-      });
-      return;
-    }
-
-    await navigator.clipboard.writeText(postUrl);
-    window.alert("Link copiado.");
   }
 
   async function handleToggleFlame() {
@@ -608,71 +513,45 @@ export default function PublicPostPageClient({
   }
 
   async function handleLoadCommentsForCard(postId: string): Promise<Comment[]> {
-  await handleOpenCommentsPanel();
-  return comments ?? [];
-}
-
-async function handleCreateCommentForCard(
-  postId: string,
-  text: string
-): Promise<Comment[]> {
-  if (!currentUserId) {
-    requireLogin("Inicia sesión para comentar.");
+    await handleOpenCommentsPanel();
     return comments ?? [];
   }
 
-  const cleanText = text.trim();
-  if (!cleanText) return comments ?? [];
+  async function handleCreateCommentForCard(
+    postId: string,
+    text: string
+  ): Promise<Comment[]> {
+    if (!currentUserId) {
+      requireLogin("Inicia sesión para comentar.");
+      return comments ?? [];
+    }
 
-  await createPostComment({
-    postId,
-    text: cleanText,
-  });
+    const cleanText = text.trim();
+    if (!cleanText) return comments ?? [];
 
-  return await syncPostCommentsCount();
-}
+    await createPostComment({
+      postId,
+      text: cleanText,
+    });
 
-async function handleDeleteCommentForCard(
-  postId: string,
-  commentId: string
-): Promise<Comment[]> {
-  await handleDeleteComment(commentId);
-  return comments ?? [];
-}
+    return await syncPostCommentsCount();
+  }
 
-async function handleToggleFlameForCard(postId: string): Promise<void> {
-  await handleToggleFlame();
-}
+  async function handleDeleteCommentForCard(
+    postId: string,
+    commentId: string
+  ): Promise<Comment[]> {
+    await handleDeleteComment(commentId);
+    return comments ?? [];
+  }
 
-async function handleToggleSaveForCard(postId: string): Promise<void> {
-  await handleToggleSave();
-}
+  async function handleToggleFlameForCard(postId: string): Promise<void> {
+    await handleToggleFlame();
+  }
 
-  const commentsPanel = (
-    <PostCommentsPanel
-      open={commentsPanelOpen || selectedImage !== null}
-      isMobile={selectedImage !== null ? false : isMobile}
-      postId={post.id}
-      comments={comments}
-      loading={loadingComments}
-      currentUserId={currentUserId}
-      isOwner={currentUserId === post.authorId}
-      isModerator={false}
-      canCommentOnPosts={!!currentUserId}
-      commentBlockedMessage="Inicia sesión para comentar."
-      commentText={commentText}
-      creatingComment={creatingComment}
-      deletingCommentId={deletingCommentId}
-      inlineError={inlineError}
-      onCommentTextChange={setCommentText}
-      onClose={() => setCommentsPanelOpen(false)}
-      onCreateComment={handleCreateComment}
-      onDeleteComment={handleDeleteComment}
-      onLoadReplies={handleLoadReplies}
-      onCreateReply={handleCreateReply}
-      onDeleteReply={handleDeleteReply}
-    />
-  );
+  async function handleToggleSaveForCard(postId: string): Promise<void> {
+    await handleToggleSave();
+  }
 
   return (
     <main className="relative z-10 min-h-screen bg-transparent text-white">
@@ -693,31 +572,31 @@ async function handleToggleSaveForCard(postId: string): Promise<void> {
           </Link>
         </div>
 
-<div className="relative z-10">
-<GroupPostCard
-  post={postForViewer}
-  canDelete={false}
-  onLoadComments={handleLoadCommentsForCard}
-  onCreateComment={handleCreateCommentForCard}
-  onDeleteComment={handleDeleteCommentForCard}
-  onLoadReplies={handleLoadReplies}
-  onCreateReply={handleCreateReply}
-  onDeleteReply={handleDeleteReply}
-  onToggleFlame={handleToggleFlameForCard}
-  onToggleSave={handleToggleSaveForCard}
-  currentUserId={currentUserId}
-  isOwner={currentUserId === post.authorId}
-  isModerator={false}
-  showGroupContext={true}
-  canModerateGroupAuthor={false}
-/>
-</div>
+        <div className="relative z-10">
+          <GroupPostCard
+            post={postForViewer}
+            canDelete={false}
+            onLoadComments={handleLoadCommentsForCard}
+            onCreateComment={handleCreateCommentForCard}
+            onDeleteComment={handleDeleteCommentForCard}
+            onLoadReplies={handleLoadReplies}
+            onCreateReply={handleCreateReply}
+            onDeleteReply={handleDeleteReply}
+            onToggleFlame={handleToggleFlameForCard}
+            onToggleSave={handleToggleSaveForCard}
+            currentUserId={currentUserId}
+            isOwner={currentUserId === post.authorId}
+            isModerator={false}
+            showGroupContext={true}
+            canModerateGroupAuthor={false}
+          />
+        </div>
 
-{inlineError ? (
-  <div className="mx-3 rounded-lg border border-red-400/25 bg-red-950/30 px-3 py-2 text-xs text-red-100 sm:mx-0">
-    {inlineError}
-  </div>
-) : null}
+        {inlineError ? (
+          <div className="mx-3 rounded-lg border border-red-400/25 bg-red-950/30 px-3 py-2 text-xs text-red-100 sm:mx-0">
+            {inlineError}
+          </div>
+        ) : null}
 
         <div className="mx-3 rounded-xl border border-white/10 bg-neutral-900/80 p-4 text-center backdrop-blur-md sm:mx-0">
           <p className="text-sm text-neutral-300">

@@ -79,10 +79,19 @@ function toPublicPostView(post: any): PublicPostView {
         })
         .map((item: any) => ({
           type: item.type,
-          url: typeof item.url === "string" ? item.url : "",
+          url: typeof item.url === "string" ? item.url.trim() : "",
           thumbnailUrl:
-            typeof item.thumbnailUrl === "string" ? item.thumbnailUrl : null,
-          altText: typeof item.altText === "string" ? item.altText : null,
+            typeof item.thumbnailUrl === "string" && item.thumbnailUrl.trim()
+              ? item.thumbnailUrl.trim()
+              : null,
+          thumbnailPath:
+            typeof item.thumbnailPath === "string" && item.thumbnailPath.trim()
+              ? item.thumbnailPath.trim()
+              : null,
+          altText:
+            typeof item.altText === "string" && item.altText.trim()
+              ? item.altText.trim()
+              : null,
 
           id: typeof item.id === "string" ? item.id : undefined,
           index: typeof item.index === "number" ? item.index : undefined,
@@ -92,7 +101,10 @@ function toPublicPostView(post: any): PublicPostView {
           assetId: typeof item.assetId === "string" ? item.assetId : null,
           playbackId:
             typeof item.playbackId === "string" ? item.playbackId : null,
-          hlsUrl: typeof item.hlsUrl === "string" ? item.hlsUrl : null,
+          hlsUrl:
+            typeof item.hlsUrl === "string" && item.hlsUrl.trim()
+              ? item.hlsUrl.trim()
+              : null,
           duration: typeof item.duration === "number" ? item.duration : null,
         }))
     : [];
@@ -130,7 +142,7 @@ function toPublicPostView(post: any): PublicPostView {
       typeof post.shareDescription === "string" ? post.shareDescription : null,
     shareImageUrl:
       typeof post.shareImageUrl === "string" && post.shareImageUrl.trim()
-        ? post.shareImageUrl
+        ? post.shareImageUrl.trim()
         : media[0]?.thumbnailUrl || media[0]?.url || null,
 
     counts: {

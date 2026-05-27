@@ -1,7 +1,10 @@
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 
 import { auth, storage } from "@/lib/firebase";
-import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
+import {
+  createImageThumbnailFile,
+  normalizeImageFile,
+} from "@/lib/uploads/image-normalizer";
 import type { PostMedia } from "./types";
 import { MAX_POST_IMAGES } from "./types";
 
@@ -29,6 +32,7 @@ function buildImageStoragePath(params: {
   uid: string;
   groupId: string;
   file: File;
+  variant?: "original" | "thumbnail";
 }): string {
   const extension = getSafeFileExtension(params.file);
   const timestamp = Date.now();
@@ -37,7 +41,9 @@ function buildImageStoragePath(params: {
       ? crypto.randomUUID()
       : Math.random().toString(36).slice(2);
 
-  return `posts/${params.groupId}/${params.uid}/${timestamp}-${randomId}.${extension}`;
+  const variantPath = params.variant === "thumbnail" ? "thumbnails" : "images";
+
+  return `posts/${params.groupId}/${params.uid}/${variantPath}/${timestamp}-${randomId}.${extension}`;
 }
 
 function getImageDimensions(file: File): Promise<{
@@ -88,15 +94,27 @@ export async function uploadPostImage(params: {
   });
 
   const fileToUpload = normalized.file;
+  const thumbnail = await createImageThumbnailFile(fileToUpload);
+  const thumbnailFile = thumbnail.file;
+
   const dimensions = await getImageDimensions(fileToUpload);
 
   const path = buildImageStoragePath({
     uid,
     groupId: params.groupId,
     file: fileToUpload,
+    variant: "original",
+  });
+
+  const thumbnailPath = buildImageStoragePath({
+    uid,
+    groupId: params.groupId,
+    file: thumbnailFile,
+    variant: "thumbnail",
   });
 
   const imageRef = ref(storage, path);
+  const thumbnailRef = ref(storage, thumbnailPath);
 
   await uploadBytes(imageRef, fileToUpload, {
     contentType: fileToUpload.type,
@@ -110,7 +128,23 @@ export async function uploadPostImage(params: {
     },
   });
 
-  const url = await getDownloadURL(imageRef);
+  await uploadBytes(thumbnailRef, thumbnailFile, {
+    contentType: thumbnailFile.type,
+    customMetadata: {
+      groupId: params.groupId,
+      uploadedBy: uid,
+      usage: "post_image_thumbnail",
+      originalName: normalized.originalName,
+      originalType: normalized.originalType,
+      wasConverted: String(normalized.wasConverted),
+      originalImagePath: path,
+    },
+  });
+
+  const [url, thumbnailUrl] = await Promise.all([
+    getDownloadURL(imageRef),
+    getDownloadURL(thumbnailRef),
+  ]);
 
   return {
     type: "image",
@@ -120,7 +154,8 @@ export async function uploadPostImage(params: {
     height: dimensions.height,
     size: fileToUpload.size,
     mimeType: fileToUpload.type,
-    thumbnailUrl: null,
+    thumbnailUrl,
+    thumbnailPath,
     altText: null,
   };
 }
@@ -130,7 +165,9 @@ export async function uploadPostImages(params: {
   files: File[];
 }): Promise<PostMedia[]> {
   if (params.files.length > MAX_POST_IMAGES) {
-    throw new Error(`Solo puedes subir hasta ${MAX_POST_IMAGES} imágenes por publicación.`);
+    throw new Error(
+      `Solo puedes subir hasta ${MAX_POST_IMAGES} imágenes por publicación.`
+    );
   }
 
   const uploadedImages: PostMedia[] = [];

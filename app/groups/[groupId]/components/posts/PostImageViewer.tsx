@@ -856,9 +856,15 @@ const flameButtonStyle: CSSProperties = {
       );
     }
 
+    const previewUrl =
+      typeof media.thumbnailUrl === "string" &&
+      media.thumbnailUrl.trim().length > 0
+        ? media.thumbnailUrl.trim()
+        : media.url;
+
     return (
       <img
-        src={media.url}
+        src={previewUrl}
         alt={media.altText || label}
         draggable={false}
         style={{

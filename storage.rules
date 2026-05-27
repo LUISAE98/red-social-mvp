@@ -50,14 +50,15 @@ service firebase.storage {
     // ==============================
     // POSTS (imagenes)
     // ==============================
-    match /posts/{groupId}/{uid}/{fileName} {
-      allow read: if true;
+match /posts/{groupId}/{uid}/{folder}/{fileName} {
+  allow read: if true;
 
-      allow write: if isSignedIn()
-        && request.auth.uid == uid
-        && isImage()
-        && maxSize(10 * 1024 * 1024);
-    }
+  allow write: if isSignedIn()
+    && request.auth.uid == uid
+    && (folder == "images" || folder == "thumbnails")
+    && isImage()
+    && maxSize(10 * 1024 * 1024);
+}
     // ==============================
     // GREETINGS (videos)
     // ==============================

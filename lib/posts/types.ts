@@ -34,6 +34,7 @@ export type PostMedia = {
   size?: number;
   mimeType?: string;
   thumbnailUrl?: string | null;
+  thumbnailPath?: string | null;
   altText?: string | null;
 
   /**

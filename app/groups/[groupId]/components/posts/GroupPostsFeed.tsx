@@ -873,18 +873,18 @@ export default function GroupPostsFeed({
         (item) => item.coverFile instanceof File,
       );
 
-      const uploadedVideoCovers =
-        videoCoverItems.length > 0
-          ? (setVideoUploadStatus("Subiendo portadas de videos..."),
-            await uploadPostImages({
-              groupId,
-              files: videoCoverItems.map((item) => item.coverFile as File),
-            })).map((media, index) => ({
-              mediaIndex: videoCoverItems[index]?.mediaIndex ?? index,
-              thumbnailUrl: media.url,
-              thumbnailPath: media.path ?? null,
-            }))
-          : [];
+const uploadedVideoCovers =
+  videoCoverItems.length > 0
+    ? (setVideoUploadStatus("Subiendo portadas de videos..."),
+      await uploadPostImages({
+        groupId,
+        files: videoCoverItems.map((item) => item.coverFile as File),
+      })).map((media, index) => ({
+        mediaIndex: videoCoverItems[index]?.mediaIndex ?? index,
+        thumbnailUrl: media.thumbnailUrl ?? media.url,
+        thumbnailPath: media.thumbnailPath ?? media.path ?? null,
+      }))
+    : [];
 
       const videoCoversByMediaIndex = new Map(
         uploadedVideoCovers.map((cover) => [cover.mediaIndex, cover]),

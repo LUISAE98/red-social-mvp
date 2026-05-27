@@ -1479,102 +1479,107 @@ const videoSkeletonStyle: CSSProperties = {
 
 const displayMedia = mediaFromPost
   .map<DisplayMediaItem | null>((item, index) => {
-      if (item.type === "image") {
-        if (
-          typeof item.url !== "string" ||
-          item.url.trim().length === 0 ||
-          failedMediaUrls[item.url]
-        ) {
-          return null;
-        }
-
-        return {
-          type: "image" as const,
-          url: item.url.trim(),
-          thumbnailUrl: item.thumbnailUrl ?? null,
-          altText: item.altText ?? null,
-          duration: null,
-          playbackUrl: null,
-          hlsUrl: null,
-          playbackId: null,
-          status: null,
-        };
+    if (item.type === "image") {
+      if (
+        typeof item.url !== "string" ||
+        item.url.trim().length === 0 ||
+        failedMediaUrls[item.url]
+      ) {
+        return null;
       }
 
-      if (item.type === "video") {
-        const playbackUrl =
-          typeof item.hlsUrl === "string" && item.hlsUrl.trim()
-            ? item.hlsUrl.trim()
-            : typeof item.url === "string" &&
-                item.url.trim() &&
-                !item.url.startsWith("mux://uploads/")
-              ? item.url.trim()
-              : null;
+      const thumbnailUrl =
+        typeof item.thumbnailUrl === "string" && item.thumbnailUrl.trim()
+          ? item.thumbnailUrl.trim()
+          : null;
 
-        const thumbnailUrl =
-          typeof item.thumbnailUrl === "string" && item.thumbnailUrl.trim()
-            ? item.thumbnailUrl.trim()
+      return {
+        type: "image" as const,
+        url: item.url.trim(),
+        thumbnailUrl,
+        altText: item.altText ?? null,
+        duration: null,
+        playbackUrl: null,
+        hlsUrl: null,
+        playbackId: null,
+        status: null,
+      };
+    }
+
+    if (item.type === "video") {
+      const playbackUrl =
+        typeof item.hlsUrl === "string" && item.hlsUrl.trim()
+          ? item.hlsUrl.trim()
+          : typeof item.url === "string" &&
+              item.url.trim() &&
+              !item.url.startsWith("mux://uploads/")
+            ? item.url.trim()
             : null;
 
-        const status =
-          typeof item.status === "string" && item.status.trim().length > 0
-            ? item.status.trim()
-            : null;
+      const thumbnailUrl =
+        typeof item.thumbnailUrl === "string" && item.thumbnailUrl.trim()
+          ? item.thumbnailUrl.trim()
+          : null;
 
-        const shouldReserveVideoSlot =
-          status === "uploading" ||
-          status === "processing" ||
-          status === "pending" ||
-          status === "created" ||
-          status === null;
+      const status =
+        typeof item.status === "string" && item.status.trim().length > 0
+          ? item.status.trim()
+          : null;
 
-        const isReadyVideo =
-          status === "ready" ||
-          Boolean(playbackUrl) ||
-          Boolean(item.hlsUrl);
+      const shouldReserveVideoSlot =
+        status === "uploading" ||
+        status === "processing" ||
+        status === "pending" ||
+        status === "created" ||
+        status === null;
 
-        const previewUrl = thumbnailUrl || playbackUrl || "";
+      const isReadyVideo =
+        status === "ready" ||
+        Boolean(playbackUrl) ||
+        Boolean(item.hlsUrl);
 
-        if (!isReadyVideo) {
-          if (!shouldReserveVideoSlot && !thumbnailUrl) {
-            return null;
-          }
+      const previewUrl = thumbnailUrl || playbackUrl || "";
 
-          return {
-            type: "video" as const,
-            url: previewUrl || `video-processing-placeholder-${post.id}-${index}`,
-            thumbnailUrl,
-            altText: item.altText ?? "Video preparándose",
-            duration: item.duration ?? null,
-            playbackUrl: null,
-            hlsUrl: item.hlsUrl ?? null,
-            playbackId: item.playbackId ?? null,
-            status,
-            isPlaceholder: true,
-          };
-        }
-
-        if (!previewUrl || failedMediaUrls[previewUrl]) {
+      if (!isReadyVideo) {
+        if (!shouldReserveVideoSlot && !thumbnailUrl) {
           return null;
         }
 
         return {
           type: "video" as const,
-          url: previewUrl,
+          url: previewUrl || `video-processing-placeholder-${post.id}-${index}`,
           thumbnailUrl,
-          altText: item.altText ?? "Video de la publicación",
+          altText: item.altText ?? "Video preparándose",
           duration: item.duration ?? null,
-          playbackUrl,
+          playbackUrl: null,
           hlsUrl: item.hlsUrl ?? null,
           playbackId: item.playbackId ?? null,
           status,
-          isPlaceholder: false,
+          isPlaceholder: true,
         };
       }
 
-      return null;
-    })
-.filter((item): item is DisplayMediaItem => item !== null);
+      if (!previewUrl || failedMediaUrls[previewUrl]) {
+        return null;
+      }
+
+      return {
+        type: "video" as const,
+        url: previewUrl,
+        thumbnailUrl,
+        altText: item.altText ?? "Video de la publicación",
+        duration: item.duration ?? null,
+        playbackUrl,
+        hlsUrl: item.hlsUrl ?? null,
+        playbackId: item.playbackId ?? null,
+        status,
+        isPlaceholder: false,
+      };
+    }
+
+    return null;
+  })
+  .filter((item): item is DisplayMediaItem => item !== null);
 
   const hasMediaGrid = displayMedia.length > 0;
 
@@ -2403,10 +2408,18 @@ style={{
           return renderVideoProcessingPlaceholder(media);
         }
 
+        const feedMediaUrl =
+          media.type === "image" &&
+          typeof media.thumbnailUrl === "string" &&
+          media.thumbnailUrl.trim().length > 0 &&
+          !failedMediaUrls[media.thumbnailUrl]
+            ? media.thumbnailUrl.trim()
+            : media.url;
+
         return (
           <>
             <img
-              src={media.url}
+              src={feedMediaUrl}
               alt={
                 media.altText ||
                 (media.type === "video"
@@ -2419,7 +2432,7 @@ style={{
               onError={() => {
                 setFailedMediaUrls((prev) => ({
                   ...prev,
-                  [media.url]: true,
+                  [feedMediaUrl]: true,
                 }));
               }}
             />
@@ -2470,7 +2483,17 @@ style={{
       };
 
       if (totalMedia === 1) {
-        const isLoaded = first.isPlaceholder ? true : loadedMediaUrls[first.url] === true;
+        const firstFeedUrl =
+          first.type === "image" &&
+          typeof first.thumbnailUrl === "string" &&
+          first.thumbnailUrl.trim().length > 0 &&
+          !failedMediaUrls[first.thumbnailUrl]
+            ? first.thumbnailUrl.trim()
+            : first.url;
+
+        const isLoaded = first.isPlaceholder
+          ? true
+          : loadedMediaUrls[firstFeedUrl] === true;
 
         return (
           <button
@@ -2502,7 +2525,7 @@ style={{
 
             {first.type === "image" && !isMobile && mediaAspectRatios[first.url] <= 0.82 && (
               <img
-                src={first.url}
+                src={firstFeedUrl}
                 alt=""
                 aria-hidden="true"
                 style={{
@@ -2522,7 +2545,7 @@ style={{
               renderVideoProcessingPlaceholder(first)
             ) : (
               <img
-                src={first.url}
+                src={firstFeedUrl}
                 alt={
                   first.altText ||
                   (first.type === "video"
@@ -2553,13 +2576,13 @@ style={{
 
                   setLoadedMediaUrls((prev) => ({
                     ...prev,
-                    [first.url]: true,
+                    [firstFeedUrl]: true,
                   }));
                 }}
                 onError={() => {
                   setFailedMediaUrls((prev) => ({
                     ...prev,
-                    [first.url]: true,
+                    [firstFeedUrl]: true,
                   }));
                 }}
               />
