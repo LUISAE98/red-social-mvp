@@ -26,14 +26,22 @@ export type PublicPostView = {
   id: string;
   text: string;
 
+  contextType: "group" | "profile";
+
   authorId: string | null;
   authorName: string;
   authorUsername: string | null;
   authorAvatarUrl: string | null;
 
   groupId: string | null;
-  groupName: string;
+  groupName: string | null;
   groupAvatarUrl: string | null;
+
+  profileId: string | null;
+  profileName: string | null;
+  profileUsername: string | null;
+  profileAvatarUrl: string | null;
+  profileRestricted: boolean | null;
 
   createdAtMs: number | null;
   createdAtExactLabel: string | null;
@@ -249,30 +257,58 @@ export default function PublicPostPageClient({
     ];
   }, [post.media, post.playback, post.processing, post.videoData]);
 
+    const isProfilePost = post.contextType === "profile";
+
   const postForViewer: Post = {
     id: post.id,
     text: post.text,
+
+    contextType: post.contextType,
+
     authorId: post.authorId || "",
     authorName: post.authorName,
     authorAvatarUrl: post.authorAvatarUrl,
     authorUsername: post.authorUsername,
-    groupId: post.groupId || "",
-    groupName: post.groupName,
-    groupAvatarUrl: post.groupAvatarUrl,
-    groupVisibility: "public",
+
+    groupId: isProfilePost ? null : post.groupId || "",
+    groupName: isProfilePost ? null : post.groupName,
+    groupAvatarUrl: isProfilePost ? null : post.groupAvatarUrl,
+    groupVisibility: isProfilePost ? null : "public",
+
+    profileId: isProfilePost ? post.profileId || post.authorId : null,
+    profileName: isProfilePost ? post.profileName || post.authorName : null,
+    profileAvatarUrl: isProfilePost
+      ? post.profileAvatarUrl || post.authorAvatarUrl
+      : null,
+    profileUsername: isProfilePost
+      ? post.profileUsername || post.authorUsername
+      : null,
+    profileRestricted: isProfilePost ? post.profileRestricted === true : null,
+
     isDeleted: false,
     isLocked: false,
     isShareable: true,
+
     access: "free",
     accessModel: "free",
+    accessScope: isProfilePost ? "profile" : "group",
+    requiresPayment: false,
+    requiresSubscription: false,
+    oneTimePrice: null,
+    currency: null,
+    purchaseType: null,
+
     media: post.media as Post["media"],
+
     counts: {
       likes: likesCount,
       comments: commentsCount,
       saves: savesCount,
     },
+
     viewerHasFlamed,
     viewerHasSaved,
+
     postType:
       post.postType ??
       (videoMedia.length > 0
@@ -280,6 +316,7 @@ export default function PublicPostPageClient({
         : imageMedia.length > 0
           ? "image"
           : "text"),
+
     videoData: post.videoData ?? null,
     playback: post.playback ?? null,
     processing: post.processing ?? {
@@ -587,7 +624,7 @@ export default function PublicPostPageClient({
             currentUserId={currentUserId}
             isOwner={currentUserId === post.authorId}
             isModerator={false}
-            showGroupContext={true}
+            showGroupContext={!isProfilePost}
             canModerateGroupAuthor={false}
           />
         </div>

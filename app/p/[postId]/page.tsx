@@ -58,6 +58,37 @@ function buildPreviewText(
   return `${safeText}...`;
 }
 
+function toAbsoluteUrl(value: string | null | undefined): string | undefined {
+  const cleanValue = (value || "").trim();
+
+  if (!cleanValue) {
+    return undefined;
+  }
+
+  if (cleanValue.startsWith("http://") || cleanValue.startsWith("https://")) {
+    return cleanValue;
+  }
+
+  const baseUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ||
+    process.env.VERCEL_URL ||
+    "";
+
+  const cleanBaseUrl = baseUrl
+    ? baseUrl.startsWith("http://") || baseUrl.startsWith("https://")
+      ? baseUrl.replace(/\/$/, "")
+      : `https://${baseUrl.replace(/\/$/, "")}`
+    : "";
+
+  if (!cleanBaseUrl) {
+    return undefined;
+  }
+
+  return `${cleanBaseUrl}${cleanValue.startsWith("/") ? "" : "/"}${cleanValue}`;
+}
+
 function toPublicPostView(post: any): PublicPostView {
   const createdAtDate = getDateFromTimestamp(post.createdAt);
 
@@ -115,6 +146,22 @@ function toPublicPostView(post: any): PublicPostView {
   return {
     id: post.id,
     text: typeof post.text === "string" ? post.text : "",
+
+    contextType: post.contextType === "profile" ? "profile" : "group",
+
+    profileId: typeof post.profileId === "string" ? post.profileId : null,
+    profileName:
+      typeof post.profileName === "string" && post.profileName.trim()
+        ? post.profileName
+        : null,
+    profileUsername:
+      typeof post.profileUsername === "string" ? post.profileUsername : null,
+    profileAvatarUrl:
+      typeof post.profileAvatarUrl === "string" ? post.profileAvatarUrl : null,
+    profileRestricted:
+      typeof post.profileRestricted === "boolean"
+        ? post.profileRestricted
+        : null,
 
     authorId: typeof post.authorId === "string" ? post.authorId : null,
     authorName:
@@ -183,19 +230,33 @@ export async function generateMetadata({
   }
 
   const publicPost = toPublicPostView(post);
-  const title = buildPreviewText(publicPost.text || publicPost.shareTitle);
-  const url = buildPublicPostUrl(publicPost.id);
-  const imageUrl = publicPost.shareImageUrl || undefined;
+
+  const title = buildPreviewText(
+    publicPost.shareTitle || publicPost.text || "Publicación en Vibra",
+    90
+  );
+
+  const description = buildPreviewText(
+    publicPost.shareDescription ||
+      publicPost.text ||
+      `Publicación de ${publicPost.authorName || "Vibra"}`,
+    160
+  );
+
+  const url = toAbsoluteUrl(buildPublicPostUrl(publicPost.id));
+  const imageUrl = toAbsoluteUrl(publicPost.shareImageUrl);
 
   return {
     title,
-    description: undefined,
-    alternates: {
-      canonical: url,
-    },
+    description,
+    alternates: url
+      ? {
+          canonical: url,
+        }
+      : undefined,
     openGraph: {
       title,
-      description: undefined,
+      description,
       url,
       siteName: "Vibra",
       type: "article",
@@ -213,7 +274,7 @@ export async function generateMetadata({
     twitter: {
       card: imageUrl ? "summary_large_image" : "summary",
       title,
-      description: undefined,
+      description,
       images: imageUrl ? [imageUrl] : undefined,
     },
   };

@@ -17,9 +17,19 @@ function normalizeGroupVisibility(value: unknown): GroupVisibility | null {
 }
 
 function getPostContextType(post: Post): PostContextType {
-  return post.contextType === "profile" || pickString(post.profileId)
-    ? "profile"
-    : "group";
+  const contextType = (post as any).contextType;
+  const accessScope = (post as any).accessScope;
+
+  if (
+    contextType === "profile" ||
+    accessScope === "profile" ||
+    pickString(post.profileId) ||
+    (!pickString(post.groupId) && pickString(post.authorId))
+  ) {
+    return "profile";
+  }
+
+  return "group";
 }
 
 function isFreePost(post: Post): boolean {
@@ -48,8 +58,7 @@ function isFreePublicProfilePost(post: Post): boolean {
   return (
     isFreePost(post) &&
     getPostContextType(post) === "profile" &&
-    post.profileRestricted !== true &&
-    post.isShareable !== false
+    post.profileRestricted !== true
   );
 }
 
