@@ -80,7 +80,111 @@ function isPostDeleted(postData: FirebaseFirestore.DocumentData): boolean {
   );
 }
 
-function isFreePublicPost(postData: FirebaseFirestore.DocumentData): boolean {
+function isProfilePost(postData: FirebaseFirestore.DocumentData): boolean {
+  return (
+    postData.contextType === "profile" &&
+    typeof postData.profileId === "string" &&
+    postData.profileId.trim().length > 0 &&
+    postData.authorId === postData.profileId
+  );
+}
+
+async function userHasBlockedUser(
+  tx: FirebaseFirestore.Transaction,
+  blockerUid: string,
+  blockedUid: string
+): Promise<boolean> {
+  if (!blockerUid.trim() || !blockedUid.trim()) {
+    return false;
+  }
+
+  const snap = await tx.get(
+    db.collection("users").doc(blockerUid).collection("blockedUsers").doc(blockedUid)
+  );
+
+  return snap.exists;
+}
+
+async function usersHaveBlockBetween(
+  tx: FirebaseFirestore.Transaction,
+  userA: string,
+  userB: string
+): Promise<boolean> {
+  const [aBlockedB, bBlockedA] = await Promise.all([
+    userHasBlockedUser(tx, userA, userB),
+    userHasBlockedUser(tx, userB, userA),
+  ]);
+
+  return aBlockedB || bBlockedA;
+}
+
+async function assertUserCanSaveProfilePost(params: {
+  tx: FirebaseFirestore.Transaction;
+  uid: string;
+  postData: FirebaseFirestore.DocumentData;
+}): Promise<void> {
+  const { tx, uid, postData } = params;
+
+  const profileId =
+    typeof postData.profileId === "string" ? postData.profileId.trim() : "";
+
+  if (!profileId) {
+    throw new HttpsError(
+      "permission-denied",
+      "No tienes acceso a esta publicación."
+    );
+  }
+
+  if (postData.authorId === uid || profileId === uid) {
+    return;
+  }
+
+  const profileRef = db.collection("users").doc(profileId);
+  const profileSnap = await tx.get(profileRef);
+
+  if (!profileSnap.exists) {
+    throw new HttpsError(
+      "permission-denied",
+      "No tienes acceso a esta publicación."
+    );
+  }
+
+  const profileData = profileSnap.data() ?? {};
+  const showPosts = profileData.showPosts !== false;
+  const profileRestricted = profileData.profileRestricted === true;
+
+  if (!showPosts || profileRestricted) {
+    throw new HttpsError(
+      "permission-denied",
+      "No tienes acceso a esta publicación."
+    );
+  }
+
+  const blocked = await usersHaveBlockBetween(tx, uid, profileId);
+
+  if (blocked) {
+    throw new HttpsError(
+      "permission-denied",
+      "No tienes acceso a esta publicación."
+    );
+  }
+
+  const accessModel =
+    typeof postData.accessModel === "string" ? postData.accessModel : "free";
+
+  if (
+    accessModel !== "free" ||
+    postData.requiresPayment === true ||
+    postData.requiresSubscription === true
+  ) {
+    throw new HttpsError(
+      "permission-denied",
+      "No tienes acceso a esta publicación."
+    );
+  }
+}
+
+function isFreePublicGroupPost(postData: FirebaseFirestore.DocumentData): boolean {
   return (
     !isPostDeleted(postData) &&
     typeof postData.groupId === "string" &&
@@ -100,7 +204,17 @@ async function assertUserCanSavePost(params: {
 }): Promise<void> {
   const { tx, uid, postData } = params;
 
-  if (isFreePublicPost(postData)) {
+  if (isProfilePost(postData)) {
+    await assertUserCanSaveProfilePost({
+      tx,
+      uid,
+      postData,
+    });
+
+    return;
+  }
+
+  if (isFreePublicGroupPost(postData)) {
     return;
   }
 
@@ -257,33 +371,38 @@ export const togglePostSave = onCall<TogglePostSavePayload>(
         { merge: true }
       );
 
-      tx.set(
-        userSavedPostRef,
-        {
-          postId,
-          userId: uid,
-          groupId: typeof postData.groupId === "string" ? postData.groupId : null,
-          authorId:
-            typeof postData.authorId === "string" ? postData.authorId : null,
-          savedAt: now,
-          postCreatedAt: postData.createdAt ?? null,
-          isVisible: true,
-          isDeleted: false,
-          groupVisibility:
-            typeof postData.groupVisibility === "string"
-              ? postData.groupVisibility
-              : null,
-          accessModel:
-            typeof postData.accessModel === "string"
-              ? postData.accessModel
-              : "free",
-          requiresPayment: postData.requiresPayment === true,
-          requiresSubscription: postData.requiresSubscription === true,
-          updatedAt: now,
-          version: 1,
-        },
-        { merge: true }
-      );
+tx.set(
+  userSavedPostRef,
+  {
+    postId,
+    userId: uid,
+    contextType:
+      postData.contextType === "profile" ? "profile" : "group",
+    groupId: typeof postData.groupId === "string" ? postData.groupId : null,
+    profileId:
+      typeof postData.profileId === "string" ? postData.profileId : null,
+    authorId:
+      typeof postData.authorId === "string" ? postData.authorId : null,
+    savedAt: now,
+    postCreatedAt: postData.createdAt ?? null,
+    isVisible: true,
+    isDeleted: false,
+    groupVisibility:
+      typeof postData.groupVisibility === "string"
+        ? postData.groupVisibility
+        : null,
+    profileRestricted: postData.profileRestricted === true,
+    accessModel:
+      typeof postData.accessModel === "string"
+        ? postData.accessModel
+        : "free",
+    requiresPayment: postData.requiresPayment === true,
+    requiresSubscription: postData.requiresSubscription === true,
+    updatedAt: now,
+    version: 1,
+  },
+  { merge: true }
+);
 
       tx.update(postRef, {
         "counts.saves": nextSaves,

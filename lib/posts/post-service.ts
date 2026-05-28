@@ -179,6 +179,127 @@ export type PostFlameUser = {
 const POST_COMMENTS_CACHE = new Map<string, Comment[]>();
 const COMMENT_REPLIES_CACHE = new Map<string, CommentReply[]>();
 
+const PROFILE_COMMENT_FOLLOW_WAIT_MS = 24 * 60 * 60 * 1000;
+
+async function userHasBlockedUser(
+  blockerUid: string,
+  blockedUid: string
+): Promise<boolean> {
+  if (!blockerUid.trim() || !blockedUid.trim()) {
+    return false;
+  }
+
+  try {
+    const snap = await getDoc(
+      doc(db, "users", blockerUid, "blockedUsers", blockedUid)
+    );
+
+    return snap.exists();
+  } catch {
+    return false;
+  }
+}
+
+async function assertNoProfileCommentBlock(
+  viewerUid: string,
+  profileId: string
+): Promise<void> {
+  const [viewerBlockedProfile, profileBlockedViewer] = await Promise.all([
+    userHasBlockedUser(viewerUid, profileId),
+    userHasBlockedUser(profileId, viewerUid),
+  ]);
+
+  if (viewerBlockedProfile || profileBlockedViewer) {
+    throw new Error("No puedes comentar en este perfil.");
+  }
+}
+
+function readTimestampMillis(value: unknown): number | null {
+  if (!value) return null;
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toMillis" in value &&
+    typeof (value as Timestamp).toMillis === "function"
+  ) {
+    const millis = (value as Timestamp).toMillis();
+    return Number.isFinite(millis) ? millis : null;
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as { toDate: () => Date }).toDate === "function"
+  ) {
+    const date = (value as { toDate: () => Date }).toDate();
+    const millis = date.getTime();
+    return Number.isFinite(millis) ? millis : null;
+  }
+
+  if (value instanceof Date) {
+    const millis = value.getTime();
+    return Number.isFinite(millis) ? millis : null;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string") {
+    const millis = new Date(value).getTime();
+    return Number.isFinite(millis) ? millis : null;
+  }
+
+  return null;
+}
+
+async function assertUserCanCommentOnProfilePost(params: {
+  profileId: string;
+  viewerUid: string;
+}): Promise<void> {
+  const profileId = params.profileId.trim();
+  const viewerUid = params.viewerUid.trim();
+
+  if (!profileId || !viewerUid) {
+    throw new Error("No puedes comentar en este perfil.");
+  }
+
+  await assertNoProfileCommentBlock(viewerUid, profileId);
+
+  if (profileId === viewerUid) {
+    return;
+  }
+
+  const profile = await fetchProfileById(profileId);
+
+  if (profile.profileRestricted) {
+    throw new Error("No puedes comentar en este perfil.");
+  }
+
+  const followSnap = await getDoc(
+    doc(db, "users", viewerUid, "following", profileId)
+  );
+
+  if (!followSnap.exists()) {
+    throw new Error("Debes seguir este perfil para comentar.");
+  }
+
+  const followData = followSnap.data() as Record<string, unknown>;
+  const followedAtMillis = readTimestampMillis(followData.createdAt);
+
+  if (!followedAtMillis) {
+    throw new Error("Podrás comentar 24 horas después de seguir este perfil.");
+  }
+
+  const canCommentAt = followedAtMillis + PROFILE_COMMENT_FOLLOW_WAIT_MS;
+
+  if (Date.now() < canCommentAt) {
+    throw new Error("Podrás comentar 24 horas después de seguir este perfil.");
+  }
+}
+
 function getCommentRepliesCacheKey(postId: string, commentId: string): string {
   return `${postId}__${commentId}`;
 }
@@ -647,6 +768,7 @@ function buildShareMetadata(params: {
   authorName?: string | null;
   contextType?: PostContextType | null;
   groupVisibility?: GroupVisibility | null;
+  profileRestricted?: boolean | null;
   accessModel?: Post["accessModel"];
   requiresPayment?: boolean;
   requiresSubscription?: boolean;
@@ -668,10 +790,13 @@ function buildShareMetadata(params: {
   const isPublicGroup =
     params.contextType !== "profile" && params.groupVisibility === "public";
 
+  const isPublicProfile =
+    params.contextType === "profile" && params.profileRestricted !== true;
+
   const cleanText = params.text.trim();
 
   return {
-    isShareable: isFree && isPublicGroup,
+    isShareable: isFree && (isPublicGroup || isPublicProfile),
     publicSlug: null,
     shareTitle: cleanText
       ? truncateForShare(cleanText, 80)
@@ -699,6 +824,7 @@ function normalizePostMetadata(post: Post): Post {
     authorName: post.authorName,
     contextType,
     groupVisibility: post.groupVisibility,
+    profileRestricted: post.profileRestricted,
     accessModel: post.accessModel,
     requiresPayment: post.requiresPayment,
     requiresSubscription: post.requiresSubscription,
@@ -722,7 +848,10 @@ function normalizePostMetadata(post: Post): Post {
     profileUsername: post.profileUsername ?? null,
     profileRestricted: post.profileRestricted ?? null,
 
-    isShareable: post.isShareable ?? shareMetadata.isShareable,
+    isShareable:
+      contextType === "profile"
+        ? shareMetadata.isShareable
+        : post.isShareable ?? shareMetadata.isShareable,
     publicSlug: post.publicSlug ?? shareMetadata.publicSlug,
     shareTitle: post.shareTitle ?? shareMetadata.shareTitle,
     shareDescription: post.shareDescription ?? shareMetadata.shareDescription,
@@ -1211,11 +1340,10 @@ async function ensureUserCanCommentOnPost(
     throw new Error("La publicación no pertenece a un perfil válido.");
   }
 
-  const profile = await fetchProfileById(profileId);
-
-  if (profile.profileRestricted && profileId !== userUid) {
-    throw new Error("No puedes comentar en este perfil.");
-  }
+  await assertUserCanCommentOnProfilePost({
+    profileId,
+    viewerUid: userUid,
+  });
 }
 
 export async function fetchGroupPostsPage(params: {
@@ -1849,6 +1977,7 @@ export async function createTextPost(params: {
     authorName: author.authorName,
     contextType: context.contextType,
     groupVisibility: context.groupVisibility,
+    profileRestricted: context.profileRestricted,
     accessModel: "free",
     requiresPayment: false,
     requiresSubscription: false,
@@ -1973,6 +2102,7 @@ export async function createImagePost(params: {
     authorName: author.authorName,
     contextType: context.contextType,
     groupVisibility: context.groupVisibility,
+    profileRestricted: context.profileRestricted,
     accessModel: "free",
     requiresPayment: false,
     requiresSubscription: false,
@@ -2204,6 +2334,7 @@ export async function createMediaPost(params: {
     authorName: author.authorName,
     contextType: context.contextType,
     groupVisibility: context.groupVisibility,
+    profileRestricted: context.profileRestricted,
     accessModel: "free",
     requiresPayment: false,
     requiresSubscription: false,
@@ -2367,6 +2498,7 @@ export async function createVideoPost(params: {
     authorName: author.authorName,
     contextType: context.contextType,
     groupVisibility: context.groupVisibility,
+    profileRestricted: context.profileRestricted,
     accessModel: "free",
     requiresPayment: false,
     requiresSubscription: false,

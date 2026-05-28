@@ -1517,6 +1517,32 @@ function canReadProfileContent(profileUid) {
     );
 }
 
+function userFollowsProfile(viewerUid, profileUid) {
+  return exists(/databases/$(database)/documents/users/$(viewerUid)/following/$(profileUid))
+    && get(/databases/$(database)/documents/users/$(viewerUid)/following/$(profileUid)).data.userId == viewerUid
+    && get(/databases/$(database)/documents/users/$(viewerUid)/following/$(profileUid)).data.targetUserId == profileUid;
+}
+
+function profileFollowIsOldEnoughForComment(viewerUid, profileUid) {
+  return userFollowsProfile(viewerUid, profileUid)
+    && get(/databases/$(database)/documents/users/$(viewerUid)/following/$(profileUid)).data.createdAt is timestamp
+    && get(/databases/$(database)/documents/users/$(viewerUid)/following/$(profileUid)).data.createdAt <= request.time - duration.value(24, "h");
+}
+
+function canCommentOnProfilePost(profileUid) {
+  return signedIn()
+    && userExists(profileUid)
+    && !usersHaveBlockBetween(request.auth.uid, profileUid)
+    && (
+      request.auth.uid == profileUid
+      ||
+      (
+        profileAllowsPublicPosts(profileUid)
+        && profileFollowIsOldEnoughForComment(request.auth.uid, profileUid)
+      )
+    );
+}
+
 function isGroupPostData(data) {
   return (
     !("contextType" in data)
@@ -1903,7 +1929,7 @@ function canWritePostCommentData(data) {
       ||
       (
         isProfilePostData(data)
-        && canReadProfileContent(data.profileId)
+        && canCommentOnProfilePost(data.profileId)
       )
     );
 }

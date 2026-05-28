@@ -58,6 +58,7 @@ import ProfileSocialActions from "./components/ProfileSocialActions";
 import GroupPostComposer from "@/app/groups/[groupId]/components/posts/GroupPostComposer";
 import { createMediaPost, createTextPost } from "@/lib/posts/post-service";
 import { uploadPostImages } from "@/lib/posts/image-upload";
+import { clearAllPostFeedCaches } from "@/lib/posts/post-feed-cache";
 import type { PostMedia } from "@/lib/posts/types";
 
 type SafeCropperProps = {
@@ -1084,6 +1085,7 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
       });
     }
 
+    clearAllPostFeedCaches();
     setProfilePostsRefreshKey((value) => value + 1);
     setMsg("✅ Publicación creada en tu perfil.");
 
