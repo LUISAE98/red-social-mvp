@@ -1543,11 +1543,15 @@ function canReadPublicSharedPost() {
       (
         isGroupPostData(resource.data)
         && resource.data.groupVisibility == "public"
+        && (
+          !("isShareable" in resource.data)
+          || resource.data.isShareable == true
+        )
       )
       ||
       (
-        isProfilePostData(resource.data)
-        && profileAllowsPublicPosts(resource.data.profileId)
+        resource.data.contextType == "profile"
+        && resource.data.profileRestricted == false
       )
     )
 
@@ -1564,11 +1568,6 @@ function canReadPublicSharedPost() {
           || resource.data.search.isDeleted == false
         )
       )
-    )
-
-    && (
-      !("isShareable" in resource.data)
-      || resource.data.isShareable == true
     )
 
     && (
@@ -1826,17 +1825,16 @@ function canListPublicSearchablePost() {
       (
         isGroupPostData(resource.data)
         && resource.data.groupVisibility == "public"
+        && (
+          !("isShareable" in resource.data)
+          || resource.data.isShareable == true
+        )
       )
       ||
       (
-        isProfilePostData(resource.data)
-        && profileAllowsPublicPosts(resource.data.profileId)
+        resource.data.contextType == "profile"
+        && resource.data.profileRestricted == false
       )
-    )
-
-    && (
-      !("isShareable" in resource.data)
-      || resource.data.isShareable == true
     )
 
     && (

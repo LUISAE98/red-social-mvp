@@ -575,23 +575,26 @@ function buildPostSearchIndexForContext(params: {
     });
   }
 
-  return {
-    textNormalized: params.text.trim().toLowerCase(),
-    tokens: [],
-    prefixes: [],
-    contextType: "profile" as const,
-    groupId: null,
-    profileId: params.context.profileId,
+  const profileSearch = buildPostSearchIndex({
+    text: params.text,
+    groupId: "__profile__",
+    groupVisibility: "public",
     authorId: params.authorId,
-    visibility: null,
-    accessScope: "profile" as const,
+    accessScope: "profile",
     isDeleted: params.isDeleted,
     createdAt: params.createdAt,
     updatedAt: params.updatedAt,
-    version: 1 as const,
+  });
+
+  return {
+    ...profileSearch,
+    contextType: "profile" as const,
+    groupId: null,
+    profileId: params.context.profileId,
+    visibility: "public",
+    accessScope: "profile" as const,
   };
 }
-
 function hydratePost(
   raw: Post,
   userMap: Record<string, UserProfileLookup>,

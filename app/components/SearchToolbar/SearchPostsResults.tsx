@@ -147,7 +147,11 @@ async function filterOutBlockedPosts(posts: Post[], userId: string) {
   if (!posts.length) return posts;
 
   const uniqueGroupIds = Array.from(
-    new Set(posts.map((p) => p.groupId).filter(Boolean))
+    new Set(
+      posts
+        .map((post) => post.groupId)
+        .filter((groupId): groupId is string => typeof groupId === "string" && groupId.length > 0)
+    )
   );
 
   const entries = await Promise.all(
@@ -160,6 +164,8 @@ async function filterOutBlockedPosts(posts: Post[], userId: string) {
   const map = new Map(entries);
 
   return posts.filter((post) => {
+    if (!post.groupId) return true;
+
     const status = map.get(post.groupId) ?? null;
     return status !== "banned" && status !== "removed";
   });
@@ -167,12 +173,17 @@ async function filterOutBlockedPosts(posts: Post[], userId: string) {
 
 async function attachModerationFlags(posts: Post[], userId: string) {
   const groupIds = Array.from(
-    new Set(posts.map((p) => p.groupId).filter(Boolean))
+    new Set(
+      posts
+        .map((post) => post.groupId)
+        .filter((groupId): groupId is string => typeof groupId === "string" && groupId.length > 0)
+    )
   );
 
   const modEntries = await Promise.all(
     groupIds.map(
-      async (g) => [g, await getViewerCanModerateGroup(g, userId)] as const
+      async (groupId) =>
+        [groupId, await getViewerCanModerateGroup(groupId, userId)] as const
     )
   );
 
@@ -180,7 +191,9 @@ async function attachModerationFlags(posts: Post[], userId: string) {
 
   return posts.map((post) => ({
     ...post,
-    canModerateGroupAuthor: modMap.get(post.groupId) === true,
+    canModerateGroupAuthor: post.groupId
+      ? modMap.get(post.groupId) === true
+      : false,
   }));
 }
 
