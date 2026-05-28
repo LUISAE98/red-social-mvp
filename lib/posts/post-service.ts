@@ -1469,35 +1469,61 @@ function normalizeHomeFeedPostSnapshot(params: {
   }
 
   const postId =
-    typeof feedData.postId === "string" && feedData.postId.trim().length > 0
-      ? feedData.postId.trim()
-      : feedDocId;
+    pickString(feedData.postId) ||
+    pickString((snapshot as Record<string, unknown>).id) ||
+    feedDocId;
 
   if (!postId) {
     return null;
   }
 
-  if (snapshot.isDeleted === true || feedData.isDeleted === true) {
+  if (
+    snapshot.isDeleted === true ||
+    feedData.isDeleted === true ||
+    Boolean(snapshot.deletedAt)
+  ) {
     return null;
   }
 
+  const authorId = pickString(snapshot.authorId) || pickString(feedData.authorId);
+
+  if (!authorId) {
+    return null;
+  }
+
+  const contextType: PostContextType =
+    snapshot.contextType === "profile" ||
+    feedData.sourceType === "profile" ||
+    pickString(snapshot.profileId) ||
+    pickString(feedData.profileId)
+      ? "profile"
+      : "group";
+
   const groupId =
-    typeof snapshot.groupId === "string" && snapshot.groupId.trim().length > 0
-      ? snapshot.groupId.trim()
+    contextType === "group"
+      ? pickString(snapshot.groupId) || pickString(feedData.groupId)
       : null;
 
-  const authorId =
-    typeof snapshot.authorId === "string" && snapshot.authorId.trim().length > 0
-      ? snapshot.authorId.trim()
+  const profileId =
+    contextType === "profile"
+      ? pickString(snapshot.profileId) || pickString(feedData.profileId) || authorId
       : null;
 
-  if (!groupId || !authorId) {
+  if (contextType === "group" && !groupId) {
+    return null;
+  }
+
+  if (contextType === "profile" && !profileId) {
     return null;
   }
 
   return {
     id: postId,
     ...(snapshot as Omit<Post, "id">),
+    contextType,
+    groupId,
+    profileId,
+    authorId,
     canModerateGroupAuthor: feedData.canModerateGroupAuthor ?? false,
     authorMemberStatus: feedData.authorMemberStatus ?? null,
     authorMutedUntil: feedData.authorMutedUntil ?? null,

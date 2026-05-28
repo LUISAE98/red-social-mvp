@@ -560,19 +560,15 @@ const normalizedPosts = result.posts
 
       const result = await togglePostSave(postId);
 
-      syncPostsState((prev) => {
-        const targetPost = prev.find((post) => post.id === postId);
-        const currentSaves = targetPost?.counts?.saves ?? 0;
-        const nextSaves = Math.max(0, currentSaves + result.delta);
+      const targetPost = posts.find((post) => post.id === postId);
+      const currentSaves = targetPost?.counts?.saves ?? 0;
+      const nextSaves = Math.max(0, currentSaves + result.delta);
 
-        patchPostInAllFeedCaches(postId, {
-          viewerHasSaved: result.saved,
-          counts: {
-            saves: nextSaves,
-          } as Post["counts"],
-        });
-
-        return prev;
+      patchPostInAllFeedCaches(postId, {
+        viewerHasSaved: result.saved,
+        counts: {
+          saves: nextSaves,
+        } as Post["counts"],
       });
     } catch (e: any) {
       setError(e?.message ?? "No se pudo actualizar el guardado.");

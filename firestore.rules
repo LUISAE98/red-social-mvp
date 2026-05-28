@@ -1638,7 +1638,17 @@ function canReadPostFromOwnHomeFeed() {
   return signedIn()
     && resource.data.isDeleted == false
     && exists(/databases/$(database)/documents/users/$(request.auth.uid)/homeFeed/$(postId))
-    && get(/databases/$(database)/documents/users/$(request.auth.uid)/homeFeed/$(postId)).data.isVisible == true;
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)/homeFeed/$(postId)).data.isVisible == true
+    && (
+      (
+        isGroupPostData(resource.data)
+      )
+      ||
+      (
+        isProfilePostData(resource.data)
+        && canReadProfileContent(resource.data.profileId)
+      )
+    );
 }
 
 function validPostCommonCreateShape() {

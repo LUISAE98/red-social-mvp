@@ -130,6 +130,8 @@ export {
   onHomeFeedMembershipCreated,
   onHomeFeedMembershipDeleted,
   onHomeFeedMemberStatusChanged,
+  onHomeFeedFollowingDeleted,
+  onHomeFeedBlockedUserCreated,
 } from "./home-feed";
 
 // Profile Feed materializado

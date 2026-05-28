@@ -1,12 +1,26 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+
+dotenv.config({ path: ".env.local" });
+
 import * as admin from "firebase-admin";
+
+type FeedSourceType = "group" | "profile";
 
 function initializeAdmin() {
   if (admin.apps.length) return;
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+const projectId =
+  process.env.FIREBASE_PROJECT_ID ??
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+
+const clientEmail =
+  process.env.FIREBASE_CLIENT_EMAIL ??
+  process.env.FIREBASE_ADMIN_CLIENT_EMAIL;
+
+const privateKey = (
+  process.env.FIREBASE_PRIVATE_KEY ??
+  process.env.FIREBASE_ADMIN_PRIVATE_KEY
+)?.replace(/\\n/g, "\n");
 
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
@@ -23,16 +37,16 @@ function initializeAdmin() {
   });
 }
 
-function pickPostId(
-  feedDoc: FirebaseFirestore.QueryDocumentSnapshot
-): string {
-  const data = feedDoc.data();
+function pickString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
 
-  if (typeof data.postId === "string" && data.postId.trim()) {
-    return data.postId.trim();
-  }
-
-  return feedDoc.id;
+function getPostSourceType(postData: FirebaseFirestore.DocumentData): FeedSourceType {
+  return postData.contextType === "profile" || pickString(postData.profileId)
+    ? "profile"
+    : "group";
 }
 
 async function main() {
@@ -42,100 +56,72 @@ async function main() {
 
   const homeFeedSnap = await db.collectionGroup("homeFeed").get();
 
-  let checked = 0;
-  let deletedMissingPost = 0;
-  let deletedSoftDeletedPost = 0;
-  let refreshed = 0;
+  let updated = 0;
   let skipped = 0;
+  let missingPost = 0;
 
-  let batch = db.batch();
-  let batchOps = 0;
-
-  async function commitBatchIfNeeded(force = false) {
-    if (batchOps === 0) return;
-
-    if (force || batchOps >= 450) {
-      await batch.commit();
-      batch = db.batch();
-      batchOps = 0;
-    }
-  }
+  console.log(`Entradas homeFeed encontradas: ${homeFeedSnap.size}`);
+  console.log("");
 
   for (const feedDoc of homeFeedSnap.docs) {
-    checked += 1;
-
     const feedData = feedDoc.data();
-    const postId = pickPostId(feedDoc);
 
-    const postRef = db.collection("posts").doc(postId);
-    const postSnap = await postRef.get();
+    const postId = pickString(feedData.postId) || feedDoc.id;
+
+    if (!postId) {
+      skipped += 1;
+      console.log(`SKIP ${feedDoc.ref.path} -> sin postId`);
+      continue;
+    }
+
+    const postSnap = await db.collection("posts").doc(postId).get();
 
     if (!postSnap.exists) {
-      batch.delete(feedDoc.ref);
-      batchOps += 1;
-      deletedMissingPost += 1;
-      await commitBatchIfNeeded();
-      console.log(`DELETE ${feedDoc.ref.path} -> post no existe`);
+      missingPost += 1;
+      console.log(`MISSING ${feedDoc.ref.path} -> post no existe: ${postId}`);
       continue;
     }
 
     const postData = postSnap.data() ?? {};
 
-    if (postData.isDeleted === true) {
-      batch.delete(feedDoc.ref);
-      batchOps += 1;
-      deletedSoftDeletedPost += 1;
-      await commitBatchIfNeeded();
-      console.log(`DELETE ${feedDoc.ref.path} -> post eliminado`);
-      continue;
-    }
+    const sourceType = getPostSourceType(postData);
+    const groupId = pickString(postData.groupId);
+    const authorId = pickString(postData.authorId);
+    const profileId = pickString(postData.profileId);
 
-    const currentSnapshot = feedData.postSnapshot;
-
-    if (
-      !currentSnapshot ||
-      currentSnapshot.isDeleted === true ||
-      currentSnapshot.updatedAt !== postData.updatedAt
-    ) {
-      batch.set(
-        feedDoc.ref,
-        {
-          postId,
-          isVisible: true,
-          groupId: postData.groupId ?? feedData.groupId ?? null,
-          authorId: postData.authorId ?? feedData.authorId ?? null,
-          createdAt: postData.createdAt ?? feedData.createdAt ?? null,
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          postSnapshot: {
-            ...postData,
-            id: postId,
-          },
+    await feedDoc.ref.set(
+      {
+        postId,
+        groupId,
+        authorId,
+        profileId,
+        sourceType,
+        isVisible:
+          postData.isDeleted !== true &&
+          postData.search?.isDeleted !== true &&
+          !postData.deletedAt,
+        createdAt:
+          postData.createdAt ?? feedData.createdAt ?? admin.firestore.FieldValue.serverTimestamp(),
+        postSnapshot: {
+          ...postData,
         },
-        { merge: true }
-      );
+        syncedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
 
-      batchOps += 1;
-      refreshed += 1;
-      await commitBatchIfNeeded();
-      console.log(`REFRESH ${feedDoc.ref.path}`);
-      continue;
-    }
-
-    skipped += 1;
+    updated += 1;
+    console.log(`OK ${feedDoc.ref.path} -> ${postId} (${sourceType})`);
   }
-
-  await commitBatchIfNeeded(true);
 
   console.log("");
   console.log("Backfill homeFeed terminado.");
-  console.log(`Revisados: ${checked}`);
-  console.log(`Eliminados por post inexistente: ${deletedMissingPost}`);
-  console.log(`Eliminados por post borrado: ${deletedSoftDeletedPost}`);
-  console.log(`Snapshots actualizados: ${refreshed}`);
+  console.log(`Actualizados: ${updated}`);
   console.log(`Saltados: ${skipped}`);
+  console.log(`Posts faltantes: ${missingPost}`);
 }
 
 main().catch((error) => {
-  console.error("Backfill falló:", error);
+  console.error("Backfill homeFeed falló:", error);
   process.exit(1);
 });

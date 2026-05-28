@@ -1,4 +1,4 @@
-//home-feed
+// home-feed
 
 import {
   onDocumentCreated,
@@ -7,18 +7,25 @@ import {
 } from "firebase-functions/v2/firestore";
 
 import { logger } from "firebase-functions";
-import { initializeApp } from "firebase-admin/app";
+import { getApps, initializeApp } from "firebase-admin/app";
 import {
   getFirestore,
   FieldValue,
   Timestamp,
 } from "firebase-admin/firestore";
 
-initializeApp();
+if (!getApps().length) {
+  initializeApp();
+}
 
 const db = getFirestore();
 
+const REGION = "us-central1";
 const READABLE_MEMBER_STATUSES = ["active", "subscribed", "muted"];
+const WRITE_BATCH_LIMIT = 450;
+
+type PostData = Record<string, any>;
+type FeedSourceType = "group" | "profile";
 
 function isReadableMemberStatus(status: unknown): boolean {
   const cleanStatus =
@@ -29,29 +36,91 @@ function isReadableMemberStatus(status: unknown): boolean {
   return READABLE_MEMBER_STATUSES.includes(cleanStatus);
 }
 
+function pickString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function normalizeCreatedAt(value: unknown): Timestamp {
+  return value instanceof Timestamp ? value : Timestamp.now();
+}
+
+function getPostSourceType(postData: PostData): FeedSourceType {
+  return postData.contextType === "profile" || pickString(postData.profileId)
+    ? "profile"
+    : "group";
+}
+
+function isPostDeleted(postData: PostData): boolean {
+  const searchData =
+    postData.search && typeof postData.search === "object"
+      ? postData.search
+      : {};
+
+  return (
+    postData.isDeleted === true ||
+    searchData.isDeleted === true ||
+    Boolean(postData.deletedAt)
+  );
+}
+
+function isProfilePostVisibleToFollowers(postData: PostData): boolean {
+  return (
+    getPostSourceType(postData) === "profile" &&
+    postData.profileRestricted !== true &&
+    isPostDeleted(postData) !== true
+  );
+}
+
 function getMembershipUid(params: {
   memberDocId: string;
   membershipData?: Record<string, any> | null;
 }): string | null {
-  const dataUserId =
-    typeof params.membershipData?.userId === "string" &&
-    params.membershipData.userId.trim().length > 0
-      ? params.membershipData.userId.trim()
-      : null;
-
-  const docUserId =
-    typeof params.memberDocId === "string" &&
-    params.memberDocId.trim().length > 0
-      ? params.memberDocId.trim()
-      : null;
+  const dataUserId = pickString(params.membershipData?.userId);
+  const docUserId = pickString(params.memberDocId);
 
   return dataUserId || docUserId;
+}
+
+async function usersHaveBlockBetween(userA: string, userB: string): Promise<boolean> {
+  if (!userA.trim() || !userB.trim() || userA === userB) {
+    return false;
+  }
+
+  const [aBlockedB, bBlockedA] = await Promise.all([
+    db.collection("users").doc(userA).collection("blockedUsers").doc(userB).get(),
+    db.collection("users").doc(userB).collection("blockedUsers").doc(userA).get(),
+  ]);
+
+  return aBlockedB.exists || bBlockedA.exists;
+}
+
+async function commitBatches(
+  refs: FirebaseFirestore.DocumentReference[],
+  operation: "delete",
+): Promise<void> {
+  const commits = [];
+
+  for (let i = 0; i < refs.length; i += WRITE_BATCH_LIMIT) {
+    const batch = db.batch();
+
+    refs.slice(i, i + WRITE_BATCH_LIMIT).forEach((ref) => {
+      if (operation === "delete") {
+        batch.delete(ref);
+      }
+    });
+
+    commits.push(batch.commit());
+  }
+
+  await Promise.all(commits);
 }
 
 async function addPostToUserHomeFeed(params: {
   uid: string;
   postId: string;
-  postData: Record<string, any>;
+  postData: PostData;
 }) {
   const { uid, postId, postData } = params;
 
@@ -61,10 +130,10 @@ async function addPostToUserHomeFeed(params: {
     return;
   }
 
-  const groupId =
-    typeof postData.groupId === "string" && postData.groupId.trim().length > 0
-      ? postData.groupId.trim()
-      : null;
+  const sourceType = getPostSourceType(postData);
+  const groupId = pickString(postData.groupId);
+  const authorId = pickString(postData.authorId);
+  const profileId = pickString(postData.profileId);
 
   await db
     .collection("users")
@@ -75,11 +144,11 @@ async function addPostToUserHomeFeed(params: {
       {
         postId,
         groupId,
-        isVisible: postData.isDeleted !== true,
-        createdAt:
-          postData.createdAt instanceof Timestamp
-            ? postData.createdAt
-            : Timestamp.now(),
+        authorId,
+        profileId,
+        sourceType,
+        isVisible: isPostDeleted(postData) !== true,
+        createdAt: normalizeCreatedAt(postData.createdAt),
 
         postSnapshot: {
           ...postData,
@@ -137,25 +206,96 @@ async function deleteUserHomeFeedByGroup(params: {
     .where("groupId", "==", groupId)
     .get();
 
-  const batches = [];
+  await commitBatches(
+    feedSnap.docs.map((docSnap) => docSnap.ref),
+    "delete"
+  );
+}
 
-  for (let i = 0; i < feedSnap.docs.length; i += 450) {
-    const batch = db.batch();
+async function deleteUserHomeFeedByAuthor(params: {
+  uid: string;
+  authorId: string;
+}) {
+  const { uid, authorId } = params;
 
-    feedSnap.docs.slice(i, i + 450).forEach((docSnap) => {
-      batch.delete(docSnap.ref);
-    });
-
-    batches.push(batch.commit());
+  if (!uid.trim() || !authorId.trim()) {
+    return;
   }
 
-  await Promise.all(batches);
+  const feedSnap = await db
+    .collection("users")
+    .doc(uid)
+    .collection("homeFeed")
+    .where("authorId", "==", authorId)
+    .get();
+
+  await commitBatches(
+    feedSnap.docs.map((docSnap) => docSnap.ref),
+    "delete"
+  );
+}
+
+async function distributeProfilePostToFollowers(params: {
+  postId: string;
+  postData: PostData;
+}) {
+  const { postId, postData } = params;
+
+  const authorId = pickString(postData.authorId);
+  const profileId = pickString(postData.profileId) || authorId;
+
+  if (!authorId || !profileId || authorId !== profileId) {
+    logger.warn("distributeProfilePostToFollowers skipped: invalid profile post", {
+      postId,
+      authorId,
+      profileId,
+    });
+
+    return;
+  }
+
+  await addPostToUserHomeFeed({
+    uid: authorId,
+    postId,
+    postData,
+  });
+
+  if (!isProfilePostVisibleToFollowers(postData)) {
+    return;
+  }
+
+  const followersSnap = await db
+    .collection("users")
+    .doc(profileId)
+    .collection("followers")
+    .get();
+
+  const followerIds = followersSnap.docs
+    .map((followerDoc) => pickString(followerDoc.data().followerUserId) || pickString(followerDoc.id))
+    .filter((uid): uid is string => Boolean(uid))
+    .filter((uid) => uid !== profileId);
+
+  const writes = followerIds.map(async (uid) => {
+    const blocked = await usersHaveBlockBetween(uid, profileId);
+
+    if (blocked) {
+      return;
+    }
+
+    await addPostToUserHomeFeed({
+      uid,
+      postId,
+      postData,
+    });
+  });
+
+  await Promise.all(writes);
 }
 
 export const onHomeFeedPostCreated = onDocumentCreated(
   {
     document: "posts/{postId}",
-    region: "us-central1",
+    region: REGION,
   },
   async (event) => {
     const snapshot = event.data;
@@ -167,14 +307,22 @@ export const onHomeFeedPostCreated = onDocumentCreated(
     const postId = snapshot.id;
     const postData = snapshot.data();
 
-    if (!postData || postData.isDeleted === true) {
+    if (!postData || isPostDeleted(postData)) {
       return;
     }
 
-    const groupId =
-      typeof postData.groupId === "string" && postData.groupId.trim()
-        ? postData.groupId.trim()
-        : null;
+    const sourceType = getPostSourceType(postData);
+
+    if (sourceType === "profile") {
+      await distributeProfilePostToFollowers({
+        postId,
+        postData,
+      });
+
+      return;
+    }
+
+    const groupId = pickString(postData.groupId);
 
     if (!groupId) {
       return;
@@ -183,21 +331,15 @@ export const onHomeFeedPostCreated = onDocumentCreated(
     const groupSnap = await db.collection("groups").doc(groupId).get();
     const groupData = groupSnap.exists ? groupSnap.data() ?? {} : {};
 
-    const ownerId =
-      typeof groupData.ownerId === "string" && groupData.ownerId.trim()
-        ? groupData.ownerId.trim()
-        : null;
-
-    const authorId =
-      typeof postData.authorId === "string" && postData.authorId.trim()
-        ? postData.authorId.trim()
-        : null;
+    const ownerId = pickString(groupData.ownerId);
+    const authorId = pickString(postData.authorId);
 
     logger.info("onHomeFeedPostCreated", {
       postId,
       groupId,
       ownerId,
       authorId,
+      sourceType,
     });
 
     const membersSnap = await db
@@ -239,7 +381,7 @@ export const onHomeFeedPostCreated = onDocumentCreated(
 export const onHomeFeedPostUpdated = onDocumentUpdated(
   {
     document: "posts/{postId}",
-    region: "us-central1",
+    region: REGION,
   },
   async (event) => {
     const afterData = event.data?.after.data();
@@ -259,62 +401,50 @@ export const onHomeFeedPostUpdated = onDocumentUpdated(
       return;
     }
 
-    if (afterData.isDeleted === true) {
+    if (isPostDeleted(afterData)) {
       logger.info("onHomeFeedPostUpdated deleting homeFeed copies", {
         postId,
-        groupId:
-          typeof afterData.groupId === "string"
-            ? afterData.groupId
-            : null,
+        groupId: pickString(afterData.groupId),
+        profileId: pickString(afterData.profileId),
         copies: homeFeedSnap.size,
       });
 
-      const batches = [];
+      await commitBatches(
+        homeFeedSnap.docs.map((docSnap) => docSnap.ref),
+        "delete"
+      );
 
-      for (let i = 0; i < homeFeedSnap.docs.length; i += 450) {
-        const batch = db.batch();
-
-        homeFeedSnap.docs.slice(i, i + 450).forEach((docSnap) => {
-          batch.delete(docSnap.ref);
-        });
-
-        batches.push(batch.commit());
-      }
-
-      await Promise.all(batches);
       return;
     }
 
     logger.info("onHomeFeedPostUpdated syncing homeFeed snapshots", {
       postId,
-      groupId:
-        typeof afterData.groupId === "string"
-          ? afterData.groupId
-          : null,
+      groupId: pickString(afterData.groupId),
+      profileId: pickString(afterData.profileId),
       copies: homeFeedSnap.size,
     });
 
-    const groupId =
-      typeof afterData.groupId === "string" && afterData.groupId.trim().length > 0
-        ? afterData.groupId.trim()
-        : null;
+    const sourceType = getPostSourceType(afterData);
+    const groupId = pickString(afterData.groupId);
+    const authorId = pickString(afterData.authorId);
+    const profileId = pickString(afterData.profileId);
 
-    const batches = [];
+    const commits = [];
 
-    for (let i = 0; i < homeFeedSnap.docs.length; i += 450) {
+    for (let i = 0; i < homeFeedSnap.docs.length; i += WRITE_BATCH_LIMIT) {
       const batch = db.batch();
 
-      homeFeedSnap.docs.slice(i, i + 450).forEach((docSnap) => {
+      homeFeedSnap.docs.slice(i, i + WRITE_BATCH_LIMIT).forEach((docSnap) => {
         batch.set(
           docSnap.ref,
           {
             postId,
             groupId,
+            authorId,
+            profileId,
+            sourceType,
             isVisible: true,
-            createdAt:
-              afterData.createdAt instanceof Timestamp
-                ? afterData.createdAt
-                : Timestamp.now(),
+            createdAt: normalizeCreatedAt(afterData.createdAt),
             postSnapshot: {
               ...afterData,
             },
@@ -324,17 +454,17 @@ export const onHomeFeedPostUpdated = onDocumentUpdated(
         );
       });
 
-      batches.push(batch.commit());
+      commits.push(batch.commit());
     }
 
-    await Promise.all(batches);
+    await Promise.all(commits);
   }
 );
 
 export const onHomeFeedMembershipCreated = onDocumentCreated(
   {
     document: "groups/{groupId}/members/{userId}",
-    region: "us-central1",
+    region: REGION,
   },
   async (event) => {
     const snapshot = event.data;
@@ -374,7 +504,7 @@ export const onHomeFeedMembershipCreated = onDocumentCreated(
 export const onHomeFeedMembershipDeleted = onDocumentDeleted(
   {
     document: "groups/{groupId}/members/{userId}",
-    region: "us-central1",
+    region: REGION,
   },
   async (event) => {
     const membership = event.data?.data() ?? null;
@@ -404,7 +534,7 @@ export const onHomeFeedMembershipDeleted = onDocumentDeleted(
 export const onHomeFeedMemberStatusChanged = onDocumentUpdated(
   {
     document: "groups/{groupId}/members/{userId}",
-    region: "us-central1",
+    region: REGION,
   },
   async (event) => {
     const beforeData = event.data?.before.data();
@@ -449,5 +579,53 @@ export const onHomeFeedMemberStatusChanged = onDocumentUpdated(
         groupId,
       });
     }
+  }
+);
+
+export const onHomeFeedFollowingDeleted = onDocumentDeleted(
+  {
+    document: "users/{userId}/following/{targetUserId}",
+    region: REGION,
+  },
+  async (event) => {
+    const userId = event.params.userId;
+    const targetUserId = event.params.targetUserId;
+
+    logger.info("onHomeFeedFollowingDeleted", {
+      userId,
+      targetUserId,
+    });
+
+    await deleteUserHomeFeedByAuthor({
+      uid: userId,
+      authorId: targetUserId,
+    });
+  }
+);
+
+export const onHomeFeedBlockedUserCreated = onDocumentCreated(
+  {
+    document: "users/{userId}/blockedUsers/{blockedUserId}",
+    region: REGION,
+  },
+  async (event) => {
+    const userId = event.params.userId;
+    const blockedUserId = event.params.blockedUserId;
+
+    logger.info("onHomeFeedBlockedUserCreated", {
+      userId,
+      blockedUserId,
+    });
+
+    await Promise.all([
+      deleteUserHomeFeedByAuthor({
+        uid: userId,
+        authorId: blockedUserId,
+      }),
+      deleteUserHomeFeedByAuthor({
+        uid: blockedUserId,
+        authorId: userId,
+      }),
+    ]);
   }
 );
