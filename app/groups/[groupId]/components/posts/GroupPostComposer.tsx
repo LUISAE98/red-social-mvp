@@ -23,8 +23,11 @@ type ComposerMediaItem = {
   coverFile?: File | null;
 };
 
+type ComposerContextType = "group" | "profile";
+
 type GroupPostComposerSubmitPayload = {
   text: string;
+  contextType: ComposerContextType;
   imageFiles?: File[];
   videoFiles?: File[];
   mediaItems?: ComposerMediaItem[];
@@ -32,6 +35,7 @@ type GroupPostComposerSubmitPayload = {
 
 type GroupPostComposerProps = {
   onSubmit: (payload: GroupPostComposerSubmitPayload) => Promise<void>;
+  contextType?: ComposerContextType;
 };
 
 type ComposerPostType = "text" | "image" | "video" | "live" | "scheduled_event";
@@ -299,6 +303,7 @@ function Avatar({
 
 export default function GroupPostComposer({
   onSubmit,
+  contextType = "group",
 }: GroupPostComposerProps) {
   const [text, setText] = useState("");
   const [creating, setCreating] = useState(false);
@@ -451,6 +456,11 @@ export default function GroupPostComposer({
   const canAddMoreMedia =
     selectedImages.length + processingImageSlots < MAX_POST_IMAGES ||
     selectedVideos.length + processingVideoSlots < MAX_POST_VIDEOS;
+
+      const contextLabel =
+    contextType === "profile"
+      ? "Crear publicación en tu perfil"
+      : "Crear publicación";
 
   function handleOpenMediaPicker() {
     if (creating || isPreparingImages) return;
@@ -940,6 +950,7 @@ export default function GroupPostComposer({
 
       await onSubmit({
         text: text.trim(),
+        contextType,
         imageFiles: selectedImages,
         videoFiles: selectedVideos,
         mediaItems: orderedSubmitMediaItems,
@@ -1285,12 +1296,18 @@ export default function GroupPostComposer({
 
             <div style={labelStyle}>
               {selectedImages.length > 0 && selectedVideos.length > 0
-                ? "Crear publicación con media"
+                ? contextType === "profile"
+                  ? "Crear publicación con media en tu perfil"
+                  : "Crear publicación con media"
                 : postType === "image"
-                  ? "Crear publicación con imagen"
+                  ? contextType === "profile"
+                    ? "Crear publicación con imagen en tu perfil"
+                    : "Crear publicación con imagen"
                   : postType === "video"
-                    ? "Crear publicación con video"
-                    : "Crear publicación"}
+                    ? contextType === "profile"
+                      ? "Crear publicación con video en tu perfil"
+                      : "Crear publicación con video"
+                    : contextLabel}
             </div>
           </div>
 

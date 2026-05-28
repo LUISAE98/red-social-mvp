@@ -33,6 +33,7 @@ import type {
   CommentReply,
   GroupVisibility,
   Post,
+  PostContextType,
   PostMedia,
 } from "./types";
 import { httpsCallable } from "firebase/functions";
@@ -61,6 +62,26 @@ type GroupLookup = {
   name: string | null;
   avatarUrl: string | null;
   visibility: GroupVisibility | null;
+};
+
+type ProfileLookup = {
+  displayName: string | null;
+  avatarUrl: string | null;
+  username: string | null;
+  profileRestricted: boolean;
+};
+
+type PostCreationContext = {
+  contextType: PostContextType;
+  groupId: string | null;
+  groupVisibility: GroupVisibility | null;
+  groupName: string | null;
+  groupAvatarUrl: string | null;
+  profileId: string | null;
+  profileName: string | null;
+  profileAvatarUrl: string | null;
+  profileUsername: string | null;
+  profileRestricted: boolean | null;
 };
 
 type GroupMemberStatus =
@@ -404,13 +425,180 @@ async function fetchGroupsByIds(
   return Object.fromEntries(entries);
 }
 
+
+function getPostGroupIds(posts: Post[]): string[] {
+  return posts
+    .map((post) => post.groupId)
+    .filter(
+      (groupId): groupId is string =>
+        typeof groupId === "string" && groupId.trim().length > 0
+    );
+}
+
+function readProfileDisplayName(data: Record<string, unknown>): string | null {
+  return (
+    pickString(data.displayName) ||
+    pickString(data.name) ||
+    [pickString(data.firstName), pickString(data.lastName)]
+      .filter(Boolean)
+      .join(" ")
+      .trim() ||
+    pickString(data.username) ||
+    pickString(data.handle) ||
+    null
+  );
+}
+
+function readProfileAvatarUrl(data: Record<string, unknown>): string | null {
+  return (
+    pickString(data.avatarUrl) ||
+    pickString(data.photoURL) ||
+    pickString(data.imageUrl) ||
+    null
+  );
+}
+
+async function fetchProfileById(profileId: string): Promise<ProfileLookup> {
+  const snap = await getDoc(doc(db, "users", profileId));
+
+  if (!snap.exists()) {
+    throw new Error("El perfil no existe.");
+  }
+
+  const data = snap.data() as Record<string, unknown>;
+
+  return {
+    displayName: readProfileDisplayName(data),
+    avatarUrl: readProfileAvatarUrl(data),
+    username: pickString(data.username) || pickString(data.handle) || null,
+    profileRestricted: data.profileRestricted === true,
+  };
+}
+
+async function resolvePostCreationContext(params: {
+  contextType?: PostContextType;
+  groupId?: string | null;
+  profileId?: string | null;
+  author: AuthorSnapshot;
+}): Promise<PostCreationContext> {
+  const contextType: PostContextType = params.contextType === "profile" ? "profile" : "group";
+
+  if (contextType === "profile") {
+    const profileId = pickString(params.profileId) || params.author.uid;
+
+    if (profileId !== params.author.uid) {
+      throw new Error("Solo puedes publicar en tu propio perfil.");
+    }
+
+    const profile = await fetchProfileById(profileId);
+
+    return {
+      contextType: "profile",
+      groupId: null,
+      groupVisibility: null,
+      groupName: null,
+      groupAvatarUrl: null,
+      profileId,
+      profileName: profile.displayName || params.author.authorName,
+      profileAvatarUrl: profile.avatarUrl ?? params.author.authorAvatarUrl,
+      profileUsername: profile.username ?? params.author.authorUsername,
+      profileRestricted: profile.profileRestricted,
+    };
+  }
+
+  const groupId = pickString(params.groupId);
+  if (!groupId) {
+    throw new Error("Falta groupId.");
+  }
+
+  await ensureUserCanCreatePostInGroup(groupId, params.author.uid);
+
+  const groupMap = await fetchGroupsByIds([groupId]);
+  const group = groupMap[groupId];
+  const groupVisibility = group?.visibility ?? null;
+
+  if (!groupVisibility) {
+    throw new Error("No se pudo resolver la visibilidad del grupo.");
+  }
+
+  return {
+    contextType: "group",
+    groupId,
+    groupVisibility,
+    groupName: group?.name ?? null,
+    groupAvatarUrl: group?.avatarUrl ?? null,
+    profileId: null,
+    profileName: null,
+    profileAvatarUrl: null,
+    profileUsername: null,
+    profileRestricted: null,
+  };
+}
+
+function buildPostContextPayload(context: PostCreationContext) {
+  return {
+    contextType: context.contextType,
+    groupId: context.groupId,
+    groupName: context.groupName,
+    groupAvatarUrl: context.groupAvatarUrl,
+    groupVisibility: context.groupVisibility,
+    profileId: context.profileId,
+    profileName: context.profileName,
+    profileAvatarUrl: context.profileAvatarUrl,
+    profileUsername: context.profileUsername,
+    profileRestricted: context.profileRestricted,
+  };
+}
+
+function buildPostSearchIndexForContext(params: {
+  text: string;
+  authorId: string;
+  context: PostCreationContext;
+  isDeleted: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}) {
+  if (params.context.contextType === "group") {
+    if (!params.context.groupId || !params.context.groupVisibility) {
+      return null;
+    }
+
+    return buildPostSearchIndex({
+      text: params.text,
+      groupId: params.context.groupId,
+      groupVisibility: params.context.groupVisibility,
+      authorId: params.authorId,
+      accessScope: "group",
+      isDeleted: params.isDeleted,
+      createdAt: params.createdAt,
+      updatedAt: params.updatedAt,
+    });
+  }
+
+  return {
+    textNormalized: params.text.trim().toLowerCase(),
+    tokens: [],
+    prefixes: [],
+    contextType: "profile" as const,
+    groupId: null,
+    profileId: params.context.profileId,
+    authorId: params.authorId,
+    visibility: null,
+    accessScope: "profile" as const,
+    isDeleted: params.isDeleted,
+    createdAt: params.createdAt,
+    updatedAt: params.updatedAt,
+    version: 1 as const,
+  };
+}
+
 function hydratePost(
   raw: Post,
   userMap: Record<string, UserProfileLookup>,
   groupMap: Record<string, GroupLookup>
 ): Post {
   const profile = userMap[raw.authorId];
-  const group = groupMap[raw.groupId];
+  const group = raw.groupId ? groupMap[raw.groupId] : undefined;
 
   return normalizePostMetadata({
     ...raw,
@@ -454,6 +642,7 @@ function buildShareMetadata(params: {
   text: string;
   media?: PostMedia[];
   authorName?: string | null;
+  contextType?: PostContextType | null;
   groupVisibility?: GroupVisibility | null;
   accessModel?: Post["accessModel"];
   requiresPayment?: boolean;
@@ -473,7 +662,8 @@ function buildShareMetadata(params: {
     params.requiresPayment !== true &&
     params.requiresSubscription !== true;
 
-  const isPublicGroup = params.groupVisibility === "public";
+  const isPublicGroup =
+    params.contextType !== "profile" && params.groupVisibility === "public";
 
   const cleanText = params.text.trim();
 
@@ -497,10 +687,14 @@ function buildShareMetadata(params: {
 function normalizePostMetadata(post: Post): Post {
   const postType = post.postType ?? "text";
 
+  const contextType: PostContextType =
+    post.contextType === "profile" || post.profileId ? "profile" : "group";
+
   const shareMetadata = buildShareMetadata({
     text: post.text,
     media: post.media,
     authorName: post.authorName,
+    contextType,
     groupVisibility: post.groupVisibility,
     accessModel: post.accessModel,
     requiresPayment: post.requiresPayment,
@@ -512,6 +706,18 @@ function normalizePostMetadata(post: Post): Post {
   return {
     ...post,
     postType,
+    contextType,
+
+    groupId: post.groupId ?? null,
+    groupName: post.groupName ?? null,
+    groupAvatarUrl: post.groupAvatarUrl ?? null,
+    groupVisibility: post.groupVisibility ?? null,
+
+    profileId: post.profileId ?? null,
+    profileName: post.profileName ?? null,
+    profileAvatarUrl: post.profileAvatarUrl ?? null,
+    profileUsername: post.profileUsername ?? null,
+    profileRestricted: post.profileRestricted ?? null,
 
     isShareable: post.isShareable ?? shareMetadata.isShareable,
     publicSlug: post.publicSlug ?? shareMetadata.publicSlug,
@@ -521,7 +727,7 @@ function normalizePostMetadata(post: Post): Post {
 
     access: post.access ?? "free",
     accessModel: post.accessModel ?? "free",
-    accessScope: post.accessScope ?? "group",
+    accessScope: post.accessScope ?? contextType,
     requiresPayment: post.requiresPayment ?? false,
     requiresSubscription: post.requiresSubscription ?? false,
     oneTimePrice: post.oneTimePrice ?? null,
@@ -976,6 +1182,39 @@ async function ensureUserCanCommentInGroup(groupId: string, userUid: string) {
   }
 }
 
+async function ensureUserCanCommentOnPost(
+  postData: Record<string, unknown>,
+  userUid: string
+) {
+  const contextType =
+    postData.contextType === "profile" || pickString(postData.profileId)
+      ? "profile"
+      : "group";
+
+  if (contextType === "group") {
+    const groupId = pickString(postData.groupId);
+
+    if (!groupId) {
+      throw new Error("La publicación no pertenece a una comunidad válida.");
+    }
+
+    await ensureUserCanCommentInGroup(groupId, userUid);
+    return;
+  }
+
+  const profileId = pickString(postData.profileId);
+
+  if (!profileId) {
+    throw new Error("La publicación no pertenece a un perfil válido.");
+  }
+
+  const profile = await fetchProfileById(profileId);
+
+  if (profile.profileRestricted && profileId !== userUid) {
+    throw new Error("No puedes comentar en este perfil.");
+  }
+}
+
 export async function fetchGroupPostsPage(params: {
   groupId: string;
   viewerUid?: string | null;
@@ -1031,7 +1270,7 @@ export async function fetchGroupPostsPage(params: {
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(rawPosts.map((post) => post.authorId)),
-    fetchGroupsByIds(rawPosts.map((post) => post.groupId)),
+    fetchGroupsByIds(getPostGroupIds(rawPosts)),
   ]);
 
   const hydratedPosts = rawPosts.map((post) => {
@@ -1199,7 +1438,7 @@ const rawPosts = (
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(rawPosts.map((post) => post.authorId)),
-    fetchGroupsByIds(rawPosts.map((post) => post.groupId)),
+    fetchGroupsByIds(getPostGroupIds(rawPosts)),
   ]);
 
   const hydratedPosts = rawPosts.map((post) => {
@@ -1274,12 +1513,7 @@ async function fetchProfileFeedDocs(params: {
   mode: "owner" | "public" | "groupIds";
   groupIds?: string[];
 }): Promise<QueryDocumentSnapshot<DocumentData>[]> {
-  const profileFeedRef = collection(
-    db,
-    "users",
-    params.profileUid,
-    "profileFeed"
-  );
+  const postsRef = collection(db, "posts");
 
   const cursorParts =
     params.cursor?.lastCreatedAt && params.cursor?.lastPostId
@@ -1289,7 +1523,9 @@ async function fetchProfileFeedDocs(params: {
   if (params.mode === "owner") {
     const snap = await getDocs(
       query(
-        profileFeedRef,
+        postsRef,
+        where("contextType", "==", "profile"),
+        where("profileId", "==", params.profileUid),
         where("authorId", "==", params.profileUid),
         where("isDeleted", "==", false),
         orderBy("createdAt", "desc"),
@@ -1305,14 +1541,11 @@ async function fetchProfileFeedDocs(params: {
   if (params.mode === "public") {
     const snap = await getDocs(
       query(
-        profileFeedRef,
+        postsRef,
+        where("contextType", "==", "profile"),
+        where("profileId", "==", params.profileUid),
         where("authorId", "==", params.profileUid),
         where("isDeleted", "==", false),
-        where("groupVisibility", "==", "public"),
-        where("isShareable", "==", true),
-        where("accessModel", "==", "free"),
-        where("requiresPayment", "==", false),
-        where("requiresSubscription", "==", false),
         orderBy("createdAt", "desc"),
         orderBy(documentId(), "desc"),
         ...cursorParts,
@@ -1341,8 +1574,9 @@ async function fetchProfileFeedDocs(params: {
     chunks.map((chunk) =>
       getDocs(
         query(
-          profileFeedRef,
+          postsRef,
           where("authorId", "==", params.profileUid),
+          where("contextType", "==", "group"),
           where("isDeleted", "==", false),
           where("groupId", "in", chunk),
           orderBy("createdAt", "desc"),
@@ -1394,12 +1628,34 @@ export async function fetchUserProfilePostsPage(params: {
   let feedDocs: QueryDocumentSnapshot<DocumentData>[] = [];
 
   if (isOwner) {
-    feedDocs = await fetchProfileFeedDocs({
+    const profileDocsPromise = fetchProfileFeedDocs({
       profileUid: params.profileUid,
       pageSize: safePageSize + 1,
       cursor: params.cursor,
       mode: "owner",
     });
+
+    const groupDocsPromise = fetchAccessibleGroupIds(params.profileUid)
+      .then((groupIds) =>
+        fetchProfileFeedDocs({
+          profileUid: params.profileUid,
+          pageSize: safePageSize + 1,
+          cursor: params.cursor,
+          mode: "groupIds",
+          groupIds,
+        })
+      )
+      .catch((error) => {
+        console.warn("[ProfileFeed] owner group lane failed", error);
+        return [];
+      });
+
+    const [profileDocs, groupDocs] = await Promise.all([
+      profileDocsPromise,
+      groupDocsPromise,
+    ]);
+
+    feedDocs = [...profileDocs, ...groupDocs];
   } else {
     const publicDocsPromise = fetchProfileFeedDocs({
       profileUid: params.profileUid,
@@ -1507,7 +1763,7 @@ const privateDocsPromise = viewerUid
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(rawPosts.map((post) => post.authorId)),
-    fetchGroupsByIds(rawPosts.map((post) => post.groupId)),
+    fetchGroupsByIds(getPostGroupIds(rawPosts)),
   ]);
 
   const hydratedPosts = rawPosts.map((post) => {
@@ -1559,29 +1815,37 @@ export async function fetchUserProfilePosts(
 export async function createTextPost(params: {
   groupId: string;
   text: string;
+}): Promise<void>;
+export async function createTextPost(params: {
+  contextType: "profile";
+  profileId: string;
+  text: string;
+}): Promise<void>;
+export async function createTextPost(params: {
+  contextType?: PostContextType;
+  groupId?: string | null;
+  profileId?: string | null;
+  text: string;
 }): Promise<void> {
-  assertValidId(params.groupId, "groupId");
-
   const cleanText = params.text.trim();
   if (!cleanText) {
     throw new Error("Escribe un texto antes de publicar.");
   }
 
   const author = await getCurrentAuthorSnapshot();
-  await ensureUserCanCreatePostInGroup(params.groupId, author.uid);
-
-  const groupMap = await fetchGroupsByIds([params.groupId]);
-  const groupVisibility = groupMap[params.groupId]?.visibility ?? null;
-  if (!groupVisibility) {
-  throw new Error("No se pudo resolver la visibilidad del grupo.");
-}
-
+  const context = await resolvePostCreationContext({
+    contextType: params.contextType,
+    groupId: params.groupId,
+    profileId: params.profileId,
+    author,
+  });
 
   const shareMetadata = buildShareMetadata({
     text: cleanText,
     media: [],
     authorName: author.authorName,
-    groupVisibility,
+    contextType: context.contextType,
+    groupVisibility: context.groupVisibility,
     accessModel: "free",
     requiresPayment: false,
     requiresSubscription: false,
@@ -1589,13 +1853,12 @@ export async function createTextPost(params: {
     playback: null,
   });
 
-const createdAt = serverTimestamp();
-const updatedAt = serverTimestamp();
-const searchTimestamp = Timestamp.now();
+  const createdAt = serverTimestamp();
+  const updatedAt = serverTimestamp();
+  const searchTimestamp = Timestamp.now();
 
   await addDoc(collection(db, "posts"), {
-    groupId: params.groupId,
-    groupVisibility,
+    ...buildPostContextPayload(context),
     authorId: author.uid,
     authorName: author.authorName,
     authorAvatarUrl: author.authorAvatarUrl,
@@ -1606,12 +1869,12 @@ const searchTimestamp = Timestamp.now();
     deletedAt: null,
     isDeleted: false,
     isPinnedInGroup: false,
-groupPinnedAt: null,
-groupPinnedBy: null,
+    groupPinnedAt: null,
+    groupPinnedBy: null,
 
-isPinnedOnProfile: false,
-profilePinnedAt: null,
-profilePinnedBy: null,
+    isPinnedOnProfile: false,
+    profilePinnedAt: null,
+    profilePinnedBy: null,
     isShareable: shareMetadata.isShareable,
     publicSlug: shareMetadata.publicSlug,
     shareTitle: shareMetadata.shareTitle,
@@ -1619,43 +1882,41 @@ profilePinnedBy: null,
     shareImageUrl: shareMetadata.shareImageUrl,
     access: "free",
     media: [],
-counts: {
-  comments: 0,
-  likes: 0,
-  saves: 0,
-},
-      search: buildPostSearchIndex({
+    counts: {
+      comments: 0,
+      likes: 0,
+      saves: 0,
+    },
+    search: buildPostSearchIndexForContext({
       text: cleanText,
-      groupId: params.groupId,
       authorId: author.uid,
-      groupVisibility,
-      accessScope: "group",
+      context,
       isDeleted: false,
-createdAt: searchTimestamp,
-updatedAt: searchTimestamp,
+      createdAt: searchTimestamp,
+      updatedAt: searchTimestamp,
     }),
     postType: "text",
 
-accessModel: "free",
-accessScope: "group",
-requiresPayment: false,
-requiresSubscription: false,
-oneTimePrice: null,
-currency: null,
-purchaseType: null,
+    accessModel: "free",
+    accessScope: context.contextType,
+    requiresPayment: false,
+    requiresSubscription: false,
+    oneTimePrice: null,
+    currency: null,
+    purchaseType: null,
 
-liveData: null,
-videoData: null,
-scheduledData: null,
-playback: null,
+    liveData: null,
+    videoData: null,
+    scheduledData: null,
+    playback: null,
 
-processing: {
-  status: "none",
-  provider: null,
-  errorCode: null,
-  errorMessage: null,
-  updatedAt: null,
-},
+    processing: {
+      status: "none",
+      provider: null,
+      errorCode: null,
+      errorMessage: null,
+      updatedAt: null,
+    },
   });
 }
 
@@ -1663,9 +1924,20 @@ export async function createImagePost(params: {
   groupId: string;
   text?: string;
   media: PostMedia[];
+}): Promise<void>;
+export async function createImagePost(params: {
+  contextType: "profile";
+  profileId: string;
+  text?: string;
+  media: PostMedia[];
+}): Promise<void>;
+export async function createImagePost(params: {
+  contextType?: PostContextType;
+  groupId?: string | null;
+  profileId?: string | null;
+  text?: string;
+  media: PostMedia[];
 }): Promise<void> {
-  assertValidId(params.groupId, "groupId");
-
   const cleanText = params.text?.trim() ?? "";
   const cleanMedia = Array.isArray(params.media)
     ? params.media.filter(
@@ -1685,19 +1957,19 @@ export async function createImagePost(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
-  await ensureUserCanCreatePostInGroup(params.groupId, author.uid);
-
-  const groupMap = await fetchGroupsByIds([params.groupId]);
-  const groupVisibility = groupMap[params.groupId]?.visibility ?? null;
-  if (!groupVisibility) {
-  throw new Error("No se pudo resolver la visibilidad del grupo.");
-}
+  const context = await resolvePostCreationContext({
+    contextType: params.contextType,
+    groupId: params.groupId,
+    profileId: params.profileId,
+    author,
+  });
 
   const shareMetadata = buildShareMetadata({
     text: cleanText,
     media: cleanMedia,
     authorName: author.authorName,
-    groupVisibility,
+    contextType: context.contextType,
+    groupVisibility: context.groupVisibility,
     accessModel: "free",
     requiresPayment: false,
     requiresSubscription: false,
@@ -1705,13 +1977,12 @@ export async function createImagePost(params: {
     playback: null,
   });
 
-const createdAt = serverTimestamp();
-const updatedAt = serverTimestamp();
-const searchTimestamp = Timestamp.now();
+  const createdAt = serverTimestamp();
+  const updatedAt = serverTimestamp();
+  const searchTimestamp = Timestamp.now();
 
   await addDoc(collection(db, "posts"), {
-    groupId: params.groupId,
-    groupVisibility,
+    ...buildPostContextPayload(context),
     authorId: author.uid,
     authorName: author.authorName,
     authorAvatarUrl: author.authorAvatarUrl,
@@ -1722,12 +1993,12 @@ const searchTimestamp = Timestamp.now();
     deletedAt: null,
     isDeleted: false,
     isPinnedInGroup: false,
-groupPinnedAt: null,
-groupPinnedBy: null,
+    groupPinnedAt: null,
+    groupPinnedBy: null,
 
-isPinnedOnProfile: false,
-profilePinnedAt: null,
-profilePinnedBy: null,
+    isPinnedOnProfile: false,
+    profilePinnedAt: null,
+    profilePinnedBy: null,
     isShareable: shareMetadata.isShareable,
     publicSlug: shareMetadata.publicSlug,
     shareTitle: shareMetadata.shareTitle,
@@ -1735,16 +2006,16 @@ profilePinnedBy: null,
     shareImageUrl: shareMetadata.shareImageUrl,
     access: "free",
     media: cleanMedia,
-counts: {
-  comments: 0,
-  likes: 0,
-  saves: 0,
-},
+    counts: {
+      comments: 0,
+      likes: 0,
+      saves: 0,
+    },
 
     postType: cleanMedia.length > 0 ? "image" : "text",
 
     accessModel: "free",
-    accessScope: "group",
+    accessScope: context.contextType,
     requiresPayment: false,
     requiresSubscription: false,
     oneTimePrice: null,
@@ -1763,15 +2034,13 @@ counts: {
       errorMessage: null,
       updatedAt: null,
     },
-        search: buildPostSearchIndex({
+    search: buildPostSearchIndexForContext({
       text: cleanText,
-groupId: params.groupId,
-groupVisibility,
-authorId: author.uid,
-      accessScope: "group",
+      authorId: author.uid,
+      context,
       isDeleted: false,
-createdAt: searchTimestamp,
-updatedAt: searchTimestamp,
+      createdAt: searchTimestamp,
+      updatedAt: searchTimestamp,
     }),
   });
 }
@@ -1788,9 +2057,36 @@ export async function createMediaPost(params: {
     thumbnailUrl?: string | null;
     thumbnailPath?: string | null;
   }>;
+}): Promise<void>;
+export async function createMediaPost(params: {
+  contextType: "profile";
+  profileId: string;
+  postId?: string;
+  text?: string;
+  imageMedia?: PostMedia[];
+  videoUploads?: Array<{
+    uploadId: string;
+    mediaId: string;
+    mediaIndex: number;
+    thumbnailUrl?: string | null;
+    thumbnailPath?: string | null;
+  }>;
+}): Promise<void>;
+export async function createMediaPost(params: {
+  contextType?: PostContextType;
+  groupId?: string | null;
+  profileId?: string | null;
+  postId?: string;
+  text?: string;
+  imageMedia?: PostMedia[];
+  videoUploads?: Array<{
+    uploadId: string;
+    mediaId: string;
+    mediaIndex: number;
+    thumbnailUrl?: string | null;
+    thumbnailPath?: string | null;
+  }>;
 }): Promise<void> {
-  assertValidId(params.groupId, "groupId");
-
   if (params.postId) {
     assertValidId(params.postId, "postId");
   }
@@ -1831,14 +2127,12 @@ export async function createMediaPost(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
-  await ensureUserCanCreatePostInGroup(params.groupId, author.uid);
-
-  const groupMap = await fetchGroupsByIds([params.groupId]);
-  const groupVisibility = groupMap[params.groupId]?.visibility ?? null;
-
-  if (!groupVisibility) {
-    throw new Error("No se pudo resolver la visibilidad del grupo.");
-  }
+  const context = await resolvePostCreationContext({
+    contextType: params.contextType,
+    groupId: params.groupId,
+    profileId: params.profileId,
+    author,
+  });
 
   const videoMedia: PostMedia[] = cleanVideoUploads.map((item) => ({
     type: "video",
@@ -1905,7 +2199,8 @@ export async function createMediaPost(params: {
     text: cleanText,
     media,
     authorName: author.authorName,
-    groupVisibility,
+    contextType: context.contextType,
+    groupVisibility: context.groupVisibility,
     accessModel: "free",
     requiresPayment: false,
     requiresSubscription: false,
@@ -1918,8 +2213,7 @@ export async function createMediaPost(params: {
   const searchTimestamp = Timestamp.now();
 
   const postPayload = {
-    groupId: params.groupId,
-    groupVisibility,
+    ...buildPostContextPayload(context),
     authorId: author.uid,
     authorName: author.authorName,
     authorAvatarUrl: author.authorAvatarUrl,
@@ -1956,7 +2250,7 @@ export async function createMediaPost(params: {
     postType: hasVideos ? "video" : hasImages ? "image" : "text",
 
     accessModel: "free",
-    accessScope: "group",
+    accessScope: context.contextType,
     requiresPayment: false,
     requiresSubscription: false,
     oneTimePrice: null,
@@ -1976,12 +2270,10 @@ export async function createMediaPost(params: {
       updatedAt: null,
     },
 
-    search: buildPostSearchIndex({
+    search: buildPostSearchIndexForContext({
       text: cleanText,
-      groupId: params.groupId,
-      groupVisibility,
       authorId: author.uid,
-      accessScope: "group",
+      context,
       isDeleted: false,
       createdAt: searchTimestamp,
       updatedAt: searchTimestamp,
@@ -2003,8 +2295,26 @@ export async function createVideoPost(params: {
   text?: string;
   thumbnailUrl?: string | null;
   thumbnailPath?: string | null;
+}): Promise<void>;
+export async function createVideoPost(params: {
+  contextType: "profile";
+  profileId: string;
+  postId: string;
+  uploadId: string;
+  text?: string;
+  thumbnailUrl?: string | null;
+  thumbnailPath?: string | null;
+}): Promise<void>;
+export async function createVideoPost(params: {
+  contextType?: PostContextType;
+  groupId?: string | null;
+  profileId?: string | null;
+  postId: string;
+  uploadId: string;
+  text?: string;
+  thumbnailUrl?: string | null;
+  thumbnailPath?: string | null;
 }): Promise<void> {
-  assertValidId(params.groupId, "groupId");
   assertValidId(params.postId, "postId");
   assertValidId(params.uploadId, "uploadId");
 
@@ -2019,14 +2329,12 @@ export async function createVideoPost(params: {
       : null;
 
   const author = await getCurrentAuthorSnapshot();
-  await ensureUserCanCreatePostInGroup(params.groupId, author.uid);
-
-  const groupMap = await fetchGroupsByIds([params.groupId]);
-  const groupVisibility = groupMap[params.groupId]?.visibility ?? null;
-
-  if (!groupVisibility) {
-    throw new Error("No se pudo resolver la visibilidad del grupo.");
-  }
+  const context = await resolvePostCreationContext({
+    contextType: params.contextType,
+    groupId: params.groupId,
+    profileId: params.profileId,
+    author,
+  });
 
   const videoData: Post["videoData"] = {
     provider: "mux",
@@ -2054,7 +2362,8 @@ export async function createVideoPost(params: {
     text: cleanText,
     media: [],
     authorName: author.authorName,
-    groupVisibility,
+    contextType: context.contextType,
+    groupVisibility: context.groupVisibility,
     accessModel: "free",
     requiresPayment: false,
     requiresSubscription: false,
@@ -2067,8 +2376,7 @@ export async function createVideoPost(params: {
   const searchTimestamp = Timestamp.now();
 
   await setDoc(doc(db, "posts", params.postId), {
-    groupId: params.groupId,
-    groupVisibility,
+    ...buildPostContextPayload(context),
     authorId: author.uid,
     authorName: author.authorName,
     authorAvatarUrl: author.authorAvatarUrl,
@@ -2112,7 +2420,7 @@ export async function createVideoPost(params: {
     postType: "video",
 
     accessModel: "free",
-    accessScope: "group",
+    accessScope: context.contextType,
     requiresPayment: false,
     requiresSubscription: false,
     oneTimePrice: null,
@@ -2132,12 +2440,10 @@ export async function createVideoPost(params: {
       updatedAt: null,
     },
 
-    search: buildPostSearchIndex({
+    search: buildPostSearchIndexForContext({
       text: cleanText,
-      groupId: params.groupId,
-      groupVisibility,
       authorId: author.uid,
-      accessScope: "group",
+      context,
       isDeleted: false,
       createdAt: searchTimestamp,
       updatedAt: searchTimestamp,
@@ -2248,13 +2554,12 @@ export async function createPostComment(params: {
   }
 
   const postData = postSnap.data() as Record<string, unknown>;
-  const groupId = pickString(postData.groupId);
 
-  if (!groupId) {
-    throw new Error("La publicación no pertenece a una comunidad válida.");
+  if (postData.isDeleted === true) {
+    throw new Error("La publicación ya no está disponible.");
   }
 
-  await ensureUserCanCommentInGroup(groupId, author.uid);
+  await ensureUserCanCommentOnPost(postData, author.uid);
 
 await addDoc(collection(db, "posts", params.postId, "comments"), {
   authorId: author.uid,
@@ -2419,13 +2724,12 @@ export async function createPostCommentReply(params: {
   }
 
   const postData = postSnap.data() as Record<string, unknown>;
-  const groupId = pickString(postData.groupId);
 
-  if (!groupId) {
-    throw new Error("La publicación no pertenece a una comunidad válida.");
+  if (postData.isDeleted === true) {
+    throw new Error("La publicación ya no está disponible.");
   }
 
-  await ensureUserCanCommentInGroup(groupId, author.uid);
+  await ensureUserCanCommentOnPost(postData, author.uid);
 
   const commentRef = doc(db, "posts", params.postId, "comments", params.commentId);
 
@@ -2777,7 +3081,7 @@ export async function fetchSavedPostsPage(params: {
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(visiblePosts.map((post) => post.authorId)),
-    fetchGroupsByIds(visiblePosts.map((post) => post.groupId)),
+    fetchGroupsByIds(getPostGroupIds(visiblePosts)),
   ]);
 
   const hydratedPosts = visiblePosts.map((post) => {

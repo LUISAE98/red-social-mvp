@@ -16,6 +16,11 @@ export type ProfileServiceCatalog = CreatorService[];
 
 export type ProfileDonationSettings = GroupDonationSettings;
 
+export type ProfileSocialStats = {
+  followersCount?: number;
+  followingCount?: number;
+};
+
 export interface CreatorProfile {
   uid: string;
 
@@ -42,6 +47,13 @@ export interface CreatorProfile {
    * Se mantienen separadas de offerings igual que en grupo.
    */
   donation?: ProfileDonationSettings;
+
+  /**
+   * Estadísticas sociales opcionales.
+   * No se escriben desde cliente en este bloque.
+   * Quedan preparadas para sidebar/perfil futuro sin forzar lecturas caras.
+   */
+  socialStats?: ProfileSocialStats;
 
   currency?: Currency | null;
 

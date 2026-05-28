@@ -14,6 +14,7 @@ import {
   getDoc,
   limit,
   onSnapshot,
+  orderBy,
   query,
   where,
   Timestamp,
@@ -38,6 +39,7 @@ import {
 import OwnerSidebarTabNav from "./OwnerSidebarTabNav";
 import OwnerSidebarMyGroups from "./OwnerSidebarMyGroups";
 import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
+import OwnerSidebarFollowedProfiles from "./OwnerSidebarFollowedProfiles";
 import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 
@@ -75,6 +77,7 @@ export type UserDoc = {
   firstName?: string;
   lastName?: string;
   photoURL?: string | null;
+  profileRestricted?: boolean;
   profileGreeting?: {
     enabled: boolean;
     price: number | null;
@@ -257,7 +260,14 @@ export type UserMini = {
   photoURL: string | null;
 };
 
-export type TopView = "owned" | "communities" | "greetings";
+export type FollowedProfileLite = {
+  uid: string;
+  displayName: string;
+  handle: string;
+  photoURL: string | null;
+};
+
+export type TopView = "owned" | "communities" | "following" | "greetings";
 
 export type TabIconProps = {
   active: boolean;
@@ -376,6 +386,7 @@ export function buildDisplayName(user?: Partial<UserDoc> | null, uid?: string) {
 }
 
 const OWNER_SIDEBAR_NO_SHOW_GRACE_MS = 15 * 60 * 1000;
+const OWNER_SIDEBAR_FOLLOWING_LIMIT = 30;
 
 function shouldOwnerSidebarTreatAsNoShowRejected(
   item?: Pick<MeetGreetRequestDoc, "status" | "scheduledAt"> | null,
@@ -618,8 +629,11 @@ type OwnerSidebarCache = {
   browseGroups: GroupDocLite[];
   pendingJoinRequestsSent: OutgoingJoinRequestRow[];
 
+  followedProfiles: FollowedProfileLite[];
+
   loadingGroups: boolean;
   loadingCommunities: boolean;
+  loadingFollowing: boolean;
 
   groupsErr: string | null;
   msg: string | null;
@@ -697,11 +711,19 @@ useEffect(() => {
     OutgoingJoinRequestRow[]
   >(() => ownerSidebarCache?.pendingJoinRequestsSent ?? []);
 
+  const [followedProfiles, setFollowedProfiles] = useState<
+    FollowedProfileLite[]
+  >(() => ownerSidebarCache?.followedProfiles ?? []);
+
   const [loadingGroups, setLoadingGroups] = useState(
     () => ownerSidebarCache?.loadingGroups ?? false
   );
   const [loadingCommunities, setLoadingCommunities] = useState(
     () => ownerSidebarCache?.loadingCommunities ?? false
+  );
+
+  const [loadingFollowing, setLoadingFollowing] = useState(
+    () => ownerSidebarCache?.loadingFollowing ?? false
   );
 
   const [groupsErr, setGroupsErr] = useState<string | null>(
@@ -950,8 +972,11 @@ miniItem: {
       browseGroups,
       pendingJoinRequestsSent,
 
+      followedProfiles,
+
       loadingGroups,
       loadingCommunities,
+      loadingFollowing,
 
       groupsErr,
       msg,
@@ -988,8 +1013,11 @@ miniItem: {
     browseGroups,
     pendingJoinRequestsSent,
 
+    followedProfiles,
+
     loadingGroups,
     loadingCommunities,
+    loadingFollowing,
 
     groupsErr,
     msg,
@@ -1310,6 +1338,112 @@ miniItem: {
     );
 
     return () => unsub();
+  }, [viewer?.uid]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!viewer?.uid) {
+      setFollowedProfiles([]);
+      setLoadingFollowing(false);
+      return;
+    }
+
+    setLoadingFollowing(true);
+
+    const followingQ = query(
+      collection(db, "users", viewer.uid, "following"),
+      orderBy("createdAt", "desc"),
+      limit(OWNER_SIDEBAR_FOLLOWING_LIMIT)
+    );
+
+    const unsub = onSnapshot(
+      followingQ,
+      async (snap) => {
+        try {
+          const targetUserIds = snap.docs
+            .map((d) => {
+              const data = d.data() as {
+                targetUserId?: string | null;
+              };
+
+              return typeof data.targetUserId === "string" &&
+                data.targetUserId.trim()
+                ? data.targetUserId.trim()
+                : d.id;
+            })
+            .filter((uid) => uid && uid !== viewer.uid);
+
+          const uniqueTargetUserIds = Array.from(new Set(targetUserIds));
+
+          const profiles = await Promise.all(
+            uniqueTargetUserIds.map(async (targetUserId) => {
+              try {
+                const userSnap = await getDoc(doc(db, "users", targetUserId));
+
+                if (!userSnap.exists()) return null;
+
+                const data = userSnap.data() as UserDoc;
+
+                if (data.profileRestricted === true) return null;
+
+                const handle =
+                  typeof data.handle === "string" && data.handle.trim()
+                    ? data.handle.trim()
+                    : null;
+
+                if (!handle) return null;
+
+                return {
+                  uid: targetUserId,
+                  displayName: buildDisplayName(data, targetUserId),
+                  handle,
+                  photoURL:
+                    typeof data.photoURL === "string" && data.photoURL.trim()
+                      ? data.photoURL.trim()
+                      : null,
+                } satisfies FollowedProfileLite;
+              } catch {
+                return null;
+              }
+            })
+          );
+
+          if (cancelled) return;
+
+          setFollowedProfiles(
+            profiles.filter(
+              (profile): profile is FollowedProfileLite => profile !== null
+            )
+          );
+        } catch (e: any) {
+          if (!cancelled) {
+            setGroupsErr(
+              e?.message ?? "No se pudieron cargar los perfiles que sigues."
+            );
+            setFollowedProfiles([]);
+          }
+        } finally {
+          if (!cancelled) {
+            setLoadingFollowing(false);
+          }
+        }
+      },
+      (e: any) => {
+        if (!cancelled) {
+          setGroupsErr(
+            e?.message ?? "No se pudieron cargar los perfiles que sigues."
+          );
+          setFollowedProfiles([]);
+          setLoadingFollowing(false);
+        }
+      }
+    );
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
   }, [viewer?.uid]);
 
   useEffect(() => {
@@ -2583,9 +2717,11 @@ return (
 .profile-owner-sidebar-content {
   position: relative;
   z-index: 2;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   min-height: 0;
+  max-height: 100%;
 }
 
 .owner-sidebar-view-transition {
@@ -2605,8 +2741,11 @@ return (
   }
 }
 .profile-owner-sidebar-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  overscroll-behavior: contain;
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
@@ -2671,59 +2810,54 @@ return (
         }
 
 @media (max-width: 1220px) {
-
   .owner-sidebar-community-card :global(button[aria-label*="Copiar"]) {
     opacity: 0.72 !important;
   }
 
+  .owner-sidebar-community-card {
+    width: 100% !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    justify-content: space-between !important;
+  }
 
-.profile-owner-sidebar-panel {
-  background: transparent !important;
-  box-shadow: none !important;
-  border: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
+  .owner-sidebar-community-card-main {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
 
-.owner-sidebar-community-card {
-  width: 100% !important;
-  padding-left: 12px !important;
-  padding-right: 12px !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  justify-content: space-between !important;
-}
+  .profile-owner-sidebar-fixed {
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: calc(env(safe-area-inset-top, 0px) + 90px) !important;
+    bottom: 78px !important;
+    width: auto !important;
+    max-height: none !important;
+    height: auto !important;
+    margin: 0 !important;
+  }
 
-.owner-sidebar-community-card-main {
-  flex: 1 !important;
-  min-width: 0 !important;
-}
-.profile-owner-sidebar-fixed {
-  position: fixed !important;
-  left: 8px !important;
-  right: 8px !important;
- top: calc(env(safe-area-inset-top, 0px) + 90px) !important;
-  bottom: 78px !important;
-  width: auto !important;
-  max-height: none !important;
-  margin: 0 !important;
-}
-
-.profile-owner-sidebar-panel {
-  height: 100% !important;
-  max-height: 100% !important;
-  padding: 0 !important;
-  overflow: hidden !important;
-}
+  .profile-owner-sidebar-panel {
+    height: 100% !important;
+    max-height: 100% !important;
+    padding: 10px !important;
+    overflow: hidden !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-radius: 0 !important;
+  }
 
   .profile-owner-sidebar-content {
     height: 100% !important;
     max-height: 100% !important;
     overflow: hidden !important;
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
   }
 
   .profile-owner-sidebar-scroll {
+    flex: 1 1 auto !important;
     min-height: 0 !important;
     max-height: none !important;
     overflow-y: auto !important;
@@ -2731,14 +2865,16 @@ return (
   }
 }
 
-  .profile-owner-sidebar-panel--profile-open {
-    overflow-y: auto;
-  }
+.profile-owner-sidebar-panel--profile-open {
+  overflow: hidden;
+}
 
-  .profile-owner-sidebar-panel--profile-open .profile-owner-sidebar-scroll {
-    max-height: none !important;
-    overflow: visible !important;
-  }
+.profile-owner-sidebar-panel--profile-open .profile-owner-sidebar-scroll {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
       `}</style>
 
@@ -2818,6 +2954,7 @@ greetingBusyId={greetingBusyId}
   className="profile-owner-sidebar-scroll"
   style={{
     maxHeight: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom + 150}px)`,
+    minHeight: 0,
     paddingRight: 0,
   }}
 >
@@ -2881,6 +3018,18 @@ renderUserLink={renderUserLink}
 onCreateCommunity={() => router.push("/groups/new")}
     />
    </>
+  </div>
+)}
+
+{activeView === "following" && (
+  <div className="owner-sidebar-view-transition" key="following">
+    <OwnerSidebarFollowedProfiles
+      loadingFollowing={loadingFollowing}
+      followedProfiles={followedProfiles}
+      styles={styles}
+      getInitials={getInitials}
+      onOpenProfile={(handle) => router.push(`/u/${handle}`)}
+    />
   </div>
 )}
 

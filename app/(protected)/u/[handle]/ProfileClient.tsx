@@ -27,6 +27,7 @@ import {
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { onAuthStateChanged, sendPasswordResetEmail } from "firebase/auth";
+import { httpsCallable } from "firebase/functions";
 import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
 import CreatorServicesMenu from "@/components/services/CreatorServicesMenu";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
@@ -44,7 +45,7 @@ import type { CreatorServiceType, Currency } from "@/types/group";
 import SafeCropper from "@/components/media/SafeCropper";
 import type { ComponentType } from "react";
 
-import { auth, db, storage } from "@/lib/firebase";
+import { auth, db, storage, functions } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import ProfilePostsFeed from "./components/ProfilePostsFeed";
 import ProfileSubnav, {
@@ -53,6 +54,11 @@ import ProfileSubnav, {
 import ProfileGroupsTab from "./components/ProfileSubnav/ProfileGroupsTab";
 import ProfileSettingsTab from "./components/ProfileSubnav/ProfileSettingsTab";
 import ProfileServicesTab from "./components/ProfileSubnav/ProfileServicesTab";
+import ProfileSocialActions from "./components/ProfileSocialActions";
+import GroupPostComposer from "@/app/groups/[groupId]/components/posts/GroupPostComposer";
+import { createMediaPost, createTextPost } from "@/lib/posts/post-service";
+import { uploadPostImages } from "@/lib/posts/image-upload";
+import type { PostMedia } from "@/lib/posts/types";
 
 type SafeCropperProps = {
   image: string;
@@ -70,6 +76,20 @@ type SafeCropperProps = {
   onCropComplete: (croppedArea: unknown, croppedAreaPixels: unknown) => void;
 };
 
+
+type ProfileComposerMediaItem = {
+  type: "image" | "video";
+  file: File;
+  coverFile?: File | null;
+};
+
+type ProfileComposerSubmitPayload = {
+  text: string;
+  contextType: "group" | "profile";
+  imageFiles?: File[];
+  videoFiles?: File[];
+  mediaItems?: ProfileComposerMediaItem[];
+};
 
 type FirestoreDateLike =
   | string
@@ -191,6 +211,70 @@ async function getCroppedBlob(
   });
 }
 
+type CreateMuxDirectUploadResponse = {
+  provider: "mux";
+  uploadId: string;
+  uploadUrl: string;
+  postId: string;
+  mediaId: string;
+  status: string;
+};
+
+const VIDEO_MAX_DURATION_SECONDS = 60 * 30;
+
+function getVideoDuration(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    const objectUrl = URL.createObjectURL(file);
+
+    video.preload = "metadata";
+
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(video.duration);
+    };
+
+    video.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("No se pudo leer la duración del video."));
+    };
+
+    video.src = objectUrl;
+  });
+}
+
+function uploadVideoFileToMux(params: {
+  uploadUrl: string;
+  file: File;
+  onProgress: (progress: number) => void;
+}): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable) return;
+      params.onProgress(Math.round((event.loaded / event.total) * 100));
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(`Mux upload falló con status ${xhr.status}.`));
+    };
+
+xhr.onerror = () => {
+  reject(new Error("Error de red al subir el video a Mux."));
+};
+
+    xhr.open("PUT", params.uploadUrl);
+    xhr.setRequestHeader("Content-Type", params.file.type || "video/mp4");
+    xhr.send(params.file);
+  });
+}
+
 export default function ProfileClient() {
   const params = useParams<{ handle: string }>();
   const pathname = usePathname();
@@ -208,6 +292,10 @@ export default function ProfileClient() {
   const [userDoc, setUserDoc] = useState<UserDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
+
+  const [profileBlockedByViewer, setProfileBlockedByViewer] = useState(false);
+  const [viewerBlockedByProfile, setViewerBlockedByProfile] = useState(false);
+  const [blockStatusLoading, setBlockStatusLoading] = useState(false);
 
   const [uploading, setUploading] = useState(false);
   const [savingProfileRestricted, setSavingProfileRestricted] = useState(false);
@@ -238,6 +326,11 @@ const [exclusiveSessionMessage, setExclusiveSessionMessage] = useState("");
 const [exclusiveSessionError, setExclusiveSessionError] = useState<string | null>(null);
 
 const [serviceToast, setServiceToast] = useState<string | null>(null);
+const [profileComposerError, setProfileComposerError] = useState<string | null>(null);
+const [profilePostsRefreshKey, setProfilePostsRefreshKey] = useState(0);
+const [profileVideoUploadProgress, setProfileVideoUploadProgress] = useState<number | null>(null);
+const [profileVideoUploadStatus, setProfileVideoUploadStatus] = useState<string | null>(null);
+
 useEffect(() => {
   if (!serviceToast) return;
 
@@ -262,6 +355,7 @@ useEffect(() => {
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
   const isOwner = !!viewer && !!userDoc && viewer.uid === userDoc.uid;
+  const profileUid = userDoc?.uid ?? null;
 
   const ownerShowPosts = userDoc?.showPosts ?? true;
   const ownerShowGroups = userDoc?.showCreatedGroups ?? true;
@@ -269,10 +363,22 @@ useEffect(() => {
 
   const isProfileRestrictedForVisitor = !isOwner && profileRestricted;
 
-  const visitorCanSeePosts =
-    !isProfileRestrictedForVisitor && (userDoc?.showPosts ?? true);
+  const profileBlockedByRelationship =
+    !isOwner && (profileBlockedByViewer || viewerBlockedByProfile);
 
-  const visitorCanSeeGroups = userDoc?.showCreatedGroups ?? true;
+  const checkingProfileBlock =
+    authReady && !!viewer && !!profileUid && !isOwner && blockStatusLoading;
+
+  const shouldHideProfileSocialContent =
+    !isOwner && (checkingProfileBlock || profileBlockedByRelationship);
+
+  const visitorCanSeePosts =
+    !shouldHideProfileSocialContent &&
+    !isProfileRestrictedForVisitor &&
+    (userDoc?.showPosts ?? true);
+
+  const visitorCanSeeGroups =
+    !shouldHideProfileSocialContent && (userDoc?.showCreatedGroups ?? true);
 
   const showPostsTab = isOwner ? true : visitorCanSeePosts;
   const showGroupsTab = isOwner ? true : visitorCanSeeGroups;
@@ -281,6 +387,13 @@ useEffect(() => {
 
   useEffect(() => {
     if (!userDoc) return;
+
+    if (shouldHideProfileSocialContent) {
+      if (activeTab !== "posts") {
+        setActiveTab("posts");
+      }
+      return;
+    }
 
     if (isOwner) {
       if (
@@ -315,7 +428,14 @@ useEffect(() => {
     if (activeTab === "services" || activeTab === "settings") {
       setActiveTab(showPostsTab ? "posts" : "groups");
     }
-  }, [activeTab, isOwner, showPostsTab, showGroupsTab, userDoc]);
+  }, [
+    activeTab,
+    isOwner,
+    shouldHideProfileSocialContent,
+    showPostsTab,
+    showGroupsTab,
+    userDoc,
+  ]);
 
 function redirectToLogin() {
   const nextPath = buildCurrentPathWithSearch(
@@ -605,6 +725,81 @@ function resetExclusiveSessionModal() {
   };
 }, [handle]);
 
+useEffect(() => {
+  if (!authReady || !viewer || !profileUid || isOwner) {
+    setProfileBlockedByViewer(false);
+    setViewerBlockedByProfile(false);
+    setBlockStatusLoading(false);
+    return;
+  }
+
+  setBlockStatusLoading(true);
+
+  let viewerBlockReady = false;
+  let profileBlockReady = false;
+
+  const viewerBlockedProfileRef = doc(
+    db,
+    "users",
+    viewer.uid,
+    "blockedUsers",
+    profileUid
+  );
+
+  const profileBlockedViewerRef = doc(
+    db,
+    "users",
+    profileUid,
+    "blockedUsers",
+    viewer.uid
+  );
+
+  const unsubViewerBlockedProfile = onSnapshot(
+    viewerBlockedProfileRef,
+    (snap) => {
+      viewerBlockReady = true;
+      setProfileBlockedByViewer(snap.exists());
+
+      if (viewerBlockReady && profileBlockReady) {
+        setBlockStatusLoading(false);
+      }
+    },
+    () => {
+      viewerBlockReady = true;
+      setProfileBlockedByViewer(false);
+
+      if (viewerBlockReady && profileBlockReady) {
+        setBlockStatusLoading(false);
+      }
+    }
+  );
+
+  const unsubProfileBlockedViewer = onSnapshot(
+    profileBlockedViewerRef,
+    (snap) => {
+      profileBlockReady = true;
+      setViewerBlockedByProfile(snap.exists());
+
+      if (viewerBlockReady && profileBlockReady) {
+        setBlockStatusLoading(false);
+      }
+    },
+    () => {
+      profileBlockReady = true;
+      setViewerBlockedByProfile(false);
+
+      if (viewerBlockReady && profileBlockReady) {
+        setBlockStatusLoading(false);
+      }
+    }
+  );
+
+  return () => {
+    unsubViewerBlockedProfile();
+    unsubProfileBlockedViewer();
+  };
+}, [authReady, viewer, profileUid, isOwner]);
+
   useEffect(() => {
   if (!authReady || !userDoc) return;
 
@@ -688,6 +883,221 @@ function resetExclusiveSessionModal() {
     },
     []
   );
+
+async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
+  if (!userDoc || !isOwner) return;
+
+  try {
+    setMsg(null);
+    setProfileComposerError(null);
+    setProfileVideoUploadProgress(null);
+    setProfileVideoUploadStatus(null);
+
+    const cleanText = payload.text.trim();
+
+    const orderedMediaItems: ProfileComposerMediaItem[] =
+      Array.isArray(payload.mediaItems) && payload.mediaItems.length > 0
+        ? payload.mediaItems
+        : [
+            ...(payload.imageFiles ?? []).map<ProfileComposerMediaItem>((file) => ({
+              type: "image",
+              file,
+              coverFile: null,
+            })),
+            ...(payload.videoFiles ?? []).map<ProfileComposerMediaItem>((file) => ({
+              type: "video",
+              file,
+              coverFile: null,
+            })),
+          ];
+
+    const imageItems = orderedMediaItems
+      .map((item, mediaIndex) => ({ ...item, mediaIndex }))
+      .filter((item) => item.type === "image");
+
+    const videoItems = orderedMediaItems
+      .map((item, mediaIndex) => ({ ...item, mediaIndex }))
+      .filter((item) => item.type === "video");
+
+    if (videoItems.length > 3) {
+      setProfileComposerError("Puedes agregar máximo 3 videos por publicación.");
+      return;
+    }
+
+    if (videoItems.length > 0) {
+      setProfileVideoUploadProgress(0);
+      setProfileVideoUploadStatus("Validando videos...");
+
+      for (const videoItem of videoItems) {
+        const duration = await getVideoDuration(videoItem.file);
+
+        if (duration > VIDEO_MAX_DURATION_SECONDS) {
+          setProfileVideoUploadProgress(null);
+          setProfileVideoUploadStatus(null);
+          setProfileComposerError("Cada video no puede durar más de 30 minutos.");
+          return;
+        }
+      }
+    }
+
+    const uploadedImages: PostMedia[] =
+      imageItems.length > 0
+        ? (
+            await uploadPostImages({
+              groupId: `profile-${userDoc.uid}`,
+              files: imageItems.map((item) => item.file),
+            })
+          ).map((media, index) => ({
+            ...media,
+            index: imageItems[index]?.mediaIndex ?? index,
+          }))
+        : [];
+
+    const videoCoverItems = videoItems.filter(
+      (item) => item.coverFile instanceof File
+    );
+
+    const uploadedVideoCovers =
+      videoCoverItems.length > 0
+        ? (setProfileVideoUploadStatus("Subiendo portadas de videos..."),
+          await uploadPostImages({
+            groupId: `profile-${userDoc.uid}`,
+            files: videoCoverItems.map((item) => item.coverFile as File),
+          })).map((media, index) => ({
+            mediaIndex: videoCoverItems[index]?.mediaIndex ?? index,
+            thumbnailUrl: media.thumbnailUrl ?? media.url,
+            thumbnailPath: media.thumbnailPath ?? media.path ?? null,
+          }))
+        : [];
+
+    const videoCoversByMediaIndex = new Map(
+      uploadedVideoCovers.map((cover) => [cover.mediaIndex, cover])
+    );
+
+    if (videoItems.length > 0) {
+      setProfileVideoUploadStatus("Preparando subida de videos...");
+
+      const callable = httpsCallable<
+        {
+          contextType: "profile";
+          profileId: string;
+          postId?: string;
+          mediaIndex?: number;
+        },
+        CreateMuxDirectUploadResponse
+      >(functions, "createMuxDirectUpload");
+
+      const muxUploads: Array<{
+        uploadUrl: string;
+        uploadId: string;
+        postId: string;
+        mediaId: string;
+        file: File;
+        mediaIndex: number;
+        thumbnailUrl: string | null;
+        thumbnailPath: string | null;
+      }> = [];
+
+      let sharedPostId: string | null = null;
+
+      for (const videoItem of videoItems) {
+        const uploadResult = await callable({
+          contextType: "profile",
+          profileId: userDoc.uid,
+          postId: sharedPostId ?? undefined,
+          mediaIndex: videoItem.mediaIndex,
+        });
+
+        const uploadData = uploadResult.data as CreateMuxDirectUploadResponse;
+
+        if (!sharedPostId) {
+          sharedPostId = uploadData.postId;
+        }
+
+        const cover = videoCoversByMediaIndex.get(videoItem.mediaIndex) ?? null;
+
+        muxUploads.push({
+          uploadUrl: uploadData.uploadUrl,
+          uploadId: uploadData.uploadId,
+          postId: uploadData.postId,
+          mediaId: uploadData.mediaId,
+          file: videoItem.file,
+          mediaIndex: videoItem.mediaIndex,
+          thumbnailUrl: cover?.thumbnailUrl ?? null,
+          thumbnailPath: cover?.thumbnailPath ?? null,
+        });
+      }
+
+      if (!sharedPostId) {
+        throw new Error("No se pudo preparar la publicación de video.");
+      }
+
+      setProfileVideoUploadStatus("Creando publicación con media...");
+
+      const videoUploadsPayload = muxUploads.map((upload) => ({
+        uploadId: upload.uploadId,
+        mediaId: upload.mediaId,
+        mediaIndex: upload.mediaIndex,
+        thumbnailUrl: upload.thumbnailUrl,
+        thumbnailPath: upload.thumbnailPath,
+      }));
+
+      await createMediaPost({
+        contextType: "profile",
+        profileId: userDoc.uid,
+        postId: sharedPostId,
+        text: cleanText,
+        imageMedia: uploadedImages,
+        videoUploads: videoUploadsPayload,
+      });
+
+      for (let index = 0; index < muxUploads.length; index += 1) {
+        const upload = muxUploads[index];
+
+        setProfileVideoUploadStatus(
+          `Subiendo video ${index + 1} de ${muxUploads.length} a Mux...`
+        );
+
+        await uploadVideoFileToMux({
+          uploadUrl: upload.uploadUrl,
+          file: upload.file,
+          onProgress: setProfileVideoUploadProgress,
+        });
+      }
+
+      setProfileVideoUploadStatus(
+        "Videos subidos. Mux los está procesando; aparecerán listos en unos momentos."
+      );
+    } else if (uploadedImages.length > 0) {
+      await createMediaPost({
+        contextType: "profile",
+        profileId: userDoc.uid,
+        text: cleanText,
+        imageMedia: uploadedImages,
+        videoUploads: [],
+      });
+    } else {
+      await createTextPost({
+        contextType: "profile",
+        profileId: userDoc.uid,
+        text: cleanText,
+      });
+    }
+
+    setProfilePostsRefreshKey((value) => value + 1);
+    setMsg("✅ Publicación creada en tu perfil.");
+
+    window.setTimeout(() => {
+      setProfileVideoUploadProgress(null);
+      setProfileVideoUploadStatus(null);
+    }, 2500);
+  } catch (e: any) {
+    setProfileComposerError(e?.message ?? "No se pudo publicar en tu perfil.");
+    setProfileVideoUploadProgress(null);
+    setProfileVideoUploadStatus(null);
+    throw e;
+  }
+}
 
   async function handleToggleProfileRestricted(nextValue: boolean) {
     if (!userDoc || !isOwner) return;
@@ -1203,7 +1613,8 @@ await createExclusiveSessionRequest({
       "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.12) 14%, rgba(0,0,0,0.26) 28%, rgba(0,0,0,0.44) 44%, rgba(0,0,0,0.62) 60%, rgba(0,0,0,0.78) 76%, rgba(0,0,0,0.9) 90%, rgba(0,0,0,0.96) 100%)",
   }}
 />
-              <DonationAccessButton
+              {!shouldHideProfileSocialContent && (
+                <DonationAccessButton
   donation={userDoc.donation ?? null}
   disabled={!viewer}
   onClick={() => {
@@ -1226,9 +1637,11 @@ await createExclusiveSessionRequest({
     zIndex: 30,
   }}
 />
+              )}
 
 <>
-  <div
+  {!shouldHideProfileSocialContent && (
+    <div
     style={{
       position: "absolute",
       right: 18,
@@ -1254,6 +1667,7 @@ await createExclusiveSessionRequest({
       }}
     />
   </div>
+  )}
 
   {isOwner && (
     <button
@@ -1423,7 +1837,31 @@ await createExclusiveSessionRequest({
                   <div className="profile-handle">@{userDoc.handle}</div>
 
                   <div className="profile-visibility">{profileVisibilityLabel}</div>
-                 {!isProfileRestrictedForVisitor ? (
+
+                  <ProfileSocialActions
+                    viewerUid={viewer?.uid ?? null}
+                    profileUid={userDoc.uid}
+                    profileRestricted={profileRestricted}
+                  />
+
+                  {shouldHideProfileSocialContent ? (
+                    <div
+                      style={{
+                        ...styles.message,
+                        marginTop: 18,
+                        textAlign: "center",
+                        maxWidth: 520,
+                      }}
+                    >
+                      {checkingProfileBlock
+                        ? "Validando acceso al perfil..."
+                        : profileBlockedByViewer
+                          ? "Bloqueaste este perfil. Puedes desbloquearlo desde el menú de opciones."
+                          : "Este perfil no está disponible."}
+                    </div>
+                  ) : null}
+
+                  {!isProfileRestrictedForVisitor && !shouldHideProfileSocialContent ? (
   <div
     className="profile-services-menu"
     style={{
@@ -1449,7 +1887,7 @@ await createExclusiveSessionRequest({
                 </div>
               </div>
 
-              {authReady && !viewer && (
+              {authReady && !viewer && !shouldHideProfileSocialContent && (
                 <div className="profile-actions-wrap">
                   <div style={styles.ctaCard}>
                     <div
@@ -1504,10 +1942,79 @@ await createExclusiveSessionRequest({
           )}
 
           <div className="profile-tab-content" style={styles.tabContentWrap}>
-            {(isOwner || showPostsTab || isProfileRestrictedForVisitor) &&
+            {!shouldHideProfileSocialContent &&
+              (isOwner || showPostsTab || isProfileRestrictedForVisitor) &&
               activeTab === "posts" && (
                 <div className="profile-tab-panel">
+{isOwner && (
+  <div style={{ marginBottom: 12 }}>
+    <GroupPostComposer
+      contextType="profile"
+      onSubmit={handleCreateProfilePost}
+    />
+
+    {profileVideoUploadStatus ? (
+      <div
+        style={{
+          marginTop: 10,
+          borderRadius: 14,
+          border: "1px solid rgba(255,255,255,0.1)",
+          background: "rgba(15, 23, 42, 0.72)",
+          padding: 12,
+          color: "rgba(255,255,255,0.84)",
+          fontSize: 13,
+        }}
+      >
+        <div style={{ marginBottom: 8 }}>{profileVideoUploadStatus}</div>
+
+        {profileVideoUploadProgress !== null ? (
+          <div
+            style={{
+              height: 8,
+              width: "100%",
+              overflow: "hidden",
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.1)",
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${profileVideoUploadProgress}%`,
+                borderRadius: 999,
+                background: "rgba(96,165,250,0.95)",
+                transition: "width 160ms ease",
+              }}
+            />
+          </div>
+        ) : null}
+
+        {profileVideoUploadProgress !== null ? (
+          <div style={{ marginTop: 6, fontSize: 12 }}>
+            {profileVideoUploadProgress}%
+          </div>
+        ) : null}
+      </div>
+    ) : null}
+
+    {profileComposerError ? (
+      <div
+        style={{
+          ...styles.message,
+          marginTop: 10,
+          borderColor: "rgba(248,113,113,0.22)",
+          background: "rgba(248,113,113,0.08)",
+          color: "#fecaca",
+        }}
+      >
+        {profileComposerError}
+      </div>
+    ) : null}
+  </div>
+)}
+
 <ProfilePostsFeed
+  key={`profile-posts-${userDoc.uid}-${profilePostsRefreshKey}`}
   profileUid={userDoc.uid}
   viewerUid={viewer?.uid ?? null}
   isOwner={isOwner}
@@ -1517,7 +2024,9 @@ await createExclusiveSessionRequest({
                 </div>
               )}
 
-            {(isOwner || showGroupsTab) && activeTab === "groups" && (
+            {!shouldHideProfileSocialContent &&
+              (isOwner || showGroupsTab) &&
+              activeTab === "groups" && (
               <div className="profile-tab-panel">
                 <ProfileGroupsTab
                   profileUid={userDoc.uid}

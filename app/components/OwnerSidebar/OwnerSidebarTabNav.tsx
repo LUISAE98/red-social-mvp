@@ -2,11 +2,6 @@
 
 import type { CSSProperties } from "react";
 import type { TopView } from "./OwnerSidebar";
-import {
-  VibraNavigationIcon,
-  VibraNavigationIconsStyles,
-  type VibraNavigationIconType,
-} from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 
 type Props = {
   activeView: TopView;
@@ -26,19 +21,21 @@ export default function OwnerSidebarTabNav({
 
   const tabs = [
     {
+      key: "following" as const,
+      label: "Perfiles seguidos",
+      title: "Perfiles seguidos",
+      showBadge: false,
+    },
+    {
       key: "owned" as const,
       label: "Mis comunidades",
       title: "Mis comunidades",
-      iconType: "myCommunities" as VibraNavigationIconType,
-      imageSrc: "/miscomunidades.png",
       showBadge: false,
     },
     {
       key: "communities" as const,
       label: "Otras comunidades",
       title: "Otras comunidades",
-      iconType: "otherCommunities" as VibraNavigationIconType,
-      imageSrc: "/suscomunidades.png",
       showBadge: false,
     },
     ...(hasRequests
@@ -47,8 +44,6 @@ export default function OwnerSidebarTabNav({
             key: "greetings" as const,
             label: "Solicitados",
             title: "Solicitados",
-            iconType: "requested" as VibraNavigationIconType,
-            imageSrc: "/solicitados.png",
             showBadge: true,
           },
         ]
@@ -56,131 +51,66 @@ export default function OwnerSidebarTabNav({
   ];
 
   const safeActiveView =
-    !hasRequests && activeView === "greetings" ? "owned" : activeView;
+    !hasRequests && activeView === "greetings" ? "following" : activeView;
 
-  const badgeText = requestedCount > 99 ? "99+" : String(requestedCount);
-    const activeIndex = Math.max(
+  const activeIndex = Math.max(
     0,
     tabs.findIndex((tab) => tab.key === safeActiveView)
   );
 
-  const safeTabCount = Math.max(tabs.length, 1);
-  const indicatorTranslatePercent = activeIndex * 100;
+  const badgeText = requestedCount > 99 ? "99+" : String(requestedCount);
 
   const wrapStyle: CSSProperties = {
+    position: "relative",
     width: "100%",
     display: "grid",
-    gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))`,
-    alignItems: "start",
-    gap: 0,
+    gap: 2,
     fontFamily: fontStack,
     boxSizing: "border-box",
-    padding: "0 8px",
-    overflow: "visible",
+    padding: "4px 8px 6px",
   };
 
   const itemBase: CSSProperties = {
     position: "relative",
-    minWidth: 0,
-    height: 92,
-    display: "grid",
-    placeItems: "center",
-    color: "rgba(255,255,255,0.62)",
+    width: "100%",
+    minHeight: 34,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10,
+    color: "rgba(255,255,255,0.56)",
     background: "transparent",
     border: "none",
     cursor: "pointer",
-    transition: "color 0.2s ease, transform 0.15s ease",
+    transition: "color 0.2s ease, background 0.2s ease",
     WebkitTapHighlightColor: "transparent",
-    padding: "0 4px",
-    overflow: "visible",
+    padding: "7px 8px 7px 14px",
+    borderRadius: 10,
+    textAlign: "left",
+    overflow: "hidden",
   };
 
-const activeStyle: CSSProperties = {
-  color: "rgba(255,255,255,0.92)",
-};
+  const activeStyle: CSSProperties = {
+    color: "rgba(255,255,255,0.95)",
+    background: "rgba(255,255,255,0.035)",
+  };
 
-  const itemInner: CSSProperties = {
+  const labelStyle: CSSProperties = {
     position: "relative",
-    display: "grid",
-    gridTemplateRows: "44px 28px",
-    justifyItems: "center",
-    alignItems: "center",
-    width: "100%",
-    minWidth: 0,
-    paddingTop: 4,
-    paddingBottom: 16,
     zIndex: 2,
+    fontSize: 13,
+    fontWeight: 560,
+    fontFamily: fontStack,
+    lineHeight: 1.15,
+    letterSpacing: "-0.08px",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   };
 
-const iconWrap: CSSProperties = {
-  position: "relative",
-  display: "grid",
-  placeItems: "center",
-  width: 88,
-  height: 44,
-  overflow: "visible",
-  lineHeight: 1,
-  zIndex: 1,
-};
-
-const imageIconStyle = (
-  active: boolean,
-  tabKey: TopView
-): CSSProperties => {
-  const styleByTab: Record<
-    TopView,
-    {
-      size: number;
-      scale: number;
-    }
-  > = {
-    owned: {
-      size: 44,
-      scale: 2.7,
-    },
-    communities: {
-      size: 45,
-      scale: 1,
-    },
-    greetings: {
-      size: 90,
-      scale: 1,
-    },
-  };
-
-  const tabStyle = styleByTab[tabKey];
-  const inactiveScale = tabStyle.scale * 0.96;
-
-  return {
-    position: "absolute",
-top:
-  tabKey === "owned"
-    ? "54%"
-    : tabKey === "greetings"
-      ? "45%"
-      : "50%",
-    left: "50%",
-    width: tabStyle.size,
-    height: tabStyle.size,
-    objectFit: "contain",
-    display: "block",
-opacity: active ? 0.93 : 0.65,
-filter: active
-  ? "brightness(0.92) saturate(0.96)"
-  : "grayscale(0.45) brightness(0.72) saturate(0.75)",
-    transform: active
-      ? `translate(-50%, -50%) scale(${tabStyle.scale})`
-      : `translate(-50%, -50%) scale(${inactiveScale})`,
-    transformOrigin: "center center",
-    transition: "opacity 0.2s ease, transform 0.2s ease",
-    pointerEvents: "none",
-    zIndex: 0,
-  };
-};
   const badgeStyle: CSSProperties = {
-    position: "absolute",
-    top: -2,
-    right: -8,
+    position: "relative",
+    zIndex: 2,
     minWidth: 18,
     height: 18,
     padding: "0 5px",
@@ -198,38 +128,17 @@ filter: active
     boxShadow: "0 4px 10px rgba(0,0,0,0.28)",
     pointerEvents: "none",
     boxSizing: "border-box",
-    zIndex: 5,
+    flexShrink: 0,
   };
-
-const labelStyle: CSSProperties = {
-  position: "relative",
-  zIndex: 3,
-  fontSize: 11.5,
-  fontWeight: 550,
-  fontFamily: fontStack,
-  lineHeight: 1.05,
-  letterSpacing: "-0.08px",
-  color: "rgba(255,255,255,0.88)",
-  textAlign: "center",
-  whiteSpace: "normal",
-  overflow: "hidden",
-  textOverflow: "clip",
-  wordBreak: "normal",
-  maxWidth: "100%",
-  minHeight: 24,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-};
 
   const indicatorTrackStyle: CSSProperties = {
     position: "absolute",
     left: 8,
-    bottom: 8,
-    width: `calc((100% - 16px) / ${safeTabCount})`,
-    height: 3,
+    top: 4,
+    width: 3,
+    height: 34,
     pointerEvents: "none",
-    transform: `translate3d(${indicatorTranslatePercent}%, 0, 0)`,
+    transform: `translate3d(0, ${activeIndex * 36}px, 0)`,
     transition: "transform 420ms cubic-bezier(0.2, 0.9, 0.2, 1)",
     willChange: "transform",
     zIndex: 4,
@@ -237,67 +146,46 @@ const labelStyle: CSSProperties = {
 
   const indicatorBarStyle: CSSProperties = {
     position: "absolute",
-    left: "50%",
-    width: 68,
-    height: 3,
+    left: 0,
+    top: 7,
+    width: 3,
+    height: 20,
     borderRadius: 999,
     background: "#a855ff",
-    opacity: 0.75,
-    transform: "translateX(-50%)",
+    opacity: 0.9,
+    boxShadow: "0 0 12px rgba(168,85,255,0.42)",
   };
 
   return (
-    <>
-      <VibraNavigationIconsStyles />
+    <div style={wrapStyle}>
+      <span style={indicatorTrackStyle}>
+        <span style={indicatorBarStyle} />
+      </span>
 
-            <div style={{ ...wrapStyle, position: "relative" }}>
-        <span style={indicatorTrackStyle}>
-          <span style={indicatorBarStyle} />
-        </span>
-        {tabs.map((tab) => {
-          const active = safeActiveView === tab.key;
+      {tabs.map((tab) => {
+        const active = safeActiveView === tab.key;
 
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => onChange(tab.key)}
-              aria-pressed={active}
-              aria-label={tab.title}
-              title={tab.title}
-              style={{
-                ...itemBase,
-                ...(active ? activeStyle : null),
-              }}
-            >
-              <span style={itemInner}>
-                <span style={iconWrap}>
-                  {tab.imageSrc ? (
-                    <img
-                      src={tab.imageSrc}
-                      alt=""
-                      aria-hidden="true"
-                      style={imageIconStyle(active, tab.key)}
-                    />
-                  ) : (
-                    <VibraNavigationIcon
-                      type={tab.iconType}
-                      size={active ? 24 : 22}
-                      strokeWidth={active ? 2.2 : 2}
-                    />
-                  )}
+        return (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => onChange(tab.key)}
+            aria-pressed={active}
+            aria-label={tab.title}
+            title={tab.title}
+            style={{
+              ...itemBase,
+              ...(active ? activeStyle : null),
+            }}
+          >
+            <span style={labelStyle}>{tab.label}</span>
 
-                  {tab.showBadge && requestedCount > 0 ? (
-                    <span style={badgeStyle}>{badgeText}</span>
-                  ) : null}
-                </span>
-
-                <span style={labelStyle}>{tab.label}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </>
+            {tab.showBadge && requestedCount > 0 ? (
+              <span style={badgeStyle}>{badgeText}</span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
   );
 }

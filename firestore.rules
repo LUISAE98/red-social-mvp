@@ -128,6 +128,48 @@ service cloud.firestore {
     );
 }
 
+    function userBlockedUser(ownerUid, blockedUid) {
+      return exists(/databases/$(database)/documents/users/$(ownerUid)/blockedUsers/$(blockedUid));
+    }
+
+    function usersHaveBlockBetween(userA, userB) {
+      return userBlockedUser(userA, userB)
+        || userBlockedUser(userB, userA);
+    }
+
+    function validFollowingDoc(uid, targetUid) {
+      return request.resource.data.keys().hasOnly([
+        "userId",
+        "targetUserId",
+        "createdAt"
+      ])
+      && request.resource.data.userId == uid
+      && request.resource.data.targetUserId == targetUid
+      && request.resource.data.createdAt is timestamp;
+    }
+
+    function validFollowerDoc(uid, followerUid) {
+      return request.resource.data.keys().hasOnly([
+        "userId",
+        "followerUserId",
+        "createdAt"
+      ])
+      && request.resource.data.userId == uid
+      && request.resource.data.followerUserId == followerUid
+      && request.resource.data.createdAt is timestamp;
+    }
+
+    function validBlockedUserDoc(uid, blockedUid) {
+      return request.resource.data.keys().hasOnly([
+        "userId",
+        "blockedUserId",
+        "createdAt"
+      ])
+      && request.resource.data.userId == uid
+      && request.resource.data.blockedUserId == blockedUid
+      && request.resource.data.createdAt is timestamp;
+    }
+
     match /users/{uid} {
       allow get, list: if true;
 
@@ -180,6 +222,77 @@ service cloud.firestore {
               || request.resource.data.coverUrl is string)
           )
         );
+
+      match /following/{targetUid} {
+        allow get, list: if signedIn()
+          && request.auth.uid == uid;
+
+        allow create, update: if signedIn()
+          && request.auth.uid == uid
+          && targetUid != uid
+          && validFollowingDoc(uid, targetUid)
+          && !usersHaveBlockBetween(uid, targetUid)
+          && existsAfter(/databases/$(database)/documents/users/$(targetUid)/followers/$(uid))
+          && getAfter(/databases/$(database)/documents/users/$(targetUid)/followers/$(uid)).data.userId == targetUid
+          && getAfter(/databases/$(database)/documents/users/$(targetUid)/followers/$(uid)).data.followerUserId == uid;
+
+        allow delete: if signedIn()
+          && (
+            request.auth.uid == uid
+            || (
+              request.auth.uid == targetUid
+              && existsAfter(/databases/$(database)/documents/users/$(targetUid)/blockedUsers/$(uid))
+            )
+          );
+      }
+
+      match /followers/{followerUid} {
+        allow get: if signedIn()
+          && (
+            request.auth.uid == uid
+            || request.auth.uid == followerUid
+          );
+
+        allow list: if signedIn()
+          && request.auth.uid == uid;
+
+        allow create, update: if signedIn()
+          && request.auth.uid == followerUid
+          && followerUid != uid
+          && validFollowerDoc(uid, followerUid)
+          && !usersHaveBlockBetween(uid, followerUid)
+          && existsAfter(/databases/$(database)/documents/users/$(followerUid)/following/$(uid))
+          && getAfter(/databases/$(database)/documents/users/$(followerUid)/following/$(uid)).data.userId == followerUid
+          && getAfter(/databases/$(database)/documents/users/$(followerUid)/following/$(uid)).data.targetUserId == uid;
+
+        allow delete: if signedIn()
+          && (
+            request.auth.uid == uid
+            || (
+              request.auth.uid == followerUid
+              && !existsAfter(/databases/$(database)/documents/users/$(followerUid)/following/$(uid))
+            )
+          );
+      }
+
+      match /blockedUsers/{blockedUid} {
+        allow get: if signedIn()
+          && (
+            request.auth.uid == uid
+            || request.auth.uid == blockedUid
+          );
+
+        allow list: if signedIn()
+          && request.auth.uid == uid;
+
+        allow create, update: if signedIn()
+          && request.auth.uid == uid
+          && blockedUid != uid
+          && validBlockedUserDoc(uid, blockedUid);
+
+        allow delete: if signedIn()
+          && request.auth.uid == uid;
+      }
 
       match /postFlames/{postId} {
         allow get, list: if signedIn()
@@ -922,7 +1035,11 @@ function validMonetizationTransitions(transitions) {
       && (!("tagsNormalized" in search) || search.tagsNormalized is list)
       && (!("tokens" in search) || search.tokens is list)
       && (!("prefixes" in search) || search.prefixes is list)
-      && (!("visibility" in search) || search.visibility in ["public", "private", "hidden"])
+&& (
+  !("visibility" in search)
+  || search.visibility == null
+  || search.visibility in ["public", "private", "hidden"]
+)
       && (!("discoverable" in search) || search.discoverable is bool)
       && (!("isActive" in search) || search.isActive is bool)
       && (!("updatedAt" in search) || search.updatedAt is timestamp)
@@ -939,10 +1056,48 @@ function validPostSearchIndex(search) {
       && (!("tokens" in search) || search.tokens is list)
       && (!("prefixes" in search) || search.prefixes is list)
 
-      && (!("groupId" in search) || search.groupId == request.resource.data.groupId)
+      && (
+        !("contextType" in search)
+        || search.contextType in ["group", "profile"]
+      )
+
+      && (
+        !("groupId" in search)
+        || (
+          (
+            request.resource.data.contextType == "group"
+            && search.groupId == request.resource.data.groupId
+          )
+          ||
+          (
+            request.resource.data.contextType == "profile"
+            && search.groupId == null
+          )
+        )
+      )
+
+      && (
+        !("profileId" in search)
+        || (
+          (
+            request.resource.data.contextType == "profile"
+            && search.profileId == request.resource.data.profileId
+          )
+          ||
+          (
+            request.resource.data.contextType == "group"
+            && search.profileId == null
+          )
+        )
+      )
+
       && (!("authorId" in search) || search.authorId == request.resource.data.authorId)
 
-      && (!("visibility" in search) || search.visibility in ["public", "private", "hidden"])
+&& (
+  !("visibility" in search)
+  || search.visibility == null
+  || search.visibility in ["public", "private", "hidden"]
+)
       && (!("accessScope" in search) || search.accessScope in ["group", "profile"])
 
       && (!("isDeleted" in search) || search.isDeleted == request.resource.data.isDeleted)
@@ -1324,6 +1479,58 @@ allow list: if signedIn()
         );
     }
 
+    function userExists(uid) {
+  return exists(/databases/$(database)/documents/users/$(uid));
+}
+
+function userDoc(uid) {
+  return get(/databases/$(database)/documents/users/$(uid));
+}
+
+function profileAllowsPublicPosts(uid) {
+  return userExists(uid)
+    && (
+      !("showPosts" in userDoc(uid).data)
+      || userDoc(uid).data.showPosts != false
+    )
+    && (
+      !("profileRestricted" in userDoc(uid).data)
+      || userDoc(uid).data.profileRestricted != true
+    );
+}
+
+function canReadProfileContent(profileUid) {
+  return userExists(profileUid)
+    && (
+      (
+        signedIn()
+        && request.auth.uid == profileUid
+      )
+      ||
+      (
+        profileAllowsPublicPosts(profileUid)
+        && (
+          !signedIn()
+          || !usersHaveBlockBetween(request.auth.uid, profileUid)
+        )
+      )
+    );
+}
+
+function isGroupPostData(data) {
+  return (
+    !("contextType" in data)
+    || data.contextType == "group"
+  )
+  && data.groupId is string;
+}
+
+function isProfilePostData(data) {
+  return data.contextType == "profile"
+    && data.profileId is string
+    && data.authorId == data.profileId;
+}
+
     // ==========================
     // POSTS
     // ==========================
@@ -1331,8 +1538,18 @@ match /posts/{postId} {
 
 function canReadPublicSharedPost() {
   return resource.data.isDeleted == false
-    && resource.data.groupId is string
-    && resource.data.groupVisibility == "public"
+
+    && (
+      (
+        isGroupPostData(resource.data)
+        && resource.data.groupVisibility == "public"
+      )
+      ||
+      (
+        isProfilePostData(resource.data)
+        && profileAllowsPublicPosts(resource.data.profileId)
+      )
+    )
 
     && (
       !("search" in resource.data)
@@ -1341,6 +1558,10 @@ function canReadPublicSharedPost() {
         && (
           !("visibility" in resource.data.search)
           || resource.data.search.visibility == "public"
+        )
+        && (
+          !("isDeleted" in resource.data.search)
+          || resource.data.search.isDeleted == false
         )
       )
     )
@@ -1368,13 +1589,22 @@ function canReadPublicSharedPost() {
 
 function canReadPost() {
   return resource.data.isDeleted == false
-    && resource.data.groupId is string
     && (
-      canReadPublicSharedPost()
-      || canReadGroupContent(resource.data.groupId)
-      || (
-        signedIn()
-        && resource.data.authorId == request.auth.uid
+      (
+        isGroupPostData(resource.data)
+        && (
+          canReadPublicSharedPost()
+          || canReadGroupContent(resource.data.groupId)
+          || (
+            signedIn()
+            && resource.data.authorId == request.auth.uid
+          )
+        )
+      )
+      ||
+      (
+        isProfilePostData(resource.data)
+        && canReadProfileContent(resource.data.profileId)
       )
     );
 }
@@ -1386,68 +1616,113 @@ function canReadPostFromOwnHomeFeed() {
     && get(/databases/$(database)/documents/users/$(request.auth.uid)/homeFeed/$(postId)).data.isVisible == true;
 }
 
-      function validCreatePost() {
-        return signedIn()
-          && request.resource.data.authorId == request.auth.uid
-          && request.resource.data.groupId is string
-          && canPostInGroup(request.resource.data.groupId)
-          && request.resource.data.text is string
-          && request.resource.data.text.size() <= 5000
-          && (
-            request.resource.data.text.size() >= 1
-            || (
-              "media" in request.resource.data
-              && request.resource.data.media is list
-              && request.resource.data.media.size() > 0
-            )
+function validPostCommonCreateShape() {
+  return signedIn()
+    && request.resource.data.authorId == request.auth.uid
+    && request.resource.data.text is string
+    && request.resource.data.text.size() <= 5000
+    && (
+      request.resource.data.text.size() >= 1
+      || (
+        "media" in request.resource.data
+        && request.resource.data.media is list
+        && request.resource.data.media.size() > 0
+      )
+    )
+    && request.resource.data.isDeleted == false
+    && (!("isShareable" in request.resource.data) || request.resource.data.isShareable is bool)
+    && (!("publicSlug" in request.resource.data) || request.resource.data.publicSlug == null || request.resource.data.publicSlug is string)
+    && (!("shareTitle" in request.resource.data) || request.resource.data.shareTitle == null || request.resource.data.shareTitle is string)
+    && (!("shareDescription" in request.resource.data) || request.resource.data.shareDescription == null || request.resource.data.shareDescription is string)
+    && (!("shareImageUrl" in request.resource.data) || request.resource.data.shareImageUrl == null || request.resource.data.shareImageUrl is string)
+    && (!("access" in request.resource.data) || request.resource.data.access in ["free", "paid"])
+    && (
+      !("media" in request.resource.data)
+      || (
+        request.resource.data.media is list
+        && request.resource.data.media.size() <= 10
+      )
+    )
+    && (
+      !("counts" in request.resource.data)
+      || (
+        request.resource.data.counts is map
+        && (
+          !("comments" in request.resource.data.counts)
+          || (
+            request.resource.data.counts.comments is int
+            && request.resource.data.counts.comments >= 0
           )
-          && request.resource.data.isDeleted == false
-          && (!("isShareable" in request.resource.data) || request.resource.data.isShareable is bool)
-          && (!("publicSlug" in request.resource.data) || request.resource.data.publicSlug == null || request.resource.data.publicSlug is string)
-          && (!("shareTitle" in request.resource.data) || request.resource.data.shareTitle == null || request.resource.data.shareTitle is string)
-          && (!("shareDescription" in request.resource.data) || request.resource.data.shareDescription == null || request.resource.data.shareDescription is string)
-          && (!("shareImageUrl" in request.resource.data) || request.resource.data.shareImageUrl == null || request.resource.data.shareImageUrl is string)
-          && (!("access" in request.resource.data) || request.resource.data.access in ["free", "paid"])
-          && (
-  !("media" in request.resource.data)
-  || (
-    request.resource.data.media is list
-    && request.resource.data.media.size() <= 10
-  )
-)
-&& (
-  !("counts" in request.resource.data)
-  || (
-    request.resource.data.counts is map
-    && (
-      !("comments" in request.resource.data.counts)
-      || (
-        request.resource.data.counts.comments is int
-        && request.resource.data.counts.comments >= 0
+        )
+        && (
+          !("likes" in request.resource.data.counts)
+          || (
+            request.resource.data.counts.likes is int
+            && request.resource.data.counts.likes >= 0
+          )
+        )
+        && (
+          !("saves" in request.resource.data.counts)
+          || (
+            request.resource.data.counts.saves is int
+            && request.resource.data.counts.saves >= 0
+          )
+        )
       )
     )
-    && (
-      !("likes" in request.resource.data.counts)
-      || (
-        request.resource.data.counts.likes is int
-        && request.resource.data.counts.likes >= 0
-      )
-    )
-    && (
-      !("saves" in request.resource.data.counts)
-      || (
-        request.resource.data.counts.saves is int
-        && request.resource.data.counts.saves >= 0
-      )
-    )
-  )
-)
-
 && (
   !("search" in request.resource.data)
   || request.resource.data.search is map
 );
-      }
+}
+
+function validCreateGroupPost() {
+  return validPostCommonCreateShape()
+    && (
+      !("contextType" in request.resource.data)
+      || request.resource.data.contextType == "group"
+    )
+    && request.resource.data.groupId is string
+    && canPostInGroup(request.resource.data.groupId)
+    && (
+      !("profileId" in request.resource.data)
+      || request.resource.data.profileId == null
+    )
+    && (
+      !("accessScope" in request.resource.data)
+      || request.resource.data.accessScope == "group"
+    );
+}
+
+function validCreateProfilePost() {
+  return validPostCommonCreateShape()
+    && request.resource.data.contextType == "profile"
+    && request.resource.data.profileId is string
+    && request.resource.data.profileId == request.auth.uid
+    && request.resource.data.authorId == request.resource.data.profileId
+    && userExists(request.resource.data.profileId)
+    && (
+      !("groupId" in request.resource.data)
+      || request.resource.data.groupId == null
+    )
+    && (
+      !("groupVisibility" in request.resource.data)
+      || request.resource.data.groupVisibility == null
+    )
+    && (
+      !("accessScope" in request.resource.data)
+      || request.resource.data.accessScope == "profile"
+    )
+    && (
+      !("profileRestricted" in request.resource.data)
+      || request.resource.data.profileRestricted is bool
+    );
+}
+
+function validCreatePost() {
+  return validCreateGroupPost()
+    || validCreateProfilePost();
+}
 
       function canSoftDeletePost() {
         return signedIn()
@@ -1476,8 +1751,19 @@ function canReadPostFromOwnHomeFeed() {
           && request.resource.data.profilePinnedAt == null
           && request.resource.data.profilePinnedBy == null
           && request.resource.data.authorId == resource.data.authorId
-          && request.resource.data.groupId == resource.data.groupId
           && request.resource.data.text == resource.data.text
+          && (
+            !("contextType" in resource.data)
+            || request.resource.data.contextType == resource.data.contextType
+          )
+          && (
+            !("groupId" in resource.data)
+            || request.resource.data.groupId == resource.data.groupId
+          )
+          && (
+            !("profileId" in resource.data)
+            || request.resource.data.profileId == resource.data.profileId
+          )
           && (
             !("search" in request.resource.data)
             || (
@@ -1487,7 +1773,10 @@ function canReadPostFromOwnHomeFeed() {
           )
           && (
             resource.data.authorId == request.auth.uid
-            || canModerateGroup(resource.data.groupId)
+            || (
+              isGroupPostData(resource.data)
+              && canModerateGroup(resource.data.groupId)
+            )
           );
       }
 
@@ -1517,6 +1806,8 @@ function canUpdateCommentCount(delta) {
     ])
     && request.resource.data.authorId == resource.data.authorId
     && request.resource.data.groupId == resource.data.groupId
+    && request.resource.data.profileId == resource.data.profileId
+    && request.resource.data.contextType == resource.data.contextType
     && request.resource.data.text == resource.data.text
     && request.resource.data.isDeleted == resource.data.isDeleted
     && request.resource.data.counts is map
@@ -1525,13 +1816,23 @@ function canUpdateCommentCount(delta) {
     && request.resource.data.counts.comments == currentPostCommentCount() + delta
     && request.resource.data.counts.likes is int
     && request.resource.data.counts.likes == currentPostLikeCount()
-    && canWriteGroupComment(resource.data.groupId);
+    && canWritePostCommentData(resource.data);
 }
 
 function canListPublicSearchablePost() {
   return resource.data.isDeleted == false
-    && resource.data.groupId is string
-    && resource.data.groupVisibility == "public"
+
+    && (
+      (
+        isGroupPostData(resource.data)
+        && resource.data.groupVisibility == "public"
+      )
+      ||
+      (
+        isProfilePostData(resource.data)
+        && profileAllowsPublicPosts(resource.data.profileId)
+      )
+    )
 
     && (
       !("isShareable" in resource.data)
@@ -1572,10 +1873,56 @@ function canListPublicSearchablePost() {
 function canListReadableGroupSearchablePost() {
   return signedIn()
     && resource.data.isDeleted == false
-    && resource.data.groupId is string
+    && isGroupPostData(resource.data)
     && canReadGroupContent(resource.data.groupId)
     && resource.data.search is map
     && resource.data.search.isDeleted == false;
+}
+
+function canReadPostCommentsData(data) {
+  return data.isDeleted == false
+    && (
+      (
+        isGroupPostData(data)
+        && canReadGroupContent(data.groupId)
+      )
+      ||
+      (
+        isProfilePostData(data)
+        && canReadProfileContent(data.profileId)
+      )
+    );
+}
+
+function canWritePostCommentData(data) {
+  return signedIn()
+    && data.isDeleted == false
+    && (
+      (
+        isGroupPostData(data)
+        && canWriteGroupComment(data.groupId)
+      )
+      ||
+      (
+        isProfilePostData(data)
+        && canReadProfileContent(data.profileId)
+      )
+    );
+}
+
+function canModeratePostCommentData(data) {
+  return signedIn()
+    && (
+      (
+        isGroupPostData(data)
+        && canModerateGroup(data.groupId)
+      )
+      ||
+      (
+        isProfilePostData(data)
+        && data.authorId == request.auth.uid
+      )
+    );
 }
 
       allow get: if canReadPost()
@@ -1601,8 +1948,7 @@ allow list: if canReadPost()
         }
 
         function canReadComment() {
-          return parentPost().data.isDeleted == false
-            && canReadGroupContent(parentPost().data.groupId);
+          return canReadPostCommentsData(parentPost().data);
         }
 
         function canCreateComment() {
@@ -1611,16 +1957,14 @@ allow list: if canReadPost()
             && request.resource.data.text is string
             && request.resource.data.text.size() >= 1
             && request.resource.data.text.size() <= 2000
-            && parentPost().data.isDeleted == false
-            && canReadGroupContent(parentPost().data.groupId)
-            && canWriteGroupComment(parentPost().data.groupId);
+            && canWritePostCommentData(parentPost().data);
         }
 
         function canDeleteComment() {
           return signedIn()
             && (
               resource.data.authorId == request.auth.uid
-              || canModerateGroup(parentPost().data.groupId)
+              || canModeratePostCommentData(parentPost().data)
             );
         }
         
@@ -1656,7 +2000,7 @@ function canUpdateReplyCount(delta) {
     && request.resource.data.counts.replies == currentReplyCount() + delta
     && request.resource.data.counts.likes is int
     && request.resource.data.counts.likes == currentCommentLikeCount()
-    && canWriteGroupComment(parentPost().data.groupId);
+    && canWritePostCommentData(parentPost().data);
 }
 
         allow get, list: if canReadComment();
@@ -1680,16 +2024,14 @@ function canUpdateReplyCount(delta) {
               && request.resource.data.text is string
               && request.resource.data.text.size() >= 1
               && request.resource.data.text.size() <= 2000
-              && parentPost().data.isDeleted == false
-              && canReadGroupContent(parentPost().data.groupId)
-              && canWriteGroupComment(parentPost().data.groupId);
+              && canWritePostCommentData(parentPost().data);
           }
 
           function canDeleteReply() {
             return signedIn()
               && (
                 resource.data.authorId == request.auth.uid
-                || canModerateGroup(parentPost().data.groupId)
+                || canModeratePostCommentData(parentPost().data)
               );
           }
 

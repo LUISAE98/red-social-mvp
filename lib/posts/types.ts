@@ -80,13 +80,20 @@ export type PostType = "text" | "image" | "video" | "live" | "scheduled_event";
 
 export type PostAccessModel = "free" | "one_time_purchase";
 
+export type PostContextType = "group" | "profile";
+
 export type PostAccessScope = "group" | "profile";
 
 export type PostSearchIndex = {
   textNormalized: string;
   tokens: string[];
   prefixes: string[];
-  groupId: string;
+
+  contextType?: PostContextType | null;
+
+  groupId?: string | null;
+  profileId?: string | null;
+
   authorId: string;
   visibility?: GroupVisibility | null;
   accessScope?: PostAccessScope | null;
@@ -197,10 +204,18 @@ export type Post = {
   authorAvatarUrl?: string | null;
   authorUsername?: string | null;
 
-  groupId: string;
+  contextType?: PostContextType;
+
+  groupId?: string | null;
   groupName?: string | null;
   groupAvatarUrl?: string | null;
   groupVisibility?: GroupVisibility | null;
+
+  profileId?: string | null;
+  profileName?: string | null;
+  profileAvatarUrl?: string | null;
+  profileUsername?: string | null;
+  profileRestricted?: boolean | null;
 
   isDeleted: boolean;
   isLocked?: boolean;

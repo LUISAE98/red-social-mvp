@@ -21,7 +21,9 @@ export const muxWebhookSecret = defineSecret("MUX_WEBHOOK_SECRET");
 type MuxPassthrough = {
   postId?: string;
   authorId?: string;
-  groupId?: string;
+  contextType?: "group" | "profile";
+  groupId?: string | null;
+  profileId?: string | null;
   mediaId?: string;
   mediaIndex?: number;
   source?: string;
@@ -148,7 +150,10 @@ async function markAssetReady(event: MuxWebhookEvent) {
 
   let postId = passthrough.postId ?? null;
   let authorId = passthrough.authorId ?? null;
+  let contextType =
+    passthrough.contextType === "profile" ? "profile" : "group";
   let groupId = passthrough.groupId ?? null;
+  let profileId = passthrough.profileId ?? null;
   let mediaId = passthrough.mediaId ?? null;
   let mediaIndex =
     typeof passthrough.mediaIndex === "number" &&
@@ -162,7 +167,17 @@ async function markAssetReady(event: MuxWebhookEvent) {
     postId,
   });
 
-  if ((!postId || !authorId || !groupId || !mediaId || mediaIndex === null) && uploadRef) {
+  if (
+    (
+      !postId ||
+      !authorId ||
+      !mediaId ||
+      mediaIndex === null ||
+      (contextType === "group" && !groupId) ||
+      (contextType === "profile" && !profileId)
+    ) &&
+    uploadRef
+  ) {
     const uploadSnap = await uploadRef.get();
     const uploadData = uploadSnap.data() ?? {};
 
@@ -174,9 +189,16 @@ async function markAssetReady(event: MuxWebhookEvent) {
       authorId ??
       (typeof uploadData.authorId === "string" ? uploadData.authorId : null);
 
+    contextType =
+      uploadData.contextType === "profile" ? "profile" : contextType;
+
     groupId =
       groupId ??
       (typeof uploadData.groupId === "string" ? uploadData.groupId : null);
+
+    profileId =
+      profileId ??
+      (typeof uploadData.profileId === "string" ? uploadData.profileId : null);
 
     mediaId =
       mediaId ??
@@ -399,7 +421,9 @@ async function markAssetReady(event: MuxWebhookEvent) {
       };
 
       if (authorId) uploadUpdate.authorId = authorId;
-      if (groupId) uploadUpdate.groupId = groupId;
+      uploadUpdate.contextType = contextType;
+      uploadUpdate.groupId = groupId ?? null;
+      uploadUpdate.profileId = profileId ?? null;
       if (postId) uploadUpdate.postId = postId;
       if (mediaId) uploadUpdate.mediaId = mediaId;
       if (mediaIndex !== null) uploadUpdate.mediaIndex = mediaIndex;
@@ -415,6 +439,10 @@ async function markAssetError(event: MuxWebhookEvent) {
   const passthrough = parsePassthrough(event.data?.passthrough);
 
   let postId = passthrough.postId ?? null;
+  let contextType =
+    passthrough.contextType === "profile" ? "profile" : "group";
+  let groupId = passthrough.groupId ?? null;
+  let profileId = passthrough.profileId ?? null;
   let mediaId = passthrough.mediaId ?? null;
   let mediaIndex =
     typeof passthrough.mediaIndex === "number" &&
@@ -452,6 +480,17 @@ async function markAssetError(event: MuxWebhookEvent) {
     postId =
       postId ??
       (typeof uploadData.postId === "string" ? uploadData.postId : null);
+
+    contextType =
+      uploadData.contextType === "profile" ? "profile" : contextType;
+
+    groupId =
+      groupId ??
+      (typeof uploadData.groupId === "string" ? uploadData.groupId : null);
+
+    profileId =
+      profileId ??
+      (typeof uploadData.profileId === "string" ? uploadData.profileId : null);
 
     mediaId =
       mediaId ??
@@ -548,6 +587,9 @@ async function markAssetError(event: MuxWebhookEvent) {
       {
         status: "error",
         assetId,
+        contextType,
+        groupId: groupId ?? null,
+        profileId: profileId ?? null,
         errorCode,
         errorMessage,
         updatedAt: now,

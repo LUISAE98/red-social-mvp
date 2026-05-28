@@ -21,7 +21,9 @@ const MUX_UPLOAD_STALE_MS = 1000 * 60 * 60; // 1 hora
 const MUX_UPLOAD_CLEANUP_LIMIT = 25;
 
 type CreateMuxDirectUploadRequest = {
-  groupId?: string;
+  contextType?: "group" | "profile";
+  groupId?: string | null;
+  profileId?: string | null;
   postId?: string;
   mediaIndex?: number;
   customThumbnailUrl?: string | null;
@@ -65,16 +67,28 @@ function isPostingAllowedMemberStatus(status: unknown) {
   return status === "active" || status === "subscribed";
 }
 
-async function expireStaleMuxUploads(uid: string, groupId: string) {
+async function expireStaleMuxUploads(params: {
+  uid: string;
+  contextType: "group" | "profile";
+  groupId: string | null;
+  profileId: string | null;
+}) {
   const cutoff = Date.now() - MUX_UPLOAD_STALE_MS;
 
-  const staleCandidatesSnap = await db
+  let staleQuery = db
     .collection("muxUploads")
-    .where("authorId", "==", uid)
-    .where("groupId", "==", groupId)
+    .where("authorId", "==", params.uid)
+    .where("contextType", "==", params.contextType)
     .where("status", "==", "waiting_for_upload")
-    .limit(MUX_UPLOAD_CLEANUP_LIMIT)
-    .get();
+    .limit(MUX_UPLOAD_CLEANUP_LIMIT);
+
+  if (params.contextType === "group") {
+    staleQuery = staleQuery.where("groupId", "==", params.groupId);
+  } else {
+    staleQuery = staleQuery.where("profileId", "==", params.profileId);
+  }
+
+  const staleCandidatesSnap = await staleQuery.get();
 
   if (staleCandidatesSnap.empty) return;
 
@@ -169,6 +183,20 @@ async function assertCanCreateMuxUpload(uid: string, groupId: string) {
     );
   }
 }
+async function assertCanCreateProfileMuxUpload(uid: string, profileId: string) {
+  if (profileId !== uid) {
+    throw new HttpsError(
+      "permission-denied",
+      "Solo puedes subir video a tu propio perfil."
+    );
+  }
+
+  const profileSnap = await db.collection("users").doc(profileId).get();
+
+  if (!profileSnap.exists) {
+    throw new HttpsError("not-found", "El perfil no existe.");
+  }
+}
 
 export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
   {
@@ -185,13 +213,31 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
       );
     }
 
-    const groupId = normalizeRequiredString(
-      request.data?.groupId,
-      "groupId"
-    );
+    const contextType =
+      request.data?.contextType === "profile" ? "profile" : "group";
 
-    await assertCanCreateMuxUpload(uid, groupId);
-    await expireStaleMuxUploads(uid, groupId);
+    const groupId =
+      contextType === "group"
+        ? normalizeRequiredString(request.data?.groupId, "groupId")
+        : null;
+
+    const profileId =
+      contextType === "profile"
+        ? normalizeRequiredString(request.data?.profileId, "profileId")
+        : null;
+
+    if (contextType === "group") {
+      await assertCanCreateMuxUpload(uid, groupId as string);
+    } else {
+      await assertCanCreateProfileMuxUpload(uid, profileId as string);
+    }
+
+    await expireStaleMuxUploads({
+      uid,
+      contextType,
+      groupId,
+      profileId,
+    });
 
     const requestedPostId =
       typeof request.data?.postId === "string"
@@ -229,13 +275,12 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
         new_asset_settings: {
           playback_policy: ["public"],
           video_quality: "basic",
-          // No mandamos la portada custom en passthrough.
-          // Mux limita el tamaño de este campo y una URL de Firebase Storage puede provocar 500/INTERNAL.
-          // La portada se guarda en muxUploads y el webhook la recupera con upload_id.
           passthrough: JSON.stringify({
             postId,
             authorId: uid,
+            contextType,
             groupId,
+            profileId,
             mediaId,
             mediaIndex,
             source: "vibra-post-video",
@@ -258,7 +303,9 @@ export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
       uploadUrlCreated: true,
       postId,
       authorId: uid,
+      contextType,
       groupId,
+      profileId,
       mediaId,
       mediaIndex,
       customThumbnailUrl,
