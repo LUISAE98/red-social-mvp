@@ -253,3 +253,4 @@ export async function fetchPublicPostById(postId: string): Promise<Post | null> 
 
   return isFreePublicGroupPost(normalizedPost) ? normalizedPost : null;
 }
+//prueba
