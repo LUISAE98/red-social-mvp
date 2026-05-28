@@ -550,8 +550,30 @@ export default function PublicPostPageClient({
   }
 
   async function handleLoadCommentsForCard(postId: string): Promise<Comment[]> {
-    await handleOpenCommentsPanel();
-    return comments ?? [];
+    try {
+      setLoadingComments(true);
+      setInlineError(null);
+
+      const nextComments = await fetchPostComments(postId);
+
+      setComments(nextComments);
+      setCommentsCount((current) =>
+        Math.max(
+          current,
+          nextComments.reduce(
+            (total, comment) => total + 1 + (comment.counts?.replies ?? 0),
+            0
+          )
+        )
+      );
+
+      return nextComments;
+    } catch (e: any) {
+      setInlineError(e?.message ?? "No se pudieron cargar los comentarios.");
+      return comments ?? [];
+    } finally {
+      setLoadingComments(false);
+    }
   }
 
   async function handleCreateCommentForCard(

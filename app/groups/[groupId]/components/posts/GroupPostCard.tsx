@@ -808,6 +808,10 @@ useEffect(() => {
   }
 
  async function handleOpenFlamesPanel() {
+  if (!currentUserId) {
+    return;
+  }
+
   const cachedUsers = flameUsersCacheRef.current[post.id];
 
   setFlamesPanelOpen(true);

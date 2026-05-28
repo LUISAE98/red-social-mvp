@@ -199,6 +199,7 @@ function toPublicPostView(post: any): PublicPostView {
       likes: typeof post.counts?.likes === "number" ? post.counts.likes : 0,
       comments:
         typeof post.counts?.comments === "number" ? post.counts.comments : 0,
+      saves: typeof post.counts?.saves === "number" ? post.counts.saves : 0,
     },
 
     postType: typeof post.postType === "string" ? post.postType : "text",
