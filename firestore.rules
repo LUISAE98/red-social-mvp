@@ -1642,6 +1642,7 @@ function canReadPostFromOwnHomeFeed() {
     && (
       (
         isGroupPostData(resource.data)
+        && canReadGroupContent(resource.data.groupId)
       )
       ||
       (

@@ -235,6 +235,30 @@ async function deleteUserHomeFeedByAuthor(params: {
   );
 }
 
+async function deleteUserProfileHomeFeedByAuthor(params: {
+  uid: string;
+  authorId: string;
+}) {
+  const { uid, authorId } = params;
+
+  if (!uid.trim() || !authorId.trim()) {
+    return;
+  }
+
+  const feedSnap = await db
+    .collection("users")
+    .doc(uid)
+    .collection("homeFeed")
+    .where("authorId", "==", authorId)
+    .where("sourceType", "==", "profile")
+    .get();
+
+  await commitBatches(
+    feedSnap.docs.map((docSnap) => docSnap.ref),
+    "delete"
+  );
+}
+
 async function distributeProfilePostToFollowers(params: {
   postId: string;
   postData: PostData;
@@ -596,7 +620,7 @@ export const onHomeFeedFollowingDeleted = onDocumentDeleted(
       targetUserId,
     });
 
-    await deleteUserHomeFeedByAuthor({
+    await deleteUserProfileHomeFeedByAuthor({
       uid: userId,
       authorId: targetUserId,
     });

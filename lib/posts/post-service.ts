@@ -1550,46 +1550,29 @@ export async function fetchHomePostsPage(params: {
     )
   );
 
-const rawPosts = (
-  await Promise.all(
-    homeFeedSnap.docs.map(async (feedDoc) => {
-      const normalizedPost = normalizeHomeFeedPostSnapshot({
+  const rawPosts = homeFeedSnap.docs
+    .map((feedDoc) =>
+      normalizeHomeFeedPostSnapshot({
         feedDocId: feedDoc.id,
         feedData: feedDoc.data() as Record<string, any>,
-      });
+      })
+    )
+    .filter((post): post is Post => post !== null);
 
-      if (!normalizedPost) {
-        return null;
-      }
-
-      try {
-        const realPostSnap = await getDoc(
-          doc(db, "posts", normalizedPost.id)
-        );
-
-        if (!realPostSnap.exists()) {
-          return null;
-        }
-
-        const realPostData = realPostSnap.data() as Record<string, unknown>;
-
-        if (realPostData.isDeleted === true) {
-          return null;
-        }
-
-        return normalizedPost;
-      } catch {
-        return null;
-      }
-    })
-  )
-).filter((post): post is Post => post !== null);
+  const lastDoc = homeFeedSnap.docs[homeFeedSnap.docs.length - 1] ?? null;
+  const hasMore =
+    !homeFeedSnap.empty && homeFeedSnap.docs.length === safePageSize;
 
   if (rawPosts.length === 0) {
     return {
       posts: [],
-      cursor: null,
-      hasMore: false,
+      cursor:
+        hasMore && lastDoc
+          ? {
+              lastDoc,
+            }
+          : null,
+      hasMore,
     };
   }
 
@@ -1611,10 +1594,6 @@ const rawPosts = (
     hydratedPosts,
     params.userUid
   );
-
-  const lastDoc = homeFeedSnap.docs[homeFeedSnap.docs.length - 1] ?? null;
-  const hasMore =
-    !homeFeedSnap.empty && homeFeedSnap.docs.length === safePageSize;
 
   return {
     posts: postsWithViewerState,

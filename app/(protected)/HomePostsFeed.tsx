@@ -390,6 +390,23 @@ const normalizedPosts = result.posts
     };
   }, [currentUserId, loadPostsPage]);
 
+    useEffect(() => {
+    if (!currentUserId) return;
+    if (loadingInitial || loadingMore) return;
+    if (posts.length > 0) return;
+    if (!hasMore || !pageCursor) return;
+
+    void loadPostsPage("more");
+  }, [
+    currentUserId,
+    loadingInitial,
+    loadingMore,
+    posts.length,
+    hasMore,
+    pageCursor,
+    loadPostsPage,
+  ]);
+
   const infiniteScrollTriggerIndex = useMemo(() => {
     if (posts.length <= 5) return posts.length - 1;
     return Math.max(0, posts.length - 5);
@@ -861,8 +878,7 @@ const normalizedPosts = result.posts
             wordBreak: "break-word",
           }}
         >
-          Publicaciones recientes de comunidades donde ya estás dentro o eres
-          owner.
+          Publicaciones recientes de tus comunidades y perfiles que sigues.
         </p>
       </div>
 
