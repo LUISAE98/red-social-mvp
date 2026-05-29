@@ -76,6 +76,19 @@ export type PostSave = {
 
 export type GroupVisibility = "public" | "private" | "hidden";
 
+export type GroupMemberBlock = {
+  id: string;
+  groupId: string;
+  blockerId: string;
+  blockedUserId: string;
+  createdAt?: Timestamp | null;
+};
+
+export type GroupMemberBlockRelationship = {
+  hasBlocked: boolean;
+  isBlockedBy: boolean;
+};
+
 export type PostType = "text" | "image" | "video" | "live" | "scheduled_event";
 
 export type PostAccessModel = "free" | "one_time_purchase";
@@ -281,6 +294,8 @@ export type Post = {
    * No es obligatorio que exista en Firestore.
    */
   viewerHasSaved?: boolean;
+  viewerHasBlockedAuthorInGroup?: boolean;
+  viewerIsBlockedByAuthorInGroup?: boolean;
 
   postType?: PostType;
 
@@ -334,6 +349,9 @@ export type Comment = {
    * No es obligatorio que exista en Firestore.
    */
   viewerHasFlamed?: boolean;
+
+  viewerHasBlockedAuthorInGroup?: boolean;
+  viewerIsBlockedByAuthorInGroup?: boolean;
 };
 
 export type CommentReply = {
@@ -349,4 +367,7 @@ export type CommentReply = {
   authorName?: string;
   authorAvatarUrl?: string | null;
   authorUsername?: string | null;
+
+  viewerHasBlockedAuthorInGroup?: boolean;
+  viewerIsBlockedByAuthorInGroup?: boolean;
 };

@@ -137,6 +137,34 @@ service cloud.firestore {
         || userBlockedUser(userB, userA);
     }
 
+    function groupMemberBlockDocId(blockerUid, blockedUid) {
+      return blockerUid + "_" + blockedUid;
+    }
+
+    function groupMemberBlockedUser(groupId, blockerUid, blockedUid) {
+      return exists(/databases/$(database)/documents/groups/$(groupId)/memberBlocks/$(groupMemberBlockDocId(blockerUid, blockedUid)));
+    }
+
+    function groupMembersHaveBlockBetween(groupId, userA, userB) {
+      return groupMemberBlockedUser(groupId, userA, userB)
+        || groupMemberBlockedUser(groupId, userB, userA);
+    }
+
+    function validGroupMemberBlockDoc(groupId, blockId) {
+      return request.resource.data.keys().hasOnly([
+        "groupId",
+        "blockerId",
+        "blockedUserId",
+        "createdAt"
+      ])
+      && request.resource.data.groupId == groupId
+      && request.resource.data.blockerId == request.auth.uid
+      && request.resource.data.blockedUserId is string
+      && request.resource.data.blockedUserId != request.auth.uid
+      && blockId == groupMemberBlockDocId(request.auth.uid, request.resource.data.blockedUserId)
+      && request.resource.data.createdAt is timestamp;
+    }
+
     function validFollowingDoc(uid, targetUid) {
       return request.resource.data.keys().hasOnly([
         "userId",
@@ -1366,6 +1394,32 @@ allow list: if signedIn()
         allow update: if false;
       }
 
+            match /memberBlocks/{blockId} {
+        allow get: if signedIn()
+          && (
+            resource.data.blockerId == request.auth.uid
+            || resource.data.blockedUserId == request.auth.uid
+          );
+
+        allow list: if signedIn()
+          && isMember(groupId)
+          && (
+            resource.data.blockerId == request.auth.uid
+            || resource.data.blockedUserId == request.auth.uid
+          );
+
+        allow create: if signedIn()
+          && isMember(groupId)
+          && !isOwner(groupId)
+          && validGroupMemberBlockDoc(groupId, blockId)
+          && memberExists(groupId, request.resource.data.blockedUserId);
+
+        allow update: if false;
+
+        allow delete: if signedIn()
+          && resource.data.blockerId == request.auth.uid;
+      }
+
       match /joinRequests/{reqId} {
         allow get: if signedIn()
           && (
@@ -1936,6 +1990,7 @@ function canWritePostCommentData(data) {
       (
         isGroupPostData(data)
         && canWriteGroupComment(data.groupId)
+        && !groupMembersHaveBlockBetween(data.groupId, request.auth.uid, data.authorId)
       )
       ||
       (

@@ -12,14 +12,17 @@ import {
 import type { Comment, CommentReply } from "@/lib/posts/types";
 import { toggleCommentFlame } from "@/lib/posts/post-service";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
+import { useGroupMemberBlocks } from "@/lib/groups/useGroupMemberBlocks";
 
 type PostCommentThreadProps = {
   postId: string;
+  groupId?: string | null;
   comment: Comment;
   currentUserId?: string | null;
   isOwner?: boolean;
   isModerator?: boolean;
   canCommentOnPosts: boolean;
+  canUseGroupMemberBlock?: boolean;
   deletingCommentId: string | null;
   onDeleteComment: (commentId: string) => Promise<void>;
   onLoadReplies: (postId: string, commentId: string) => Promise<CommentReply[]>;
@@ -33,6 +36,7 @@ type PostCommentThreadProps = {
     commentId: string,
     replyId: string
   ) => Promise<CommentReply[]>;
+  onGroupMemberBlockComplete?: () => Promise<void> | void;
 };
 
 const fontStack =
@@ -242,16 +246,19 @@ function AutoGrowTextarea({
 
 export default function PostCommentThread({
   postId,
+  groupId = null,
   comment,
   currentUserId = null,
   isOwner = false,
   isModerator = false,
   canCommentOnPosts,
+  canUseGroupMemberBlock = false,
   deletingCommentId,
   onDeleteComment,
   onLoadReplies,
   onCreateReply,
   onDeleteReply,
+  onGroupMemberBlockComplete,
 }: PostCommentThreadProps) {
   const [replies, setReplies] = useState<CommentReply[] | null>(null);
   const [loadingReplies, setLoadingReplies] = useState(false);
@@ -261,22 +268,88 @@ export default function PostCommentThread({
   const [deletingReplyId, setDeletingReplyId] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [commentLiked, setCommentLiked] = useState(
-  comment.viewerHasFlamed === true
-);
-const [commentLikes, setCommentLikes] = useState(comment.counts?.likes ?? 0);
-const [localReplyCount, setLocalReplyCount] = useState(
-  comment.counts?.replies ?? 0
-);
-const [commentFlameBusy, setCommentFlameBusy] = useState(false);
-const [showExactCommentDate, setShowExactCommentDate] = useState(false);
-const [exactReplyDates, setExactReplyDates] = useState<Record<string, boolean>>({});
+    comment.viewerHasFlamed === true
+  );
+  const [commentLikes, setCommentLikes] = useState(comment.counts?.likes ?? 0);
+  const [localReplyCount, setLocalReplyCount] = useState(
+    comment.counts?.replies ?? 0
+  );
+  const [commentFlameBusy, setCommentFlameBusy] = useState(false);
+  const [showExactCommentDate, setShowExactCommentDate] = useState(false);
+  const [exactReplyDates, setExactReplyDates] = useState<Record<string, boolean>>({});
+  const [commentMenuOpen, setCommentMenuOpen] = useState(false);
+  const [replyMenuOpenById, setReplyMenuOpenById] = useState<Record<string, boolean>>({});
 
   const author = getAuthorInfo(comment);
   const canDeleteComment =
     isOwner || isModerator || currentUserId === comment.authorId;
 
- const replyCount = localReplyCount;
+  const canBlockCommentAuthorInGroup =
+    canUseGroupMemberBlock &&
+    !!groupId &&
+    !!currentUserId &&
+    currentUserId !== comment.authorId;
+
+  const {
+    relationship: commentAuthorGroupBlockRelationship,
+    loading: commentAuthorGroupBlockLoading,
+    error: commentAuthorGroupBlockError,
+    block: blockCommentAuthorInGroup,
+    unblock: unblockCommentAuthorInGroup,
+  } = useGroupMemberBlocks({
+    groupId,
+    currentUserId,
+    targetUserId: canBlockCommentAuthorInGroup ? comment.authorId : null,
+  });
+
+  useEffect(() => {
+    if (!commentAuthorGroupBlockError) return;
+
+    setInlineError(commentAuthorGroupBlockError);
+  }, [commentAuthorGroupBlockError]);
+
+  const shouldShowCommentGroupBlockAction =
+    canBlockCommentAuthorInGroup &&
+    !commentAuthorGroupBlockRelationship.isBlockedBy;
+
+  const replyCount = localReplyCount;
   const hasRepliesToLoad = replyCount > 0;
+
+  async function handleBlockCommentAuthorInGroup() {
+    if (commentAuthorGroupBlockLoading) return;
+
+    const confirmed = window.confirm(
+      "¿Seguro que quieres bloquear a este usuario en este grupo?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setInlineError(null);
+      setCommentMenuOpen(false);
+      await blockCommentAuthorInGroup();
+      await onGroupMemberBlockComplete?.();
+    } catch (e: any) {
+      setInlineError(
+        e?.message ?? "No se pudo bloquear este usuario en este grupo."
+      );
+    }
+  }
+
+  async function handleUnblockCommentAuthorInGroup() {
+    if (commentAuthorGroupBlockLoading) return;
+
+    try {
+      setInlineError(null);
+      setCommentMenuOpen(false);
+      await unblockCommentAuthorInGroup();
+      await onGroupMemberBlockComplete?.();
+    } catch (e: any) {
+      setInlineError(
+        e?.message ?? "No se pudo desbloquear este usuario en este grupo."
+      );
+    }
+  }
 
   async function handleLoadReplies() {
     if (replies !== null || loadingReplies) return;
@@ -337,40 +410,40 @@ const [exactReplyDates, setExactReplyDates] = useState<Record<string, boolean>>(
     }
   }
 
-async function handleToggleCommentFlame() {
-  if (!currentUserId) {
-    setInlineError("Inicia sesión para dar flamita.");
-    return;
+  async function handleToggleCommentFlame() {
+    if (!currentUserId) {
+      setInlineError("Inicia sesión para dar flamita.");
+      return;
+    }
+
+    if (commentFlameBusy) return;
+
+    const previousLiked = commentLiked;
+    const previousLikes = commentLikes;
+    const nextLiked = !previousLiked;
+
+    setCommentLiked(nextLiked);
+    setCommentLikes((current) => Math.max(0, current + (nextLiked ? 1 : -1)));
+
+    try {
+      setCommentFlameBusy(true);
+      setInlineError(null);
+
+      const result = await toggleCommentFlame({
+        postId,
+        commentId: comment.id,
+      });
+
+      setCommentLiked(result.liked);
+      setCommentLikes(result.likes);
+    } catch (e: any) {
+      setCommentLiked(previousLiked);
+      setCommentLikes(previousLikes);
+      setInlineError(e?.message ?? "No se pudo actualizar la flamita.");
+    } finally {
+      setCommentFlameBusy(false);
+    }
   }
-
-  if (commentFlameBusy) return;
-
-  const previousLiked = commentLiked;
-  const previousLikes = commentLikes;
-  const nextLiked = !previousLiked;
-
-  setCommentLiked(nextLiked);
-  setCommentLikes((current) => Math.max(0, current + (nextLiked ? 1 : -1)));
-
-  try {
-    setCommentFlameBusy(true);
-    setInlineError(null);
-
-    const result = await toggleCommentFlame({
-      postId,
-      commentId: comment.id,
-    });
-
-    setCommentLiked(result.liked);
-    setCommentLikes(result.likes);
-  } catch (e: any) {
-    setCommentLiked(previousLiked);
-    setCommentLikes(previousLikes);
-    setInlineError(e?.message ?? "No se pudo actualizar la flamita.");
-  } finally {
-    setCommentFlameBusy(false);
-  }
-}
 
   const actionButtonStyle: CSSProperties = {
     border: "none",
@@ -391,6 +464,56 @@ async function handleToggleCommentFlame() {
     ...actionButtonStyle,
     color: "rgba(255,255,255,0.36)",
     cursor: "not-allowed",
+  };
+
+  const menuShellStyle: CSSProperties = {
+    position: "relative",
+    flexShrink: 0,
+  };
+
+  const menuButtonStyle: CSSProperties = {
+    width: 24,
+    height: 24,
+    borderRadius: 7,
+    border: "1px solid rgba(255,255,255,0.08)",
+    background: "rgba(255,255,255,0.04)",
+    color: "rgba(255,255,255,0.74)",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+    fontSize: 14,
+    lineHeight: 1,
+    padding: 0,
+  };
+
+  const menuPanelStyle: CSSProperties = {
+    position: "absolute",
+    top: 28,
+    right: 0,
+    minWidth: 170,
+    borderRadius: 10,
+    border: "1px solid rgba(255,255,255,0.10)",
+    background: "rgba(12,12,12,0.98)",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.34)",
+    padding: 6,
+    zIndex: 20,
+    display: "grid",
+    gap: 4,
+  };
+
+  const menuItemStyle: CSSProperties = {
+    width: "100%",
+    minHeight: 32,
+    padding: "8px 10px",
+    borderRadius: 8,
+    border: "none",
+    background: "transparent",
+    color: "#ff8a8a",
+    fontSize: 11.5,
+    fontWeight: 600,
+    fontFamily: fontStack,
+    textAlign: "left",
+    cursor: "pointer",
   };
 
   const inputStyle: CSSProperties = {
@@ -482,33 +605,33 @@ async function handleToggleCommentFlame() {
                   {author.authorName}
                 </Link>
 
-<button
-  type="button"
-  onClick={() => setShowExactCommentDate((prev) => !prev)}
-  title={formatExactDate(comment.createdAt)}
-  aria-label={
-    showExactCommentDate
-      ? "Mostrar fecha relativa del comentario"
-      : "Mostrar fecha exacta del comentario"
-  }
-  style={{
-    fontSize: 10.5,
-    color: "rgba(255,255,255,0.44)",
-    border: "none",
-    background: "transparent",
-    padding: 0,
-    margin: 0,
-    fontFamily: fontStack,
-    cursor: "pointer",
-    lineHeight: 1.2,
-    textAlign: "left",
-    WebkitTapHighlightColor: "transparent",
-  }}
->
-  {showExactCommentDate
-    ? formatExactDate(comment.createdAt)
-    : formatRelativeDate(comment.createdAt)}
-</button>
+                <button
+                  type="button"
+                  onClick={() => setShowExactCommentDate((prev) => !prev)}
+                  title={formatExactDate(comment.createdAt)}
+                  aria-label={
+                    showExactCommentDate
+                      ? "Mostrar fecha relativa del comentario"
+                      : "Mostrar fecha exacta del comentario"
+                  }
+                  style={{
+                    fontSize: 10.5,
+                    color: "rgba(255,255,255,0.44)",
+                    border: "none",
+                    background: "transparent",
+                    padding: 0,
+                    margin: 0,
+                    fontFamily: fontStack,
+                    cursor: "pointer",
+                    lineHeight: 1.2,
+                    textAlign: "left",
+                    WebkitTapHighlightColor: "transparent",
+                  }}
+                >
+                  {showExactCommentDate
+                    ? formatExactDate(comment.createdAt)
+                    : formatRelativeDate(comment.createdAt)}
+                </button>
               </div>
 
               <div
@@ -526,64 +649,118 @@ async function handleToggleCommentFlame() {
               </div>
             </div>
 
-<div
-  style={{
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 1,
-    flexShrink: 0,
-  }}
->
-<button
-  type="button"
-  onClick={handleToggleCommentFlame}
-  aria-pressed={commentLiked}
-  aria-label={
-    commentLiked
-      ? "Quitar flamita del comentario"
-      : "Dar flamita al comentario"
-  }
-  style={{
-    width: 22,
-    height: 22,
-    border: "none",
-    background: "transparent",
-    padding: 0,
-    display: "inline-grid",
-    placeItems: "center",
-    cursor: "pointer",
-    opacity: 1,
-    transform: commentLiked ? "scale(1.04)" : "scale(1)",
-    transition: "transform 140ms ease, opacity 140ms ease",
-    WebkitTapHighlightColor: "transparent",
-    flexShrink: 0,
-  }}
->
-  <span
-    aria-hidden="true"
-    style={{
-      display: "inline-grid",
-      placeItems: "center",
-      lineHeight: 1,
-    }}
-  >
-    <VibraFlameIcon active={commentLiked} size={18} />
-  </span>
-</button>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 1,
+                  flexShrink: 0,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleToggleCommentFlame}
+                  aria-pressed={commentLiked}
+                  aria-label={
+                    commentLiked
+                      ? "Quitar flamita del comentario"
+                      : "Dar flamita al comentario"
+                  }
+                  style={{
+                    width: 22,
+                    height: 22,
+                    border: "none",
+                    background: "transparent",
+                    padding: 0,
+                    display: "inline-grid",
+                    placeItems: "center",
+                    cursor: "pointer",
+                    opacity: 1,
+                    transform: commentLiked ? "scale(1.04)" : "scale(1)",
+                    transition: "transform 140ms ease, opacity 140ms ease",
+                    WebkitTapHighlightColor: "transparent",
+                    flexShrink: 0,
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      display: "inline-grid",
+                      placeItems: "center",
+                      lineHeight: 1,
+                    }}
+                  >
+                    <VibraFlameIcon active={commentLiked} size={18} />
+                  </span>
+                </button>
 
-  <span
-    aria-label={`${commentLikes} flamitas`}
-    style={{
-      minWidth: 8,
-      color: "rgba(255,255,255,0.62)",
-      fontSize: 11.5,
-      fontWeight: 600,
-      lineHeight: 1,
-    }}
-  >
-    {commentLikes}
-  </span>
-</div>
+                <span
+                  aria-label={`${commentLikes} flamitas`}
+                  style={{
+                    minWidth: 8,
+                    color: "rgba(255,255,255,0.62)",
+                    fontSize: 11.5,
+                    fontWeight: 600,
+                    lineHeight: 1,
+                  }}
+                >
+                  {commentLikes}
+                </span>
+              </div>
+
+              {shouldShowCommentGroupBlockAction && (
+                <div style={menuShellStyle}>
+                  <button
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded={commentMenuOpen}
+                    aria-label="Abrir acciones del comentario"
+                    onClick={() => setCommentMenuOpen((prev) => !prev)}
+                    style={menuButtonStyle}
+                  >
+                    ⋮
+                  </button>
+
+                  {commentMenuOpen && (
+                    <div role="menu" style={menuPanelStyle}>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        disabled={commentAuthorGroupBlockLoading}
+                        onClick={
+                          commentAuthorGroupBlockRelationship.hasBlocked
+                            ? handleUnblockCommentAuthorInGroup
+                            : handleBlockCommentAuthorInGroup
+                        }
+                        style={
+                          commentAuthorGroupBlockLoading
+                            ? {
+                                ...menuItemStyle,
+                                color: "rgba(255,255,255,0.40)",
+                                cursor: "not-allowed",
+                              }
+                            : menuItemStyle
+                        }
+                      >
+                        {commentAuthorGroupBlockLoading
+                          ? "Procesando..."
+                          : commentAuthorGroupBlockRelationship.hasBlocked
+                            ? "Desbloquear en este grupo"
+                            : "Bloquear en este grupo"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div
@@ -608,8 +785,8 @@ async function handleToggleCommentFlame() {
                   ? "Cargando..."
                   : replies === null
                     ? replyCount === 1
-                    ? "Ver 1 respuesta"
-                    : `Ver ${replyCount} respuestas`
+                      ? "Ver 1 respuesta"
+                      : `Ver ${replyCount} respuestas`
                     : "Respuestas cargadas"}
               </button>
             )}
@@ -750,38 +927,38 @@ async function handleToggleCommentFlame() {
                           {replyAuthor.authorName}
                         </Link>
 
-<button
-  type="button"
-  onClick={() =>
-    setExactReplyDates((prev) => ({
-      ...prev,
-      [reply.id]: !prev[reply.id],
-    }))
-  }
-  title={formatExactDate(reply.createdAt)}
-  aria-label={
-    exactReplyDates[reply.id]
-      ? "Mostrar fecha relativa de la respuesta"
-      : "Mostrar fecha exacta de la respuesta"
-  }
-  style={{
-    fontSize: 10,
-    color: "rgba(255,255,255,0.42)",
-    border: "none",
-    background: "transparent",
-    padding: 0,
-    margin: 0,
-    fontFamily: fontStack,
-    cursor: "pointer",
-    lineHeight: 1.2,
-    textAlign: "left",
-    WebkitTapHighlightColor: "transparent",
-  }}
->
-  {exactReplyDates[reply.id]
-    ? formatExactDate(reply.createdAt)
-    : formatRelativeDate(reply.createdAt)}
-</button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExactReplyDates((prev) => ({
+                              ...prev,
+                              [reply.id]: !prev[reply.id],
+                            }))
+                          }
+                          title={formatExactDate(reply.createdAt)}
+                          aria-label={
+                            exactReplyDates[reply.id]
+                              ? "Mostrar fecha relativa de la respuesta"
+                              : "Mostrar fecha exacta de la respuesta"
+                          }
+                          style={{
+                            fontSize: 10,
+                            color: "rgba(255,255,255,0.42)",
+                            border: "none",
+                            background: "transparent",
+                            padding: 0,
+                            margin: 0,
+                            fontFamily: fontStack,
+                            cursor: "pointer",
+                            lineHeight: 1.2,
+                            textAlign: "left",
+                            WebkitTapHighlightColor: "transparent",
+                          }}
+                        >
+                          {exactReplyDates[reply.id]
+                            ? formatExactDate(reply.createdAt)
+                            : formatRelativeDate(reply.createdAt)}
+                        </button>
                       </div>
 
                       <div
@@ -803,39 +980,94 @@ async function handleToggleCommentFlame() {
                           marginTop: 5,
                           display: "flex",
                           alignItems: "center",
+                          justifyContent: "space-between",
                           gap: 12,
                           flexWrap: "wrap",
                         }}
                       >
-                        {canCommentOnPosts && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setReplyBoxOpen(true);
-                              setReplyText(`@${replyAuthor.authorName} `);
-                            }}
-                            style={actionButtonStyle}
-                          >
-                            Responder
-                          </button>
-                        )}
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          {canCommentOnPosts && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setReplyBoxOpen(true);
+                                setReplyText(`@${replyAuthor.authorName} `);
+                              }}
+                              style={actionButtonStyle}
+                            >
+                              Responder
+                            </button>
+                          )}
 
-                        {canDeleteReply && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteReply(reply.id)}
-                            disabled={deletingReplyId === reply.id}
-                            style={
-                              deletingReplyId === reply.id
-                                ? disabledActionButtonStyle
-                                : dangerButtonStyle
-                            }
-                          >
-                            {deletingReplyId === reply.id
-                              ? "Eliminando..."
-                              : "Eliminar"}
-                          </button>
-                        )}
+                          {canDeleteReply && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteReply(reply.id)}
+                              disabled={deletingReplyId === reply.id}
+                              style={
+                                deletingReplyId === reply.id
+                                  ? disabledActionButtonStyle
+                                  : dangerButtonStyle
+                              }
+                            >
+                              {deletingReplyId === reply.id
+                                ? "Eliminando..."
+                                : "Eliminar"}
+                            </button>
+                          )}
+                        </div>
+
+                        {canUseGroupMemberBlock &&
+                          !!groupId &&
+                          !!currentUserId &&
+                          currentUserId !== reply.authorId &&
+                          reply.viewerIsBlockedByAuthorInGroup !== true && (
+                            <div style={menuShellStyle}>
+                              <button
+                                type="button"
+                                aria-haspopup="menu"
+                                aria-expanded={replyMenuOpenById[reply.id] === true}
+                                aria-label="Abrir acciones de la respuesta"
+                                onClick={() =>
+                                  setReplyMenuOpenById((prev) => ({
+                                    ...prev,
+                                    [reply.id]: !prev[reply.id],
+                                  }))
+                                }
+                                style={menuButtonStyle}
+                              >
+                                ⋮
+                              </button>
+
+                              {replyMenuOpenById[reply.id] === true && (
+                                <ReplyGroupBlockMenu
+                                  groupId={groupId}
+                                  currentUserId={currentUserId}
+                                  targetUserId={reply.authorId}
+                                  initialHasBlocked={
+                                    reply.viewerHasBlockedAuthorInGroup === true
+                                  }
+                                  onClose={() =>
+                                    setReplyMenuOpenById((prev) => ({
+                                      ...prev,
+                                      [reply.id]: false,
+                                    }))
+                                  }
+                                  onError={setInlineError}
+                                  onComplete={onGroupMemberBlockComplete}
+                                  menuPanelStyle={menuPanelStyle}
+                                  menuItemStyle={menuItemStyle}
+                                />
+                              )}
+                            </div>
+                          )}
                       </div>
                     </div>
                   </div>
@@ -845,6 +1077,93 @@ async function handleToggleCommentFlame() {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReplyGroupBlockMenu({
+  groupId,
+  currentUserId,
+  targetUserId,
+  initialHasBlocked,
+  onClose,
+  onError,
+  onComplete,
+  menuPanelStyle,
+  menuItemStyle,
+}: {
+  groupId: string;
+  currentUserId: string;
+  targetUserId: string;
+  initialHasBlocked: boolean;
+  onClose: () => void;
+  onError: (message: string | null) => void;
+  onComplete?: () => Promise<void> | void;
+  menuPanelStyle: CSSProperties;
+  menuItemStyle: CSSProperties;
+}) {
+  const { relationship, loading, error, block, unblock } = useGroupMemberBlocks({
+    groupId,
+    currentUserId,
+    targetUserId,
+  });
+
+  useEffect(() => {
+    if (!error) return;
+
+    onError(error);
+  }, [error, onError]);
+
+  const hasBlocked = relationship.hasBlocked || initialHasBlocked;
+
+  async function handleAction() {
+    if (loading) return;
+
+    try {
+      onError(null);
+
+      if (hasBlocked) {
+        await unblock();
+      } else {
+        const confirmed = window.confirm(
+          "¿Seguro que quieres bloquear a este usuario en este grupo?"
+        );
+
+        if (!confirmed) return;
+
+        await block();
+      }
+
+      onClose();
+      await onComplete?.();
+    } catch (e: any) {
+      onError(e?.message ?? "No se pudo actualizar el bloqueo en este grupo.");
+    }
+  }
+
+  return (
+    <div role="menu" style={menuPanelStyle}>
+      <button
+        type="button"
+        role="menuitem"
+        disabled={loading}
+        onClick={handleAction}
+        style={
+          loading
+            ? {
+                ...menuItemStyle,
+                color: "rgba(255,255,255,0.40)",
+                cursor: "not-allowed",
+              }
+            : menuItemStyle
+        }
+      >
+        {loading
+          ? "Procesando..."
+          : hasBlocked
+            ? "Desbloquear en este grupo"
+            : "Bloquear en este grupo"}
+      </button>
     </div>
   );
 }

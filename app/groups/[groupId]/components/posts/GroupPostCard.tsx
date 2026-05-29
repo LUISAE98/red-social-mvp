@@ -29,6 +29,8 @@ import {
   unbanGroupMember,
   unmuteGroupMember,
 } from "@/lib/groups/groupModeration";
+import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
+import { useGroupMemberBlocks } from "@/lib/groups/useGroupMemberBlocks";
 
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 
@@ -38,6 +40,7 @@ type GroupPostCardProps = {
     authorMutedUntil?: any;
     forcedGroupId?: string | null;
   };
+  groupId?: string | null;
   canDelete?: boolean;
   onDelete?: (postId: string) => Promise<void>;
   onLoadComments: (postId: string) => Promise<Comment[]>;
@@ -63,7 +66,9 @@ type GroupPostCardProps = {
   isModerator?: boolean;
   showGroupContext?: boolean;
   canModerateGroupAuthor?: boolean;
+  canUseGroupMemberBlock?: boolean;
   onModerationComplete?: () => Promise<void> | void;
+  onGroupMemberBlockComplete?: () => Promise<void> | void;
   canCommentOnPosts?: boolean;
   commentBlockedReason?: InteractionBlockedReason;
 };
@@ -78,6 +83,10 @@ type ModerationAction =
   | "unpin_group_post"
   | "pin_profile_post"
   | "unpin_profile_post"
+  | "block_user"
+  | "unblock_user"
+  | "block_in_group"
+  | "unblock_in_group"
   | "delete_post";
 
 type MenuPosition = {
@@ -472,11 +481,16 @@ function buildActionLabel(action: ModerationAction) {
   if (action === "unpin_group_post") return "Desfijar del grupo";
   if (action === "pin_profile_post") return "Fijar en mi perfil";
   if (action === "unpin_profile_post") return "Desfijar de mi perfil";
+  if (action === "block_user") return "Bloquear usuario";
+  if (action === "unblock_user") return "Desbloquear usuario";
+  if (action === "block_in_group") return "Bloquear en este grupo";
+  if (action === "unblock_in_group") return "Desbloquear en este grupo";
   return "Eliminar publicación";
 }
 
 export default function GroupPostCard({
   post,
+  groupId = null,
   canDelete = false,
   onDelete,
   onLoadComments,
@@ -494,7 +508,9 @@ onToggleProfilePin,
   isModerator = false,
   showGroupContext = false,
   canModerateGroupAuthor = false,
+  canUseGroupMemberBlock = false,
   onModerationComplete,
+  onGroupMemberBlockComplete,
   canCommentOnPosts = true,
   commentBlockedReason = null,
 }: GroupPostCardProps) {
@@ -695,6 +711,34 @@ useEffect(() => {
     [post]
   );
 
+  const effectiveGroupId =
+    typeof groupId === "string" && groupId.trim().length > 0
+      ? groupId.trim()
+      : groupInfo.groupId;
+
+  const isOwnPost = !!currentUserId && postAuthor.authorId === currentUserId;
+
+  const groupMemberBlockTargetUserId =
+    canUseGroupMemberBlock &&
+    !!effectiveGroupId &&
+    !!currentUserId &&
+    !!postAuthor.authorId &&
+    !isOwnPost
+      ? postAuthor.authorId
+      : null;
+
+  const {
+    relationship: groupMemberBlockRelationship,
+    loading: groupMemberBlockLoading,
+    error: groupMemberBlockError,
+    block: blockPostAuthorInGroup,
+    unblock: unblockPostAuthorInGroup,
+  } = useGroupMemberBlocks({
+    groupId: effectiveGroupId,
+    currentUserId,
+    targetUserId: groupMemberBlockTargetUserId,
+  });
+
   const effectiveAuthorStatus = useMemo(() => {
     return resolveEffectiveMemberStatus(
       (post as any)?.authorMemberStatus ?? (post as any)?.memberStatus ?? null,
@@ -743,6 +787,50 @@ useEffect(() => {
     !!currentUserId &&
     postAuthor.authorId !== currentUserId;
 
+  const isProfilePost =
+    (post as unknown as { contextType?: string | null }).contextType === "profile";
+
+  const socialTargetUserId =
+    isProfilePost && !isOwnPost && postAuthor.authorId
+      ? postAuthor.authorId
+      : null;
+
+  const {
+    relationship: postAuthorRelationship,
+    loading: socialRelationshipLoading,
+    error: socialRelationshipError,
+    block: blockPostAuthor,
+    unblock: unblockPostAuthor,
+  } = useSocialRelationship(currentUserId, socialTargetUserId);
+
+  useEffect(() => {
+    if (!socialRelationshipError) return;
+
+    setInlineActionError(socialRelationshipError);
+  }, [socialRelationshipError]);
+
+  useEffect(() => {
+    if (!groupMemberBlockError) return;
+
+    setInlineActionError(groupMemberBlockError);
+  }, [groupMemberBlockError]);
+
+  const shouldShowSocialBlockAction =
+    isProfilePost &&
+    !!currentUserId &&
+    !!postAuthor.authorId &&
+    !isOwnPost &&
+    !postAuthorRelationship.isBlockedBy;
+
+  const shouldShowGroupMemberBlockAction =
+    !isProfilePost &&
+    canUseGroupMemberBlock &&
+    !!effectiveGroupId &&
+    !!currentUserId &&
+    !!postAuthor.authorId &&
+    !isOwnPost &&
+    !groupMemberBlockRelationship.isBlockedBy;
+
   const availableActions = useMemo(() => {
     const actions: ModerationAction[] = [];
 
@@ -757,6 +845,22 @@ useEffect(() => {
         post.isPinnedOnProfile === true
           ? "unpin_profile_post"
           : "pin_profile_post"
+      );
+    }
+
+    if (shouldShowSocialBlockAction) {
+      actions.push(
+        postAuthorRelationship.hasBlocked === true
+          ? "unblock_user"
+          : "block_user"
+      );
+    }
+
+    if (shouldShowGroupMemberBlockAction) {
+      actions.push(
+        groupMemberBlockRelationship.hasBlocked === true
+          ? "unblock_in_group"
+          : "block_in_group"
       );
     }
 
@@ -784,6 +888,10 @@ useEffect(() => {
     post.isPinnedInGroup,
     post.isPinnedOnProfile,
     onToggleProfilePin,
+    shouldShowSocialBlockAction,
+    postAuthorRelationship.hasBlocked,
+    shouldShowGroupMemberBlockAction,
+    groupMemberBlockRelationship.hasBlocked,
     canModerateAuthor,
     effectiveAuthorStatus,
     canDelete,
@@ -983,7 +1091,9 @@ async function handleToggleSave() {
     }
   }
 
-  async function runModerationAction(action: Exclude<ModerationAction, "mute" | "delete_post">) {
+  async function runModerationAction(
+    action: "unmute" | "ban" | "unban" | "remove"
+  ) {
     if (!groupInfo.groupId || !postAuthor.authorId || moderationBusy) return;
 
     try {
@@ -1026,6 +1136,74 @@ async function handleToggleSave() {
     }
   }
 
+    async function handleBlockPostAuthor() {
+    if (socialRelationshipLoading) return;
+
+    const confirmed = window.confirm(
+      "¿Seguro que quieres bloquear a este usuario?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setInlineActionError(null);
+      setMenuOpen(false);
+      await blockPostAuthor();
+    } catch (e: any) {
+      setInlineActionError(e?.message ?? "No se pudo bloquear este usuario.");
+    }
+  }
+
+  async function handleUnblockPostAuthor() {
+    if (socialRelationshipLoading) return;
+
+    try {
+      setInlineActionError(null);
+      setMenuOpen(false);
+      await unblockPostAuthor();
+    } catch (e: any) {
+      setInlineActionError(e?.message ?? "No se pudo desbloquear este usuario.");
+    }
+  }
+
+  async function handleBlockPostAuthorInGroup() {
+    if (groupMemberBlockLoading) return;
+
+    const confirmed = window.confirm(
+      "¿Seguro que quieres bloquear a este usuario en este grupo?"
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setInlineActionError(null);
+      setMenuOpen(false);
+      setComments(null);
+      await blockPostAuthorInGroup();
+      await onGroupMemberBlockComplete?.();
+    } catch (e: any) {
+      setInlineActionError(
+        e?.message ?? "No se pudo bloquear este usuario en este grupo."
+      );
+    }
+  }
+
+  async function handleUnblockPostAuthorInGroup() {
+    if (groupMemberBlockLoading) return;
+
+    try {
+      setInlineActionError(null);
+      setMenuOpen(false);
+      setComments(null);
+      await unblockPostAuthorInGroup();
+      await onGroupMemberBlockComplete?.();
+    } catch (e: any) {
+      setInlineActionError(
+        e?.message ?? "No se pudo desbloquear este usuario en este grupo."
+      );
+    }
+  }
+
   async function handleModerationAction(action: ModerationAction) {
     if (action === "delete_post") {
       await handleDelete();
@@ -1039,6 +1217,26 @@ async function handleToggleSave() {
 
     if (action === "pin_profile_post" || action === "unpin_profile_post") {
       await handleTogglePin("profile");
+      return;
+    }
+
+    if (action === "block_user") {
+      await handleBlockPostAuthor();
+      return;
+    }
+
+    if (action === "unblock_user") {
+      await handleUnblockPostAuthor();
+      return;
+    }
+
+    if (action === "block_in_group") {
+      await handleBlockPostAuthorInGroup();
+      return;
+    }
+
+    if (action === "unblock_in_group") {
+      await handleUnblockPostAuthorInGroup();
       return;
     }
 
@@ -2827,12 +3025,25 @@ style={{
             role="menu"
           >
             {availableActions.map((action) => {
+              const isSocialAction =
+                action === "block_user" || action === "unblock_user";
+
+              const isGroupMemberBlockAction =
+                action === "block_in_group" || action === "unblock_in_group";
+
               const isDanger =
                 action === "ban" ||
                 action === "remove" ||
-                action === "delete_post";
+                action === "delete_post" ||
+                action === "block_user" ||
+                action === "block_in_group";
 
-              const isBusy = moderationBusy || deleting || pinBusy;
+              const isBusy =
+                moderationBusy ||
+                deleting ||
+                pinBusy ||
+                (isSocialAction && socialRelationshipLoading) ||
+                (isGroupMemberBlockAction && groupMemberBlockLoading);
 
               return (
                 <button
@@ -2933,6 +3144,7 @@ style={{
           open={commentsPanelOpen}
           isMobile={isMobile}
           postId={post.id}
+          groupId={effectiveGroupId}
           comments={comments}
           loading={loadingComments}
           currentUserId={currentUserId}
@@ -2944,6 +3156,7 @@ style={{
           creatingComment={creatingComment}
           deletingCommentId={deletingCommentId}
           inlineError={inlineActionError}
+          canUseGroupMemberBlock={canUseGroupMemberBlock}
           onCommentTextChange={setCommentText}
           onClose={() => setCommentsPanelOpen(false)}
           onCreateComment={handleCreateComment}
@@ -2951,6 +3164,10 @@ style={{
           onLoadReplies={onLoadReplies}
           onCreateReply={onCreateReply}
           onDeleteReply={onDeleteReply}
+          onGroupMemberBlockComplete={async () => {
+            setComments(null);
+            await onGroupMemberBlockComplete?.();
+          }}
         />
       )}
 
@@ -2993,6 +3210,7 @@ style={{
       open={selectedMediaUrl !== null}
       isMobile={false}
       postId={post.id}
+      groupId={effectiveGroupId}
       comments={comments}
       loading={loadingComments}
       currentUserId={currentUserId}
@@ -3004,6 +3222,7 @@ style={{
       creatingComment={creatingComment}
       deletingCommentId={deletingCommentId}
       inlineError={inlineActionError}
+      canUseGroupMemberBlock={canUseGroupMemberBlock}
       onCommentTextChange={setCommentText}
       onClose={() => setCommentsPanelOpen(false)}
       onCreateComment={handleCreateComment}
@@ -3011,6 +3230,10 @@ style={{
       onLoadReplies={onLoadReplies}
       onCreateReply={onCreateReply}
       onDeleteReply={onDeleteReply}
+      onGroupMemberBlockComplete={async () => {
+        setComments(null);
+        await onGroupMemberBlockComplete?.();
+      }}
     />
   }
   onClose={closeMediaViewer}

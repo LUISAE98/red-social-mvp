@@ -565,6 +565,16 @@ export default function GroupPostsFeed({
     await loadPostsPage("refresh");
   }, [loadPostsPage]);
 
+  const handleGroupMemberBlockComplete = useCallback(async () => {
+    groupFeedMemoryCache.delete(cacheKey);
+    setPageCursor(null);
+    setHasMore(false);
+    pageCursorRef.current = null;
+    hasMoreRef.current = false;
+
+    await loadPostsPage("refresh");
+  }, [cacheKey, loadPostsPage]);
+
   useEffect(() => {
     let active = true;
 
@@ -1433,6 +1443,7 @@ const uploadedVideoCovers =
 
             <GroupPostCard
               post={post}
+              groupId={groupId}
               canDelete={canDeletePost}
               onDelete={canDeletePost ? handleDeletePost : undefined}
               onLoadComments={handleLoadComments}
@@ -1450,7 +1461,9 @@ const uploadedVideoCovers =
               isModerator={isModerator}
               showGroupContext={false}
               canModerateGroupAuthor={isOwner || isModerator}
+              canUseGroupMemberBlock={!isOwner}
               onModerationComplete={loadPosts}
+              onGroupMemberBlockComplete={handleGroupMemberBlockComplete}
               canCommentOnPosts={canCommentOnPosts}
               commentBlockedReason={commentBlockedReason}
             />

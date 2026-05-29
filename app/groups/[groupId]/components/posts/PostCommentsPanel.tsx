@@ -15,6 +15,7 @@ type PostCommentsPanelProps = {
   open: boolean;
   isMobile: boolean;
   postId: string;
+  groupId?: string | null;
   comments: Comment[] | null;
   loading: boolean;
   currentUserId?: string | null;
@@ -26,21 +27,23 @@ type PostCommentsPanelProps = {
   creatingComment: boolean;
   deletingCommentId: string | null;
   inlineError: string | null;
+  canUseGroupMemberBlock?: boolean;
   onCommentTextChange: (value: string) => void;
   onClose: () => void;
   onCreateComment: () => Promise<void>;
   onDeleteComment: (commentId: string) => Promise<void>;
   onLoadReplies: (postId: string, commentId: string) => Promise<CommentReply[]>;
-onCreateReply: (
-  postId: string,
-  commentId: string,
-  text: string
-) => Promise<CommentReply[]>;
-onDeleteReply: (
-  postId: string,
-  commentId: string,
-  replyId: string
-) => Promise<CommentReply[]>;
+  onCreateReply: (
+    postId: string,
+    commentId: string,
+    text: string
+  ) => Promise<CommentReply[]>;
+  onDeleteReply: (
+    postId: string,
+    commentId: string,
+    replyId: string
+  ) => Promise<CommentReply[]>;
+  onGroupMemberBlockComplete?: () => Promise<void> | void;
 };
 
 const fontStack =
@@ -101,6 +104,7 @@ export default function PostCommentsPanel({
   open,
   isMobile,
   postId,
+  groupId = null,
   comments,
   loading,
   currentUserId = null,
@@ -112,13 +116,15 @@ export default function PostCommentsPanel({
   creatingComment,
   deletingCommentId,
   inlineError,
+  canUseGroupMemberBlock = false,
   onCommentTextChange,
   onClose,
-onCreateComment,
-onDeleteComment,
-onLoadReplies,
-onCreateReply,
-onDeleteReply,
+  onCreateComment,
+  onDeleteComment,
+  onLoadReplies,
+  onCreateReply,
+  onDeleteReply,
+  onGroupMemberBlockComplete,
 }: PostCommentsPanelProps) {
   useEffect(() => {
     if (!open || !isMobile) return;
@@ -299,20 +305,23 @@ onDeleteReply,
 
 {!loading &&
   comments?.map((comment) => (
-    <PostCommentThread
-      key={comment.id}
-      postId={postId}
-      comment={comment}
-      currentUserId={currentUserId}
-      isOwner={isOwner}
-      isModerator={isModerator}
-      canCommentOnPosts={canCommentOnPosts}
-      deletingCommentId={deletingCommentId}
-      onDeleteComment={onDeleteComment}
-      onLoadReplies={onLoadReplies}
-      onCreateReply={onCreateReply}
-      onDeleteReply={onDeleteReply}
-    />
+<PostCommentThread
+  key={comment.id}
+  postId={postId}
+  groupId={groupId}
+  comment={comment}
+  currentUserId={currentUserId}
+  isOwner={isOwner}
+  isModerator={isModerator}
+  canCommentOnPosts={canCommentOnPosts}
+  canUseGroupMemberBlock={canUseGroupMemberBlock}
+  deletingCommentId={deletingCommentId}
+  onDeleteComment={onDeleteComment}
+  onLoadReplies={onLoadReplies}
+  onCreateReply={onCreateReply}
+  onDeleteReply={onDeleteReply}
+  onGroupMemberBlockComplete={onGroupMemberBlockComplete}
+/>
   ))}
         </div>
 

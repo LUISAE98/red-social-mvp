@@ -31,6 +31,7 @@ import {
 import type {
   Comment,
   CommentReply,
+  GroupMemberBlockRelationship,
   GroupVisibility,
   Post,
   PostContextType,
@@ -198,6 +199,327 @@ async function userHasBlockedUser(
   } catch {
     return false;
   }
+}
+
+function getGroupMemberBlockDocId(blockerUid: string, blockedUid: string): string {
+  return `${blockerUid}_${blockedUid}`;
+}
+
+async function groupMemberBlockExists(params: {
+  groupId: string;
+  blockerUid: string;
+  blockedUid: string;
+}): Promise<boolean> {
+  const groupId = params.groupId.trim();
+  const blockerUid = params.blockerUid.trim();
+  const blockedUid = params.blockedUid.trim();
+
+  if (!groupId || !blockerUid || !blockedUid || blockerUid === blockedUid) {
+    return false;
+  }
+
+  try {
+    const snap = await getDoc(
+      doc(
+        db,
+        "groups",
+        groupId,
+        "memberBlocks",
+        getGroupMemberBlockDocId(blockerUid, blockedUid)
+      )
+    );
+
+    return snap.exists();
+  } catch {
+    return false;
+  }
+}
+
+async function fetchGroupMemberBlockRelationship(params: {
+  groupId: string;
+  viewerUid: string;
+  targetUid: string;
+}): Promise<GroupMemberBlockRelationship> {
+  const groupId = params.groupId.trim();
+  const viewerUid = params.viewerUid.trim();
+  const targetUid = params.targetUid.trim();
+
+  if (!groupId || !viewerUid || !targetUid || viewerUid === targetUid) {
+    return {
+      hasBlocked: false,
+      isBlockedBy: false,
+    };
+  }
+
+  const [hasBlocked, isBlockedBy] = await Promise.all([
+    groupMemberBlockExists({
+      groupId,
+      blockerUid: viewerUid,
+      blockedUid: targetUid,
+    }),
+    groupMemberBlockExists({
+      groupId,
+      blockerUid: targetUid,
+      blockedUid: viewerUid,
+    }),
+  ]);
+
+  return {
+    hasBlocked,
+    isBlockedBy,
+  };
+}
+
+async function assertNoGroupMemberBlockBetween(params: {
+  groupId: string;
+  viewerUid: string;
+  targetUid: string;
+  message?: string;
+}): Promise<void> {
+  const relationship = await fetchGroupMemberBlockRelationship({
+    groupId: params.groupId,
+    viewerUid: params.viewerUid,
+    targetUid: params.targetUid,
+  });
+
+  if (relationship.hasBlocked || relationship.isBlockedBy) {
+    throw new Error(
+      params.message ?? "No puedes interactuar con este usuario en esta comunidad."
+    );
+  }
+}
+
+async function attachViewerGroupMemberBlockState(
+  posts: Post[],
+  viewerUid?: string | null
+): Promise<Post[]> {
+  const uid = viewerUid || auth.currentUser?.uid || null;
+
+  if (!uid || posts.length === 0) {
+    return posts.map((post) => ({
+      ...post,
+      viewerHasBlockedAuthorInGroup: false,
+      viewerIsBlockedByAuthorInGroup: false,
+    }));
+  }
+
+  const relationshipEntries = await Promise.all(
+    posts.map(async (post) => {
+      const groupId =
+        typeof post.groupId === "string" && post.groupId.trim().length > 0
+          ? post.groupId.trim()
+          : null;
+
+      const authorId =
+        typeof post.authorId === "string" && post.authorId.trim().length > 0
+          ? post.authorId.trim()
+          : null;
+
+      if (
+        post.contextType === "profile" ||
+        !groupId ||
+        !authorId ||
+        authorId === uid
+      ) {
+        return [
+          post.id,
+          {
+            hasBlocked: false,
+            isBlockedBy: false,
+          },
+        ] as const;
+      }
+
+      const relationship = await fetchGroupMemberBlockRelationship({
+        groupId,
+        viewerUid: uid,
+        targetUid: authorId,
+      });
+
+      return [post.id, relationship] as const;
+    })
+  );
+
+  const relationshipMap = new Map(relationshipEntries);
+
+  return posts.map((post) => {
+    const relationship = relationshipMap.get(post.id) ?? {
+      hasBlocked: false,
+      isBlockedBy: false,
+    };
+
+    return {
+      ...post,
+      viewerHasBlockedAuthorInGroup: relationship.hasBlocked,
+      viewerIsBlockedByAuthorInGroup: relationship.isBlockedBy,
+    };
+  });
+}
+
+function filterPostsForViewerGroupMemberBlocks(posts: Post[]): Post[] {
+  return posts.filter((post) => {
+    if (post.contextType === "profile") {
+      return true;
+    }
+
+    if (post.viewerHasBlockedAuthorInGroup === true) {
+      return false;
+    }
+
+    if (post.viewerIsBlockedByAuthorInGroup === true) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+async function attachViewerGroupMemberBlockStateToComments(params: {
+  groupId: string | null;
+  viewerUid?: string | null;
+  comments: Comment[];
+}): Promise<Comment[]> {
+  const uid = params.viewerUid || auth.currentUser?.uid || null;
+  const groupId = params.groupId?.trim() || null;
+
+  if (!uid || !groupId || params.comments.length === 0) {
+    return params.comments.map((comment) => ({
+      ...comment,
+      viewerHasBlockedAuthorInGroup: false,
+      viewerIsBlockedByAuthorInGroup: false,
+    }));
+  }
+
+  const relationshipEntries = await Promise.all(
+    params.comments.map(async (comment) => {
+      const authorId =
+        typeof comment.authorId === "string" && comment.authorId.trim().length > 0
+          ? comment.authorId.trim()
+          : null;
+
+      if (!authorId || authorId === uid) {
+        return [
+          comment.id,
+          {
+            hasBlocked: false,
+            isBlockedBy: false,
+          },
+        ] as const;
+      }
+
+      const relationship = await fetchGroupMemberBlockRelationship({
+        groupId,
+        viewerUid: uid,
+        targetUid: authorId,
+      });
+
+      return [comment.id, relationship] as const;
+    })
+  );
+
+  const relationshipMap = new Map(relationshipEntries);
+
+  return params.comments.map((comment) => {
+    const relationship = relationshipMap.get(comment.id) ?? {
+      hasBlocked: false,
+      isBlockedBy: false,
+    };
+
+    return {
+      ...comment,
+      viewerHasBlockedAuthorInGroup: relationship.hasBlocked,
+      viewerIsBlockedByAuthorInGroup: relationship.isBlockedBy,
+    };
+  });
+}
+
+function filterCommentsForViewerGroupMemberBlocks(comments: Comment[]): Comment[] {
+  return comments.filter((comment) => {
+    if (comment.viewerHasBlockedAuthorInGroup === true) {
+      return false;
+    }
+
+    if (comment.viewerIsBlockedByAuthorInGroup === true) {
+      return false;
+    }
+
+    return true;
+  });
+}
+
+async function attachViewerGroupMemberBlockStateToReplies(params: {
+  groupId: string | null;
+  viewerUid?: string | null;
+  replies: CommentReply[];
+}): Promise<CommentReply[]> {
+  const uid = params.viewerUid || auth.currentUser?.uid || null;
+  const groupId = params.groupId?.trim() || null;
+
+  if (!uid || !groupId || params.replies.length === 0) {
+    return params.replies.map((reply) => ({
+      ...reply,
+      viewerHasBlockedAuthorInGroup: false,
+      viewerIsBlockedByAuthorInGroup: false,
+    }));
+  }
+
+  const relationshipEntries = await Promise.all(
+    params.replies.map(async (reply) => {
+      const authorId =
+        typeof reply.authorId === "string" && reply.authorId.trim().length > 0
+          ? reply.authorId.trim()
+          : null;
+
+      if (!authorId || authorId === uid) {
+        return [
+          reply.id,
+          {
+            hasBlocked: false,
+            isBlockedBy: false,
+          },
+        ] as const;
+      }
+
+      const relationship = await fetchGroupMemberBlockRelationship({
+        groupId,
+        viewerUid: uid,
+        targetUid: authorId,
+      });
+
+      return [reply.id, relationship] as const;
+    })
+  );
+
+  const relationshipMap = new Map(relationshipEntries);
+
+  return params.replies.map((reply) => {
+    const relationship = relationshipMap.get(reply.id) ?? {
+      hasBlocked: false,
+      isBlockedBy: false,
+    };
+
+    return {
+      ...reply,
+      viewerHasBlockedAuthorInGroup: relationship.hasBlocked,
+      viewerIsBlockedByAuthorInGroup: relationship.isBlockedBy,
+    };
+  });
+}
+
+function filterRepliesForViewerGroupMemberBlocks(
+  replies: CommentReply[]
+): CommentReply[] {
+  return replies.filter((reply) => {
+    if (reply.viewerHasBlockedAuthorInGroup === true) {
+      return false;
+    }
+
+    if (reply.viewerIsBlockedByAuthorInGroup === true) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 async function assertNoProfileCommentBlock(
@@ -1006,7 +1328,16 @@ async function attachViewerPostState(
   posts: Post[],
   viewerUid?: string | null
 ): Promise<Post[]> {
-  const withFlameState = await attachViewerFlameState(posts, viewerUid);
+  const withGroupMemberBlockState = await attachViewerGroupMemberBlockState(
+    posts,
+    viewerUid
+  );
+
+  const visiblePosts = filterPostsForViewerGroupMemberBlocks(
+    withGroupMemberBlockState
+  );
+
+  const withFlameState = await attachViewerFlameState(visiblePosts, viewerUid);
   return attachViewerSavedState(withFlameState, viewerUid);
 }
 
@@ -1027,6 +1358,8 @@ function hydrateComment(
       likes: raw.counts?.likes ?? 0,
     },
     viewerHasFlamed: raw.viewerHasFlamed ?? false,
+    viewerHasBlockedAuthorInGroup: raw.viewerHasBlockedAuthorInGroup ?? false,
+    viewerIsBlockedByAuthorInGroup: raw.viewerIsBlockedByAuthorInGroup ?? false,
   };
 }
 
@@ -1110,6 +1443,8 @@ function hydrateCommentReply(
       profile?.displayName || raw.authorName || raw.authorId || "Usuario",
     authorAvatarUrl: profile?.avatarUrl ?? raw.authorAvatarUrl ?? null,
     authorUsername: profile?.username ?? raw.authorUsername ?? null,
+    viewerHasBlockedAuthorInGroup: raw.viewerHasBlockedAuthorInGroup ?? false,
+    viewerIsBlockedByAuthorInGroup: raw.viewerIsBlockedByAuthorInGroup ?? false,
   };
 }
 
@@ -1325,12 +1660,23 @@ async function ensureUserCanCommentOnPost(
 
   if (contextType === "group") {
     const groupId = pickString(postData.groupId);
+    const postAuthorId = pickString(postData.authorId);
 
     if (!groupId) {
       throw new Error("La publicación no pertenece a una comunidad válida.");
     }
 
     await ensureUserCanCommentInGroup(groupId, userUid);
+
+    if (postAuthorId && postAuthorId !== userUid) {
+      await assertNoGroupMemberBlockBetween({
+        groupId,
+        viewerUid: userUid,
+        targetUid: postAuthorId,
+        message: "No puedes comentar esta publicación.",
+      });
+    }
+
     return;
   }
 
@@ -2634,13 +2980,23 @@ export async function softDeletePost(postId: string): Promise<void> {
 export async function fetchPostComments(postId: string): Promise<Comment[]> {
   assertValidId(postId, "postId");
 
-const viewerUid = auth.currentUser?.uid ?? null;
-const cacheKey = getPostCommentsCacheKey(postId, viewerUid);
+  const viewerUid = auth.currentUser?.uid ?? null;
+  const cacheKey = getPostCommentsCacheKey(postId, viewerUid);
 
-const cached = POST_COMMENTS_CACHE.get(cacheKey);
-if (cached) {
-  return cached;
-}
+  const cached = POST_COMMENTS_CACHE.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const postSnap = await getDoc(doc(db, "posts", postId));
+
+  if (!postSnap.exists()) {
+    return [];
+  }
+
+  const postData = postSnap.data() as Record<string, unknown>;
+  const groupId =
+    postData.contextType === "profile" ? null : pickString(postData.groupId);
 
   const q = query(
     collection(db, "posts", postId, "comments"),
@@ -2663,15 +3019,26 @@ if (cached) {
     hydrateComment(comment, userMap)
   );
 
-const commentsWithViewerState = await attachViewerCommentFlameState(
-  postId,
-  hydratedComments,
-  viewerUid
-);
+  const commentsWithGroupBlockState =
+    await attachViewerGroupMemberBlockStateToComments({
+      groupId,
+      viewerUid,
+      comments: hydratedComments,
+    });
 
-POST_COMMENTS_CACHE.set(cacheKey, commentsWithViewerState);
+  const visibleComments = filterCommentsForViewerGroupMemberBlocks(
+    commentsWithGroupBlockState
+  );
 
-return commentsWithViewerState;
+  const commentsWithViewerState = await attachViewerCommentFlameState(
+    postId,
+    visibleComments,
+    viewerUid
+  );
+
+  POST_COMMENTS_CACHE.set(cacheKey, commentsWithViewerState);
+
+  return commentsWithViewerState;
 }
 
 export async function createPostComment(params: {
@@ -2799,12 +3166,23 @@ export async function fetchCommentReplies(params: {
   assertValidId(params.postId, "postId");
   assertValidId(params.commentId, "commentId");
 
+  const viewerUid = auth.currentUser?.uid ?? null;
   const cacheKey = getCommentRepliesCacheKey(params.postId, params.commentId);
   const cached = COMMENT_REPLIES_CACHE.get(cacheKey);
 
   if (cached) {
     return cached;
   }
+
+  const postSnap = await getDoc(doc(db, "posts", params.postId));
+
+  if (!postSnap.exists()) {
+    return [];
+  }
+
+  const postData = postSnap.data() as Record<string, unknown>;
+  const groupId =
+    postData.contextType === "profile" ? null : pickString(postData.groupId);
 
   const q = query(
     collection(
@@ -2836,10 +3214,22 @@ export async function fetchCommentReplies(params: {
     hydrateCommentReply(reply, userMap)
   );
 
-  COMMENT_REPLIES_CACHE.set(cacheKey, hydratedReplies);
+  const repliesWithGroupBlockState =
+    await attachViewerGroupMemberBlockStateToReplies({
+      groupId,
+      viewerUid,
+      replies: hydratedReplies,
+    });
 
-  return hydratedReplies;
+  const visibleReplies = filterRepliesForViewerGroupMemberBlocks(
+    repliesWithGroupBlockState
+  );
+
+  COMMENT_REPLIES_CACHE.set(cacheKey, visibleReplies);
+
+  return visibleReplies;
 }
+
 
 export async function createPostCommentReply(params: {
   postId: string;
@@ -2872,6 +3262,27 @@ export async function createPostCommentReply(params: {
   await ensureUserCanCommentOnPost(postData, author.uid);
 
   const commentRef = doc(db, "posts", params.postId, "comments", params.commentId);
+  const commentSnap = await getDoc(commentRef);
+
+  if (!commentSnap.exists()) {
+    throw new Error("El comentario ya no existe.");
+  }
+
+  const commentData = commentSnap.data() as Record<string, unknown>;
+
+  const groupId =
+    postData.contextType === "profile" ? null : pickString(postData.groupId);
+
+  const commentAuthorId = pickString(commentData.authorId);
+
+  if (groupId && commentAuthorId && commentAuthorId !== author.uid) {
+    await assertNoGroupMemberBlockBetween({
+      groupId,
+      viewerUid: author.uid,
+      targetUid: commentAuthorId,
+      message: "No puedes responder este comentario.",
+    });
+  }
 
   const replyRef = doc(
     collection(db, "posts", params.postId, "comments", params.commentId, "replies")
@@ -3234,8 +3645,17 @@ export async function fetchSavedPostsPage(params: {
     };
   });
 
-  const postsWithFlameState = await attachViewerFlameState(
+  const postsWithGroupMemberBlockState = await attachViewerGroupMemberBlockState(
     hydratedPosts,
+    params.userUid
+  );
+
+  const visibleSavedPosts = filterPostsForViewerGroupMemberBlocks(
+    postsWithGroupMemberBlockState
+  );
+
+  const postsWithFlameState = await attachViewerFlameState(
+    visibleSavedPosts,
     params.userUid
   );
 
