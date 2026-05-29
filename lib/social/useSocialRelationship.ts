@@ -6,6 +6,7 @@ import {
   blockUser,
   followUser,
   getSocialRelationship,
+  subscribeSocialRelationship,
   unblockUser,
   unfollowUser,
 } from "@/lib/social/social-service";
@@ -39,7 +40,8 @@ export function useSocialRelationship(
   const [relationship, setRelationship] =
     useState<SocialRelationshipStatus>(EMPTY_RELATIONSHIP);
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
@@ -63,80 +65,99 @@ export function useSocialRelationship(
   }, [currentUserId, targetUserId]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    setLoading(true);
+    setError(null);
+    setRelationship(EMPTY_RELATIONSHIP);
+
+    const unsubscribe = subscribeSocialRelationship(
+      {
+        currentUserId,
+        targetUserId,
+      },
+      (nextRelationship) => {
+        setRelationship(nextRelationship);
+        setLoading(false);
+      },
+      (err) => {
+        console.error("Error listening social relationship:", err);
+        setError("No se pudo escuchar la relación social.");
+        setRelationship(EMPTY_RELATIONSHIP);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [currentUserId, targetUserId]);
 
   const follow = useCallback(async () => {
     if (!currentUserId || !targetUserId) return;
 
-    setLoading(true);
+    setActionLoading(true);
     setError(null);
 
     try {
       await followUser({ currentUserId, targetUserId });
-      await refresh();
     } catch (err) {
       console.error("Error following user:", err);
       setError("No se pudo seguir este perfil.");
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
-  }, [currentUserId, targetUserId, refresh]);
+  }, [currentUserId, targetUserId]);
 
   const unfollow = useCallback(async () => {
     if (!currentUserId || !targetUserId) return;
 
-    setLoading(true);
+    setActionLoading(true);
     setError(null);
 
     try {
       await unfollowUser({ currentUserId, targetUserId });
-      await refresh();
     } catch (err) {
       console.error("Error unfollowing user:", err);
       setError("No se pudo dejar de seguir este perfil.");
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
-  }, [currentUserId, targetUserId, refresh]);
+  }, [currentUserId, targetUserId]);
 
   const block = useCallback(async () => {
     if (!currentUserId || !targetUserId) return;
 
-    setLoading(true);
+    setActionLoading(true);
     setError(null);
 
     try {
       await blockUser({ currentUserId, targetUserId });
-      await refresh();
     } catch (err) {
       console.error("Error blocking user:", err);
       setError("No se pudo bloquear este usuario.");
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
-  }, [currentUserId, targetUserId, refresh]);
+  }, [currentUserId, targetUserId]);
 
   const unblock = useCallback(async () => {
     if (!currentUserId || !targetUserId) return;
 
-    setLoading(true);
+    setActionLoading(true);
     setError(null);
 
     try {
       await unblockUser({ currentUserId, targetUserId });
-      await refresh();
     } catch (err) {
       console.error("Error unblocking user:", err);
       setError("No se pudo desbloquear este usuario.");
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
-  }, [currentUserId, targetUserId, refresh]);
+  }, [currentUserId, targetUserId]);
 
   return {
     relationship,
-    loading,
+    loading: loading || actionLoading,
     error,
     refresh,
     follow,

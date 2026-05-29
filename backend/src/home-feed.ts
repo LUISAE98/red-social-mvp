@@ -83,22 +83,82 @@ function getMembershipUid(params: {
   return dataUserId || docUserId;
 }
 
-async function usersHaveBlockBetween(userA: string, userB: string): Promise<boolean> {
+async function usersHaveBlockBetween(
+  userA: string,
+  userB: string
+): Promise<boolean> {
   if (!userA.trim() || !userB.trim() || userA === userB) {
     return false;
   }
 
   const [aBlockedB, bBlockedA] = await Promise.all([
-    db.collection("users").doc(userA).collection("blockedUsers").doc(userB).get(),
-    db.collection("users").doc(userB).collection("blockedUsers").doc(userA).get(),
+    db
+      .collection("users")
+      .doc(userA)
+      .collection("blockedUsers")
+      .doc(userB)
+      .get(),
+    db
+      .collection("users")
+      .doc(userB)
+      .collection("blockedUsers")
+      .doc(userA)
+      .get(),
   ]);
 
   return aBlockedB.exists || bBlockedA.exists;
 }
 
+async function deleteFollowRelationshipBetweenUsers(params: {
+  userId: string;
+  blockedUserId: string;
+}): Promise<void> {
+  const { userId, blockedUserId } = params;
+
+  if (!userId.trim() || !blockedUserId.trim() || userId === blockedUserId) {
+    return;
+  }
+
+  const batch = db.batch();
+
+  batch.delete(
+    db
+      .collection("users")
+      .doc(userId)
+      .collection("following")
+      .doc(blockedUserId)
+  );
+
+  batch.delete(
+    db
+      .collection("users")
+      .doc(blockedUserId)
+      .collection("followers")
+      .doc(userId)
+  );
+
+  batch.delete(
+    db
+      .collection("users")
+      .doc(blockedUserId)
+      .collection("following")
+      .doc(userId)
+  );
+
+  batch.delete(
+    db
+      .collection("users")
+      .doc(userId)
+      .collection("followers")
+      .doc(blockedUserId)
+  );
+
+  await batch.commit();
+}
+
 async function commitBatches(
   refs: FirebaseFirestore.DocumentReference[],
-  operation: "delete",
+  operation: "delete"
 ): Promise<void> {
   const commits = [];
 
@@ -295,7 +355,11 @@ async function distributeProfilePostToFollowers(params: {
     .get();
 
   const followerIds = followersSnap.docs
-    .map((followerDoc) => pickString(followerDoc.data().followerUserId) || pickString(followerDoc.id))
+    .map(
+      (followerDoc) =>
+        pickString(followerDoc.data().followerUserId) ||
+        pickString(followerDoc.id)
+    )
     .filter((uid): uid is string => Boolean(uid))
     .filter((uid) => uid !== profileId);
 
@@ -642,6 +706,10 @@ export const onHomeFeedBlockedUserCreated = onDocumentCreated(
     });
 
     await Promise.all([
+      deleteFollowRelationshipBetweenUsers({
+        userId,
+        blockedUserId,
+      }),
       deleteUserHomeFeedByAuthor({
         uid: userId,
         authorId: blockedUserId,

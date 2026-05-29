@@ -48,6 +48,12 @@ export default function ProfileSocialActions({
     };
   }, [menuOpen]);
 
+  useEffect(() => {
+    if (relationship.isBlockedBy) {
+      setMenuOpen(false);
+    }
+  }, [relationship.isBlockedBy]);
+
   if (!viewerUid || isOwnProfile) return null;
 
   if (relationship.isBlockedBy) return null;
