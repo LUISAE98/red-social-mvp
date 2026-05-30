@@ -56,6 +56,7 @@ import ProfileSettingsTab from "./components/ProfileSubnav/ProfileSettingsTab";
 import ProfileServicesTab from "./components/ProfileSubnav/ProfileServicesTab";
 import ProfileSocialActions from "./components/ProfileSocialActions";
 import SharedCommunitiesBadge from "./components/SharedCommunitiesBadge";
+import ProfileFollowersOverlay from "./components/ProfileFollowersOverlay";
 import GroupPostComposer from "@/app/groups/[groupId]/components/posts/GroupPostComposer";
 import { createMediaPost, createTextPost } from "@/lib/posts/post-service";
 import { uploadPostImages } from "@/lib/posts/image-upload";
@@ -126,6 +127,7 @@ type UserDoc = {
   offerings?: any[] | null;
   donation?: any | null;
   monetization?: any | null;
+  followersCount?: number;
 };
 
 type CropMode = "avatar" | "cover";
@@ -332,6 +334,7 @@ const [profileComposerError, setProfileComposerError] = useState<string | null>(
 const [profilePostsRefreshKey, setProfilePostsRefreshKey] = useState(0);
 const [profileVideoUploadProgress, setProfileVideoUploadProgress] = useState<number | null>(null);
 const [profileVideoUploadStatus, setProfileVideoUploadStatus] = useState<string | null>(null);
+const [followersOverlayOpen, setFollowersOverlayOpen] = useState(false);
 
 useEffect(() => {
   if (!serviceToast) return;
@@ -386,6 +389,20 @@ useEffect(() => {
   const showGroupsTab = isOwner ? true : visitorCanSeeGroups;
 
   const shouldShowSubnav = isOwner ? true : showPostsTab || showGroupsTab;
+
+  const followersCount =
+    typeof userDoc?.followersCount === "number" && userDoc.followersCount > 0
+      ? userDoc.followersCount
+      : 0;
+
+  const followersLabel = `${followersCount.toLocaleString("es-MX")} ${
+    followersCount === 1 ? "seguidor" : "seguidores"
+  }`;
+
+function openFollowersOverlay() {
+  if (!isOwner) return;
+  setFollowersOverlayOpen(true);
+}
 
   useEffect(() => {
     if (!userDoc) return;
@@ -1866,7 +1883,41 @@ await createExclusiveSessionRequest({
 
                   <div className="profile-handle">@{userDoc.handle}</div>
 
-                  <div className="profile-visibility">{profileVisibilityLabel}</div>
+                                    <div
+                    className="profile-visibility"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <span>{profileVisibilityLabel}</span>
+
+                    <span aria-hidden="true">·</span>
+
+                    {isOwner ? (
+                      <button
+                        type="button"
+                        onClick={openFollowersOverlay}
+                        style={{
+                          border: "none",
+                          background: "transparent",
+                          color: "rgba(255,255,255,0.72)",
+                          padding: 0,
+                          margin: 0,
+                          font: "inherit",
+                          cursor: "pointer",
+                          textDecoration: "none",
+                        }}
+                      >
+                        {followersLabel}
+                      </button>
+                    ) : (
+                      <span>{followersLabel}</span>
+                    )}
+                  </div>
 
                   <ProfileSocialActions
                     viewerUid={viewer?.uid ?? null}
@@ -2157,6 +2208,13 @@ await createExclusiveSessionRequest({
           />
         </div>
       </main>
+
+<ProfileFollowersOverlay
+  open={followersOverlayOpen}
+  currentUserId={viewer?.uid ?? null}
+  profileUserId={userDoc.uid}
+  onClose={() => setFollowersOverlayOpen(false)}
+/>
 
 <CreatorServiceModals
   greetOpen={greetOpen}

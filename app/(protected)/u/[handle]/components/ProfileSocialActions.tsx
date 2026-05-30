@@ -63,6 +63,16 @@ export default function ProfileSocialActions({
     !relationship.hasBlocked &&
     relationship.canFollow;
 
+      const followButtonLabel = loading
+    ? "Procesando..."
+    : relationship.isFollowing && relationship.isFollowedBy
+      ? "Ambos se siguen"
+      : relationship.isFollowing
+        ? "Siguiendo"
+        : relationship.isFollowedBy
+          ? "Seguir también"
+          : "Seguir";
+
   async function handleFollowClick() {
     if (loading) return;
 
@@ -111,11 +121,7 @@ export default function ProfileSocialActions({
               cursor: loading ? "not-allowed" : "pointer",
             }}
           >
-            {loading
-              ? "Procesando..."
-              : relationship.isFollowing
-                ? "Siguiendo"
-                : "Seguir"}
+            {followButtonLabel}
           </button>
         )}
 

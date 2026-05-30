@@ -51,3 +51,16 @@ export type GetSocialRelationshipInput = {
   currentUserId: string | null | undefined;
   targetUserId: string | null | undefined;
 };
+
+export type GetProfileFollowersInput = {
+  currentUserId: string | null | undefined;
+  profileUserId: string | null | undefined;
+  limitCount?: number;
+};
+
+export type ProfileFollowerListItem = {
+  uid: string;
+  displayName: string;
+  handle: string | null;
+  avatarUrl: string | null;
+};

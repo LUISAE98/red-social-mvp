@@ -87,6 +87,7 @@ service cloud.firestore {
         && (!("showPosts" in data) || data.showPosts is bool)
         && (!("showCreatedGroups" in data) || data.showCreatedGroups is bool)
         && (!("profileRestricted" in data) || data.profileRestricted is bool)
+        && (!("followersCount" in data) || (data.followersCount is int && data.followersCount >= 0))
         && (
           !("profileGreeting" in data)
           || data.profileGreeting == null
@@ -207,8 +208,10 @@ service cloud.firestore {
         && validUserBase(request.resource.data);
 
       allow update: if signedIn()
-        && request.auth.uid == uid
         && (
+          (
+            request.auth.uid == uid
+            && (
           (
             request.resource.data.diff(resource.data).changedKeys().hasOnly([
               "offerings",
@@ -248,6 +251,68 @@ service cloud.firestore {
             && (!("coverUrl" in request.resource.data)
               || request.resource.data.coverUrl == null
               || request.resource.data.coverUrl is string)
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              "followersCount",
+              "updatedAt"
+            ])
+            && request.resource.data.followersCount is int
+            && request.resource.data.followersCount >= 0
+            && (
+              (
+                request.resource.data.followersCount == (
+                  (!("followersCount" in resource.data) || !(resource.data.followersCount is int))
+                    ? 1
+                    : resource.data.followersCount + 1
+                )
+                && existsAfter(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid))
+                && getAfter(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid)).data.userId == uid
+                && getAfter(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid)).data.followerUserId == request.auth.uid
+              )
+              ||
+              (
+                request.resource.data.followersCount == (
+                  (!("followersCount" in resource.data) || !(resource.data.followersCount is int) || resource.data.followersCount <= 0)
+                    ? 0
+                    : resource.data.followersCount - 1
+                )
+                && !existsAfter(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid))
+              )
+            )
+          )
+            )
+          )
+          ||
+          (
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              "followersCount",
+              "updatedAt"
+            ])
+            && request.resource.data.followersCount is int
+            && request.resource.data.followersCount >= 0
+            && (
+              (
+                request.resource.data.followersCount == (
+                  (!("followersCount" in resource.data) || !(resource.data.followersCount is int))
+                    ? 1
+                    : resource.data.followersCount + 1
+                )
+                && existsAfter(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid))
+                && getAfter(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid)).data.userId == uid
+                && getAfter(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid)).data.followerUserId == request.auth.uid
+              )
+              ||
+              (
+                request.resource.data.followersCount == (
+                  (!("followersCount" in resource.data) || !(resource.data.followersCount is int) || resource.data.followersCount <= 0)
+                    ? 0
+                    : resource.data.followersCount - 1
+                )
+                && !existsAfter(/databases/$(database)/documents/users/$(uid)/followers/$(request.auth.uid))
+              )
+            )
           )
         );
 

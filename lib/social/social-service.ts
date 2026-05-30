@@ -1,10 +1,15 @@
 import {
+  collection,
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
+  increment,
+  limit,
   onSnapshot,
+  orderBy,
+  query,
   serverTimestamp,
-  setDoc,
   writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -14,7 +19,9 @@ import { db } from "@/lib/firebase";
 import type {
   BlockUserInput,
   FollowUserInput,
+  GetProfileFollowersInput,
   GetSocialRelationshipInput,
+  ProfileFollowerListItem,
   SocialRelationshipStatus,
   UnblockUserInput,
   UnfollowUserInput,
@@ -29,6 +36,28 @@ function getFollowingDocRef(userId: string, targetUserId: string) {
 
 function getFollowerDocRef(userId: string, followerUserId: string) {
   return doc(db, "users", userId, "followers", followerUserId);
+}
+
+function getFollowersCollectionRef(userId: string) {
+  return collection(db, "users", userId, "followers");
+}
+
+function getUserDocRef(userId: string) {
+  return doc(db, "users", userId);
+}
+
+function pickString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function normalizeHandle(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  return value.startsWith("@") ? value.slice(1) : value;
 }
 
 function getBlockedUserDocRef(userId: string, blockedUserId: string) {
@@ -53,6 +82,63 @@ function buildSocialRelationshipStatus(input: {
     canInteract,
     canFollow: canInteract,
   };
+}
+
+export async function getProfileFollowers(
+  input: GetProfileFollowersInput
+): Promise<ProfileFollowerListItem[]> {
+  const { currentUserId, profileUserId, limitCount = 50 } = input;
+
+  if (!currentUserId || !profileUserId) {
+    return [];
+  }
+
+  if (currentUserId !== profileUserId) {
+    return [];
+  }
+
+  const followersQuery = query(
+    getFollowersCollectionRef(profileUserId),
+    orderBy("createdAt", "desc"),
+    limit(limitCount)
+  );
+
+  const followersSnapshot = await getDocs(followersQuery);
+
+  const followerUserIds = followersSnapshot.docs
+    .map((followerDoc) => {
+      const data = followerDoc.data() as Partial<UserFollowerDoc>;
+
+      return pickString(data.followerUserId) ?? followerDoc.id;
+    })
+    .filter((followerUserId) => followerUserId.length > 0);
+
+  const profileSnapshots = await Promise.all(
+    followerUserIds.map((followerUserId) => getDoc(getUserDocRef(followerUserId)))
+  );
+
+  return profileSnapshots.map((profileSnapshot, index) => {
+    const followerUserId = followerUserIds[index];
+    const data = profileSnapshot.exists() ? profileSnapshot.data() : {};
+
+    const displayName =
+      pickString(data.displayName) ??
+      pickString(data.name) ??
+      pickString(data.username) ??
+      pickString(data.handle) ??
+      "Usuario";
+
+    const handle = normalizeHandle(
+      pickString(data.handle) ?? pickString(data.username)
+    );
+
+    return {
+      uid: followerUserId,
+      displayName,
+      handle,
+      avatarUrl: pickString(data.avatarUrl) ?? pickString(data.photoURL),
+    };
+  });
 }
 
 export async function getSocialRelationship(
@@ -239,6 +325,11 @@ export async function followUser(input: FollowUserInput): Promise<void> {
   batch.set(followingRef, followingData);
   batch.set(followerRef, followerData);
 
+  batch.update(getUserDocRef(targetUserId), {
+    followersCount: increment(1),
+    updatedAt: serverTimestamp(),
+  });
+
   await batch.commit();
 }
 
@@ -251,11 +342,27 @@ export async function unfollowUser(
     throw new Error("Missing required user ids.");
   }
 
+  const [followingDoc, targetUserDoc] = await Promise.all([
+    getDoc(getFollowingDocRef(currentUserId, targetUserId)),
+    getDoc(getUserDocRef(targetUserId)),
+  ]);
+
+  const currentFollowersCount =
+    typeof targetUserDoc.data()?.followersCount === "number"
+      ? targetUserDoc.data()?.followersCount
+      : 0;
+
   const batch = writeBatch(db);
 
   batch.delete(getFollowingDocRef(currentUserId, targetUserId));
-
   batch.delete(getFollowerDocRef(targetUserId, currentUserId));
+
+  if (followingDoc.exists() && currentFollowersCount > 0) {
+    batch.update(getUserDocRef(targetUserId), {
+      followersCount: increment(-1),
+      updatedAt: serverTimestamp(),
+    });
+  }
 
   await batch.commit();
 }
@@ -270,6 +377,11 @@ export async function blockUser(input: BlockUserInput): Promise<void> {
   if (currentUserId === targetUserId) {
     throw new Error("Users cannot block themselves.");
   }
+
+  const relationship = await getSocialRelationship({
+    currentUserId,
+    targetUserId,
+  });
 
   const batch = writeBatch(db);
 
@@ -294,8 +406,23 @@ export async function blockUser(input: BlockUserInput): Promise<void> {
 
   batch.delete(getFollowerDocRef(currentUserId, targetUserId));
 
+  if (relationship.isFollowing) {
+    batch.update(getUserDocRef(targetUserId), {
+      followersCount: increment(-1),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  if (relationship.isFollowedBy) {
+    batch.update(getUserDocRef(currentUserId), {
+      followersCount: increment(-1),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
   await batch.commit();
 }
+
 
 export async function unblockUser(
   input: UnblockUserInput
