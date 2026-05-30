@@ -55,6 +55,7 @@ import ProfileGroupsTab from "./components/ProfileSubnav/ProfileGroupsTab";
 import ProfileSettingsTab from "./components/ProfileSubnav/ProfileSettingsTab";
 import ProfileServicesTab from "./components/ProfileSubnav/ProfileServicesTab";
 import ProfileSocialActions from "./components/ProfileSocialActions";
+import SharedCommunitiesBadge from "./components/SharedCommunitiesBadge";
 import GroupPostComposer from "@/app/groups/[groupId]/components/posts/GroupPostComposer";
 import { createMediaPost, createTextPost } from "@/lib/posts/post-service";
 import { uploadPostImages } from "@/lib/posts/image-upload";
@@ -1449,6 +1450,7 @@ await createExclusiveSessionRequest({
   position: relative;
   padding: 0 18px 20px;
   min-width: 0;
+  overflow: visible;
 }
 
           .profile-meta {
@@ -1503,6 +1505,16 @@ await createExclusiveSessionRequest({
             flex-wrap: wrap;
           }
 
+.shared-communities-cover {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+}
+
           .profile-tab-content {
             width: 100%;
             min-width: 0;
@@ -1541,9 +1553,14 @@ await createExclusiveSessionRequest({
     border-right: 0 !important;
   }
 
-  .profile-content {
-    padding: 0 12px 18px;
-  }
+.profile-content {
+  padding: 0 12px 18px;
+}
+
+.shared-communities-cover {
+  left: 12px;
+  top: 12px;
+}
 
   .profile-handle {
     font-size: 14px;
@@ -1615,6 +1632,17 @@ await createExclusiveSessionRequest({
       "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.12) 14%, rgba(0,0,0,0.26) 28%, rgba(0,0,0,0.44) 44%, rgba(0,0,0,0.62) 60%, rgba(0,0,0,0.78) 76%, rgba(0,0,0,0.9) 90%, rgba(0,0,0,0.96) 100%)",
   }}
 />
+
+<div
+  className="shared-communities-cover"
+  aria-label="Comunidades compartidas"
+>
+  <SharedCommunitiesBadge
+    profileUid={userDoc.uid}
+    viewerUid={viewer?.uid ?? null}
+  />
+</div>
+
               {!shouldHideProfileSocialContent && (
                 <DonationAccessButton
   donation={userDoc.donation ?? null}
@@ -1635,7 +1663,7 @@ await createExclusiveSessionRequest({
   style={{
     position: "absolute",
     left: 18,
-    top: 18,
+    top: 62,
     zIndex: 30,
   }}
 />
@@ -1826,13 +1854,13 @@ await createExclusiveSessionRequest({
                 </div>
               </div>
 
-              <div
-                style={{
-                  paddingTop: ui.contentTopPadding,
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
+<div
+  style={{
+    paddingTop: ui.contentTopPadding,
+    position: "relative",
+    zIndex: 1,
+  }}
+>
                 <div className="profile-meta">
                   <h1 style={{ ...styles.title, margin: 0 }}>{fullName}</h1>
 
@@ -1926,6 +1954,7 @@ await createExclusiveSessionRequest({
                   {msg}
                 </div>
               )}
+
             </div>
           </div>
 

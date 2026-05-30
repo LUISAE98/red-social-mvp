@@ -147,3 +147,6 @@ export { createMuxDirectUpload } from "./muxUploads";
 
 // Mux webhooks
 export { muxWebhook } from "./muxWebhooks";
+
+// Shared communities
+export { getSharedCommunitiesWithProfile } from "./sharedCommunities";
