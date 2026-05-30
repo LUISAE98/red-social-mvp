@@ -3,6 +3,7 @@
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import LogoutButton from "@/app/LogoutButton";
+import BlockedAccountsOverlay from "./BlockedAccountsOverlay";
 
 type ProfileSettingsTabProps = {
   isSaving?: boolean;
@@ -193,6 +194,7 @@ export default function ProfileSettingsTab({
 }: ProfileSettingsTabProps) {
   const [localRestricted, setLocalRestricted] = useState(isRestricted);
   const [editNameOpen, setEditNameOpen] = useState(false);
+  const [blockedAccountsOpen, setBlockedAccountsOpen] = useState(false);
   const [draftName, setDraftName] = useState(displayName ?? "");
   const [savingName, setSavingName] = useState(false);
   const [sendingPassword, setSendingPassword] = useState(false);
@@ -560,6 +562,39 @@ export default function ProfileSettingsTab({
           </div>
         </div>
 
+        <div className="profile-setting-item" style={item}>
+          <div>
+            <div style={labelStyle}>Cuentas bloqueadas</div>
+            <div style={valueStyle}>Perfiles y comunidades</div>
+
+            <div
+              style={{
+                marginTop: 5,
+                fontSize: 11.5,
+                color: "rgba(255,255,255,0.58)",
+                lineHeight: 1.4,
+                maxWidth: 620,
+              }}
+            >
+              Consulta los perfiles que bloqueaste y las cuentas bloqueadas dentro
+              de comunidades.
+            </div>
+          </div>
+
+          <button
+            className="profile-setting-button"
+            type="button"
+            style={buttonStyle}
+            onClick={() => {
+              setErr(null);
+              setMsg(null);
+              setBlockedAccountsOpen(true);
+            }}
+          >
+            Ver
+          </button>
+        </div>
+
         <div
           className="profile-logout-wrap"
           style={{
@@ -638,6 +673,12 @@ export default function ProfileSettingsTab({
           </div>
         </div>
       </FullScreenModal>
+
+      <BlockedAccountsOverlay
+        open={blockedAccountsOpen}
+        currentUserId={uid}
+        onClose={() => setBlockedAccountsOpen(false)}
+      />
     </section>
   );
 }

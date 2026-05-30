@@ -9,6 +9,7 @@ import {
   documentId,
   getDoc,
   getDocs,
+  increment,
   limit,
   orderBy,
   query,
@@ -3082,26 +3083,8 @@ await addDoc(collection(db, "posts", params.postId, "comments"), {
   },
 });
 
-const currentCounts =
-  postData.counts && typeof postData.counts === "object"
-    ? (postData.counts as Record<string, unknown>)
-    : {};
-
-const currentComments =
-  typeof currentCounts.comments === "number" ? currentCounts.comments : 0;
-
-const currentLikes =
-  typeof currentCounts.likes === "number" ? currentCounts.likes : 0;
-
-const currentSaves =
-  typeof currentCounts.saves === "number" ? currentCounts.saves : 0;
-
 await updateDoc(postRef, {
-  counts: {
-    comments: currentComments + 1,
-    likes: currentLikes,
-    saves: currentSaves,
-  },
+  "counts.comments": increment(1),
   updatedAt: serverTimestamp(),
 });
 

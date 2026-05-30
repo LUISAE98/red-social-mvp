@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { createUserWithEmailAndPassword, sendEmailVerification } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  sendEmailVerification,
+  signOut,
+} from "firebase/auth";
 import { doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -268,8 +272,9 @@ tx.set(userRef, {
 });
       });
 
-      await sendEmailVerification(cred.user);
-      router.replace(`/login?registered=1&next=${encodeURIComponent(nextPath)}`);
+await sendEmailVerification(cred.user);
+await signOut(auth);
+router.replace(`/login?registered=1&next=${encodeURIComponent(nextPath)}`);
     } catch (err: any) {
       if (err?.code?.startsWith?.("auth/")) {
         setMsg(friendlyAuthError(err));
