@@ -150,3 +150,6 @@ export { muxWebhook } from "./muxWebhooks";
 
 // Shared communities
 export { getSharedCommunitiesWithProfile } from "./sharedCommunities";
+
+// Group deletion
+export { softDeleteGroup } from "./groupDeletion";

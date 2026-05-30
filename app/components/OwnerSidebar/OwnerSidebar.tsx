@@ -90,6 +90,9 @@ export type GroupDocLite = {
   name?: string;
   ownerId?: string;
   visibility?: "public" | "private" | "hidden" | string;
+  isActive?: boolean | null;
+  isDeleted?: boolean | null;
+  deletedAt?: unknown;
   avatarUrl?: string | null;
     profileHref?: string | null;
       handle?: string | null;
@@ -1115,10 +1118,12 @@ miniItem: {
     const unsub = onSnapshot(
       gq,
       (snap) => {
-        const rows: GroupDocLite[] = snap.docs.map((d) => ({
-          ...(d.data() as Omit<GroupDocLite, "id">),
-          id: d.id,
-        }));
+        const rows: GroupDocLite[] = snap.docs
+          .map((d) => ({
+            ...(d.data() as Omit<GroupDocLite, "id">),
+            id: d.id,
+          }))
+          .filter((g: any) => g.isDeleted !== true && !g.deletedAt);
 
         setMyGroups(rows);
 

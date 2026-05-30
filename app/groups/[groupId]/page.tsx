@@ -135,6 +135,10 @@ type GroupDoc = {
   ownerId?: string;
   visibility?: Visibility | string;
   isActive?: boolean;
+  isDeleted?: boolean;
+  deletedAt?: unknown;
+  deletedBy?: string | null;
+  deletionReason?: string | null;
   avatarUrl?: string | null;
   coverUrl?: string | null;
   category?: string | null;
@@ -1159,6 +1163,46 @@ const openCropWithFile = useCallback(
   }
 
   if (!group) return null;
+
+  const groupDeletionState = group as GroupDoc;
+
+  const groupIsDeleted =
+    groupDeletionState.isDeleted === true ||
+    Boolean(groupDeletionState.deletedAt);
+
+  const groupIsPaused = groupDeletionState.isActive === false;
+
+  if (groupIsDeleted) {
+    return (
+      <main style={{ ...pageWrap, background: "transparent" }}>
+        <div style={container}>
+          <div style={{ ...cardStyle, padding: 18 }}>
+            <div style={{ display: "grid", gap: 10 }}>
+              <h1 style={{ ...titleStyle, margin: 0 }}>
+                Comunidad no disponible
+              </h1>
+
+              <p style={{ ...textStyle, margin: 0 }}>
+                Esta comunidad fue eliminada o desactivada por su owner.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => router.replace("/groups")}
+                style={{
+                  ...secondaryButton,
+                  width: "fit-content",
+                  marginTop: 4,
+                }}
+              >
+                Volver a comunidades
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   const coverBg =
     group.coverUrl ||

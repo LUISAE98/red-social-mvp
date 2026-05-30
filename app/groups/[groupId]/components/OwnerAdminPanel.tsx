@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import OwnerAdminGeneral from "./owner-admin-panel/OwnerAdminGeneral";
 import OwnerAdminStatus from "./owner-admin-panel/OwnerAdminStatus";
+import OwnerAdminDangerZone from "./owner-admin-panel/OwnerAdminDangerZone";
 import type { GroupVisibility } from "@/types/group";
 
 type Visibility = GroupVisibility | null;
@@ -97,6 +98,11 @@ export default function OwnerAdminPanel({
             currentCategory={currentCategory}
             currentTags={currentTags}
             currentVisibility={currentVisibility}
+          />
+
+          <OwnerAdminDangerZone
+            groupId={groupId}
+            groupName={currentName}
           />
         </div>
       </div>
