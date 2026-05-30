@@ -291,6 +291,13 @@ const formattedMemberCount = useMemo(() => {
 
   const error = actionError ?? realtimeError;
 
+    const currentGroupState = group as GroupDoc | null;
+
+  const groupIsPausedForAccess =
+    currentGroupState?.isActive === false &&
+    currentGroupState?.isDeleted !== true &&
+    !Boolean(currentGroupState?.deletedAt);
+
   const isOwner = useMemo(
     () => !!user && !!group?.ownerId && group.ownerId === user.uid,
     [user, group]
@@ -310,12 +317,13 @@ const hasLegacyServiceAccess =
 const effectiveIsMember = isOwner || hasJoinedMembership;
 
 const canRequestCreatorServices =
-  isOwner ||
-  hasJoinedMembership ||
-  (isMember &&
-    memberStatus !== "banned" &&
-    memberStatus !== "removed" &&
-    hasLegacyServiceAccess);
+  !groupIsPausedForAccess &&
+  (isOwner ||
+    hasJoinedMembership ||
+    (isMember &&
+      memberStatus !== "banned" &&
+      memberStatus !== "removed" &&
+      hasLegacyServiceAccess));
 
 const canRequestMeetGreet =
   !isOwner &&
@@ -501,6 +509,7 @@ const canRequestMeetGreet =
   }, [membershipRequiresSubscription, membershipAccessType]);
 
   const shouldShowSubscriptionRecovery =
+    !groupIsPausedForAccess &&
     !isOwner &&
     !effectiveIsMember &&
     subscriptionEnabled &&
@@ -510,6 +519,7 @@ const canRequestMeetGreet =
       searchParams.get("service") === "suscripcion");
 
   const isSubscriptionGroup =
+    !groupIsPausedForAccess &&
     !isOwner &&
     !effectiveIsMember &&
     (group?.visibility === "private" || group?.visibility === "hidden") &&
@@ -651,6 +661,11 @@ function redirectToLogin() {
       return;
     }
 
+    if (groupIsPausedForAccess) {
+      setActionError("La comunidad está pausada. No puedes unirte por ahora.");
+      return;
+    }
+
     setJoining(true);
     setActionError(null);
 
@@ -666,6 +681,13 @@ function redirectToLogin() {
   async function handleRequestPrivate() {
     if (!user) {
       redirectToLogin();
+      return;
+    }
+
+        if (groupIsPausedForAccess) {
+      setActionError(
+        "La comunidad está pausada. No puedes solicitar acceso por ahora."
+      );
       return;
     }
 
@@ -1845,16 +1867,18 @@ const avatarNode = (
   const canViewPublicFeed = isPublicGroup || effectiveIsMember || isOwner;
 
   const canCreatePosts =
-    isOwner ||
-    (effectiveIsMember &&
-      (memberStatus === "active" || memberStatus === "subscribed") &&
-      currentPostingMode === "members");
+    !groupIsPaused &&
+    (isOwner ||
+      (effectiveIsMember &&
+        (memberStatus === "active" || memberStatus === "subscribed") &&
+        currentPostingMode === "members"));
 
   const canCommentOnPosts =
-    isOwner ||
-    (effectiveIsMember &&
-      (memberStatus === "active" || memberStatus === "subscribed") &&
-      currentCommentsEnabled);
+    !groupIsPaused &&
+    (isOwner ||
+      (effectiveIsMember &&
+        (memberStatus === "active" || memberStatus === "subscribed") &&
+        currentCommentsEnabled));
 
   let postBlockedReason: InteractionBlockedReason = null;
   let commentBlockedReason: InteractionBlockedReason = null;
@@ -2129,10 +2153,10 @@ const avatarNode = (
 )}
 
               <DonationEntryPoint
-  donation={normalizedCurrentDonation}
+  donation={groupIsPaused ? null : normalizedCurrentDonation}
   isLoggedIn={!!user}
   onRequireLogin={redirectToLogin}
-  viewerCanDonate={!isOwner}
+  viewerCanDonate={!isOwner && !groupIsPaused}
   videoEnabled={false}
   videoUrl={null}
   buttonStyle={coverDonationButton}
@@ -2289,6 +2313,23 @@ const avatarNode = (
               </div>
             </div>
           </section>
+
+                    {groupIsPaused && (
+            <div style={{ ...panelStyle, marginTop: 12 }}>
+              <div
+                style={{
+                  ...messageBox,
+                  textAlign: "center",
+                  border: "1px solid rgba(250,204,21,0.35)",
+                  background: "rgba(250,204,21,0.08)",
+                  color: "#fde68a",
+                  fontWeight: 600,
+                }}
+              >
+                Comunidad pausada. No podrás publicar ni comentar mientras esté pausada.
+              </div>
+            </div>
+          )}
 
           {effectiveIsMember && (
             <div className="group-subnav-wrap" style={{ marginTop: 12 }}>

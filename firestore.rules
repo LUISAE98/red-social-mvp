@@ -732,15 +732,14 @@ function postingMode(groupId) {
       : "owner_only";
 }
 
-    function canReadGroupContent(groupId) {
-      return groupIsActive(groupId)
-        && (
-          isGroupPublic(groupId)
-          || isMember(groupId)
-          || isOwner(groupId)
-          || isModerator(groupId)
-        );
-    }
+function canReadGroupContent(groupId) {
+  return (
+    isGroupPublic(groupId)
+    || isMember(groupId)
+    || isOwner(groupId)
+    || isModerator(groupId)
+  );
+}
 
     function canPostInGroup(groupId) {
       let mode = postingMode(groupId);
@@ -1448,10 +1447,6 @@ allow list: if signedIn()
       && (
         get(/databases/$(database)/documents/groups/$(groupId)).data.visibility in ["public", "private"]
         || canModerateGroup(groupId)
-      )
-      && (
-        !("isActive" in get(/databases/$(database)/documents/groups/$(groupId)).data)
-        || get(/databases/$(database)/documents/groups/$(groupId)).data.isActive == true
       )
     )
   );
