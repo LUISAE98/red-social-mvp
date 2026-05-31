@@ -614,7 +614,7 @@ export default function PublicPostPageClient({
 
   return (
     <main className="relative z-10 min-h-screen bg-transparent text-white">
-      <section className="mx-auto flex w-full max-w-2xl flex-col gap-4 px-0 py-4 sm:px-6 lg:px-8">
+            <section className="mx-auto flex w-full max-w-[720px] flex-col gap-4 px-0 py-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-3 px-4 sm:px-0">
           <Link
             href="/"

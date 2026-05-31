@@ -1622,26 +1622,11 @@ const imageGridStyle: CSSProperties = {
 function getImageWrapStyle(mediaUrl: string): CSSProperties {
   const ratio = mediaAspectRatios[mediaUrl];
 
-  const aspectRatio =
-    typeof ratio === "number"
-      ? ratio >= 1.2
-        ? isMobile
-          ? "16 / 10"
-          : "16 / 9"
-: ratio <= 0.82
-  ? isMobile
-    ? "4 / 5"
-    : "16 / 9"
-          : "1 / 1"
-      : isMobile
-        ? "1 / 1"
-        : "16 / 10";
-
   return {
     position: "relative",
     width: "100%",
     maxWidth: "100%",
-    aspectRatio,
+    aspectRatio: getResponsiveMediaAspectRatio(ratio),
     borderRadius: isMobile ? 0 : 12,
     overflow: "hidden",
     border: isMobile ? "none" : "1px solid rgba(255,255,255,0.08)",
@@ -1652,6 +1637,7 @@ function getImageWrapStyle(mediaUrl: string): CSSProperties {
 const postImageStyle: CSSProperties = {
   position: "absolute",
   inset: 0,
+  zIndex: 1,
   display: "block",
   width: "100%",
   height: "100%",
@@ -1677,6 +1663,81 @@ const videoSkeletonStyle: CSSProperties = {
   backgroundSize: "220% 100%",
   animation: "vibraVideoSkeleton 1.25s ease-in-out infinite",
 };
+
+function getResponsiveMediaAspectRatio(ratio?: number | null): string {
+  if (typeof ratio !== "number" || !Number.isFinite(ratio) || ratio <= 0) {
+    return isMobile ? "16 / 10" : "16 / 9";
+  }
+
+  if (ratio >= 1.2) {
+    return isMobile ? "16 / 10" : "16 / 9";
+  }
+
+  if (ratio <= 0.82) {
+    return isMobile ? "4 / 5" : "16 / 9";
+  }
+
+  return isMobile ? "1 / 1" : "16 / 10";
+}
+
+function shouldContainMedia(ratio?: number | null): boolean {
+  return !isMobile && typeof ratio === "number" && ratio <= 0.82;
+}
+
+function getFeedMediaUrl(media: DisplayMediaItem): string {
+  if (
+    media.thumbnailUrl &&
+    media.thumbnailUrl.trim().length > 0 &&
+    !failedMediaUrls[media.thumbnailUrl]
+  ) {
+    return media.thumbnailUrl.trim();
+  }
+
+  return media.url;
+}
+
+function renderBlurredMediaBackdrop(
+  sourceUrl: string | null | undefined,
+  mediaType: "image" | "video" = "image"
+) {
+  if (isMobile || !sourceUrl) return null;
+
+  const commonStyle: CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    filter: "blur(28px) saturate(1.08)",
+    transform: "scale(1.14)",
+    opacity: 0.34,
+    pointerEvents: "none",
+    zIndex: 0,
+  };
+
+  if (mediaType === "video") {
+    return (
+      <video
+        src={sourceUrl}
+        muted
+        playsInline
+        preload="metadata"
+        aria-hidden="true"
+        style={commonStyle}
+      />
+    );
+  }
+
+  return (
+    <img
+      src={sourceUrl}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+      style={commonStyle}
+    />
+  );
+}
   const shouldShowActionsMenu = availableActions.length > 0;
   const isPinned =
     post.isPinnedInGroup === true || post.isPinnedOnProfile === true;
@@ -1844,6 +1905,17 @@ const displayMedia = mediaFromPost
   const videoPlaybackUrl = rootVideoPlaybackUrl;
 
   const videoThumbnailUrl = rootVideoThumbnailUrl;
+
+  const videoOrientationRatio =
+    videoThumbnailUrl && mediaAspectRatios[videoThumbnailUrl]
+      ? mediaAspectRatios[videoThumbnailUrl]
+      : videoAspectRatio;
+
+  const shouldContainRootVideo = shouldContainMedia(videoOrientationRatio);
+  const rootVideoShellAspectRatio =
+    isMobile && videoThumbnailUrl && videoOrientationRatio == null
+      ? "16 / 10"
+      : getResponsiveMediaAspectRatio(videoOrientationRatio);
 
   const isVideoPost =
     post.postType === "video" || post.videoData != null || mediaVideoItems.length > 0;
@@ -2233,28 +2305,16 @@ style={{
         style={{
           position: "relative",
           width: "100%",
+          aspectRatio: rootVideoShellAspectRatio,
           overflow: "hidden",
           background: "#050505",
         }}
       >
-        {!isMobile && videoThumbnailUrl && videoAspectRatio !== null && videoAspectRatio < 1 && (
-          <img
-            src={videoThumbnailUrl}
-            alt=""
-            aria-hidden="true"
-            draggable={false}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              filter: "blur(30px)",
-              transform: "scale(1.12)",
-              opacity: 0.24,
-            }}
-          />
-        )}
+        {shouldContainRootVideo &&
+          renderBlurredMediaBackdrop(
+            videoThumbnailUrl || videoPlaybackUrl,
+            videoThumbnailUrl ? "image" : "video"
+          )}
 
 {!shouldLoadFeedVideo && videoThumbnailUrl && (
   <img
@@ -2263,12 +2323,25 @@ style={{
     loading="lazy"
     draggable={false}
     style={{
+      position: "relative",
+      zIndex: 1,
       display: "block",
       width: "100%",
-      height: "auto",
-      maxHeight: isMobile ? "none" : 560,
-      objectFit: "contain",
-      background: "#050505",
+      height: "100%",
+      objectFit: shouldContainRootVideo ? "contain" : "cover",
+      background: shouldContainRootVideo ? "transparent" : "#050505",
+    }}
+    onLoad={(event) => {
+      const img = event.currentTarget;
+      const ratio =
+        img.naturalWidth > 0 && img.naturalHeight > 0
+          ? img.naturalWidth / img.naturalHeight
+          : 1;
+
+      setMediaAspectRatios((prev) => ({
+        ...prev,
+        [videoThumbnailUrl]: ratio,
+      }));
     }}
   />
 )}
@@ -2311,17 +2384,49 @@ style={{
       setVideoMetadataLoaded(true);
     }}
     style={{
-      position: "relative",
+      position: "absolute",
+      inset: 0,
       zIndex: 1,
       display: videoMetadataLoaded ? "block" : "none",
       width: "100%",
-      height: "auto",
-      maxHeight: isMobile ? "none" : 560,
+      height: "100%",
       background: "transparent",
-      objectFit: "contain",
+      objectFit: shouldContainRootVideo ? "contain" : "cover",
       cursor: isMobile ? "pointer" : "default",
     }}
   />
+)}
+
+{!isMobile && (
+  <div
+    aria-hidden="true"
+    style={{
+      position: "absolute",
+      inset: 0,
+      zIndex: 3,
+      display: "grid",
+      placeItems: "center",
+      pointerEvents: "none",
+    }}
+  >
+    <span
+      style={{
+        width: 62,
+        height: 62,
+        borderRadius: 999,
+        display: "grid",
+        placeItems: "center",
+        background: "rgba(0,0,0,0.48)",
+        border: "1px solid rgba(255,255,255,0.22)",
+        color: "#fff",
+        fontSize: 28,
+        paddingLeft: 4,
+        boxShadow: "0 8px 24px rgba(0,0,0,0.32)",
+      }}
+    >
+      ▶
+    </span>
+  </div>
 )}
 
 {isMobile && (
@@ -2471,6 +2576,7 @@ style={{
               style={{
                 position: "absolute",
                 inset: 0,
+                zIndex: 3,
                 display: "grid",
                 placeItems: "center",
                 pointerEvents: "none",
@@ -2502,6 +2608,7 @@ style={{
                   position: "absolute",
                   right: 8,
                   bottom: 8,
+                  zIndex: 3,
                   minHeight: 20,
                   padding: "3px 7px",
                   borderRadius: 6,
@@ -2638,16 +2745,85 @@ style={{
           return renderVideoProcessingPlaceholder(media);
         }
 
-        const feedMediaUrl =
-          media.type === "image" &&
-          typeof media.thumbnailUrl === "string" &&
-          media.thumbnailUrl.trim().length > 0 &&
-          !failedMediaUrls[media.thumbnailUrl]
-            ? media.thumbnailUrl.trim()
-            : media.url;
+        const feedMediaUrl = getFeedMediaUrl(media);
+        const mediaRatio = mediaAspectRatios[media.url];
+        const shouldContainTile = shouldContainMedia(mediaRatio);
+
+        function renderRemainingOverlay() {
+          if (remainingCount <= 0 || index !== 2) return null;
+
+          return (
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(0,0,0,0.48)",
+                display: "grid",
+                placeItems: "center",
+                color: "#fff",
+                fontSize: 24,
+                fontWeight: 800,
+                lineHeight: 1,
+                textShadow: "0 2px 10px rgba(0,0,0,0.65)",
+              }}
+            >
+              +{remainingCount}
+            </div>
+          );
+        }
+
+        if (media.type === "video" && !media.thumbnailUrl && media.playbackUrl) {
+          return (
+            <>
+              {shouldContainTile && renderBlurredMediaBackdrop(media.playbackUrl, "video")}
+
+              <video
+                src={media.playbackUrl}
+                muted
+                playsInline
+                preload="metadata"
+                draggable={false}
+                style={{
+                  ...tileImageStyle,
+                  objectFit: shouldContainTile ? "contain" : "cover",
+                  background: shouldContainTile ? "transparent" : "#050505",
+                }}
+                onLoadedMetadata={(event) => {
+                  const video = event.currentTarget;
+                  const ratio =
+                    video.videoWidth > 0 && video.videoHeight > 0
+                      ? video.videoWidth / video.videoHeight
+                      : 1;
+
+                  setMediaAspectRatios((prev) => ({
+                    ...prev,
+                    [media.url]: ratio,
+                  }));
+
+                  setLoadedMediaUrls((prev) => ({
+                    ...prev,
+                    [media.url]: true,
+                  }));
+                }}
+                onError={() => {
+                  setFailedMediaUrls((prev) => ({
+                    ...prev,
+                    [media.url]: true,
+                  }));
+                }}
+              />
+
+              {renderVideoOverlay(media)}
+              {renderRemainingOverlay()}
+            </>
+          );
+        }
 
         return (
           <>
+            {shouldContainTile && renderBlurredMediaBackdrop(feedMediaUrl, "image")}
+
             <img
               src={feedMediaUrl}
               alt={
@@ -2658,7 +2834,28 @@ style={{
               }
               loading={loading}
               draggable={false}
-              style={tileImageStyle}
+              style={{
+                ...tileImageStyle,
+                objectFit: shouldContainTile ? "contain" : "cover",
+                background: shouldContainTile ? "transparent" : "#050505",
+              }}
+              onLoad={(event) => {
+                const img = event.currentTarget;
+                const ratio =
+                  img.naturalWidth > 0 && img.naturalHeight > 0
+                    ? img.naturalWidth / img.naturalHeight
+                    : 1;
+
+                setMediaAspectRatios((prev) => ({
+                  ...prev,
+                  [media.url]: ratio,
+                }));
+
+                setLoadedMediaUrls((prev) => ({
+                  ...prev,
+                  [feedMediaUrl]: true,
+                }));
+              }}
               onError={() => {
                 setFailedMediaUrls((prev) => ({
                   ...prev,
@@ -2668,26 +2865,7 @@ style={{
             />
 
             {renderVideoOverlay(media)}
-
-            {remainingCount > 0 && index === 2 && (
-              <div
-                aria-hidden="true"
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background: "rgba(0,0,0,0.48)",
-                  display: "grid",
-                  placeItems: "center",
-                  color: "#fff",
-                  fontSize: 24,
-                  fontWeight: 800,
-                  lineHeight: 1,
-                  textShadow: "0 2px 10px rgba(0,0,0,0.65)",
-                }}
-              >
-                +{remainingCount}
-              </div>
-            )}
+            {renderRemainingOverlay()}
           </>
         );
       }
@@ -2706,6 +2884,8 @@ style={{
       };
 
       const tileImageStyle: CSSProperties = {
+        position: "relative",
+        zIndex: 1,
         width: "100%",
         height: "100%",
         display: "block",
@@ -2713,17 +2893,13 @@ style={{
       };
 
       if (totalMedia === 1) {
-        const firstFeedUrl =
-          first.type === "image" &&
-          typeof first.thumbnailUrl === "string" &&
-          first.thumbnailUrl.trim().length > 0 &&
-          !failedMediaUrls[first.thumbnailUrl]
-            ? first.thumbnailUrl.trim()
-            : first.url;
+        const firstFeedUrl = getFeedMediaUrl(first);
+        const firstRatio = mediaAspectRatios[first.url];
+        const shouldContainFirstMedia = shouldContainMedia(firstRatio);
 
         const isLoaded = first.isPlaceholder
           ? true
-          : loadedMediaUrls[firstFeedUrl] === true;
+          : loadedMediaUrls[firstFeedUrl] === true || loadedMediaUrls[first.url] === true;
 
         return (
           <button
@@ -2753,26 +2929,55 @@ style={{
               />
             )}
 
-            {first.type === "image" && !isMobile && mediaAspectRatios[first.url] <= 0.82 && (
-              <img
-                src={firstFeedUrl}
-                alt=""
-                aria-hidden="true"
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  filter: "blur(22px)",
-                  transform: "scale(1.08)",
-                  opacity: 0.34,
-                }}
-              />
-            )}
+            {shouldContainFirstMedia &&
+              renderBlurredMediaBackdrop(
+                first.type === "video" && !first.thumbnailUrl && first.playbackUrl
+                  ? first.playbackUrl
+                  : firstFeedUrl,
+                first.type === "video" && !first.thumbnailUrl && first.playbackUrl
+                  ? "video"
+                  : "image"
+              )}
 
             {first.isPlaceholder ? (
               renderVideoProcessingPlaceholder(first)
+            ) : first.type === "video" && !first.thumbnailUrl && first.playbackUrl ? (
+              <video
+                src={first.playbackUrl}
+                muted
+                playsInline
+                preload="metadata"
+                draggable={false}
+                style={{
+                  ...postImageStyle,
+                  objectFit: shouldContainFirstMedia ? "contain" : "cover",
+                  opacity: isLoaded ? 1 : 0,
+                  background: shouldContainFirstMedia ? "transparent" : "#050505",
+                }}
+                onLoadedMetadata={(event) => {
+                  const video = event.currentTarget;
+                  const ratio =
+                    video.videoWidth > 0 && video.videoHeight > 0
+                      ? video.videoWidth / video.videoHeight
+                      : 1;
+
+                  setMediaAspectRatios((prev) => ({
+                    ...prev,
+                    [first.url]: ratio,
+                  }));
+
+                  setLoadedMediaUrls((prev) => ({
+                    ...prev,
+                    [first.url]: true,
+                  }));
+                }}
+                onError={() => {
+                  setFailedMediaUrls((prev) => ({
+                    ...prev,
+                    [first.url]: true,
+                  }));
+                }}
+              />
             ) : (
               <img
                 src={firstFeedUrl}
@@ -2786,11 +2991,9 @@ style={{
                 draggable={false}
                 style={{
                   ...postImageStyle,
-                  objectFit:
-                    first.type === "image" && !isMobile && mediaAspectRatios[first.url] <= 0.82
-                      ? "contain"
-                      : "cover",
+                  objectFit: shouldContainFirstMedia ? "contain" : "cover",
                   opacity: isLoaded ? 1 : 0,
+                  background: shouldContainFirstMedia ? "transparent" : "#050505",
                 }}
                 onLoad={(event) => {
                   const img = event.currentTarget;

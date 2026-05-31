@@ -2028,6 +2028,15 @@ await createExclusiveSessionRequest({
               (isOwner || showPostsTab || isProfileRestrictedForVisitor) &&
               activeTab === "posts" && (
                 <div className="profile-tab-panel">
+                  <div
+                    style={{
+                      width: "100%",
+                      maxWidth: 720,
+                      marginLeft: "auto",
+                      marginRight: "auto",
+                      boxSizing: "border-box",
+                    }}
+                  >
 {isOwner && (
   <div style={{ marginBottom: 12 }}>
     <GroupPostComposer
@@ -2103,6 +2112,7 @@ await createExclusiveSessionRequest({
   showPosts={isOwner ? ownerShowPosts : visitorCanSeePosts}
   profileRestricted={profileRestricted}
 />
+                  </div>
                 </div>
               )}
 

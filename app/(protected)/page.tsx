@@ -43,7 +43,9 @@ export default function GroupsHome() {
   const feedWrap: CSSProperties = {
     marginTop: 0,
     width: "100%",
-    maxWidth: "100%",
+    maxWidth: 720,
+    marginLeft: "auto",
+    marginRight: "auto",
     boxSizing: "border-box",
   };
 

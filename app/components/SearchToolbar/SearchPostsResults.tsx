@@ -600,10 +600,12 @@ useEffect(() => {
 
 const shellStyle: CSSProperties = {
   width: "100%",
-  maxWidth: "100%",
+  maxWidth: 720,
   minWidth: 0,
   display: "grid",
   gap: 6,
+  marginLeft: "auto",
+  marginRight: "auto",
   marginBottom: 18,
   marginTop: -16,
   overflowX: "hidden",
@@ -768,12 +770,14 @@ const filtersButtonStyle: CSSProperties = {
     lineHeight: 1.45,
   };
 
-  const postItemStyle: CSSProperties = {
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-    overflowX: "hidden",
-  };
+const postItemStyle: CSSProperties = {
+  width: "100%",
+  maxWidth: 720,
+  minWidth: 0,
+  marginLeft: "auto",
+  marginRight: "auto",
+  overflowX: "hidden",
+};
 
   if (loading) {
     return <div>Buscando publicaciones...</div>;
