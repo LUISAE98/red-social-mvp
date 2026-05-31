@@ -677,7 +677,7 @@ export default function GroupPostComposer({
       return;
     }
 
-    const filesToProcess = files.slice(0, availableSlots);
+    const filesToAdd = files.slice(0, availableSlots);
 
     if (files.length > availableSlots) {
       setLocalError(
@@ -685,44 +685,19 @@ export default function GroupPostComposer({
       );
     }
 
-    setProcessingImageSlots((current) => current + filesToProcess.length);
+    const nextItems: SelectedMediaItem[] = filesToAdd.map((file) => ({
+      id: createLocalMediaId(),
+      type: "image",
+      file,
+      previewUrl: URL.createObjectURL(file),
+      durationSeconds: null,
+    }));
 
-    let failedCount = 0;
-
-    for (const file of filesToProcess) {
-      try {
-        const normalized = await normalizeImageFile(file, {
-          maxSizeBytes: 150 * 1024 * 1024,
-        });
-
-        const previewUrl = URL.createObjectURL(normalized.file);
-        const nextItem: SelectedMediaItem = {
-          id: createLocalMediaId(),
-          type: "image",
-          file: normalized.file,
-          previewUrl,
-          durationSeconds: null,
-        };
-
-        setSelectedMediaItems((current) => {
-          const nextItems = [...current, nextItem];
-          updatePostType(nextItems);
-          return nextItems;
-        });
-      } catch {
-        failedCount += 1;
-      } finally {
-        setProcessingImageSlots((current) => Math.max(0, current - 1));
-      }
-    }
-
-    if (failedCount > 0) {
-      setLocalError(
-        failedCount === 1
-          ? "No se pudo preparar una imagen."
-          : `No se pudieron preparar ${failedCount} imágenes.`,
-      );
-    }
+    setSelectedMediaItems((current) => {
+      const mergedItems = [...current, ...nextItems];
+      updatePostType(mergedItems);
+      return mergedItems;
+    });
   }
 
   function handleVideoSelected(files: File[]) {
