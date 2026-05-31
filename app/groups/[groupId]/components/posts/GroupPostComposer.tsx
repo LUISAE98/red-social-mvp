@@ -736,7 +736,7 @@ export default function GroupPostComposer({
         coverPreviewUrl: null,
         autoCoverUrl: null,
         autoCoverFile: null,
-        coverStatus: "ready",
+        coverStatus: "loading",
       }),
     );
 
@@ -744,18 +744,6 @@ export default function GroupPostComposer({
       const mergedItems = [...current, ...nextItems];
       updatePostType(mergedItems);
       return mergedItems;
-    });
-
-    nextItems.forEach((item) => {
-      void readVideoDurationFromUrl(item.previewUrl).then((durationSeconds) => {
-        setSelectedMediaItems((current) =>
-          current.map((currentItem) =>
-            currentItem.id === item.id
-              ? { ...currentItem, durationSeconds }
-              : currentItem,
-          ),
-        );
-      });
     });
   }
 
@@ -1390,13 +1378,31 @@ export default function GroupPostComposer({
                                 onDragStart={(event) => event.preventDefault()}
                               />
                             ) : (
-                              <video
-                                src={item.previewUrl}
-                                muted
-                                playsInline
-                                preload="metadata"
-                                style={mediaPreviewStyle}
-                              />
+                              <div
+                                aria-hidden="true"
+                                style={videoCoverLoadingStyle}
+                              >
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gap: 6,
+                                    justifyItems: "center",
+                                  }}
+                                >
+                                  <span style={{ fontSize: 21, lineHeight: 1 }}>
+                                    🎥
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 10.5,
+                                      fontWeight: 800,
+                                      lineHeight: 1.15,
+                                    }}
+                                  >
+                                    Video seleccionado
+                                  </span>
+                                </div>
+                              </div>
                             )}
 
                             {isVideoCoverLoading && (
