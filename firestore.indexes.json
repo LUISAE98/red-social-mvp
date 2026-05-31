@@ -70,6 +70,33 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "contextType", "order": "ASCENDING" },
+        { "fieldPath": "profileRestricted", "order": "ASCENDING" },
+        { "fieldPath": "accessModel", "order": "ASCENDING" },
+        { "fieldPath": "requiresPayment", "order": "ASCENDING" },
+        { "fieldPath": "requiresSubscription", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "search.isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "search.visibility", "order": "ASCENDING" },
+        { "fieldPath": "search.prefixes", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "search.createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "groupId", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "search.isDeleted", "order": "ASCENDING" },
+        { "fieldPath": "search.prefixes", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "search.createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "contextType", "order": "ASCENDING" },
         { "fieldPath": "profileId", "order": "ASCENDING" },
         { "fieldPath": "isDeleted", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }

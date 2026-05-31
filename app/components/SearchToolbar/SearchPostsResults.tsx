@@ -9,8 +9,6 @@ import {
   type CSSProperties,
 } from "react";
 import type { User } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import { searchPosts } from "@/lib/posts/searchPosts";
 import {
@@ -31,7 +29,9 @@ import {
   registerPostFeedCacheListener,
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
+
 const MIN_POST_SEARCH_LENGTH = 2;
+const SEARCH_POSTS_PAGE_SIZE = 20;
 
 type SearchPostsResultsProps = {
   fontStack: string;
@@ -41,51 +41,12 @@ type SearchPostsResultsProps = {
 };
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
-type GroupRole = "owner" | "mod" | "member" | null;
 
 type PostWithFlags = Post & {
   canModerateGroupAuthor?: boolean;
   authorMemberStatus?: MemberStatus;
   authorMutedUntil?: any;
 };
-
-function normalizeRole(raw: unknown): GroupRole {
-  if (raw === "owner") return "owner";
-  if (raw === "mod") return "mod";
-  if (raw === "moderator") return "mod";
-  if (raw === "member") return "member";
-  return null;
-}
-
-function normalizeStatus(raw: unknown): MemberStatus {
-  if (raw === "banned") return "banned";
-  if (raw === "muted") return "muted";
-  if (raw === "removed" || raw === "kicked" || raw === "expelled") {
-    return "removed";
-  }
-  if (raw === "active") return "active";
-  return "active";
-}
-
-function getTimestampMs(value: unknown): number {
-  if (!value || typeof value !== "object") return 0;
-
-  const candidate = value as any;
-
-  if (typeof candidate.toMillis === "function") {
-    return candidate.toMillis();
-  }
-
-  if (typeof candidate.toDate === "function") {
-    return candidate.toDate().getTime();
-  }
-
-  if (typeof candidate.seconds === "number") {
-    return candidate.seconds * 1000;
-  }
-
-  return 0;
-}
 
 function getStartOfDayMs(dateValue: string): number | null {
   if (!dateValue) return null;
@@ -99,102 +60,6 @@ function getEndOfDayMs(dateValue: string): number | null {
   const date = new Date(`${dateValue}T23:59:59.999`);
   const ms = date.getTime();
   return Number.isNaN(ms) ? null : ms;
-}
-
-async function getMembershipMetaForGroup(groupId: string, userId: string) {
-  try {
-    const memberRef = doc(db, "groups", groupId, "members", userId);
-    const memberSnap = await getDoc(memberRef);
-
-    if (!memberSnap.exists()) {
-      return { status: null, mutedUntil: null, role: null };
-    }
-
-    const data = memberSnap.data() as any;
-
-    return {
-      status: normalizeStatus(data?.status),
-      mutedUntil: data?.mutedUntil ?? null,
-      role: normalizeRole(data?.roleInGroup ?? data?.role),
-    };
-  } catch {
-    return { status: null, mutedUntil: null, role: null };
-  }
-}
-
-async function getViewerCanModerateGroup(groupId: string, userId: string) {
-  try {
-    const groupSnap = await getDoc(doc(db, "groups", groupId));
-    if (!groupSnap.exists()) return false;
-
-    const data = groupSnap.data() as any;
-
-    if (data?.ownerId === userId) return true;
-
-    const viewerMeta = await getMembershipMetaForGroup(groupId, userId);
-
-    return (
-      viewerMeta.role === "mod" &&
-      viewerMeta.status !== "banned" &&
-      viewerMeta.status !== "removed"
-    );
-  } catch {
-    return false;
-  }
-}
-
-async function filterOutBlockedPosts(posts: Post[], userId: string) {
-  if (!posts.length) return posts;
-
-  const uniqueGroupIds = Array.from(
-    new Set(
-      posts
-        .map((post) => post.groupId)
-        .filter((groupId): groupId is string => typeof groupId === "string" && groupId.length > 0)
-    )
-  );
-
-  const entries = await Promise.all(
-    uniqueGroupIds.map(async (groupId) => {
-      const meta = await getMembershipMetaForGroup(groupId, userId);
-      return [groupId, meta.status] as const;
-    })
-  );
-
-  const map = new Map(entries);
-
-  return posts.filter((post) => {
-    if (!post.groupId) return true;
-
-    const status = map.get(post.groupId) ?? null;
-    return status !== "banned" && status !== "removed";
-  });
-}
-
-async function attachModerationFlags(posts: Post[], userId: string) {
-  const groupIds = Array.from(
-    new Set(
-      posts
-        .map((post) => post.groupId)
-        .filter((groupId): groupId is string => typeof groupId === "string" && groupId.length > 0)
-    )
-  );
-
-  const modEntries = await Promise.all(
-    groupIds.map(
-      async (groupId) =>
-        [groupId, await getViewerCanModerateGroup(groupId, userId)] as const
-    )
-  );
-
-  const modMap = new Map(modEntries);
-
-  return posts.map((post) => ({
-    ...post,
-    canModerateGroupAuthor: post.groupId
-      ? modMap.get(post.groupId) === true
-      : false,
-  }));
 }
 
 function normalizeSearchPost(post: PostWithFlags): PostWithFlags {
@@ -241,13 +106,13 @@ export default function SearchPostsResults({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-const [isFiltersOpen, setIsFiltersOpen] = useState(false);
-const [fromDate, setFromDate] = useState("");
-const [toDate, setToDate] = useState("");
-const [visibleCount, setVisibleCount] = useState(12);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [draftFromDate, setDraftFromDate] = useState("");
+  const [draftToDate, setDraftToDate] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   const filtersPanelRef = useRef<HTMLDivElement | null>(null);
-const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
 
@@ -308,12 +173,12 @@ const loadMoreRef = useRef<HTMLDivElement | null>(null);
     let active = true;
 
     async function run() {
- if (normalizedSearch.length < MIN_POST_SEARCH_LENGTH) {
-  setPosts([]);
-  setLoading(false);
-  setError(null);
-  return;
-}
+      if (normalizedSearch.length < MIN_POST_SEARCH_LENGTH) {
+        setPosts([]);
+        setLoading(false);
+        setError(null);
+        return;
+      }
 
       try {
         setLoading(true);
@@ -322,35 +187,25 @@ const loadMoreRef = useRef<HTMLDivElement | null>(null);
         const fromMs = getStartOfDayMs(fromDate);
         const toMs = getEndOfDayMs(toDate);
 
-const result = await searchPosts({
-  search: normalizedSearch,
-  pageSize: 60,
-  fromDate: fromMs !== null ? new Date(fromMs) : null,
-  toDate: toMs !== null ? new Date(toMs) : null,
-  viewerId: userId,
-});
-
-        const raw = result.posts;
-
-        let finalPosts: PostWithFlags[] = raw;
-
-        if (userId) {
-          const visible = await filterOutBlockedPosts(raw, userId);
-          finalPosts = await attachModerationFlags(visible, userId);
-        }
+        const result = await searchPosts({
+          search: normalizedSearch,
+          pageSize: SEARCH_POSTS_PAGE_SIZE,
+          fromDate: fromMs !== null ? new Date(fromMs) : null,
+          toDate: toMs !== null ? new Date(toMs) : null,
+          viewerId: userId,
+        });
 
         if (!active) return;
 
         setPosts(
-          finalPosts
-            .slice(0, 60)
-            .map(normalizeSearchPost)
+          result.posts
+            .map((post) => normalizeSearchPost(post as PostWithFlags))
             .filter((post) => post.isDeleted !== true)
         );
       } catch (e: any) {
         if (!active) return;
         console.error("searchPosts error completo:", e);
-setError(e?.message ?? "Error");
+        setError(e?.message ?? "Error");
       } finally {
         if (active) setLoading(false);
       }
@@ -361,7 +216,7 @@ setError(e?.message ?? "Error");
     return () => {
       active = false;
     };
-  }, [normalizedSearch, currentUser, userId, fromDate, toDate]);
+  }, [normalizedSearch, userId, fromDate, toDate]);
 
   async function handleDeletePost(postId: string) {
     try {
@@ -392,7 +247,7 @@ setError(e?.message ?? "Error");
     }
   }
 
-    async function handleToggleSave(postId: string): Promise<void> {
+  async function handleToggleSave(postId: string): Promise<void> {
     try {
       setError(null);
 
@@ -519,63 +374,21 @@ setError(e?.message ?? "Error");
   }
 
   function clearDateFilters() {
+    setDraftFromDate("");
+    setDraftToDate("");
     setFromDate("");
     setToDate("");
   }
 
-  function matchesDateRange(post: PostWithFlags) {
-    if (!fromDate && !toDate) return true;
-
-    const createdAtMs = getTimestampMs(post.createdAt);
-    if (!createdAtMs) return false;
-
-    const fromMs = getStartOfDayMs(fromDate);
-    const toMs = getEndOfDayMs(toDate);
-
-    if (fromMs !== null && createdAtMs < fromMs) return false;
-    if (toMs !== null && createdAtMs > toMs) return false;
-
-    return true;
+  function applyDateFilters() {
+    setFromDate(draftFromDate);
+    setToDate(draftToDate);
+    setIsFiltersOpen(false);
   }
 
-const filteredPosts = posts.filter((post) => post.isDeleted !== true);
-
-const hasResults = filteredPosts.length > 0;
-
-const visiblePosts = filteredPosts.slice(0, visibleCount);
-const fallbackPosts = posts.slice(0, visibleCount);
-const hasMorePosts = visibleCount < filteredPosts.length;
-
-  useEffect(() => {
-  setVisibleCount(12);
-}, [normalizedSearch, fromDate, toDate]);
-
-useEffect(() => {
-  const target = loadMoreRef.current;
-
-  if (!target || !hasMorePosts) return;
-
-  const observer = new IntersectionObserver(
-    (entries) => {
-      const firstEntry = entries[0];
-
-      if (firstEntry?.isIntersecting) {
-        setVisibleCount((prev) => prev + 12);
-      }
-    },
-    {
-      root: null,
-      rootMargin: "160px",
-      threshold: 0.1,
-    }
-  );
-
-  observer.observe(target);
-
-  return () => {
-    observer.disconnect();
-  };
-}, [hasMorePosts, visibleCount]);
+  const filteredPosts = posts.filter((post) => post.isDeleted !== true);
+  const hasResults = filteredPosts.length > 0;
+  const visiblePosts = filteredPosts;
 
   const activeFilters = [
     ...(fromDate
@@ -583,7 +396,10 @@ useEffect(() => {
           {
             key: "fromDate",
             label: `Desde: ${fromDate}`,
-            onRemove: () => setFromDate(""),
+            onRemove: () => {
+              setDraftFromDate("");
+              setFromDate("");
+            },
           },
         ]
       : []),
@@ -592,43 +408,46 @@ useEffect(() => {
           {
             key: "toDate",
             label: `Hasta: ${toDate}`,
-            onRemove: () => setToDate(""),
+            onRemove: () => {
+              setDraftToDate("");
+              setToDate("");
+            },
           },
         ]
       : []),
   ];
 
-const shellStyle: CSSProperties = {
-  width: "100%",
-  maxWidth: 720,
-  minWidth: 0,
-  display: "grid",
-  gap: 6,
-  marginLeft: "auto",
-  marginRight: "auto",
-  marginBottom: 18,
-  marginTop: -16,
-  overflowX: "hidden",
-};
+  const shellStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: 720,
+    minWidth: 0,
+    display: "grid",
+    gap: 6,
+    marginLeft: "auto",
+    marginRight: "auto",
+    marginBottom: 18,
+    marginTop: -16,
+    overflowX: "hidden",
+  };
 
-const topBarStyle: CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "minmax(0, 1fr) auto",
-  gap: 8,
-  alignItems: "center",
-  position: "relative",
-  marginBottom: -10,
-  zIndex: 80,
-};
+  const topBarStyle: CSSProperties = {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) auto",
+    gap: 8,
+    alignItems: "center",
+    position: "relative",
+    marginBottom: -10,
+    zIndex: 80,
+  };
 
-const activeFiltersWrapStyle: CSSProperties = {
-  minHeight: 0,
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-  flexWrap: "wrap",
-  padding: "0 2px",
-};
+  const activeFiltersWrapStyle: CSSProperties = {
+    minHeight: 0,
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    flexWrap: "wrap",
+    padding: "0 2px",
+  };
 
   const activeFilterPillStyle: CSSProperties = {
     display: "inline-flex",
@@ -656,26 +475,25 @@ const activeFiltersWrapStyle: CSSProperties = {
     lineHeight: 1,
   };
 
-const filtersButtonStyle: CSSProperties = {
-  minHeight: 36,
-  padding: "8px 12px",
-  borderRadius: 12,
-  border: "1px solid rgba(255,255,255,0.14)",
-  background: "rgba(10,10,10,0.92)",
-  color: "#fff",
-  cursor: "pointer",
-  fontWeight: 700,
-  fontSize: 12.5,
-  fontFamily: fontStack,
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 8,
-  whiteSpace: "nowrap",
-  transform: "translateY(-12px)",
-  position: "relative",
-  zIndex: 30,
-};
-
+  const filtersButtonStyle: CSSProperties = {
+    minHeight: 36,
+    padding: "8px 12px",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.14)",
+    background: "rgba(10,10,10,0.92)",
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: 700,
+    fontSize: 12.5,
+    fontFamily: fontStack,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    whiteSpace: "nowrap",
+    transform: "translateY(-12px)",
+    position: "relative",
+    zIndex: 30,
+  };
 
   const filtersPanelStyle: CSSProperties = {
     position: "absolute",
@@ -770,14 +588,14 @@ const filtersButtonStyle: CSSProperties = {
     lineHeight: 1.45,
   };
 
-const postItemStyle: CSSProperties = {
-  width: "100%",
-  maxWidth: 720,
-  minWidth: 0,
-  marginLeft: "auto",
-  marginRight: "auto",
-  overflowX: "hidden",
-};
+  const postItemStyle: CSSProperties = {
+    width: "100%",
+    maxWidth: 720,
+    minWidth: 0,
+    marginLeft: "auto",
+    marginRight: "auto",
+    overflowX: "hidden",
+  };
 
   if (loading) {
     return <div>Buscando publicaciones...</div>;
@@ -818,8 +636,8 @@ const postItemStyle: CSSProperties = {
             style={filtersButtonStyle}
             onClick={() => setIsFiltersOpen((prev) => !prev)}
           >
-<span aria-hidden="true">🧮</span>
-Filtros
+            <span aria-hidden="true">🧮</span>
+            Filtros
           </button>
 
           {isFiltersOpen && (
@@ -834,10 +652,10 @@ Filtros
                   <input
                     id="posts-filter-from"
                     type="date"
-                    value={fromDate}
-                    onChange={(e) => setFromDate(e.target.value)}
+                    value={draftFromDate}
+                    onChange={(e) => setDraftFromDate(e.target.value)}
                     style={dateInputStyle}
-                    max={toDate || undefined}
+                    max={draftToDate || undefined}
                   />
                 </div>
 
@@ -848,10 +666,10 @@ Filtros
                   <input
                     id="posts-filter-to"
                     type="date"
-                    value={toDate}
-                    onChange={(e) => setToDate(e.target.value)}
+                    value={draftToDate}
+                    onChange={(e) => setDraftToDate(e.target.value)}
                     style={dateInputStyle}
-                    min={fromDate || undefined}
+                    min={draftFromDate || undefined}
                   />
                 </div>
               </div>
@@ -868,7 +686,7 @@ Filtros
                 <button
                   type="button"
                   style={filterActionPrimaryStyle}
-                  onClick={() => setIsFiltersOpen(false)}
+                  onClick={applyDateFilters}
                 >
                   Listo
                 </button>
@@ -879,48 +697,10 @@ Filtros
       </div>
 
       {!hasResults ? (
-<>
-  <div style={emptyStyle}>
-    No se encontraron coincidencias exactas.
-  </div>
-
-  {fallbackPosts.length > 0 &&
-    fallbackPosts.map((post) => {
-      const canDelete =
-        userId === post.authorId ||
-        post.canModerateGroupAuthor === true;
-
-      return (
-        <div key={post.id} style={postItemStyle}>
-          <GroupPostCard
-            post={post}
-            canDelete={canDelete}
-            onDelete={canDelete ? handleDeletePost : undefined}
-            onLoadComments={handleLoadComments}
-            onCreateComment={handleCreateComment}
-            onDeleteComment={handleDeleteComment}
-            onLoadReplies={handleLoadReplies}
-            onCreateReply={handleCreateReply}
-            onDeleteReply={handleDeleteReply}
-            onToggleFlame={handleToggleFlame}
-            onToggleSave={handleToggleSave}
-            currentUserId={userId}
-            isOwner={false}
-            isModerator={post.canModerateGroupAuthor === true}
-            showGroupContext={true}
-            canModerateGroupAuthor={
-              post.canModerateGroupAuthor === true
-            }
-          />
-        </div>
-      );
-    })}
-</>
+        <div style={emptyStyle}>No se encontraron coincidencias exactas.</div>
       ) : (
         visiblePosts.map((post) => {
-          const canDelete =
-            userId === post.authorId ||
-            post.canModerateGroupAuthor === true;
+          const canDelete = userId === post.authorId;
 
           return (
             <div key={post.id} style={postItemStyle}>
@@ -938,57 +718,46 @@ Filtros
                 onToggleSave={handleToggleSave}
                 currentUserId={userId}
                 isOwner={false}
-                isModerator={post.canModerateGroupAuthor === true}
+                isModerator={false}
                 showGroupContext={true}
-                canModerateGroupAuthor={post.canModerateGroupAuthor === true}
+                canModerateGroupAuthor={false}
               />
             </div>
           );
         })
       )}
 
-      {hasMorePosts ? (
-  <div
-    ref={loadMoreRef}
-    aria-hidden="true"
-    style={{
-      width: "100%",
-      height: 1,
-    }}
-  />
-) : null}
+      <style jsx>{`
+        .search-posts-filters-anchor {
+          position: relative;
+        }
 
-<style jsx>{`
-  .search-posts-filters-anchor {
-    position: relative;
-  }
+        @media (max-width: 768px) {
+          .search-posts-topbar {
+            grid-template-columns: minmax(0, 1fr) auto !important;
+            align-items: center !important;
+            gap: 8px !important;
+          }
 
-  @media (max-width: 768px) {
-    .search-posts-topbar {
-      grid-template-columns: minmax(0, 1fr) auto !important;
-      align-items: center !important;
-      gap: 8px !important;
-    }
+          .search-posts-filters-anchor {
+            width: auto;
+          }
 
-    .search-posts-filters-anchor {
-      width: auto;
-    }
+          .search-posts-filters-anchor button {
+            width: auto;
+            justify-content: center;
+          }
 
-    .search-posts-filters-anchor button {
-      width: auto;
-      justify-content: center;
-    }
-
-    .search-posts-filters-panel {
-      position: absolute !important;
-      top: 40px !important;
-      right: 0 !important;
-      width: 280px !important;
-      max-width: calc(100vw - 24px) !important;
-      margin-top: 0 !important;
-    }
-  }
-`}</style>
+          .search-posts-filters-panel {
+            position: absolute !important;
+            top: 40px !important;
+            right: 0 !important;
+            width: 280px !important;
+            max-width: calc(100vw - 24px) !important;
+            margin-top: 0 !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }

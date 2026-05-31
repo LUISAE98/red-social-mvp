@@ -11,9 +11,7 @@ import {
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
 
-import {
-  normalizeHandleForSearch,
-} from "@/lib/profile/profileSearchIndex";
+import { normalizeHandleForSearch } from "@/lib/profile/profileSearchIndex";
 import {
   buildSearchPrefixes,
   normalizeSearchText,
@@ -21,7 +19,7 @@ import {
 } from "@/lib/search/normalize";
 
 const MIN_PROFILE_SEARCH_QUERY_LENGTH = 2;
-const MAX_PROFILE_RESULTS = 12;
+const MAX_PROFILE_RESULTS = 20;
 const MAX_ARRAY_CONTAINS_ANY_VALUES = 10;
 
 export type ProfileSearchResult = {
@@ -52,6 +50,7 @@ export async function searchProfiles({
 }: SearchProfilesOptions): Promise<ProfileSearchResult[]> {
   const normalizedQuery = normalizeSearchText(rawQuery);
   const handleQuery = normalizeHandleForSearch(rawQuery);
+  const normalizedMaxResults = normalizeMaxResults(maxResults);
 
   if (
     normalizedQuery.length < MIN_PROFILE_SEARCH_QUERY_LENGTH &&
@@ -62,12 +61,14 @@ export async function searchProfiles({
 
   const resultsByUid = new Map<string, ProfileSearchResult>();
 
-  await addExactHandleMatch({
-    db,
-    handleQuery,
-    currentUserId,
-    resultsByUid,
-  });
+  if (shouldRunExactHandleLookup(rawQuery, handleQuery)) {
+    await addExactHandleMatch({
+      db,
+      handleQuery,
+      currentUserId,
+      resultsByUid,
+    });
+  }
 
   const prefixTerms = buildProfileQueryPrefixes(normalizedQuery, handleQuery);
 
@@ -83,7 +84,7 @@ export async function searchProfiles({
         "array-contains-any",
         prefixTerms.slice(0, MAX_ARRAY_CONTAINS_ANY_VALUES)
       ),
-      limit(Math.max(maxResults * 2, MAX_PROFILE_RESULTS))
+      limit(Math.max(normalizedMaxResults * 2, MAX_PROFILE_RESULTS))
     );
 
     const snap = await getDocs(usersQuery);
@@ -104,7 +105,29 @@ export async function searchProfiles({
 
   return Array.from(resultsByUid.values())
     .sort((a, b) => b.searchScore - a.searchScore)
-    .slice(0, maxResults);
+    .slice(0, normalizedMaxResults);
+}
+
+function normalizeMaxResults(maxResults?: number): number {
+  if (!Number.isFinite(maxResults)) return MAX_PROFILE_RESULTS;
+
+  return Math.max(
+    1,
+    Math.min(Math.floor(maxResults ?? MAX_PROFILE_RESULTS), MAX_PROFILE_RESULTS)
+  );
+}
+
+function shouldRunExactHandleLookup(rawQuery: string, handleQuery: string): boolean {
+  if (handleQuery.length < MIN_PROFILE_SEARCH_QUERY_LENGTH) return false;
+
+  const trimmed = rawQuery.trim();
+
+  if (trimmed.startsWith("@")) return true;
+
+  const hasWhitespace = /\s/.test(trimmed);
+  const looksLikeHandle = /^[a-zA-Z0-9._-]+$/.test(trimmed);
+
+  return !hasWhitespace && looksLikeHandle;
 }
 
 async function addExactHandleMatch({
@@ -203,22 +226,17 @@ function mapUserDocDataToProfileSearchResult(
   scoreBoost: number
 ): ProfileSearchResult | null {
   const handle = typeof data.handle === "string" ? data.handle : "";
-  const displayName =
-    typeof data.displayName === "string" ? data.displayName : "";
+  const displayName = typeof data.displayName === "string" ? data.displayName : "";
 
   if (!uid || !handle || !displayName) return null;
 
-  const search = data.search && typeof data.search === "object"
-    ? data.search
-    : null;
+  const search = data.search && typeof data.search === "object" ? data.search : null;
 
   if (search?.isActive === false) return null;
   if (search?.profileSearchable === false) return null;
 
-  const firstName =
-    typeof data.firstName === "string" ? data.firstName : undefined;
-  const lastName =
-    typeof data.lastName === "string" ? data.lastName : undefined;
+  const firstName = typeof data.firstName === "string" ? data.firstName : undefined;
+  const lastName = typeof data.lastName === "string" ? data.lastName : undefined;
 
   return {
     uid,
@@ -228,18 +246,18 @@ function mapUserDocDataToProfileSearchResult(
     lastName,
     photoURL: typeof data.photoURL === "string" ? data.photoURL : null,
     offerings:
-  Array.isArray(data.offerings) ||
-  (typeof data.offerings === "object" && data.offerings !== null)
-    ? (data.offerings as Array<Record<string, any>> | Record<string, any>)
-    : undefined,
-donation:
-  typeof data.donation === "object" && data.donation !== null
-    ? (data.donation as Record<string, any>)
-    : undefined,
-monetization:
-  typeof data.monetization === "object" && data.monetization !== null
-    ? (data.monetization as Record<string, any>)
-    : undefined,
+      Array.isArray(data.offerings) ||
+      (typeof data.offerings === "object" && data.offerings !== null)
+        ? (data.offerings as Array<Record<string, any>> | Record<string, any>)
+        : undefined,
+    donation:
+      typeof data.donation === "object" && data.donation !== null
+        ? (data.donation as Record<string, any>)
+        : undefined,
+    monetization:
+      typeof data.monetization === "object" && data.monetization !== null
+        ? (data.monetization as Record<string, any>)
+        : undefined,
     searchScore:
       scoreBoost +
       calculateProfileSearchScore({
@@ -259,9 +277,7 @@ function calculateProfileSearchScore({
   normalizedQuery: string;
   handleQuery: string;
 }): number {
-  const search = data.search && typeof data.search === "object"
-    ? data.search
-    : {};
+  const search = data.search && typeof data.search === "object" ? data.search : {};
 
   const handleNormalized =
     typeof search.handleNormalized === "string"

@@ -11,13 +11,18 @@ import {
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { tokenizeSearchText } from "@/lib/search/normalize";
+import {
+  buildSearchPrefixes,
+  normalizeSearchText,
+  tokenizeSearchText,
+} from "@/lib/search/normalize";
 import type { Group, GroupVisibility } from "@/types/group";
 
 const DEFAULT_PAGE_SIZE = 12;
 const MAX_PAGE_SIZE = 24;
 const MAX_FIRESTORE_ARRAY_CONTAINS_ANY = 10;
 const MAX_FIRESTORE_DISJUNCTIONS = 30;
+const SEARCH_GROUPS_CACHE_TTL_MS = 30_000;
 
 type SearchableVisibility = Extract<GroupVisibility, "public" | "private">;
 
@@ -41,6 +46,13 @@ export type SearchGroupsResult = {
   hasMore: boolean;
 };
 
+type SearchGroupsCacheEntry = {
+  expiresAt: number;
+  result: SearchGroupsResult;
+};
+
+const searchGroupsCache = new Map<string, SearchGroupsCacheEntry>();
+
 export async function searchGroups({
   term,
   pageSize = DEFAULT_PAGE_SIZE,
@@ -49,25 +61,42 @@ export async function searchGroups({
 }: SearchGroupsOptions): Promise<SearchGroupsResult> {
   const safePageSize = clampPageSize(pageSize);
   const safeVisibility = normalizeSearchableVisibility(visibility);
+  const normalizedTerm = normalizeSearchText(term);
 
-  const normalizedTokens = tokenizeSearchText(term).slice(
-    0,
-    getMaxTokensForVisibility(safeVisibility.length)
-  );
+  const cacheKey = getSearchGroupsCacheKey({
+    normalizedTerm,
+    pageSize: safePageSize,
+    visibility: safeVisibility,
+    cursor,
+  });
 
-  if (normalizedTokens.length === 0) {
-    return fetchDiscoverableGroupsPage({
+  const cached = readSearchGroupsCache(cacheKey);
+
+  if (cached) {
+    return cached;
+  }
+
+  const searchPrefixes = buildGroupSearchPrefixes({
+    normalizedTerm,
+    visibilityCount: safeVisibility.length,
+  });
+
+  if (searchPrefixes.length === 0) {
+    const result = await fetchDiscoverableGroupsPage({
       pageSize: safePageSize,
       cursor,
       visibility: safeVisibility,
     });
+
+    writeSearchGroupsCache(cacheKey, result);
+    return result;
   }
 
   const groupsRef = collection(db, "groups");
 
   const constraints: QueryConstraint[] = [
     ...buildBaseSearchConstraints(safeVisibility),
-    where("search.prefixes", "array-contains-any", normalizedTokens),
+    where("search.prefixes", "array-contains-any", searchPrefixes),
     orderBy("search.updatedAt", "desc"),
     limit(safePageSize + 1),
   ];
@@ -78,11 +107,15 @@ export async function searchGroups({
 
   const snap = await getDocs(q);
 
-  return mapSearchGroupsSnapshot({
+  const result = mapSearchGroupsSnapshot({
     docs: snap.docs,
     pageSize: safePageSize,
     fallbackCursor: cursor,
   });
+
+  writeSearchGroupsCache(cacheKey, result);
+
+  return result;
 }
 
 export async function fetchDiscoverableGroupsPage({
@@ -132,6 +165,24 @@ function buildBaseSearchConstraints(
   ];
 }
 
+function buildGroupSearchPrefixes({
+  normalizedTerm,
+  visibilityCount,
+}: {
+  normalizedTerm: string;
+  visibilityCount: number;
+}): string[] {
+  const maxPrefixes = getMaxTokensForVisibility(visibilityCount);
+
+  const tokens = tokenizeSearchText(normalizedTerm);
+
+  return buildSearchPrefixes(tokens, {
+    minLength: 2,
+    maxLength: 20,
+    maxPrefixes,
+  }).slice(0, MAX_FIRESTORE_ARRAY_CONTAINS_ANY);
+}
+
 function mapSearchGroupsSnapshot({
   docs,
   pageSize,
@@ -169,9 +220,13 @@ function clampPageSize(pageSize: number): number {
 function normalizeSearchableVisibility(
   visibility: SearchableVisibility[]
 ): SearchableVisibility[] {
-  const safeVisibility = visibility.filter(
-    (value): value is SearchableVisibility =>
-      value === "public" || value === "private"
+  const safeVisibility = Array.from(
+    new Set(
+      visibility.filter(
+        (value): value is SearchableVisibility =>
+          value === "public" || value === "private"
+      )
+    )
   );
 
   return safeVisibility.length > 0 ? safeVisibility : ["public", "private"];
@@ -184,4 +239,54 @@ function getMaxTokensForVisibility(visibilityCount: number): number {
     MAX_FIRESTORE_ARRAY_CONTAINS_ANY,
     Math.floor(MAX_FIRESTORE_DISJUNCTIONS / safeVisibilityCount)
   );
+}
+
+function getSearchGroupsCacheKey({
+  normalizedTerm,
+  pageSize,
+  visibility,
+  cursor,
+}: {
+  normalizedTerm: string;
+  pageSize: number;
+  visibility: SearchableVisibility[];
+  cursor: SearchGroupsCursor;
+}): string | null {
+  if (cursor) return null;
+
+  return [
+    "groups",
+    normalizedTerm,
+    pageSize,
+    visibility.slice().sort().join(","),
+  ].join(":");
+}
+
+function readSearchGroupsCache(cacheKey: string | null): SearchGroupsResult | null {
+  if (!cacheKey) return null;
+
+  const cached = searchGroupsCache.get(cacheKey);
+
+  if (!cached || cached.expiresAt <= Date.now()) {
+    searchGroupsCache.delete(cacheKey);
+    return null;
+  }
+
+  return {
+    groups: cached.result.groups,
+    cursor: cached.result.cursor,
+    hasMore: cached.result.hasMore,
+  };
+}
+
+function writeSearchGroupsCache(
+  cacheKey: string | null,
+  result: SearchGroupsResult
+) {
+  if (!cacheKey) return;
+
+  searchGroupsCache.set(cacheKey, {
+    expiresAt: Date.now() + SEARCH_GROUPS_CACHE_TTL_MS,
+    result,
+  });
 }

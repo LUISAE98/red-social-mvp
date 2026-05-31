@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
@@ -12,7 +13,6 @@ import { useAuth } from "@/app/providers";
 import SearchSubnav from "@/app/components/SearchToolbar/SearchSubnav";
 import SearchGroupsResults from "@/app/components/SearchToolbar/SearchGroupsResults";
 import SearchProfilesResults from "@/app/components/SearchToolbar/SearchProfilesResults";
-import SearchPostsResults from "@/app/components/SearchToolbar/SearchPostsResults";
 
 import type {
   CanonicalMemberStatus,
@@ -22,9 +22,32 @@ import type {
 
 type TabType = "groups" | "profiles" | "posts";
 
+type ViewerGroupStateCacheEntry = {
+  expiresAt: number;
+  memberMap: Record<string, CanonicalMemberStatus>;
+  reqMap: Record<string, boolean>;
+};
+
+type ViewerGroupStateEntry = {
+  groupId: string;
+  memberStatus: CanonicalMemberStatus;
+  pending: boolean;
+};
+
+const SearchPostsResults = dynamic(
+  () => import("@/app/components/SearchToolbar/SearchPostsResults"),
+  {
+    ssr: false,
+    loading: () => null,
+  }
+);
+
 const MIN_SEARCH_LENGTH = 2;
-const SEARCH_LIMIT = 30;
+const SEARCH_LIMIT = 20;
 const SEARCH_DEBOUNCE_MS = 350;
+const VIEWER_GROUP_STATE_TTL_MS = 60_000;
+
+const viewerGroupStateCache = new Map<string, ViewerGroupStateCacheEntry>();
 
 function normalizeText(value: string) {
   return value
@@ -43,6 +66,143 @@ function normalizeMemberStatus(raw: unknown): CanonicalMemberStatus {
   if (raw === "kicked") return "removed";
   if (raw === "expelled") return "removed";
   return null;
+}
+
+function getGroupVisibility(group: Community): string | null {
+  const visibility = (group as { visibility?: unknown }).visibility;
+
+  return typeof visibility === "string" ? visibility : null;
+}
+
+function getViewerGroupStateCacheKey(userId: string, groups: Community[]) {
+  return `${userId}:${groups.map((group) => group.id).sort().join("|")}`;
+}
+
+function readViewerGroupStateCache(cacheKey: string) {
+  const cached = viewerGroupStateCache.get(cacheKey);
+
+  if (!cached || cached.expiresAt <= Date.now()) {
+    viewerGroupStateCache.delete(cacheKey);
+    return null;
+  }
+
+  return cached;
+}
+
+function writeViewerGroupStateCache(
+  cacheKey: string,
+  memberMap: Record<string, CanonicalMemberStatus>,
+  reqMap: Record<string, boolean>
+) {
+  viewerGroupStateCache.set(cacheKey, {
+    expiresAt: Date.now() + VIEWER_GROUP_STATE_TTL_MS,
+    memberMap,
+    reqMap,
+  });
+}
+
+function patchViewerGroupStateCache(
+  userId: string,
+  groupId: string,
+  memberStatus: CanonicalMemberStatus,
+  pending: boolean
+) {
+  for (const [cacheKey, cached] of viewerGroupStateCache.entries()) {
+    if (!cacheKey.startsWith(`${userId}:`)) continue;
+    if (!(groupId in cached.memberMap) && !(groupId in cached.reqMap)) continue;
+
+    viewerGroupStateCache.set(cacheKey, {
+      ...cached,
+      memberMap: {
+        ...cached.memberMap,
+        [groupId]: memberStatus,
+      },
+      reqMap: {
+        ...cached.reqMap,
+        [groupId]: pending,
+      },
+    });
+  }
+}
+
+async function readViewerGroupState(
+  userId: string,
+  group: Community
+): Promise<ViewerGroupStateEntry> {
+  const groupId = group.id;
+  const isOwner = (group as { ownerId?: unknown }).ownerId === userId;
+  const visibility = getGroupVisibility(group);
+
+  if (isOwner) {
+    return {
+      groupId,
+      memberStatus: "active",
+      pending: false,
+    };
+  }
+
+  let memberStatus: CanonicalMemberStatus = null;
+
+  try {
+    const userMembershipSnap = await getDoc(
+      doc(db, "users", userId, "groupMemberships", groupId)
+    );
+
+    if (userMembershipSnap.exists()) {
+      memberStatus = normalizeMemberStatus(
+        (userMembershipSnap.data() as Record<string, unknown>)?.status ?? "active"
+      );
+    }
+  } catch {
+    memberStatus = null;
+  }
+
+  if (!memberStatus) {
+    try {
+      const groupMemberSnap = await getDoc(doc(db, "groups", groupId, "members", userId));
+
+      if (groupMemberSnap.exists()) {
+        memberStatus = normalizeMemberStatus(
+          (groupMemberSnap.data() as Record<string, unknown>)?.status ?? "active"
+        );
+      }
+    } catch {
+      memberStatus = null;
+    }
+  }
+
+  if (memberStatus) {
+    return {
+      groupId,
+      memberStatus,
+      pending: false,
+    };
+  }
+
+  if (visibility !== "private") {
+    return {
+      groupId,
+      memberStatus: null,
+      pending: false,
+    };
+  }
+
+  try {
+    const requestSnap = await getDoc(doc(db, "groups", groupId, "joinRequests", userId));
+    const requestData = requestSnap.data() as Record<string, unknown> | undefined;
+
+    return {
+      groupId,
+      memberStatus: null,
+      pending: requestSnap.exists() && (requestData?.status ?? "pending") === "pending",
+    };
+  } catch {
+    return {
+      groupId,
+      memberStatus: null,
+      pending: false,
+    };
+  }
 }
 
 function SearchPageContent() {
@@ -88,16 +248,16 @@ function SearchPageContent() {
     let cancelled = false;
 
     async function loadGroups() {
-if (activeTab !== "groups" || !canSearch) {
-  setCommunities([]);
-  return;
-}
+      if (activeTab !== "groups" || !canSearch) {
+        setCommunities([]);
+        return;
+      }
 
-const result = await searchGroups({
-  term: debouncedQuery,
-  pageSize: SEARCH_LIMIT,
-  visibility: ["public", "private"],
-});
+      const result = await searchGroups({
+        term: debouncedQuery,
+        pageSize: SEARCH_LIMIT,
+        visibility: ["public", "private"],
+      });
 
       if (cancelled) return;
 
@@ -115,16 +275,16 @@ const result = await searchGroups({
     return () => {
       cancelled = true;
     };
-}, [activeTab, canSearch, debouncedQuery, user?.uid]);
+  }, [activeTab, canSearch, debouncedQuery]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadProfiles() {
-if (activeTab !== "profiles" || !canSearch) {
-  setProfiles([]);
-  return;
-}
+      if (activeTab !== "profiles" || !canSearch) {
+        setProfiles([]);
+        return;
+      }
 
       const result = await searchProfiles({
         db,
@@ -158,7 +318,7 @@ if (activeTab !== "profiles" || !canSearch) {
     return () => {
       cancelled = true;
     };
-}, [activeTab, canSearch, debouncedQuery, user?.uid]);
+  }, [activeTab, canSearch, debouncedQuery, user?.uid]);
 
   useEffect(() => {
     let cancelled = false;
@@ -170,32 +330,17 @@ if (activeTab !== "profiles" || !canSearch) {
         return;
       }
 
+      const cacheKey = getViewerGroupStateCacheKey(user.uid, communities);
+      const cached = readViewerGroupStateCache(cacheKey);
+
+      if (cached) {
+        setMemberMap(cached.memberMap);
+        setReqMap(cached.reqMap);
+        return;
+      }
+
       const entries = await Promise.all(
-        communities.map(async (group) => {
-          const memberRef = doc(db, "groups", group.id, "members", user.uid);
-          const requestRef = doc(db, "groups", group.id, "joinRequests", user.uid);
-
-          const [memberSnap, requestSnap] = await Promise.all([
-            getDoc(memberRef),
-            getDoc(requestRef),
-          ]);
-
-          const memberStatus = memberSnap.exists()
-            ? normalizeMemberStatus(
-                (memberSnap.data() as Record<string, unknown>)?.status ?? "active"
-              )
-            : null;
-
-          const requestData = requestSnap.data() as Record<string, unknown> | undefined;
-          const pending =
-            requestSnap.exists() && (requestData?.status ?? "pending") === "pending";
-
-          return {
-            groupId: group.id,
-            memberStatus,
-            pending,
-          };
-        })
+        communities.map((group) => readViewerGroupState(user.uid, group))
       );
 
       if (cancelled) return;
@@ -208,11 +353,14 @@ if (activeTab !== "profiles" || !canSearch) {
         nextReqMap[entry.groupId] = entry.pending;
       }
 
+      writeViewerGroupStateCache(cacheKey, nextMemberMap, nextReqMap);
       setMemberMap(nextMemberMap);
       setReqMap(nextReqMap);
     }
 
-    loadViewerGroupState().catch(() => {
+    loadViewerGroupState().catch((error) => {
+      console.error("Search viewer group state error:", error);
+
       if (!cancelled) {
         setMemberMap({});
         setReqMap({});
@@ -245,6 +393,7 @@ if (activeTab !== "profiles" || !canSearch) {
 
     setMemberMap((prev) => ({ ...prev, [groupId]: "active" }));
     setReqMap((prev) => ({ ...prev, [groupId]: false }));
+    patchViewerGroupStateCache(user.uid, groupId, "active", false);
   }
 
   async function handleRequestPrivate(groupId: string) {
@@ -254,6 +403,7 @@ if (activeTab !== "profiles" || !canSearch) {
     await requestToJoin(groupId, user.uid);
 
     setReqMap((prev) => ({ ...prev, [groupId]: true }));
+    patchViewerGroupStateCache(user.uid, groupId, null, true);
   }
 
   async function handleCancelRequest(groupId: string) {
@@ -263,6 +413,7 @@ if (activeTab !== "profiles" || !canSearch) {
     await cancelJoinRequest(groupId, user.uid);
 
     setReqMap((prev) => ({ ...prev, [groupId]: false }));
+    patchViewerGroupStateCache(user.uid, groupId, memberMap[groupId] ?? null, false);
   }
 
   async function handleLeave(groupId: string, ownerId?: string) {
@@ -274,6 +425,7 @@ if (activeTab !== "profiles" || !canSearch) {
 
     setMemberMap((prev) => ({ ...prev, [groupId]: null }));
     setReqMap((prev) => ({ ...prev, [groupId]: false }));
+    patchViewerGroupStateCache(user.uid, groupId, null, false);
   }
 
   return (

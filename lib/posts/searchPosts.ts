@@ -1,14 +1,12 @@
-//searchPosts
+// searchPosts
 
 import {
   collection,
-  doc,
-  documentId,
-  getDoc,
   getDocs,
   limit,
   orderBy,
   query,
+  startAfter,
   Timestamp,
   where,
   type DocumentData,
@@ -46,12 +44,9 @@ const MIN_POST_SEARCH_LENGTH = 2;
 const MAX_POST_SEARCH_PREFIXES = 10;
 const DEFAULT_POST_SEARCH_PAGE_SIZE = 20;
 const MAX_POST_SEARCH_PAGE_SIZE = 30;
-
-type GroupSummary = {
-  name: string | null;
-  avatarUrl: string | null;
-  visibility: "public" | "private" | "hidden" | null;
-};
+const MAX_READABLE_GROUP_IDS_FOR_MVP = 30;
+const MAX_FIRESTORE_DISJUNCTIONS = 30;
+const MAX_IN_VALUES = 10;
 
 function buildSearchQueryPrefixes(search: string): string[] {
   const normalized = normalizeSearchText(search);
@@ -75,10 +70,27 @@ function toTimestamp(date: Date): Timestamp {
   return Timestamp.fromDate(date);
 }
 
-function pickString(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : null;
+function withCursor(
+  constraints: QueryConstraint[],
+  cursor?: SearchPostsCursor | null
+): QueryConstraint[] {
+  if (!cursor?.lastDoc) return constraints;
+  return [...constraints, startAfter(cursor.lastDoc)];
+}
+
+function getDocCreatedAtMs(docSnap: QueryDocumentSnapshot<DocumentData>): number {
+  const data = docSnap.data() as Record<string, any>;
+  const value = data?.search?.createdAt ?? data?.createdAt;
+
+  if (value && typeof value.toMillis === "function") {
+    return value.toMillis();
+  }
+
+  if (value && typeof value.seconds === "number") {
+    return value.seconds * 1000;
+  }
+
+  return 0;
 }
 
 function getPostCreatedAtMs(post: Post): number {
@@ -95,6 +107,18 @@ function getPostCreatedAtMs(post: Post): number {
   return 0;
 }
 
+function dedupeDocs(
+  docs: QueryDocumentSnapshot<DocumentData>[]
+): QueryDocumentSnapshot<DocumentData>[] {
+  const map = new Map<string, QueryDocumentSnapshot<DocumentData>>();
+
+  for (const docSnap of docs) {
+    map.set(docSnap.id, docSnap);
+  }
+
+  return Array.from(map.values());
+}
+
 function dedupePosts(posts: Post[]): Post[] {
   const map = new Map<string, Post>();
 
@@ -103,6 +127,42 @@ function dedupePosts(posts: Post[]): Post[] {
   }
 
   return Array.from(map.values());
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
+function getGroupIdChunkSize(prefixCount: number): number {
+  const safePrefixCount = Math.max(1, prefixCount);
+
+  return Math.max(
+    1,
+    Math.min(MAX_IN_VALUES, Math.floor(MAX_FIRESTORE_DISJUNCTIONS / safePrefixCount))
+  );
+}
+
+function mapDocToPost(docSnap: QueryDocumentSnapshot<DocumentData>): Post {
+  const data = docSnap.data() as Omit<Post, "id"> & Record<string, any>;
+  const search =
+    data.search && typeof data.search === "object"
+      ? (data.search as Record<string, any>)
+      : {};
+
+  return {
+    id: docSnap.id,
+    ...data,
+    groupName: data.groupName ?? search.groupName ?? null,
+    groupAvatarUrl: data.groupAvatarUrl ?? search.groupAvatarUrl ?? null,
+    groupVisibility:
+      data.groupVisibility ?? search.groupVisibility ?? search.visibility ?? null,
+  } as Post;
 }
 
 async function fetchReadableGroupIds(viewerId?: string | null): Promise<string[]> {
@@ -146,68 +206,10 @@ async function fetchReadableGroupIds(viewerId?: string | null): Promise<string[]
     ownedGroupIds = [];
   }
 
-  return Array.from(new Set([...userMembershipGroupIds, ...ownedGroupIds]));
-}
-
-async function fetchSearchGroupsByIds(
-  groupIds: string[]
-): Promise<Record<string, GroupSummary>> {
-  const uniqueIds = Array.from(new Set(groupIds.filter(Boolean)));
-
-  const entries = await Promise.all(
-    uniqueIds.map(async (groupId) => {
-      try {
-        const snap = await getDoc(doc(db, "groups", groupId));
-
-        if (!snap.exists()) {
-          return [groupId, { name: null, avatarUrl: null, visibility: null }] as const;
-        }
-
-        const data = snap.data() as Record<string, unknown>;
-
-        return [
-          groupId,
-          {
-            name: pickString(data.name) || pickString(data.groupName),
-            avatarUrl:
-              pickString(data.avatarUrl) ||
-              pickString(data.imageUrl) ||
-              pickString(data.photoURL) ||
-              pickString(data.groupAvatarUrl),
-            visibility:
-              data.visibility === "public" ||
-              data.visibility === "private" ||
-              data.visibility === "hidden"
-                ? data.visibility
-                : null,
-          },
-        ] as const;
-      } catch {
-        return [groupId, { name: null, avatarUrl: null, visibility: null }] as const;
-      }
-    })
+  return Array.from(new Set([...userMembershipGroupIds, ...ownedGroupIds])).slice(
+    0,
+    MAX_READABLE_GROUP_IDS_FOR_MVP
   );
-
-  return Object.fromEntries(entries);
-}
-
-function hydratePostsWithGroups(
-  posts: Post[],
-  groupMap: Record<string, GroupSummary>
-): Post[] {
-  return posts.map((post) => {
-    const group =
-      typeof post.groupId === "string" && post.groupId.length > 0
-        ? groupMap[post.groupId]
-        : null;
-
-    return {
-      ...post,
-      groupName: group?.name ?? post.groupName ?? null,
-      groupAvatarUrl: group?.avatarUrl ?? post.groupAvatarUrl ?? null,
-      groupVisibility: group?.visibility ?? post.groupVisibility ?? null,
-    };
-  });
 }
 
 export async function searchPosts(
@@ -251,6 +253,7 @@ export async function searchPosts(
 
   let publicDocs: QueryDocumentSnapshot<DocumentData>[] = [];
   let profileDocs: QueryDocumentSnapshot<DocumentData>[] = [];
+  let memberDocs: QueryDocumentSnapshot<DocumentData>[] = [];
 
   try {
     const publicSnap = await getDocs(
@@ -263,13 +266,14 @@ export async function searchPosts(
         where("requiresPayment", "==", false),
         where("requiresSubscription", "==", false),
         where("search.visibility", "==", "public"),
-        orderBy("search.createdAt", "desc"),
+        ...withCursor([orderBy("search.createdAt", "desc")], params.cursor),
         limit(pageSize + 1)
       )
     );
 
     publicDocs = publicSnap.docs;
-  } catch {
+  } catch (error) {
+    console.error("[searchPosts] public posts search failed", error);
     publicDocs = [];
   }
 
@@ -284,7 +288,7 @@ export async function searchPosts(
         where("requiresPayment", "==", false),
         where("requiresSubscription", "==", false),
         where("search.visibility", "==", "public"),
-        orderBy("search.createdAt", "desc"),
+        ...withCursor([orderBy("search.createdAt", "desc")], params.cursor),
         limit(pageSize + 1)
       )
     );
@@ -297,53 +301,45 @@ export async function searchPosts(
 
   const readableGroupIds = await fetchReadableGroupIds(params.viewerId);
 
-  const memberSnaps = await Promise.all(
-    readableGroupIds.map(async (groupId) => {
-      try {
+  if (readableGroupIds.length > 0) {
+    const groupIdChunkSize = getGroupIdChunkSize(prefixes.length);
+    const groupIdChunks = chunkArray(readableGroupIds, groupIdChunkSize);
 
-        const snap = await getDocs(
-          query(
-            collection(db, "posts"),
-            ...searchConstraints,
-            where("groupId", "==", groupId),
-            orderBy("search.createdAt", "desc"),
-            limit(pageSize + 1)
-          )
-        );
+    const memberSnaps = await Promise.all(
+      groupIdChunks.map(async (groupIds) => {
+        try {
+          return await getDocs(
+            query(
+              collection(db, "posts"),
+              ...searchConstraints,
+              where("groupId", "in", groupIds),
+              ...withCursor([orderBy("search.createdAt", "desc")], params.cursor),
+              limit(pageSize + 1)
+            )
+          );
+        } catch (error) {
+          console.error("[searchPosts] member posts search failed", error);
+          return null;
+        }
+      })
+    );
 
-        return snap;
-      } catch {
-        return null;
-      }
-    })
+    memberDocs = memberSnaps.flatMap((snap) => (snap ? snap.docs : []));
+  }
+
+  const sortedDocs = dedupeDocs([...publicDocs, ...profileDocs, ...memberDocs]).sort(
+    (a, b) => getDocCreatedAtMs(b) - getDocCreatedAtMs(a)
   );
 
-  const allDocs = [
-    ...publicDocs,
-    ...profileDocs,
-    ...memberSnaps.flatMap((snap) => (snap ? snap.docs : [])),
-  ];
+  const pageDocs = sortedDocs.slice(0, pageSize);
 
-  const rawPosts: Post[] = dedupePosts(
-    allDocs.map((docSnap) => ({
-      id: docSnap.id,
-      ...(docSnap.data() as Omit<Post, "id">),
-    }))
-  )
+  const posts = dedupePosts(pageDocs.map(mapDocToPost))
     .sort((a, b) => getPostCreatedAtMs(b) - getPostCreatedAtMs(a))
     .slice(0, pageSize);
 
-  const groupMap = await fetchSearchGroupsByIds(
-    rawPosts
-      .map((post) => post.groupId)
-      .filter((groupId): groupId is string => typeof groupId === "string" && groupId.length > 0)
-  );
-
-  const posts = hydratePostsWithGroups(rawPosts, groupMap);
-
   return {
     posts,
-    cursor: null,
-    hasMore: allDocs.length > pageSize,
+    cursor: pageDocs.length > 0 ? { lastDoc: pageDocs[pageDocs.length - 1] } : null,
+    hasMore: sortedDocs.length > pageSize,
   };
 }
