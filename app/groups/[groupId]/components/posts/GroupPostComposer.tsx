@@ -451,7 +451,8 @@ export default function GroupPostComposer({
 
   const currentUserHref = currentUserHandle ? `/u/${currentUserHandle}` : "#";
   const hasContent = text.trim().length > 0 || selectedMediaItems.length > 0;
-  const isPreparingImages = processingImageSlots > 0;
+  const isPreparingImages =
+    processingImageSlots > 0 || processingVideoSlots > 0;
   const canAddMoreMedia =
     selectedImages.length + processingImageSlots < MAX_POST_IMAGES ||
     selectedVideos.length + processingVideoSlots < MAX_POST_VIDEOS;
@@ -462,7 +463,7 @@ export default function GroupPostComposer({
       : "Crear publicación";
 
   function handleOpenMediaPicker() {
-    if (creating) return;
+    if (creating || isPreparingImages) return;
     fileInputRef.current?.click();
   }
 
@@ -744,6 +745,46 @@ export default function GroupPostComposer({
       const mergedItems = [...current, ...nextItems];
       updatePostType(mergedItems);
       return mergedItems;
+    });
+
+    nextItems.forEach((item) => {
+      void readVideoDurationFromUrl(item.previewUrl).then((durationSeconds) => {
+        setSelectedMediaItems((current) =>
+          current.map((currentItem) =>
+            currentItem.id === item.id
+              ? { ...currentItem, durationSeconds }
+              : currentItem,
+          ),
+        );
+      });
+
+      void captureFirstVideoFrame(item.previewUrl, item.file.name).then(
+        (cover) => {
+          setSelectedMediaItems((current) =>
+            current.map((currentItem) => {
+              if (currentItem.id !== item.id) return currentItem;
+
+              if (!cover) {
+                return { ...currentItem, coverStatus: "error" };
+              }
+
+              if (
+                currentItem.autoCoverUrl &&
+                currentItem.autoCoverUrl !== cover.previewUrl
+              ) {
+                URL.revokeObjectURL(currentItem.autoCoverUrl);
+              }
+
+              return {
+                ...currentItem,
+                autoCoverFile: cover.file,
+                autoCoverUrl: cover.previewUrl,
+                coverStatus: "ready",
+              };
+            }),
+          );
+        },
+      );
     });
   }
 
@@ -1190,14 +1231,11 @@ export default function GroupPostComposer({
         accept="image/*,.heic,.heif,video/*"
         multiple
         style={{ display: "none" }}
-        onChange={(event) => {
+        onChange={async (event) => {
           const input = event.currentTarget;
           const files = Array.from(input.files ?? []);
-
-          window.setTimeout(() => {
-            void handleMediaSelected(files);
-            input.value = "";
-          }, 0);
+          await handleMediaSelected(files);
+          input.value = "";
         }}
       />
 
@@ -1399,7 +1437,7 @@ export default function GroupPostComposer({
                                       lineHeight: 1.15,
                                     }}
                                   >
-                                    Video seleccionado
+                                    Cargando video
                                   </span>
                                 </div>
                               </div>
