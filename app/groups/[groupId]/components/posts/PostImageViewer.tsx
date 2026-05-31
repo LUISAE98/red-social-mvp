@@ -351,8 +351,12 @@ export default function PostImageViewer({
       : [];
   }, [image, mediaItems, post.media]);
 
-  const currentMedia = mediaList[currentMediaIndex] ?? mediaList[0] ?? null;
-  const previousMedia =
+const currentMedia = mediaList[currentMediaIndex] ?? mediaList[0] ?? null;
+const currentMediaKey = currentMedia
+  ? `${currentMedia.type}-${currentMedia.url}-${currentMediaIndex}`
+  : "empty-media";
+
+const previousMedia =
     mediaList.length > 1
       ? mediaList[
           currentMediaIndex <= 0 ? mediaList.length - 1 : currentMediaIndex - 1
@@ -1118,13 +1122,14 @@ const flameButtonStyle: CSSProperties = {
           }}
         >
           {useMobileLayout ? (
-            <PostPinchZoomVideo
-              resetKey={currentMedia.url}
-              onClose={onClose}
-              onZoomStateChange={setIsCurrentVideoZoomed}
-              onPinchStateChange={setIsCurrentVideoPinching}
-              swipeAxis={mobileGestureAxis}
-            >
+<PostPinchZoomVideo
+  key={currentMediaKey}
+  resetKey={currentMediaKey}
+  onClose={onClose}
+  onZoomStateChange={setIsCurrentVideoZoomed}
+  onPinchStateChange={setIsCurrentVideoPinching}
+  swipeAxis={mobileGestureAxis}
+>
               {videoSurface}
             </PostPinchZoomVideo>
           ) : (
@@ -1149,14 +1154,15 @@ const flameButtonStyle: CSSProperties = {
         }}
       >
         {useMobileLayout ? (
-          <PostPinchZoomImage
-            src={currentMedia.url}
-            alt={currentMedia.altText || "Imagen de la publicación"}
-            onClose={onClose}
-            onZoomStateChange={setIsCurrentImageZoomed}
-            onPinchStateChange={setIsCurrentImagePinching}
-            swipeAxis="horizontal"
-          />
+<PostPinchZoomImage
+  key={currentMediaKey}
+  src={currentMedia.url}
+  alt={currentMedia.altText || "Imagen de la publicación"}
+  onClose={onClose}
+  onZoomStateChange={setIsCurrentImageZoomed}
+  onPinchStateChange={setIsCurrentImagePinching}
+  swipeAxis="horizontal"
+/>
         ) : (
           <img
             src={currentMedia.url}

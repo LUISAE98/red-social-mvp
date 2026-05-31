@@ -1684,6 +1684,21 @@ function shouldContainMedia(ratio?: number | null): boolean {
   return !isMobile && typeof ratio === "number" && ratio <= 0.82;
 }
 
+function getContainedMediaScale(ratio?: number | null): number {
+  if (
+    typeof ratio !== "number" ||
+    !Number.isFinite(ratio) ||
+    !shouldContainMedia(ratio)
+  ) {
+    return 1;
+  }
+
+  if (ratio <= 0.58) return 1.16;
+  if (ratio <= 0.7) return 1.12;
+
+  return 1.08;
+}
+
 function getFeedMediaUrl(media: DisplayMediaItem): string {
   if (
     media.thumbnailUrl &&
@@ -2391,8 +2406,10 @@ style={{
       width: "100%",
       height: "100%",
       background: "transparent",
-      objectFit: shouldContainRootVideo ? "contain" : "cover",
-      cursor: isMobile ? "pointer" : "default",
+objectFit: shouldContainRootVideo ? "contain" : "cover",
+transform: `scale(${getContainedMediaScale(videoOrientationRatio)})`,
+transformOrigin: "center center",
+cursor: isMobile ? "pointer" : "default",
     }}
   />
 )}
@@ -2749,29 +2766,32 @@ style={{
         const mediaRatio = mediaAspectRatios[media.url];
         const shouldContainTile = shouldContainMedia(mediaRatio);
 
-        function renderRemainingOverlay() {
-          if (remainingCount <= 0 || index !== 2) return null;
+function renderRemainingOverlay() {
+  if (remainingCount <= 0 || index !== 2) return null;
 
-          return (
-            <div
-              aria-hidden="true"
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: "rgba(0,0,0,0.48)",
-                display: "grid",
-                placeItems: "center",
-                color: "#fff",
-                fontSize: 24,
-                fontWeight: 800,
-                lineHeight: 1,
-                textShadow: "0 2px 10px rgba(0,0,0,0.65)",
-              }}
-            >
-              +{remainingCount}
-            </div>
-          );
-        }
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 5,
+        background: "rgba(0,0,0,0.55)",
+        display: "grid",
+        placeItems: "center",
+        color: "#fff",
+        fontSize: 24,
+        fontWeight: 800,
+        lineHeight: 1,
+        textAlign: "center",
+        pointerEvents: "none",
+        textShadow: "0 2px 10px rgba(0,0,0,0.65)",
+      }}
+    >
++{remainingCount}
+    </div>
+  );
+}
 
         if (media.type === "video" && !media.thumbnailUrl && media.playbackUrl) {
           return (
@@ -2786,8 +2806,10 @@ style={{
                 draggable={false}
                 style={{
                   ...tileImageStyle,
-                  objectFit: shouldContainTile ? "contain" : "cover",
-                  background: shouldContainTile ? "transparent" : "#050505",
+objectFit: shouldContainTile ? "contain" : "cover",
+background: shouldContainTile ? "transparent" : "#050505",
+transform: `scale(${getContainedMediaScale(mediaRatio)})`,
+transformOrigin: "center center",
                 }}
                 onLoadedMetadata={(event) => {
                   const video = event.currentTarget;
@@ -2836,8 +2858,10 @@ style={{
               draggable={false}
               style={{
                 ...tileImageStyle,
-                objectFit: shouldContainTile ? "contain" : "cover",
-                background: shouldContainTile ? "transparent" : "#050505",
+objectFit: shouldContainTile ? "contain" : "cover",
+background: shouldContainTile ? "transparent" : "#050505",
+transform: `scale(${getContainedMediaScale(mediaRatio)})`,
+transformOrigin: "center center",
               }}
               onLoad={(event) => {
                 const img = event.currentTarget;
@@ -2950,9 +2974,11 @@ style={{
                 draggable={false}
                 style={{
                   ...postImageStyle,
-                  objectFit: shouldContainFirstMedia ? "contain" : "cover",
-                  opacity: isLoaded ? 1 : 0,
-                  background: shouldContainFirstMedia ? "transparent" : "#050505",
+objectFit: shouldContainFirstMedia ? "contain" : "cover",
+opacity: isLoaded ? 1 : 0,
+background: shouldContainFirstMedia ? "transparent" : "#050505",
+transform: `scale(${getContainedMediaScale(firstRatio)})`,
+transformOrigin: "center center",
                 }}
                 onLoadedMetadata={(event) => {
                   const video = event.currentTarget;
@@ -2991,9 +3017,11 @@ style={{
                 draggable={false}
                 style={{
                   ...postImageStyle,
-                  objectFit: shouldContainFirstMedia ? "contain" : "cover",
-                  opacity: isLoaded ? 1 : 0,
-                  background: shouldContainFirstMedia ? "transparent" : "#050505",
+objectFit: shouldContainFirstMedia ? "contain" : "cover",
+opacity: isLoaded ? 1 : 0,
+background: shouldContainFirstMedia ? "transparent" : "#050505",
+transform: `scale(${getContainedMediaScale(firstRatio)})`,
+transformOrigin: "center center",
                 }}
                 onLoad={(event) => {
                   const img = event.currentTarget;
