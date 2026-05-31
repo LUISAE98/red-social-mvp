@@ -978,11 +978,7 @@ const flameButtonStyle: CSSProperties = {
       );
     }
 
-    const previewUrl =
-      typeof media.thumbnailUrl === "string" &&
-      media.thumbnailUrl.trim().length > 0
-        ? media.thumbnailUrl.trim()
-        : media.url;
+const previewUrl = media.url;
 
     return (
       <img
@@ -1153,17 +1149,17 @@ const flameButtonStyle: CSSProperties = {
           background: "#000",
         }}
       >
-        {useMobileLayout ? (
-<PostPinchZoomImage
-  key={currentMediaKey}
-  src={currentMedia.url}
-  alt={currentMedia.altText || "Imagen de la publicación"}
-  onClose={onClose}
-  onZoomStateChange={setIsCurrentImageZoomed}
-  onPinchStateChange={setIsCurrentImagePinching}
-  swipeAxis="horizontal"
-/>
-        ) : (
+{useMobileLayout ? (
+  <PostPinchZoomImage
+    key={currentMediaKey}
+    src={currentMedia.url}
+    alt={currentMedia.altText || "Imagen de la publicación"}
+    onClose={onClose}
+    onZoomStateChange={setIsCurrentImageZoomed}
+    onPinchStateChange={setIsCurrentImagePinching}
+    swipeAxis="horizontal"
+  />
+) : (
           <img
             src={currentMedia.url}
             alt={currentMedia.altText || "Imagen de la publicación"}
