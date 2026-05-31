@@ -15,6 +15,7 @@ import type { Post } from "@/lib/posts/types";
 import PostPinchZoomImage from "./PostPinchZoomImage";
 import PostPinchZoomVideo from "./PostPinchZoomVideo";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
+import { enterVibraPictureInPicture } from "@/lib/video/vibraPictureInPicture";
 
 type ImageMedia = {
   url: string;
@@ -673,24 +674,13 @@ export default function PostImageViewer({
     }
   }
 
-  async function handleDesktopPictureInPicture() {
-    const video = videoRef.current;
+async function handleVibraPictureInPicture() {
+  const result = await enterVibraPictureInPicture(videoRef.current);
 
-    if (!video || typeof document === "undefined") return;
-
-    try {
-      if (document.pictureInPictureElement) {
-        await document.exitPictureInPicture();
-        return;
-      }
-
-      if (typeof video.requestPictureInPicture === "function") {
-        await video.requestPictureInPicture();
-      }
-    } catch {
-      // El navegador puede bloquear Picture in Picture si no hay interacción válida.
-    }
+  if (!result.ok) {
+    console.warn(result.reason);
   }
+}
 
   async function handleDesktopFullscreen() {
     const shell = desktopVideoShellRef.current;
@@ -1479,9 +1469,7 @@ const flameButtonStyle: CSSProperties = {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: isLandscape
-                ? "34px minmax(0, 1fr) 46px"
-                : "34px minmax(0, 1fr)",
+              gridTemplateColumns: "34px minmax(0, 1fr) 46px 46px",
               alignItems: "center",
               gap: 10,
             }}
@@ -1550,8 +1538,36 @@ const flameButtonStyle: CSSProperties = {
               }}
             />
 
-            {isLandscape && (
-              <div style={{ position: "relative", width: 46, height: 34 }}>
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                handleVibraPictureInPicture();
+                setMobileChromeVisible(true);
+                scheduleChromeHide();
+              }}
+              aria-label="Activar imagen en imagen"
+              title="Imagen en imagen"
+              style={{
+                width: 46,
+                height: 34,
+                borderRadius: 999,
+                border: "1px solid rgba(255,255,255,0.18)",
+                background: "rgba(0,0,0,0.58)",
+                color: "#fff",
+                display: "grid",
+                placeItems: "center",
+                fontSize: 15,
+                fontWeight: 800,
+                fontFamily: fontStack,
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              ⧉
+            </button>
+
+            <div style={{ position: "relative", width: 46, height: 34 }}>
                 <button
                   type="button"
                   onClick={(event) => {
@@ -1639,7 +1655,6 @@ const flameButtonStyle: CSSProperties = {
                   </div>
                 )}
               </div>
-            )}
           </div>
         </div>
       )}
@@ -2115,7 +2130,7 @@ const flameButtonStyle: CSSProperties = {
               {currentMedia.type === "video" && currentVideoSrc && (
                 <button
                   type="button"
-                  onClick={handleDesktopPictureInPicture}
+                  onClick={handleVibraPictureInPicture}
                   aria-label="Activar imagen en imagen"
                   title="Imagen en imagen"
                   style={{
