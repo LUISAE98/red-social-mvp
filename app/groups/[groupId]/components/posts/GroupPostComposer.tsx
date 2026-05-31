@@ -451,8 +451,7 @@ export default function GroupPostComposer({
 
   const currentUserHref = currentUserHandle ? `/u/${currentUserHandle}` : "#";
   const hasContent = text.trim().length > 0 || selectedMediaItems.length > 0;
-  const isPreparingImages =
-    processingImageSlots > 0 || processingVideoSlots > 0;
+  const isPreparingImages = processingImageSlots > 0;
   const canAddMoreMedia =
     selectedImages.length + processingImageSlots < MAX_POST_IMAGES ||
     selectedVideos.length + processingVideoSlots < MAX_POST_VIDEOS;
@@ -463,7 +462,7 @@ export default function GroupPostComposer({
       : "Crear publicación";
 
   function handleOpenMediaPicker() {
-    if (creating || isPreparingImages) return;
+    if (creating) return;
     fileInputRef.current?.click();
   }
 
@@ -737,7 +736,7 @@ export default function GroupPostComposer({
         coverPreviewUrl: null,
         autoCoverUrl: null,
         autoCoverFile: null,
-        coverStatus: "loading",
+        coverStatus: "ready",
       }),
     );
 
@@ -757,34 +756,6 @@ export default function GroupPostComposer({
           ),
         );
       });
-
-      void captureFirstVideoFrame(item.previewUrl, item.file.name).then(
-        (cover) => {
-          setSelectedMediaItems((current) =>
-            current.map((currentItem) => {
-              if (currentItem.id !== item.id) return currentItem;
-
-              if (!cover) {
-                return { ...currentItem, coverStatus: "error" };
-              }
-
-              if (
-                currentItem.autoCoverUrl &&
-                currentItem.autoCoverUrl !== cover.previewUrl
-              ) {
-                URL.revokeObjectURL(currentItem.autoCoverUrl);
-              }
-
-              return {
-                ...currentItem,
-                autoCoverFile: cover.file,
-                autoCoverUrl: cover.previewUrl,
-                coverStatus: "ready",
-              };
-            }),
-          );
-        },
-      );
     });
   }
 
@@ -1231,11 +1202,14 @@ export default function GroupPostComposer({
         accept="image/*,.heic,.heif,video/*"
         multiple
         style={{ display: "none" }}
-        onChange={async (event) => {
+        onChange={(event) => {
           const input = event.currentTarget;
           const files = Array.from(input.files ?? []);
-          await handleMediaSelected(files);
-          input.value = "";
+
+          window.setTimeout(() => {
+            void handleMediaSelected(files);
+            input.value = "";
+          }, 0);
         }}
       />
 
@@ -1416,31 +1390,13 @@ export default function GroupPostComposer({
                                 onDragStart={(event) => event.preventDefault()}
                               />
                             ) : (
-                              <div
-                                aria-hidden="true"
-                                style={videoCoverLoadingStyle}
-                              >
-                                <div
-                                  style={{
-                                    display: "grid",
-                                    gap: 6,
-                                    justifyItems: "center",
-                                  }}
-                                >
-                                  <span style={{ fontSize: 21, lineHeight: 1 }}>
-                                    🎥
-                                  </span>
-                                  <span
-                                    style={{
-                                      fontSize: 10.5,
-                                      fontWeight: 800,
-                                      lineHeight: 1.15,
-                                    }}
-                                  >
-                                    Cargando video
-                                  </span>
-                                </div>
-                              </div>
+                              <video
+                                src={item.previewUrl}
+                                muted
+                                playsInline
+                                preload="metadata"
+                                style={mediaPreviewStyle}
+                              />
                             )}
 
                             {isVideoCoverLoading && (
