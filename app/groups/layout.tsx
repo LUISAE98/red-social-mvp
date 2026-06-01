@@ -767,7 +767,6 @@ function AuthenticatedGroupsShell({
   const { user } = useAuth();
 
 const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-const [safeAreaSearchOpen, setSafeAreaSearchOpen] = useState(false);
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 
   const fontStack =
@@ -775,7 +774,6 @@ const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 
 useEffect(() => {
   setMobileSearchOpen(false);
-  setSafeAreaSearchOpen(false);
 }, [pathname]);
 
 
@@ -811,12 +809,6 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   z-index: 70;
   pointer-events: none;
   background: #000000;
-  opacity: 1;
-  transition: opacity 220ms ease;
-}
-
-.safeAreaHeaderBackdropSearchOpen {
-  opacity: 0;
 }
 
 .header {
@@ -931,6 +923,42 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           flex: 0 1 auto;
           max-width: 34vw;
         }
+
+.mobileBrand {
+  transform-origin: center;
+  transition:
+    opacity 160ms ease,
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mobileBrandHidden {
+  opacity: 0;
+  transform: scale(0.86);
+  pointer-events: none;
+}
+
+.mobileBrandVisible {
+  opacity: 1;
+  transform: scale(1);
+  animation: mobileBrandPopIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes mobileBrandPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 
         .mobileActions {
           display: flex;
@@ -1159,11 +1187,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
       `}</style>
 
 <div className="layout">
-<div
-  className={`safeAreaHeaderBackdrop ${
-    safeAreaSearchOpen ? "safeAreaHeaderBackdropSearchOpen" : ""
-  }`}
-/>
+<div className="safeAreaHeaderBackdrop" />
 
 <header
   className={`header ${
@@ -1205,26 +1229,24 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         showCreateGroup={false}
         createGroupHref="/groups/new"
         showCloseSearch={true}
-onCloseSearch={() => {
-  setSafeAreaSearchOpen(false);
-  setMobileSearchOpen(false);
-}}
+onCloseSearch={() => setMobileSearchOpen(false)}
       />
     </div>
   </div>
 ) : (
   <div className="mobileHeaderRow">
-    <Link href="/" className="mobileBrand" aria-label="Ir al inicio">
-      <img src="/logotipo.png" alt="Vibra" className="mobileBrandLogo" />
-    </Link>
+<Link
+  href="/"
+  className={`mobileBrand ${mobileSearchOpen ? "mobileBrandHidden" : "mobileBrandVisible"}`}
+  aria-label="Ir al inicio"
+>
+  <img src="/logotipo.png" alt="Vibra" className="mobileBrandLogo" />
+</Link>
 
     <div className="mobileActions">
 <button
   type="button"
-  onClick={() => {
-    setSafeAreaSearchOpen(true);
-    setMobileSearchOpen(true);
-  }}
+onClick={() => setMobileSearchOpen(true)}
   title="Buscar comunidad"
   aria-label="Buscar comunidad"
   className="mobileSearchIconButton"
