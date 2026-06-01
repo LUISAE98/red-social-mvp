@@ -2838,16 +2838,16 @@ return (
     left: 0 !important;
     right: 0 !important;
     top: calc(env(safe-area-inset-top, 0px) + 90px) !important;
-    bottom: 78px !important;
+    bottom: auto !important;
     width: auto !important;
-    max-height: none !important;
+    max-height: calc(100vh - 168px) !important;
     height: auto !important;
     margin: 0 !important;
   }
 
   .profile-owner-sidebar-panel {
-    height: 100% !important;
-    max-height: 100% !important;
+    height: auto !important;
+    max-height: calc(100vh - 168px) !important;
     padding: 10px !important;
     overflow: hidden !important;
     border-left: none !important;
@@ -2856,15 +2856,15 @@ return (
   }
 
   .profile-owner-sidebar-content {
-    height: 100% !important;
-    max-height: 100% !important;
+    height: auto !important;
+    max-height: calc(100vh - 188px) !important;
     overflow: hidden !important;
   }
 
   .profile-owner-sidebar-scroll {
     flex: 1 1 auto !important;
     min-height: 0 !important;
-    max-height: none !important;
+    max-height: calc(100vh - 300px) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
   }

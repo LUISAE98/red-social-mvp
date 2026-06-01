@@ -1246,15 +1246,15 @@ const uploadedVideoCovers =
     }
   }
 
-  const shellStyle: CSSProperties = {
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-    display: "grid",
-    gap: 12,
-    overflowX: "hidden",
-    boxSizing: "border-box",
-  };
+const shellStyle: CSSProperties = {
+  width: "100%",
+  maxWidth: "100%",
+  minWidth: 0,
+  display: "grid",
+  gap: 6,
+  overflowX: "hidden",
+  boxSizing: "border-box",
+};
 
   const headerStyle: CSSProperties = {
     display: "grid",

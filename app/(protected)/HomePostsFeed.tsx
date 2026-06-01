@@ -730,17 +730,17 @@ const normalizedPosts = result.posts
     }
   }
 
-  const shellStyle: CSSProperties = {
-    width: "100%",
-    maxWidth: 720,
-    minWidth: 0,
-    display: "grid",
-    gap: 12,
-    marginLeft: "auto",
-    marginRight: "auto",
-    marginBottom: 18,
-    overflowX: "hidden",
-  };
+const shellStyle: CSSProperties = {
+  width: "100%",
+  maxWidth: 720,
+  minWidth: 0,
+  display: "grid",
+  gap: 6,
+  marginLeft: "auto",
+  marginRight: "auto",
+  marginBottom: 18,
+  overflowX: "hidden",
+};
 
   const headerStyle: CSSProperties = useMemo(
     () => ({

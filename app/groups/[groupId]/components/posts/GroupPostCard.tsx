@@ -1263,16 +1263,22 @@ async function handleToggleSave() {
   }
 
 const cardStyle: CSSProperties = {
+  position: "relative",
+  overflow: "hidden",
   borderRadius: isMobile ? 0 : 12,
-  border: isMobile ? "0" : "1px solid rgba(255,255,255,0.08)",
-  borderBottom: isMobile
-    ? "1px solid rgba(255,255,255,0.10)"
-    : "1px solid rgba(255,255,255,0.08)",
-  background: isMobile ? "transparent" : "rgba(255,255,255,0.022)",
+  border: "1px solid rgba(168, 85, 255, 0.065)",
+  borderLeft: isMobile ? "none" : "1px solid rgba(168, 85, 255, 0.065)",
+  borderRight: isMobile ? "none" : "1px solid rgba(168, 85, 255, 0.065)",
+  background:
+    "radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.028), transparent 34%), radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.020), transparent 36%), radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.016), transparent 40%), linear-gradient(135deg, rgb(3, 3, 6) 0%, rgb(8, 5, 13) 48%, rgb(0, 0, 0) 100%)",
   color: "#fff",
   padding: isMobile ? "14px 12px" : 12,
   boxSizing: "border-box",
-  backdropFilter: isMobile ? "none" : "blur(10px)",
+  backdropFilter: "none",
+  WebkitBackdropFilter: "none",
+  boxShadow:
+    "inset 0 1px 0 rgba(255, 255, 255, 0.03), inset 0 -1px 0 rgba(255, 255, 255, 0.012), inset 0 0 10px rgba(168, 85, 255, 0.008), inset 0 0 12px rgba(79, 70, 255, 0.028), inset 0 0 10px rgba(168, 85, 255, 0.028), 0 0 5px rgba(168, 85, 255, 0.014), 0 18px 54px rgba(0, 0, 0, 0.64)",
+  marginBottom: isMobile ? 0.2 : 0,
 };
 
   const metaStyle: CSSProperties = {
