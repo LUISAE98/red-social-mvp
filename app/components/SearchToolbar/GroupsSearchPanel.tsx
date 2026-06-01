@@ -1342,6 +1342,7 @@ to {
   showCreateGroup={showCreateGroup}
   showCloseSearch={showCloseSearch}
   isMobileClosing={isSearchClosing}
+  autoFocusOnMount={true}
 />
 
 {mounted && hasSearch && (

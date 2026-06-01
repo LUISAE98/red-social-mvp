@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export type GroupsSearchToolbarProps = {
   search: string;
@@ -13,6 +13,7 @@ export type GroupsSearchToolbarProps = {
   placeholder?: string;
   ariaLabel?: string;
   isMobileClosing?: boolean;
+  autoFocusOnMount?: boolean;
 };
 
 export default function GroupsSearchToolbar({
@@ -26,12 +27,22 @@ export default function GroupsSearchToolbar({
   placeholder = "Buscar comunidades, perfiles o publicaciones...",
   ariaLabel = "Buscar comunidades, perfiles o publicaciones",
   isMobileClosing = false,
+  autoFocusOnMount = false,
 }: GroupsSearchToolbarProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isFocused, setIsFocused] = useState(false);
 
   const hasSearch = search.trim().length > 0;
   const isExpanded = isFocused || hasSearch || showCloseSearch;
+
+  useEffect(() => {
+    if (!autoFocusOnMount) return;
+
+    const input = inputRef.current;
+    if (!input) return;
+
+    input.focus({ preventScroll: true });
+  }, [autoFocusOnMount]);
 
   function blurInput() {
     inputRef.current?.blur();

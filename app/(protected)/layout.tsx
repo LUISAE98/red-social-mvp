@@ -805,23 +805,43 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           flex-direction: column;
         }
 
+.safeAreaHeaderBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 56px);
+  z-index: 70;
+  pointer-events: none;
+  background: #000000;
+}
+
 .header {
   position: sticky;
   top: 0;
   z-index: 80;
-  padding-top: env(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top, 0px);
   border-bottom: none;
   background: transparent;
+  pointer-events: none;
 }
 
-        .headerInner {
-          width: 100%;
-          padding-left: max(var(--shell-gutter), env(safe-area-inset-left));
-          padding-right: max(var(--shell-gutter), env(safe-area-inset-right));
-          padding-top: 8px;
-          padding-bottom: 8px;
-          box-sizing: border-box;
-        }
+.headerInner,
+.headerInner a,
+.headerInner button,
+.headerInner input {
+  pointer-events: auto;
+}
+
+.headerInner {
+  width: 100%;
+  min-height: 56px;
+  padding-left: max(var(--shell-gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--shell-gutter), env(safe-area-inset-right, 0px));
+  padding-top: 8px;
+  padding-bottom: 8px;
+  box-sizing: border-box;
+}
 
  .desktopHeader {
   display: grid;
@@ -849,24 +869,6 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         }
 
 
-
-.vibraLogoImage {
-  position: relative;
-  z-index: 2;
-  display: block;
-  width: 112px;
-  height: auto;
-  object-fit: contain;
-  animation: vibraLogoShake 5.8s ease-in-out infinite;
-}
-
-
-
-.vibraAnimatedLogo.isMobile .vibraWord {
-  left: 44px;
-  font-size: 18px;
-}
-
 .brandLogo {
   display: block;
   width: 112px;
@@ -876,80 +878,9 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 
 .mobileBrandLogo {
   display: block;
-  width: 96px;
+  width: 86px;
   height: auto;
   object-fit: contain;
-}
-
-@keyframes vibraTextFlow {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-@keyframes vibraLetterCycle {
-  0%, 10% {
-    opacity: 0;
-    transform: translateX(-28px) translateY(0) scale(0.92);
-  }
-
-  18% {
-    opacity: 1;
-    transform: translateX(0) translateY(calc(var(--i) * -3px)) scale(1);
-  }
-
-  27% {
-    opacity: 1;
-    transform: translateX(0) translateY(calc(var(--i) * -7px)) scale(1.04);
-  }
-
-  38%, 68% {
-    opacity: 1;
-    transform: translateX(0) translateY(0) scale(1);
-  }
-
-  82%, 100% {
-    opacity: 0;
-    transform: translateX(-28px) translateY(0) scale(0.92);
-  }
-}
-
-@keyframes vibraLogoShake {
-  0%, 8%, 76%, 100% {
-    transform: translateX(0) rotate(0deg);
-  }
-
-  11% {
-    transform: translateX(-1px) rotate(-1deg);
-  }
-
-  13% {
-    transform: translateX(2px) rotate(1.2deg);
-  }
-
-  15% {
-    transform: translateX(-1px) rotate(-0.8deg);
-  }
-
-  17% {
-    transform: translateX(0) rotate(0deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vibraLogoImage,
-  .vibraLetter {
-    animation: none !important;
-  }
-
-  .vibraLetter {
-    opacity: 1;
-    transform: none;
-  }
 }
 
 .desktopMainCluster {
@@ -978,15 +909,14 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           display: none;
         }
 
-        .mobileHeaderRow,
         .mobileSearchRow {
           display: none;
         }
 
-        .mobileHeaderRow {
-          min-height: 38px;
-          width: 100%;
-        }
+.mobileHeaderRow {
+  min-height: 40px;
+  width: 100%;
+}
 
         .mobileBrand {
           font-weight: 700;
@@ -1000,6 +930,42 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           max-width: 34vw;
         }
 
+.mobileBrand {
+  transform-origin: center;
+  transition:
+    opacity 160ms ease,
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mobileBrandHidden {
+  opacity: 0;
+  transform: scale(0.86);
+  pointer-events: none;
+}
+
+.mobileBrandVisible {
+  opacity: 1;
+  transform: scale(1);
+  animation: mobileBrandPopIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes mobileBrandPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
         .mobileActions {
           display: flex;
           align-items: center;
@@ -1008,23 +974,34 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           flex-shrink: 0;
         }
 
-.mobileSearchRow {
-  width: 100%;
-  overflow: visible;
-  animation: mobile-search-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  transform-origin: top center;
+.mobileSearchIconButton {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #a855ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
-@keyframes mobile-search-enter {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scaleX(0.92);
-  }
+.mobileSearchRow {
+  width: 100%;
+  min-height: 40px;
+  display: none;
+  align-items: center;
+  overflow: visible;
+}
 
-  to {
-    opacity: 1;
-    transform: translateY(0) scaleX(1);
-  }
+.mobileSearchCol {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
 }
 
         .mobileSearchCol {
@@ -1117,28 +1094,55 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         @media (max-width: 900px) {
 
 .header {
-  background: #000000;
+  position: sticky;
+  background: transparent;
 }
-          .headerInner {
-            width: 100%;
-            padding-top: 6px;
-            padding-bottom: 6px;
-          }
+
+.headerMobileSearchOpen {
+  background: transparent;
+}
+
+.headerInner {
+  width: 100%;
+  min-height: 48px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.headerInnerMobileSearchOpen {
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
 
           .desktopHeader {
             display: none;
           }
 
-          .mobileHeaderRow {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            min-width: 0;
-          }
+.mobileHeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 40px;
+}
 
-          .mobileSearchRow {
-            display: block;
-          }
+.mobileSearchRow {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  overflow: visible;
+}
+
+.mobileSearchCol {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+}
 
           .contentArea,
           .contentAreaWithWallet {
@@ -1189,8 +1193,18 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
       `}</style>
 
       <div className="layout">
-<header className="header">
-          <div className="headerInner">
+<div className="safeAreaHeaderBackdrop" />
+
+<header
+  className={`header ${
+    mobileSearchOpen ? "headerMobileSearchOpen" : ""
+  }`}
+>
+          <div
+  className={`headerInner ${
+    mobileSearchOpen ? "headerInnerMobileSearchOpen" : ""
+  }`}
+>
             <div className="desktopHeader">
               <div className="brandCol">
 <Link href="/" className="brand" aria-label="Ir al inicio">
@@ -1213,46 +1227,41 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
               </div>
             </div>
 
-            {!mobileSearchOpen ? (
-              <div className="mobileHeaderRow">
-                <Link href="/" className="mobileBrand" aria-label="Ir al inicio">
+{mobileSearchOpen ? (
+  <div className="mobileSearchRow">
+    <div className="mobileSearchCol">
+      <GroupsSearchPanel
+        fontStack={fontStack}
+        showCreateGroup={false}
+        createGroupHref="/groups/new"
+        showCloseSearch={true}
+onCloseSearch={() => setMobileSearchOpen(false)}
+      />
+    </div>
+  </div>
+) : (
+  <div className="mobileHeaderRow">
+<Link
+  href="/"
+  className={`mobileBrand ${mobileSearchOpen ? "mobileBrandHidden" : "mobileBrandVisible"}`}
+  aria-label="Ir al inicio"
+>
   <img src="/logotipo.png" alt="Vibra" className="mobileBrandLogo" />
 </Link>
 
-<div className="mobileActions">
-  <HeaderIconButton
-    onClick={() => setMobileSearchOpen(true)}
-    title="Buscar comunidad"
-    ariaLabel="Buscar comunidad"
-  >
-    <span
-      aria-hidden="true"
-      style={{
-        fontSize: 18,
-        lineHeight: 1,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      🔍
-    </span>
-  </HeaderIconButton>
-</div>
-              </div>
-            ) : (
-              <div className="mobileSearchRow">
-                <div className="mobileSearchCol">
-                  <GroupsSearchPanel
-                    fontStack={fontStack}
-                    showCreateGroup={false}
-                    createGroupHref="/groups/new"
-                    showCloseSearch={true}
-                    onCloseSearch={() => setMobileSearchOpen(false)}
-                  />
-                </div>
-              </div>
-            )}
+    <div className="mobileActions">
+<button
+  type="button"
+onClick={() => setMobileSearchOpen(true)}
+  title="Buscar comunidad"
+  aria-label="Buscar comunidad"
+  className="mobileSearchIconButton"
+>
+        <VibraNavigationIcon type="search" size={24} strokeWidth={2.2} />
+      </button>
+    </div>
+  </div>
+)}
           </div>
         </header>
 
