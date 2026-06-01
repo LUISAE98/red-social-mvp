@@ -354,6 +354,7 @@ function getCommunityPreviewPriority(
 type GroupsSearchPanelProps = {
   fontStack: string;
   showCreateGroup?: boolean;
+  autoFocusOnMount?: boolean;
   createGroupHref?: string;
   showCloseSearch?: boolean;
   onCloseSearch?: () => void;
@@ -366,6 +367,7 @@ function isMobileSearchViewport() {
 export default function GroupsSearchPanel({
   fontStack,
   showCreateGroup = true,
+  autoFocusOnMount = false,
   createGroupHref = "/groups/new",
   showCloseSearch = false,
   onCloseSearch,
@@ -1342,7 +1344,7 @@ to {
   showCreateGroup={showCreateGroup}
   showCloseSearch={showCloseSearch}
   isMobileClosing={isSearchClosing}
-  autoFocusOnMount={true}
+  autoFocusOnMount={autoFocusOnMount}
 />
 
 {mounted && hasSearch && (

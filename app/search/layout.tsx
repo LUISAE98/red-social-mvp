@@ -31,16 +31,12 @@ function usePersistentSidebarScroll(key: string, restoreSignal?: unknown) {
 
     isRestoringRef.current = true;
 
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        el.scrollTop = target;
+el.scrollTop = target;
 
-        setTimeout(() => {
-          el.scrollTop = target;
-          isRestoringRef.current = false;
-        }, 80);
-      });
-    });
+setTimeout(() => {
+  el.scrollTop = target;
+  isRestoringRef.current = false;
+}, 80);
   };
 
   useEffect(() => {
@@ -64,12 +60,13 @@ function usePersistentSidebarScroll(key: string, restoreSignal?: unknown) {
     };
   }, [key]);
 
-  useLayoutEffect(() => {
-    restoreScroll();
-  }, [key, restoreSignal]);
+useLayoutEffect(() => {
+  restoreScroll();
+}, [key, restoreSignal]);
 
   return scrollRef;
 }
+
 function HeaderIconButton({
   onClick,
   href,
@@ -233,7 +230,7 @@ function WalletDesktopRail({
 
   const activeWalletTab = resolveWalletRailTab(activePath);
   const activeMainTab = resolveMainRailTab(activePath);
-const sidebarScrollRef = usePersistentSidebarScroll(
+ const sidebarScrollRef = usePersistentSidebarScroll(
   "vibra-wallet-rail-scroll",
   showWallet
 );
@@ -255,6 +252,7 @@ const sidebarScrollRef = usePersistentSidebarScroll(
   display: flex;
   flex-direction: column;
 }
+
 .walletRailCenter {
   flex: 1 1 auto;
   min-height: 0;
@@ -320,7 +318,6 @@ const sidebarScrollRef = usePersistentSidebarScroll(
   opacity: 0.32;
   z-index: 0;
 }
-  
 .railSection::after {
   content: "";
   position: absolute;
@@ -357,13 +354,14 @@ const sidebarScrollRef = usePersistentSidebarScroll(
   width: 100%;
   height: 40px;
   min-height: 40px;
+  filter: saturate(0.84) brightness(0.93);
+  box-shadow: 0 7px 18px rgba(168, 85, 255, 0.11);
 }
 
 @media (max-height: 760px) {
   .createCommunitySection {
     transform: none;
   }
-
   .walletRailCenter {
     gap: 10px;
   }
@@ -510,7 +508,8 @@ opacity: 0.85;
   letter-spacing: -0.01em;
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
   cursor: pointer;
-  box-shadow: 0 10px 28px rgba(168, 85, 255, 0.22);
+  box-shadow: 0 7px 18px rgba(168, 85, 255, 0.11);
+  filter: saturate(0.84) brightness(0.93);
   overflow: hidden;
   text-decoration: none;
   display: flex;
@@ -561,7 +560,6 @@ opacity: 0.85;
   color: rgba(255, 255, 255, 0.74);
   transition: color 180ms ease;
 }
-
 :global(.walletLinkActive) .walletIcon {
   color: #a855ff;
   opacity: 1;
@@ -632,7 +630,7 @@ opacity: 0.85;
       `}</style>
 
       <aside className="walletRail" aria-label="Accesos directos">
-        <div className="walletRailCenter" ref={sidebarScrollRef}>
+                <div className="walletRailCenter" ref={sidebarScrollRef}>
           <section className="railSection mainMenuSection" aria-label="Navegación principal">
             <h3 className="secondaryTitle">Menú</h3>
 
@@ -724,8 +722,6 @@ function PublicSearchShell({
     <>
       <style jsx>{`
         .layout {
-          position: relative;
-          z-index: 1;
           width: 100%;
           min-width: 0;
           min-height: auto;
@@ -735,21 +731,19 @@ function PublicSearchShell({
         }
 
         .contentArea {
-          position: relative;
-          z-index: 2;
           width: min(820px, calc(100% - 28px));
           min-width: 0;
           margin: 0 auto;
           padding-top: 24px;
-          padding-bottom: calc(48px + env(safe-area-inset-bottom));
+          padding-bottom: calc(24px + env(safe-area-inset-bottom));
           box-sizing: border-box;
         }
 
         @media (max-width: 900px) {
           .contentArea {
-            width: 100%;
+            width: min(720px, calc(100% - 20px));
             padding-top: 10px;
-            padding-bottom: calc(32px + env(safe-area-inset-bottom));
+            padding-bottom: calc(18px + env(safe-area-inset-bottom));
           }
         }
       `}</style>
@@ -771,62 +765,15 @@ function AuthenticatedSearchShell({
   const { user } = useAuth();
 
 const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-const [mobileHeaderOffset, setMobileHeaderOffset] = useState(0);
-const lastScrollYRef = useRef(0);
-const headerRef = useRef<HTMLElement | null>(null);
-
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  useEffect(() => {
-    setMobileSearchOpen(false);
-  }, [pathname]);
-
-// No reseteamos el scroll/header en cada cambio de ruta.
-// Esto evita el parpadeo visual al pasar de inicio a búsqueda
-// y mantiene la navegación más fluida.
-
 useEffect(() => {
-  if (mobileSearchOpen) {
-    setMobileHeaderOffset(0);
-    return;
-  }
+  setMobileSearchOpen(false);
+}, [pathname]);
 
-  function handleScroll() {
-    if (window.innerWidth > 900) {
-      setMobileHeaderOffset(0);
-      lastScrollYRef.current = window.scrollY;
-      return;
-    }
-
-    const currentScrollY = window.scrollY;
-    const previousScrollY = lastScrollYRef.current;
-    const scrollDifference = currentScrollY - previousScrollY;
-
-    if (currentScrollY < 8) {
-      setMobileHeaderOffset(0);
-      lastScrollYRef.current = currentScrollY;
-      return;
-    }
-
-    const headerHeight = headerRef.current?.offsetHeight ?? 64;
-
-    setMobileHeaderOffset((previousOffset) => {
-      const nextOffset = previousOffset - scrollDifference;
-      return Math.max(-headerHeight, Math.min(0, nextOffset));
-    });
-
-    lastScrollYRef.current = currentScrollY;
-  }
-
-  window.addEventListener("scroll", handleScroll, { passive: true });
-
-  return () => {
-    window.removeEventListener("scroll", handleScroll);
-  };
-}, [mobileSearchOpen]);
 
 const contentAreaClassName = "contentArea contentAreaWithWallet";
 
@@ -851,25 +798,43 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           flex-direction: column;
         }
 
+.safeAreaHeaderBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 56px);
+  z-index: 70;
+  pointer-events: none;
+  background: #000000;
+}
+
 .header {
   position: sticky;
   top: 0;
   z-index: 80;
-  padding-top: env(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top, 0px);
   border-bottom: none;
   background: transparent;
-  transform: translateY(var(--mobile-header-offset-y, 0px));
-  will-change: transform, margin-bottom;
+  pointer-events: none;
 }
 
-        .headerInner {
-          width: 100%;
-          padding-left: max(var(--shell-gutter), env(safe-area-inset-left));
-          padding-right: max(var(--shell-gutter), env(safe-area-inset-right));
-          padding-top: 8px;
-          padding-bottom: 8px;
-          box-sizing: border-box;
-        }
+.headerInner,
+.headerInner a,
+.headerInner button,
+.headerInner input {
+  pointer-events: auto;
+}
+
+.headerInner {
+  width: 100%;
+  min-height: 56px;
+  padding-left: max(var(--shell-gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--shell-gutter), env(safe-area-inset-right, 0px));
+  padding-top: 8px;
+  padding-bottom: 8px;
+  box-sizing: border-box;
+}
 
  .desktopHeader {
   display: grid;
@@ -896,26 +861,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           text-decoration: none;
         }
 
-
-
-.vibraLogoImage {
-  position: relative;
-  z-index: 2;
-  display: block;
-  width: 112px;
-  height: auto;
-  object-fit: contain;
-  animation: vibraLogoShake 5.8s ease-in-out infinite;
-}
-
-
-
-.vibraAnimatedLogo.isMobile .vibraWord {
-  left: 44px;
-  font-size: 18px;
-}
-
-.brandLogo {
+        .brandLogo {
   display: block;
   width: 112px;
   height: auto;
@@ -924,80 +870,9 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 
 .mobileBrandLogo {
   display: block;
-  width: 96px;
+  width: 86px;
   height: auto;
   object-fit: contain;
-}
-
-@keyframes vibraTextFlow {
-  0%, 100% {
-    background-position: 0% 50%;
-  }
-
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
-@keyframes vibraLetterCycle {
-  0%, 10% {
-    opacity: 0;
-    transform: translateX(-28px) translateY(0) scale(0.92);
-  }
-
-  18% {
-    opacity: 1;
-    transform: translateX(0) translateY(calc(var(--i) * -3px)) scale(1);
-  }
-
-  27% {
-    opacity: 1;
-    transform: translateX(0) translateY(calc(var(--i) * -7px)) scale(1.04);
-  }
-
-  38%, 68% {
-    opacity: 1;
-    transform: translateX(0) translateY(0) scale(1);
-  }
-
-  82%, 100% {
-    opacity: 0;
-    transform: translateX(-28px) translateY(0) scale(0.92);
-  }
-}
-
-@keyframes vibraLogoShake {
-  0%, 8%, 76%, 100% {
-    transform: translateX(0) rotate(0deg);
-  }
-
-  11% {
-    transform: translateX(-1px) rotate(-1deg);
-  }
-
-  13% {
-    transform: translateX(2px) rotate(1.2deg);
-  }
-
-  15% {
-    transform: translateX(-1px) rotate(-0.8deg);
-  }
-
-  17% {
-    transform: translateX(0) rotate(0deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vibraLogoImage,
-  .vibraLetter {
-    animation: none !important;
-  }
-
-  .vibraLetter {
-    opacity: 1;
-    transform: none;
-  }
 }
 
 .desktopMainCluster {
@@ -1026,15 +901,14 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           display: none;
         }
 
-        .mobileHeaderRow,
         .mobileSearchRow {
           display: none;
         }
 
-        .mobileHeaderRow {
-          min-height: 38px;
-          width: 100%;
-        }
+.mobileHeaderRow {
+  min-height: 40px;
+  width: 100%;
+}
 
         .mobileBrand {
           font-weight: 700;
@@ -1048,6 +922,42 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           max-width: 34vw;
         }
 
+.mobileBrand {
+  transform-origin: center;
+  transition:
+    opacity 160ms ease,
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mobileBrandHidden {
+  opacity: 0;
+  transform: scale(0.86);
+  pointer-events: none;
+}
+
+.mobileBrandVisible {
+  opacity: 1;
+  transform: scale(1);
+  animation: mobileBrandPopIn 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes mobileBrandPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+
+  70% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
         .mobileActions {
           display: flex;
           align-items: center;
@@ -1056,23 +966,34 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           flex-shrink: 0;
         }
 
-.mobileSearchRow {
-  width: 100%;
-  overflow: visible;
-  animation: mobile-search-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  transform-origin: top center;
+        .mobileSearchIconButton {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #a855ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
-@keyframes mobile-search-enter {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scaleX(0.92);
-  }
+.mobileSearchRow {
+  width: 100%;
+  min-height: 40px;
+  display: none;
+  align-items: center;
+  overflow: visible;
+}
 
-  to {
-    opacity: 1;
-    transform: translateY(0) scaleX(1);
-  }
+.mobileSearchCol {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
 }
 
         .mobileSearchCol {
@@ -1088,7 +1009,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   flex: 1;
   padding-left: var(--shell-gutter);
   padding-right: var(--shell-gutter);
-  padding-top: 24px;
+  padding-top: 20;
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
@@ -1164,29 +1085,56 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 
         @media (max-width: 900px) {
 
-          .header {
-            margin-bottom: var(--mobile-header-offset-y, 0px);
-          }
-          .headerInner {
-            width: 100%;
-            padding-top: 6px;
-            padding-bottom: 6px;
-          }
+.header {
+  position: sticky;
+  background: transparent;
+}
+
+.headerMobileSearchOpen {
+  background: transparent;
+}
+
+.headerInner {
+  width: 100%;
+  min-height: 48px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.headerInnerMobileSearchOpen {
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
 
           .desktopHeader {
             display: none;
           }
 
-          .mobileHeaderRow {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            min-width: 0;
-          }
+.mobileHeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 40px;
+}
 
-          .mobileSearchRow {
-            display: block;
-          }
+.mobileSearchRow {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  overflow: visible;
+}
+
+.mobileSearchCol {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+}
 
           .contentArea,
           .contentAreaWithWallet {
@@ -1236,15 +1184,19 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         }
       `}</style>
 
-      <div className="layout">
-        <header
-          ref={headerRef}
-          className="header"
-          style={{
-            "--mobile-header-offset-y": `${mobileHeaderOffset}px`,
-          } as React.CSSProperties}
-        >
-          <div className="headerInner">
+<div className="layout">
+<div className="safeAreaHeaderBackdrop" />
+
+<header
+  className={`header ${
+    mobileSearchOpen ? "headerMobileSearchOpen" : ""
+  }`}
+>
+          <div
+  className={`headerInner ${
+    mobileSearchOpen ? "headerInnerMobileSearchOpen" : ""
+  }`}
+>
             <div className="desktopHeader">
               <div className="brandCol">
 <Link href="/" className="brand" aria-label="Ir al inicio">
@@ -1267,46 +1219,42 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
               </div>
             </div>
 
-            {!mobileSearchOpen ? (
-              <div className="mobileHeaderRow">
-                <Link href="/" className="mobileBrand" aria-label="Ir al inicio">
+{mobileSearchOpen ? (
+  <div className="mobileSearchRow">
+    <div className="mobileSearchCol">
+      <GroupsSearchPanel
+        fontStack={fontStack}
+        showCreateGroup={false}
+        createGroupHref="/groups/new"
+        showCloseSearch={true}
+onCloseSearch={() => setMobileSearchOpen(false)}
+        autoFocusOnMount={true}
+      />
+    </div>
+  </div>
+) : (
+  <div className="mobileHeaderRow">
+<Link
+  href="/"
+  className={`mobileBrand ${mobileSearchOpen ? "mobileBrandHidden" : "mobileBrandVisible"}`}
+  aria-label="Ir al inicio"
+>
   <img src="/logotipo.png" alt="Vibra" className="mobileBrandLogo" />
 </Link>
 
-<div className="mobileActions">
-  <HeaderIconButton
-    onClick={() => setMobileSearchOpen(true)}
-    title="Buscar comunidad"
-    ariaLabel="Buscar comunidad"
-  >
-    <span
-      aria-hidden="true"
-      style={{
-        fontSize: 18,
-        lineHeight: 1,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      🔍
-    </span>
-  </HeaderIconButton>
-</div>
-              </div>
-            ) : (
-              <div className="mobileSearchRow">
-                <div className="mobileSearchCol">
-                  <GroupsSearchPanel
-                    fontStack={fontStack}
-                    showCreateGroup={false}
-                    createGroupHref="/groups/new"
-                    showCloseSearch={true}
-                    onCloseSearch={() => setMobileSearchOpen(false)}
-                  />
-                </div>
-              </div>
-            )}
+    <div className="mobileActions">
+<button
+  type="button"
+onClick={() => setMobileSearchOpen(true)}
+  title="Buscar comunidad"
+  aria-label="Buscar comunidad"
+  className="mobileSearchIconButton"
+>
+        <VibraNavigationIcon type="search" size={24} strokeWidth={2.2} />
+      </button>
+    </div>
+  </div>
+)}
           </div>
         </header>
 
@@ -1340,6 +1288,7 @@ export default function SearchLayout({
   children: React.ReactNode;
 }) {
   const { user } = useAuth();
+
 
   if (user) {
     return <AuthenticatedSearchShell>{children}</AuthenticatedSearchShell>;

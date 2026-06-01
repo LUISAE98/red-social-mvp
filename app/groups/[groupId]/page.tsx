@@ -1481,7 +1481,6 @@ const avatarNode = (
   min-height: 110px;
   min-width: 0;
 }
-
             .group-meta {
               display: grid;
               place-items: center;
@@ -1972,13 +1971,13 @@ const avatarNode = (
   min-width: 0;
 }
 
-          .group-header-copy {
-            padding-top: calc((clamp(112px, 24vw, 220px) / 2) + 22px);
-            position: relative;
-            z-index: 1;
-            min-height: 110px;
-            min-width: 0;
-          }
+.group-header-copy {
+  padding-top: calc((clamp(112px, 24vw, 220px) / 2) + 22px);
+  position: relative;
+  z-index: 1;
+  min-height: 110px;
+  min-width: 0;
+}
 
           .group-meta {
             display: grid;
