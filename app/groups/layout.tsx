@@ -767,14 +767,16 @@ function AuthenticatedGroupsShell({
   const { user } = useAuth();
 
 const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+const [safeAreaSearchOpen, setSafeAreaSearchOpen] = useState(false);
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  useEffect(() => {
-    setMobileSearchOpen(false);
-  }, [pathname]);
+useEffect(() => {
+  setMobileSearchOpen(false);
+  setSafeAreaSearchOpen(false);
+}, [pathname]);
 
 
 const contentAreaClassName = "contentArea contentAreaWithWallet";
@@ -809,11 +811,12 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   z-index: 70;
   pointer-events: none;
   background: #000000;
-  transition: background-color 220ms ease;
+  opacity: 1;
+  transition: opacity 220ms ease;
 }
 
 .safeAreaHeaderBackdropSearchOpen {
-  background: transparent;
+  opacity: 0;
 }
 
 .header {
@@ -1156,11 +1159,11 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
       `}</style>
 
 <div className="layout">
-  <div
-    className={`safeAreaHeaderBackdrop ${
-      mobileSearchOpen ? "safeAreaHeaderBackdropSearchOpen" : ""
-    }`}
-  />
+<div
+  className={`safeAreaHeaderBackdrop ${
+    safeAreaSearchOpen ? "safeAreaHeaderBackdropSearchOpen" : ""
+  }`}
+/>
 
 <header
   className={`header ${
@@ -1202,7 +1205,10 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         showCreateGroup={false}
         createGroupHref="/groups/new"
         showCloseSearch={true}
-        onCloseSearch={() => setMobileSearchOpen(false)}
+onCloseSearch={() => {
+  setSafeAreaSearchOpen(false);
+  setMobileSearchOpen(false);
+}}
       />
     </div>
   </div>
@@ -1213,13 +1219,16 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
     </Link>
 
     <div className="mobileActions">
-      <button
-        type="button"
-        onClick={() => setMobileSearchOpen(true)}
-        title="Buscar comunidad"
-        aria-label="Buscar comunidad"
-        className="mobileSearchIconButton"
-      >
+<button
+  type="button"
+  onClick={() => {
+    setSafeAreaSearchOpen(true);
+    setMobileSearchOpen(true);
+  }}
+  title="Buscar comunidad"
+  aria-label="Buscar comunidad"
+  className="mobileSearchIconButton"
+>
         <VibraNavigationIcon type="search" size={24} strokeWidth={2.2} />
       </button>
     </div>
