@@ -800,18 +800,29 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           flex-direction: column;
         }
 
+.safeAreaHeaderBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 56px);
+  z-index: 70;
+  pointer-events: none;
+  background: #000000;
+  transition: background-color 220ms ease;
+}
+
+.safeAreaHeaderBackdropSearchOpen {
+  background: transparent;
+}
+
 .header {
   position: sticky;
   top: 0;
   z-index: 80;
-  height: 72px;
-  padding-top: env(safe-area-inset-top);
+  padding-top: env(safe-area-inset-top, 0px);
   border-bottom: none;
   background: transparent;
-  pointer-events: none;
-}
-
-.header {
   pointer-events: none;
 }
 
@@ -822,14 +833,15 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   pointer-events: auto;
 }
 
-        .headerInner {
-          width: 100%;
-          padding-left: max(var(--shell-gutter), env(safe-area-inset-left));
-          padding-right: max(var(--shell-gutter), env(safe-area-inset-right));
-          padding-top: 8px;
-          padding-bottom: 8px;
-          box-sizing: border-box;
-        }
+.headerInner {
+  width: 100%;
+  min-height: 56px;
+  padding-left: max(var(--shell-gutter), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--shell-gutter), env(safe-area-inset-right, 0px));
+  padding-top: 8px;
+  padding-bottom: 8px;
+  box-sizing: border-box;
+}
 
  .desktopHeader {
   display: grid;
@@ -946,8 +958,6 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   display: none;
   align-items: center;
   overflow: visible;
-  animation: mobile-search-enter 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  transform-origin: center;
 }
 
 .mobileSearchCol {
@@ -955,18 +965,6 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   min-height: 40px;
   display: flex;
   align-items: center;
-}
-
-@keyframes mobile-search-enter {
-  from {
-    opacity: 0;
-    transform: translateY(-8px) scaleX(0.92);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scaleX(1);
-  }
 }
 
         .mobileSearchCol {
@@ -1060,18 +1058,13 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 
 .header {
   position: sticky;
-  background: #000000;
-  transition:
-    background-color 220ms ease,
-    backdrop-filter 220ms ease,
-    -webkit-backdrop-filter 220ms ease;
+  background: transparent;
 }
 
 .headerMobileSearchOpen {
-  background: rgba(0, 0, 0, 0);
-  backdrop-filter: blur(0px);
-  -webkit-backdrop-filter: blur(0px);
+  background: transparent;
 }
+
 .headerInner {
   width: 100%;
   min-height: 48px;
@@ -1079,10 +1072,6 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   padding-bottom: 4px;
   box-sizing: border-box;
   overflow: visible;
-  transition:
-    background 180ms ease,
-    box-shadow 180ms ease,
-    backdrop-filter 180ms ease;
 }
 
 .headerInnerMobileSearchOpen {
@@ -1166,7 +1155,13 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         }
       `}</style>
 
-      <div className="layout">
+<div className="layout">
+  <div
+    className={`safeAreaHeaderBackdrop ${
+      mobileSearchOpen ? "safeAreaHeaderBackdropSearchOpen" : ""
+    }`}
+  />
+
 <header
   className={`header ${
     mobileSearchOpen ? "headerMobileSearchOpen" : ""
