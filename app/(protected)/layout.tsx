@@ -773,10 +773,6 @@ function AuthenticatedProfileShell({
   const { user } = useAuth();
 
 const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-const [mobileHeaderOffset, setMobileHeaderOffset] = useState(0);
-const lastScrollYRef = useRef(0);
-const headerRef = useRef<HTMLElement | null>(null);
-
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 
   const fontStack =
@@ -785,51 +781,6 @@ const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
   useEffect(() => {
     setMobileSearchOpen(false);
   }, [pathname]);
-
-useEffect(() => {
-  setMobileHeaderOffset(0);
-  lastScrollYRef.current = 0;
-}, [pathname]);
-
-useEffect(() => {
-  if (mobileSearchOpen) {
-    setMobileHeaderOffset(0);
-    return;
-  }
-
-  function handleScroll() {
-    if (window.innerWidth > 900) {
-      setMobileHeaderOffset(0);
-      lastScrollYRef.current = window.scrollY;
-      return;
-    }
-
-    const currentScrollY = window.scrollY;
-    const previousScrollY = lastScrollYRef.current;
-    const scrollDifference = currentScrollY - previousScrollY;
-
-    if (currentScrollY < 8) {
-      setMobileHeaderOffset(0);
-      lastScrollYRef.current = currentScrollY;
-      return;
-    }
-
-    const headerHeight = headerRef.current?.offsetHeight ?? 64;
-
-    setMobileHeaderOffset((previousOffset) => {
-      const nextOffset = previousOffset - scrollDifference;
-      return Math.max(-headerHeight, Math.min(0, nextOffset));
-    });
-
-    lastScrollYRef.current = currentScrollY;
-  }
-
-  window.addEventListener("scroll", handleScroll, { passive: true });
-
-  return () => {
-    window.removeEventListener("scroll", handleScroll);
-  };
-}, [mobileSearchOpen]);
 
 const contentAreaClassName = "contentArea contentAreaWithWallet";
 
@@ -861,8 +812,6 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   padding-top: env(safe-area-inset-top);
   border-bottom: none;
   background: transparent;
-  transform: translateY(var(--mobile-header-offset-y, 0px));
-  will-change: transform, margin-bottom;
 }
 
         .headerInner {
@@ -1167,9 +1116,9 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 
         @media (max-width: 900px) {
 
-          .header {
-            margin-bottom: var(--mobile-header-offset-y, 0px);
-          }
+.header {
+  background: #000000;
+}
           .headerInner {
             width: 100%;
             padding-top: 6px;
@@ -1240,13 +1189,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
       `}</style>
 
       <div className="layout">
-        <header
-          ref={headerRef}
-          className="header"
-          style={{
-            "--mobile-header-offset-y": `${mobileHeaderOffset}px`,
-          } as React.CSSProperties}
-        >
+<header className="header">
           <div className="headerInner">
             <div className="desktopHeader">
               <div className="brandCol">

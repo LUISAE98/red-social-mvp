@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import {
@@ -387,6 +388,7 @@ export default function GroupsSearchPanel({
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [mounted, setMounted] = useState(false);
 
   const cardBorder = "1px solid rgba(255,255,255,0.14)";
   const softBorder = "1px solid rgba(255,255,255,0.18)";
@@ -396,6 +398,8 @@ const normalizedSearch = debouncedSearch.trim().toLowerCase();
 const hasSearch = normalizedSearch.length >= MIN_SEARCH_LENGTH;
 
   useEffect(() => {
+    setMounted(true);
+
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setAuthLoading(false);
@@ -817,29 +821,29 @@ function handleOpenFullResults() {
 }
 
 .search-dropdown {
-  position: absolute;
-  top: calc(100% + 10px);
-  left: 0;
-  right: 0;
-  width: 100%;
-  max-width: 100%;
-          border: ${cardBorder};
-          border-radius: 20px;
-          background: rgba(12, 12, 12, 0.97);
-          box-shadow: ${shadow};
-          overflow: hidden;
-          backdrop-filter: blur(14px);
-          -webkit-backdrop-filter: blur(14px);
-          z-index: 80;
-          display: flex;
-          flex-direction: column;
-          max-height: min(62vh, 560px);
-          opacity: 0;
-          transform: translateY(-8px) scaleY(0.96);
-          transform-origin: top center;
-          animation: dropdown-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1)
-            forwards;
-        }
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 62px);
+  left: 12px;
+  right: 12px;
+  width: auto;
+  max-width: none;
+  min-width: 0;
+  border: ${cardBorder};
+  border-radius: 20px;
+  background: rgba(12, 12, 12, 0.97);
+  box-shadow: ${shadow};
+  overflow: hidden;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  max-height: min(58dvh, 460px);
+  opacity: 0;
+  transform: translateY(-8px) scaleY(0.96);
+  transform-origin: top center;
+  animation: dropdown-enter 0.28s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
 
         @keyframes dropdown-enter {
 from {
@@ -1151,54 +1155,60 @@ to {
         }
 
 @media (max-width: 640px) {
-.service-dot {
-  width: 7px;
-  height: 7px;
-  border-width: 1.4px;
-}
+  .search-area {
+    position: relative;
+    z-index: 9999;
+    overflow: visible;
+  }
 
-.service-dots-desktop {
-  display: none;
-}
-
-.service-dots-mobile {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 14px;
-  margin-top: -1px;
-}
-
-.mobile-service-separator {
-  color: rgba(255, 255, 255, 0.34);
-  font-size: 10px;
-  line-height: 1;
-  flex-shrink: 0;
-}
-  .mobile-visibility-label {
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.mobile-visibility-label {
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 10px;
-  font-weight: 500;
-  line-height: 1.2;
-  white-space: nowrap;
-}
   .search-dropdown {
-    top: calc(100% + 8px);
-    left: 0;
-    right: 0;
-    width: 100%;
-    max-width: 100%;
-    min-width: 100%;
+    position: fixed;
+    top: calc(env(safe-area-inset-top, 0px) + 62px);
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: none;
+    min-width: 0;
     border-radius: 18px;
-    max-height: min(58vh, 460px);
+    max-height: min(58dvh, 460px);
+    z-index: 99999;
+  }
+
+  .search-dropdown-inner {
+    overscroll-behavior: contain;
+  }
+
+  .service-dot {
+    width: 7px;
+    height: 7px;
+    border-width: 1.4px;
+  }
+
+  .service-dots-desktop {
+    display: none;
+  }
+
+  .service-dots-mobile {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 14px;
+    margin-top: -1px;
+  }
+
+  .mobile-service-separator {
+    color: rgba(255, 255, 255, 0.34);
+    font-size: 10px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .mobile-visibility-label {
+    color: rgba(255, 255, 255, 0.48);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
   }
 
   .result-description-preview {
@@ -1209,68 +1219,68 @@ to {
     display: none;
   }
 
-.visibility-mobile {
-  display: none;
+  .visibility-mobile {
+    display: none;
+  }
+
+  .dropdown-title {
+    padding: 11px 13px 8px;
+    font-size: 11px;
+  }
+
+  .result-item {
+    padding: 10px 12px;
+  }
+
+  .result-grid {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .result-main-mobile {
+    gap: 8px;
+    align-items: center;
+  }
+
+  .result-avatar {
+    width: 38px;
+    height: 38px;
+  }
+
+  .result-content {
+    min-width: 0;
+  }
+
+  .result-name {
+    font-size: 13px;
+  }
+
+  .result-name-visibility {
+    font-size: 10px;
+  }
+
+  .result-meta {
+    gap: 5px;
+  }
+
+  .actions-wrap {
+    justify-content: flex-end;
+    width: auto;
+  }
+
+  .primary-btn,
+  .secondary-btn,
+  .disabled-btn {
+    min-height: 32px;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .profile-cta {
+    display: none;
+  }
 }
-
-          .dropdown-title {
-            padding: 11px 13px 8px;
-            font-size: 11px;
-          }
-
-          .result-item {
-            padding: 10px 12px;
-          }
-
-          .result-grid {
-            grid-template-columns: minmax(0, 1fr) auto;
-            gap: 8px;
-            align-items: center;
-          }
-
-          .result-main-mobile {
-            gap: 8px;
-            align-items: center;
-          }
-
-          .result-avatar {
-            width: 38px;
-            height: 38px;
-          }
-
-          .result-content {
-            min-width: 0;
-          }
-
-.result-name {
-  font-size: 13px;
-}
-
-.result-name-visibility {
-  font-size: 10px;
-}
-
-          .result-meta {
-            gap: 5px;
-          }
-
-          .actions-wrap {
-            justify-content: flex-end;
-            width: auto;
-          }
-
-          .primary-btn,
-          .secondary-btn,
-          .disabled-btn {
-            min-height: 32px;
-            padding: 6px 10px;
-            font-size: 11px;
-          }
-
-          .profile-cta {
-            display: none;
-          }
-        }
       `}</style>
 
       <div ref={searchAreaRef} className="search-area">
@@ -1286,7 +1296,7 @@ to {
           showCloseSearch={showCloseSearch}
         />
 
-        {hasSearch && (
+        {mounted && hasSearch && createPortal(
           <div className="search-dropdown">
             <div className="search-dropdown-inner">
               {isLoading && (
@@ -1546,7 +1556,8 @@ const visLabel =
                 </button>
               </div>
             )}
-          </div>
+          </div>,
+          document.body
         )}
 
         {error && <div className="error-card">{error}</div>}

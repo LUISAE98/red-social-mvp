@@ -767,10 +767,6 @@ function AuthenticatedGroupsShell({
   const { user } = useAuth();
 
 const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-const [mobileHeaderOffset, setMobileHeaderOffset] = useState(0);
-const lastScrollYRef = useRef(0);
-const headerRef = useRef<HTMLElement | null>(null);
-
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 
   const fontStack =
@@ -780,50 +776,6 @@ const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
     setMobileSearchOpen(false);
   }, [pathname]);
 
-useEffect(() => {
-  setMobileHeaderOffset(0);
-  lastScrollYRef.current = 0;
-}, [pathname]);
-
-useEffect(() => {
-  if (mobileSearchOpen) {
-    setMobileHeaderOffset(0);
-    return;
-  }
-
-  function handleScroll() {
-    if (window.innerWidth > 900) {
-      setMobileHeaderOffset(0);
-      lastScrollYRef.current = window.scrollY;
-      return;
-    }
-
-    const currentScrollY = window.scrollY;
-    const previousScrollY = lastScrollYRef.current;
-    const scrollDifference = currentScrollY - previousScrollY;
-
-    if (currentScrollY < 8) {
-      setMobileHeaderOffset(0);
-      lastScrollYRef.current = currentScrollY;
-      return;
-    }
-
-    const headerHeight = headerRef.current?.offsetHeight ?? 64;
-
-    setMobileHeaderOffset((previousOffset) => {
-      const nextOffset = previousOffset - scrollDifference;
-      return Math.max(-headerHeight, Math.min(0, nextOffset));
-    });
-
-    lastScrollYRef.current = currentScrollY;
-  }
-
-  window.addEventListener("scroll", handleScroll, { passive: true });
-
-  return () => {
-    window.removeEventListener("scroll", handleScroll);
-  };
-}, [mobileSearchOpen]);
 
 const contentAreaClassName = "contentArea contentAreaWithWallet";
 
@@ -855,8 +807,6 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   padding-top: env(safe-area-inset-top);
   border-bottom: none;
   background: transparent;
-  transform: translateY(var(--mobile-header-offset-y, 0px));
-  will-change: transform, margin-bottom;
 }
 
         .headerInner {
@@ -902,7 +852,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 
 .mobileBrandLogo {
   display: block;
-  width: 96px;
+  width: 86px;
   height: auto;
   object-fit: contain;
 }
@@ -932,16 +882,15 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         .desktopLogoutWrap {
           display: none;
         }
-
-        .mobileHeaderRow,
+          
         .mobileSearchRow {
           display: none;
         }
 
-        .mobileHeaderRow {
-          min-height: 38px;
-          width: 100%;
-        }
+.mobileHeaderRow {
+  min-height: 40px;
+  width: 100%;
+}
 
         .mobileBrand {
           font-weight: 700;
@@ -963,11 +912,36 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           flex-shrink: 0;
         }
 
+        .mobileSearchIconButton {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: #a855ff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
 .mobileSearchRow {
   width: 100%;
+  min-height: 40px;
+  display: none;
+  align-items: center;
   overflow: visible;
-  animation: mobile-search-enter 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  transform-origin: top center;
+  animation: mobile-search-enter 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transform-origin: center;
+}
+
+.mobileSearchCol {
+  width: 100%;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
 }
 
 @keyframes mobile-search-enter {
@@ -1071,29 +1045,47 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 
         @media (max-width: 900px) {
 
-          .header {
-            margin-bottom: var(--mobile-header-offset-y, 0px);
-          }
-          .headerInner {
-            width: 100%;
-            padding-top: 6px;
-            padding-bottom: 6px;
-          }
+.header {
+  position: sticky;
+  background: #000000;
+}
+.headerInner {
+  width: 100%;
+  height: 48px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
 
           .desktopHeader {
             display: none;
           }
 
-          .mobileHeaderRow {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            min-width: 0;
-          }
+.mobileHeaderRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 40px;
+}
 
-          .mobileSearchRow {
-            display: block;
-          }
+.mobileSearchRow {
+  display: flex;
+  height: 40px;
+  align-items: center;
+}
+
+.mobileSearchCol {
+  height: 40px;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+}
+
+.mobileSearchCol :global(*) {
+  max-height: 40px;
+}
 
           .contentArea,
           .contentAreaWithWallet {
@@ -1144,13 +1136,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
       `}</style>
 
       <div className="layout">
-        <header
-          ref={headerRef}
-          className="header"
-          style={{
-            "--mobile-header-offset-y": `${mobileHeaderOffset}px`,
-          } as React.CSSProperties}
-        >
+<header className="header">
           <div className="headerInner">
             <div className="desktopHeader">
               <div className="brandCol">
@@ -1174,46 +1160,37 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
               </div>
             </div>
 
-            {!mobileSearchOpen ? (
-              <div className="mobileHeaderRow">
-                <Link href="/" className="mobileBrand" aria-label="Ir al inicio">
-  <img src="/logotipo.png" alt="Vibra" className="mobileBrandLogo" />
-</Link>
+{mobileSearchOpen ? (
+  <div className="mobileSearchRow">
+    <div className="mobileSearchCol">
+      <GroupsSearchPanel
+        fontStack={fontStack}
+        showCreateGroup={false}
+        createGroupHref="/groups/new"
+        showCloseSearch={true}
+        onCloseSearch={() => setMobileSearchOpen(false)}
+      />
+    </div>
+  </div>
+) : (
+  <div className="mobileHeaderRow">
+    <Link href="/" className="mobileBrand" aria-label="Ir al inicio">
+      <img src="/logotipo.png" alt="Vibra" className="mobileBrandLogo" />
+    </Link>
 
-<div className="mobileActions">
-  <HeaderIconButton
-    onClick={() => setMobileSearchOpen(true)}
-    title="Buscar comunidad"
-    ariaLabel="Buscar comunidad"
-  >
-    <span
-      aria-hidden="true"
-      style={{
-        fontSize: 18,
-        lineHeight: 1,
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      🔍
-    </span>
-  </HeaderIconButton>
-</div>
-              </div>
-            ) : (
-              <div className="mobileSearchRow">
-                <div className="mobileSearchCol">
-                  <GroupsSearchPanel
-                    fontStack={fontStack}
-                    showCreateGroup={false}
-                    createGroupHref="/groups/new"
-                    showCloseSearch={true}
-                    onCloseSearch={() => setMobileSearchOpen(false)}
-                  />
-                </div>
-              </div>
-            )}
+    <div className="mobileActions">
+      <button
+        type="button"
+        onClick={() => setMobileSearchOpen(true)}
+        title="Buscar comunidad"
+        aria-label="Buscar comunidad"
+        className="mobileSearchIconButton"
+      >
+        <VibraNavigationIcon type="search" size={24} strokeWidth={2.2} />
+      </button>
+    </div>
+  </div>
+)}
           </div>
         </header>
 
