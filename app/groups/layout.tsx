@@ -908,21 +908,25 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         }
 
 .mobileHeaderRow {
+  display: none;
   min-height: 40px;
   width: 100%;
+  pointer-events: none;
 }
 
-        .mobileBrand {
-          font-weight: 700;
-          letter-spacing: -0.02em;
-          line-height: 1.1;
-          min-width: 0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          flex: 0 1 auto;
-          max-width: 34vw;
-        }
+.mobileBrand {
+  display: none;
+  pointer-events: none;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 0 1 auto;
+  max-width: 34vw;
+}
 
 .mobileBrand {
   transform-origin: center;
@@ -1127,6 +1131,12 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   gap: 10px;
   min-width: 0;
   height: 40px;
+  pointer-events: auto;
+}
+
+.mobileBrand {
+  display: flex;
+  pointer-events: auto;
 }
 
 .mobileSearchRow {

@@ -22,15 +22,15 @@ export default function GroupsHome() {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  const pageWrap: CSSProperties = {
-    padding: "12px 0 calc(118px + env(safe-area-inset-bottom))",
-    background: "transparent",
-    minHeight: "100vh",
-    color: "#fff",
-    fontFamily: fontStack,
-    width: "100%",
-    boxSizing: "border-box",
-  };
+const pageWrap: CSSProperties = {
+  padding: "0 0 calc(118px + env(safe-area-inset-bottom))",
+  background: "transparent",
+  minHeight: "100vh",
+  color: "#fff",
+  fontFamily: fontStack,
+  width: "100%",
+  boxSizing: "border-box",
+};
 
   const container: CSSProperties = {
     width: "100%",

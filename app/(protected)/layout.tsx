@@ -914,21 +914,25 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         }
 
 .mobileHeaderRow {
+  display: none;
   min-height: 40px;
   width: 100%;
+  pointer-events: none;
 }
 
-        .mobileBrand {
-          font-weight: 700;
-          letter-spacing: -0.02em;
-          line-height: 1.1;
-          min-width: 0;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          flex: 0 1 auto;
-          max-width: 34vw;
-        }
+.mobileBrand {
+  display: none;
+  pointer-events: none;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 0 1 auto;
+  max-width: 34vw;
+}
 
 .mobileBrand {
   transform-origin: center;
@@ -1017,9 +1021,10 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   flex: 1;
   padding-left: var(--shell-gutter);
   padding-right: var(--shell-gutter);
-  padding-top: 24px;
+  padding-top: 0;
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
   box-sizing: border-box;
+  align-items: start;
 }
 
 .contentAreaWithWallet {
@@ -1029,25 +1034,29 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 
 .sidebarCol {
   position: sticky;
-  top: calc(env(safe-area-inset-top) + 112px);
+  top: calc(env(safe-area-inset-top) + 90px);
   align-self: start;
   min-width: 0;
   z-index: 90;
 }
 
-        .mainCol {
-          min-width: 0;
-          width: 100%;
-          position: relative;
-          z-index: 1;
-          padding-bottom: 90px;
-        }
+.mainCol {
+  min-width: 0;
+  width: 100%;
+  position: relative;
+  z-index: 1;
+  padding-top: 0;
+  padding-bottom: 90px;
+  align-self: start;
+}
 
 .mainInner {
   width: min(var(--main-max-width), 100%);
   margin-left: auto;
   margin-right: auto;
+  margin-top: 0;
 }
+  
 .walletCol {
   position: fixed;
   top: calc(env(safe-area-inset-top) + 90px);

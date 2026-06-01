@@ -471,43 +471,46 @@ function SearchPageContent() {
       </section>
 
       <style jsx>{`
-        .search-page {
-          position: relative;
-          z-index: 2;
-          width: 100%;
-          min-height: 100%;
-          color: #fff;
-          display: grid;
-          justify-items: center;
-          align-content: start;
-          padding: 0 0 96px;
-          box-sizing: border-box;
-        }
+.search-page {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  min-height: 100%;
+  color: #fff;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  padding: 0 0 96px;
+  box-sizing: border-box;
+  margin-top: 0;
+}
 
-        .search-content {
-          position: relative;
-          z-index: 3;
-          width: min(100%, 1040px);
-          display: grid;
-          gap: 14px;
-          padding: 0 16px;
-          box-sizing: border-box;
-        }
+.search-content {
+  position: relative;
+  z-index: 3;
+  width: min(100%, 1040px);
+  display: grid;
+  gap: 8px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  margin-top: 0;
+}
 
-        .search-query {
-          color: rgba(255, 255, 255, 0.62);
-          font-size: 13px;
-          line-height: 1.35;
-          padding: 0 2px;
-        }
+.search-query {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 13px;
+  line-height: 1.35;
+  padding: 0 2px;
+  margin: 0;
+}
 
-        @media (max-width: 768px) {
-          .search-content {
-            width: 100%;
-            padding: 0 10px;
-            gap: 12px;
-          }
-        }
+@media (max-width: 768px) {
+  .search-content {
+    width: 100%;
+    padding: 0 10px;
+    gap: 12px;
+  }
+}
       `}</style>
     </main>
   );

@@ -701,7 +701,9 @@ const shellStyle: CSSProperties = {
   gap: 6,
   marginLeft: "auto",
   marginRight: "auto",
+  marginTop: 0,
   marginBottom: 18,
+  paddingTop: 0,
   overflowX: "hidden",
 };
 

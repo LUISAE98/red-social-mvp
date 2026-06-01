@@ -1342,7 +1342,7 @@ await createExclusiveSessionRequest({
           minHeight: "100dvh",
           background: "#000",
           color: "#fff",
-          padding: "12px 0 calc(108px + env(safe-area-inset-bottom))",
+          padding: "0 0 calc(108px + env(safe-area-inset-bottom))",
           fontFamily: fontStack,
         }}
       >
@@ -1360,7 +1360,7 @@ await createExclusiveSessionRequest({
           minHeight: "100dvh",
           background: "#000",
           color: "#fff",
-          padding: "12px 0 calc(108px + env(safe-area-inset-bottom))",
+          padding: "0 0 calc(108px + env(safe-area-inset-bottom))",
           fontFamily: fontStack,
         }}
       >
@@ -2009,9 +2009,9 @@ await createExclusiveSessionRequest({
             </div>
           </div>
 
-          {shouldShowSubnav && (
-            <div style={{ marginTop: 12 }}>
-              <ProfileSubnav
+{shouldShowSubnav && (
+  <div style={{ marginTop: 8 }}>
+    <ProfileSubnav
                 activeTab={activeTab}
                 onChange={setActiveTab}
                 isOwner={isOwner}
@@ -2140,10 +2140,10 @@ await createExclusiveSessionRequest({
             )}
 
             {activeTab === "services" && isOwner && (
-              <section
-                className="profile-tab-panel"
-                style={{ ...styles.tabPlaceholder, marginTop: 12 }}
-              >
+<section
+  className="profile-tab-panel"
+  style={{ ...styles.tabPlaceholder, marginTop: 8 }}
+>
                 <ProfileServicesTab
   profileUserId={userDoc.uid}
   currentUserId={viewer.uid}
@@ -2171,10 +2171,10 @@ await createExclusiveSessionRequest({
             )}
 
             {activeTab === "settings" && isOwner && (
-              <section
-                className="profile-tab-panel"
-                style={{ ...styles.tabPlaceholder, marginTop: 12 }}
-              >
+<section
+  className="profile-tab-panel"
+  style={{ ...styles.tabPlaceholder, marginTop: 8 }}
+>
                 <ProfileSettingsTab
   isSaving={savingProfileRestricted}
   isRestricted={profileRestricted}

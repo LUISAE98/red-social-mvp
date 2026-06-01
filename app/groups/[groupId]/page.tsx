@@ -1160,10 +1160,25 @@ const openCropWithFile = useCallback(
     }
   }
 
+  const groupRoutePageWrap: React.CSSProperties = {
+    ...pageWrap,
+    background: "transparent",
+    minHeight: "auto",
+    paddingTop: 0,
+    paddingBottom: 0,
+  };
+
+  const groupRouteContainer: React.CSSProperties = {
+    ...container,
+    paddingTop: 0,
+    paddingBottom: 0,
+    marginTop: 0,
+  };
+
   if (loading) {
     return (
-      <main style={{ ...pageWrap, background: "transparent" }}>
-        <div style={container}>
+      <main style={groupRoutePageWrap}>
+        <div style={groupRouteContainer}>
           <div style={{ ...cardStyle, padding: 18 }}>
             <div style={textStyle}>Cargando comunidad...</div>
           </div>
@@ -1174,8 +1189,8 @@ const openCropWithFile = useCallback(
 
   if (error && !group) {
     return (
-      <main style={{ ...pageWrap, background: "transparent" }}>
-        <div style={container}>
+      <main style={groupRoutePageWrap}>
+        <div style={groupRouteContainer}>
           <div style={{ ...cardStyle, padding: 18 }}>
             <div style={{ ...messageBox, color: "#fff" }}>{error}</div>
           </div>
@@ -1196,8 +1211,8 @@ const openCropWithFile = useCallback(
 
   if (groupIsDeleted) {
     return (
-      <main style={{ ...pageWrap, background: "transparent" }}>
-        <div style={container}>
+      <main style={groupRoutePageWrap}>
+        <div style={groupRouteContainer}>
           <div style={{ ...cardStyle, padding: 18 }}>
             <div style={{ display: "grid", gap: 10 }}>
               <h1 style={{ ...titleStyle, margin: 0 }}>
@@ -1419,7 +1434,7 @@ const avatarNode = (
 
     return (
       <>
-        <main style={{ ...pageWrap, background: "transparent" }}>
+        <main style={groupRoutePageWrap}>
           <style jsx>{`
             .group-shell {
               width: 100%;
@@ -1550,7 +1565,7 @@ const avatarNode = (
 }
           `}</style>
 
-          <div style={container} className="group-shell">
+          <div style={groupRouteContainer}>
             <section
   className="group-card"
   style={groupHeaderCardStyle}
@@ -1916,7 +1931,7 @@ const avatarNode = (
 
   return (
     <>
-      <main style={{ ...pageWrap, background: "transparent" }}>
+      <main style={groupRoutePageWrap}>
         <style jsx>{`
           .group-shell {
             width: 100%;
@@ -2110,7 +2125,7 @@ const avatarNode = (
 }
         `}</style>
 
-        <div style={container} className="group-shell">
+        <div style={groupRouteContainer}>
           <section
   className="group-card"
   style={groupHeaderCardStyle}
