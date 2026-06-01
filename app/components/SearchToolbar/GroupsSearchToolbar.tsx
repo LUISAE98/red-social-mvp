@@ -12,6 +12,7 @@ export type GroupsSearchToolbarProps = {
   showCloseSearch?: boolean;
   placeholder?: string;
   ariaLabel?: string;
+  isMobileClosing?: boolean;
 };
 
 export default function GroupsSearchToolbar({
@@ -24,6 +25,7 @@ export default function GroupsSearchToolbar({
   showCloseSearch = false,
   placeholder = "Buscar comunidades, perfiles o publicaciones...",
   ariaLabel = "Buscar comunidades, perfiles o publicaciones",
+  isMobileClosing = false,
 }: GroupsSearchToolbarProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -198,12 +200,43 @@ export default function GroupsSearchToolbar({
             justify-content: center;
           }
 
-          .search-input-wrap {
-            width: 100%;
-            max-width: 100%;
-            opacity: 1;
-            transform: none;
-          }
+.search-input-wrap {
+  width: 100%;
+  max-width: 100%;
+  opacity: 1;
+  transform: none;
+  overflow: hidden;
+  transform-origin: right center;
+  animation:
+    mobileToolbarOpen 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+    vibraSearchBorderFlow 4.2s ease-in-out infinite;
+}
+
+.search-input-wrap.mobile-closing {
+  animation:
+    mobileToolbarClose 0.26s ease forwards,
+    vibraSearchBorderFlow 4.2s ease-in-out infinite;
+}
+
+@keyframes mobileToolbarOpen {
+  from {
+    clip-path: inset(0 0 0 100% round 18px);
+  }
+
+  to {
+    clip-path: inset(0 0 0 0 round 18px);
+  }
+}
+
+@keyframes mobileToolbarClose {
+  from {
+    clip-path: inset(0 0 0 0 round 18px);
+  }
+
+  to {
+    clip-path: inset(0 0 0 100% round 18px);
+  }
+}
 
 .search-input {
   height: 40px;
@@ -221,7 +254,7 @@ export default function GroupsSearchToolbar({
 
       <div className="search-toolbar">
         <div className="search-main">
-          <div className="search-input-wrap">
+          <div className={`search-input-wrap${isMobileClosing ? " mobile-closing" : ""}`}>
             <input
               ref={inputRef}
               type="text"

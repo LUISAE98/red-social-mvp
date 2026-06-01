@@ -804,9 +804,22 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   position: sticky;
   top: 0;
   z-index: 80;
+  height: 72px;
   padding-top: env(safe-area-inset-top);
   border-bottom: none;
   background: transparent;
+  pointer-events: none;
+}
+
+.header {
+  pointer-events: none;
+}
+
+.headerInner,
+.headerInner a,
+.headerInner button,
+.headerInner input {
+  pointer-events: auto;
 }
 
         .headerInner {
@@ -882,7 +895,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         .desktopLogoutWrap {
           display: none;
         }
-          
+
         .mobileSearchRow {
           display: none;
         }
@@ -969,7 +982,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   flex: 1;
   padding-left: var(--shell-gutter);
   padding-right: var(--shell-gutter);
-  padding-top: 24px;
+  padding-top: 20;
   padding-bottom: calc(24px + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
@@ -1048,14 +1061,35 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 .header {
   position: sticky;
   background: #000000;
+  transition:
+    background-color 220ms ease,
+    backdrop-filter 220ms ease,
+    -webkit-backdrop-filter 220ms ease;
+}
+
+.headerMobileSearchOpen {
+  background: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
 }
 .headerInner {
   width: 100%;
-  height: 48px;
+  min-height: 48px;
   padding-top: 4px;
   padding-bottom: 4px;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible;
+  transition:
+    background 180ms ease,
+    box-shadow 180ms ease,
+    backdrop-filter 180ms ease;
+}
+
+.headerInnerMobileSearchOpen {
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
           .desktopHeader {
@@ -1072,19 +1106,16 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 
 .mobileSearchRow {
   display: flex;
-  height: 40px;
+  min-height: 44px;
   align-items: center;
+  overflow: visible;
 }
 
 .mobileSearchCol {
-  height: 40px;
-  min-height: 0;
+  min-height: 44px;
   display: flex;
   align-items: center;
-}
-
-.mobileSearchCol :global(*) {
-  max-height: 40px;
+  overflow: visible;
 }
 
           .contentArea,
@@ -1136,8 +1167,16 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
       `}</style>
 
       <div className="layout">
-<header className="header">
-          <div className="headerInner">
+<header
+  className={`header ${
+    mobileSearchOpen ? "headerMobileSearchOpen" : ""
+  }`}
+>
+          <div
+  className={`headerInner ${
+    mobileSearchOpen ? "headerInnerMobileSearchOpen" : ""
+  }`}
+>
             <div className="desktopHeader">
               <div className="brandCol">
 <Link href="/" className="brand" aria-label="Ir al inicio">

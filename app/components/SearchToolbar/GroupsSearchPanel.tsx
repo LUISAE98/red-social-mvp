@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import {
@@ -360,6 +359,10 @@ type GroupsSearchPanelProps = {
   onCloseSearch?: () => void;
 };
 
+function isMobileSearchViewport() {
+  return window.matchMedia("(max-width: 640px)").matches;
+}
+
 export default function GroupsSearchPanel({
   fontStack,
   showCreateGroup = true,
@@ -370,8 +373,9 @@ export default function GroupsSearchPanel({
   const router = useRouter();
   const pathname = usePathname();
 
-  const searchAreaRef = useRef<HTMLDivElement | null>(null);
-  const previousPathnameRef = useRef<string | null>(null);
+const searchAreaRef = useRef<HTMLDivElement | null>(null);
+const dropdownRef = useRef<HTMLDivElement | null>(null);
+const previousPathnameRef = useRef<string | null>(null);
 
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -389,6 +393,7 @@ export default function GroupsSearchPanel({
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [isSearchClosing, setIsSearchClosing] = useState(false);
 
   const cardBorder = "1px solid rgba(255,255,255,0.14)";
   const softBorder = "1px solid rgba(255,255,255,0.18)";
@@ -415,27 +420,25 @@ const hasSearch = normalizedSearch.length >= MIN_SEARCH_LENGTH;
   return () => window.clearTimeout(timer);
 }, [search]);
 
-  useEffect(() => {
-    function handlePointerDown(event: PointerEvent) {
-      if (!hasSearch) return;
+useEffect(() => {
+  function handlePointerDown(event: PointerEvent) {
+if (!hasSearch && !showCloseSearch) return;
 
-      const target = event.target;
-      if (!(target instanceof Node)) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
 
-      if (searchAreaRef.current?.contains(target)) return;
+    if (searchAreaRef.current?.contains(target)) return;
+    if (dropdownRef.current?.contains(target)) return;
 
-      window.setTimeout(() => {
-        setSearch("");
-        onCloseSearch?.();
-      }, 0);
-    }
+handleCloseSearch();
+  }
 
-    document.addEventListener("pointerdown", handlePointerDown, true);
+  document.addEventListener("pointerdown", handlePointerDown, true);
 
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown, true);
-    };
-   }, [hasSearch, onCloseSearch]);
+  return () => {
+    document.removeEventListener("pointerdown", handlePointerDown, true);
+  };
+}, [hasSearch, onCloseSearch]);
 
 useEffect(() => {
   let cancelled = false;
@@ -773,10 +776,26 @@ const filteredCommunities = useMemo(() => {
     }
   }
 
-  function handleCloseSearch() {
-    setSearch("");
-    onCloseSearch?.();
+function handleCloseSearch() {
+  if (isSearchClosing) return;
+
+  if (isMobileSearchViewport()) {
+    setIsSearchClosing(true);
+
+    window.setTimeout(() => {
+      setSearch("");
+      setDebouncedSearch("");
+      setIsSearchClosing(false);
+      onCloseSearch?.();
+    }, 260);
+
+    return;
   }
+
+  setSearch("");
+  setDebouncedSearch("");
+  onCloseSearch?.();
+}
 
   function handleNavigateAndClose(href: string) {
     setSearch("");
@@ -821,12 +840,11 @@ function handleOpenFullResults() {
 }
 
 .search-dropdown {
-  position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 62px);
-  left: 12px;
-  right: 12px;
-  width: auto;
-  max-width: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  width: 100%;
   min-width: 0;
   border: ${cardBorder};
   border-radius: 20px;
@@ -835,7 +853,7 @@ function handleOpenFullResults() {
   overflow: hidden;
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  z-index: 2147483647;
+  z-index: 9999;
   display: flex;
   flex-direction: column;
   max-height: min(58dvh, 460px);
@@ -1161,18 +1179,20 @@ to {
     overflow: visible;
   }
 
-  .search-dropdown {
-    position: fixed;
-    top: calc(env(safe-area-inset-top, 0px) + 62px);
-    left: 12px;
-    right: 12px;
-    width: auto;
-    max-width: none;
-    min-width: 0;
-    border-radius: 18px;
-    max-height: min(58dvh, 460px);
-    z-index: 99999;
-  }
+.search-dropdown {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 58px);
+  left: 0;
+  right: 0;
+  width: auto;
+  min-width: 0;
+  border-radius: 0 0 18px 18px;
+  max-height: min(58dvh, 460px);
+  z-index: 99999;
+  transform: translateY(-14px);
+  opacity: 0;
+  animation: mobile-search-enter 0.26s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
 
   .search-dropdown-inner {
     overscroll-behavior: contain;
@@ -1280,24 +1300,55 @@ to {
   .profile-cta {
     display: none;
   }
+
+.search-dropdown-closing {
+  animation: mobile-search-exit 0.24s ease forwards;
+}
+
+@keyframes mobile-search-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mobile-search-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-14px);
+  }
 }
       `}</style>
 
       <div ref={searchAreaRef} className="search-area">
-        <GroupsSearchToolbar
-          search={search}
-          onSearchChange={setSearch}
-          onCreateGroup={
-            showCreateGroup ? () => router.push(createGroupHref) : undefined
-          }
-          onCloseSearch={showCloseSearch ? handleCloseSearch : undefined}
-          fontStack={fontStack}
-          showCreateGroup={showCreateGroup}
-          showCloseSearch={showCloseSearch}
-        />
+<GroupsSearchToolbar
+  search={search}
+  onSearchChange={setSearch}
+  onCreateGroup={
+    showCreateGroup ? () => router.push(createGroupHref) : undefined
+  }
+  onCloseSearch={showCloseSearch ? handleCloseSearch : undefined}
+  fontStack={fontStack}
+  showCreateGroup={showCreateGroup}
+  showCloseSearch={showCloseSearch}
+  isMobileClosing={isSearchClosing}
+/>
 
-        {mounted && hasSearch && createPortal(
-          <div className="search-dropdown">
+{mounted && hasSearch && (
+  <div
+    ref={dropdownRef}
+    className={`search-dropdown${isSearchClosing ? " search-dropdown-closing" : ""}`}
+  >
             <div className="search-dropdown-inner">
               {isLoading && (
                 <div className="dropdown-helper">
@@ -1556,8 +1607,7 @@ const visLabel =
                 </button>
               </div>
             )}
-          </div>,
-          document.body
+          </div>
         )}
 
         {error && <div className="error-card">{error}</div>}
