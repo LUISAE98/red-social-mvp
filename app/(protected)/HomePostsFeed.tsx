@@ -32,6 +32,7 @@ import {
   registerPostFeedCacheListener,
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
+import RefreshableArea from "@/components/refresh/RefreshableArea";
 
 type HomePostsFeedProps = {
   currentUserId: string | null;
@@ -289,6 +290,7 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
           cursor: mode === "more" ? pageCursorRef.current : null,
         });
 
+
 const normalizedPosts = result.posts
   .map((post) => normalizeHomeFeedPost(post as PostWithFlags))
   .filter((post) => post.isDeleted !== true);
@@ -337,6 +339,10 @@ const normalizedPosts = result.posts
   const loadPosts = useCallback(async () => {
     await loadPostsPage("refresh");
   }, [loadPostsPage]);
+
+const handleHomePullRefresh = useCallback(async () => {
+  await loadPostsPage("refresh");
+}, [loadPostsPage]);
 
   useEffect(() => {
     let active = true;
@@ -809,7 +815,8 @@ const shellStyle: CSSProperties = {
     );
   }
 
-  return (
+return (
+  <RefreshableArea onRefresh={handleHomePullRefresh}>
     <section style={shellStyle}>
       <div style={headerStyle}>
         <div
@@ -971,5 +978,6 @@ const shellStyle: CSSProperties = {
         </div>
       )}
     </section>
-  );
+  </RefreshableArea>
+);
 }

@@ -889,7 +889,6 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--desktop-search-gap);
 }
 
 .desktopSearchCol {
@@ -898,6 +897,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   flex: 0 1 auto;
 }
 
+
         .desktopCreateButtonWrap {
           display: flex;
           align-items: center;
@@ -905,9 +905,12 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           flex: 0 0 auto;
         }
 
-        .desktopLogoutWrap {
-          display: none;
-        }
+.desktopHeaderActions {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
 
         .mobileSearchRow {
           display: none;
@@ -1231,9 +1234,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
                 </div>
               </div>
 
-              <div className="desktopLogoutWrap">
-                <LogoutButton />
-              </div>
+<div className="desktopHeaderActions" />
             </div>
 
 {mobileSearchOpen ? (
@@ -1259,13 +1260,15 @@ onCloseSearch={() => setMobileSearchOpen(false)}
 </Link>
 
     <div className="mobileActions">
-<button
-  type="button"
-onClick={() => setMobileSearchOpen(true)}
-  title="Buscar comunidad"
-  aria-label="Buscar comunidad"
-  className="mobileSearchIconButton"
->
+
+
+      <button
+        type="button"
+        onClick={() => setMobileSearchOpen(true)}
+        title="Buscar comunidad"
+        aria-label="Buscar comunidad"
+        className="mobileSearchIconButton"
+      >
         <VibraNavigationIcon type="search" size={24} strokeWidth={2.2} />
       </button>
     </div>

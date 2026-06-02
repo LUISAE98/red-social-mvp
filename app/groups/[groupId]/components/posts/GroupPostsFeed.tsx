@@ -35,6 +35,8 @@ import {
   registerPostFeedCacheListener,
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
+import RefreshableArea from "@/components/refresh/RefreshableArea";
+
 
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 
@@ -563,6 +565,17 @@ export default function GroupPostsFeed({
 
   const loadPosts = useCallback(async () => {
     await loadPostsPage("refresh");
+  }, [loadPostsPage]);
+
+  const handleGroupPullRefresh = useCallback(async () => {
+    await loadPostsPage("refresh");
+
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(min-width: 901px)").matches
+    ) {
+
+    }
   }, [loadPostsPage]);
 
   const handleGroupMemberBlockComplete = useCallback(async () => {
@@ -1340,7 +1353,8 @@ const shellStyle: CSSProperties = {
   };
 
   return (
-    <section style={shellStyle}>
+    <RefreshableArea onRefresh={handleGroupPullRefresh}>
+      <section style={shellStyle}>
       <div style={headerStyle}>
         <h2 style={titleStyle}>Publicaciones</h2>
         <p style={subtitleStyle}>Feed de la comunidad.</p>
@@ -1480,6 +1494,7 @@ const shellStyle: CSSProperties = {
           Ya viste todas las publicaciones disponibles.
         </div>
       )}
-    </section>
+      </section>
+    </RefreshableArea>
   );
 }

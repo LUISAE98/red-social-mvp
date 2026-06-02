@@ -13,7 +13,7 @@ export type VibraNavigationIconType =
   | "myCommunities"
   | "otherCommunities"
   | "requested"
-  | "copyLink";
+  | "copyLink"
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
