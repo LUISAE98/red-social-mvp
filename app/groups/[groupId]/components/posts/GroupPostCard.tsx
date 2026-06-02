@@ -1266,20 +1266,27 @@ const cardStyle: CSSProperties = {
   position: "relative",
   overflow: "hidden",
   borderRadius: isMobile ? 0 : 12,
-  border: "1px solid rgba(168, 85, 255, 0.065)",
-  borderLeft: isMobile ? "none" : "1px solid rgba(168, 85, 255, 0.065)",
-  borderRight: isMobile ? "none" : "1px solid rgba(168, 85, 255, 0.065)",
+
+  border: "1px solid rgba(168, 85, 255, 0.3)",
+  borderLeft: isMobile ? "none" : "1px solid rgba(168, 85, 255, 0.3)",
+  borderRight: isMobile ? "none" : "1px solid rgba(168, 85, 255, 0.3)",
+
   background:
-    "radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.028), transparent 34%), radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.020), transparent 36%), radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.016), transparent 40%), linear-gradient(135deg, rgb(3, 3, 6) 0%, rgb(8, 5, 13) 48%, rgb(0, 0, 0) 100%)",
+    "linear-gradient(135deg, rgb(0, 0, 0) 0%, rgb(2, 2, 4) 50%, rgb(0, 0, 0) 100%)",
+
   color: "#fff",
   padding: isMobile ? "14px 12px" : 12,
   boxSizing: "border-box",
+
   backdropFilter: "none",
   WebkitBackdropFilter: "none",
+
   boxShadow:
-    "inset 0 1px 0 rgba(255, 255, 255, 0.03), inset 0 -1px 0 rgba(255, 255, 255, 0.012), inset 0 0 10px rgba(168, 85, 255, 0.008), inset 0 0 12px rgba(79, 70, 255, 0.028), inset 0 0 10px rgba(168, 85, 255, 0.028), 0 0 5px rgba(168, 85, 255, 0.014), 0 18px 54px rgba(0, 0, 0, 0.64)",
+    "inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 0 12px rgba(168, 85, 255, 0.055), 0 0 10px rgba(168, 85, 255, 0.06), 0 14px 42px rgba(0, 0, 0, 0.74)",
+
   marginBottom: isMobile ? 0.2 : 0,
 };
+
 
   const metaStyle: CSSProperties = {
     fontSize: 10.5,
@@ -2114,16 +2121,18 @@ const shouldClampFeedPostText =
               {shouldShowGroupContext && (
                 <div style={communityWrapStyle}>
                   {!isMobile && (
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        width: 1,
-                        height: 12,
-                        background: "rgba(255,255,255,0.12)",
-                        flexShrink: 0,
-                        marginRight: 2,
-                      }}
-                    />
+<span
+  aria-hidden="true"
+  style={{
+    width: 1,
+    height: 13,
+    background: "rgba(168, 85, 255, 0.65)",
+    boxShadow:
+      "0 0 10px rgba(168, 85, 255, 0.55), 0 0 18px rgba(168, 85, 255, 0.28)",
+    flexShrink: 0,
+    marginRight: 2,
+  }}
+/>
                   )}
 
                   {groupInfo.href ? (

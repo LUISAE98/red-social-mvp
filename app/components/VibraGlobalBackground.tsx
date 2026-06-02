@@ -203,9 +203,9 @@ export default function VibraGlobalBackground() {
         aria-hidden="true"
         style={
           {
-"--vibra-bg-darkness": isLoggedIn ? "0.68" : "0.28",
-"--vibra-bg-brightness": isLoggedIn ? "0.58" : "0.88",
-"--vibra-bg-saturation": isLoggedIn ? "0.75" : "0.95",
+"--vibra-bg-darkness": isLoggedIn ? "1" : "0.28",
+"--vibra-bg-brightness": isLoggedIn ? "0" : "0.88",
+"--vibra-bg-saturation": isLoggedIn ? "0" : "0.95",
           } as React.CSSProperties
         }
       />
@@ -215,7 +215,7 @@ export default function VibraGlobalBackground() {
         aria-hidden="true"
         style={
           {
-            "--vibra-color-filter-opacity": isLoggedIn ? "0.18" : "0.45",
+            "--vibra-color-filter-opacity": isLoggedIn ? "0" : "0.45",
           } as React.CSSProperties
         }
       />
@@ -228,12 +228,12 @@ export default function VibraGlobalBackground() {
 "--vibra-particles-opacity": isGlobalLoading
   ? "1"
   : isLoggedIn
-    ? "0.42"
+    ? "0"
     : "1",
 "--vibra-particles-brightness": isGlobalLoading
   ? "1"
   : isLoggedIn
-    ? "0.72"
+    ? "0"
     : "1",
           } as React.CSSProperties
         }
