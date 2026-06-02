@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -42,6 +43,7 @@ import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
 import OwnerSidebarFollowedProfiles from "./OwnerSidebarFollowedProfiles";
 import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
+import RefreshableArea from "@/components/refresh/RefreshableArea";
 
 export type Currency = "MXN" | "USD";
 export type SidebarMemberStatus =
@@ -671,6 +673,7 @@ export default function OwnerSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
+  const [ownerSidebarRefreshKey, setOwnerSidebarRefreshKey] = useState(0);
 
 useEffect(() => {
   if (typeof window === "undefined") return;
@@ -683,6 +686,12 @@ useEffect(() => {
   mediaQuery.addEventListener("change", sync);
   return () => mediaQuery.removeEventListener("change", sync);
 }, []);
+
+const handleOwnerSidebarPullRefresh = useCallback(async () => {
+  ownerSidebarCache = null;
+  setOwnerSidebarRefreshKey((value) => value + 1);
+  router.refresh();
+}, [router]);
 
   const [viewer, setViewer] = useState<any>(
     () => ownerSidebarCache?.viewer ?? null
@@ -1096,7 +1105,7 @@ miniItem: {
     }
 
     loadCurrentUser();
-  }, [viewer?.uid]);
+  }, [viewer?.uid, ownerSidebarRefreshKey]);
 
   useEffect(() => {
     if (!viewer?.uid) {
@@ -1157,7 +1166,7 @@ miniItem: {
     );
 
     return () => unsub();
-  }, [viewer?.uid]);
+  }, [viewer?.uid, ownerSidebarRefreshKey]);
 
   useEffect(() => {
     if (!viewer?.uid) {
@@ -1343,7 +1352,7 @@ miniItem: {
     );
 
     return () => unsub();
-  }, [viewer?.uid]);
+  }, [viewer?.uid, ownerSidebarRefreshKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1449,7 +1458,7 @@ miniItem: {
       cancelled = true;
       unsub();
     };
-  }, [viewer?.uid]);
+  }, [viewer?.uid, ownerSidebarRefreshKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1564,7 +1573,7 @@ miniItem: {
       cancelled = true;
       window.clearInterval(refreshInterval);
     };
-  }, [viewer?.uid]);
+  }, [viewer?.uid, ownerSidebarRefreshKey]);
 
   const hiddenSidebarMembershipGroups = useMemo(() => {
     return hiddenJoinedGroups.filter(
@@ -1774,7 +1783,7 @@ miniItem: {
       unsubIncoming();
       unsubBuyer();
     };
-  }, [viewer?.uid]);
+  }, [viewer?.uid, ownerSidebarRefreshKey]);
 
     useEffect(() => {
     if (!viewer?.uid) {
@@ -1887,8 +1896,7 @@ miniItem: {
       unsubCreator();
       unsubBuyer();
     };
-  }, [viewer?.uid]);
-
+  }, [viewer?.uid, ownerSidebarRefreshKey]);
 
     useEffect(() => {
     if (!viewer?.uid) {
@@ -2005,7 +2013,7 @@ miniItem: {
       unsubCreator();
       unsubBuyer();
     };
-  }, [viewer?.uid]);
+  }, [viewer?.uid, ownerSidebarRefreshKey]);
 
   useEffect(() => {
     const profileBucketKey = viewer?.uid ? `profile:${viewer.uid}` : null;
@@ -2896,6 +2904,10 @@ className="profile-owner-sidebar-fixed"
     color: "#fff",
   }}
 >
+<RefreshableArea
+  onRefresh={handleOwnerSidebarPullRefresh}
+  enabled={isMobile}
+>
 <div
   className={
     isProfileTopOpen
@@ -3058,6 +3070,7 @@ onCreateCommunity={() => router.push("/groups/new")}
 </div>
          </div>
 </div>
+</RefreshableArea>
 </aside>
     </>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, type CSSProperties } from "react";
 import PullToRefresh from "./PullToRefresh";
 import { usePullToRefresh } from "./usePullToRefresh";
 
@@ -11,6 +11,7 @@ interface RefreshableAreaProps {
   threshold?: number;
   enabled?: boolean;
   indicatorTop?: string;
+  style?: CSSProperties;
 }
 
 export default function RefreshableArea({
@@ -20,6 +21,7 @@ export default function RefreshableArea({
   threshold = 55,
   enabled = true,
   indicatorTop,
+  style,
 }: RefreshableAreaProps) {
   const {
     containerRef,
@@ -42,6 +44,7 @@ export default function RefreshableArea({
     <div
       ref={containerRef}
       className={`vibraPullRefreshArea ${className}`}
+      style={style}
     >
       {enabled && (
         <PullToRefresh

@@ -83,21 +83,27 @@ main,
   display: block;
   position: relative;
   border-radius: 999px;
-background: conic-gradient(
-  #a855ff 0deg 180deg,
-  transparent 180deg 360deg
-);
+  background: conic-gradient(
+    #a855ff 0deg 180deg,
+    transparent 180deg 360deg
+  );
   box-shadow: 0 0 10px rgba(168, 85, 255, 0.24);
+
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 4px),
+    #000 calc(100% - 4px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 4px),
+    #000 calc(100% - 4px)
+  );
 }
 
 .vibraPullRefreshSpinner::after {
-  content: "";
-  position: absolute;
-  inset: 4px;
-  border-radius: 999px;
-  background: #000000;
+  display: none;
 }
-
 
 .vibraPullRefreshSpinner.refreshing {
   animation: vibraPullRefreshSpin 0.75s linear infinite;

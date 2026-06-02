@@ -70,9 +70,23 @@ export function usePullToRefresh({
 
     if (!container || !enabled) return;
 
-    const canStartPull = () => {
-      return container.scrollTop <= 0 && !refreshingRef.current;
-    };
+const TOP_TOLERANCE = 2;
+
+const getScrollTop = () => {
+  const containerScrollTop = container.scrollTop || 0;
+
+  const pageScrollTop =
+    window.scrollY ||
+    document.documentElement.scrollTop ||
+    document.body.scrollTop ||
+    0;
+
+  return Math.max(containerScrollTop, pageScrollTop);
+};
+
+const canStartPull = () => {
+  return getScrollTop() <= TOP_TOLERANCE && !refreshingRef.current;
+};
 
     const handleTouchStart = (event: TouchEvent) => {
       if (!canStartPull()) return;
@@ -90,9 +104,14 @@ export function usePullToRefresh({
       const currentY = event.touches[0]?.clientY ?? 0;
       const rawDistance = currentY - startYRef.current;
 
-      if (rawDistance <= 0) return;
+if (rawDistance <= 0) return;
 
-      event.preventDefault();
+if (getScrollTop() > TOP_TOLERANCE) {
+  reset();
+  return;
+}
+
+event.preventDefault();
 
       const elasticDistance = getElasticPullDistance(
         rawDistance,

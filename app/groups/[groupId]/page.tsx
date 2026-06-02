@@ -76,7 +76,7 @@ import {
 import { useGroupRealtime } from "@/lib/groups/useGroupRealtime";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
-
+import RefreshableArea from "@/components/refresh/RefreshableArea";
 import {
   groupPageFontStack,
   groupPageUi,
@@ -251,7 +251,8 @@ export default function GroupPage() {
 
 const [joining, setJoining] = useState(false);
 const [actionError, setActionError] = useState<string | null>(null);
-
+const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
+const [groupPageRefreshKey, setGroupPageRefreshKey] = useState(0);
   const [memberCount, setMemberCount] = useState<number | null>(null);
 
 useEffect(() => {
@@ -281,7 +282,28 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [groupId]);
+}, [groupId, groupPageRefreshKey]);
+
+useEffect(() => {
+  const mediaQuery = window.matchMedia("(max-width: 768px)");
+
+  const syncMobileRefresh = () => {
+    setMobileRefreshEnabled(mediaQuery.matches);
+  };
+
+  syncMobileRefresh();
+
+  mediaQuery.addEventListener("change", syncMobileRefresh);
+
+  return () => {
+    mediaQuery.removeEventListener("change", syncMobileRefresh);
+  };
+}, []);
+
+const handleGroupPullRefresh = useCallback(async () => {
+  setGroupPageRefreshKey((value) => value + 1);
+  router.refresh();
+}, [router]);
 
 const formattedMemberCount = useMemo(() => {
   if (memberCount == null) return null;
@@ -1931,7 +1953,11 @@ const avatarNode = (
 
   return (
     <>
-      <main style={groupRoutePageWrap}>
+      <RefreshableArea
+        onRefresh={handleGroupPullRefresh}
+        enabled={mobileRefreshEnabled}
+      >
+        <main style={groupRoutePageWrap}>
         <style jsx>{`
           .group-shell {
             width: 100%;
@@ -2359,8 +2385,9 @@ const avatarNode = (
             {canViewPublicFeed && activeTab === "feed" && (
               <section className="group-tab-panel group-feed-wrap" style={{ marginTop: 12 }}>
                 <div className="group-feed-item">
-                  <GroupPostsFeed
-                    groupId={groupId}
+<GroupPostsFeed
+  key={`group-posts-${groupId}-${groupPageRefreshKey}`}
+  groupId={groupId}
                     isOwner={isOwner}
                     isModerator={isModerator}
                     canCreatePosts={canCreatePosts}
@@ -2450,7 +2477,8 @@ const avatarNode = (
             }}
           />
         </div>
-      </main>
+        </main>
+      </RefreshableArea>
 
       <GroupServiceModals
         greetOpen={greetOpen}
