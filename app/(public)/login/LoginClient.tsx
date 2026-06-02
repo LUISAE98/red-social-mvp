@@ -8,8 +8,11 @@ import {
   browserLocalPersistence,
   browserSessionPersistence,
   signOut,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -33,6 +36,12 @@ function friendlyAuthError(err: any) {
   if (code === "auth/wrong-password") return "Contraseña incorrecta.";
   if (code === "auth/too-many-requests") return "Demasiados intentos. Intenta más tarde.";
   if (code === "auth/network-request-failed") return "Error de red. Revisa tu conexión.";
+  if (code === "auth/unauthorized-domain") return "Este dominio no está autorizado en Firebase Auth.";
+if (code === "auth/operation-not-allowed") return "El proveedor Google no está habilitado correctamente.";
+if (code === "auth/account-exists-with-different-credential") return "Ya existe una cuenta con este correo usando otro método de acceso.";
+if (code === "auth/cancelled-popup-request") return "Se canceló una ventana anterior de Google.";
+if (code === "auth/popup-closed-by-user") return "Se cerró la ventana de Google antes de completar el acceso.";
+if (code === "auth/popup-blocked") return "El navegador bloqueó la ventana emergente de Google.";
 
   return "Error inesperado. Intenta nuevamente.";
 }
@@ -76,6 +85,28 @@ useEffect(() => {
   const nextPath = getNextFromSearchParams(searchParams, "/");
   const registerHref = appendSafeNextParam("/register", nextPath);
 
+async function createSessionFromUser(user: any) {
+  const idToken = await user.getIdToken(true);
+
+  const response = await fetch("/api/auth/session", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      idToken,
+      keepSession,
+    }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok || !data?.ok) {
+    await signOut(auth);
+    throw new Error(data?.error || "No se pudo crear la sesión");
+  }
+}
+
 async function handleLogin(e: React.FormEvent) {
 e.preventDefault();
 setMsg(null);
@@ -90,25 +121,7 @@ setLoading(true);
         password
       );
 
-      const idToken = await credential.user.getIdToken(true);
-
-      const response = await fetch("/api/auth/session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          idToken,
-          keepSession,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data?.ok) {
-        await signOut(auth);
-        throw new Error(data?.error || "No se pudo crear la sesión");
-      }
+await createSessionFromUser(credential.user);
 
       setIsLeavingLogin(true);
 startAuthTransition("entering");
@@ -131,6 +144,55 @@ router.replace(nextPath);
       setLoading(false);
     }
   }
+
+  async function handleGoogleLogin() {
+  setMsg(null);
+  setLoading(true);
+
+  try {
+    await applyAuthPersistence(keepSession);
+
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({
+      prompt: "select_account",
+    });
+
+    const credential = await signInWithPopup(auth, provider);
+
+    await createSessionFromUser(credential.user);
+
+    const userRef = doc(db, "users", credential.user.uid);
+    const userSnap = await getDoc(userRef);
+
+    setIsLeavingLogin(true);
+    startAuthTransition("entering");
+
+    if (userSnap.exists()) {
+      router.replace(nextPath);
+      return;
+    }
+
+    router.replace(`/complete-profile?next=${encodeURIComponent(nextPath)}`);
+} catch (err: unknown) {
+  setIsLeavingLogin(false);
+
+    const maybeFirebaseError = err as Error & { code?: string };
+
+    if (maybeFirebaseError?.code === "auth/popup-closed-by-user") {
+      setMsg("Se cerró la ventana de Google antes de completar el acceso.");
+    } else if (maybeFirebaseError?.code === "auth/popup-blocked") {
+      setMsg("El navegador bloqueó la ventana emergente de Google.");
+    } else if (maybeFirebaseError?.code) {
+      setMsg(friendlyAuthError(maybeFirebaseError));
+    } else if (err instanceof Error) {
+      setMsg(err.message);
+    } else {
+      setMsg("Error inesperado. Intenta nuevamente.");
+    }
+  } finally {
+    setLoading(false);
+  }
+}
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -742,14 +804,67 @@ marginBottom: 6,
   type="submit"
   disabled={loading}
   style={{
-    ...(loading ? secondaryButtonStyle : primaryButtonStyle),
+    ...primaryButtonStyle,
     marginTop: 2,
     opacity: loading ? 0.84 : 1,
     cursor: loading ? "not-allowed" : "pointer",
+    filter: loading ? "grayscale(0.15)" : "none",
   }}
 >
-                Entrar
-              </button>
+  Entrar
+</button>
+
+<button
+  type="button"
+  disabled={loading}
+  onClick={handleGoogleLogin}
+  style={{
+    width: "100%",
+    minHeight: 40,
+    padding: "8px 14px",
+    borderRadius: 10,
+    border: "1px solid rgba(0,0,0,0.10)",
+    background: "#fff",
+    color: "#1f1f1f",
+    fontSize: 14,
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
+    fontFamily: fontStack,
+    cursor: loading ? "not-allowed" : "pointer",
+    opacity: loading ? 0.84 : 1,
+    boxShadow: "none",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  }}
+>
+  <svg
+    width="18"
+    height="18"
+    viewBox="0 0 18 18"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path
+      fill="#4285F4"
+      d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"
+    />
+    <path
+      fill="#34A853"
+      d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.33-1.58-5.04-3.71H.94v2.33A9 9 0 0 0 9 18z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M3.96 10.71A5.41 5.41 0 0 1 3.68 9c0-.59.1-1.16.28-1.71V4.96H.94A9 9 0 0 0 0 9c0 1.45.34 2.82.94 4.04l3.02-2.33z"
+    />
+    <path
+      fill="#EA4335"
+      d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .94 4.96l3.02 2.33C4.67 5.16 6.66 3.58 9 3.58z"
+    />
+  </svg>
+  Continuar con Google
+</button>
             </form>
 
 {msg && (

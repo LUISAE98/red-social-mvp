@@ -5,6 +5,7 @@ import {
   indexedDBLocalPersistence,
   browserLocalPersistence,
   browserSessionPersistence,
+  browserPopupRedirectResolver,
   type Auth,
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
@@ -29,13 +30,14 @@ function createAuth(): Auth {
   }
 
   try {
-    return initializeAuth(app, {
-      persistence: [
-        indexedDBLocalPersistence,
-        browserLocalPersistence,
-        browserSessionPersistence,
-      ],
-    });
+return initializeAuth(app, {
+  persistence: [
+    indexedDBLocalPersistence,
+    browserLocalPersistence,
+    browserSessionPersistence,
+  ],
+  popupRedirectResolver: browserPopupRedirectResolver,
+});
   } catch {
     // Si Auth ya fue inicializado o el entorno no permite initializeAuth,
     // regresamos la instancia existente.
