@@ -29,6 +29,7 @@ import {
   registerPostFeedCacheListener,
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
+import RefreshableArea from "@/components/refresh/RefreshableArea";
 
 const MIN_POST_SEARCH_LENGTH = 2;
 const SEARCH_POSTS_PAGE_SIZE = 20;
@@ -105,6 +106,8 @@ export default function SearchPostsResults({
   const [posts, setPosts] = useState<PostWithFlags[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
 
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
   const [draftFromDate, setDraftFromDate] = useState("");
@@ -115,6 +118,9 @@ export default function SearchPostsResults({
   const filtersPanelRef = useRef<HTMLDivElement | null>(null);
 
   const normalizedSearch = useMemo(() => search.trim().toLowerCase(), [search]);
+    const handlePostsPullRefresh = useCallback(async () => {
+    setRefreshNonce((prev) => prev + 1);
+  }, []);
 
   const syncPostsState = useCallback(
     (updater: (prev: PostWithFlags[]) => PostWithFlags[]) => {
@@ -151,6 +157,22 @@ export default function SearchPostsResults({
       },
     });
   }, [syncPostsState]);
+
+    useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+
+    const syncMobileRefresh = () => {
+      setMobileRefreshEnabled(mediaQuery.matches);
+    };
+
+    syncMobileRefresh();
+
+    mediaQuery.addEventListener("change", syncMobileRefresh);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncMobileRefresh);
+    };
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -216,7 +238,7 @@ export default function SearchPostsResults({
     return () => {
       active = false;
     };
-  }, [normalizedSearch, userId, fromDate, toDate]);
+  }, [normalizedSearch, userId, fromDate, toDate, refreshNonce]);
 
   async function handleDeletePost(postId: string) {
     try {
@@ -598,19 +620,48 @@ export default function SearchPostsResults({
   };
 
   if (loading) {
-    return <div>Buscando publicaciones...</div>;
+    return (
+      <RefreshableArea
+        onRefresh={handlePostsPullRefresh}
+        enabled={mobileRefreshEnabled}
+        indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+      >
+        <div>Buscando publicaciones...</div>
+      </RefreshableArea>
+    );
   }
 
   if (error) {
-    return <div>{error}</div>;
+    return (
+      <RefreshableArea
+        onRefresh={handlePostsPullRefresh}
+        enabled={mobileRefreshEnabled}
+        indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+      >
+        <div>{error}</div>
+      </RefreshableArea>
+    );
   }
 
   if (!normalizedSearch) {
-    return <div>Escribe algo para buscar</div>;
+    return (
+      <RefreshableArea
+        onRefresh={handlePostsPullRefresh}
+        enabled={mobileRefreshEnabled}
+        indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+      >
+        <div>Escribe algo para buscar</div>
+      </RefreshableArea>
+    );
   }
 
   return (
-    <section style={shellStyle}>
+    <RefreshableArea
+      onRefresh={handlePostsPullRefresh}
+      enabled={mobileRefreshEnabled}
+      indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+    >
+      <section style={shellStyle}>
       <div style={topBarStyle} className="search-posts-topbar">
         <div style={activeFiltersWrapStyle}>
           {activeFilters.length > 0
@@ -758,6 +809,7 @@ export default function SearchPostsResults({
           }
         }
       `}</style>
-    </section>
+      </section>
+    </RefreshableArea>
   );
 }

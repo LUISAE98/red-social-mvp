@@ -7,12 +7,15 @@ import {
   type CSSProperties,
 } from "react";
 
+import RefreshableArea from "@/components/refresh/RefreshableArea";
+
 import type { PublicUser } from "./GroupsSearchPanel";
 
 type SearchProfilesResultsProps = {
   fontStack: string;
   profiles: PublicUser[];
   onNavigate: (href: string) => void;
+  onRefresh?: () => Promise<void> | void;
 };
 
 function initialsFromName(name: string) {
@@ -26,8 +29,10 @@ export default function SearchProfilesResults({
   fontStack,
   profiles,
   onNavigate,
+  onRefresh,
 }: SearchProfilesResultsProps) {
   const [visibleCount, setVisibleCount] = useState(10);
+  const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const hasResults = profiles.length > 0;
@@ -37,6 +42,22 @@ export default function SearchProfilesResults({
   useEffect(() => {
     setVisibleCount(10);
   }, [profiles]);
+
+    useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+
+    const syncMobileRefresh = () => {
+      setMobileRefreshEnabled(mediaQuery.matches);
+    };
+
+    syncMobileRefresh();
+
+    mediaQuery.addEventListener("change", syncMobileRefresh);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncMobileRefresh);
+    };
+  }, []);
 
   useEffect(() => {
     const target = loadMoreRef.current;
@@ -166,16 +187,25 @@ export default function SearchProfilesResults({
 
   if (!hasResults) {
     return (
-      <section style={shellStyle}>
-        <div style={emptyStyle}>
-          No se encontraron perfiles con esa búsqueda.
-        </div>
-      </section>
+<RefreshableArea
+  onRefresh={mobileRefreshEnabled && onRefresh ? onRefresh : async () => {}}
+  indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+>
+        <section style={shellStyle}>
+          <div style={emptyStyle}>
+            No se encontraron perfiles con esa búsqueda.
+          </div>
+        </section>
+      </RefreshableArea>
     );
   }
 
   return (
-    <section style={shellStyle}>
+<RefreshableArea
+  onRefresh={mobileRefreshEnabled && onRefresh ? onRefresh : async () => {}}
+  indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+>
+      <section style={shellStyle}>
       {visibleProfiles.map((profile) => {
         const fullName =
           profile.displayName?.trim() ||
@@ -285,6 +315,7 @@ export default function SearchProfilesResults({
           }
         }
       `}</style>
-    </section>
+      </section>
+    </RefreshableArea>
   );
 }

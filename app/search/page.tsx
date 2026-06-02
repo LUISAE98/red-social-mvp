@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -222,6 +222,7 @@ function SearchPageContent() {
   const [profiles, setProfiles] = useState<PublicUser[]>([]);
   const [memberMap, setMemberMap] = useState<Record<string, CanonicalMemberStatus>>({});
   const [reqMap, setReqMap] = useState<Record<string, boolean>>({});
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   const normalizedQuery = useMemo(
     () => normalizeText(debouncedQuery),
@@ -229,6 +230,18 @@ function SearchPageContent() {
   );
 
   const canSearch = normalizedQuery.length >= MIN_SEARCH_LENGTH;
+
+    const handleSearchPullRefresh = useCallback(async () => {
+    if (user?.uid) {
+      for (const cacheKey of viewerGroupStateCache.keys()) {
+        if (cacheKey.startsWith(`${user.uid}:`)) {
+          viewerGroupStateCache.delete(cacheKey);
+        }
+      }
+    }
+
+    setRefreshNonce((prev) => prev + 1);
+  }, [user?.uid]);
 
   useEffect(() => {
     if (urlTab === "groups" || urlTab === "profiles" || urlTab === "posts") {
@@ -275,7 +288,7 @@ function SearchPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, canSearch, debouncedQuery]);
+  }, [activeTab, canSearch, debouncedQuery, refreshNonce]);
 
   useEffect(() => {
     let cancelled = false;
@@ -318,7 +331,7 @@ function SearchPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, canSearch, debouncedQuery, user?.uid]);
+  }, [activeTab, canSearch, debouncedQuery, user?.uid, refreshNonce]);
 
   useEffect(() => {
     let cancelled = false;
@@ -370,7 +383,7 @@ function SearchPageContent() {
     return () => {
       cancelled = true;
     };
-  }, [user?.uid, communities]);
+  }, [user?.uid, communities, refreshNonce]);
 
   function handleChangeTab(tab: TabType) {
     setActiveTab(tab);
@@ -438,18 +451,19 @@ function SearchPageContent() {
         </div>
 
         {activeTab === "groups" && (
-          <SearchGroupsResults
-            fontStack="inherit"
-            currentUser={user}
-            communities={communities}
-            memberMap={memberMap}
-            reqMap={reqMap}
-            onNavigate={handleNavigate}
-            onJoinPublic={handleJoinPublic}
-            onRequestPrivate={handleRequestPrivate}
-            onCancelRequest={handleCancelRequest}
-            onLeave={handleLeave}
-          />
+<SearchGroupsResults
+  fontStack="inherit"
+  currentUser={user}
+  communities={communities}
+  memberMap={memberMap}
+  reqMap={reqMap}
+  onNavigate={handleNavigate}
+  onJoinPublic={handleJoinPublic}
+  onRequestPrivate={handleRequestPrivate}
+  onCancelRequest={handleCancelRequest}
+  onLeave={handleLeave}
+  onRefresh={handleSearchPullRefresh}
+/>
         )}
 
         {activeTab === "profiles" && (

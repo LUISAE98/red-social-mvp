@@ -6,12 +6,14 @@ interface PullToRefreshProps {
   pullDistance: number;
   isRefreshing: boolean;
   isReadyToRefresh: boolean;
+  indicatorTop?: string;
 }
 
 export default function PullToRefresh({
   pullDistance,
   isRefreshing,
   isReadyToRefresh,
+  indicatorTop,
 }: PullToRefreshProps) {
   const visible = pullDistance > 0 || isRefreshing;
 
@@ -26,7 +28,7 @@ export default function PullToRefresh({
       className="vibraPullRefreshIndicator"
       style={{
         position: "fixed",
-        top: "calc(env(safe-area-inset-top) + 72px)",
+        top: indicatorTop ?? "calc(env(safe-area-inset-top) + 72px)",
         left: 0,
         right: 0,
         zIndex: 99999,

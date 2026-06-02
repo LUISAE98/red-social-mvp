@@ -21,6 +21,7 @@ import {
 } from "@/lib/posts/post-service";
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
+import RefreshableArea from "@/components/refresh/RefreshableArea";
 import {
   patchPostInAllFeedCaches,
   registerPostFeedCacheListener,
@@ -316,6 +317,10 @@ const syncPostsState = useCallback(
 
     await loadPostsPage({ reset: true });
   }, [currentUserId, loadPostsPage]);
+
+  const handleSavedPullRefresh = useCallback(async () => {
+  await refreshPosts();
+}, [refreshPosts]);
 
   useEffect(() => {
     let active = true;
@@ -853,7 +858,8 @@ const visiblePosts = useMemo(() => {
     );
   }
 
-  return (
+return (
+  <RefreshableArea onRefresh={handleSavedPullRefresh}>
     <section style={shellStyle}>
       <div style={headerStyle}>
         <div style={titleRowStyle}>
@@ -955,5 +961,6 @@ const visiblePosts = useMemo(() => {
         <div style={noticeStyle}>Ya viste todas tus publicaciones guardadas.</div>
       )}
     </section>
+  </RefreshableArea>
   );
 }

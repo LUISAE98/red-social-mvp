@@ -10,6 +10,7 @@ interface RefreshableAreaProps {
   className?: string;
   threshold?: number;
   enabled?: boolean;
+  indicatorTop?: string;
 }
 
 export default function RefreshableArea({
@@ -18,6 +19,7 @@ export default function RefreshableArea({
   className = "",
   threshold = 55,
   enabled = true,
+  indicatorTop,
 }: RefreshableAreaProps) {
   const {
     containerRef,
@@ -46,6 +48,7 @@ export default function RefreshableArea({
           pullDistance={contentOffset}
           isRefreshing={isRefreshing}
           isReadyToRefresh={isReadyToRefresh}
+          indicatorTop={indicatorTop}
         />
       )}
 

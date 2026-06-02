@@ -8,6 +8,7 @@ import {
   type CSSProperties,
 } from "react";
 import type { User } from "firebase/auth";
+import RefreshableArea from "@/components/refresh/RefreshableArea";
 
 import type {
   CanonicalMemberStatus,
@@ -25,6 +26,7 @@ type SearchGroupsResultsProps = {
   onRequestPrivate: (groupId: string) => Promise<void>;
   onCancelRequest: (groupId: string) => Promise<void>;
   onLeave: (groupId: string, ownerId?: string) => Promise<void>;
+  onRefresh?: () => Promise<void> | void;
 };
 
 type GroupVisibilityFilter = "public" | "private";
@@ -284,6 +286,7 @@ export default function SearchGroupsResults({
   onRequestPrivate,
   onCancelRequest,
   onLeave,
+  onRefresh,
 }: SearchGroupsResultsProps) {
 const [isMobile, setIsMobile] = useState(false);
 const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -1070,7 +1073,12 @@ const serviceDots = buildSearchServiceDots(group);
 
   if (filteredByUi.length === 0) {
     return (
-      <section style={shellStyle}>
+      <RefreshableArea
+        onRefresh={onRefresh ?? (() => {})}
+        enabled={isMobile && Boolean(onRefresh)}
+        indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+      >
+        <section style={shellStyle}>
         <div style={topBarStyle} className="search-groups-topbar">
           <div style={activeFiltersWrapStyle}>
             {activeFilters.length > 0
@@ -1124,12 +1132,18 @@ const serviceDots = buildSearchServiceDots(group);
             }
           }
         `}</style>
-      </section>
+        </section>
+      </RefreshableArea>
     );
   }
 
   return (
-    <section style={shellStyle}>
+    <RefreshableArea
+      onRefresh={onRefresh ?? (() => {})}
+      enabled={isMobile && Boolean(onRefresh)}
+      indicatorTop="calc(env(safe-area-inset-top) + 116px)"
+    >
+      <section style={shellStyle}>
       <div style={topBarStyle} className="search-groups-topbar">
         <div style={activeFiltersWrapStyle}>
           {activeFilters.map((filter) => (
@@ -1356,6 +1370,7 @@ const serviceDots = buildSearchServiceDots(group);
           }
         }
       `}</style>
-    </section>
+      </section>
+    </RefreshableArea>
   );
 }

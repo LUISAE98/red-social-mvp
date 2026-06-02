@@ -1410,7 +1410,6 @@ export function WalletList({
     </div>
   );
 }
-
 function FilterIcon() {
   return (
     <svg

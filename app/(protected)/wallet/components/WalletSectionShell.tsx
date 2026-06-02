@@ -1,5 +1,8 @@
 "use client";
 
+import { useCallback } from "react";
+import { useRouter } from "next/navigation";
+import RefreshableArea from "@/components/refresh/RefreshableArea";
 import WalletSubnav, { type WalletTabKey } from "./WalletSubNav";
 
 export default function WalletSectionShell({
@@ -9,6 +12,13 @@ export default function WalletSectionShell({
   activeTab: WalletTabKey;
   children: React.ReactNode;
 }) {
+
+  const router = useRouter();
+
+  const handleWalletPullRefresh = useCallback(async () => {
+    router.refresh();
+  }, [router]);
+
   return (
     <>
       <style jsx>{`
@@ -68,17 +78,19 @@ export default function WalletSectionShell({
         }
       `}</style>
 
-      <div className="page">
-        <div className="header">
-          <h1 className="title">Wallet</h1>
+      <RefreshableArea onRefresh={handleWalletPullRefresh}>
+        <div className="page">
+          <div className="header">
+            <h1 className="title">Wallet</h1>
 
-          <div className="subnavWrap">
-            <WalletSubnav activeTab={activeTab} />
+            <div className="subnavWrap">
+              <WalletSubnav activeTab={activeTab} />
+            </div>
           </div>
-        </div>
 
-        <section className="content">{children}</section>
-      </div>
+          <section className="content">{children}</section>
+        </div>
+      </RefreshableArea>
     </>
   );
 }
