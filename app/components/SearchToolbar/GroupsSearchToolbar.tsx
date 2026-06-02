@@ -41,7 +41,28 @@ export default function GroupsSearchToolbar({
     const input = inputRef.current;
     if (!input) return;
 
-    input.focus({ preventScroll: true });
+    const focusInput = () => {
+      input.focus({ preventScroll: true });
+
+      // Refuerzo para móviles: ayuda a que iOS/Android abran el teclado
+      // después de que el input ya existe y la barra terminó de montarse.
+      input.click();
+    };
+
+    focusInput();
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      focusInput();
+    });
+
+    const timeoutId = window.setTimeout(() => {
+      focusInput();
+    }, 120);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrameId);
+      window.clearTimeout(timeoutId);
+    };
   }, [autoFocusOnMount]);
 
   function blurInput() {

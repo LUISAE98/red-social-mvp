@@ -1236,7 +1236,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         showCreateGroup={false}
         createGroupHref="/groups/new"
         showCloseSearch={true}
-onCloseSearch={() => setMobileSearchOpen(false)}
+        onCloseSearch={() => setMobileSearchOpen(false)}
         autoFocusOnMount={true}
       />
     </div>
