@@ -61,6 +61,7 @@ import GroupPostComposer from "@/app/groups/[groupId]/components/posts/GroupPost
 import { createMediaPost, createTextPost } from "@/lib/posts/post-service";
 import { uploadPostImages } from "@/lib/posts/image-upload";
 import { clearAllPostFeedCaches } from "@/lib/posts/post-feed-cache";
+import RefreshableArea from "@/components/refresh/RefreshableArea";
 import type { PostMedia } from "@/lib/posts/types";
 
 type SafeCropperProps = {
@@ -332,6 +333,7 @@ const [exclusiveSessionError, setExclusiveSessionError] = useState<string | null
 const [serviceToast, setServiceToast] = useState<string | null>(null);
 const [profileComposerError, setProfileComposerError] = useState<string | null>(null);
 const [profilePostsRefreshKey, setProfilePostsRefreshKey] = useState(0);
+const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
 const [profileVideoUploadProgress, setProfileVideoUploadProgress] = useState<number | null>(null);
 const [profileVideoUploadStatus, setProfileVideoUploadStatus] = useState<string | null>(null);
 const [followersOverlayOpen, setFollowersOverlayOpen] = useState(false);
@@ -345,6 +347,22 @@ useEffect(() => {
 
   return () => window.clearTimeout(timeout);
 }, [serviceToast]);
+
+useEffect(() => {
+  const mediaQuery = window.matchMedia("(max-width: 768px)");
+
+  const syncMobileRefresh = () => {
+    setMobileRefreshEnabled(mediaQuery.matches);
+  };
+
+  syncMobileRefresh();
+
+  mediaQuery.addEventListener("change", syncMobileRefresh);
+
+  return () => {
+    mediaQuery.removeEventListener("change", syncMobileRefresh);
+  };
+}, []);
 
   const [cropOpen, setCropOpen] = useState(false);
   const [cropMode, setCropMode] = useState<CropMode>("avatar");
@@ -403,6 +421,12 @@ function openFollowersOverlay() {
   if (!isOwner) return;
   setFollowersOverlayOpen(true);
 }
+
+const handleProfilePullRefresh = useCallback(async () => {
+  clearAllPostFeedCaches();
+  setProfilePostsRefreshKey((value) => value + 1);
+  router.refresh();
+}, [router]);
 
   useEffect(() => {
     if (!userDoc) return;
@@ -1404,6 +1428,10 @@ await createExclusiveSessionRequest({
 
   return (
     <>
+      <RefreshableArea
+        onRefresh={handleProfilePullRefresh}
+        enabled={mobileRefreshEnabled}
+      >
 <main
   style={{
     minHeight: "calc(100dvh - 70px)",
@@ -2218,6 +2246,7 @@ await createExclusiveSessionRequest({
           />
         </div>
       </main>
+      </RefreshableArea>
 
 <ProfileFollowersOverlay
   open={followersOverlayOpen}
