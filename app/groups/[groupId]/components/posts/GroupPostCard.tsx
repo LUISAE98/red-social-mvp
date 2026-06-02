@@ -1267,9 +1267,9 @@ const cardStyle: CSSProperties = {
   overflow: "hidden",
   borderRadius: isMobile ? 0 : 12,
 
-  border: "1px solid rgba(168, 85, 255, 0.3)",
-  borderLeft: isMobile ? "none" : "1px solid rgba(168, 85, 255, 0.3)",
-  borderRight: isMobile ? "none" : "1px solid rgba(168, 85, 255, 0.3)",
+  border: "1px solid rgba(0, 0, 0, 1)",
+  borderLeft: isMobile ? "none" : "1px solid rgba(0, 0, 0, 1)",
+  borderRight: isMobile ? "none" : "1px solid rgba(0, 0, 0, 1)",
 
   background:
     "linear-gradient(135deg, rgb(0, 0, 0) 0%, rgb(2, 2, 4) 50%, rgb(0, 0, 0) 100%)",
@@ -1281,8 +1281,7 @@ const cardStyle: CSSProperties = {
   backdropFilter: "none",
   WebkitBackdropFilter: "none",
 
-  boxShadow:
-    "inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 0 12px rgba(168, 85, 255, 0.055), 0 0 10px rgba(168, 85, 255, 0.06), 0 14px 42px rgba(0, 0, 0, 0.74)",
+  boxShadow: "0 14px 42px rgba(0, 0, 0, 0.74)",
 
   marginBottom: isMobile ? 0.2 : 0,
 };
@@ -2126,9 +2125,9 @@ const shouldClampFeedPostText =
   style={{
     width: 1,
     height: 13,
-    background: "rgba(168, 85, 255, 0.65)",
+    background: "rgba(255, 255, 255, 0.65)",
     boxShadow:
-      "0 0 10px rgba(168, 85, 255, 0.55), 0 0 18px rgba(168, 85, 255, 0.28)",
+      "0 0 10px rgba(255, 255, 255, 0.45), 0 0 18px rgba(255, 255, 255, 0.22)",
     flexShrink: 0,
     marginRight: 2,
   }}
