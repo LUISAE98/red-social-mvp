@@ -25,6 +25,13 @@ body {
 html {
   -webkit-text-size-adjust: 100%;
   scrollbar-gutter: stable;
+  color-scheme: dark;
+}
+
+input,
+textarea,
+select {
+  color-scheme: dark;
 }
 
 *,

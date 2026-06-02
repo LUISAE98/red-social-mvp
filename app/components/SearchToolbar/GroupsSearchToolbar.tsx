@@ -136,6 +136,7 @@ export default function GroupsSearchToolbar({
   border: none;
   background: rgba(8, 5, 24, 0.94);
   color: #fff;
+  color-scheme: dark;
   outline: none;
   font-size: 13px;
   box-sizing: border-box;
