@@ -792,7 +792,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 
           min-height: 100vh;
           min-height: 100dvh;
-          background: #000000;
+          background: transparent;
           color: #fff;
           display: flex;
           flex-direction: column;
@@ -806,7 +806,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   height: calc(env(safe-area-inset-top, 0px) + 56px);
   z-index: 70;
   pointer-events: none;
-  background: #000000;
+  background: transparent;
 }
 
 .header {
@@ -1093,6 +1093,14 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 }
 
         @media (max-width: 900px) {
+
+.layout {
+  background: #000000;
+}
+
+.safeAreaHeaderBackdrop {
+  background: #000000;
+}
 
 .header {
   position: sticky;
