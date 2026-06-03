@@ -154,13 +154,13 @@ export default function RootLayout({
           </div>
         </div>
 
-        <DesktopRefreshSplash />
+<AuthProvider>
+  <DesktopRefreshSplash />
 
-        <AuthProvider>
-          <VibraGlobalBackground />
+  <VibraGlobalBackground />
 
-          <RootChrome>{children}</RootChrome>
-        </AuthProvider>
+  <RootChrome>{children}</RootChrome>
+</AuthProvider>
       </body>
     </html>
   );
