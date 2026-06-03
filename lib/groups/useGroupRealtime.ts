@@ -4,7 +4,7 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { db } from "@/lib/firebase";
 import {
-  normalizeMemberStatus,
+  resolveEffectiveMemberStatus,
   normalizeMemberRole,
   normalizeMembershipAccessType,
   isJoinedStatus,
@@ -111,11 +111,14 @@ export function useGroupRealtime({
             return;
           }
 
-          const data = msnap.data() as Record<string, unknown>;
-          const status = normalizeMemberStatus(data?.status ?? "active");
-          const role = normalizeMemberRole(
-            data?.roleInGroup ?? data?.role ?? "member"
-          );
+const data = msnap.data() as Record<string, unknown>;
+const status = resolveEffectiveMemberStatus(
+  data?.status ?? "active",
+  data?.mutedUntil
+);
+const role = normalizeMemberRole(
+  data?.roleInGroup ?? data?.role ?? "member"
+);
           const accessType = normalizeMembershipAccessType(data?.accessType);
           const requiresSubscription = data?.requiresSubscription === true;
           const subscriptionActive = data?.subscriptionActive === true;

@@ -519,21 +519,15 @@ export const cleanupExpiredGroupMutes = onSchedule(
   async () => {
     const now = Timestamp.now();
     let totalUpdated = 0;
-    let lastDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null;
 
     while (true) {
-      let q = db
+      const snap = await db
         .collectionGroup("members")
         .where("status", "==", "muted")
         .where("mutedUntil", "<=", now)
         .orderBy("mutedUntil")
-        .limit(200);
-
-      if (lastDoc) {
-        q = q.startAfter(lastDoc);
-      }
-
-      const snap = await q.get();
+        .limit(200)
+        .get();
 
       if (snap.empty) {
         break;
@@ -550,6 +544,7 @@ export const cleanupExpiredGroupMutes = onSchedule(
           status: "active",
           mutedUntil: null,
           updatedAt: FieldValue.serverTimestamp(),
+          muteExpiredAt: FieldValue.serverTimestamp(),
         };
 
         batch.set(docSnap.ref, patch, { merge: true });
@@ -562,7 +557,6 @@ export const cleanupExpiredGroupMutes = onSchedule(
 
       await batch.commit();
       totalUpdated += snap.size;
-      lastDoc = snap.docs[snap.docs.length - 1];
 
       if (snap.size < 200) {
         break;

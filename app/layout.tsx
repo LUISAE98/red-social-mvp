@@ -136,12 +136,6 @@ export default function RootLayout({
                   opacity: 1;
                 }
               }
-
-              @media (max-width: 900px) {
-                #desktop-refresh-splash {
-                  display: none;
-                }
-              }
             `,
           }}
         />

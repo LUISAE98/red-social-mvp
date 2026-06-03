@@ -148,6 +148,33 @@ export function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+function normalizeDateInput(raw: unknown): Date | null {
+  if (!raw) return null;
+
+  if (raw instanceof Date) {
+    return Number.isNaN(raw.getTime()) ? null : raw;
+  }
+
+  if (
+    typeof raw === "object" &&
+    raw !== null &&
+    "toDate" in raw &&
+    typeof (raw as { toDate?: unknown }).toDate === "function"
+  ) {
+    const value = (raw as { toDate: () => Date }).toDate();
+    return value instanceof Date && !Number.isNaN(value.getTime())
+      ? value
+      : null;
+  }
+
+  if (typeof raw === "string" || typeof raw === "number") {
+    const value = new Date(raw);
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  return null;
+}
+
 export function normalizeMemberStatus(raw: unknown): MemberStatus {
   if (raw === "active") return "active";
   if (raw === "subscribed") return "subscribed";
@@ -157,6 +184,25 @@ export function normalizeMemberStatus(raw: unknown): MemberStatus {
   if (raw === "kicked") return "kicked";
   if (raw === "expelled") return "expelled";
   return null;
+}
+
+export function resolveEffectiveMemberStatus(
+  rawStatus: unknown,
+  mutedUntil?: unknown
+): MemberStatus {
+  const status = normalizeMemberStatus(rawStatus);
+
+  if (status !== "muted") {
+    return status;
+  }
+
+  const muteExpirationDate = normalizeDateInput(mutedUntil);
+
+  if (muteExpirationDate && muteExpirationDate.getTime() <= Date.now()) {
+    return "active";
+  }
+
+  return "muted";
 }
 
 export function normalizeMemberRole(raw: unknown): MemberRole {

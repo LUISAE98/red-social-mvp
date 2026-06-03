@@ -5,6 +5,7 @@ import {
 } from "firebase/firestore";
 import { httpsCallable } from "firebase/functions";
 import { db, functions } from "@/lib/firebase";
+import { resolveEffectiveMemberStatus } from "@/lib/groups/groupAdapters";
 
 export type MembershipAccessType =
   | "standard"
@@ -103,8 +104,10 @@ function normalizeSidebarGroupFromUserMembership(
 
   if (!groupId) return null;
 
-  const status =
-    typeof data.status === "string" ? data.status : null;
+  const status = resolveEffectiveMemberStatus(
+    typeof data.status === "string" ? data.status : null,
+    data.mutedUntil
+  );
 
   if (status === "removed" || status === "kicked" || status === "expelled") {
     return null;
