@@ -544,8 +544,10 @@ onToggleProfilePin,
   const [showExactPostDate, setShowExactPostDate] = useState(false);
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | null>(null);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
-  const carouselTouchStartXRef = useRef<number | null>(null);
+const carouselTouchStartXRef = useRef<number | null>(null);
+const carouselTouchStartYRef = useRef<number | null>(null);
 const carouselTouchDeltaXRef = useRef(0);
+const carouselTouchAxisRef = useRef<"x" | "y" | null>(null);
 const [carouselDragOffsetX, setCarouselDragOffsetX] = useState(0);
 const [carouselIsDragging, setCarouselIsDragging] = useState(false);
 const [postTextExpanded, setPostTextExpanded] = useState(false);
@@ -2844,7 +2846,7 @@ const feedMediaUrl =
 
 const mediaRatio = mediaAspectRatios[media.url] ?? mediaAspectRatios[feedMediaUrl];
 const shouldContainTile = shouldContainMedia(mediaRatio);
-const mediaObjectFit = isMobile && !forceMobileCover ? "contain" : "cover";
+const mediaObjectFit = "cover";
 const mediaScale = 1;
         if (media.type === "video" && !media.thumbnailUrl && media.playbackUrl) {
           return (
@@ -3015,35 +3017,63 @@ style={{
 onTouchStart={(event) => {
   if (!isMobile) return;
 
-  carouselTouchStartXRef.current = event.touches[0]?.clientX ?? null;
+  const touch = event.touches[0];
+
+  carouselTouchStartXRef.current = touch?.clientX ?? null;
+  carouselTouchStartYRef.current = touch?.clientY ?? null;
   carouselTouchDeltaXRef.current = 0;
-  setCarouselIsDragging(true);
+  carouselTouchAxisRef.current = null;
+
+  setCarouselIsDragging(false);
   setCarouselDragOffsetX(0);
 }}
 onTouchMove={(event) => {
   if (!isMobile) return;
 
   const startX = carouselTouchStartXRef.current;
-  const currentX = event.touches[0]?.clientX ?? null;
+  const startY = carouselTouchStartYRef.current;
+  const touch = event.touches[0];
 
-  if (startX === null || currentX === null) return;
+  if (startX === null || startY === null || !touch) return;
 
-  const deltaX = currentX - startX;
+  const deltaX = touch.clientX - startX;
+  const deltaY = touch.clientY - startY;
+
+  if (carouselTouchAxisRef.current === null) {
+    if (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) return;
+
+    carouselTouchAxisRef.current =
+      Math.abs(deltaX) > Math.abs(deltaY) ? "x" : "y";
+  }
+
+  if (carouselTouchAxisRef.current === "y") {
+    setCarouselIsDragging(false);
+    setCarouselDragOffsetX(0);
+    return;
+  }
+
+  event.preventDefault();
 
   carouselTouchDeltaXRef.current = deltaX;
+  setCarouselIsDragging(true);
   setCarouselDragOffsetX(deltaX);
 }}
 onTouchEnd={() => {
   if (!isMobile) return;
 
+  const axis = carouselTouchAxisRef.current;
   const deltaX = carouselTouchDeltaXRef.current;
   const threshold = 70;
 
   carouselTouchStartXRef.current = null;
+  carouselTouchStartYRef.current = null;
   carouselTouchDeltaXRef.current = 0;
+  carouselTouchAxisRef.current = null;
+
   setCarouselIsDragging(false);
   setCarouselDragOffsetX(0);
 
+  if (axis !== "x") return;
   if (Math.abs(deltaX) < threshold) return;
 
   if (deltaX < 0) {
@@ -3056,7 +3086,10 @@ onTouchCancel={() => {
   if (!isMobile) return;
 
   carouselTouchStartXRef.current = null;
+  carouselTouchStartYRef.current = null;
   carouselTouchDeltaXRef.current = 0;
+  carouselTouchAxisRef.current = null;
+
   setCarouselIsDragging(false);
   setCarouselDragOffsetX(0);
 }}
@@ -3067,7 +3100,7 @@ style={{
   borderRadius: 12,
   overflow: "hidden",
   background: "#000",
-  touchAction: isMobile ? "pan-y" : "auto",
+  touchAction: isMobile ? "pan-y pinch-zoom" : "auto",
   clipPath: "inset(0 round 12px)",
   WebkitClipPath: "inset(0 round 12px)",
   transform: "translateZ(0)",
@@ -3112,7 +3145,7 @@ style={{
   bottom: 0,
   left: "50%",
   width: getCarouselMediaFrameWidth(media),
-  transform: "translateX(-50%)",
+  transform: "translateX(-50%) translateZ(0)",
   border: "none",
   padding: 0,
   background: "#000",
@@ -3120,6 +3153,8 @@ style={{
   display: "block",
   overflow: "hidden",
   borderRadius: 12,
+  clipPath: "inset(0 round 12px)",
+  WebkitClipPath: "inset(0 round 12px)",
   WebkitTapHighlightColor: "transparent",
   isolation: "isolate",
 }}
