@@ -544,6 +544,7 @@ onToggleProfilePin,
   const [showExactPostDate, setShowExactPostDate] = useState(false);
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | null>(null);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+const carouselShellRef = useRef<HTMLDivElement | null>(null);
 const carouselTouchStartXRef = useRef<number | null>(null);
 const carouselTouchStartYRef = useRef<number | null>(null);
 const carouselTouchDeltaXRef = useRef(0);
@@ -1925,6 +1926,109 @@ function goToNextMedia() {
   );
 }
 
+useEffect(() => {
+  if (!isMobile) return;
+
+  const el = carouselShellRef.current;
+  if (!el) return;
+
+  const axisThreshold = 10;
+  const axisBias = 1.25;
+  const swipeThreshold = 70;
+
+  function resetGesture() {
+    carouselTouchStartXRef.current = null;
+    carouselTouchStartYRef.current = null;
+    carouselTouchDeltaXRef.current = 0;
+    carouselTouchAxisRef.current = null;
+
+    setCarouselIsDragging(false);
+    setCarouselDragOffsetX(0);
+
+    document.body.style.overflow = "";
+  }
+
+  function handleTouchStart(event: TouchEvent) {
+    const touch = event.touches[0];
+    if (!touch) return;
+
+    carouselTouchStartXRef.current = touch.clientX;
+    carouselTouchStartYRef.current = touch.clientY;
+    carouselTouchDeltaXRef.current = 0;
+    carouselTouchAxisRef.current = null;
+
+    setCarouselIsDragging(false);
+    setCarouselDragOffsetX(0);
+  }
+
+  function handleTouchMove(event: TouchEvent) {
+    const startX = carouselTouchStartXRef.current;
+    const startY = carouselTouchStartYRef.current;
+    const touch = event.touches[0];
+
+    if (startX === null || startY === null || !touch) return;
+
+    const deltaX = touch.clientX - startX;
+    const deltaY = touch.clientY - startY;
+
+    const absX = Math.abs(deltaX);
+    const absY = Math.abs(deltaY);
+
+    if (carouselTouchAxisRef.current === null) {
+      if (absX < axisThreshold && absY < axisThreshold) return;
+
+      if (absX > absY * axisBias) {
+        carouselTouchAxisRef.current = "x";
+        document.body.style.overflow = "hidden";
+      } else {
+        carouselTouchAxisRef.current = "y";
+      }
+    }
+
+    if (carouselTouchAxisRef.current === "y") {
+      setCarouselIsDragging(false);
+      setCarouselDragOffsetX(0);
+      return;
+    }
+
+    event.preventDefault();
+
+    carouselTouchDeltaXRef.current = deltaX;
+    setCarouselIsDragging(true);
+    setCarouselDragOffsetX(deltaX);
+  }
+
+  function handleTouchEnd() {
+    const axis = carouselTouchAxisRef.current;
+    const deltaX = carouselTouchDeltaXRef.current;
+
+    resetGesture();
+
+    if (axis !== "x") return;
+    if (Math.abs(deltaX) < swipeThreshold) return;
+
+    if (deltaX < 0) {
+      goToNextMedia();
+    } else {
+      goToPreviousMedia();
+    }
+  }
+
+  el.addEventListener("touchstart", handleTouchStart, { passive: true });
+  el.addEventListener("touchmove", handleTouchMove, { passive: false });
+  el.addEventListener("touchend", handleTouchEnd, { passive: true });
+  el.addEventListener("touchcancel", resetGesture, { passive: true });
+
+  return () => {
+    el.removeEventListener("touchstart", handleTouchStart);
+    el.removeEventListener("touchmove", handleTouchMove);
+    el.removeEventListener("touchend", handleTouchEnd);
+    el.removeEventListener("touchcancel", resetGesture);
+
+    document.body.style.overflow = "";
+  };
+}, [isMobile, displayMedia.length, activeMediaIndex]);
+
 function getMediaDotsTranslateX() {
   const total = displayMedia.length;
   const maxVisibleDots = 5;
@@ -3013,99 +3117,22 @@ style={{
 
       return (
         <div>
-          <div
-onTouchStart={(event) => {
-  if (!isMobile) return;
-
-  const touch = event.touches[0];
-
-  carouselTouchStartXRef.current = touch?.clientX ?? null;
-  carouselTouchStartYRef.current = touch?.clientY ?? null;
-  carouselTouchDeltaXRef.current = 0;
-  carouselTouchAxisRef.current = null;
-
-  setCarouselIsDragging(false);
-  setCarouselDragOffsetX(0);
-}}
-onTouchMove={(event) => {
-  if (!isMobile) return;
-
-  const startX = carouselTouchStartXRef.current;
-  const startY = carouselTouchStartYRef.current;
-  const touch = event.touches[0];
-
-  if (startX === null || startY === null || !touch) return;
-
-  const deltaX = touch.clientX - startX;
-  const deltaY = touch.clientY - startY;
-
-  if (carouselTouchAxisRef.current === null) {
-    if (Math.abs(deltaX) < 8 && Math.abs(deltaY) < 8) return;
-
-    carouselTouchAxisRef.current =
-      Math.abs(deltaX) > Math.abs(deltaY) ? "x" : "y";
-  }
-
-  if (carouselTouchAxisRef.current === "y") {
-    setCarouselIsDragging(false);
-    setCarouselDragOffsetX(0);
-    return;
-  }
-
-  event.preventDefault();
-
-  carouselTouchDeltaXRef.current = deltaX;
-  setCarouselIsDragging(true);
-  setCarouselDragOffsetX(deltaX);
-}}
-onTouchEnd={() => {
-  if (!isMobile) return;
-
-  const axis = carouselTouchAxisRef.current;
-  const deltaX = carouselTouchDeltaXRef.current;
-  const threshold = 70;
-
-  carouselTouchStartXRef.current = null;
-  carouselTouchStartYRef.current = null;
-  carouselTouchDeltaXRef.current = 0;
-  carouselTouchAxisRef.current = null;
-
-  setCarouselIsDragging(false);
-  setCarouselDragOffsetX(0);
-
-  if (axis !== "x") return;
-  if (Math.abs(deltaX) < threshold) return;
-
-  if (deltaX < 0) {
-    goToNextMedia();
-  } else {
-    goToPreviousMedia();
-  }
-}}
-onTouchCancel={() => {
-  if (!isMobile) return;
-
-  carouselTouchStartXRef.current = null;
-  carouselTouchStartYRef.current = null;
-  carouselTouchDeltaXRef.current = 0;
-  carouselTouchAxisRef.current = null;
-
-  setCarouselIsDragging(false);
-  setCarouselDragOffsetX(0);
-}}
-style={{
-  position: "relative",
-  width: "100%",
-  aspectRatio: carouselShellAspectRatio,
-  borderRadius: 12,
-  overflow: "hidden",
-  background: "#000",
-  touchAction: isMobile ? "pan-y pinch-zoom" : "auto",
-  clipPath: "inset(0 round 12px)",
-  WebkitClipPath: "inset(0 round 12px)",
-  transform: "translateZ(0)",
-}}
-          >
+   <div
+  ref={carouselShellRef}
+  style={{
+    position: "relative",
+    width: "100%",
+    aspectRatio: carouselShellAspectRatio,
+    borderRadius: 12,
+    overflow: "hidden",
+    background: "#000",
+    touchAction: isMobile ? "pan-y" : "auto",
+    overscrollBehavior: "contain",
+    clipPath: "inset(0 round 12px)",
+    WebkitClipPath: "inset(0 round 12px)",
+    transform: "translateZ(0)",
+  }}
+>
             <div
 style={{
   position: "absolute",
