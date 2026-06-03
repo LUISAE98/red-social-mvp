@@ -36,6 +36,11 @@ import {
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
+import {
+  clearSlowLoadTimer,
+  createSlowLoadTimer,
+  loadFeedWithRetry,
+} from "@/lib/posts/feed-load-helpers";
 
 
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
@@ -390,12 +395,14 @@ export default function GroupPostsFeed({
   const [currentUid, setCurrentUid] = useState<string | null>(
     auth.currentUser?.uid ?? null,
   );
+  const [isTakingTooLong, setIsTakingTooLong] = useState(false);
 
   const infiniteScrollTargetRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(false);
   const pageCursorRef = useRef<GroupPostsPageCursor | null>(null);
   const videoProcessingPollsRef = useRef<Record<string, number>>({});
+  const feedRequestIdRef = useRef(0);
 
   useEffect(() => {
     hasMoreRef.current = hasMore;
@@ -496,6 +503,7 @@ export default function GroupPostsFeed({
         setHasMore(false);
         setLoadingInitial(false);
         setLoadingMore(false);
+        setIsTakingTooLong(false);
         return;
       }
 
@@ -507,22 +515,53 @@ export default function GroupPostsFeed({
         setLoadingInitial(true);
       }
 
+      const requestId = feedRequestIdRef.current + 1;
+      feedRequestIdRef.current = requestId;
+
+      let slowLoadTimer: ReturnType<typeof setTimeout> | null = null;
+
+      setIsTakingTooLong(false);
+
+      slowLoadTimer = createSlowLoadTimer(() => {
+        if (feedRequestIdRef.current === requestId) {
+          setIsTakingTooLong(true);
+        }
+      }, 7000);
+
       try {
         setError(null);
 
-        const result = await fetchGroupPostsPage({
-          groupId,
-          viewerUid: currentUid,
-          pageSize: GROUP_FEED_PAGE_SIZE,
-          cursor: mode === "more" ? pageCursorRef.current : null,
-        });
+        const result = await loadFeedWithRetry(
+          async () => {
+            const pageResult = await fetchGroupPostsPage({
+              groupId,
+              viewerUid: currentUid,
+              pageSize: GROUP_FEED_PAGE_SIZE,
+              cursor: mode === "more" ? pageCursorRef.current : null,
+            });
 
-        const hydratedPosts = await attachAuthorMemberState(
-          groupId,
-          result.posts,
+            const hydratedPosts = await attachAuthorMemberState(
+              groupId,
+              pageResult.posts,
+            );
+
+            return {
+              ...pageResult,
+              posts: hydratedPosts,
+            };
+          },
+          {
+            timeoutMs: mode === "more" ? 15000 : 12000,
+            retries: 1,
+            retryDelayMs: 900,
+          },
         );
 
-        const normalizedPosts = hydratedPosts
+        if (feedRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        const normalizedPosts = result.posts
           .map(normalizeFeedPost)
           .filter((post) => post.isDeleted !== true);
 
@@ -550,8 +589,21 @@ export default function GroupPostsFeed({
           return nextPosts;
         });
       } catch (e: any) {
-        setError(e?.message ?? "Error desconocido");
+        if (feedRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setError(
+          e?.message ??
+            "No se pudieron cargar las publicaciones. Intenta de nuevo.",
+        );
       } finally {
+        clearSlowLoadTimer(slowLoadTimer);
+
+        if (feedRequestIdRef.current === requestId) {
+          setIsTakingTooLong(false);
+        }
+
         if (mode === "more") {
           loadingMoreRef.current = false;
           setLoadingMore(false);
@@ -1423,6 +1475,20 @@ const shellStyle: CSSProperties = {
       {composerError && <div style={composerErrorStyle}>{composerError}</div>}
 
       {error && <div style={noticeStyle}>{error}</div>}
+
+      {isTakingTooLong && (
+        <button
+          type="button"
+          onClick={() => void loadPostsPage("refresh")}
+          style={{
+            ...noticeStyle,
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          Esto está tardando más de lo normal. Toca aquí para reintentar.
+        </button>
+      )}
 
       {loadingInitial && (
         <div style={noticeStyle}>Cargando publicaciones...</div>

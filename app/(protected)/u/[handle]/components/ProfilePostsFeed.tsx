@@ -30,6 +30,11 @@ import {
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import { buildRandomRecommendationSlots } from "@/app/components/GroupRecommendations/recommendation-engine";
+import {
+  clearSlowLoadTimer,
+  createSlowLoadTimer,
+  loadFeedWithRetry,
+} from "@/lib/posts/feed-load-helpers";
 
 type ProfilePostsFeedProps = {
   profileUid: string;
@@ -461,12 +466,14 @@ export default function ProfilePostsFeed({
   const [pageCursor, setPageCursor] =
     useState<UserProfilePostsPageCursor | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [isTakingTooLong, setIsTakingTooLong] = useState(false);
 
   const infiniteScrollTargetRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(false);
   const pageCursorRef = useRef<UserProfilePostsPageCursor | null>(null);
   const videoProcessingPollsRef = useRef<Record<string, number>>({});
+  const feedRequestIdRef = useRef(0);
 
   useEffect(() => {
     hasMoreRef.current = hasMore;
@@ -569,6 +576,7 @@ const cacheKey = useMemo(
         setHasMore(false);
         setLoadingInitial(false);
         setLoadingMore(false);
+        setIsTakingTooLong(false);
         return;
       }
 
@@ -579,6 +587,7 @@ const cacheKey = useMemo(
         setError(null);
         setLoadingInitial(false);
         setLoadingMore(false);
+        setIsTakingTooLong(false);
         return;
       }
 
@@ -590,27 +599,58 @@ const cacheKey = useMemo(
         setLoadingInitial(true);
       }
 
+      const requestId = feedRequestIdRef.current + 1;
+      feedRequestIdRef.current = requestId;
+
+      let slowLoadTimer: ReturnType<typeof setTimeout> | null = null;
+
+      setIsTakingTooLong(false);
+
+      slowLoadTimer = createSlowLoadTimer(() => {
+        if (feedRequestIdRef.current === requestId) {
+          setIsTakingTooLong(true);
+        }
+      }, 7000);
+
       try {
         setError(null);
 
-        const result = await fetchUserProfilePostsPage({
-          profileUid,
-          viewerUid,
-          pageSize: PROFILE_FEED_PAGE_SIZE,
-          cursor: mode === "more" ? pageCursorRef.current : null,
-        });
+        const result = await loadFeedWithRetry(
+          async () => {
+            const pageResult = await fetchUserProfilePostsPage({
+              profileUid,
+              viewerUid,
+              pageSize: PROFILE_FEED_PAGE_SIZE,
+              cursor: mode === "more" ? pageCursorRef.current : null,
+            });
 
-        const visiblePosts = await filterBannedGroupPosts(
-          result.posts,
-          viewerUid
+            const visiblePosts = await filterBannedGroupPosts(
+              pageResult.posts,
+              viewerUid
+            );
+
+            const hydratedPosts = await attachModerationFlags(
+              visiblePosts,
+              viewerUid
+            );
+
+            return {
+              ...pageResult,
+              posts: hydratedPosts,
+            };
+          },
+          {
+            timeoutMs: mode === "more" ? 15000 : 12000,
+            retries: 1,
+            retryDelayMs: 900,
+          }
         );
 
-        const hydratedPosts = await attachModerationFlags(
-          visiblePosts,
-          viewerUid
-        );
+        if (feedRequestIdRef.current !== requestId) {
+          return;
+        }
 
-        const normalizedPosts = hydratedPosts
+        const normalizedPosts = result.posts
           .map(normalizeProfileFeedPost)
           .filter((post) => post.isDeleted !== true);
 
@@ -638,8 +678,21 @@ const cacheKey = useMemo(
           return nextPosts;
         });
       } catch (e: any) {
-        setError(e?.message ?? "Error desconocido");
+        if (feedRequestIdRef.current !== requestId) {
+          return;
+        }
+
+        setError(
+          e?.message ??
+            "No se pudieron cargar las publicaciones. Intenta de nuevo."
+        );
       } finally {
+        clearSlowLoadTimer(slowLoadTimer);
+
+        if (feedRequestIdRef.current === requestId) {
+          setIsTakingTooLong(false);
+        }
+
         if (mode === "more") {
           loadingMoreRef.current = false;
           setLoadingMore(false);
@@ -1205,6 +1258,20 @@ const shellStyle: CSSProperties = {
       </div>
 
       {error && <div style={noticeStyle}>{error}</div>}
+
+      {isTakingTooLong && (
+        <button
+          type="button"
+          onClick={() => void loadPostsPage("refresh")}
+          style={{
+            ...noticeStyle,
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          Esto está tardando más de lo normal. Toca aquí para reintentar.
+        </button>
+      )}
 
       {loadingInitial && <div style={noticeStyle}>Cargando publicaciones...</div>}
 

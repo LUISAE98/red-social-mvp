@@ -304,32 +304,40 @@ async function attachViewerGroupMemberBlockState(
     }));
   }
 
+  const relationshipKeys = Array.from(
+    new Set(
+      posts
+        .map((post) => {
+          const groupId =
+            typeof post.groupId === "string" && post.groupId.trim().length > 0
+              ? post.groupId.trim()
+              : null;
+
+          const authorId =
+            typeof post.authorId === "string" && post.authorId.trim().length > 0
+              ? post.authorId.trim()
+              : null;
+
+          if (
+            post.contextType === "profile" ||
+            !groupId ||
+            !authorId ||
+            authorId === uid
+          ) {
+            return null;
+          }
+
+          return `${groupId}__${authorId}`;
+        })
+        .filter((key): key is string => Boolean(key))
+    )
+  );
+
   const relationshipEntries = await Promise.all(
-    posts.map(async (post) => {
-      const groupId =
-        typeof post.groupId === "string" && post.groupId.trim().length > 0
-          ? post.groupId.trim()
-          : null;
-
-      const authorId =
-        typeof post.authorId === "string" && post.authorId.trim().length > 0
-          ? post.authorId.trim()
-          : null;
-
-      if (
-        post.contextType === "profile" ||
-        !groupId ||
-        !authorId ||
-        authorId === uid
-      ) {
-        return [
-          post.id,
-          {
-            hasBlocked: false,
-            isBlockedBy: false,
-          },
-        ] as const;
-      }
+    relationshipKeys.map(async (key) => {
+      const separatorIndex = key.indexOf("__");
+      const groupId = key.slice(0, separatorIndex);
+      const authorId = key.slice(separatorIndex + 2);
 
       const relationship = await fetchGroupMemberBlockRelationship({
         groupId,
@@ -337,22 +345,32 @@ async function attachViewerGroupMemberBlockState(
         targetUid: authorId,
       });
 
-      return [post.id, relationship] as const;
+      return [key, relationship] as const;
     })
   );
 
   const relationshipMap = new Map(relationshipEntries);
 
   return posts.map((post) => {
-    const relationship = relationshipMap.get(post.id) ?? {
-      hasBlocked: false,
-      isBlockedBy: false,
-    };
+    const groupId =
+      typeof post.groupId === "string" && post.groupId.trim().length > 0
+        ? post.groupId.trim()
+        : null;
+
+    const authorId =
+      typeof post.authorId === "string" && post.authorId.trim().length > 0
+        ? post.authorId.trim()
+        : null;
+
+    const relationship =
+      groupId && authorId
+        ? relationshipMap.get(`${groupId}__${authorId}`)
+        : null;
 
     return {
       ...post,
-      viewerHasBlockedAuthorInGroup: relationship.hasBlocked,
-      viewerIsBlockedByAuthorInGroup: relationship.isBlockedBy,
+      viewerHasBlockedAuthorInGroup: relationship?.hasBlocked ?? false,
+      viewerIsBlockedByAuthorInGroup: relationship?.isBlockedBy ?? false,
     };
   });
 }
@@ -1304,17 +1322,31 @@ async function attachViewerSavedState(
     )
   );
 
+  if (uniquePostIds.length === 0) {
+    return posts.map((post) => ({
+      ...post,
+      viewerHasSaved: false,
+    }));
+  }
+
   const savedPostIds = new Set<string>();
+  const chunks = chunkArray(uniquePostIds, 10);
 
   await Promise.all(
-    uniquePostIds.map(async (postId) => {
+    chunks.map(async (chunk) => {
       try {
-        const snap = await getDoc(doc(db, "users", uid, "savedPosts", postId));
-        if (snap.exists()) {
-          savedPostIds.add(postId);
-        }
+        const snap = await getDocs(
+          query(
+            collection(db, "users", uid, "savedPosts"),
+            where(documentId(), "in", chunk)
+          )
+        );
+
+        snap.docs.forEach((savedDoc) => {
+          savedPostIds.add(savedDoc.id);
+        });
       } catch {
-        // Si falla una lectura puntual, no rompemos el feed.
+        // Si falla una lectura por bloque, no rompemos el feed.
       }
     })
   );
@@ -3586,10 +3618,23 @@ export async function fetchSavedPostsPage(params: {
     };
   }
 
+  const savedPostIds = savedSnap.docs
+    .map((savedDoc) => {
+      const data = savedDoc.data() as Record<string, unknown>;
+
+      const postIdFromData =
+        typeof data.postId === "string" && data.postId.trim().length > 0
+          ? data.postId.trim()
+          : null;
+
+      return postIdFromData || savedDoc.id;
+    })
+    .filter((postId) => postId.trim().length > 0);
+
   const rawPosts = await Promise.all(
-    savedSnap.docs.map(async (savedDoc) => {
+    savedPostIds.map(async (postId) => {
       try {
-        const postSnap = await getDoc(doc(db, "posts", savedDoc.id));
+        const postSnap = await getDoc(doc(db, "posts", postId));
 
         if (!postSnap.exists()) {
           return null;
