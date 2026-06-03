@@ -543,6 +543,11 @@ onToggleProfilePin,
   const [shouldLoadFeedVideo, setShouldLoadFeedVideo] = useState(false);
   const [showExactPostDate, setShowExactPostDate] = useState(false);
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | null>(null);
+  const [activeMediaIndex, setActiveMediaIndex] = useState(0);
+  const carouselTouchStartXRef = useRef<number | null>(null);
+const carouselTouchDeltaXRef = useRef(0);
+const [carouselDragOffsetX, setCarouselDragOffsetX] = useState(0);
+const [carouselIsDragging, setCarouselIsDragging] = useState(false);
 const [postTextExpanded, setPostTextExpanded] = useState(false);
 const [optimisticViewerHasFlamed, setOptimisticViewerHasFlamed] = useState(
   post.viewerHasFlamed === true
@@ -1625,10 +1630,10 @@ const imageGridStyle: CSSProperties = {
   marginTop: 12,
   display: "grid",
   gap: 8,
-  width: isMobile ? "calc(100% + 24px)" : "100%",
-  maxWidth: isMobile ? "calc(100% + 24px)" : "100%",
-  marginLeft: isMobile ? -12 : 0,
-  marginRight: isMobile ? -12 : 0,
+  width: "100%",
+  maxWidth: "100%",
+  marginLeft: 0,
+  marginRight: 0,
 };
 
 function getImageWrapStyle(mediaUrl: string): CSSProperties {
@@ -1641,7 +1646,7 @@ function getImageWrapStyle(mediaUrl: string): CSSProperties {
     aspectRatio: getResponsiveMediaAspectRatio(ratio),
     borderRadius: isMobile ? 0 : 12,
     overflow: "hidden",
-    border: isMobile ? "none" : "1px solid rgba(255,255,255,0.08)",
+    border: "none",
     background: "#000",
   };
 }
@@ -1681,34 +1686,35 @@ function getResponsiveMediaAspectRatio(ratio?: number | null): string {
     return isMobile ? "16 / 10" : "16 / 9";
   }
 
+  if (!isMobile) {
+    if (ratio >= 1.2) return "16 / 9";
+    if (ratio <= 0.82) return "16 / 9";
+    return "16 / 10";
+  }
+
   if (ratio >= 1.2) {
-    return isMobile ? "16 / 10" : "16 / 9";
+    return "16 / 10";
   }
 
   if (ratio <= 0.82) {
-    return isMobile ? "4 / 5" : "16 / 9";
+    const minRatio = 0.58;
+    const safeRatio = Math.max(ratio, minRatio);
+
+    return `${safeRatio} / 1`;
   }
 
-  return isMobile ? "1 / 1" : "16 / 10";
+  return `${ratio} / 1`;
 }
-
 function shouldContainMedia(ratio?: number | null): boolean {
   return !isMobile && typeof ratio === "number" && ratio <= 0.82;
 }
 
+function shouldUseNarrowVerticalFrame(ratio?: number | null): boolean {
+  return typeof ratio === "number" && Number.isFinite(ratio) && ratio <= 0.82;
+}
+
 function getContainedMediaScale(ratio?: number | null): number {
-  if (
-    typeof ratio !== "number" ||
-    !Number.isFinite(ratio) ||
-    !shouldContainMedia(ratio)
-  ) {
-    return 1;
-  }
-
-  if (ratio <= 0.58) return 1.16;
-  if (ratio <= 0.7) return 1.12;
-
-  return 1.08;
+  return 1;
 }
 
 function getFeedMediaUrl(media: DisplayMediaItem): string {
@@ -1901,6 +1907,36 @@ const displayMedia = mediaFromPost
 
   const hasMediaGrid = displayMedia.length > 0;
 
+  useEffect(() => {
+  setActiveMediaIndex(0);
+}, [post.id, displayMedia.length]);
+
+function goToPreviousMedia() {
+  setActiveMediaIndex((current) =>
+    current <= 0 ? displayMedia.length - 1 : current - 1
+  );
+}
+
+function goToNextMedia() {
+  setActiveMediaIndex((current) =>
+    current >= displayMedia.length - 1 ? 0 : current + 1
+  );
+}
+
+function getMediaDotsTranslateX() {
+  const total = displayMedia.length;
+  const maxVisibleDots = 5;
+  const dotStep = 12;
+
+  if (total <= maxVisibleDots) return 0;
+
+  const centerOffset = Math.floor(maxVisibleDots / 2) * dotStep;
+  const desiredTranslate = centerOffset - activeMediaIndex * dotStep;
+  const minTranslate = -((total - maxVisibleDots) * dotStep);
+
+  return Math.max(minTranslate, Math.min(0, desiredTranslate));
+}
+
   const viewerMediaItems: DisplayMediaItem[] =
     displayMedia.length > 0
       ? displayMedia
@@ -1939,11 +1975,12 @@ const displayMedia = mediaFromPost
       : videoAspectRatio;
 
   const shouldContainRootVideo = shouldContainMedia(videoOrientationRatio);
-  const rootVideoShellAspectRatio =
-    isMobile && videoThumbnailUrl && videoOrientationRatio == null
-      ? "16 / 10"
+const rootVideoShellAspectRatio =
+  isMobile && typeof videoOrientationRatio === "number" && videoOrientationRatio <= 0.82
+    ? "9 / 16"
+    : isMobile && videoThumbnailUrl && videoOrientationRatio == null
+      ? "9 / 16"
       : getResponsiveMediaAspectRatio(videoOrientationRatio);
-
   const isVideoPost =
     post.postType === "video" || post.videoData != null || mediaVideoItems.length > 0;
 
@@ -2316,17 +2353,17 @@ style={{
 
 {isVideoPost && !hasMediaGrid && (
   <div
-    style={{
-      marginTop: 10,
-      width: isMobile ? "calc(100% + 24px)" : "100%",
-      maxWidth: isMobile ? "calc(100% + 24px)" : "100%",
-      marginLeft: isMobile ? -12 : 0,
-      marginRight: isMobile ? -12 : 0,
-      borderRadius: isMobile ? 0 : 14,
-      border: isMobile ? "none" : "1px solid rgba(255,255,255,0.08)",
-      overflow: "hidden",
-      background: "#050505",
-    }}
+style={{
+  marginTop: 10,
+  width: "100%",
+  maxWidth: "100%",
+  marginLeft: 0,
+  marginRight: 0,
+  borderRadius: isMobile ? 12 : 14,
+  border: isMobile ? "none" : "1px solid rgba(255,255,255,0.08)",
+  overflow: "hidden",
+  background: "#050505",
+}}
   >
     {isVideoReady && videoPlaybackUrl ? (
       <div
@@ -2357,7 +2394,7 @@ style={{
       display: "block",
       width: "100%",
       height: "100%",
-      objectFit: shouldContainRootVideo ? "contain" : "cover",
+      objectFit: isMobile ? "contain" : shouldContainRootVideo ? "contain" : "cover",
       background: shouldContainRootVideo ? "transparent" : "#050505",
     }}
     onLoad={(event) => {
@@ -2420,7 +2457,7 @@ style={{
       width: "100%",
       height: "100%",
       background: "transparent",
-objectFit: shouldContainRootVideo ? "contain" : "cover",
+objectFit: isMobile ? "contain" : shouldContainRootVideo ? "contain" : "cover",
 transform: `scale(${getContainedMediaScale(videoOrientationRatio)})`,
 transformOrigin: "center center",
 cursor: isMobile ? "pointer" : "default",
@@ -2447,7 +2484,7 @@ cursor: isMobile ? "pointer" : "default",
         borderRadius: 999,
         display: "grid",
         placeItems: "center",
-        background: "rgba(0,0,0,0.48)",
+        background: "rgba(124,58,237,0.48)",
         border: "1px solid rgba(255,255,255,0.22)",
         color: "#fff",
         fontSize: 28,
@@ -2485,7 +2522,7 @@ cursor: isMobile ? "pointer" : "default",
         borderRadius: 999,
         display: "grid",
         placeItems: "center",
-        background: "rgba(0,0,0,0.48)",
+        background: "rgba(124,58,237,0.48)",
         border: "1px solid rgba(255,255,255,0.22)",
         color: "#fff",
         fontSize: 28,
@@ -2584,11 +2621,27 @@ cursor: isMobile ? "pointer" : "default",
 {hasMediaGrid && (
   <div style={imageGridStyle}>
     {(() => {
-      const totalMedia = displayMedia.length;
-      const first = displayMedia[0];
-      const second = displayMedia[1] ?? null;
-      const third = displayMedia[2] ?? null;
-      const remainingCount = Math.max(0, totalMedia - 3);
+const totalMedia = displayMedia.length;
+const activeMedia =
+  displayMedia[Math.min(activeMediaIndex, totalMedia - 1)] ?? displayMedia[0];
+
+const activeMediaRatio = mediaAspectRatios[activeMedia.url];
+const useNarrowActiveFrame = shouldUseNarrowVerticalFrame(activeMediaRatio);
+
+const carouselShellAspectRatio = isMobile ? "16 / 10" : "16 / 10";
+
+function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
+  const ratio = mediaAspectRatios[media.url];
+  const useNarrowFrame = shouldUseNarrowVerticalFrame(ratio);
+
+  if (isMobile) {
+    return "100%";
+  }
+
+  if (!useNarrowFrame) return "100%";
+
+  return "46%";
+}
 
       function openMedia(media: DisplayMediaItem) {
         if (media.isPlaceholder) return;
@@ -2620,7 +2673,7 @@ cursor: isMobile ? "pointer" : "default",
                   borderRadius: 999,
                   display: "grid",
                   placeItems: "center",
-                  background: "rgba(0,0,0,0.48)",
+                  background: "rgba(124,58,237,0.48)",
                   border: "1px solid rgba(255,255,255,0.22)",
                   color: "#fff",
                   fontSize: 23,
@@ -2767,46 +2820,32 @@ cursor: isMobile ? "pointer" : "default",
         );
       }
 
-      function renderMediaContent(
-        media: DisplayMediaItem,
-        index: number,
-        loading: "eager" | "lazy" = "lazy"
-      ) {
+const tileImageStyle: CSSProperties = {
+  position: "relative",
+  zIndex: 1,
+  width: "100%",
+  height: "100%",
+  display: "block",
+  objectFit: "cover",
+};
+
+function renderMediaContent(
+  media: DisplayMediaItem,
+  index: number,
+  loading: "eager" | "lazy" = "lazy",
+  forceMobileCover = false
+) {
         if (media.isPlaceholder) {
           return renderVideoProcessingPlaceholder(media);
         }
 
-        const feedMediaUrl = getFeedMediaUrl(media);
-        const mediaRatio = mediaAspectRatios[media.url];
-        const shouldContainTile = shouldContainMedia(mediaRatio);
+const feedMediaUrl =
+  media.url && !failedMediaUrls[media.url] ? media.url : getFeedMediaUrl(media);
 
-function renderRemainingOverlay() {
-  if (remainingCount <= 0 || index !== 2) return null;
-
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 5,
-        background: "rgba(0,0,0,0.55)",
-        display: "grid",
-        placeItems: "center",
-        color: "#fff",
-        fontSize: 24,
-        fontWeight: 800,
-        lineHeight: 1,
-        textAlign: "center",
-        pointerEvents: "none",
-        textShadow: "0 2px 10px rgba(0,0,0,0.65)",
-      }}
-    >
-+{remainingCount}
-    </div>
-  );
-}
-
+const mediaRatio = mediaAspectRatios[media.url] ?? mediaAspectRatios[feedMediaUrl];
+const shouldContainTile = shouldContainMedia(mediaRatio);
+const mediaObjectFit = isMobile && !forceMobileCover ? "contain" : "cover";
+const mediaScale = 1;
         if (media.type === "video" && !media.thumbnailUrl && media.playbackUrl) {
           return (
             <>
@@ -2820,9 +2859,9 @@ function renderRemainingOverlay() {
                 draggable={false}
                 style={{
                   ...tileImageStyle,
-objectFit: shouldContainTile ? "contain" : "cover",
+objectFit: mediaObjectFit,
 background: shouldContainTile ? "transparent" : "#050505",
-transform: `scale(${getContainedMediaScale(mediaRatio)})`,
+transform: `scale(${mediaScale})`,
 transformOrigin: "center center",
                 }}
                 onLoadedMetadata={(event) => {
@@ -2851,7 +2890,6 @@ transformOrigin: "center center",
               />
 
               {renderVideoOverlay(media)}
-              {renderRemainingOverlay()}
             </>
           );
         }
@@ -2872,9 +2910,9 @@ transformOrigin: "center center",
               draggable={false}
               style={{
                 ...tileImageStyle,
-objectFit: shouldContainTile ? "contain" : "cover",
+objectFit: mediaObjectFit,
 background: shouldContainTile ? "transparent" : "#050505",
-transform: `scale(${getContainedMediaScale(mediaRatio)})`,
+transform: `scale(${mediaScale})`,
 transformOrigin: "center center",
               }}
               onLoad={(event) => {
@@ -2903,263 +2941,326 @@ transformOrigin: "center center",
             />
 
             {renderVideoOverlay(media)}
-            {renderRemainingOverlay()}
           </>
         );
       }
 
-      const tileBaseStyle: CSSProperties = {
-        position: "relative",
-        minWidth: 0,
-        minHeight: 0,
-        overflow: "hidden",
-        border: "none",
-        padding: 0,
-        background: "#000",
-        cursor: "pointer",
-        display: "block",
-        WebkitTapHighlightColor: "transparent",
-      };
+if (totalMedia === 1) {
+  const first = displayMedia[0];
 
-      const tileImageStyle: CSSProperties = {
-        position: "relative",
-        zIndex: 1,
-        width: "100%",
-        height: "100%",
-        display: "block",
-        objectFit: "cover",
-      };
+  const firstFeedUrl =
+    first.url && !failedMediaUrls[first.url] ? first.url : getFeedMediaUrl(first);
 
-      if (totalMedia === 1) {
-        const firstFeedUrl = getFeedMediaUrl(first);
-        const firstRatio = mediaAspectRatios[first.url];
-        const shouldContainFirstMedia = shouldContainMedia(firstRatio);
+  const firstRatio = mediaAspectRatios[first.url] ?? mediaAspectRatios[firstFeedUrl];
+  const useNarrowFirstFrame = shouldUseNarrowVerticalFrame(firstRatio);
+const firstMediaFrameWidth = isMobile
+  ? "100%"
+  : useNarrowFirstFrame
+    ? "62%"
+    : "100%";
 
-        const isLoaded = first.isPlaceholder
-          ? true
-          : loadedMediaUrls[firstFeedUrl] === true || loadedMediaUrls[first.url] === true;
+const firstShellAspectRatio = isMobile
+  ? getResponsiveMediaAspectRatio(firstRatio)
+  : useNarrowFirstFrame
+    ? "1 / 0.84"
+    : "16 / 10";
 
-        return (
-          <button
-            type="button"
-            onClick={() => openMedia(first)}
-            aria-label={
-              first.type === "video"
-                ? "Reproducir video de la publicación"
-                : "Abrir imagen de la publicación"
-            }
-            style={{
-              ...getImageWrapStyle(first.url),
-              padding: 0,
-              cursor: "pointer",
-              display: "block",
-            }}
-          >
-            {!isLoaded && (
-              <div
-                aria-hidden="true"
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  background:
-                    "linear-gradient(90deg, rgba(255,255,255,0.045), rgba(255,255,255,0.075), rgba(255,255,255,0.045))",
-                }}
-              />
-            )}
-
-            {shouldContainFirstMedia &&
-              renderBlurredMediaBackdrop(
-                first.type === "video" && !first.thumbnailUrl && first.playbackUrl
-                  ? first.playbackUrl
-                  : firstFeedUrl,
-                first.type === "video" && !first.thumbnailUrl && first.playbackUrl
-                  ? "video"
-                  : "image"
-              )}
-
-            {first.isPlaceholder ? (
-              renderVideoProcessingPlaceholder(first)
-            ) : first.type === "video" && !first.thumbnailUrl && first.playbackUrl ? (
-              <video
-                src={first.playbackUrl}
-                muted
-                playsInline
-                preload="metadata"
-                draggable={false}
-                style={{
-                  ...postImageStyle,
-objectFit: shouldContainFirstMedia ? "contain" : "cover",
-opacity: isLoaded ? 1 : 0,
-background: shouldContainFirstMedia ? "transparent" : "#050505",
-transform: `scale(${getContainedMediaScale(firstRatio)})`,
-transformOrigin: "center center",
-                }}
-                onLoadedMetadata={(event) => {
-                  const video = event.currentTarget;
-                  const ratio =
-                    video.videoWidth > 0 && video.videoHeight > 0
-                      ? video.videoWidth / video.videoHeight
-                      : 1;
-
-                  setMediaAspectRatios((prev) => ({
-                    ...prev,
-                    [first.url]: ratio,
-                  }));
-
-                  setLoadedMediaUrls((prev) => ({
-                    ...prev,
-                    [first.url]: true,
-                  }));
-                }}
-                onError={() => {
-                  setFailedMediaUrls((prev) => ({
-                    ...prev,
-                    [first.url]: true,
-                  }));
-                }}
-              />
-            ) : (
-              <img
-                src={firstFeedUrl}
-                alt={
-                  first.altText ||
-                  (first.type === "video"
-                    ? "Video de la publicación"
-                    : "Imagen de la publicación")
-                }
-                loading="lazy"
-                draggable={false}
-                style={{
-                  ...postImageStyle,
-objectFit: shouldContainFirstMedia ? "contain" : "cover",
-opacity: isLoaded ? 1 : 0,
-background: shouldContainFirstMedia ? "transparent" : "#050505",
-transform: `scale(${getContainedMediaScale(firstRatio)})`,
-transformOrigin: "center center",
-                }}
-                onLoad={(event) => {
-                  const img = event.currentTarget;
-                  const ratio =
-                    img.naturalWidth > 0 && img.naturalHeight > 0
-                      ? img.naturalWidth / img.naturalHeight
-                      : 1;
-
-                  setMediaAspectRatios((prev) => ({
-                    ...prev,
-                    [first.url]: ratio,
-                  }));
-
-                  setLoadedMediaUrls((prev) => ({
-                    ...prev,
-                    [firstFeedUrl]: true,
-                  }));
-                }}
-                onError={() => {
-                  setFailedMediaUrls((prev) => ({
-                    ...prev,
-                    [firstFeedUrl]: true,
-                  }));
-                }}
-              />
-            )}
-
-            {!first.isPlaceholder && renderVideoOverlay(first)}
-          </button>
-        );
-      }
-
-      if (totalMedia === 2 && second) {
-        return (
-          <div
-            style={{
-              width: "100%",
-              aspectRatio: isMobile ? "1 / 1" : "16 / 10",
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 2,
-              borderRadius: isMobile ? 0 : 12,
-              overflow: "hidden",
-              background: "#000",
-            }}
-          >
-            {[first, second].map((media, index) => (
-              <button
-                key={`${media.type}-${media.url}-${index}`}
-                type="button"
-                onClick={() => openMedia(media)}
-                aria-label={
-                  media.type === "video"
-                    ? `Reproducir video ${index + 1} de ${totalMedia}`
-                    : `Abrir imagen ${index + 1} de ${totalMedia}`
-                }
-                style={tileBaseStyle}
-              >
-                {renderMediaContent(media, index, "eager")}
-              </button>
-            ))}
-          </div>
-        );
-      }
-
-      return (
-        <div
+  return (
+    <div>
+      <div
+style={{
+  position: "relative",
+  width: "100%",
+  aspectRatio: firstShellAspectRatio,
+  borderRadius: 12,
+  overflow: "hidden",
+  background: "#000",
+}}
+      >
+        <button
+          type="button"
+          onClick={() => openMedia(first)}
+          aria-label={
+            first.type === "video"
+              ? "Reproducir video de la publicación"
+              : "Abrir imagen de la publicación"
+          }
           style={{
-            width: "100%",
-            aspectRatio: isMobile ? "1 / 1" : "16 / 10",
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gridTemplateRows: "1fr 1fr",
-            gap: 2,
-            borderRadius: isMobile ? 0 : 12,
-            overflow: "hidden",
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: "50%",
+            width: firstMediaFrameWidth,
+            transform: "translateX(-50%)",
+            border: "none",
+            padding: 0,
             background: "#000",
+            cursor: first.isPlaceholder ? "default" : "pointer",
+            display: "block",
+            overflow: "hidden",
+            borderRadius: isMobile ? 12 : 12,
+            WebkitTapHighlightColor: "transparent",
           }}
         >
-          <button
-            type="button"
-            onClick={() => openMedia(first)}
-            aria-label={
-              first.type === "video"
-                ? `Reproducir video 1 de ${totalMedia}`
-                : `Abrir imagen 1 de ${totalMedia}`
-            }
+          {renderMediaContent(first, 0, "eager", true)}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+      return (
+        <div>
+          <div
+onTouchStart={(event) => {
+  if (!isMobile) return;
+
+  carouselTouchStartXRef.current = event.touches[0]?.clientX ?? null;
+  carouselTouchDeltaXRef.current = 0;
+  setCarouselIsDragging(true);
+  setCarouselDragOffsetX(0);
+}}
+onTouchMove={(event) => {
+  if (!isMobile) return;
+
+  const startX = carouselTouchStartXRef.current;
+  const currentX = event.touches[0]?.clientX ?? null;
+
+  if (startX === null || currentX === null) return;
+
+  const deltaX = currentX - startX;
+
+  carouselTouchDeltaXRef.current = deltaX;
+  setCarouselDragOffsetX(deltaX);
+}}
+onTouchEnd={() => {
+  if (!isMobile) return;
+
+  const deltaX = carouselTouchDeltaXRef.current;
+  const threshold = 70;
+
+  carouselTouchStartXRef.current = null;
+  carouselTouchDeltaXRef.current = 0;
+  setCarouselIsDragging(false);
+  setCarouselDragOffsetX(0);
+
+  if (Math.abs(deltaX) < threshold) return;
+
+  if (deltaX < 0) {
+    goToNextMedia();
+  } else {
+    goToPreviousMedia();
+  }
+}}
+onTouchCancel={() => {
+  if (!isMobile) return;
+
+  carouselTouchStartXRef.current = null;
+  carouselTouchDeltaXRef.current = 0;
+  setCarouselIsDragging(false);
+  setCarouselDragOffsetX(0);
+}}
+style={{
+  position: "relative",
+  width: "100%",
+  aspectRatio: carouselShellAspectRatio,
+  borderRadius: 12,
+  overflow: "hidden",
+  background: "#000",
+  touchAction: isMobile ? "pan-y" : "auto",
+  clipPath: "inset(0 round 12px)",
+  WebkitClipPath: "inset(0 round 12px)",
+  transform: "translateZ(0)",
+}}
+          >
+            <div
+style={{
+  position: "absolute",
+  inset: 0,
+  display: "flex",
+  width: `${totalMedia * 100}%`,
+  transform: `translateX(calc(-${activeMediaIndex * (100 / totalMedia)}% + ${carouselDragOffsetX}px))`,
+  transition: carouselIsDragging
+    ? "none"
+    : "transform 360ms cubic-bezier(0.22, 1, 0.36, 1)",
+  willChange: "transform",
+}}
+            >
+              {displayMedia.map((media, index) => (
+                <div
+                  key={`${media.url}-${index}`}
+style={{
+  position: "relative",
+  width: `${100 / totalMedia}%`,
+  height: "100%",
+  flex: `0 0 ${100 / totalMedia}%`,
+  overflow: "hidden",
+  background: "#000",
+}}
+                >
+                  <button
+                    type="button"
+                    onClick={() => openMedia(media)}
+                    aria-label={
+                      media.type === "video"
+                        ? `Reproducir video ${index + 1} de ${totalMedia}`
+                        : `Abrir imagen ${index + 1} de ${totalMedia}`
+                    }
+style={{
+  position: "absolute",
+  top: 0,
+  bottom: 0,
+  left: "50%",
+  width: getCarouselMediaFrameWidth(media),
+  transform: "translateX(-50%)",
+  border: "none",
+  padding: 0,
+  background: "#000",
+  cursor: media.isPlaceholder ? "default" : "pointer",
+  display: "block",
+  overflow: "hidden",
+  borderRadius: 12,
+  WebkitTapHighlightColor: "transparent",
+  isolation: "isolate",
+}}
+                  >
+                    {renderMediaContent(
+                      media,
+                      index,
+                      Math.abs(index - activeMediaIndex) <= 1 ? "eager" : "lazy"
+                    )}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                goToPreviousMedia();
+              }}
+              aria-label="Ver archivo anterior"
+              style={{
+                position: "absolute",
+                left: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                zIndex: 10,
+width: 30,
+height: 30,
+background: "rgba(0,0,0,0.48)",
+display: isMobile ? "none" : "flex",
+alignItems: "center",
+justifyContent: "center",
+fontSize: 22,
+lineHeight: "30px",
+padding: "0 0 2px 0",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              ‹
+            </button>
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                goToNextMedia();
+              }}
+              aria-label="Ver siguiente archivo"
+              style={{
+                position: "absolute",
+                right: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                zIndex: 10,
+width: 30,
+height: 30,
+background: "rgba(0,0,0,0.48)",
+display: isMobile ? "none" : "flex",
+alignItems: "center",
+justifyContent: "center",
+fontSize: 22,
+lineHeight: "30px",
+padding: "0 0 2px 0",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              ›
+            </button>
+          </div>
+
+          <div
+            aria-label={`Archivo ${activeMediaIndex + 1} de ${totalMedia}`}
             style={{
-              ...tileBaseStyle,
-              gridRow: "1 / span 2",
+              marginTop: 9,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 12,
+              overflow: "hidden",
             }}
           >
-            {renderMediaContent(first, 0, "eager")}
-          </button>
-
-          {second && (
-            <button
-              type="button"
-              onClick={() => openMedia(second)}
-              aria-label={
-                second.type === "video"
-                  ? `Reproducir video 2 de ${totalMedia}`
-                  : `Abrir imagen 2 de ${totalMedia}`
-              }
-              style={tileBaseStyle}
+            <div
+              style={{
+                width: totalMedia <= 5 ? totalMedia * 12 : 60,
+                overflow: "hidden",
+                display: "flex",
+                justifyContent: "flex-start",
+              }}
             >
-              {renderMediaContent(second, 1, "eager")}
-            </button>
-          )}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  transform: `translateX(${getMediaDotsTranslateX()}px)`,
+                  transition: "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
+                  willChange: "transform",
+                }}
+              >
+                {displayMedia.map((_, dotIndex) => {
+                  const isActive = dotIndex === activeMediaIndex;
 
-          {third && (
-            <button
-              type="button"
-              onClick={() => openMedia(third)}
-              aria-label={
-                third.type === "video"
-                  ? `Reproducir video 3 de ${totalMedia}`
-                  : `Abrir imagen 3 de ${totalMedia}`
-              }
-              style={tileBaseStyle}
-            >
-              {renderMediaContent(third, 2, "lazy")}
-            </button>
-          )}
+                  return (
+                    <button
+                      key={dotIndex}
+                      type="button"
+                      onClick={() => setActiveMediaIndex(dotIndex)}
+                      aria-label={`Ver archivo ${dotIndex + 1}`}
+                      style={{
+                        width: 12,
+                        height: 12,
+                        minWidth: 12,
+                        borderRadius: 999,
+                        border: "none",
+                        padding: 0,
+                        background: "transparent",
+                        cursor: "pointer",
+                        display: "grid",
+                        placeItems: "center",
+                        WebkitTapHighlightColor: "transparent",
+                      }}
+                    >
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          width: isActive ? 7 : 5,
+                          height: isActive ? 7 : 5,
+                          borderRadius: 999,
+                          background: isActive
+                            ? "#7c3aed"
+                            : "rgba(255,255,255,0.34)",
+                          transition:
+                            "width 160ms ease, height 160ms ease, background 160ms ease",
+                        }}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         </div>
       );
     })()}
