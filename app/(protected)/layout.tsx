@@ -1315,7 +1315,18 @@ export default function PublicProfileLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+
+if (loading) {
+  return (
+    <div
+      style={{
+        minHeight: "100dvh",
+        background: "#000",
+      }}
+    />
+  );
+}
 
   if (user) {
     return <AuthenticatedProfileShell>{children}</AuthenticatedProfileShell>;
