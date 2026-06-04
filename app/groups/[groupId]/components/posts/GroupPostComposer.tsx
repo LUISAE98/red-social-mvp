@@ -2,20 +2,21 @@
 
 import Link from "next/link";
 import { MAX_POST_IMAGES } from "@/lib/posts/types";
+import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
-  type TextareaHTMLAttributes,
 } from "react";
 import { doc, getDoc } from "firebase/firestore";
 
 import { auth, db } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
+import PostComposerDesktopOverlay from "./PostComposerDesktopOverlay";
+import PostComposerMobileOverlay from "./PostComposerMobileOverlay";
 
 type ComposerMediaItem = {
   type: "image" | "video";
@@ -38,7 +39,6 @@ type GroupPostComposerProps = {
   contextType?: ComposerContextType;
 };
 
-type ComposerPostType = "text" | "image" | "video" | "live" | "scheduled_event";
 type SelectedMediaItem = ComposerMediaItem & {
   id: string;
   previewUrl: string;
@@ -66,21 +66,6 @@ function createLocalMediaId() {
   }
 
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function formatVideoDuration(durationSeconds: number | null) {
-  if (
-    !Number.isFinite(durationSeconds ?? Number.NaN) ||
-    durationSeconds === null
-  ) {
-    return "0:00";
-  }
-
-  const totalSeconds = Math.max(0, Math.floor(durationSeconds));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 function readVideoDurationFromUrl(previewUrl: string): Promise<number | null> {
@@ -194,62 +179,6 @@ function captureFirstVideoFrame(
   });
 }
 
-function AutoGrowTextarea({
-  value,
-  maxRows = 3,
-  style,
-  ...props
-}: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "style"> & {
-  maxRows?: number;
-  style?: CSSProperties;
-}) {
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-
-  const resize = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    el.style.height = "0px";
-
-    const computed = window.getComputedStyle(el);
-    const lineHeight = Number.parseFloat(computed.lineHeight || "20") || 20;
-    const borderTop = Number.parseFloat(computed.borderTopWidth || "0") || 0;
-    const borderBottom =
-      Number.parseFloat(computed.borderBottomWidth || "0") || 0;
-    const paddingTop = Number.parseFloat(computed.paddingTop || "0") || 0;
-    const paddingBottom = Number.parseFloat(computed.paddingBottom || "0") || 0;
-
-    const maxHeight =
-      lineHeight * maxRows +
-      paddingTop +
-      paddingBottom +
-      borderTop +
-      borderBottom;
-
-    const nextHeight = Math.min(el.scrollHeight, maxHeight);
-    el.style.height = `${nextHeight}px`;
-    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
-  }, [maxRows]);
-
-  useEffect(() => {
-    resize();
-  }, [value, resize]);
-
-  return (
-    <textarea
-      {...props}
-      ref={ref}
-      value={value}
-      rows={1}
-      onInput={(event) => {
-        resize();
-        props.onInput?.(event);
-      }}
-      style={style}
-    />
-  );
-}
-
 function Avatar({
   name,
   avatarUrl,
@@ -307,7 +236,8 @@ export default function GroupPostComposer({
 }: GroupPostComposerProps) {
   const [text, setText] = useState("");
   const [creating, setCreating] = useState(false);
-  const [postType, setPostType] = useState<ComposerPostType>("text");
+  const [isComposerOverlayOpen, setIsComposerOverlayOpen] = useState(false);
+  const [isMobileComposer, setIsMobileComposer] = useState(false);
   const [currentUserHandle, setCurrentUserHandle] = useState<string | null>(
     null,
   );
@@ -449,6 +379,22 @@ export default function GroupPostComposer({
     return () => window.clearTimeout(timer);
   }, [localError]);
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+
+    function syncComposerMode() {
+      setIsMobileComposer(mediaQuery.matches);
+    }
+
+    syncComposerMode();
+
+    mediaQuery.addEventListener("change", syncComposerMode);
+
+    return () => {
+      mediaQuery.removeEventListener("change", syncComposerMode);
+    };
+  }, []);
+
   const currentUserHref = currentUserHandle ? `/u/${currentUserHandle}` : "#";
   const hasContent = text.trim().length > 0 || selectedMediaItems.length > 0;
   const isPreparingImages =
@@ -457,36 +403,18 @@ export default function GroupPostComposer({
     selectedImages.length + processingImageSlots < MAX_POST_IMAGES ||
     selectedVideos.length + processingVideoSlots < MAX_POST_VIDEOS;
 
-      const contextLabel =
-    contextType === "profile"
-      ? "Crear publicación en tu perfil"
-      : "Crear publicación";
+  function handleOpenComposerOverlay() {
+    if (creating) return;
+    setIsComposerOverlayOpen(true);
+  }
 
   function handleOpenMediaPicker() {
     if (creating || isPreparingImages) return;
     fileInputRef.current?.click();
   }
 
-  function updatePostType(nextItems: SelectedMediaItem[]) {
-    const hasImages = nextItems.some((item) => item.type === "image");
-    const hasVideos = nextItems.some((item) => item.type === "video");
-
-    if (hasImages && hasVideos) {
-      setPostType("video");
-      return;
-    }
-
-    if (hasVideos) {
-      setPostType("video");
-      return;
-    }
-
-    if (hasImages) {
-      setPostType("image");
-      return;
-    }
-
-    setPostType(text.trim().length > 0 ? "text" : "text");
+  function updatePostType(_nextItems: SelectedMediaItem[]) {
+    return;
   }
 
   function clearDragPressTimer() {
@@ -933,7 +861,7 @@ export default function GroupPostComposer({
 
       setText("");
       clearSelectedMedia();
-      setPostType("text");
+      setIsComposerOverlayOpen(false);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -947,7 +875,7 @@ export default function GroupPostComposer({
 
   const cardStyle: CSSProperties = {
     borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.08)",
+    border: "transparent",
     background: "rgba(255,255,255,0.022)",
     color: "#fff",
     padding: 12,
@@ -955,205 +883,66 @@ export default function GroupPostComposer({
     backdropFilter: "blur(10px)",
   };
 
-  const labelStyle: CSSProperties = {
-    fontSize: 10.5,
-    color: "rgba(255,255,255,0.56)",
-    lineHeight: 1.2,
-    letterSpacing: "-0.01em",
-  };
-
-  const nameStyle: CSSProperties = {
-    fontSize: 12.5,
-    fontWeight: 500,
-    color: "#fff",
-    lineHeight: 1.15,
-    letterSpacing: "-0.02em",
-    textDecoration: "none",
-  };
-
-  const textareaStyle: CSSProperties = {
+  const launcherButtonStyle: CSSProperties = {
     width: "100%",
-    minHeight: 42,
-    maxHeight: 96,
-    padding: "10px 0 0 0",
+    minHeight: 44,
+    padding: "10px 0 10px 0",
     border: "none",
     borderBottom: "1px solid rgba(255,255,255,0.07)",
     background: "transparent",
-    color: "#fff",
+    color: text.trim().length > 0 ? "#fff" : "rgba(255,255,255,0.42)",
     outline: "none",
-    resize: "none",
-    overflowY: "hidden",
     fontSize: 13,
     fontWeight: 300,
     lineHeight: "21px",
     fontFamily: fontStack,
     boxSizing: "border-box",
-    WebkitAppearance: "none",
-  };
-
-  const mediaPreviewWrapStyle: CSSProperties = {
-    width: "clamp(76px, 22vw, 104px)",
-    height: "clamp(76px, 22vw, 104px)",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.08)",
+    textAlign: "left",
+    cursor: creating ? "not-allowed" : "text",
     overflow: "hidden",
-    background: "rgba(255,255,255,0.04)",
-    position: "relative",
-    flex: "0 0 auto",
-  };
-
-  const mediaPreviewStyle: CSSProperties = {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
     display: "block",
-    userSelect: "none",
-    WebkitUserSelect: "none",
+    whiteSpace: "nowrap",
+    textOverflow: "ellipsis",
   };
 
-  const mediaPreviewItemColumnStyle: CSSProperties = {
-    width: "clamp(76px, 22vw, 104px)",
-    flex: "0 0 auto",
-    display: "grid",
-    gap: 7,
-  };
-
-  const videoCoverButtonStyle: CSSProperties = {
-    width: "100%",
-    minHeight: 30,
-    padding: "6px 8px",
-    borderRadius: 10,
-    border: "1px solid rgba(168,85,247,0.34)",
-    background: "rgba(168,85,247,0.14)",
-    color: "rgba(237,233,254,0.96)",
-    fontSize: 10.5,
-    fontWeight: 700,
+  const primaryButtonStyle: CSSProperties = {
+    width: 44,
+    height: 44,
+    minHeight: 44,
+    padding: 0,
+    borderRadius: 0,
+    border: "none",
+    background: "transparent",
+    color: "#a855ff",
+    fontSize: 20,
+    fontWeight: 600,
     fontFamily: fontStack,
-    lineHeight: 1.1,
     cursor: "pointer",
     whiteSpace: "nowrap",
-  };
-
-  const videoCoverLoadingStyle: CSSProperties = {
-    position: "absolute",
-    inset: 0,
-    display: "grid",
-    placeItems: "center",
-    background:
-      "linear-gradient(135deg, rgba(76,29,149,0.78), rgba(168,85,247,0.34), rgba(49,46,129,0.72))",
-    backgroundSize: "220% 220%",
-    animation: "post-preview-video-cover-loading 1.45s ease-in-out infinite",
-    color: "rgba(255,255,255,0.92)",
-    textAlign: "center",
-    padding: 10,
-    boxSizing: "border-box",
-    zIndex: 2,
-  };
-
-  const removeMediaButtonStyle: CSSProperties = {
-    position: "absolute",
-    top: 6,
-    right: 6,
-    width: 24,
-    height: 24,
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(0,0,0,0.68)",
-    color: "#fff",
-    cursor: "pointer",
-    fontSize: 13,
-    lineHeight: 1,
-    zIndex: 4,
-  };
-
-  const mediaNumberBadgeStyle: CSSProperties = {
-    position: "absolute",
-    left: 6,
-    top: 6,
-    minWidth: 22,
-    height: 22,
-    borderRadius: 999,
-    background: "rgba(0,0,0,0.62)",
-    color: "#fff",
-    display: "grid",
-    placeItems: "center",
-    fontSize: 11,
-    fontWeight: 700,
-    lineHeight: 1,
-    zIndex: 3,
-  };
-
-  const videoPlayBadgeStyle: CSSProperties = {
-    position: "absolute",
-    left: "50%",
-    top: "50%",
-    width: 34,
-    height: 34,
-    borderRadius: 999,
-    transform: "translate(-50%, -50%)",
-    display: "grid",
-    placeItems: "center",
-    background: "rgba(0,0,0,0.58)",
-    border: "1px solid rgba(255,255,255,0.24)",
-    color: "#fff",
-    fontSize: 15,
-    lineHeight: 1,
-    pointerEvents: "none",
-    zIndex: 3,
-  };
-
-  const videoDurationBadgeStyle: CSSProperties = {
-    position: "absolute",
-    right: 6,
-    bottom: 6,
-    minHeight: 20,
-    padding: "3px 6px",
-    borderRadius: 999,
-    background: "rgba(0,0,0,0.68)",
-    color: "#fff",
-    fontSize: 10.5,
-    fontWeight: 700,
-    lineHeight: 1,
     display: "inline-flex",
     alignItems: "center",
-    zIndex: 3,
+    justifyContent: "center",
+    flexShrink: 0,
   };
 
-  const addMoreMediaButtonStyle: CSSProperties = {
-    width: "clamp(76px, 22vw, 104px)",
-    height: "clamp(76px, 22vw, 104px)",
-    borderRadius: 12,
-    border: "1px dashed rgba(255,255,255,0.24)",
-    background: "rgba(255,255,255,0.045)",
-    color: "rgba(255,255,255,0.78)",
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-    fontSize: 24,
-    fontWeight: 300,
-    lineHeight: 1,
-    flex: "0 0 auto",
-  };
-
-  const actionsRowStyle: CSSProperties = {
-    marginTop: 10,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 10,
-    flexWrap: "wrap",
+  const disabledButtonStyle: CSSProperties = {
+    ...primaryButtonStyle,
+    background: "transparent",
+    border: "none",
+    color: "rgba(168,85,255,0.36)",
+    cursor: "not-allowed",
   };
 
   const secondaryButtonStyle: CSSProperties = {
-    width: 38,
-    height: 38,
-    minHeight: 38,
+    width: 30,
+    height: 44,
+    minHeight: 44,
     padding: 0,
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.04)",
-    color: "rgba(255,255,255,0.90)",
-    fontSize: 18,
+    borderRadius: 0,
+    border: "none",
+    background: "transparent",
+    color: "#a855ff",
+    fontSize: 20,
     fontWeight: 600,
     fontFamily: fontStack,
     cursor: "pointer",
@@ -1161,27 +950,6 @@ export default function GroupPostComposer({
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
-  };
-
-  const primaryButtonStyle: CSSProperties = {
-    minHeight: 34,
-    padding: "8px 14px",
-    borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.12)",
-    background: "#fff",
-    color: "#000",
-    fontSize: 12,
-    fontWeight: 600,
-    fontFamily: fontStack,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  };
-
-  const disabledButtonStyle: CSSProperties = {
-    ...primaryButtonStyle,
-    background: "rgba(255,255,255,0.10)",
-    color: "rgba(255,255,255,0.50)",
-    cursor: "not-allowed",
   };
 
   const localErrorStyle: CSSProperties = {
@@ -1196,464 +964,200 @@ export default function GroupPostComposer({
   };
 
   return (
-    <section style={cardStyle}>
-      <style>
-        {`
-          .composer-textarea-scroll {
-            scrollbar-width: thin;
-            scrollbar-color: rgba(255,255,255,0.18) transparent;
-          }
+    <>
+      <section style={cardStyle}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,.heic,.heif,video/*"
+          multiple
+          style={{ display: "none" }}
+          onChange={async (event) => {
+            const input = event.currentTarget;
+            const files = Array.from(input.files ?? []);
 
-          .composer-textarea-scroll::-webkit-scrollbar {
-            width: 6px;
-          }
+            if (files.length > 0) {
+              await handleMediaSelected(files);
+              setIsComposerOverlayOpen(true);
+            }
 
-          .composer-textarea-scroll::-webkit-scrollbar-track {
-            background: transparent;
-          }
+            input.value = "";
+          }}
+        />
 
-          .composer-textarea-scroll::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.18);
-            border-radius: 999px;
-          }
+        <input
+          ref={coverInputRef}
+          type="file"
+          accept="image/*,.heic,.heif"
+          style={{ display: "none" }}
+          onChange={async (event) => {
+            const file = event.currentTarget.files?.[0] ?? null;
+            await handleCoverSelected(file);
+            event.currentTarget.value = "";
+          }}
+        />
 
-          .composer-textarea-scroll::-webkit-scrollbar-button {
-            display: none;
-            width: 0;
-            height: 0;
-          }
-        `}
-      </style>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+          <Link
+            href={currentUserHref}
+            style={{
+              display: "inline-flex",
+              flexShrink: 0,
+              marginTop: 2,
+            }}
+          >
+            <Avatar
+              name={currentUserName}
+              avatarUrl={currentUserAvatar}
+              size={48}
+            />
+          </Link>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,.heic,.heif,video/*"
-        multiple
-        style={{ display: "none" }}
-        onChange={async (event) => {
-          const input = event.currentTarget;
-          const files = Array.from(input.files ?? []);
-          await handleMediaSelected(files);
-          input.value = "";
-        }}
-      />
-
-      <input
-        ref={coverInputRef}
-        type="file"
-        accept="image/*,.heic,.heif"
-        style={{ display: "none" }}
-        onChange={async (event) => {
-          const file = event.currentTarget.files?.[0] ?? null;
-          await handleCoverSelected(file);
-          event.currentTarget.value = "";
-        }}
-      />
-
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-        <Link
-          href={currentUserHref}
-          style={{ display: "inline-flex", flexShrink: 0 }}
-        >
-          <Avatar
-            name={currentUserName}
-            avatarUrl={currentUserAvatar}
-            size={36}
-          />
-        </Link>
-
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <div style={{ display: "grid", gap: 2 }}>
-            <Link href={currentUserHref} style={nameStyle}>
-              {currentUserName}
-            </Link>
-
-            <div style={labelStyle}>
-              {selectedImages.length > 0 && selectedVideos.length > 0
-                ? contextType === "profile"
-                  ? "Crear publicación con media en tu perfil"
-                  : "Crear publicación con media"
-                : postType === "image"
-                  ? contextType === "profile"
-                    ? "Crear publicación con imagen en tu perfil"
-                    : "Crear publicación con imagen"
-                  : postType === "video"
-                    ? contextType === "profile"
-                      ? "Crear publicación con video en tu perfil"
-                      : "Crear publicación con video"
-                    : contextLabel}
-            </div>
-          </div>
-
-          <AutoGrowTextarea
-            className="composer-textarea-scroll"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder="Escribe algo..."
-            maxRows={3}
-            style={textareaStyle}
-          />
-
-          {(selectedMediaItems.length > 0 || processingImageSlots > 0) && (
+          <div style={{ minWidth: 0, flex: 1 }}>
             <div
-              style={{ marginTop: 10, position: "relative", maxWidth: "100%" }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                width: "100%",
+              }}
             >
-              <style>
-                {`
-                  .post-preview-scroller::-webkit-scrollbar {
-                    height: 6px;
-                  }
-
-                  .post-preview-scroller::-webkit-scrollbar-track {
-                    background: transparent;
-                  }
-
-                  .post-preview-scroller::-webkit-scrollbar-thumb {
-                    background: rgba(255,255,255,0.18);
-                    border-radius: 999px;
-                  }
-
-                  @keyframes post-preview-loading-pulse {
-                    0% { opacity: 0.42; }
-                    50% { opacity: 0.78; }
-                    100% { opacity: 0.42; }
-                  }
-
-                  @keyframes post-preview-video-cover-loading {
-                    0% { background-position: 0% 50%; }
-                    50% { background-position: 100% 50%; }
-                    100% { background-position: 0% 50%; }
-                  }
-
-                  @media (max-width: 640px) {
-                    .post-preview-scroller::-webkit-scrollbar {
-                      display: none;
-                    }
-                  }
-                `}
-              </style>
-
-              <div
-                ref={previewScrollerRef}
-                className="post-preview-scroller"
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  maxWidth: "100%",
-                  overflowX: "auto",
-                  overflowY: "hidden",
-                  paddingBottom: 8,
-                  WebkitOverflowScrolling: "touch",
-                  scrollbarWidth: "thin",
-                  scrollbarColor: "rgba(255,255,255,0.18) transparent",
-                  cursor: isReorderingPreview ? "grabbing" : "grab",
-                }}
+              <button
+                type="button"
+                onClick={handleOpenComposerOverlay}
+                disabled={creating}
+                style={launcherButtonStyle}
+                aria-label="Abrir editor de publicación"
+                title="Abrir editor de publicación"
               >
-                {selectedMediaItems.map((item, index) => {
-                  const videoCoverPreviewUrl =
-                    item.type === "video"
-                      ? item.coverPreviewUrl || item.autoCoverUrl || null
-                      : null;
-                  const isVideoCoverLoading =
-                    item.type === "video" &&
-                    !videoCoverPreviewUrl &&
-                    item.coverStatus !== "error";
-                  const hasManualCover =
-                    item.type === "video" && Boolean(item.coverPreviewUrl);
+                {text.trim().length > 0
+                  ? text.trim()
+                  : contextType === "profile"
+                    ? "Comparte algo en tu perfil..."
+                    : "Comparte algo en esta comunidad..."}
+              </button>
 
-                  return (
-                    <div key={item.id} style={mediaPreviewItemColumnStyle}>
-                      <div
-                        data-preview-index={index}
-                        onDragStart={(event) => event.preventDefault()}
-                        onTouchMoveCapture={(event) => {
-                          if (previewDragActiveRef.current) {
-                            event.preventDefault();
-                          }
-                        }}
-                        onPointerDown={(event) =>
-                          handlePreviewPointerDown(index, event)
-                        }
-                        onPointerMove={handlePreviewPointerMove}
-                        onPointerUp={handlePreviewPointerUp}
-                        onPointerCancel={handlePreviewPointerUp}
-                        style={{
-                          ...mediaPreviewWrapStyle,
-                          opacity: draggingPreviewIndex === index ? 0.62 : 1,
-                          transform:
-                            draggingPreviewIndex === index
-                              ? "scale(0.96)"
-                              : dragOverPreviewIndex === index
-                                ? "scale(1.035)"
-                                : "scale(1)",
-                          outline:
-                            dragOverPreviewIndex === index
-                              ? "2px solid rgba(255,255,255,0.42)"
-                              : "none",
-                          transition:
-                            "transform 140ms ease, opacity 140ms ease, outline 140ms ease",
-                          touchAction: "none",
-                          cursor: isReorderingPreview ? "grabbing" : "grab",
-                        }}
-                      >
-                        {item.type === "image" ? (
-                          <img
-                            src={item.previewUrl}
-                            alt={`Vista previa de imagen ${index + 1}`}
-                            style={mediaPreviewStyle}
-                            draggable={false}
-                            onDragStart={(event) => event.preventDefault()}
-                          />
-                        ) : (
-                          <>
-                            {videoCoverPreviewUrl ? (
-                              <img
-                                src={videoCoverPreviewUrl}
-                                alt={`Portada del video ${index + 1}`}
-                                style={mediaPreviewStyle}
-                                draggable={false}
-                                onDragStart={(event) => event.preventDefault()}
-                              />
-                            ) : (
-                              <div
-                                aria-hidden="true"
-                                style={videoCoverLoadingStyle}
-                              >
-                                <div
-                                  style={{
-                                    display: "grid",
-                                    gap: 6,
-                                    justifyItems: "center",
-                                  }}
-                                >
-                                  <span style={{ fontSize: 21, lineHeight: 1 }}>
-                                    🎥
-                                  </span>
-                                  <span
-                                    style={{
-                                      fontSize: 10.5,
-                                      fontWeight: 800,
-                                      lineHeight: 1.15,
-                                    }}
-                                  >
-                                    Cargando video
-                                  </span>
-                                </div>
-                              </div>
-                            )}
+              <button
+                type="button"
+                onClick={handleOpenComposerOverlay}
+                disabled={creating || isPreparingImages}
+                style={
+                  creating || isPreparingImages
+                    ? disabledButtonStyle
+                    : primaryButtonStyle
+                }
+                aria-label={
+                  isPreparingImages
+                    ? "Preparando publicación"
+                    : creating
+                      ? "Publicando"
+                      : "Abrir editor para publicar"
+                }
+                title={
+                  isPreparingImages
+                    ? "Preparando..."
+                    : creating
+                      ? "Publicando..."
+                      : "Publicar"
+                }
+              >
+                <VibraNavigationIcon
+                  type="publish"
+                  size={30}
+                  strokeWidth={2.1}
+                />
+              </button>
 
-                            {isVideoCoverLoading && (
-                              <div
-                                aria-hidden="true"
-                                style={{
-                                  position: "absolute",
-                                  inset: 0,
-                                  background:
-                                    "linear-gradient(90deg, rgba(255,255,255,0.02), rgba(255,255,255,0.14), rgba(255,255,255,0.02))",
-                                  opacity: 0.52,
-                                  animation:
-                                    "post-preview-loading-pulse 1.2s ease-in-out infinite",
-                                  zIndex: 2,
-                                }}
-                              />
-                            )}
-
-                            <div aria-hidden="true" style={videoPlayBadgeStyle}>
-                              ▶
-                            </div>
-
-                            <div
-                              aria-hidden="true"
-                              style={videoDurationBadgeStyle}
-                            >
-                              {formatVideoDuration(item.durationSeconds)}
-                            </div>
-                          </>
-                        )}
-
-                        <div style={mediaNumberBadgeStyle}>{index + 1}</div>
-
-                        <button
-                          type="button"
-                          onPointerDown={(event) => event.stopPropagation()}
-                          onClick={() => handleRemoveMedia(index)}
-                          style={removeMediaButtonStyle}
-                          aria-label={`Quitar media ${index + 1}`}
-                          disabled={creating}
-                        >
-                          ×
-                        </button>
-                      </div>
-
-                      {item.type === "video" && (
-                        <button
-                          type="button"
-                          onPointerDown={(event) => event.stopPropagation()}
-                          onClick={() => handleChooseVideoCover(item.id)}
-                          disabled={creating}
-                          style={
-                            creating
-                              ? {
-                                  ...videoCoverButtonStyle,
-                                  opacity: 0.55,
-                                  cursor: "not-allowed",
-                                }
-                              : videoCoverButtonStyle
-                          }
-                        >
-                          {hasManualCover
-                            ? "Cambiar portada"
-                            : "Elegir portada"}
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {Array.from({ length: processingImageSlots }).map(
-                  (_, index) => (
-                    <div
-                      key={`processing-image-${index}`}
-                      aria-label="Preparando imagen"
-                      style={{
-                        ...mediaPreviewWrapStyle,
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        background: "rgba(255,255,255,0.055)",
-                        animation:
-                          "post-preview-loading-pulse 1.6s ease-in-out infinite",
-                      }}
-                    >
-                      <div
-                        aria-hidden="true"
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          background:
-                            "linear-gradient(90deg, rgba(255,255,255,0.035), rgba(255,255,255,0.12), rgba(255,255,255,0.035))",
-                        }}
-                      />
-                    </div>
-                  ),
-                )}
-
-                {Array.from({ length: processingVideoSlots }).map(
-                  (_, index) => (
-                    <div
-                      key={`processing-video-${index}`}
-                      aria-label="Preparando video"
-                      style={{
-                        ...mediaPreviewWrapStyle,
-                        border: "1px solid rgba(168,85,247,0.24)",
-                        background:
-                          "linear-gradient(135deg, rgba(76,29,149,0.72), rgba(168,85,247,0.22), rgba(49,46,129,0.68))",
-                        backgroundSize: "220% 220%",
-                        animation:
-                          "post-preview-video-cover-loading 1.45s ease-in-out infinite",
-                      }}
-                    >
-                      <div
-                        aria-hidden="true"
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          display: "grid",
-                          placeItems: "center",
-                          color: "rgba(255,255,255,0.92)",
-                          textAlign: "center",
-                          padding: 10,
-                          boxSizing: "border-box",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "grid",
-                            gap: 6,
-                            justifyItems: "center",
-                          }}
-                        >
-                          <span style={{ fontSize: 21, lineHeight: 1 }}>
-                            🎥
-                          </span>
-                          <span
-                            style={{
-                              fontSize: 10.5,
-                              fontWeight: 800,
-                              lineHeight: 1.15,
-                            }}
-                          >
-                            Preparando video
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ),
-                )}
-
-                {canAddMoreMedia && (
-                  <button
-                    type="button"
-                    onClick={handleOpenMediaPicker}
-                    disabled={creating}
-                    style={
-                      creating
-                        ? {
-                            ...addMoreMediaButtonStyle,
-                            opacity: 0.5,
-                            cursor: "not-allowed",
-                          }
-                        : addMoreMediaButtonStyle
-                    }
-                    aria-label="Agregar otra media"
-                  >
-                    +
-                  </button>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={handleOpenMediaPicker}
+                disabled={creating || isPreparingImages}
+                style={
+                  creating || isPreparingImages
+                    ? {
+                        ...secondaryButtonStyle,
+                        opacity: 0.5,
+                        cursor: "not-allowed",
+                      }
+                    : secondaryButtonStyle
+                }
+                aria-label="Agregar media"
+                title="Agregar media"
+              >
+                <VibraNavigationIcon
+                  type="attachMedia"
+                  size={30}
+                  strokeWidth={2.1}
+                />
+              </button>
             </div>
-          )}
 
-          {localError && <div style={localErrorStyle}>{localError}</div>}
-
-          <div style={actionsRowStyle}>
-            <button
-              type="button"
-              onClick={handleOpenMediaPicker}
-              disabled={creating || isPreparingImages}
-              style={
-                creating || isPreparingImages
-                  ? {
-                      ...secondaryButtonStyle,
-                      opacity: 0.5,
-                      cursor: "not-allowed",
-                    }
-                  : secondaryButtonStyle
-              }
-              aria-label="Agregar media"
-              title="Agregar media"
-            >
-              <span aria-hidden="true">＋</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={creating || isPreparingImages || !hasContent}
-              style={
-                creating || isPreparingImages || !hasContent
-                  ? disabledButtonStyle
-                  : primaryButtonStyle
-              }
-            >
-              {isPreparingImages
-                ? "Preparando..."
-                : creating
-                  ? "Publicando..."
-                  : "Publicar"}
-            </button>
+            {localError && <div style={localErrorStyle}>{localError}</div>}
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      {isMobileComposer ? (
+        <PostComposerMobileOverlay
+          open={isComposerOverlayOpen}
+          onClose={() => setIsComposerOverlayOpen(false)}
+          text={text}
+          setText={setText}
+          contextType={contextType}
+          currentUserName={currentUserName}
+          currentUserAvatar={currentUserAvatar}
+          currentUserHref={currentUserHref}
+          creating={creating}
+          isPreparingImages={isPreparingImages}
+          hasContent={hasContent}
+          localError={localError}
+          selectedMediaItems={selectedMediaItems}
+          processingImageSlots={processingImageSlots}
+          processingVideoSlots={processingVideoSlots}
+          canAddMoreMedia={canAddMoreMedia}
+          previewScrollerRef={previewScrollerRef}
+          draggingPreviewIndex={draggingPreviewIndex}
+          dragOverPreviewIndex={dragOverPreviewIndex}
+          isReorderingPreview={isReorderingPreview}
+          onSubmit={handleSubmit}
+          onOpenMediaPicker={handleOpenMediaPicker}
+          onRemoveMedia={handleRemoveMedia}
+          onChooseVideoCover={handleChooseVideoCover}
+          onPreviewPointerDown={handlePreviewPointerDown}
+          onPreviewPointerMove={handlePreviewPointerMove}
+          onPreviewPointerUp={handlePreviewPointerUp}
+        />
+      ) : (
+        <PostComposerDesktopOverlay
+          open={isComposerOverlayOpen}
+          onClose={() => setIsComposerOverlayOpen(false)}
+          text={text}
+          setText={setText}
+          contextType={contextType}
+          currentUserName={currentUserName}
+          currentUserAvatar={currentUserAvatar}
+          currentUserHref={currentUserHref}
+          creating={creating}
+          isPreparingImages={isPreparingImages}
+          hasContent={hasContent}
+          localError={localError}
+          selectedMediaItems={selectedMediaItems}
+          processingImageSlots={processingImageSlots}
+          processingVideoSlots={processingVideoSlots}
+          canAddMoreMedia={canAddMoreMedia}
+          previewScrollerRef={previewScrollerRef}
+          draggingPreviewIndex={draggingPreviewIndex}
+          dragOverPreviewIndex={dragOverPreviewIndex}
+          isReorderingPreview={isReorderingPreview}
+          onSubmit={handleSubmit}
+          onOpenMediaPicker={handleOpenMediaPicker}
+          onRemoveMedia={handleRemoveMedia}
+          onChooseVideoCover={handleChooseVideoCover}
+          onPreviewPointerDown={handlePreviewPointerDown}
+          onPreviewPointerMove={handlePreviewPointerMove}
+          onPreviewPointerUp={handlePreviewPointerUp}
+        />
+      )}
+    </>
   );
 }

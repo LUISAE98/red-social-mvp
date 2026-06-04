@@ -14,6 +14,8 @@ export type VibraNavigationIconType =
   | "otherCommunities"
   | "requested"
   | "copyLink"
+  | "publish"
+  | "attachMedia";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
@@ -235,12 +237,84 @@ const NAVIGATION_ICON_CONFIG: Record<
       </svg>
     ),
   },
+
+  publish: {
+    label: "Publicar",
+    icon: (
+      <svg
+        className="vibraPublishIcon"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          d="
+            M5.1 10.9
+            L18.8 4.8
+            Q20.2 4.2 19.7 5.7
+            L14.3 20
+            Q13.8 21.4 12.8 20.2
+            L9.8 14.6
+            L4.6 12.5
+            Q3.2 11.9 5.1 10.9
+            Z
+          "
+          fill="#a855ff"
+        />
+      </svg>
+    ),
+  },
+
+attachMedia: {
+  label: "Adjuntar multimedia",
+  icon: (
+    <svg
+      className="vibraAttachMediaIcon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      {/* Marco exterior */}
+      <rect
+        x="3.5"
+        y="4"
+        width="14"
+        height="14"
+        rx="2.4"
+        fill="none"
+        stroke="#a855ff"
+        strokeWidth="2.2"
+      />
+
+      {/* Sol */}
+      <circle
+        cx="7.2"
+        cy="8.2"
+        r="1.6"
+        fill="#a855ff"
+      />
+
+      {/* Montañas */}
+      <path
+        d="
+          M3.5 15.8
+          L8 11.2
+          L10.5 13.8
+          L14.2 10
+          L17.5 13.5
+          V18
+          H3.5
+          Z
+        "
+        fill="#a855ff"
+      />
+    </svg>
+  ),
+},
 };
 
 export function VibraNavigationIcon({
   type,
   label,
-  size = 22,
+  size,
   showLabel = false,
   strokeWidth = 2,
 }: {
@@ -253,12 +327,18 @@ export function VibraNavigationIcon({
   const config = NAVIGATION_ICON_CONFIG[type];
   const finalLabel = label ?? config.label;
 
+  const finalSize =
+    size ??
+    (type === "publish" || type === "attachMedia"
+      ? 32
+      : 22);
+
   return (
     <span
       className="vibraNavigationIcon"
       style={
         {
-          "--vibra-navigation-icon-size": `${size}px`,
+          "--vibra-navigation-icon-size": `${finalSize}px`,
           "--vibra-navigation-icon-stroke": strokeWidth,
         } as React.CSSProperties
       }

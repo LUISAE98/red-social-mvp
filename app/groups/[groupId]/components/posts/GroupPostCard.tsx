@@ -1308,7 +1308,7 @@ const cardStyle: CSSProperties = {
     textDecoration: "none",
     fontSize: 13,
     fontWeight: 500,
-    lineHeight: 1.15,
+    lineHeight: 1.35,
     letterSpacing: "-0.02em",
     maxWidth: "100%",
     wordBreak: "break-word",
@@ -1410,21 +1410,22 @@ const cardStyle: CSSProperties = {
     cursor: "not-allowed",
   };
 
-  const menuButtonStyle: CSSProperties = {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: menuOpen ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
-    color: "rgba(255,255,255,0.84)",
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-    flexShrink: 0,
-    fontSize: 16,
-    lineHeight: 1,
-    padding: 0,
-  };
+const menuButtonStyle: CSSProperties = {
+  width: 32,
+  height: 32,
+  borderRadius: 0,
+  border: "none",
+  background: "transparent",
+  color: "rgba(255,255,255,0.84)",
+  display: "grid",
+  placeItems: "center",
+  cursor: "pointer",
+  flexShrink: 0,
+  fontSize: 18,
+  lineHeight: 1,
+  padding: 0,
+  WebkitTapHighlightColor: "transparent",
+};
 
   const menuPanelStyle: CSSProperties = {
     position: "fixed",
@@ -1519,7 +1520,7 @@ const cardStyle: CSSProperties = {
     margin: 0,
     fontSize: 16,
     fontWeight: 700,
-    lineHeight: 1.15,
+    lineHeight: 1.35,
   };
 
   const modalTextStyle: CSSProperties = {
@@ -2245,7 +2246,7 @@ const shouldClampFeedPostText =
             />
           </Link>
 
-          <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ minWidth: 0, flex: 1, paddingTop: 3 }}>
             <div
               style={{
                 display: "flex",
@@ -2361,7 +2362,7 @@ const shouldClampFeedPostText =
   }
 style={{
   ...metaStyle,
-  marginTop: 1,
+  marginTop: 0,
   display: "block",
   width: "fit-content",
   padding: 0,
@@ -2370,7 +2371,7 @@ style={{
   fontFamily: fontStack,
   cursor: "pointer",
   textAlign: "left",
-  lineHeight: 1.15,
+  lineHeight: "15px",
   WebkitTapHighlightColor: "transparent",
 }}
 >
@@ -3127,7 +3128,7 @@ style={{
     overflow: "hidden",
     background: "#000",
     touchAction: isMobile ? "pan-y" : "auto",
-    overscrollBehavior: "contain",
+    overscrollBehavior: isMobile ? "contain" : "auto",
     clipPath: "inset(0 round 12px)",
     WebkitClipPath: "inset(0 round 12px)",
     transform: "translateZ(0)",
