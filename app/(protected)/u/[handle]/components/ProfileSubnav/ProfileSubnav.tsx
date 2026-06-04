@@ -1,6 +1,11 @@
 "use client";
 
-import { CSSProperties, useMemo } from "react";
+import { CSSProperties } from "react";
+import {
+  VibraSubnavIcon,
+  VibraSubnavIconsStyles,
+  type VibraSubnavIconType,
+} from "@/app/components/VibraServiceIcons/VibraSubNavIcons";
 
 export type ProfileTabKey = "posts" | "groups" | "services" | "settings";
 
@@ -14,30 +19,6 @@ type ProfileSubnavProps = {
   showSettingsTab?: boolean;
 };
 
-function EmojiIcon({
-  emoji,
-  active,
-}: {
-  emoji: string;
-  active: boolean;
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        display: "block",
-        fontSize: active ? 22 : 20,
-        lineHeight: 1,
-        transform: active ? "scale(1.03)" : "scale(1)",
-        transition: "transform 0.18s ease, opacity 0.2s ease",
-        opacity: active ? 1 : 0.9,
-      }}
-    >
-      {emoji}
-    </span>
-  );
-}
-
 export default function ProfileSubnav({
   activeTab,
   onChange,
@@ -50,14 +31,17 @@ export default function ProfileSubnav({
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  const tabs = [
+  const tabs: {
+    key: ProfileTabKey;
+    title: string;
+    iconType: VibraSubnavIconType;
+  }[] = [
     ...(showPostsTab
       ? [
           {
             key: "posts" as const,
-            label: "Posts",
             title: "Publicaciones",
-            emoji: "📰",
+            iconType: "posts" as const,
           },
         ]
       : []),
@@ -65,11 +49,10 @@ export default function ProfileSubnav({
       ? [
           {
             key: "groups" as const,
-            label: isOwner ? "Mis\ncomunidades" : "Sus\ncomunidades",
             title: isOwner
               ? "Mis comunidades"
               : "Las comunidades de este perfil",
-            emoji: isOwner ? "✨" : "🌍",
+            iconType: "communities" as const,
           },
         ]
       : []),
@@ -77,9 +60,8 @@ export default function ProfileSubnav({
       ? [
           {
             key: "services" as const,
-            label: "Servicios",
             title: "Servicios del perfil",
-            emoji: "💸",
+            iconType: "services" as const,
           },
         ]
       : []),
@@ -87,9 +69,8 @@ export default function ProfileSubnav({
       ? [
           {
             key: "settings" as const,
-            label: "Config",
             title: "Configuración del perfil",
-            emoji: "⚙️",
+            iconType: "settings" as const,
           },
         ]
       : []),
@@ -101,7 +82,6 @@ export default function ProfileSubnav({
   );
 
   const safeTabCount = Math.max(tabs.length, 1);
-  const selectorWidthPercent = 100 / safeTabCount;
   const selectorTranslatePercent = activeIndex * 100;
 
   const wrapStyle: CSSProperties = {
@@ -109,11 +89,10 @@ export default function ProfileSubnav({
     overflow: "visible",
     borderRadius: 18,
     width: "100%",
-    border: "1px solid rgba(168,85,255,0.08)",
-    background: "var(--profile-subnav-bg, rgba(24,8,40,0.96))",
-    boxShadow:
-      "var(--profile-subnav-shadow, inset 0 1px 0 rgba(255,255,255,0.035), inset 0 -1px 0 rgba(255,255,255,0.015), inset 0 0 18px rgba(168,85,255,0.035), 0 0 18px rgba(168,85,255,0.065), 0 18px 54px rgba(0,0,0,0.42))",
-    padding: "10px 10px",
+    border: "1px solid transparent",
+    background: "transparent",
+    boxShadow: "none",
+    padding: "8px 10px",
     display: "grid",
     gridTemplateColumns: `repeat(${safeTabCount}, minmax(0, 1fr))`,
     alignItems: "center",
@@ -121,36 +100,10 @@ export default function ProfileSubnav({
     fontFamily: fontStack,
   };
 
-  const selectorStyle: CSSProperties = {
-    position: "absolute",
-    left: 10,
-    bottom: 10,
-    width: `calc((100% - 20px) / ${safeTabCount})`,
-    height: 68,
-    padding: "0 0",
-    boxSizing: "border-box",
-    pointerEvents: "none",
-    transform: `translate3d(${selectorTranslatePercent}%, 0, 0)`,
-    transition: "transform 420ms cubic-bezier(0.2, 0.9, 0.2, 1)",
-    willChange: "transform",
-    zIndex: 0,
-  };
-
-  const selectorInnerStyle: CSSProperties = {
-    width: "100%",
-    height: "100%",
-    borderRadius: 16,
-    background:
-      "linear-gradient(90deg, rgba(168,85,247,0.11) 0%, rgba(168,85,247,0.09) 50%, rgba(168,85,247,0.075) 100%)",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
-    transform: "scaleX(1)",
-    transition: "transform 360ms cubic-bezier(0.34, 1.56, 0.64, 1)",
-  };
-
   const indicatorStyle: CSSProperties = {
     position: "absolute",
     left: 10,
-    top: -1,
+    bottom: 15,
     width: `calc((100% - 20px) / ${safeTabCount})`,
     height: 2,
     pointerEvents: "none",
@@ -166,29 +119,20 @@ export default function ProfileSubnav({
     minHeight: 52,
     display: "grid",
     placeItems: "center",
-    color: "rgba(255,255,255,0.68)",
+    color: "rgba(255,255,255,0.62)",
     background: "transparent",
     border: "none",
     borderRadius: 16,
     cursor: "pointer",
-    transition: "color 0.2s ease, transform 0.15s ease",
+    transition: "color 0.2s ease, opacity 0.2s ease, filter 0.2s ease",
     WebkitTapHighlightColor: "transparent",
-    padding: "8px 6px",
+    padding: "6px 6px 10px",
   };
 
   const itemInner: CSSProperties = {
     display: "grid",
     justifyItems: "center",
-    gap: 4,
-  };
-
-  const labelStyle: CSSProperties = {
-    fontSize: 11,
-    fontWeight: 600,
-    lineHeight: 1.05,
-    letterSpacing: -0.1,
-    whiteSpace: "pre-line",
-    textAlign: "center",
+    alignItems: "center",
   };
 
   return (
@@ -196,80 +140,66 @@ export default function ProfileSubnav({
       <style jsx>{`
         @media (max-width: 768px) {
           .profile-subnav-mobile-full {
-            --profile-subnav-bg: rgba(19, 6, 32, 0.98);
-            --profile-subnav-shadow:
-              inset 0 1px 0 rgba(255,255,255,0.03),
-              inset 0 -1px 0 rgba(255,255,255,0.014),
-              inset 0 0 16px rgba(168,85,255,0.028),
-              0 0 14px rgba(168,85,255,0.048),
-              0 14px 42px rgba(0,0,0,0.44);
-
             width: 100vw !important;
             margin-left: calc(50% - 50vw) !important;
             margin-right: calc(50% - 50vw) !important;
             border-radius: 0 !important;
             border-left: 0 !important;
             border-right: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
           }
         }
       `}</style>
 
+      <VibraSubnavIconsStyles />
+
       <div className="profile-subnav-mobile-full" style={wrapStyle}>
-       <span style={indicatorStyle}>
-        <span
-          style={{
-            position: "absolute",
-            left: "50%",
-            width: 72,
-            height: 2,
-            borderRadius: 999,
-            background: "rgba(168,85,247,0.95)",
-            transform: "translateX(-50%)",
-          }}
-        />
-      </span>
-
-      <span style={selectorStyle}>
-        <span style={selectorInnerStyle} />
-      </span>
-
-      {tabs.map((tab) => {
-        const active = activeTab === tab.key;
-
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => onChange(tab.key)}
-            aria-pressed={active}
-            aria-label={tab.title}
-            title={tab.title}
+        <span style={indicatorStyle}>
+          <span
             style={{
-              ...itemBase,
-              color: active ? "#fff" : itemBase.color,
+              position: "absolute",
+              left: "50%",
+              width: 58,
+              height: 2,
+              borderRadius: 999,
+              background: "rgba(168,85,247,0.95)",
+              transform: "translateX(-50%)",
             }}
-          >
-            <span style={itemInner}>
-              <EmojiIcon emoji={tab.emoji} active={active} />
+          />
+        </span>
 
-              {tab.key === "groups" ? (
-                <span
-                  style={{
-                    ...labelStyle,
-                    display: "grid",
-                    gap: 2,
-                    lineHeight: 1,
-                  }}
-                >
-                  <span>{isOwner ? "Mis comunidades" : "Sus comunidades"}</span>
-                </span>
-              ) : (
-                <span style={labelStyle}>{tab.label}</span>
-              )}
-            </span>
-          </button>
-        );
-      })}
+        {tabs.map((tab) => {
+          const active = activeTab === tab.key;
+
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => onChange(tab.key)}
+              aria-pressed={active}
+              aria-label={tab.title}
+              title={tab.title}
+              style={{
+                ...itemBase,
+                color: active ? "#ffffff" : "rgba(255,255,255,0.38)",
+                opacity: active ? 1 : 0.48,
+                filter: active
+                  ? "drop-shadow(0 0 8px rgba(168,85,247,0.45))"
+                  : "none",
+              }}
+            >
+              <span style={itemInner}>
+                <VibraSubnavIcon
+                  type={tab.iconType}
+                  active={active}
+                  size={34}
+                  strokeWidth={2.25}
+                />
+              </span>
+            </button>
+          );
+        })}
       </div>
     </>
   );
