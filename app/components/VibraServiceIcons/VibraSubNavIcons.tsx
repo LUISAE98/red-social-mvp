@@ -33,53 +33,42 @@ const SUBNAV_ICON_CONFIG: Record<
     ),
   },
 
-  services: {
-    label: "Servicios",
-    outline: (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect
-          x="2.8"
-          y="6.25"
-          width="18.4"
-          height="11.5"
-          rx="2.45"
-          fill="none"
-          stroke={moneyGreen}
-        />
+services: {
+  label: "Servicios",
+  outline: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect
+        x="2.6"
+        y="5.2"
+        width="18.8"
+        height="13.6"
+        rx="2.8"
+        fill="none"
+        stroke={vibraPurple}
+      />
 
-        <path
-          d="M6.25 8.65C6.25 10.1 5.42 10.9 4.15 10.9"
-          fill="none"
-          stroke={moneyGreen}
-        />
-        <path
-          d="M17.75 8.65C17.75 10.1 18.58 10.9 19.85 10.9"
-          fill="none"
-          stroke={moneyGreen}
-        />
-        <path
-          d="M6.25 15.35C6.25 13.9 5.42 13.1 4.15 13.1"
-          fill="none"
-          stroke={moneyGreen}
-        />
-        <path
-          d="M17.75 15.35C17.75 13.9 18.58 13.1 19.85 13.1"
-          fill="none"
-          stroke={moneyGreen}
-        />
+      <circle
+        cx="12"
+        cy="12"
+        r="4.45"
+        fill="none"
+        stroke={vibraPurple}
+      />
 
-        <circle cx="12" cy="12" r="3.15" fill="none" stroke={moneyGreen} />
+      <path
+        d="M12 8.75V15.25"
+        fill="none"
+        stroke={vibraPurple}
+      />
 
-        <path d="M12 9.65V14.35" fill="none" stroke={moneyGreen} />
-
-        <path
-          d="M13.28 10.72C12.94 10.22 12.38 10 11.8 10.1C11.28 10.18 10.92 10.48 10.92 10.9C10.92 11.42 11.38 11.62 12.08 11.8C12.84 12 13.32 12.32 13.32 13C13.32 13.55 12.86 13.92 12.2 13.98C11.55 14.05 10.98 13.78 10.68 13.28"
-          fill="none"
-          stroke={moneyGreen}
-        />
-      </svg>
-    ),
-  },
+      <path
+        d="M13.75 10.25C13.35 9.7 12.75 9.4 12.05 9.45C11.35 9.5 10.85 9.9 10.85 10.55C10.85 11.25 11.45 11.55 12.25 11.78C13.15 12.05 13.85 12.45 13.85 13.35C13.85 14.15 13.2 14.6 12.25 14.68C11.45 14.75 10.75 14.4 10.35 13.8"
+        fill="none"
+        stroke={vibraPurple}
+      />
+    </svg>
+  ),
+},
 
   communities: {
     label: "Comunidades",
@@ -116,46 +105,27 @@ const SUBNAV_ICON_CONFIG: Record<
     ),
   },
 
-  posts: {
-    label: "Posts",
-    outline: (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <rect
-          x="4.4"
-          y="3.6"
-          width="15.2"
-          height="16.8"
-          rx="2.7"
-          fill="none"
-          stroke={vibraPurple}
-        />
+posts: {
+  label: "Posts",
+  outline: (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect
+        x="4.4"
+        y="3.6"
+        width="15.2"
+        height="16.8"
+        rx="2.7"
+        fill="none"
+        stroke={vibraPurple}
+      />
 
-        <path
-          d="M7.6 7.4H16.4"
-          fill="none"
-          stroke={vibraPurple}
-        />
-
-        <path
-          d="M7.6 10.7H16.4"
-          fill="none"
-          stroke={vibraPurple}
-        />
-
-        <path
-          d="M7.6 14H13.8"
-          fill="none"
-          stroke={vibraPurple}
-        />
-
-        <path
-          d="M15.7 13.75H16.45"
-          fill="none"
-          stroke={vibraPurple}
-        />
-      </svg>
-    ),
-  },
+      <path d="M7.6 7.3H16.4" fill="none" stroke={vibraPurple} />
+      <path d="M7.6 10.4H16.4" fill="none" stroke={vibraPurple} />
+      <path d="M7.6 13.5H16.4" fill="none" stroke={vibraPurple} />
+      <path d="M7.6 16.6H16.4" fill="none" stroke={vibraPurple} />
+    </svg>
+  ),
+},
 
   members: {
     label: "Integrantes",

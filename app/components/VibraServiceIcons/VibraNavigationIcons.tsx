@@ -238,31 +238,40 @@ const NAVIGATION_ICON_CONFIG: Record<
     ),
   },
 
-  publish: {
-    label: "Publicar",
-    icon: (
-      <svg
-        className="vibraPublishIcon"
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-      >
-        <path
-          d="
-            M5.1 10.9
-            L18.8 4.8
-            Q20.2 4.2 19.7 5.7
-            L14.3 20
-            Q13.8 21.4 12.8 20.2
-            L9.8 14.6
-            L4.6 12.5
-            Q3.2 11.9 5.1 10.9
-            Z
-          "
-          fill="#a855ff"
-        />
-      </svg>
-    ),
-  },
+publish: {
+  label: "Publicar",
+  icon: (
+    <svg
+      className="vibraPublishIcon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        d="
+          M3.8 10.8
+          L19.2 4.2
+          Q20.3 3.7 19.9 4.9
+          L14.3 20.1
+          Q13.8 21.4 12.8 20.3
+          L9.2 15.2
+          L3.7 12.8
+          Q2.4 12.2 3.8 10.8
+          Z
+        "
+        fill="#a855ff"
+      />
+
+      <path
+        d="
+          M9.2 15.2
+          L11 12.6
+          L10.8 17.4
+        "
+        fill="#121212"
+      />
+    </svg>
+  ),
+},
 
 attachMedia: {
   label: "Adjuntar multimedia",
@@ -272,7 +281,6 @@ attachMedia: {
       viewBox="0 0 24 24"
       aria-hidden="true"
     >
-      {/* Marco exterior */}
       <rect
         x="3.5"
         y="4"
@@ -280,19 +288,12 @@ attachMedia: {
         height="14"
         rx="2.4"
         fill="none"
-        stroke="#a855ff"
+        stroke="#22c55e"
         strokeWidth="2.2"
       />
 
-      {/* Sol */}
-      <circle
-        cx="7.2"
-        cy="8.2"
-        r="1.6"
-        fill="#a855ff"
-      />
+      <circle cx="7.2" cy="8.2" r="1.6" fill="#22c55e" />
 
-      {/* Montañas */}
       <path
         d="
           M3.5 15.8
@@ -304,7 +305,7 @@ attachMedia: {
           H3.5
           Z
         "
-        fill="#a855ff"
+        fill="#22c55e"
       />
     </svg>
   ),

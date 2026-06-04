@@ -883,27 +883,27 @@ export default function GroupPostComposer({
     backdropFilter: "blur(10px)",
   };
 
-  const launcherButtonStyle: CSSProperties = {
-    width: "100%",
-    minHeight: 44,
-    padding: "10px 0 10px 0",
-    border: "none",
-    borderBottom: "1px solid rgba(255,255,255,0.07)",
-    background: "transparent",
-    color: text.trim().length > 0 ? "#fff" : "rgba(255,255,255,0.42)",
-    outline: "none",
-    fontSize: 13,
-    fontWeight: 300,
-    lineHeight: "21px",
-    fontFamily: fontStack,
-    boxSizing: "border-box",
-    textAlign: "left",
-    cursor: creating ? "not-allowed" : "text",
-    overflow: "hidden",
-    display: "block",
-    whiteSpace: "nowrap",
-    textOverflow: "ellipsis",
-  };
+const launcherButtonStyle: CSSProperties = {
+  width: "100%",
+  minHeight: 42,
+  padding: "10px 16px",
+  borderRadius: 999,
+  border: "1px solid rgba(255,255,255,0.10)",
+  background: "rgba(255,255,255,0.035)",
+  color: text.trim().length > 0 ? "#fff" : "rgba(255,255,255,0.42)",
+  outline: "none",
+  fontSize: 13,
+  fontWeight: 300,
+  lineHeight: "20px",
+  fontFamily: fontStack,
+  boxSizing: "border-box",
+  textAlign: "left",
+  cursor: creating ? "not-allowed" : "text",
+  overflow: "hidden",
+  display: "block",
+  whiteSpace: "nowrap",
+  textOverflow: "ellipsis",
+};
 
   const primaryButtonStyle: CSSProperties = {
     width: 44,

@@ -1,6 +1,11 @@
 "use client";
 
-import { CSSProperties, useMemo } from "react";
+import { CSSProperties } from "react";
+import {
+  VibraSubnavIcon,
+  VibraSubnavIconsStyles,
+  type VibraSubnavIconType,
+} from "@/app/components/VibraServiceIcons/VibraSubNavIcons";
 
 export type TabKey = "feed" | "members" | "services" | "settings";
 
@@ -10,30 +15,6 @@ type GroupSubnavProps = {
   canManage?: boolean;
 };
 
-function EmojiIcon({
-  emoji,
-  active,
-}: {
-  emoji: string;
-  active: boolean;
-}) {
-  return (
-    <span
-      aria-hidden="true"
-      style={{
-        display: "block",
-        fontSize: active ? 22 : 20,
-        lineHeight: 1,
-        transform: active ? "scale(1.03)" : "scale(1)",
-        transition: "transform 0.18s ease, opacity 0.2s ease",
-        opacity: active ? 1 : 0.9,
-      }}
-    >
-      {emoji}
-    </span>
-  );
-}
-
 export default function GroupSubnav({
   activeTab,
   onChange,
@@ -42,32 +23,32 @@ export default function GroupSubnav({
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  const tabs = [
+  const tabs: {
+    key: TabKey;
+    title: string;
+    iconType: VibraSubnavIconType;
+  }[] = [
     {
-      key: "feed" as const,
-      label: "Posts",
+      key: "feed",
       title: "Publicaciones",
-      emoji: "📰",
+      iconType: "posts",
     },
     {
-      key: "members" as const,
-      label: "Integrantes",
+      key: "members",
       title: "Integrantes",
-      emoji: "👫",
+      iconType: "members",
     },
     ...(canManage
       ? [
           {
             key: "services" as const,
-            label: "Servicios",
             title: "Servicios del grupo",
-            emoji: "💸",
+            iconType: "services" as const,
           },
           {
             key: "settings" as const,
-            label: "Config",
             title: "Configuración del grupo",
-            emoji: "⚙️",
+            iconType: "settings" as const,
           },
         ]
       : []),
@@ -86,11 +67,10 @@ export default function GroupSubnav({
     overflow: "visible",
     borderRadius: 18,
     width: "100%",
-    border: "1px solid rgba(168,85,255,0.08)",
-    background: "var(--group-subnav-bg, rgba(24,8,40,0.96))",
-    boxShadow:
-      "var(--group-subnav-shadow, inset 0 1px 0 rgba(255,255,255,0.035), inset 0 -1px 0 rgba(255,255,255,0.015), inset 0 0 18px rgba(168,85,255,0.035), 0 0 18px rgba(168,85,255,0.065), 0 18px 54px rgba(0,0,0,0.42))",
-    padding: "10px 10px",
+    border: "1px solid transparent",
+    background: "transparent",
+    boxShadow: "none",
+    padding: "8px 10px",
     display: "grid",
     gridTemplateColumns: `repeat(${safeTabCount}, minmax(0, 1fr))`,
     alignItems: "center",
@@ -98,36 +78,10 @@ export default function GroupSubnav({
     fontFamily: fontStack,
   };
 
-  const selectorStyle: CSSProperties = {
-    position: "absolute",
-    left: 10,
-    bottom: 10,
-    width: `calc((100% - 20px) / ${safeTabCount})`,
-    height: 68,
-    padding: "0 0",
-    boxSizing: "border-box",
-    pointerEvents: "none",
-    transform: `translate3d(${selectorTranslatePercent}%, 0, 0)`,
-    transition: "transform 420ms cubic-bezier(0.2, 0.9, 0.2, 1)",
-    willChange: "transform",
-    zIndex: 0,
-  };
-
-  const selectorInnerStyle: CSSProperties = {
-    width: "100%",
-    height: "100%",
-    borderRadius: 16,
-    background:
-      "linear-gradient(90deg, rgba(168,85,247,0.11) 0%, rgba(168,85,247,0.09) 50%, rgba(168,85,247,0.075) 100%)",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.03)",
-    transform: "scaleX(1)",
-    transition: "transform 360ms cubic-bezier(0.34, 1.56, 0.64, 1)",
-  };
-
   const indicatorStyle: CSSProperties = {
     position: "absolute",
     left: 10,
-    top: -1,
+    bottom: 15,
     width: `calc((100% - 20px) / ${safeTabCount})`,
     height: 2,
     pointerEvents: "none",
@@ -143,29 +97,20 @@ export default function GroupSubnav({
     minHeight: 52,
     display: "grid",
     placeItems: "center",
-    color: "rgba(255,255,255,0.68)",
+    color: "rgba(255,255,255,0.62)",
     background: "transparent",
     border: "none",
     borderRadius: 16,
     cursor: "pointer",
-    transition: "color 0.2s ease, transform 0.15s ease",
+    transition: "color 0.2s ease, opacity 0.2s ease, filter 0.2s ease",
     WebkitTapHighlightColor: "transparent",
-    padding: "8px 6px",
+    padding: "6px 6px 10px",
   };
 
   const itemInner: CSSProperties = {
     display: "grid",
     justifyItems: "center",
-    gap: 4,
-  };
-
-  const labelStyle: CSSProperties = {
-    fontSize: 11,
-    fontWeight: 600,
-    lineHeight: 1.05,
-    letterSpacing: -0.1,
-    whiteSpace: "pre-line",
-    textAlign: "center",
+    alignItems: "center",
   };
 
   return (
@@ -173,23 +118,19 @@ export default function GroupSubnav({
       <style jsx>{`
         @media (max-width: 768px) {
           .group-subnav-mobile-full {
-            --group-subnav-bg: rgba(19, 6, 32, 0.98);
-            --group-subnav-shadow:
-              inset 0 1px 0 rgba(255,255,255,0.03),
-              inset 0 -1px 0 rgba(255,255,255,0.014),
-              inset 0 0 16px rgba(168,85,255,0.028),
-              0 0 14px rgba(168,85,255,0.048),
-              0 14px 42px rgba(0,0,0,0.44);
-
             width: 100vw !important;
             margin-left: calc(50% - 50vw) !important;
             margin-right: calc(50% - 50vw) !important;
             border-radius: 0 !important;
             border-left: 0 !important;
             border-right: 0 !important;
+            background: transparent !important;
+            box-shadow: none !important;
           }
         }
       `}</style>
+
+      <VibraSubnavIconsStyles />
 
       <div className="group-subnav-mobile-full" style={wrapStyle}>
         <span style={indicatorStyle}>
@@ -197,17 +138,13 @@ export default function GroupSubnav({
             style={{
               position: "absolute",
               left: "50%",
-              width: 72,
+              width: 58,
               height: 2,
               borderRadius: 999,
               background: "rgba(168,85,247,0.95)",
               transform: "translateX(-50%)",
             }}
           />
-        </span>
-
-        <span style={selectorStyle}>
-          <span style={selectorInnerStyle} />
         </span>
 
         {tabs.map((tab) => {
@@ -223,12 +160,20 @@ export default function GroupSubnav({
               title={tab.title}
               style={{
                 ...itemBase,
-                color: active ? "#fff" : itemBase.color,
+                color: active ? "#ffffff" : "rgba(255,255,255,0.38)",
+                opacity: active ? 1 : 0.48,
+                filter: active
+                  ? "drop-shadow(0 0 8px rgba(168,85,247,0.45))"
+                  : "none",
               }}
             >
               <span style={itemInner}>
-                <EmojiIcon emoji={tab.emoji} active={active} />
-                <span style={labelStyle}>{tab.label}</span>
+                <VibraSubnavIcon
+                  type={tab.iconType}
+                  active={active}
+                  size={34}
+                  strokeWidth={2.25}
+                />
               </span>
             </button>
           );
