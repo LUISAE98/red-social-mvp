@@ -520,137 +520,136 @@ export default function PostComposerMobileOverlay({
         `}
       </style>
 
-      <section
-        style={{
-          width: "100%",
-          height: "calc(100vh - 72px)",
-          maxHeight: "calc(100vh - 72px)",
-          borderRadius: "22px 22px 0 0",
-          border: "1px solid rgba(255,255,255,0.1)",
-          borderBottom: "none",
-          background: "rgba(8,9,11,0.985)",
-          boxShadow:
-            "0 -24px 80px rgba(0,0,0,0.56), 0 0 0 1px rgba(255,255,255,0.035)",
-          color: "#fff",
-          overflow: "hidden",
-          transform: open
-            ? `translateY(${panelOffsetY}px)`
-            : "translateY(100%)",
-          transition: isPanelDragging
-            ? "none"
-            : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
-          willChange: "transform",
-        }}
-      >
-        <header
-          onPointerDown={handlePanelPointerDown}
-          onPointerMove={handlePanelPointerMove}
-          onPointerUp={handlePanelPointerUp}
-          onPointerCancel={handlePanelPointerUp}
-          style={{
-            height: 56,
-            display: "grid",
-            gridTemplateColumns: "72px 1fr 72px",
-            alignItems: "center",
-            padding: "0 12px",
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
-            touchAction: "none",
-            userSelect: "none",
-            WebkitUserSelect: "none",
-          }}
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar"
-            style={{
-              width: 40,
-              height: 40,
-              border: "none",
-              background: "transparent",
-              color: "rgba(255,255,255,0.86)",
-              cursor: "pointer",
-              display: "grid",
-              placeItems: "center",
-              fontSize: 32,
-              fontWeight: 300,
-              lineHeight: 1,
-              justifySelf: "start",
-            }}
-          >
-            ×
-          </button>
+<section
+  style={{
+    width: "100%",
+    height: "calc(100vh - 72px)",
+    maxHeight: "calc(100vh - 72px)",
+    borderRadius: "22px 22px 0 0",
+    border: "1px solid transparent",
+    borderBottom: "1px solid transparent",
+    background: "rgba(8,9,11,0.96)",
+    boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",
+    color: "#fff",
+    overflow: "hidden",
+    transform: open
+      ? `translateY(${panelOffsetY}px)`
+      : "translateY(100%)",
+    transition: isPanelDragging
+      ? "none"
+      : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
+    willChange: "transform",
+  }}
+>
+  <header
+    onPointerDown={handlePanelPointerDown}
+    onPointerMove={handlePanelPointerMove}
+    onPointerUp={handlePanelPointerUp}
+    onPointerCancel={handlePanelPointerUp}
+    style={{
+      height: 56,
+      display: "grid",
+      gridTemplateColumns: "72px 1fr 72px",
+      alignItems: "center",
+      padding: "0 12px",
+      borderBottom: "1px solid transparent",
+      touchAction: "none",
+      userSelect: "none",
+      WebkitUserSelect: "none",
+    }}
+  >
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label="Cerrar"
+      style={{
+        width: 40,
+        height: 40,
+        border: "none",
+        background: "transparent",
+        color: "rgba(255,255,255,0.86)",
+        cursor: "pointer",
+        display: "grid",
+        placeItems: "center",
+        fontSize: 32,
+        fontWeight: 300,
+        lineHeight: 1,
+        justifySelf: "start",
+      }}
+    >
+      ×
+    </button>
 
-          <h2
-            style={{
-              margin: 0,
-              textAlign: "center",
-              fontSize: 17,
-              fontWeight: 500,
-              letterSpacing: "-0.02em",
-            }}
-          >
-            Crear publicación
-          </h2>
+    <h2
+      style={{
+        margin: 0,
+        textAlign: "center",
+        fontSize: 17,
+        fontWeight: 500,
+        letterSpacing: "-0.02em",
+      }}
+    >
+      Crear publicación
+    </h2>
 
-          <button
-            type="button"
-            onClick={handlePublishClick}
-            disabled={disabledPublish || isPublishIconState}
-            aria-label={
-              isPublishSuccess
-                ? "Publicado"
-                : isPublishLoading
-                  ? "Publicando"
-                  : "Publicar"
-            }
-            style={{
-              width: isPublishIconState ? 38 : undefined,
-              height: 38,
-              padding: isPublishIconState ? 0 : "0 14px",
-              borderRadius: isPublishIconState ? 999 : 11,
-              border: isPublishLoading
-                ? "2px solid rgba(168,85,255,0.18)"
-                : "none",
-              background: isPublishSuccess
-                ? "#22c55e"
-                : isPublishLoading
-                  ? "transparent"
-                  : disabledPublish
-                    ? "rgba(255,255,255,0.1)"
-                    : "#a855ff",
-              color:
-                disabledPublish && !isPublishIconState
-                  ? "rgba(255,255,255,0.36)"
-                  : "rgba(255,255,255,0.98)",
-              fontSize: 16,
-              fontWeight: 550,
-              fontFamily: fontStack,
-              cursor:
-                disabledPublish || isPublishIconState
-                  ? "not-allowed"
-                  : "pointer",
-              letterSpacing: "-0.02em",
-              justifySelf: "end",
-              display: "inline-grid",
-              placeItems: "center",
-              boxSizing: "border-box",
-              overflow: "hidden",
-              transition:
-                "width 220ms cubic-bezier(0.22, 1, 0.36, 1), padding 220ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 220ms cubic-bezier(0.22, 1, 0.36, 1), background-color 180ms ease, border-color 180ms ease, transform 180ms ease",
-            }}
-          >
-            {isPublishSuccess ? (
-              <span className="vibra-publish-success-check" aria-hidden="true">
-                ✓
-              </span>
-            ) : isPublishLoading ? (
-              <span className="vibra-publish-spinner" aria-hidden="true" />
-            ) : (
-              "Publicar"
-            )}
-          </button>
-        </header>
+    <button
+      type="button"
+      onClick={handlePublishClick}
+      disabled={disabledPublish || isPublishIconState}
+      aria-label={
+        isPublishSuccess
+          ? "Publicado"
+          : isPublishLoading
+            ? "Publicando"
+            : "Publicar"
+      }
+      style={{
+        width: isPublishIconState ? 38 : undefined,
+        height: 38,
+        padding: isPublishIconState ? 0 : "0 14px",
+        borderRadius: isPublishIconState ? 999 : 11,
+        border: isPublishLoading
+          ? "2px solid rgba(168,85,255,0.18)"
+          : "none",
+        background: isPublishSuccess
+          ? "#22c55e"
+          : isPublishLoading
+            ? "transparent"
+            : disabledPublish
+              ? "rgba(255,255,255,0.1)"
+              : "#a855ff",
+        color:
+          disabledPublish && !isPublishIconState
+            ? "rgba(255,255,255,0.36)"
+            : "rgba(255,255,255,0.98)",
+        fontSize: 16,
+        fontWeight: 550,
+        fontFamily: fontStack,
+        cursor:
+          disabledPublish || isPublishIconState
+            ? "not-allowed"
+            : "pointer",
+        letterSpacing: "-0.02em",
+        justifySelf: "end",
+        display: "inline-grid",
+        placeItems: "center",
+        boxSizing: "border-box",
+        overflow: "hidden",
+        transition:
+          "width 220ms cubic-bezier(0.22, 1, 0.36, 1), padding 220ms cubic-bezier(0.22, 1, 0.36, 1), border-radius 220ms cubic-bezier(0.22, 1, 0.36, 1), background-color 180ms ease, border-color 180ms ease, transform 180ms ease",
+      }}
+    >
+      {isPublishSuccess ? (
+        <span className="vibra-publish-success-check" aria-hidden="true">
+          ✓
+        </span>
+      ) : isPublishLoading ? (
+        <span className="vibra-publish-spinner" aria-hidden="true" />
+      ) : (
+        "Publicar"
+      )}
+    </button>
+  </header>
 
         <div
           className="vibra-composer-mobile-scroll"

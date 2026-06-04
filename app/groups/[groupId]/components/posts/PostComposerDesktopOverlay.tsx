@@ -173,8 +173,12 @@ export default function PostComposerDesktopOverlay({
   onPreviewPointerUp,
 }: PostComposerDesktopOverlayProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-    const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
+  const [textareaHeight, setTextareaHeight] = useState(58);
+
+  const TEXTAREA_MIN_HEIGHT = 58;
+  const TEXTAREA_MAX_HEIGHT = 92;
 
   useEffect(() => {
     setMounted(true);
@@ -220,7 +224,18 @@ export default function PostComposerDesktopOverlay({
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    textarea.scrollTop = textarea.scrollHeight;
+    textarea.style.height = "auto";
+
+    const nextHeight = Math.min(
+      TEXTAREA_MAX_HEIGHT,
+      Math.max(TEXTAREA_MIN_HEIGHT, textarea.scrollHeight),
+    );
+
+    setTextareaHeight(nextHeight);
+
+    if (textarea.scrollHeight > TEXTAREA_MAX_HEIGHT) {
+      textarea.scrollTop = textarea.scrollHeight;
+    }
   }, [text, open]);
 
   if (!shouldRender || !mounted) return null;
@@ -416,7 +431,7 @@ style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 12,
-                marginBottom: 16,
+                marginBottom: 12,
               }}
             >
               <Link
@@ -460,9 +475,9 @@ placeholder={
 }
 style={{
   width: "100%",
-  height: 150,
-  minHeight: 150,
-  maxHeight: 150,
+  height: textareaHeight,
+  minHeight: TEXTAREA_MIN_HEIGHT,
+  maxHeight: TEXTAREA_MAX_HEIGHT,
   resize: "none",
   border: "none",
   outline: "none",
@@ -474,15 +489,17 @@ style={{
   lineHeight: "23px",
   letterSpacing: "-0.02em",
   padding: 0,
-  overflowY: "auto",
+  overflowY:
+    textareaHeight >= TEXTAREA_MAX_HEIGHT ? "auto" : "hidden",
   scrollbarWidth: "none",
   WebkitAppearance: "none",
+  transition: "height 180ms cubic-bezier(0.22, 1, 0.36, 1)",
 }}
             />
 
 <div
   style={{
-    marginTop: 14,
+    marginTop: 2,
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-start",
