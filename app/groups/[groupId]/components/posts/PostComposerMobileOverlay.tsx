@@ -185,6 +185,7 @@ export default function PostComposerMobileOverlay({
   const dragStartOffsetYRef = useRef(0);
   const publishSuccessTimerRef = useRef<number | null>(null);
   const publishWasRequestedRef = useRef(false);
+  const onCloseRef = useRef(onClose);
 
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
@@ -213,6 +214,10 @@ export default function PostComposerMobileOverlay({
       }
     };
   }, []);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (open) {
@@ -250,7 +255,7 @@ export default function PostComposerMobileOverlay({
     }, 180);
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -260,7 +265,7 @@ export default function PostComposerMobileOverlay({
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
     };
-  }, [open, onClose]);
+  }, [open]);
 
   useEffect(() => {
     if (open) return;

@@ -1047,6 +1047,7 @@ function buildPostSearchIndexForContext(params: {
 
     return {
       ...groupSearch,
+      contextType: "group" as const,
       premiumEnabled: premium?.enabled === true,
       premiumAccessMode: premium?.accessMode ?? null,
       premiumFreeFor: premium?.freeFor ?? null,

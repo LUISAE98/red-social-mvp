@@ -144,7 +144,7 @@ export type PostSearchIndex = {
   isDeleted: boolean;
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
-  version: 1;
+  version: 2;
 };
 
 export type PostPurchaseType = "post" | "video" | "live" | "event" | null;
