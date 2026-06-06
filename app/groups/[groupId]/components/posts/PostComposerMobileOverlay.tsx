@@ -353,7 +353,7 @@ export default function PostComposerMobileOverlay({
     setIsPanelDragging(false);
 
     if (panelOffsetY >= PANEL_CLOSE_THRESHOLD) {
-      setPanelOffsetY(PANEL_CLOSE_OFFSET);
+      setPanelOffsetY(panelCloseOffsetRef.current);
       onClose();
       return;
     }
