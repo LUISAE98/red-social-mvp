@@ -29,7 +29,7 @@ const DEFAULT_PURCHASE_TYPE: PostPremium["purchaseType"] = "one_time";
 const DEFAULT_KIND: PostPremium["kind"] = "video";
 
 function parsePriceInput(value: string): number | null {
-  const normalizedValue = value.trim().replace(",", ".");
+  const normalizedValue = value.trim().replace(/,/g, "");
 
   if (!normalizedValue) return null;
 

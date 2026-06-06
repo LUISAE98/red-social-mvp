@@ -197,9 +197,10 @@ export default function PostComposerMobileOverlay({
     useState<PublishVisualState>("idle");
 
   const PANEL_RESTING_OFFSET = 0;
-  const PANEL_CLOSE_OFFSET =
-    typeof window === "undefined" ? 900 : window.innerHeight;
   const PANEL_CLOSE_THRESHOLD = 130;
+  const panelCloseOffsetRef = useRef(
+    typeof window === "undefined" ? 900 : window.innerHeight,
+  );
   const TEXTAREA_MIN_HEIGHT = 58;
   const TEXTAREA_MAX_HEIGHT = 180;
 
@@ -217,7 +218,7 @@ export default function PostComposerMobileOverlay({
     if (open) {
       setShouldRender(true);
       setIsPanelDragging(false);
-      setPanelOffsetY(PANEL_CLOSE_OFFSET);
+      setPanelOffsetY(panelCloseOffsetRef.current);
 
       const frameOne = window.requestAnimationFrame(() => {
         window.requestAnimationFrame(() => {
@@ -229,14 +230,14 @@ export default function PostComposerMobileOverlay({
     }
 
     setIsPanelDragging(false);
-    setPanelOffsetY(PANEL_CLOSE_OFFSET);
+    setPanelOffsetY(panelCloseOffsetRef.current);
 
     const timer = window.setTimeout(() => {
       setShouldRender(false);
     }, 260);
 
     return () => window.clearTimeout(timer);
-  }, [open, PANEL_CLOSE_OFFSET]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -313,7 +314,7 @@ export default function PostComposerMobileOverlay({
   }
 
   function clampPanelOffset(value: number) {
-    return Math.min(PANEL_CLOSE_OFFSET, Math.max(PANEL_RESTING_OFFSET, value));
+    return Math.min(panelCloseOffsetRef.current, Math.max(PANEL_RESTING_OFFSET, value));
   }
 
   function handlePanelPointerDown(event: ReactPointerEvent<HTMLElement>) {
@@ -656,6 +657,8 @@ export default function PostComposerMobileOverlay({
         </span>
       ) : isPublishLoading ? (
         <span className="vibra-publish-spinner" aria-hidden="true" />
+      ) : premiumComposer.premiumEnabled ? (
+        <VibraNavigationIcon type="premiumCrown" size={22} />
       ) : (
         "Publicar"
       )}
@@ -670,7 +673,52 @@ export default function PostComposerMobileOverlay({
             overflowY: "auto",
           }}
         >
-          <div style={{ padding: "18px 20px 18px" }}>
+          <div style={{ padding: "18px 20px 8px" }}>
+            <div
+              style={
+                premiumComposer.premiumEnabled
+                  ? {
+                      position: "relative",
+                      border: "1.5px solid #a855f7",
+                      borderRadius: 8,
+                      background:
+                        "linear-gradient(160deg, rgba(79,70,255,0.06), rgba(168,85,255,0.04) 55%, rgba(255,47,179,0.03))",
+                      boxShadow:
+                        "0 0 0 1px rgba(168,85,255,0.06), 0 4px 28px rgba(168,85,255,0.1)",
+                      padding: "14px 14px 12px",
+                    }
+                  : undefined
+              }
+            >
+              {premiumComposer.premiumEnabled ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    right: 14,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    background: "linear-gradient(180deg, #a855f7 0%, #d946b8 100%)",
+                    borderTopLeftRadius: 0,
+                    borderTopRightRadius: 0,
+                    borderBottomLeftRadius: 6,
+                    borderBottomRightRadius: 6,
+                    padding: "3px 8px 3px 6px",
+                    fontSize: 8.5,
+                    fontWeight: 700,
+                    letterSpacing: "0.06em",
+                    color: "#fff",
+                    whiteSpace: "nowrap",
+                    fontFamily: fontStack,
+                    textTransform: "uppercase" as const,
+                  }}
+                >
+                  <VibraNavigationIcon type="premiumCrown" size={14} />
+                  Publicación Premium
+                </div>
+              ) : null}
+
             <div
               style={{
                 display: "flex",
@@ -748,7 +796,8 @@ export default function PostComposerMobileOverlay({
                 marginTop: 2,
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "flex-start",
+                justifyContent: "space-between",
+                gap: 12,
               }}
             >
               <button
@@ -778,6 +827,45 @@ export default function PostComposerMobileOverlay({
                   strokeWidth={2.1}
                 />
               </button>
+
+              <div>
+                {hasVideos ? (
+                  <button
+                    type="button"
+                    onClick={premiumComposer.togglePremiumEnabled}
+                    disabled={creating || isPreparingImages || !premiumComposer.canEnablePremium}
+                    style={{
+                      height: 34,
+                      border: "none",
+                      borderRadius: 5,
+                      padding: "0 13px",
+                      background: "linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3)",
+                      color: "#fff",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor:
+                        creating || isPreparingImages || !premiumComposer.canEnablePremium
+                          ? "not-allowed"
+                          : "pointer",
+                      opacity:
+                        creating || isPreparingImages || !premiumComposer.canEnablePremium
+                          ? 0.55
+                          : 1,
+                      fontFamily: fontStack,
+                      boxShadow: "0 8px 20px rgba(168,85,247,0.24)",
+                      whiteSpace: "nowrap",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    {!premiumComposer.premiumEnabled ? (
+                      <VibraNavigationIcon type="premiumCrown" size={20} />
+                    ) : null}
+                    {premiumComposer.premiumEnabled ? "Quitar Premium" : "Monetizar Video"}
+                  </button>
+                ) : null}
+              </div>
             </div>
 
             <div
@@ -1086,7 +1174,10 @@ export default function PostComposerMobileOverlay({
               </div>
             </div>
 
-                        <div style={{ marginTop: 14 }}>
+            </div>
+
+            {hasVideos && premiumComposer.premiumEnabled ? (
+            <div style={{ marginTop: 14 }}>
               <ComposerPremiumPanel
                 hasVideos={hasVideos}
                 contextType={contextType}
@@ -1104,6 +1195,7 @@ export default function PostComposerMobileOverlay({
                 disabled={creating}
               />
             </div>
+            ) : null}
 
             {localError && (
               <div

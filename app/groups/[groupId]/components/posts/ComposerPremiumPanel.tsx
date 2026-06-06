@@ -64,6 +64,13 @@ const freeForLabels: Record<
 const fontStack =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
+function formatThousands(raw: string): string {
+  if (!raw) return raw;
+  const [intPart, decPart] = raw.split(".");
+  const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return decPart !== undefined ? `${formatted}.${decPart}` : formatted;
+}
+
 function OptionRow<TValue extends string>({
   value,
   selected,
@@ -375,7 +382,7 @@ export default function ComposerPremiumPanel({
       ) : null}
 
       {requiresPrice ? (
-        <label style={{ display: "grid", gap: 8 }}>
+        <div style={{ display: "grid", gap: 8 }}>
           <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span
               style={{
@@ -425,9 +432,13 @@ export default function ComposerPremiumPanel({
             </span>
 
             <input
-              value={priceInput}
+              type="text"
+              enterKeyHint="done"
+              value={formatThousands(priceInput)}
               disabled={disabled}
-              onChange={(event) => setPriceInput(event.target.value)}
+              onChange={(event) =>
+                setPriceInput(event.target.value.replace(/,/g, ""))
+              }
               inputMode="decimal"
               placeholder="0.00"
               style={{
@@ -468,11 +479,11 @@ export default function ComposerPremiumPanel({
             >
               Por cada desbloqueo de tu publicación premium cobrarás{" "}
               <strong style={{ color: "#a855ff", fontWeight: 600 }}>
-                ${creatorEarnings} MXN
+                ${formatThousands(creatorEarnings)} MXN
               </strong>
             </span>
           ) : null}
-        </label>
+        </div>
       ) : null}
 
       {capabilityError ? (
