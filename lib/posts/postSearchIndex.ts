@@ -4,7 +4,12 @@ import {
   normalizeSearchText,
   tokenizeSearchText,
 } from "@/lib/search/normalize";
-import type { GroupVisibility, PostAccessScope } from "./types";
+import type {
+  GroupVisibility,
+  PostAccessScope,
+  PostPremiumAccessMode,
+  PostPremiumFreeFor,
+} from "./types";
 
 export const POST_SEARCH_INDEX_VERSION = 2;
 
@@ -22,6 +27,10 @@ export type BuildPostSearchIndexInput = {
 
   accessScope?: PostAccessScope | null;
   isDeleted?: boolean;
+
+  premiumEnabled?: boolean;
+  premiumAccessMode?: PostPremiumAccessMode | null;
+  premiumFreeFor?: PostPremiumFreeFor | null;
 
   createdAt?: PostSearchTimestamp;
   updatedAt?: PostSearchTimestamp;
@@ -60,6 +69,11 @@ export function buildPostSearchIndex(input: BuildPostSearchIndexInput) {
     groupAvatarUrl,
 
     accessScope: input.accessScope ?? "group",
+
+    premiumEnabled: input.premiumEnabled === true,
+    premiumAccessMode: input.premiumAccessMode ?? null,
+    premiumFreeFor: input.premiumFreeFor ?? null,
+
     isDeleted: input.isDeleted === true,
 
     createdAt: input.createdAt ?? null,

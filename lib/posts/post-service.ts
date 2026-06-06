@@ -37,9 +37,15 @@ import type {
   Post,
   PostContextType,
   PostMedia,
+  PostPremium,
 } from "./types";
 import { httpsCallable } from "firebase/functions";
 import { buildPostSearchIndex } from "./postSearchIndex";
+import {
+  buildFreeAccessFields,
+  buildPremiumAccessFields,
+  type PremiumAccessFields,
+} from "./premium";
 
 type AuthorSnapshot = {
   uid: string;
@@ -1019,13 +1025,16 @@ function buildPostSearchIndexForContext(params: {
   isDeleted: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  premium?: PostPremium | null;
 }) {
+  const premium = params.premium?.enabled === true ? params.premium : null;
+
   if (params.context.contextType === "group") {
     if (!params.context.groupId || !params.context.groupVisibility) {
       return null;
     }
 
-    return buildPostSearchIndex({
+    const groupSearch = buildPostSearchIndex({
       text: params.text,
       groupId: params.context.groupId,
       groupVisibility: params.context.groupVisibility,
@@ -1035,6 +1044,13 @@ function buildPostSearchIndexForContext(params: {
       createdAt: params.createdAt,
       updatedAt: params.updatedAt,
     });
+
+    return {
+      ...groupSearch,
+      premiumEnabled: premium?.enabled === true,
+      premiumAccessMode: premium?.accessMode ?? null,
+      premiumFreeFor: premium?.freeFor ?? null,
+    };
   }
 
   const profileSearch = buildPostSearchIndex({
@@ -1055,6 +1071,9 @@ function buildPostSearchIndexForContext(params: {
     profileId: params.context.profileId,
     visibility: "public",
     accessScope: "profile" as const,
+    premiumEnabled: premium?.enabled === true,
+    premiumAccessMode: premium?.accessMode ?? null,
+    premiumFreeFor: premium?.freeFor ?? null,
   };
 }
 function hydratePost(
@@ -1197,6 +1216,8 @@ function normalizePostMetadata(post: Post): Post {
     shareTitle: post.shareTitle ?? shareMetadata.shareTitle,
     shareDescription: post.shareDescription ?? shareMetadata.shareDescription,
     shareImageUrl: post.shareImageUrl ?? shareMetadata.shareImageUrl,
+
+    premium: post.premium ?? null,
 
     access: post.access ?? "free",
     accessModel: post.accessModel ?? "free",
@@ -2397,6 +2418,7 @@ export async function createTextPost(params: {
     shareDescription: shareMetadata.shareDescription,
     shareImageUrl: shareMetadata.shareImageUrl,
     access: "free",
+    premium: null,
     media: [],
     counts: {
       comments: 0,
@@ -2522,6 +2544,7 @@ export async function createImagePost(params: {
     shareDescription: shareMetadata.shareDescription,
     shareImageUrl: shareMetadata.shareImageUrl,
     access: "free",
+    premium: null,
     media: cleanMedia,
     counts: {
       comments: 0,
@@ -2574,6 +2597,7 @@ export async function createMediaPost(params: {
     thumbnailUrl?: string | null;
     thumbnailPath?: string | null;
   }>;
+  premium?: PostPremium | null;
 }): Promise<void>;
 export async function createMediaPost(params: {
   contextType: "profile";
@@ -2588,6 +2612,7 @@ export async function createMediaPost(params: {
     thumbnailUrl?: string | null;
     thumbnailPath?: string | null;
   }>;
+  premium?: PostPremium | null;
 }): Promise<void>;
 export async function createMediaPost(params: {
   contextType?: PostContextType;
@@ -2603,6 +2628,7 @@ export async function createMediaPost(params: {
     thumbnailUrl?: string | null;
     thumbnailPath?: string | null;
   }>;
+  premium?: PostPremium | null;
 }): Promise<void> {
   if (params.postId) {
     assertValidId(params.postId, "postId");
@@ -2660,6 +2686,10 @@ export async function createMediaPost(params: {
       typeof item.thumbnailUrl === "string" && item.thumbnailUrl.trim().length > 0
         ? item.thumbnailUrl.trim()
         : null,
+    thumbnailPath:
+      typeof item.thumbnailPath === "string" && item.thumbnailPath.trim().length > 0
+        ? item.thumbnailPath.trim()
+        : null,
     altText: null,
     provider: "mux",
     status: "uploading",
@@ -2679,6 +2709,12 @@ export async function createMediaPost(params: {
 
   const hasVideos = videoMedia.length > 0;
   const hasImages = cleanImageMedia.length > 0;
+
+  const premiumAccessFields = buildPremiumAccessFields({
+    premium: params.premium,
+    hasVideos,
+    context,
+  });
 
   const firstVideo = videoMedia[0] ?? null;
 
@@ -2719,9 +2755,9 @@ export async function createMediaPost(params: {
     contextType: context.contextType,
     groupVisibility: context.groupVisibility,
     profileRestricted: context.profileRestricted,
-    accessModel: "free",
-    requiresPayment: false,
-    requiresSubscription: false,
+    accessModel: premiumAccessFields.accessModel,
+    requiresPayment: premiumAccessFields.requiresPayment,
+    requiresSubscription: premiumAccessFields.requiresSubscription,
     videoData,
     playback,
   });
@@ -2756,7 +2792,7 @@ export async function createMediaPost(params: {
     shareDescription: shareMetadata.shareDescription,
     shareImageUrl: shareMetadata.shareImageUrl,
 
-    access: "free",
+    ...premiumAccessFields,
     media,
 
     counts: {
@@ -2767,13 +2803,7 @@ export async function createMediaPost(params: {
 
     postType: hasVideos ? "video" : hasImages ? "image" : "text",
 
-    accessModel: "free",
     accessScope: context.contextType,
-    requiresPayment: false,
-    requiresSubscription: false,
-    oneTimePrice: null,
-    currency: null,
-    purchaseType: hasVideos ? "video" : null,
 
     liveData: null,
     videoData,
@@ -2795,6 +2825,7 @@ export async function createMediaPost(params: {
       isDeleted: false,
       createdAt: searchTimestamp,
       updatedAt: searchTimestamp,
+      premium: premiumAccessFields.premium,
     }),
   };
 
@@ -2805,7 +2836,6 @@ export async function createMediaPost(params: {
 
   await addDoc(collection(db, "posts"), postPayload);
 }
-
 export async function createVideoPost(params: {
   groupId: string;
   postId: string;
@@ -2813,6 +2843,7 @@ export async function createVideoPost(params: {
   text?: string;
   thumbnailUrl?: string | null;
   thumbnailPath?: string | null;
+  premium?: PostPremium | null;
 }): Promise<void>;
 export async function createVideoPost(params: {
   contextType: "profile";
@@ -2822,6 +2853,7 @@ export async function createVideoPost(params: {
   text?: string;
   thumbnailUrl?: string | null;
   thumbnailPath?: string | null;
+  premium?: PostPremium | null;
 }): Promise<void>;
 export async function createVideoPost(params: {
   contextType?: PostContextType;
@@ -2832,6 +2864,7 @@ export async function createVideoPost(params: {
   text?: string;
   thumbnailUrl?: string | null;
   thumbnailPath?: string | null;
+  premium?: PostPremium | null;
 }): Promise<void> {
   assertValidId(params.postId, "postId");
   assertValidId(params.uploadId, "uploadId");
@@ -2852,6 +2885,12 @@ export async function createVideoPost(params: {
     groupId: params.groupId,
     profileId: params.profileId,
     author,
+  });
+
+  const premiumAccessFields = buildPremiumAccessFields({
+    premium: params.premium,
+    hasVideos: true,
+    context,
   });
 
   const videoData: Post["videoData"] = {
@@ -2876,16 +2915,35 @@ export async function createVideoPost(params: {
     isReady: false,
   };
 
+  const media: PostMedia[] = [
+    {
+      type: "video",
+      id: params.postId,
+      index: 0,
+      url: `mux://uploads/${params.uploadId}`,
+      thumbnailUrl: cleanThumbnailUrl,
+      thumbnailPath: cleanThumbnailPath,
+      altText: null,
+      provider: "mux",
+      status: "uploading",
+      uploadId: params.uploadId,
+      assetId: null,
+      playbackId: null,
+      hlsUrl: null,
+      duration: null,
+    },
+  ];
+
   const shareMetadata = buildShareMetadata({
     text: cleanText,
-    media: [],
+    media,
     authorName: author.authorName,
     contextType: context.contextType,
     groupVisibility: context.groupVisibility,
     profileRestricted: context.profileRestricted,
-    accessModel: "free",
-    requiresPayment: false,
-    requiresSubscription: false,
+    accessModel: premiumAccessFields.accessModel,
+    requiresPayment: premiumAccessFields.requiresPayment,
+    requiresSubscription: premiumAccessFields.requiresSubscription,
     videoData,
     playback,
   });
@@ -2920,15 +2978,8 @@ export async function createVideoPost(params: {
     shareDescription: shareMetadata.shareDescription,
     shareImageUrl: shareMetadata.shareImageUrl,
 
-    access: "free",
-    media: [
-      {
-        type: "video",
-        url: `mux://uploads/${params.uploadId}`,
-        thumbnailUrl: cleanThumbnailUrl,
-        altText: null,
-      },
-    ],
+    ...premiumAccessFields,
+    media,
 
     counts: {
       comments: 0,
@@ -2938,13 +2989,7 @@ export async function createVideoPost(params: {
 
     postType: "video",
 
-    accessModel: "free",
     accessScope: context.contextType,
-    requiresPayment: false,
-    requiresSubscription: false,
-    oneTimePrice: null,
-    currency: null,
-    purchaseType: "video",
 
     liveData: null,
     videoData,
@@ -2966,10 +3011,10 @@ export async function createVideoPost(params: {
       isDeleted: false,
       createdAt: searchTimestamp,
       updatedAt: searchTimestamp,
+      premium: premiumAccessFields.premium,
     }),
   }, { merge: true });
 }
-
 export async function softDeletePost(postId: string): Promise<void> {
   assertValidId(postId, "postId");
 

@@ -1,7 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { MAX_POST_IMAGES } from "@/lib/posts/types";
+import {
+  MAX_POST_IMAGES,
+  type GroupVisibility,
+  type PostPremium,
+} from "@/lib/posts/types";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import {
   useEffect,
@@ -17,6 +21,7 @@ import { auth, db } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import PostComposerDesktopOverlay from "./PostComposerDesktopOverlay";
 import PostComposerMobileOverlay from "./PostComposerMobileOverlay";
+import { useComposerPremium } from "./useComposerPremium";
 
 type ComposerMediaItem = {
   type: "image" | "video";
@@ -32,11 +37,13 @@ type GroupPostComposerSubmitPayload = {
   imageFiles?: File[];
   videoFiles?: File[];
   mediaItems?: ComposerMediaItem[];
+  premium?: PostPremium | null;
 };
 
 type GroupPostComposerProps = {
   onSubmit: (payload: GroupPostComposerSubmitPayload) => Promise<void>;
   contextType?: ComposerContextType;
+  groupVisibility?: GroupVisibility | null;
 };
 
 type SelectedMediaItem = ComposerMediaItem & {
@@ -233,6 +240,7 @@ function Avatar({
 export default function GroupPostComposer({
   onSubmit,
   contextType = "group",
+  groupVisibility = null,
 }: GroupPostComposerProps) {
   const [text, setText] = useState("");
   const [creating, setCreating] = useState(false);
@@ -402,6 +410,14 @@ export default function GroupPostComposer({
   const canAddMoreMedia =
     selectedImages.length + processingImageSlots < MAX_POST_IMAGES ||
     selectedVideos.length + processingVideoSlots < MAX_POST_VIDEOS;
+
+      const hasVideos = selectedVideos.length > 0;
+
+  const composerPremium = useComposerPremium({
+    hasVideos,
+    contextType,
+    groupVisibility,
+  });
 
   function handleOpenComposerOverlay() {
     if (creating) return;
@@ -851,16 +867,30 @@ export default function GroupPostComposer({
       setCreating(true);
       setLocalError(null);
 
+            if (
+        composerPremium.premiumEnabled &&
+        !composerPremium.validation.valid
+      ) {
+        setLocalError(
+          composerPremium.validation.errors[0]?.message ??
+            "Revisa la configuración premium.",
+        );
+        setCreating(false);
+        return;
+      }
+
       await onSubmit({
         text: text.trim(),
         contextType,
         imageFiles: selectedImages,
         videoFiles: selectedVideos,
         mediaItems: orderedSubmitMediaItems,
+        premium: composerPremium.premium,
       });
 
       setText("");
       clearSelectedMedia();
+      composerPremium.resetPremium();
       setIsComposerOverlayOpen(false);
 
       if (fileInputRef.current) {
@@ -1110,6 +1140,8 @@ const launcherButtonStyle: CSSProperties = {
           creating={creating}
           isPreparingImages={isPreparingImages}
           hasContent={hasContent}
+          hasVideos={hasVideos}
+          premiumComposer={composerPremium}
           localError={localError}
           selectedMediaItems={selectedMediaItems}
           processingImageSlots={processingImageSlots}
@@ -1140,6 +1172,8 @@ const launcherButtonStyle: CSSProperties = {
           creating={creating}
           isPreparingImages={isPreparingImages}
           hasContent={hasContent}
+          hasVideos={hasVideos}
+          premiumComposer={composerPremium}
           localError={localError}
           selectedMediaItems={selectedMediaItems}
           processingImageSlots={processingImageSlots}

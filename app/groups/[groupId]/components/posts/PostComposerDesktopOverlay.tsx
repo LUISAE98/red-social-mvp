@@ -14,6 +14,8 @@ import {
 import { createPortal } from "react-dom";
 
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+import ComposerPremiumPanel from "./ComposerPremiumPanel";
+import type { useComposerPremium } from "./useComposerPremium";
 
 type SelectedMediaItem = {
   id: string;
@@ -44,6 +46,8 @@ type PostComposerDesktopOverlayProps = {
   isPreparingImages: boolean;
   hasContent: boolean;
   localError: string | null;
+  hasVideos: boolean;
+  premiumComposer: ReturnType<typeof useComposerPremium>;
 
   selectedMediaItems: SelectedMediaItem[];
   processingImageSlots: number;
@@ -156,6 +160,8 @@ export default function PostComposerDesktopOverlay({
   isPreparingImages,
   hasContent,
   localError,
+  hasVideos,
+  premiumComposer,
   selectedMediaItems,
   processingImageSlots,
   processingVideoSlots,
@@ -173,12 +179,17 @@ export default function PostComposerDesktopOverlay({
   onPreviewPointerUp,
 }: PostComposerDesktopOverlayProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const onCloseRef = useRef(onClose);
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
   const [textareaHeight, setTextareaHeight] = useState(58);
 
   const TEXTAREA_MIN_HEIGHT = 58;
   const TEXTAREA_MAX_HEIGHT = 92;
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -208,7 +219,7 @@ export default function PostComposerDesktopOverlay({
     }, 120);
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
     }
 
     window.addEventListener("keydown", handleKeyDown);
@@ -218,7 +229,7 @@ export default function PostComposerDesktopOverlay({
       window.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
     };
-  }, [open, onClose]);
+  }, [open]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -240,7 +251,11 @@ export default function PostComposerDesktopOverlay({
 
   if (!shouldRender || !mounted) return null;
 
-  const disabledPublish = creating || isPreparingImages || !hasContent;
+    const disabledPublish =
+    creating ||
+    isPreparingImages ||
+    !hasContent ||
+    (premiumComposer.premiumEnabled && !premiumComposer.validation.valid);
 
   const hasVisibleMedia =
     selectedMediaItems.length > 0 ||
@@ -366,7 +381,10 @@ fontFamily: fontStack,
 <section
   style={{
     width: "min(100%, 540px)",
-    borderRadius: 22,
+    maxHeight: "min(88vh, 680px)",
+    display: "flex",
+    flexDirection: "column",
+    borderRadius: 12,
     border: "1px solid rgba(255,255,255,0.1)",
     background: "rgba(8,9,11,0.985)",
     boxShadow:
@@ -424,8 +442,56 @@ style={{
           </button>
         </header>
 
-<div>
-  <div style={{ padding: "18px 20px 18px" }}>
+<div
+  className="vibra-composer-desktop-scroll"
+  style={{ flex: 1, overflowY: "auto", minHeight: 0 }}
+>
+  <div style={{ padding: "18px 20px 8px" }}>
+            <div
+              style={
+                premiumComposer.premiumEnabled
+                  ? {
+                      position: "relative",
+                      border: "1.5px solid #a855f7",
+                      borderRadius: 8,
+                      background:
+                        "linear-gradient(160deg, rgba(79,70,255,0.06), rgba(168,85,255,0.04) 55%, rgba(255,47,179,0.03))",
+                      boxShadow:
+                        "0 0 0 1px rgba(168,85,255,0.06), 0 4px 28px rgba(168,85,255,0.1)",
+                      padding: "14px 14px 12px",
+                    }
+                  : undefined
+              }
+            >
+              {premiumComposer.premiumEnabled ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    right: 14,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    background: "linear-gradient(180deg, #a855f7 0%, #d946b8 100%)",
+                    borderTopLeftRadius: 0,
+                    borderTopRightRadius: 0,
+                    borderBottomLeftRadius: 6,
+                    borderBottomRightRadius: 6,
+                    padding: "3px 8px 3px 6px",
+                    fontSize: 8.5,
+                    fontWeight: 700,
+                    letterSpacing: "0.06em",
+                    color: "#fff",
+                    whiteSpace: "nowrap",
+                    fontFamily: fontStack,
+                    textTransform: "uppercase" as const,
+                  }}
+                >
+                  <VibraNavigationIcon type="premiumCrown" size={14} />
+                  Publicación Premium
+                </div>
+              ) : null}
+
             <div
               style={{
                 display: "flex",
@@ -502,7 +568,8 @@ style={{
     marginTop: 2,
     display: "flex",
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent: "space-between",
+    gap: 12,
   }}
 >
   <button
@@ -531,6 +598,45 @@ style={{
       strokeWidth={2.1}
     />
   </button>
+
+  <div>
+    {hasVideos ? (
+      <button
+        type="button"
+        onClick={premiumComposer.togglePremiumEnabled}
+        disabled={creating || isPreparingImages || !premiumComposer.canEnablePremium}
+        style={{
+          height: 34,
+          border: "none",
+          borderRadius: 5,
+          padding: "0 13px",
+          background: "linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3)",
+          color: "#fff",
+          fontSize: 13,
+          fontWeight: 500,
+          cursor:
+            creating || isPreparingImages || !premiumComposer.canEnablePremium
+              ? "not-allowed"
+              : "pointer",
+          opacity:
+            creating || isPreparingImages || !premiumComposer.canEnablePremium
+              ? 0.55
+              : 1,
+          fontFamily: fontStack,
+          boxShadow: "0 8px 20px rgba(168,85,247,0.24)",
+          whiteSpace: "nowrap",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        {!premiumComposer.premiumEnabled ? (
+          <VibraNavigationIcon type="premiumCrown" size={20} />
+        ) : null}
+        {premiumComposer.premiumEnabled ? "Quitar Premium" : "Monetizar Video"}
+      </button>
+    ) : null}
+  </div>
 </div>
 
 <div
@@ -837,6 +943,29 @@ borderRadius: 14,
   </div>
 </div>
 
+            </div>
+
+            {hasVideos && premiumComposer.premiumEnabled ? (
+            <div style={{ marginTop: 14 }}>
+              <ComposerPremiumPanel
+                hasVideos={hasVideos}
+                contextType={contextType}
+                premiumEnabled={premiumComposer.premiumEnabled}
+                setPremiumEnabled={premiumComposer.setPremiumEnabled}
+                accessMode={premiumComposer.accessMode}
+                setAccessMode={premiumComposer.setAccessMode}
+                freeFor={premiumComposer.freeFor}
+                setFreeFor={premiumComposer.setFreeFor}
+                priceInput={premiumComposer.priceInput}
+                setPriceInput={premiumComposer.setPriceInput}
+                capabilities={premiumComposer.capabilities}
+                validation={premiumComposer.validation}
+                premiumErrorMessage={premiumComposer.premiumErrorMessage}
+                disabled={creating}
+              />
+            </div>
+            ) : null}
+
             {localError && (
               <div
                 style={{
@@ -854,6 +983,14 @@ borderRadius: 14,
               </div>
             )}
 
+          </div>
+        </div>
+        <div
+          style={{
+            padding: "14px 20px 18px",
+            borderTop: "1px solid rgba(255,255,255,0.07)",
+          }}
+        >
 <button
   type="button"
   onClick={onSubmit}
@@ -861,8 +998,7 @@ borderRadius: 14,
 style={{
   width: "100%",
   height: 42,
-  marginTop: 14,
-  borderRadius: 13,
+  borderRadius: 5,
   border: "none",
   background: disabledPublish
     ? "rgba(255,255,255,0.1)"
@@ -875,15 +1011,18 @@ style={{
   fontFamily: fontStack,
   cursor: disabledPublish ? "not-allowed" : "pointer",
   letterSpacing: "-0.02em",
+  display: "grid",
+  placeItems: "center",
 }}
 >
               {isPreparingImages
                 ? "Preparando..."
                 : creating
                   ? "Publicando..."
-                  : "Publicar"}
+                  : premiumComposer.premiumEnabled
+                    ? <VibraNavigationIcon type="premiumCrown" size={22} />
+                    : "Publicar"}
             </button>
-          </div>
         </div>
       </section>
     </div>,

@@ -2388,13 +2388,14 @@ const avatarNode = (
 <GroupPostsFeed
   key={`group-posts-${groupId}-${groupPageRefreshKey}`}
   groupId={groupId}
-                    isOwner={isOwner}
-                    isModerator={isModerator}
-                    canCreatePosts={canCreatePosts}
-                    canCommentOnPosts={canCommentOnPosts}
-                    postBlockedReason={postBlockedReason}
-                    commentBlockedReason={commentBlockedReason}
-                  />
+  groupVisibility={normalizeVisibility(group.visibility)}
+  isOwner={isOwner}
+  isModerator={isModerator}
+  canCreatePosts={canCreatePosts}
+  canCommentOnPosts={canCommentOnPosts}
+  postBlockedReason={postBlockedReason}
+  commentBlockedReason={commentBlockedReason}
+/>
                 </div>
 
                 {user?.uid ? (

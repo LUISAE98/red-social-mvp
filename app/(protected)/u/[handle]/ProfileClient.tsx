@@ -62,7 +62,7 @@ import { createMediaPost, createTextPost } from "@/lib/posts/post-service";
 import { uploadPostImages } from "@/lib/posts/image-upload";
 import { clearAllPostFeedCaches } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
-import type { PostMedia } from "@/lib/posts/types";
+import type { PostMedia, PostPremium } from "@/lib/posts/types";
 
 type SafeCropperProps = {
   image: string;
@@ -93,6 +93,7 @@ type ProfileComposerSubmitPayload = {
   imageFiles?: File[];
   videoFiles?: File[];
   mediaItems?: ProfileComposerMediaItem[];
+  premium?: PostPremium | null;
 };
 
 type FirestoreDateLike =
@@ -1092,6 +1093,7 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
         text: cleanText,
         imageMedia: uploadedImages,
         videoUploads: videoUploadsPayload,
+        premium: payload.premium ?? null,
       });
 
       for (let index = 0; index < muxUploads.length; index += 1) {
@@ -1118,6 +1120,7 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
         text: cleanText,
         imageMedia: uploadedImages,
         videoUploads: [],
+        premium: null,
       });
     } else {
       await createTextPost({

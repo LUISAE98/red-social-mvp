@@ -15,7 +15,8 @@ export type VibraNavigationIconType =
   | "requested"
   | "copyLink"
   | "publish"
-  | "attachMedia";
+  | "attachMedia"
+  | "premiumCrown";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
@@ -61,6 +62,48 @@ const NAVIGATION_ICON_CONFIG: Record<
       </svg>
     ),
   },
+
+  premiumCrown: {
+  label: "Premium",
+  icon: (
+    <svg
+      className="vibraPremiumCrownIcon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        d="
+          M4.8 8.2
+          L8.6 11.2
+          L12 6.4
+          L15.4 11.2
+          L19.2 8.2
+          L17.8 17.2
+          H6.2
+          L4.8 8.2
+          Z
+        "
+        fill="#ffffff"
+      />
+
+      <path
+        d="
+          M6.4 18.6
+          H17.6
+          Q18.2 18.6 18.2 19.2
+          V19.6
+          Q18.2 20.2 17.6 20.2
+          H6.4
+          Q5.8 20.2 5.8 19.6
+          V19.2
+          Q5.8 18.6 6.4 18.6
+          Z
+        "
+        fill="#ffffff"
+      />
+    </svg>
+  ),
+},
 
   search: {
     label: "Buscar",

@@ -7,7 +7,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { auth, db, functions } from "@/lib/firebase";
-import type { Comment, CommentReply, Post } from "@/lib/posts/types";
+import type {
+  Comment,
+  CommentReply,
+  Post,
+  PostPremium,
+} from "@/lib/posts/types";
 import {
   createMediaPost,
   createPostComment,
@@ -56,6 +61,7 @@ type CreateMuxDirectUploadResponse = {
 
 type GroupPostsFeedProps = {
   groupId: string;
+  groupVisibility?: "public" | "private" | "hidden" | null;
   isOwner?: boolean;
   isModerator?: boolean;
   canCreatePosts?: boolean;
@@ -366,6 +372,7 @@ function uploadVideoFileToMux(params: {
 
 export default function GroupPostsFeed({
   groupId,
+  groupVisibility = null,
   isOwner = false,
   isModerator = false,
   canCreatePosts = false,
@@ -869,7 +876,9 @@ export default function GroupPostsFeed({
       file: File;
       coverFile?: File | null;
     }>;
+    premium?: PostPremium | null;
   }) {
+
     if (!guardCreatePost()) return;
 
     try {
@@ -1038,6 +1047,7 @@ const uploadedVideoCovers =
           text: cleanText,
           imageMedia: uploadedImages,
           videoUploads: videoUploadsPayload,
+          premium: payload.premium ?? null,
         });
 
         for (let index = 0; index < muxUploads.length; index += 1) {
@@ -1063,6 +1073,7 @@ const uploadedVideoCovers =
           text: cleanText,
           imageMedia: uploadedImages,
           videoUploads: [],
+          premium: null,
         });
       } else {
         await createTextPost({ groupId, text: cleanText });
@@ -1414,7 +1425,10 @@ const shellStyle: CSSProperties = {
 
       {canCreatePosts ? (
         <div style={cardShellStyle}>
-          <GroupPostComposer onSubmit={handleCreatePost} />
+          <GroupPostComposer
+            onSubmit={handleCreatePost}
+            groupVisibility={groupVisibility}
+          />
 
           {videoUploadStatus ? (
             <div

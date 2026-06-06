@@ -14,6 +14,8 @@ import {
 import { createPortal } from "react-dom";
 
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+import ComposerPremiumPanel from "./ComposerPremiumPanel";
+import type { useComposerPremium } from "./useComposerPremium";
 
 type SelectedMediaItem = {
   id: string;
@@ -44,6 +46,8 @@ type PostComposerMobileOverlayProps = {
   isPreparingImages: boolean;
   hasContent: boolean;
   localError: string | null;
+  hasVideos: boolean;
+  premiumComposer: ReturnType<typeof useComposerPremium>;
 
   selectedMediaItems: SelectedMediaItem[];
   processingImageSlots: number;
@@ -158,6 +162,8 @@ export default function PostComposerMobileOverlay({
   isPreparingImages,
   hasContent,
   localError,
+  hasVideos,
+  premiumComposer,
   selectedMediaItems,
   processingImageSlots,
   processingVideoSlots,
@@ -356,7 +362,12 @@ export default function PostComposerMobileOverlay({
 
   if (!shouldRender || !mounted) return null;
 
-  const disabledPublish = creating || isPreparingImages || !hasContent;
+  const disabledPublish =
+    creating ||
+    isPreparingImages ||
+    !hasContent ||
+    (premiumComposer.premiumEnabled && !premiumComposer.validation.valid);
+
   const isPublishLoading =
     creating || isPreparingImages || publishVisualState === "loading";
   const isPublishSuccess = publishVisualState === "success";
@@ -1073,6 +1084,25 @@ export default function PostComposerMobileOverlay({
                   )}
                 </div>
               </div>
+            </div>
+
+                        <div style={{ marginTop: 14 }}>
+              <ComposerPremiumPanel
+                hasVideos={hasVideos}
+                contextType={contextType}
+                premiumEnabled={premiumComposer.premiumEnabled}
+                setPremiumEnabled={premiumComposer.setPremiumEnabled}
+                accessMode={premiumComposer.accessMode}
+                setAccessMode={premiumComposer.setAccessMode}
+                freeFor={premiumComposer.freeFor}
+                setFreeFor={premiumComposer.setFreeFor}
+                priceInput={premiumComposer.priceInput}
+                setPriceInput={premiumComposer.setPriceInput}
+                capabilities={premiumComposer.capabilities}
+                validation={premiumComposer.validation}
+                premiumErrorMessage={premiumComposer.premiumErrorMessage}
+                disabled={creating}
+              />
             </div>
 
             {localError && (

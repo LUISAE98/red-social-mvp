@@ -97,6 +97,28 @@ export type PostContextType = "group" | "profile";
 
 export type PostAccessScope = "group" | "profile";
 
+export type PostPremiumKind = "video";
+
+export type PostPremiumAccessMode = "members_only" | "public";
+
+export type PostPremiumFreeFor =
+  | "none"
+  | "members_and_subscribers";
+
+export type PostPremiumPurchaseType = "one_time";
+
+export type PostPremiumCurrency = "MXN";
+
+export type PostPremium = {
+  enabled: boolean;
+  kind: PostPremiumKind;
+  accessMode: PostPremiumAccessMode;
+  freeFor: PostPremiumFreeFor;
+  price?: number | null;
+  currency?: PostPremiumCurrency;
+  purchaseType: PostPremiumPurchaseType;
+};
+
 export type PostSearchIndex = {
   textNormalized: string;
   tokens: string[];
@@ -110,6 +132,15 @@ export type PostSearchIndex = {
   authorId: string;
   visibility?: GroupVisibility | null;
   accessScope?: PostAccessScope | null;
+
+  /**
+   * Campos derivados para búsquedas, feeds y estados locked/premium.
+   * No sustituyen a post.premium; solo duplican datos mínimos indexables.
+   */
+  premiumEnabled?: boolean;
+  premiumAccessMode?: PostPremiumAccessMode | null;
+  premiumFreeFor?: PostPremiumFreeFor | null;
+
   isDeleted: boolean;
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
@@ -117,6 +148,46 @@ export type PostSearchIndex = {
 };
 
 export type PostPurchaseType = "post" | "video" | "live" | "event" | null;
+
+export type PostAccessStatus =
+  | "pending_payment"
+  | "active"
+  | "revoked"
+  | "refunded"
+  | "failed";
+
+export type PostAccessSource = "mercado_pago" | null;
+
+export type PostAccess = {
+  id: string;
+  postId: string;
+  buyerId: string;
+  creatorId: string;
+
+  groupId?: string | null;
+  profileId?: string | null;
+  contextType: PostContextType;
+
+  status: PostAccessStatus;
+  source?: PostAccessSource;
+
+  paymentId?: string | null;
+  orderId?: string | null;
+
+  purchaseType: PostPremiumPurchaseType;
+  price: number;
+  currency: PostPremiumCurrency;
+
+  createdAt?: Timestamp | null;
+  updatedAt?: Timestamp | null;
+  paidAt?: Timestamp | null;
+  revokedAt?: Timestamp | null;
+
+  /**
+   * Compra única: no expira.
+   */
+  expiresAt?: null;
+};
 
 export type LiveStatus =
   | "draft"
@@ -280,6 +351,14 @@ export type Post = {
   shareImageUrl?: string | null;
 
   access?: "free" | "paid";
+
+  /**
+   * Configuración premium opcional.
+   * Si no existe, el post se considera gratuito/legacy.
+   * En esta fase solo debe usarse para posts con video.
+   */
+  premium?: PostPremium | null;
+
   media?: PostMedia[];
   counts?: PostCounts;
 
