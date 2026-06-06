@@ -16,7 +16,9 @@ export type VibraNavigationIconType =
   | "copyLink"
   | "publish"
   | "attachMedia"
-  | "premiumCrown";
+  | "premiumCrown"
+  | "premiumLock"
+  | "premiumUnlocked";
 
 const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
@@ -62,6 +64,112 @@ const NAVIGATION_ICON_CONFIG: Record<
       </svg>
     ),
   },
+
+premiumLock: {
+  label: "Premium bloqueado",
+  icon: (
+    <svg
+      className="vibraPremiumLockIcon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+<path
+  d="
+    M7.8 10.8
+    V7.6
+    Q7.8 3.4 12 3.4
+    Q16.2 3.4 16.2 7.6
+    V10.8
+    H14.4
+    V7.6
+    Q14.4 5.4 12 5.4
+    Q9.6 5.4 9.6 7.6
+    V10.8
+    H7.8
+    Z
+  "
+  fill={vibraPurple}
+/>
+
+<path
+  fillRule="evenodd"
+  clipRule="evenodd"
+  d="
+    M6.6 10.2
+    H17.4
+    Q18.8 10.2 18.8 11.6
+    V19
+    Q18.8 20.4 17.4 20.4
+    H6.6
+    Q5.2 20.4 5.2 19
+    V11.6
+    Q5.2 10.2 6.6 10.2
+    Z
+
+    M12 14.1
+    Q11.1 14.1 11.1 15
+    Q11.1 15.9 12 15.9
+    Q12.9 15.9 12.9 15
+    Q12.9 14.1 12 14.1
+    Z
+  "
+  fill={vibraPurple}
+/>
+    </svg>
+  ),
+},
+
+premiumUnlocked: {
+  label: "Premium desbloqueado",
+  icon: (
+    <svg
+      className="vibraPremiumUnlockedIcon"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+<path
+  d="
+    M7.8 6.5
+    Q7.8 3.4 12 3.4
+    Q16.2 3.4 16.2 7.6
+    V10.8
+    H14.4
+    V7.6
+    Q14.4 5.4 12 5.4
+    Q9.6 5.4 9.6 6.5
+    H7.8
+    Z
+  "
+  fill={vibraPurple}
+/>
+
+<path
+  fillRule="evenodd"
+  clipRule="evenodd"
+  d="
+    M6.6 10.2
+    H17.4
+    Q18.8 10.2 18.8 11.6
+    V19
+    Q18.8 20.4 17.4 20.4
+    H6.6
+    Q5.2 20.4 5.2 19
+    V11.6
+    Q5.2 10.2 6.6 10.2
+    Z
+
+    M12 14.1
+    Q11.1 14.1 11.1 15
+    Q11.1 15.9 12 15.9
+    Q12.9 15.9 12.9 15
+    Q12.9 14.1 12 14.1
+    Z
+  "
+  fill={vibraPurple}
+/>
+    </svg>
+  ),
+},
 
   premiumCrown: {
   label: "Premium",

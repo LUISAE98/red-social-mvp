@@ -54,6 +54,16 @@ function isFreePublicGroupPost(post: Post): boolean {
   );
 }
 
+function isPublicPremiumGroupPost(post: Post): boolean {
+  return (
+    post.isDeleted !== true &&
+    getPostContextType(post) === "group" &&
+    post.isShareable === true &&
+    post.premium?.enabled === true &&
+    post.premium?.accessMode === "public"
+  );
+}
+
 function isFreePublicProfilePost(post: Post): boolean {
   return (
     isFreePost(post) &&
@@ -258,6 +268,10 @@ export async function fetchPublicPostById(postId: string): Promise<Post | null> 
 
   if (contextType === "profile") {
     return isFreePublicProfilePost(normalizedPost) ? normalizedPost : null;
+  }
+
+  if (isPublicPremiumGroupPost(normalizedPost)) {
+    return normalizedPost;
   }
 
   return isFreePublicGroupPost(normalizedPost) ? normalizedPost : null;

@@ -1737,6 +1737,24 @@ function canReadPublicSharedPost() {
     );
 }
 
+function canReadPublicPremiumGroupPost() {
+  return resource.data.isDeleted == false
+    && isGroupPostData(resource.data)
+    && resource.data.isShareable == true
+    && "premium" in resource.data
+    && resource.data.premium is map
+    && resource.data.premium.enabled == true
+    && resource.data.premium.accessMode == "public";
+}
+
+function canListPublicPremiumGroupPost() {
+  return resource.data.isDeleted == false
+    && resource.data.groupId is string
+    && resource.data.isShareable == true
+    && resource.data.premium.enabled == true
+    && resource.data.premium.accessMode == "public";
+}
+
 function canReadPost() {
   return resource.data.isDeleted == false
     && (
@@ -1744,6 +1762,7 @@ function canReadPost() {
         isGroupPostData(resource.data)
         && (
           canReadPublicSharedPost()
+          || canReadPublicPremiumGroupPost()
           || canReadGroupContent(resource.data.groupId)
           || (
             signedIn()
@@ -2055,7 +2074,14 @@ function canReadPostCommentsData(data) {
     && (
       (
         isGroupPostData(data)
-        && canReadGroupContent(data.groupId)
+        && (
+          canReadGroupContent(data.groupId)
+          || (
+            data.isShareable == true
+            && data.premium.enabled == true
+            && data.premium.accessMode == "public"
+          )
+        )
       )
       ||
       (
@@ -2065,9 +2091,28 @@ function canReadPostCommentsData(data) {
     );
 }
 
-function canWritePostCommentData(data) {
+function hasPostAccess(postId) {
+  return signedIn()
+    && exists(/databases/$(database)/documents/postAccess/$(request.auth.uid + '_' + postId));
+}
+
+function viewerHasPremiumPostAccess(data, postId) {
+  return !("premium" in data)
+    || data.premium.enabled != true
+    || data.authorId == request.auth.uid
+    || !(data.groupId is string)
+    || isOwner(data.groupId)
+    || (
+      data.premium.freeFor == "members_and_subscribers"
+      && (isActiveMember(data.groupId) || isSubscribedMember(data.groupId))
+    )
+    || hasPostAccess(postId);
+}
+
+function canWritePostCommentData(data, postId) {
   return signedIn()
     && data.isDeleted == false
+    && viewerHasPremiumPostAccess(data, postId)
     && (
       (
         isGroupPostData(data)
@@ -2103,7 +2148,8 @@ function canModeratePostCommentData(data) {
 allow list: if canReadPost()
   || canReadPostFromOwnHomeFeed()
   || canListPublicSearchablePost()
-  || canListReadableGroupSearchablePost();
+  || canListReadableGroupSearchablePost()
+  || canListPublicPremiumGroupPost();
 
       allow create: if validCreatePost();
 
@@ -2129,7 +2175,7 @@ allow list: if canReadPost()
             && request.resource.data.text is string
             && request.resource.data.text.size() >= 1
             && request.resource.data.text.size() <= 2000
-            && canWritePostCommentData(parentPost().data);
+            && canWritePostCommentData(parentPost().data, postId);
         }
 
         function canDeleteComment() {
@@ -2197,7 +2243,7 @@ function canUpdateReplyCount(delta) {
               && request.resource.data.text is string
               && request.resource.data.text.size() >= 1
               && request.resource.data.text.size() <= 2000
-              && canWritePostCommentData(parentPost().data);
+              && canWritePostCommentData(parentPost().data, postId);
           }
 
           function canDeleteReply() {
@@ -2245,6 +2291,19 @@ function canUpdateReplyCount(delta) {
 
         allow create, update, delete: if false;
       }
+    }
+
+    match /postAccess/{accessId} {
+      allow read: if signedIn()
+        && resource.data.buyerId == request.auth.uid;
+
+      allow create: if signedIn()
+        && request.resource.data.buyerId == request.auth.uid
+        && request.resource.data.status == "active"
+        && request.resource.data.postId is string
+        && accessId == (request.auth.uid + '_' + request.resource.data.postId);
+
+      allow update, delete: if false;
     }
 
     match /{document=**} {

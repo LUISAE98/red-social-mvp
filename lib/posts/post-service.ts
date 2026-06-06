@@ -1133,6 +1133,7 @@ function buildShareMetadata(params: {
   accessModel?: Post["accessModel"];
   requiresPayment?: boolean;
   requiresSubscription?: boolean;
+  premium?: Post["premium"];
   videoData?: Post["videoData"];
   playback?: Post["playback"];
 }): Pick<
@@ -1154,10 +1155,16 @@ function buildShareMetadata(params: {
   const isPublicProfile =
     params.contextType === "profile" && params.profileRestricted !== true;
 
+  // Post premium con accessMode "public": visible fuera del grupo aunque sea privado
+  const isPremiumPublic =
+    params.premium?.enabled === true &&
+    params.premium?.accessMode === "public" &&
+    params.contextType !== "profile";
+
   const cleanText = params.text.trim();
 
   return {
-    isShareable: isFree && (isPublicGroup || isPublicProfile),
+    isShareable: (isFree && (isPublicGroup || isPublicProfile)) || isPremiumPublic,
     publicSlug: null,
     shareTitle: cleanText
       ? truncateForShare(cleanText, 80)
@@ -1189,6 +1196,7 @@ function normalizePostMetadata(post: Post): Post {
     accessModel: post.accessModel,
     requiresPayment: post.requiresPayment,
     requiresSubscription: post.requiresSubscription,
+    premium: post.premium,
     videoData: post.videoData,
     playback: post.playback,
   });
@@ -1832,6 +1840,61 @@ export async function fetchGroupPostsPage(params: {
             lastDoc,
           }
         : null,
+    hasMore,
+  };
+}
+
+export async function fetchGroupPublicPremiumPostsPage(params: {
+  groupId: string;
+  viewerUid?: string | null;
+  pageSize?: number;
+  cursor?: GroupPostsPageCursor | null;
+}): Promise<GroupPostsPageResult> {
+  assertValidId(params.groupId, "groupId");
+
+  const safePageSize = Math.max(1, Math.min(params.pageSize ?? 10, 20));
+  const previousLastDoc = params.cursor?.lastDoc ?? null;
+
+  const postsSnap = await getDocs(
+    query(
+      collection(db, "posts"),
+      where("groupId", "==", params.groupId),
+      where("isDeleted", "==", false),
+      where("isShareable", "==", true),
+      where("premium.enabled", "==", true),
+      where("premium.accessMode", "==", "public"),
+      orderBy("createdAt", "desc"),
+      ...(previousLastDoc ? [startAfter(previousLastDoc)] : []),
+      limit(safePageSize + 1)
+    )
+  );
+
+  const rawPosts: Post[] = postsSnap.docs.slice(0, safePageSize).map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<Post, "id">),
+  }));
+
+  const [userMap, groupMap] = await Promise.all([
+    fetchUsersByIds(rawPosts.map((post) => post.authorId)),
+    fetchGroupsByIds(getPostGroupIds(rawPosts)),
+  ]);
+
+  const hydratedPosts = rawPosts.map((post) => {
+    const hydrated = hydratePost(post, userMap, groupMap);
+    return { ...hydrated, isLocked: isPostLocked(hydrated) };
+  });
+
+  const postsWithViewerState = await attachViewerPostState(
+    hydratedPosts,
+    params.viewerUid
+  );
+
+  const hasMore = postsSnap.docs.length > safePageSize;
+  const lastDoc = postsSnap.docs[safePageSize - 1] ?? null;
+
+  return {
+    posts: postsWithViewerState,
+    cursor: hasMore && lastDoc ? { lastDoc } : null,
     hasMore,
   };
 }
@@ -2759,6 +2822,7 @@ export async function createMediaPost(params: {
     accessModel: premiumAccessFields.accessModel,
     requiresPayment: premiumAccessFields.requiresPayment,
     requiresSubscription: premiumAccessFields.requiresSubscription,
+    premium: params.premium,
     videoData,
     playback,
   });
@@ -2945,6 +3009,7 @@ export async function createVideoPost(params: {
     accessModel: premiumAccessFields.accessModel,
     requiresPayment: premiumAccessFields.requiresPayment,
     requiresSubscription: premiumAccessFields.requiresSubscription,
+    premium: params.premium,
     videoData,
     playback,
   });
@@ -3147,6 +3212,29 @@ export async function createPostComment(params: {
 
   await ensureUserCanCommentOnPost(postData, author.uid);
 
+  const postGroupId =
+    postData.contextType !== "profile" ? pickString(postData.groupId) : null;
+  const premiumData =
+    postData.premium && typeof postData.premium === "object"
+      ? (postData.premium as Record<string, unknown>)
+      : null;
+
+  let authorIsGroupMember: boolean | undefined;
+  if (postGroupId && premiumData?.enabled === true) {
+    if (author.uid === pickString(postData.authorId)) {
+      authorIsGroupMember = true;
+    } else {
+      const memberSnap = await getDoc(
+        doc(db, "groups", postGroupId, "members", author.uid)
+      );
+      const memberStatus = memberSnap.exists()
+        ? pickString(memberSnap.data()?.status)
+        : null;
+      authorIsGroupMember =
+        memberStatus === "active" || memberStatus === "subscribed";
+    }
+  }
+
 await addDoc(collection(db, "posts", params.postId, "comments"), {
   authorId: author.uid,
   authorName: author.authorName,
@@ -3159,6 +3247,7 @@ await addDoc(collection(db, "posts", params.postId, "comments"), {
     replies: 0,
     likes: 0,
   },
+  ...(authorIsGroupMember !== undefined ? { authorIsGroupMember } : {}),
 });
 
 await updateDoc(postRef, {
@@ -3345,6 +3434,27 @@ export async function createPostCommentReply(params: {
     });
   }
 
+  const replyPremiumData =
+    postData.premium && typeof postData.premium === "object"
+      ? (postData.premium as Record<string, unknown>)
+      : null;
+
+  let replyAuthorIsGroupMember: boolean | undefined;
+  if (groupId && replyPremiumData?.enabled === true) {
+    if (author.uid === pickString(postData.authorId)) {
+      replyAuthorIsGroupMember = true;
+    } else {
+      const memberSnap = await getDoc(
+        doc(db, "groups", groupId, "members", author.uid)
+      );
+      const memberStatus = memberSnap.exists()
+        ? pickString(memberSnap.data()?.status)
+        : null;
+      replyAuthorIsGroupMember =
+        memberStatus === "active" || memberStatus === "subscribed";
+    }
+  }
+
   const replyRef = doc(
     collection(db, "posts", params.postId, "comments", params.commentId, "replies")
   );
@@ -3398,6 +3508,9 @@ export async function createPostCommentReply(params: {
       text: cleanText,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+      ...(replyAuthorIsGroupMember !== undefined
+        ? { authorIsGroupMember: replyAuthorIsGroupMember }
+        : {}),
     });
 
     transaction.update(commentRef, {

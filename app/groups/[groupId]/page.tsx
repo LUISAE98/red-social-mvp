@@ -1825,6 +1825,14 @@ const avatarNode = (
               </div>
             </section>
           </div>
+
+          <div style={{ padding: "0 0 24px" }}>
+            <GroupPostsFeed
+              groupId={groupId}
+              groupVisibility={group.visibility as "public" | "private" | "hidden" | null}
+              publicPremiumOnly
+            />
+          </div>
         </main>
 
         <GroupServiceModals
@@ -2391,6 +2399,7 @@ const avatarNode = (
   groupVisibility={normalizeVisibility(group.visibility)}
   isOwner={isOwner}
   isModerator={isModerator}
+  viewerIsMember={effectiveIsMember}
   canCreatePosts={canCreatePosts}
   canCommentOnPosts={canCommentOnPosts}
   postBlockedReason={postBlockedReason}

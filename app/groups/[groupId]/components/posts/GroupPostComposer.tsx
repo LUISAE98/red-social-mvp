@@ -44,6 +44,7 @@ type GroupPostComposerProps = {
   onSubmit: (payload: GroupPostComposerSubmitPayload) => Promise<void>;
   contextType?: ComposerContextType;
   groupVisibility?: GroupVisibility | null;
+  isOwner?: boolean;
 };
 
 type SelectedMediaItem = ComposerMediaItem & {
@@ -241,6 +242,7 @@ export default function GroupPostComposer({
   onSubmit,
   contextType = "group",
   groupVisibility = null,
+  isOwner = false,
 }: GroupPostComposerProps) {
   const [text, setText] = useState("");
   const [creating, setCreating] = useState(false);
@@ -417,6 +419,7 @@ export default function GroupPostComposer({
     hasVideos,
     contextType,
     groupVisibility,
+    viewerIsOwner: isOwner,
   });
 
   function handleOpenComposerOverlay() {

@@ -22,6 +22,7 @@ import {
   deletePostCommentReply,
   fetchCommentReplies,
   fetchGroupPostsPage,
+  fetchGroupPublicPremiumPostsPage,
   fetchPostComments,
   softDeletePost,
   toggleGroupPostPin,
@@ -64,10 +65,12 @@ type GroupPostsFeedProps = {
   groupVisibility?: "public" | "private" | "hidden" | null;
   isOwner?: boolean;
   isModerator?: boolean;
+  viewerIsMember?: boolean;
   canCreatePosts?: boolean;
   canCommentOnPosts?: boolean;
   postBlockedReason?: InteractionBlockedReason;
   commentBlockedReason?: InteractionBlockedReason;
+  publicPremiumOnly?: boolean;
 };
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
@@ -375,10 +378,12 @@ export default function GroupPostsFeed({
   groupVisibility = null,
   isOwner = false,
   isModerator = false,
+  viewerIsMember = false,
   canCreatePosts = false,
   canCommentOnPosts = false,
   postBlockedReason = null,
   commentBlockedReason = null,
+  publicPremiumOnly = false,
 }: GroupPostsFeedProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -540,7 +545,9 @@ export default function GroupPostsFeed({
 
         const result = await loadFeedWithRetry(
           async () => {
-            const pageResult = await fetchGroupPostsPage({
+            const pageResult = await (publicPremiumOnly
+              ? fetchGroupPublicPremiumPostsPage
+              : fetchGroupPostsPage)({
               groupId,
               viewerUid: currentUid,
               pageSize: GROUP_FEED_PAGE_SIZE,
@@ -1428,6 +1435,7 @@ const shellStyle: CSSProperties = {
           <GroupPostComposer
             onSubmit={handleCreatePost}
             groupVisibility={groupVisibility}
+            isOwner={isOwner}
           />
 
           {videoUploadStatus ? (
@@ -1553,9 +1561,10 @@ const shellStyle: CSSProperties = {
               currentUserId={currentUid}
               isOwner={isOwner}
               isModerator={isModerator}
+              viewerIsMember={viewerIsMember}
               showGroupContext={false}
               canModerateGroupAuthor={isOwner || isModerator}
-              canUseGroupMemberBlock={!isOwner}
+              canUseGroupMemberBlock={!isOwner && viewerIsMember}
               onModerationComplete={loadPosts}
               onGroupMemberBlockComplete={handleGroupMemberBlockComplete}
               canCommentOnPosts={canCommentOnPosts}

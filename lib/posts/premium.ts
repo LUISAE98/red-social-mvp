@@ -8,6 +8,7 @@ import type {
 export type PremiumPostContextInput = {
   contextType: PostContextType;
   groupVisibility?: GroupVisibility | null;
+  viewerIsOwner?: boolean;
 };
 
 export type PremiumConfigurationInput = {
@@ -126,6 +127,15 @@ export function getPremiumCapabilities(params: {
       allowedAccessModes: [],
       allowedFreeForOptions: [],
       disabledReason: "Solo las publicaciones con video pueden activar premium.",
+    };
+  }
+
+  if (params.context.contextType === "group" && !params.context.viewerIsOwner) {
+    return {
+      canEnablePremium: false,
+      allowedAccessModes: [],
+      allowedFreeForOptions: [],
+      disabledReason: "Solo el dueño de la comunidad puede crear publicaciones premium.",
     };
   }
 

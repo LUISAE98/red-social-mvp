@@ -605,6 +605,24 @@ export default function PostCommentThread({
                   {author.authorName}
                 </Link>
 
+                {comment.authorIsGroupMember === false && (
+                  <span
+                    style={{
+                      fontSize: 9.5,
+                      fontWeight: 500,
+                      color: "rgba(255,255,255,0.36)",
+                      letterSpacing: "0.02em",
+                      border: "1px solid rgba(255,255,255,0.13)",
+                      borderRadius: 4,
+                      padding: "1px 5px",
+                      whiteSpace: "nowrap",
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    No es suscriptor
+                  </span>
+                )}
+
                 <button
                   type="button"
                   onClick={() => setShowExactCommentDate((prev) => !prev)}
@@ -926,6 +944,24 @@ export default function PostCommentThread({
                         >
                           {replyAuthor.authorName}
                         </Link>
+
+                        {reply.authorIsGroupMember === false && (
+                          <span
+                            style={{
+                              fontSize: 9.5,
+                              fontWeight: 500,
+                              color: "rgba(255,255,255,0.36)",
+                              letterSpacing: "0.02em",
+                              border: "1px solid rgba(255,255,255,0.13)",
+                              borderRadius: 4,
+                              padding: "1px 5px",
+                              whiteSpace: "nowrap",
+                              lineHeight: 1.4,
+                            }}
+                          >
+                            No es suscriptor
+                          </span>
+                        )}
 
                         <button
                           type="button"

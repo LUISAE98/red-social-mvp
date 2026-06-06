@@ -834,11 +834,11 @@ export default function PostComposerMobileOverlay({
               </button>
 
               <div>
-                {hasVideos ? (
+                {hasVideos && premiumComposer.canEnablePremium ? (
                   <button
                     type="button"
                     onClick={premiumComposer.togglePremiumEnabled}
-                    disabled={creating || isPreparingImages || !premiumComposer.canEnablePremium}
+                    disabled={creating || isPreparingImages}
                     style={{
                       height: 34,
                       border: "none",
@@ -849,11 +849,11 @@ export default function PostComposerMobileOverlay({
                       fontSize: 13,
                       fontWeight: 500,
                       cursor:
-                        creating || isPreparingImages || !premiumComposer.canEnablePremium
+                        creating || isPreparingImages
                           ? "not-allowed"
                           : "pointer",
                       opacity:
-                        creating || isPreparingImages || !premiumComposer.canEnablePremium
+                        creating || isPreparingImages
                           ? 0.55
                           : 1,
                       fontFamily: fontStack,

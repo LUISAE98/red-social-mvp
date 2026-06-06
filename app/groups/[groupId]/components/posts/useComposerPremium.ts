@@ -18,6 +18,7 @@ type UseComposerPremiumParams = {
   hasVideos: boolean;
   contextType: PostContextType;
   groupVisibility?: GroupVisibility | null;
+  viewerIsOwner?: boolean;
 };
 
 type SetPremiumEnabledOptions = {
@@ -56,6 +57,7 @@ export function useComposerPremium({
   hasVideos,
   contextType,
   groupVisibility = null,
+  viewerIsOwner = false,
 }: UseComposerPremiumParams) {
   const [premiumEnabled, setPremiumEnabledState] = useState(false);
   const [accessMode, setAccessModeState] =
@@ -67,8 +69,9 @@ export function useComposerPremium({
     () => ({
       contextType,
       groupVisibility,
+      viewerIsOwner,
     }),
-    [contextType, groupVisibility],
+    [contextType, groupVisibility, viewerIsOwner],
   );
 
   const capabilities = useMemo(

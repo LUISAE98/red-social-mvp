@@ -600,11 +600,11 @@ style={{
   </button>
 
   <div>
-    {hasVideos ? (
+    {hasVideos && premiumComposer.canEnablePremium ? (
       <button
         type="button"
         onClick={premiumComposer.togglePremiumEnabled}
-        disabled={creating || isPreparingImages || !premiumComposer.canEnablePremium}
+        disabled={creating || isPreparingImages}
         style={{
           height: 34,
           border: "none",
@@ -614,14 +614,8 @@ style={{
           color: "#fff",
           fontSize: 13,
           fontWeight: 500,
-          cursor:
-            creating || isPreparingImages || !premiumComposer.canEnablePremium
-              ? "not-allowed"
-              : "pointer",
-          opacity:
-            creating || isPreparingImages || !premiumComposer.canEnablePremium
-              ? 0.55
-              : 1,
+          cursor: creating || isPreparingImages ? "not-allowed" : "pointer",
+          opacity: creating || isPreparingImages ? 0.55 : 1,
           fontFamily: fontStack,
           boxShadow: "0 8px 20px rgba(168,85,247,0.24)",
           whiteSpace: "nowrap",

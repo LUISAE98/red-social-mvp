@@ -17,6 +17,8 @@ import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import PostFlamesPanel, { type PostFlameUser } from "./PostFlamesPanel";
 import PostCommentsPanel from "./PostCommentsPanel";
 import PostImageViewer from "./PostImageViewer";
+import PostPaymentPanel from "./PostPaymentPanel";
+import { usePostTempUnlock } from "@/lib/posts/usePostTempUnlock";
 import { fetchPostFlameUsers } from "@/lib/posts/post-service";
 import PostShareButton from "@/components/ui/PostShareButton";
 import PostSaveButton from "@/components/ui/PostSaveButton";
@@ -31,6 +33,12 @@ import {
 } from "@/lib/groups/groupModeration";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import { useGroupMemberBlocks } from "@/lib/groups/useGroupMemberBlocks";
+import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+import {
+  resolvePostPremiumState,
+  type PostPremiumStateResult,
+} from "@/lib/posts/post-premium-state";
+import type { PostAccess } from "@/lib/posts/post-access-types";
 
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 
@@ -64,6 +72,7 @@ type GroupPostCardProps = {
   currentUserId?: string | null;
   isOwner?: boolean;
   isModerator?: boolean;
+  viewerIsMember?: boolean;
   showGroupContext?: boolean;
   canModerateGroupAuthor?: boolean;
   canUseGroupMemberBlock?: boolean;
@@ -360,6 +369,102 @@ function buildCommentBlockedMessage(reason: InteractionBlockedReason): string {
   return "No puedes comentar en esta comunidad en este momento.";
 }
 
+function PremiumPostPanel({
+  state,
+  onOpenPayment,
+}: {
+  state: PostPremiumStateResult;
+  onOpenPayment?: () => void;
+}) {
+  const isUnlocked = !state.isBlocked;
+
+  let statusText: string | null = null;
+  if (state.state === "unlocked_author") statusText = "Esta publicación te pertenece";
+  else if (state.hasAccessByMembership) statusText = "Acceso incluido por tu membresía";
+  else if (state.hasAccessBySubscription) statusText = "Acceso incluido por tu suscripción";
+  else if (state.hasAccessByPurchase) statusText = "Ya tienes acceso a este contenido";
+
+  return (
+    <div
+      style={{
+        marginTop: 10,
+        border: "1px solid rgba(168,85,255,0.32)",
+        borderRadius: 12,
+        background:
+          "linear-gradient(160deg, rgba(79,70,255,0.26), rgba(168,85,255,0.22) 55%, rgba(139,92,246,0.18))",
+        padding: "10px 12px",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        fontFamily: fontStack,
+      }}
+    >
+      <span style={{ flexShrink: 0, marginLeft: 4 }}>
+        <VibraNavigationIcon
+          type={isUnlocked ? "premiumUnlocked" : "premiumLock"}
+          size={28}
+        />
+      </span>
+
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div
+          style={{
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: "#a855ff",
+            lineHeight: 1.3,
+            fontFamily: fontStack,
+          }}
+        >
+          {isUnlocked ? "Contenido desbloqueado" : "Esta es una publicación premium"}
+        </div>
+        <div
+          style={{
+            fontSize: 10,
+            color: "#fff",
+            lineHeight: 1.4,
+            marginTop: 2,
+            fontFamily: fontStack,
+          }}
+        >
+          {isUnlocked
+            ? (statusText ?? "Tienes acceso a este contenido")
+            : (state.panelMessage ?? "Desbloquea este contenido para verlo")}
+        </div>
+      </div>
+
+      {state.isBlocked && (
+        <button
+          type="button"
+          onClick={onOpenPayment}
+          aria-label="Desbloquear contenido premium"
+          style={{
+            height: 30,
+            padding: "0 10px",
+            border: "none",
+            borderRadius: 6,
+            background: "linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3)",
+            color: "#fff",
+            fontSize: 11,
+            fontWeight: 600,
+            fontFamily: fontStack,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+            marginRight: 4,
+          }}
+        >
+          <VibraNavigationIcon type="premiumCrown" size={17} />
+          Desbloquear Contenido
+        </button>
+      )}
+    </div>
+  );
+}
+
 function AutoGrowTextarea({
   value,
   maxRows = 3,
@@ -506,6 +611,7 @@ onToggleProfilePin,
   currentUserId = null,
   isOwner = false,
   isModerator = false,
+  viewerIsMember = false,
   showGroupContext = false,
   canModerateGroupAuthor = false,
   canUseGroupMemberBlock = false,
@@ -542,6 +648,8 @@ onToggleProfilePin,
   const [videoMetadataLoaded, setVideoMetadataLoaded] = useState(false);
   const [shouldLoadFeedVideo, setShouldLoadFeedVideo] = useState(false);
   const [showExactPostDate, setShowExactPostDate] = useState(false);
+  const [paymentPanelOpen, setPaymentPanelOpen] = useState(false);
+  const { isTempUnlocked, unlock: applyTempUnlock } = usePostTempUnlock(post.id, currentUserId);
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | null>(null);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 const carouselShellRef = useRef<HTMLDivElement | null>(null);
@@ -909,6 +1017,7 @@ useEffect(() => {
 
   function openMediaViewer(mediaUrl: string | null) {
     if (!mediaUrl) return;
+    if (premiumState.isBlocked) return;
 
     videoRef.current?.pause();
     setSelectedMediaUrl(mediaUrl);
@@ -1041,7 +1150,15 @@ async function handleToggleSave() {
 }
 
   async function handleCreateComment() {
-    if (!canCommentOnPosts) {
+    if (premiumState.isBlocked) {
+      setInlineActionError(
+        currentUserId
+          ? "Desbloquea este contenido para poder comentar."
+          : "Inicia sesión para poder comentar."
+      );
+      return;
+    }
+    if (!effectiveCanCommentOnPosts) {
       setInlineActionError(buildCommentBlockedMessage(commentBlockedReason));
       return;
     }
@@ -1778,9 +1895,27 @@ function renderBlurredMediaBackdrop(
   const shouldShowActionsMenu = availableActions.length > 0;
   const isPinned =
     post.isPinnedInGroup === true || post.isPinnedOnProfile === true;
-  const commentBlockedMessage = !canCommentOnPosts
-    ? buildCommentBlockedMessage(commentBlockedReason)
-    : null;
+
+  const premiumState = resolvePostPremiumState({
+    post,
+    currentUserId,
+    viewerIsMember: isOwner || viewerIsMember,
+    viewerAccess: isTempUnlocked ? ({ status: "active" } as PostAccess) : null,
+  });
+
+  const effectiveCanCommentOnPosts =
+    premiumState.isPremium && !premiumState.isBlocked && !!currentUserId
+      ? true
+      : canCommentOnPosts;
+
+  const commentBlockedMessage =
+    premiumState.isBlocked && !currentUserId
+      ? "Inicia sesión para poder comentar."
+      : premiumState.isBlocked
+      ? "Desbloquea este contenido para poder comentar."
+      : !effectiveCanCommentOnPosts
+      ? buildCommentBlockedMessage(commentBlockedReason)
+      : null;
 
   const postTypeLabel = getPostTypeLabel(post);
   const postStatusLabel = getPostStatusLabel(post);
@@ -2406,6 +2541,51 @@ style={{
         )}
       </div>
 
+{/* Premium content wrapper — applies visual frame for premium posts only */}
+<div
+  style={
+    premiumState.isPremium
+      ? {
+          position: "relative",
+          marginTop: 10,
+          border: "1.5px solid #a855f7",
+          borderRadius: 8,
+          background:
+            "linear-gradient(160deg, rgba(79,70,255,0.06), rgba(168,85,255,0.04) 55%, rgba(255,47,179,0.03))",
+          boxShadow:
+            "0 0 0 1px rgba(168,85,255,0.06), 0 4px 28px rgba(168,85,255,0.1)",
+          padding: "12px 10px 12px",
+        }
+      : undefined
+  }
+>
+  {premiumState.isPremium && (
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        right: 10,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        background: "linear-gradient(180deg, #a855f7 0%, #d946b8 100%)",
+        borderBottomLeftRadius: 6,
+        borderBottomRightRadius: 6,
+        padding: "3px 8px 3px 6px",
+        fontSize: 8.5,
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+        color: "#fff",
+        whiteSpace: "nowrap",
+        fontFamily: fontStack,
+        textTransform: "uppercase",
+      }}
+    >
+      <VibraNavigationIcon type="premiumCrown" size={14} />
+      Publicación Premium
+    </div>
+  )}
+
 {(authorStatusBadge || cleanPostText.length > 0) && (
   <div style={bodyStyle}>
     {authorStatusBadge && (
@@ -2481,6 +2661,7 @@ style={{
           aspectRatio: rootVideoShellAspectRatio,
           overflow: "hidden",
           background: "#050505",
+          ...(premiumState.isBlocked ? { filter: "blur(10px)", opacity: 0.72, pointerEvents: "none" } : {}),
         }}
       >
         {shouldContainRootVideo &&
@@ -2735,7 +2916,9 @@ const activeMedia =
 const activeMediaRatio = mediaAspectRatios[activeMedia.url];
 const useNarrowActiveFrame = shouldUseNarrowVerticalFrame(activeMediaRatio);
 
-const carouselShellAspectRatio = isMobile ? "16 / 10" : "16 / 10";
+const carouselShellAspectRatio = isMobile
+  ? getResponsiveMediaAspectRatio(activeMediaRatio)
+  : "16 / 10";
 
 function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
   const ratio = mediaAspectRatios[media.url];
@@ -3107,6 +3290,7 @@ style={{
             overflow: "hidden",
             borderRadius: isMobile ? 12 : 12,
             WebkitTapHighlightColor: "transparent",
+            ...(premiumState.isBlocked ? { filter: "blur(10px)", opacity: 0.72 } : {}),
           }}
         >
           {renderMediaContent(first, 0, "eager", true)}
@@ -3145,6 +3329,7 @@ style={{
     ? "none"
     : "transform 360ms cubic-bezier(0.22, 1, 0.36, 1)",
   willChange: "transform",
+  ...(premiumState.isBlocked ? { filter: "blur(10px)", opacity: 0.72, clipPath: "inset(0)" } : {}),
 }}
             >
               {displayMedia.map((media, index) => (
@@ -3329,6 +3514,20 @@ padding: "0 0 2px 0",
     })()}
   </div>
 )}
+{premiumState.isPremium && (
+  <PremiumPostPanel
+    state={premiumState}
+    onOpenPayment={() => setPaymentPanelOpen(true)}
+  />
+)}
+<PostPaymentPanel
+  open={paymentPanelOpen}
+  post={post}
+  currentUserId={currentUserId}
+  isMobile={isMobile}
+  onPay={applyTempUnlock}
+  onClose={() => setPaymentPanelOpen(false)}
+/>
 <div style={interactionRowStyle}>
   <div style={leftInteractionGroupStyle}>
     <div
@@ -3350,7 +3549,7 @@ padding: "0 0 2px 0",
   style={flameButtonStyle}
 >
   <span aria-hidden="true" style={flameIconStyle}>
-    <VibraFlameIcon active={optimisticViewerHasFlamed} size={22} />
+    <VibraFlameIcon active={optimisticViewerHasFlamed} size={22} premium={post.premium?.enabled === true} />
   </span>
 </button>
 
@@ -3418,6 +3617,7 @@ padding: "0 0 2px 0",
       />
     )}
   </div>
+</div>
 </div>
 
       {menuOpen &&
@@ -3559,12 +3759,12 @@ padding: "0 0 2px 0",
           currentUserId={currentUserId}
           isOwner={isOwner}
           isModerator={isModerator}
-          canCommentOnPosts={canCommentOnPosts}
+          canCommentOnPosts={effectiveCanCommentOnPosts && !premiumState.isBlocked}
           commentBlockedMessage={commentBlockedMessage}
           commentText={commentText}
           creatingComment={creatingComment}
           deletingCommentId={deletingCommentId}
-          inlineError={inlineActionError}
+          inlineError={premiumState.isBlocked ? null : inlineActionError}
           canUseGroupMemberBlock={canUseGroupMemberBlock}
           onCommentTextChange={setCommentText}
           onClose={() => setCommentsPanelOpen(false)}
@@ -3625,12 +3825,12 @@ padding: "0 0 2px 0",
       currentUserId={currentUserId}
       isOwner={isOwner}
       isModerator={isModerator}
-      canCommentOnPosts={canCommentOnPosts}
+      canCommentOnPosts={canCommentOnPosts && !premiumState.isBlocked}
       commentBlockedMessage={commentBlockedMessage}
       commentText={commentText}
       creatingComment={creatingComment}
       deletingCommentId={deletingCommentId}
-      inlineError={inlineActionError}
+      inlineError={premiumState.isBlocked ? null : inlineActionError}
       canUseGroupMemberBlock={canUseGroupMemberBlock}
       onCommentTextChange={setCommentText}
       onClose={() => setCommentsPanelOpen(false)}

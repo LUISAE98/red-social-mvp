@@ -431,6 +431,9 @@ export type Comment = {
 
   viewerHasBlockedAuthorInGroup?: boolean;
   viewerIsBlockedByAuthorInGroup?: boolean;
+
+  /** Solo presente en posts premium de grupo. false = accedió por compra (no es miembro/suscriptor). */
+  authorIsGroupMember?: boolean;
 };
 
 export type CommentReply = {
@@ -449,4 +452,7 @@ export type CommentReply = {
 
   viewerHasBlockedAuthorInGroup?: boolean;
   viewerIsBlockedByAuthorInGroup?: boolean;
+
+  /** Solo presente en posts premium de grupo. false = accedió por compra (no es miembro/suscriptor). */
+  authorIsGroupMember?: boolean;
 };
