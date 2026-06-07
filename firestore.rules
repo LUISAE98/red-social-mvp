@@ -219,12 +219,15 @@ service cloud.firestore {
               "monetization",
               "showCreatedGroups",
               "profileRestricted",
+              "profileCommentsEnabled",
               "updatedAt"
             ])
             && (!("showCreatedGroups" in request.resource.data)
               || request.resource.data.showCreatedGroups is bool)
             && (!("profileRestricted" in request.resource.data)
               || request.resource.data.profileRestricted is bool)
+            && (!("profileCommentsEnabled" in request.resource.data)
+              || request.resource.data.profileCommentsEnabled is bool)
             && (!("offerings" in request.resource.data)
               || request.resource.data.offerings == null
               || (

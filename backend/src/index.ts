@@ -153,3 +153,6 @@ export { getSharedCommunitiesWithProfile } from "./sharedCommunities";
 
 // Group deletion
 export { softDeleteGroup } from "./groupDeletion";
+
+// Rate limiting
+export { checkRateLimitPost, checkRateLimitComment } from "./rateLimiter";

@@ -28,6 +28,16 @@ type PostCommentsPanelProps = {
   deletingCommentId: string | null;
   inlineError: string | null;
   canUseGroupMemberBlock?: boolean;
+  canModerateGroupAuthor?: boolean;
+  isPostAuthor?: boolean;
+  /** Desktop only: how many comments to show (sliced from newest). */
+  visibleCount?: number;
+  /** Desktop only: whether there are older comments not yet shown. */
+  hasMore?: boolean;
+  /** Desktop only: callback to load 5 more older comments. */
+  onLoadMore?: () => void;
+  /** Desktop only: callback to close the panel (e.g. from heading click). */
+  onCloseDesktop?: () => void;
   onCommentTextChange: (value: string) => void;
   onClose: () => void;
   onCreateComment: () => Promise<void>;
@@ -44,6 +54,7 @@ type PostCommentsPanelProps = {
     replyId: string
   ) => Promise<CommentReply[]>;
   onGroupMemberBlockComplete?: () => Promise<void> | void;
+  onModerationComplete?: () => Promise<void> | void;
 };
 
 const fontStack =
@@ -117,6 +128,12 @@ export default function PostCommentsPanel({
   deletingCommentId,
   inlineError,
   canUseGroupMemberBlock = false,
+  canModerateGroupAuthor = false,
+  isPostAuthor = false,
+  visibleCount,
+  hasMore = false,
+  onLoadMore,
+  onCloseDesktop,
   onCommentTextChange,
   onClose,
   onCreateComment,
@@ -125,6 +142,7 @@ export default function PostCommentsPanel({
   onCreateReply,
   onDeleteReply,
   onGroupMemberBlockComplete,
+  onModerationComplete,
 }: PostCommentsPanelProps) {
   useEffect(() => {
     if (!open || !isMobile) return;
@@ -137,43 +155,14 @@ export default function PostCommentsPanel({
     return () => document.removeEventListener("keydown", handleEscape);
   }, [open, isMobile, onClose]);
 
-  if (!open) return null;
+  // Mobile: don't render when closed
+  if (!open && isMobile) return null;
 
-  const wrapperStyle: CSSProperties = isMobile
-    ? {
-        position: "fixed",
-        inset: 0,
-        zIndex: 99990,
-        background: "rgba(0,0,0,0.58)",
-        display: "flex",
-        alignItems: "flex-end",
-      }
-    : {
-        marginTop: 14,
-        paddingTop: 12,
-        borderTop: "1px solid rgba(255,255,255,0.06)",
-      };
-
-  const panelStyle: CSSProperties = isMobile
-    ? {
-        width: "100%",
-        maxHeight: "82dvh",
-        borderTopLeftRadius: 18,
-        borderTopRightRadius: 18,
-        border: "1px solid rgba(255,255,255,0.10)",
-        borderBottom: "none",
-        background: "rgba(12,12,12,0.98)",
-        boxShadow: "0 -18px 50px rgba(0,0,0,0.45)",
-        padding: "10px 12px 12px",
-        display: "grid",
-        gridTemplateRows: "auto 1fr auto",
-        gap: 10,
-        boxSizing: "border-box",
-      }
-    : {
-        display: "grid",
-        gap: 10,
-      };
+  // Desktop: slice comments to show only the most recent N
+  const displayedComments =
+    !isMobile && visibleCount !== undefined && comments !== null
+      ? comments.slice(Math.max(0, comments.length - visibleCount))
+      : comments;
 
   const titleStyle: CSSProperties = {
     margin: 0,
@@ -265,9 +254,202 @@ export default function PostCommentsPanel({
     lineHeight: 1.4,
   };
 
+  // ── Desktop path ──────────────────────────────────────────────────────────
+  if (!isMobile) {
+    return (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateRows: open ? "1fr" : "0fr",
+          transition: "grid-template-rows 0.32s ease",
+        }}
+      >
+        <div style={{ overflow: "hidden", minHeight: 0 }}>
+          <div
+            style={{
+              marginTop: 14,
+              paddingTop: 12,
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+            }}
+          >
+            <section style={{ display: "grid", gap: 10 }}>
+              {/* Header */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 10,
+                }}
+              >
+                <h3
+                  style={{
+                    ...titleStyle,
+                    cursor: onCloseDesktop ? "pointer" : "default",
+                    userSelect: "none",
+                  }}
+                  onClick={onCloseDesktop}
+                >
+                  Comentarios
+                </h3>
+              </div>
+
+              {/* Comment list */}
+              <div style={listStyle}>
+                {loading && (
+                  <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
+                    Cargando comentarios...
+                  </p>
+                )}
+
+                {!loading && comments !== null && comments.length === 0 && (
+                  <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
+                    Aún no hay comentarios.
+                  </p>
+                )}
+
+                {!loading &&
+                  displayedComments?.map((comment) => (
+                    <PostCommentThread
+                      key={comment.id}
+                      postId={postId}
+                      groupId={groupId}
+                      comment={comment}
+                      currentUserId={currentUserId}
+                      isOwner={isOwner}
+                      isModerator={isModerator}
+                      canCommentOnPosts={canCommentOnPosts}
+                      canUseGroupMemberBlock={canUseGroupMemberBlock}
+                      canModerateGroupAuthor={canModerateGroupAuthor}
+                      isPostAuthor={isPostAuthor}
+                      deletingCommentId={deletingCommentId}
+                      onDeleteComment={onDeleteComment}
+                      onLoadReplies={onLoadReplies}
+                      onCreateReply={onCreateReply}
+                      onDeleteReply={onDeleteReply}
+                      onGroupMemberBlockComplete={onGroupMemberBlockComplete}
+                      onModerationComplete={onModerationComplete}
+                    />
+                  ))}
+
+                {/* Load more (older comments) */}
+                {!loading && hasMore && onLoadMore && (
+                  <button
+                    type="button"
+                    onClick={onLoadMore}
+                    style={{
+                      alignSelf: "start",
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      color: "rgba(255,255,255,0.52)",
+                      fontSize: 11.5,
+                      fontWeight: 500,
+                      fontFamily: fontStack,
+                      cursor: "pointer",
+                      letterSpacing: "-0.01em",
+                      textDecoration: "underline",
+                      textUnderlineOffset: 2,
+                    }}
+                  >
+                    Ver más comentarios
+                  </button>
+                )}
+              </div>
+
+              {/* Composer */}
+              <div style={{ display: "grid", gap: 8 }}>
+                {inlineError && <div style={inlineErrorStyle}>{inlineError}</div>}
+
+                <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <AutoGrowTextarea
+                      value={commentText}
+                      onChange={(e) => onCommentTextChange(e.target.value)}
+                      placeholder={
+                        canCommentOnPosts
+                          ? "Escribe un comentario..."
+                          : groupId
+                            ? "Comentarios bloqueados en esta comunidad"
+                            : "Solo el dueño puede comentar en este perfil"
+                      }
+                      maxRows={3}
+                      style={canCommentOnPosts ? inputStyle : disabledTextareaStyle}
+                      disabled={!canCommentOnPosts}
+                    />
+
+                    {!canCommentOnPosts && commentBlockedMessage && (
+                      <div
+                        style={{
+                          marginTop: 2,
+                          fontSize: 11.5,
+                          lineHeight: 1.45,
+                          color: "rgba(255,255,255,0.58)",
+                        }}
+                      >
+                        {commentBlockedMessage}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={onCreateComment}
+                    disabled={
+                      !canCommentOnPosts ||
+                      creatingComment ||
+                      commentText.trim().length === 0
+                    }
+                    style={
+                      !canCommentOnPosts ||
+                      creatingComment ||
+                      commentText.trim().length === 0
+                        ? disabledButtonStyle
+                        : primaryButtonStyle
+                    }
+                  >
+                    {creatingComment ? "Comentando..." : "Comentar"}
+                  </button>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Mobile path (portal bottom-sheet) ────────────────────────────────────
   const content = (
-    <div style={wrapperStyle} onClick={isMobile ? onClose : undefined}>
-      <section style={panelStyle} onClick={(e) => e.stopPropagation()}>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 99990,
+        background: "rgba(0,0,0,0.58)",
+        display: "flex",
+        alignItems: "flex-end",
+      }}
+      onClick={onClose}
+    >
+      <section
+        style={{
+          width: "100%",
+          maxHeight: "82dvh",
+          borderTopLeftRadius: 18,
+          borderTopRightRadius: 18,
+          border: "1px solid rgba(255,255,255,0.10)",
+          borderBottom: "none",
+          background: "rgba(12,12,12,0.98)",
+          boxShadow: "0 -18px 50px rgba(0,0,0,0.45)",
+          padding: "10px 12px 12px",
+          display: "grid",
+          gridTemplateRows: "auto 1fr auto",
+          gap: 10,
+          boxSizing: "border-box",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div
           style={{
             display: "flex",
@@ -278,16 +460,14 @@ export default function PostCommentsPanel({
         >
           <h3 style={titleStyle}>Comentarios</h3>
 
-          {isMobile && (
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label="Cerrar comentarios"
-              style={closeButtonStyle}
-            >
-              ×
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar comentarios"
+            style={closeButtonStyle}
+          >
+            ×
+          </button>
         </div>
 
         <div style={listStyle}>
@@ -303,26 +483,26 @@ export default function PostCommentsPanel({
             </p>
           )}
 
-{!loading &&
-  comments?.map((comment) => (
-<PostCommentThread
-  key={comment.id}
-  postId={postId}
-  groupId={groupId}
-  comment={comment}
-  currentUserId={currentUserId}
-  isOwner={isOwner}
-  isModerator={isModerator}
-  canCommentOnPosts={canCommentOnPosts}
-  canUseGroupMemberBlock={canUseGroupMemberBlock}
-  deletingCommentId={deletingCommentId}
-  onDeleteComment={onDeleteComment}
-  onLoadReplies={onLoadReplies}
-  onCreateReply={onCreateReply}
-  onDeleteReply={onDeleteReply}
-  onGroupMemberBlockComplete={onGroupMemberBlockComplete}
-/>
-  ))}
+          {!loading &&
+            comments?.map((comment) => (
+              <PostCommentThread
+                key={comment.id}
+                postId={postId}
+                groupId={groupId}
+                comment={comment}
+                currentUserId={currentUserId}
+                isOwner={isOwner}
+                isModerator={isModerator}
+                canCommentOnPosts={canCommentOnPosts}
+                canUseGroupMemberBlock={canUseGroupMemberBlock}
+                deletingCommentId={deletingCommentId}
+                onDeleteComment={onDeleteComment}
+                onLoadReplies={onLoadReplies}
+                onCreateReply={onCreateReply}
+                onDeleteReply={onDeleteReply}
+                onGroupMemberBlockComplete={onGroupMemberBlockComplete}
+              />
+            ))}
         </div>
 
         <div style={{ display: "grid", gap: 8 }}>
@@ -387,7 +567,7 @@ export default function PostCommentsPanel({
     </div>
   );
 
-  if (isMobile && typeof document !== "undefined") {
+  if (typeof document !== "undefined") {
     return createPortal(content, document.body);
   }
 

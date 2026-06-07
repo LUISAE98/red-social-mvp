@@ -101,11 +101,6 @@ type ModerationAction =
   | "unblock_in_group"
   | "delete_post";
 
-type MenuPosition = {
-  top: number;
-  left: number;
-};
-
 type DisplayMediaItem = {
   type: "image" | "video";
   url: string;
@@ -590,8 +585,8 @@ function buildActionLabel(action: ModerationAction) {
   if (action === "unpin_group_post") return "Desfijar del grupo";
   if (action === "pin_profile_post") return "Fijar en mi perfil";
   if (action === "unpin_profile_post") return "Desfijar de mi perfil";
-  if (action === "block_user") return "Bloquear usuario";
-  if (action === "unblock_user") return "Desbloquear usuario";
+  if (action === "block_user") return "Bloquear de mi perfil";
+  if (action === "unblock_user") return "Desbloquear de mi perfil";
   if (action === "block_in_group") return "Bloquear en este grupo";
   if (action === "unblock_in_group") return "Desbloquear en este grupo";
   return "Eliminar publicación";
@@ -626,6 +621,7 @@ onToggleProfilePin,
 }: GroupPostCardProps) {
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
+  const [desktopVisibleCount, setDesktopVisibleCount] = useState(5);
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [creatingComment, setCreatingComment] = useState(false);
@@ -633,7 +629,6 @@ onToggleProfilePin,
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null);
   const [moderationBusy, setModerationBusy] = useState(false);
   const [muteModalOpen, setMuteModalOpen] = useState(false);
   const [muteDays, setMuteDays] = useState("7");
@@ -743,47 +738,6 @@ useEffect(() => {
   };
 }, []);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    function updateMenuPosition() {
-      const button = menuButtonRef.current;
-      if (!button) {
-        setMenuPosition(null);
-        return;
-      }
-
-      const rect = button.getBoundingClientRect();
-      const panelWidth = isMobile ? 180 : 200;
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const estimatedPanelHeight = 230;
-      const gap = 8;
-
-      let left = rect.right - panelWidth;
-      if (left < 8) left = 8;
-      if (left + panelWidth > viewportWidth - 8) {
-        left = viewportWidth - panelWidth - 8;
-      }
-
-      let top = rect.bottom + gap;
-      if (top + estimatedPanelHeight > viewportHeight - 8) {
-        top = Math.max(8, rect.top - estimatedPanelHeight - gap);
-      }
-
-      setMenuPosition({ top, left });
-    }
-
-    updateMenuPosition();
-
-    window.addEventListener("resize", updateMenuPosition);
-    window.addEventListener("scroll", updateMenuPosition, true);
-
-    return () => {
-      window.removeEventListener("resize", updateMenuPosition);
-      window.removeEventListener("scroll", updateMenuPosition, true);
-    };
-  }, [menuOpen, isMobile]);
 
   
 
@@ -1159,6 +1113,15 @@ async function handleToggleSave() {
     setLoadingComments(false);
   }
 }
+
+  function handleToggleCommentsDesktop() {
+    if (commentsPanelOpen) {
+      setCommentsPanelOpen(false);
+      setDesktopVisibleCount(5);
+    } else {
+      void handleOpenCommentsPanel();
+    }
+  }
 
   async function handleCreateComment() {
     if (premiumState.isBlocked) {
@@ -1602,14 +1565,15 @@ const menuButtonStyle: CSSProperties = {
     width: "100%",
     minHeight: 34,
     padding: "8px 10px",
-    borderRadius: 8,
+    borderRadius: 0,
     border: "none",
+    borderTop: "none",
     background: "transparent",
     color: "#fff",
     fontSize: 12,
     fontWeight: 500,
     fontFamily: fontStack,
-    textAlign: "left",
+    textAlign: "center",
     cursor: "pointer",
   };
 
@@ -3618,7 +3582,7 @@ padding: "0 0 2px 0",
 
     <button
       type="button"
-      onClick={handleOpenCommentsPanel}
+      onClick={isMobile ? handleOpenCommentsPanel : handleToggleCommentsDesktop}
       disabled={loadingComments}
       aria-label="Abrir comentarios"
       style={{
@@ -3674,63 +3638,173 @@ padding: "0 0 2px 0",
 </div>
 
       {menuOpen &&
-        menuPosition &&
         typeof document !== "undefined" &&
         createPortal(
-          <div
-            ref={menuPanelRef}
-            style={{
-              ...menuPanelStyle,
-              top: menuPosition.top,
-              left: menuPosition.left,
-            }}
-            role="menu"
-          >
-            {availableActions.map((action) => {
-              const isSocialAction =
-                action === "block_user" || action === "unblock_user";
+          <>
+            <style>{`
+              @keyframes vbActionsMenuFadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+              }
+              @keyframes vbActionsMenuScaleIn {
+                from { opacity: 0; transform: scale(0.94); }
+                to { opacity: 1; transform: scale(1); }
+              }
+              @keyframes vbActionsMenuSlideUp {
+                from { transform: translateY(100%); }
+                to { transform: translateY(0); }
+              }
+            `}</style>
 
-              const isGroupMemberBlockAction =
-                action === "block_in_group" || action === "unblock_in_group";
+            {/* Backdrop */}
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 99990,
+                background: "rgba(0,0,0,0.50)",
+                animation: "vbActionsMenuFadeIn 0.18s ease",
+              }}
+              onClick={() => setMenuOpen(false)}
+            />
 
-              const isDanger =
-                action === "ban" ||
-                action === "remove" ||
-                action === "delete_post" ||
-                action === "block_user" ||
-                action === "block_in_group";
+            {isMobile ? (
+              /* ── Mobile: bottom sheet ── */
+              <div
+                ref={menuPanelRef}
+                role="menu"
+                style={{
+                  position: "fixed",
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  zIndex: 99991,
+                  background: "#111",
+                  borderTopLeftRadius: 20,
+                  borderTopRightRadius: 20,
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  borderBottom: "none",
+                  paddingTop: 12,
+                  paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
+                  display: "grid",
+                  gap: 0,
+                  overflow: "hidden",
+                  boxShadow: "0 -12px 40px rgba(0,0,0,0.50)",
+                  animation: "vbActionsMenuSlideUp 0.30s ease",
+                }}
+              >
+                {/* Handle pill */}
+                <div
+                  style={{
+                    width: 38,
+                    height: 4,
+                    borderRadius: 2,
+                    background: "rgba(255,255,255,0.18)",
+                    margin: "0 auto 12px",
+                  }}
+                />
 
-              const isBusy =
-                moderationBusy ||
-                deleting ||
-                pinBusy ||
-                (isSocialAction && socialRelationshipLoading) ||
-                (isGroupMemberBlockAction && groupMemberBlockLoading);
+                {availableActions.map((action, index) => {
+                  const isSocialAction = action === "block_user" || action === "unblock_user";
+                  const isGroupMemberBlockAction = action === "block_in_group" || action === "unblock_in_group";
+                  const isDanger =
+                    action === "ban" || action === "remove" || action === "delete_post" ||
+                    action === "block_user" || action === "block_in_group";
+                  const isBusy =
+                    moderationBusy || deleting || pinBusy ||
+                    (isSocialAction && socialRelationshipLoading) ||
+                    (isGroupMemberBlockAction && groupMemberBlockLoading);
 
-              return (
-                <button
-                  key={action}
-                  type="button"
-                  role="menuitem"
-                  disabled={isBusy}
-                  onClick={() => handleModerationAction(action)}
-                  style={
-                    isBusy
-                      ? {
-                          ...menuItemStyle,
-                          color: "rgba(255,255,255,0.40)",
-                          cursor: "not-allowed",
-                        }
-                      : isDanger
-                        ? dangerMenuItemStyle
-                        : menuItemStyle
-                  }
+                  return (
+                    <button
+                      key={action}
+                      type="button"
+                      role="menuitem"
+                      disabled={isBusy}
+                      onClick={() => handleModerationAction(action)}
+                      style={{
+                        ...menuItemStyle,
+                        minHeight: 50,
+                        fontSize: 14.5,
+                        padding: "12px 16px",
+                        borderTop: index > 0 ? "1px solid rgba(255,255,255,0.07)" : "none",
+                        ...(isBusy ? { color: "rgba(255,255,255,0.35)", cursor: "not-allowed" } : {}),
+                        ...(isDanger && !isBusy ? { color: "#ff8a8a" } : {}),
+                      }}
+                    >
+                      {isBusy ? "Procesando..." : buildActionLabel(action)}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              /* ── Desktop: centered modal ── */
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  zIndex: 99991,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  pointerEvents: "none",
+                }}
+              >
+                <div
+                  ref={menuPanelRef}
+                  role="menu"
+                  style={{
+                    pointerEvents: "auto",
+                    width: "min(280px, 90vw)",
+                    background: "rgba(16,16,16,0.98)",
+                    borderRadius: 14,
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    padding: 0,
+                    display: "grid",
+                    gap: 0,
+                    overflow: "hidden",
+                    boxShadow: "0 24px 64px rgba(0,0,0,0.55)",
+                    backdropFilter: "blur(20px)",
+                    WebkitBackdropFilter: "blur(20px)",
+                    animation: "vbActionsMenuScaleIn 0.18s ease",
+                  }}
                 >
-                  {isBusy ? "Procesando..." : buildActionLabel(action)}
-                </button>
-              );
-            })}
-          </div>,
+                  {availableActions.map((action, index) => {
+                    const isSocialAction = action === "block_user" || action === "unblock_user";
+                    const isGroupMemberBlockAction = action === "block_in_group" || action === "unblock_in_group";
+                    const isDanger =
+                      action === "ban" || action === "remove" || action === "delete_post" ||
+                      action === "block_user" || action === "block_in_group";
+                    const isBusy =
+                      moderationBusy || deleting || pinBusy ||
+                      (isSocialAction && socialRelationshipLoading) ||
+                      (isGroupMemberBlockAction && groupMemberBlockLoading);
+
+                    return (
+                      <button
+                        key={action}
+                        type="button"
+                        role="menuitem"
+                        disabled={isBusy}
+                        onClick={() => handleModerationAction(action)}
+                        style={{
+                          ...menuItemStyle,
+                          minHeight: 42,
+                          fontSize: 13.5,
+                          padding: "10px 16px",
+                          borderTop: index > 0 ? "1px solid rgba(255,255,255,0.07)" : "none",
+                          ...(isBusy ? { color: "rgba(255,255,255,0.35)", cursor: "not-allowed" } : {}),
+                          ...(isDanger && !isBusy ? { color: "#ff8a8a" } : {}),
+                        }}
+                      >
+                        {isBusy ? "Procesando..." : buildActionLabel(action)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>,
           document.body
         )}
 
@@ -3801,7 +3875,7 @@ padding: "0 0 2px 0",
           </div>,
           document.body
         )}
-        {commentsPanelOpen && selectedMediaUrl === null && (
+        {selectedMediaUrl === null && (
         <PostCommentsPanel
           open={commentsPanelOpen}
           isMobile={isMobile}
@@ -3819,6 +3893,12 @@ padding: "0 0 2px 0",
           deletingCommentId={deletingCommentId}
           inlineError={premiumState.isBlocked ? null : inlineActionError}
           canUseGroupMemberBlock={canUseGroupMemberBlock}
+          canModerateGroupAuthor={canModerateGroupAuthor}
+          isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
+          visibleCount={isMobile ? undefined : desktopVisibleCount}
+          hasMore={!isMobile && comments !== null && comments.length > desktopVisibleCount}
+          onLoadMore={isMobile ? undefined : () => setDesktopVisibleCount((c) => c + 5)}
+          onCloseDesktop={!isMobile ? handleToggleCommentsDesktop : undefined}
           onCommentTextChange={setCommentText}
           onClose={() => setCommentsPanelOpen(false)}
           onCreateComment={handleCreateComment}
@@ -3829,6 +3909,9 @@ padding: "0 0 2px 0",
           onGroupMemberBlockComplete={async () => {
             setComments(null);
             await onGroupMemberBlockComplete?.();
+          }}
+          onModerationComplete={async () => {
+            await onModerationComplete?.();
           }}
         />
       )}
@@ -3885,6 +3968,8 @@ padding: "0 0 2px 0",
       deletingCommentId={deletingCommentId}
       inlineError={premiumState.isBlocked ? null : inlineActionError}
       canUseGroupMemberBlock={canUseGroupMemberBlock}
+      canModerateGroupAuthor={canModerateGroupAuthor}
+      isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
       onCommentTextChange={setCommentText}
       onClose={() => setCommentsPanelOpen(false)}
       onCreateComment={handleCreateComment}
@@ -3895,6 +3980,9 @@ padding: "0 0 2px 0",
       onGroupMemberBlockComplete={async () => {
         setComments(null);
         await onGroupMemberBlockComplete?.();
+      }}
+      onModerationComplete={async () => {
+        await onModerationComplete?.();
       }}
     />
   }

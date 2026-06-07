@@ -77,6 +77,7 @@ type ProfileLookup = {
   avatarUrl: string | null;
   username: string | null;
   profileRestricted: boolean;
+  profileCommentsEnabled: boolean;
 };
 
 type PostCreationContext = {
@@ -625,6 +626,10 @@ async function assertUserCanCommentOnProfilePost(params: {
     throw new Error("No puedes comentar en este perfil.");
   }
 
+  if (!profile.profileCommentsEnabled) {
+    throw new Error("Solo el dueño puede comentar en este perfil.");
+  }
+
   const followSnap = await getDoc(
     doc(db, "users", viewerUid, "following", profileId)
   );
@@ -940,6 +945,7 @@ async function fetchProfileById(profileId: string): Promise<ProfileLookup> {
     avatarUrl: readProfileAvatarUrl(data),
     username: pickString(data.username) || pickString(data.handle) || null,
     profileRestricted: data.profileRestricted === true,
+    profileCommentsEnabled: data.profileCommentsEnabled !== false,
   };
 }
 
@@ -2412,6 +2418,28 @@ export async function fetchUserProfilePosts(
   return page.posts;
 }
 
+async function enforcePostRateLimit(): Promise<void> {
+  const fn = httpsCallable(functions, "checkRateLimitPost");
+  try {
+    await fn();
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "Demasiadas publicaciones. Intenta más tarde.";
+    throw new Error(msg);
+  }
+}
+
+async function enforceCommentRateLimit(): Promise<void> {
+  const fn = httpsCallable(functions, "checkRateLimitComment");
+  try {
+    await fn();
+  } catch (err: unknown) {
+    const msg =
+      err instanceof Error ? err.message : "Demasiados comentarios. Intenta más tarde.";
+    throw new Error(msg);
+  }
+}
+
 export async function createTextPost(params: {
   groupId: string;
   text: string;
@@ -2433,6 +2461,7 @@ export async function createTextPost(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
+  await enforcePostRateLimit();
   const context = await resolvePostCreationContext({
     contextType: params.contextType,
     groupId: params.groupId,
@@ -2559,6 +2588,7 @@ export async function createImagePost(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
+  await enforcePostRateLimit();
   const context = await resolvePostCreationContext({
     contextType: params.contextType,
     groupId: params.groupId,
@@ -2734,6 +2764,7 @@ export async function createMediaPost(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
+  await enforcePostRateLimit();
   const context = await resolvePostCreationContext({
     contextType: params.contextType,
     groupId: params.groupId,
@@ -2945,6 +2976,7 @@ export async function createVideoPost(params: {
       : null;
 
   const author = await getCurrentAuthorSnapshot();
+  await enforcePostRateLimit();
   const context = await resolvePostCreationContext({
     contextType: params.contextType,
     groupId: params.groupId,
@@ -3197,6 +3229,7 @@ export async function createPostComment(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
+  await enforceCommentRateLimit();
   const postRef = doc(db, "posts", params.postId);
   const postSnap = await getDoc(postRef);
 

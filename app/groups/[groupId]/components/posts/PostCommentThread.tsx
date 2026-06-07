@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Timestamp } from "firebase/firestore";
+import { Timestamp, doc, getDoc } from "firebase/firestore";
 import {
   useCallback,
   useEffect,
@@ -10,10 +10,20 @@ import {
   type CSSProperties,
   type TextareaHTMLAttributes,
 } from "react";
+import { createPortal } from "react-dom";
 import type { Comment, CommentReply } from "@/lib/posts/types";
 import { toggleCommentFlame, updatePostComment, updatePostCommentReply } from "@/lib/posts/post-service";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 import { useGroupMemberBlocks } from "@/lib/groups/useGroupMemberBlocks";
+import { db } from "@/lib/firebase";
+import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
+import {
+  banGroupMember,
+  muteGroupMember,
+  removeGroupMember,
+  unbanGroupMember,
+  unmuteGroupMember,
+} from "@/lib/groups/groupModeration";
 
 type PostCommentThreadProps = {
   postId: string;
@@ -24,6 +34,8 @@ type PostCommentThreadProps = {
   isModerator?: boolean;
   canCommentOnPosts: boolean;
   canUseGroupMemberBlock?: boolean;
+  canModerateGroupAuthor?: boolean;
+  isPostAuthor?: boolean;
   deletingCommentId: string | null;
   onDeleteComment: (commentId: string) => Promise<void>;
   onLoadReplies: (postId: string, commentId: string) => Promise<CommentReply[]>;
@@ -38,10 +50,17 @@ type PostCommentThreadProps = {
     replyId: string
   ) => Promise<CommentReply[]>;
   onGroupMemberBlockComplete?: () => Promise<void> | void;
+  onModerationComplete?: () => Promise<void> | void;
 };
 
 const fontStack =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+
+const ACTIONS_MENU_STYLES = `
+  @keyframes vbCmtMenuFadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes vbCmtMenuScaleIn { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: scale(1); } }
+  @keyframes vbCmtMenuSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+`;
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
@@ -142,6 +161,45 @@ function getAuthorInfo(entity: {
     avatarUrl,
     profileHref: username ? `/u/${username}` : `/u/${authorId}`,
   };
+}
+
+function useGroupMemberStatus(
+  groupId: string | null,
+  userId: string | null,
+  enabled: boolean,
+): string | null {
+  const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!enabled || !groupId || !userId) {
+      setStatus(null);
+      return;
+    }
+
+    void getDoc(doc(db, "groups", groupId, "members", userId))
+      .then((snap) => {
+        if (!snap.exists()) { setStatus(null); return; }
+        const data = snap.data();
+        const raw = typeof data?.status === "string" ? data.status.trim().toLowerCase() : "";
+        const mutedUntil = data?.mutedUntil ?? null;
+
+        if (raw === "banned") { setStatus("banned"); return; }
+        if (["removed", "kicked", "expelled"].includes(raw)) { setStatus("removed"); return; }
+        if (raw === "muted") {
+          if (mutedUntil?.toDate instanceof Function) {
+            const until = mutedUntil.toDate();
+            setStatus(until instanceof Date && until.getTime() <= Date.now() ? "active" : "muted");
+          } else {
+            setStatus("muted");
+          }
+          return;
+        }
+        setStatus(raw === "active" || raw === "subscribed" ? "active" : null);
+      })
+      .catch(() => setStatus(null));
+  }, [enabled, groupId, userId]);
+
+  return status;
 }
 
 function Avatar({
@@ -245,6 +303,637 @@ function AutoGrowTextarea({
   );
 }
 
+/** Shared portal panel for comment or reply actions (desktop + mobile). */
+function ActionsPortal({
+  isMobile,
+  onClose,
+  children,
+}: {
+  isMobile: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return createPortal(
+    <>
+      <style>{ACTIONS_MENU_STYLES}</style>
+
+      {/* Backdrop */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 99990,
+          background: "rgba(0,0,0,0.50)",
+          animation: "vbCmtMenuFadeIn 0.18s ease",
+        }}
+        onClick={onClose}
+      />
+
+      {isMobile ? (
+        /* Mobile: bottom sheet */
+        <div
+          role="menu"
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 99991,
+            background: "#111",
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            border: "1px solid rgba(255,255,255,0.10)",
+            borderBottom: "none",
+            paddingTop: 12,
+            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
+            display: "grid",
+            gap: 0,
+            overflow: "hidden",
+            boxShadow: "0 -12px 40px rgba(0,0,0,0.50)",
+            animation: "vbCmtMenuSlideUp 0.30s ease",
+          }}
+        >
+          {/* Handle pill */}
+          <div
+            style={{
+              width: 38,
+              height: 4,
+              borderRadius: 2,
+              background: "rgba(255,255,255,0.18)",
+              margin: "0 auto 12px",
+            }}
+          />
+          {children}
+        </div>
+      ) : (
+        /* Desktop: centered modal */
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 99991,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            role="menu"
+            style={{
+              pointerEvents: "auto",
+              width: "min(280px, 90vw)",
+              background: "rgba(16,16,16,0.98)",
+              borderRadius: 14,
+              border: "1px solid rgba(255,255,255,0.10)",
+              padding: 0,
+              display: "grid",
+              gap: 0,
+              overflow: "hidden",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.55)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
+              animation: "vbCmtMenuScaleIn 0.18s ease",
+            }}
+          >
+            {children}
+          </div>
+        </div>
+      )}
+    </>,
+    document.body,
+  );
+}
+
+function ActionMenuItem({
+  index,
+  danger,
+  disabled,
+  onClick,
+  children,
+}: {
+  index: number;
+  danger?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      disabled={disabled}
+      onClick={onClick}
+      style={{
+        width: "100%",
+        minHeight: 46,
+        padding: "10px 16px",
+        border: "none",
+        borderTop: index > 0 ? "1px solid rgba(255,255,255,0.07)" : "none",
+        borderRadius: 0,
+        background: "transparent",
+        color: disabled
+          ? "rgba(255,255,255,0.35)"
+          : danger
+            ? "#ff8a8a"
+            : "#fff",
+        fontSize: 13.5,
+        fontWeight: 500,
+        fontFamily: fontStack,
+        textAlign: "center",
+        cursor: disabled ? "not-allowed" : "pointer",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+const MUTE_MODAL_STYLES = {
+  backdrop: { position: "fixed" as const, inset: 0, background: "rgba(0,0,0,0.62)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100000 },
+  card: { width: "min(420px, 92vw)", borderRadius: 16, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(16,16,16,0.98)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", padding: 24, display: "grid", gap: 16, color: "#fff" },
+  title: { margin: 0, fontSize: 16, fontWeight: 700, lineHeight: 1.35 },
+  text: { margin: 0, fontSize: 12.5, lineHeight: 1.5, color: "rgba(255,255,255,0.76)" },
+  input: { width: "100%", height: 42, borderRadius: 10, border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.08)", color: "#fff", fontSize: 14, padding: "0 12px", boxSizing: "border-box" as const },
+  row: { display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" as const },
+  cancelBtn: { minHeight: 28, padding: "5px 9px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.86)", fontSize: 11, fontWeight: 600, cursor: "pointer" },
+  disabledBtn: { minHeight: 28, padding: "5px 9px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.44)", fontSize: 11, fontWeight: 600, cursor: "not-allowed" as const },
+  primaryBtn: { minHeight: 28, padding: "5px 9px", borderRadius: 8, border: "none", background: "#fff", color: "#000", fontSize: 11, fontWeight: 600, cursor: "pointer" },
+};
+
+/** Portal for a reply's actions — includes moderation, group block, and social block. */
+function ReplyActionsPortal({
+  reply,
+  groupId,
+  currentUserId,
+  isOwner,
+  isModerator,
+  canModerateGroupAuthor,
+  canUseGroupMemberBlock,
+  isMobile,
+  editingReplyId,
+  deletingReplyId,
+  onClose,
+  onStartEdit,
+  onDelete,
+  onBlockComplete,
+  onModerationComplete,
+  onError,
+}: {
+  reply: CommentReply;
+  groupId: string | null;
+  currentUserId: string | null;
+  isOwner: boolean;
+  isModerator: boolean;
+  canModerateGroupAuthor: boolean;
+  canUseGroupMemberBlock: boolean;
+  isMobile: boolean;
+  editingReplyId: string | null;
+  deletingReplyId: string | null;
+  onClose: () => void;
+  onStartEdit: () => void;
+  onDelete: () => void;
+  onBlockComplete?: () => Promise<void> | void;
+  onModerationComplete?: () => Promise<void> | void;
+  onError: (msg: string | null) => void;
+}) {
+  const isOwnReply = currentUserId === reply.authorId;
+  const canDeleteReply = isOwner || isModerator || isOwnReply;
+  const canEditReply = isOwnReply && editingReplyId !== reply.id;
+  const canModerateMember = canModerateGroupAuthor && !!groupId && !!currentUserId && !isOwnReply;
+  const canGroupBlock =
+    !isOwner && !isModerator &&
+    canUseGroupMemberBlock && !!groupId && !!currentUserId && !isOwnReply &&
+    reply.viewerIsBlockedByAuthorInGroup !== true;
+  const canSocialBlock = !isOwner && !isModerator && !!currentUserId && !!reply.authorId && !isOwnReply;
+
+  const { relationship: groupBlockRel, loading: blockLoading, error: blockError, block, unblock } =
+    useGroupMemberBlocks({ groupId, currentUserId, targetUserId: canGroupBlock ? reply.authorId : null });
+
+  const { relationship: socialRel, loading: socialLoading, block: socialBlock, unblock: socialUnblock } =
+    useSocialRelationship(currentUserId, canSocialBlock ? reply.authorId : null);
+
+  const authorStatus = useGroupMemberStatus(groupId, canModerateMember ? reply.authorId : null, canModerateMember);
+
+  const [moderationBusy, setModerationBusy] = useState(false);
+  const [muteModalOpen, setMuteModalOpen] = useState(false);
+  const [muteDays, setMuteDays] = useState("7");
+
+  useEffect(() => {
+    if (!blockError) return;
+    onError(blockError);
+  }, [blockError, onError]);
+
+  async function handleBlockInGroup() {
+    if (blockLoading) return;
+    const confirmed = window.confirm("¿Seguro que quieres bloquear a este usuario en este grupo?");
+    if (!confirmed) return;
+    try { onError(null); await block(); onClose(); await onBlockComplete?.(); }
+    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo bloquear en este grupo."); }
+  }
+
+  async function handleUnblockInGroup() {
+    if (blockLoading) return;
+    try { onError(null); await unblock(); onClose(); await onBlockComplete?.(); }
+    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo desbloquear en este grupo."); }
+  }
+
+  async function handleMuteConfirm() {
+    const days = Number(muteDays);
+    if (!Number.isInteger(days) || days < 1 || days > 365 || !groupId || moderationBusy) return;
+    try {
+      setModerationBusy(true);
+      await muteGroupMember(groupId, reply.authorId, days);
+      setMuteModalOpen(false);
+      onClose();
+      await onModerationComplete?.();
+    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo mutear al usuario."); }
+    finally { setModerationBusy(false); }
+  }
+
+  async function handleUnmute() {
+    if (!groupId || moderationBusy) return;
+    if (!window.confirm("¿Quitar el mute a este usuario?")) return;
+    try {
+      setModerationBusy(true);
+      await unmuteGroupMember(groupId, reply.authorId);
+      onClose();
+      await onModerationComplete?.();
+    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo quitar el mute."); }
+    finally { setModerationBusy(false); }
+  }
+
+  async function handleBan() {
+    if (!groupId || moderationBusy) return;
+    if (!window.confirm("¿Seguro que quieres banear a este usuario de la comunidad?")) return;
+    try {
+      setModerationBusy(true);
+      await banGroupMember(groupId, reply.authorId);
+      onClose();
+      await onModerationComplete?.();
+    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo banear al usuario."); }
+    finally { setModerationBusy(false); }
+  }
+
+  async function handleUnban() {
+    if (!groupId || moderationBusy) return;
+    if (!window.confirm("¿Quitar el ban a este usuario?")) return;
+    try {
+      setModerationBusy(true);
+      await unbanGroupMember(groupId, reply.authorId);
+      onClose();
+      await onModerationComplete?.();
+    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo quitar el ban."); }
+    finally { setModerationBusy(false); }
+  }
+
+  async function handleRemove() {
+    if (!groupId || moderationBusy) return;
+    if (!window.confirm("¿Seguro que quieres expulsar a este usuario de la comunidad?")) return;
+    try {
+      setModerationBusy(true);
+      await removeGroupMember(groupId, reply.authorId);
+      onClose();
+      await onModerationComplete?.();
+    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo expulsar al usuario."); }
+    finally { setModerationBusy(false); }
+  }
+
+  async function handleSocialBlock() {
+    if (!window.confirm("¿Seguro que quieres bloquear el perfil de este usuario?")) return;
+    try { await socialBlock(); onClose(); }
+    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo bloquear el perfil."); }
+  }
+
+  async function handleSocialUnblock() {
+    try { await socialUnblock(); onClose(); }
+    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo desbloquear el perfil."); }
+  }
+
+  const items: React.ReactNode[] = [];
+
+  if (canEditReply) {
+    items.push(
+      <ActionMenuItem key="edit" index={items.length} onClick={() => { onStartEdit(); onClose(); }}>
+        Editar respuesta
+      </ActionMenuItem>,
+    );
+  }
+
+  if (canDeleteReply) {
+    items.push(
+      <ActionMenuItem key="delete" index={items.length} danger disabled={deletingReplyId === reply.id}
+        onClick={() => { onDelete(); onClose(); }}>
+        {deletingReplyId === reply.id ? "Eliminando..." : "Eliminar respuesta"}
+      </ActionMenuItem>,
+    );
+  }
+
+  if (canModerateMember && authorStatus !== "removed") {
+    if (authorStatus === "muted") {
+      items.push(<ActionMenuItem key="unmute" index={items.length} disabled={moderationBusy} onClick={handleUnmute}>{moderationBusy ? "Procesando..." : "Quitar mute"}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="ban" index={items.length} danger disabled={moderationBusy} onClick={handleBan}>{moderationBusy ? "Procesando..." : "Banear"}</ActionMenuItem>);
+    } else if (authorStatus === "banned") {
+      items.push(<ActionMenuItem key="unban" index={items.length} disabled={moderationBusy} onClick={handleUnban}>{moderationBusy ? "Procesando..." : "Quitar ban"}</ActionMenuItem>);
+    } else {
+      items.push(<ActionMenuItem key="mute" index={items.length} disabled={moderationBusy} onClick={() => setMuteModalOpen(true)}>Mutear</ActionMenuItem>);
+      items.push(<ActionMenuItem key="ban" index={items.length} danger disabled={moderationBusy} onClick={handleBan}>{moderationBusy ? "Procesando..." : "Banear"}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="remove" index={items.length} danger disabled={moderationBusy} onClick={handleRemove}>{moderationBusy ? "Procesando..." : "Expulsar"}</ActionMenuItem>);
+    }
+  }
+
+  if (canGroupBlock && !groupBlockRel.isBlockedBy) {
+    items.push(
+      <ActionMenuItem key="group-block" index={items.length} disabled={blockLoading}
+        onClick={groupBlockRel.hasBlocked ? handleUnblockInGroup : handleBlockInGroup}>
+        {blockLoading ? "Procesando..." : groupBlockRel.hasBlocked ? "Desbloquear en este grupo" : "Bloquear en este grupo"}
+      </ActionMenuItem>,
+    );
+  }
+
+  if (canSocialBlock && !socialRel.isBlockedBy) {
+    items.push(
+      <ActionMenuItem key="social-block" index={items.length} disabled={socialLoading}
+        onClick={socialRel.hasBlocked ? handleSocialUnblock : handleSocialBlock}>
+        {socialLoading ? "Procesando..." : socialRel.hasBlocked ? "Desbloquear de mi perfil" : "Bloquear de mi perfil"}
+      </ActionMenuItem>,
+    );
+  }
+
+  if (items.length === 0) return null;
+
+  const daysNum = Number(muteDays);
+  const muteValid = Number.isInteger(daysNum) && daysNum >= 1 && daysNum <= 365;
+
+  return (
+    <>
+      <ActionsPortal isMobile={isMobile} onClose={onClose}>
+        {items}
+      </ActionsPortal>
+
+      {muteModalOpen && typeof document !== "undefined" && createPortal(
+        <div style={MUTE_MODAL_STYLES.backdrop} onClick={() => !moderationBusy && setMuteModalOpen(false)}>
+          <div style={{ ...MUTE_MODAL_STYLES.card, fontFamily: fontStack }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={MUTE_MODAL_STYLES.title}>Mutear integrante</h3>
+            <p style={MUTE_MODAL_STYLES.text}>
+              Elige durante cuántos días quieres mutear a{" "}
+              <strong>{reply.authorName ?? "este usuario"}</strong>.
+            </p>
+            <input type="number" min={1} max={365} value={muteDays} onChange={(e) => setMuteDays(e.target.value)}
+              style={{ ...MUTE_MODAL_STYLES.input, fontFamily: fontStack }} placeholder="Ej. 7" disabled={moderationBusy} />
+            <div style={MUTE_MODAL_STYLES.row}>
+              <button type="button" onClick={() => setMuteModalOpen(false)} disabled={moderationBusy}
+                style={{ ...MUTE_MODAL_STYLES.cancelBtn, fontFamily: fontStack }}>Cancelar</button>
+              <button type="button" onClick={handleMuteConfirm} disabled={moderationBusy || !muteValid}
+                style={{ ...(moderationBusy || !muteValid ? MUTE_MODAL_STYLES.disabledBtn : MUTE_MODAL_STYLES.primaryBtn), fontFamily: fontStack }}>
+                {moderationBusy ? "Aplicando..." : "Aplicar mute"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
+/** Portal for a comment's actions — includes edit, delete, moderation, group block, social block. */
+function CommentActionsPortal({
+  comment,
+  groupId,
+  currentUserId,
+  isOwner,
+  isModerator,
+  isPostAuthor,
+  canModerateGroupAuthor,
+  canUseGroupMemberBlock,
+  isMobile,
+  editingComment,
+  deletingCommentId,
+  onClose,
+  onStartEdit,
+  onDelete,
+  onBlockComplete,
+  onModerationComplete,
+  onError,
+}: {
+  comment: Comment;
+  groupId: string | null;
+  currentUserId: string | null;
+  isOwner: boolean;
+  isModerator: boolean;
+  isPostAuthor: boolean;
+  canModerateGroupAuthor: boolean;
+  canUseGroupMemberBlock: boolean;
+  isMobile: boolean;
+  editingComment: boolean;
+  deletingCommentId: string | null;
+  onClose: () => void;
+  onStartEdit: () => void;
+  onDelete: () => void;
+  onBlockComplete?: () => Promise<void> | void;
+  onModerationComplete?: () => Promise<void> | void;
+  onError: (msg: string | null) => void;
+}) {
+  const isOwnComment = currentUserId === comment.authorId;
+  const canEditOwnComment = isOwnComment;
+  const canDeleteComment = isOwner || isModerator || isPostAuthor || isOwnComment;
+  const canModerateMember = canModerateGroupAuthor && !!groupId && !!currentUserId && !isOwnComment;
+  const canGroupBlock =
+    !isOwner && !isModerator &&
+    canUseGroupMemberBlock && !!groupId && !!currentUserId && !isOwnComment;
+  const canSocialBlock = !isOwner && !isModerator && !!currentUserId && !!comment.authorId && !isOwnComment;
+
+  const { relationship: groupBlockRel, loading: groupBlockLoading, error: groupBlockError, block: blockInGroup, unblock: unblockInGroup } =
+    useGroupMemberBlocks({ groupId, currentUserId, targetUserId: canGroupBlock ? comment.authorId : null });
+
+  const { relationship: socialRel, loading: socialLoading, block: socialBlock, unblock: socialUnblock } =
+    useSocialRelationship(currentUserId, canSocialBlock ? comment.authorId : null);
+
+  const authorStatus = useGroupMemberStatus(groupId, canModerateMember ? comment.authorId : null, canModerateMember);
+
+  const [moderationBusy, setModerationBusy] = useState(false);
+  const [muteModalOpen, setMuteModalOpen] = useState(false);
+  const [muteDays, setMuteDays] = useState("7");
+
+  useEffect(() => {
+    if (!groupBlockError) return;
+    onError(groupBlockError);
+  }, [groupBlockError, onError]);
+
+  async function handleBlockInGroup() {
+    if (groupBlockLoading) return;
+    const confirmed = window.confirm("¿Seguro que quieres bloquear a este usuario en este grupo?");
+    if (!confirmed) return;
+    try { onError(null); await blockInGroup(); onClose(); await onBlockComplete?.(); }
+    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo bloquear en este grupo."); }
+  }
+
+  async function handleUnblockInGroup() {
+    if (groupBlockLoading) return;
+    try { onError(null); await unblockInGroup(); onClose(); await onBlockComplete?.(); }
+    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo desbloquear en este grupo."); }
+  }
+
+  async function handleMuteConfirm() {
+    const days = Number(muteDays);
+    if (!Number.isInteger(days) || days < 1 || days > 365 || !groupId || moderationBusy) return;
+    try {
+      setModerationBusy(true);
+      await muteGroupMember(groupId, comment.authorId, days);
+      setMuteModalOpen(false);
+      onClose();
+      await onModerationComplete?.();
+    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo mutear al usuario."); }
+    finally { setModerationBusy(false); }
+  }
+
+  async function handleUnmute() {
+    if (!groupId || moderationBusy) return;
+    if (!window.confirm("¿Quitar el mute a este usuario?")) return;
+    try {
+      setModerationBusy(true);
+      await unmuteGroupMember(groupId, comment.authorId);
+      onClose();
+      await onModerationComplete?.();
+    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo quitar el mute."); }
+    finally { setModerationBusy(false); }
+  }
+
+  async function handleBan() {
+    if (!groupId || moderationBusy) return;
+    if (!window.confirm("¿Seguro que quieres banear a este usuario de la comunidad?")) return;
+    try {
+      setModerationBusy(true);
+      await banGroupMember(groupId, comment.authorId);
+      onClose();
+      await onModerationComplete?.();
+    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo banear al usuario."); }
+    finally { setModerationBusy(false); }
+  }
+
+  async function handleUnban() {
+    if (!groupId || moderationBusy) return;
+    if (!window.confirm("¿Quitar el ban a este usuario?")) return;
+    try {
+      setModerationBusy(true);
+      await unbanGroupMember(groupId, comment.authorId);
+      onClose();
+      await onModerationComplete?.();
+    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo quitar el ban."); }
+    finally { setModerationBusy(false); }
+  }
+
+  async function handleRemove() {
+    if (!groupId || moderationBusy) return;
+    if (!window.confirm("¿Seguro que quieres expulsar a este usuario de la comunidad?")) return;
+    try {
+      setModerationBusy(true);
+      await removeGroupMember(groupId, comment.authorId);
+      onClose();
+      await onModerationComplete?.();
+    } catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo expulsar al usuario."); }
+    finally { setModerationBusy(false); }
+  }
+
+  async function handleSocialBlock() {
+    if (!window.confirm("¿Seguro que quieres bloquear el perfil de este usuario?")) return;
+    try { await socialBlock(); onClose(); }
+    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo bloquear el perfil."); }
+  }
+
+  async function handleSocialUnblock() {
+    try { await socialUnblock(); onClose(); }
+    catch (e: unknown) { onError((e as Error)?.message ?? "No se pudo desbloquear el perfil."); }
+  }
+
+  const items: React.ReactNode[] = [];
+
+  if (canEditOwnComment && !editingComment) {
+    items.push(
+      <ActionMenuItem key="edit" index={items.length} onClick={() => { onStartEdit(); onClose(); }}>
+        Editar comentario
+      </ActionMenuItem>,
+    );
+  }
+
+  if (canDeleteComment) {
+    items.push(
+      <ActionMenuItem key="delete" index={items.length} danger disabled={deletingCommentId === comment.id}
+        onClick={() => { onClose(); onDelete(); }}>
+        {deletingCommentId === comment.id ? "Eliminando..." : "Eliminar comentario"}
+      </ActionMenuItem>,
+    );
+  }
+
+  if (canModerateMember && authorStatus !== "removed") {
+    if (authorStatus === "muted") {
+      items.push(<ActionMenuItem key="unmute" index={items.length} disabled={moderationBusy} onClick={handleUnmute}>{moderationBusy ? "Procesando..." : "Quitar mute"}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="ban" index={items.length} danger disabled={moderationBusy} onClick={handleBan}>{moderationBusy ? "Procesando..." : "Banear"}</ActionMenuItem>);
+    } else if (authorStatus === "banned") {
+      items.push(<ActionMenuItem key="unban" index={items.length} disabled={moderationBusy} onClick={handleUnban}>{moderationBusy ? "Procesando..." : "Quitar ban"}</ActionMenuItem>);
+    } else {
+      items.push(<ActionMenuItem key="mute" index={items.length} disabled={moderationBusy} onClick={() => setMuteModalOpen(true)}>Mutear</ActionMenuItem>);
+      items.push(<ActionMenuItem key="ban" index={items.length} danger disabled={moderationBusy} onClick={handleBan}>{moderationBusy ? "Procesando..." : "Banear"}</ActionMenuItem>);
+      items.push(<ActionMenuItem key="remove" index={items.length} danger disabled={moderationBusy} onClick={handleRemove}>{moderationBusy ? "Procesando..." : "Expulsar"}</ActionMenuItem>);
+    }
+  }
+
+  if (canGroupBlock && !groupBlockRel.isBlockedBy) {
+    items.push(
+      <ActionMenuItem key="group-block" index={items.length} danger={!groupBlockRel.hasBlocked} disabled={groupBlockLoading}
+        onClick={groupBlockRel.hasBlocked ? handleUnblockInGroup : handleBlockInGroup}>
+        {groupBlockLoading ? "Procesando..." : groupBlockRel.hasBlocked ? "Desbloquear en este grupo" : "Bloquear en este grupo"}
+      </ActionMenuItem>,
+    );
+  }
+
+  if (canSocialBlock && !socialRel.isBlockedBy) {
+    items.push(
+      <ActionMenuItem key="social-block" index={items.length} disabled={socialLoading}
+        onClick={socialRel.hasBlocked ? handleSocialUnblock : handleSocialBlock}>
+        {socialLoading ? "Procesando..." : socialRel.hasBlocked ? "Desbloquear de mi perfil" : "Bloquear de mi perfil"}
+      </ActionMenuItem>,
+    );
+  }
+
+  if (items.length === 0) return null;
+
+  const daysNum = Number(muteDays);
+  const muteValid = Number.isInteger(daysNum) && daysNum >= 1 && daysNum <= 365;
+
+  return (
+    <>
+      <ActionsPortal isMobile={isMobile} onClose={onClose}>
+        {items}
+      </ActionsPortal>
+
+      {muteModalOpen && typeof document !== "undefined" && createPortal(
+        <div style={MUTE_MODAL_STYLES.backdrop} onClick={() => !moderationBusy && setMuteModalOpen(false)}>
+          <div style={{ ...MUTE_MODAL_STYLES.card, fontFamily: fontStack }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={MUTE_MODAL_STYLES.title}>Mutear integrante</h3>
+            <p style={MUTE_MODAL_STYLES.text}>
+              Elige durante cuántos días quieres mutear a{" "}
+              <strong>{comment.authorName ?? "este usuario"}</strong>.
+            </p>
+            <input type="number" min={1} max={365} value={muteDays} onChange={(e) => setMuteDays(e.target.value)}
+              style={{ ...MUTE_MODAL_STYLES.input, fontFamily: fontStack }} placeholder="Ej. 7" disabled={moderationBusy} />
+            <div style={MUTE_MODAL_STYLES.row}>
+              <button type="button" onClick={() => setMuteModalOpen(false)} disabled={moderationBusy}
+                style={{ ...MUTE_MODAL_STYLES.cancelBtn, fontFamily: fontStack }}>Cancelar</button>
+              <button type="button" onClick={handleMuteConfirm} disabled={moderationBusy || !muteValid}
+                style={{ ...(moderationBusy || !muteValid ? MUTE_MODAL_STYLES.disabledBtn : MUTE_MODAL_STYLES.primaryBtn), fontFamily: fontStack }}>
+                {moderationBusy ? "Aplicando..." : "Aplicar mute"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
+  );
+}
+
 export default function PostCommentThread({
   postId,
   groupId = null,
@@ -254,12 +943,15 @@ export default function PostCommentThread({
   isModerator = false,
   canCommentOnPosts,
   canUseGroupMemberBlock = false,
+  canModerateGroupAuthor = false,
+  isPostAuthor = false,
   deletingCommentId,
   onDeleteComment,
   onLoadReplies,
   onCreateReply,
   onDeleteReply,
   onGroupMemberBlockComplete,
+  onModerationComplete,
 }: PostCommentThreadProps) {
   const [replies, setReplies] = useState<CommentReply[] | null>(null);
   const [loadingReplies, setLoadingReplies] = useState(false);
@@ -268,18 +960,17 @@ export default function PostCommentThread({
   const [creatingReply, setCreatingReply] = useState(false);
   const [deletingReplyId, setDeletingReplyId] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
-  const [commentLiked, setCommentLiked] = useState(
-    comment.viewerHasFlamed === true
-  );
+  const [commentLiked, setCommentLiked] = useState(comment.viewerHasFlamed === true);
   const [commentLikes, setCommentLikes] = useState(comment.counts?.likes ?? 0);
-  const [localReplyCount, setLocalReplyCount] = useState(
-    comment.counts?.replies ?? 0
-  );
+  const [localReplyCount, setLocalReplyCount] = useState(comment.counts?.replies ?? 0);
   const [commentFlameBusy, setCommentFlameBusy] = useState(false);
   const [showExactCommentDate, setShowExactCommentDate] = useState(false);
   const [exactReplyDates, setExactReplyDates] = useState<Record<string, boolean>>({});
+
+  // Comment actions menu (⋯)
   const [commentMenuOpen, setCommentMenuOpen] = useState(false);
-  const [replyMenuOpenById, setReplyMenuOpenById] = useState<Record<string, boolean>>({});
+  // Reply actions menu (⋯) — tracks which reply's menu is open
+  const [replyActionsMenuOpenId, setReplyActionsMenuOpenId] = useState<string | null>(null);
 
   const [editingComment, setEditingComment] = useState(false);
   const [editCommentText, setEditCommentText] = useState(comment.text);
@@ -291,77 +982,37 @@ export default function PostCommentThread({
   const [editReplyTexts, setEditReplyTexts] = useState<Record<string, string>>({});
   const [savingEditReplyId, setSavingEditReplyId] = useState<string | null>(null);
 
-  const author = getAuthorInfo(comment);
-  const canDeleteComment =
-    isOwner || isModerator || currentUserId === comment.authorId;
-  const canEditOwnComment = currentUserId === comment.authorId;
+  // Detect mobile for portal layout
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    function check() { setIsMobile(window.innerWidth < 768); }
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
 
-  const canBlockCommentAuthorInGroup =
-    canUseGroupMemberBlock &&
-    !!groupId &&
-    !!currentUserId &&
-    currentUserId !== comment.authorId;
-
-  const {
-    relationship: commentAuthorGroupBlockRelationship,
-    loading: commentAuthorGroupBlockLoading,
-    error: commentAuthorGroupBlockError,
-    block: blockCommentAuthorInGroup,
-    unblock: unblockCommentAuthorInGroup,
-  } = useGroupMemberBlocks({
-    groupId,
-    currentUserId,
-    targetUserId: canBlockCommentAuthorInGroup ? comment.authorId : null,
-  });
+  // Escape to close menus
+  useEffect(() => {
+    if (!commentMenuOpen) return;
+    function handler(e: KeyboardEvent) { if (e.key === "Escape") setCommentMenuOpen(false); }
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [commentMenuOpen]);
 
   useEffect(() => {
-    if (!commentAuthorGroupBlockError) return;
+    if (!replyActionsMenuOpenId) return;
+    function handler(e: KeyboardEvent) { if (e.key === "Escape") setReplyActionsMenuOpenId(null); }
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [replyActionsMenuOpenId]);
 
-    setInlineError(commentAuthorGroupBlockError);
-  }, [commentAuthorGroupBlockError]);
-
-  const shouldShowCommentGroupBlockAction =
-    canBlockCommentAuthorInGroup &&
-    !commentAuthorGroupBlockRelationship.isBlockedBy;
+  const author = getAuthorInfo(comment);
+  const isOwnComment = currentUserId === comment.authorId;
+  const canDeleteComment = isOwner || isModerator || isPostAuthor || isOwnComment;
+  const canEditOwnComment = isOwnComment;
 
   const replyCount = localReplyCount;
   const hasRepliesToLoad = replyCount > 0;
-
-  async function handleBlockCommentAuthorInGroup() {
-    if (commentAuthorGroupBlockLoading) return;
-
-    const confirmed = window.confirm(
-      "¿Seguro que quieres bloquear a este usuario en este grupo?"
-    );
-
-    if (!confirmed) return;
-
-    try {
-      setInlineError(null);
-      setCommentMenuOpen(false);
-      await blockCommentAuthorInGroup();
-      await onGroupMemberBlockComplete?.();
-    } catch (e: any) {
-      setInlineError(
-        e?.message ?? "No se pudo bloquear este usuario en este grupo."
-      );
-    }
-  }
-
-  async function handleUnblockCommentAuthorInGroup() {
-    if (commentAuthorGroupBlockLoading) return;
-
-    try {
-      setInlineError(null);
-      setCommentMenuOpen(false);
-      await unblockCommentAuthorInGroup();
-      await onGroupMemberBlockComplete?.();
-    } catch (e: any) {
-      setInlineError(
-        e?.message ?? "No se pudo desbloquear este usuario en este grupo."
-      );
-    }
-  }
 
   async function handleLoadReplies() {
     if (replies !== null || loadingReplies) return;
@@ -369,7 +1020,6 @@ export default function PostCommentThread({
     try {
       setLoadingReplies(true);
       setInlineError(null);
-
       const nextReplies = await onLoadReplies(postId, comment.id);
       setReplies(nextReplies);
     } catch (e: any) {
@@ -380,20 +1030,12 @@ export default function PostCommentThread({
   }
 
   async function handleCreateReply() {
-    if (!canCommentOnPosts || creatingReply || replyText.trim().length === 0) {
-      return;
-    }
+    if (!canCommentOnPosts || creatingReply || replyText.trim().length === 0) return;
 
     try {
       setCreatingReply(true);
       setInlineError(null);
-
-      const nextReplies = await onCreateReply(
-        postId,
-        comment.id,
-        replyText.trim()
-      );
-
+      const nextReplies = await onCreateReply(postId, comment.id, replyText.trim());
       setReplies(nextReplies);
       setLocalReplyCount(nextReplies.length);
       setReplyText("");
@@ -411,7 +1053,6 @@ export default function PostCommentThread({
     try {
       setDeletingReplyId(replyId);
       setInlineError(null);
-
       const nextReplies = await onDeleteReply(postId, comment.id, replyId);
       setReplies(nextReplies);
       setLocalReplyCount(nextReplies.length);
@@ -469,11 +1110,7 @@ export default function PostCommentThread({
       await updatePostCommentReply({ postId, commentId: comment.id, replyId, text });
       setReplies(
         (prev) =>
-          prev?.map((r) =>
-            r.id === replyId
-              ? { ...r, text, editedAt: Timestamp.now() }
-              : r,
-          ) ?? null,
+          prev?.map((r) => r.id === replyId ? { ...r, text, editedAt: Timestamp.now() } : r) ?? null,
       );
       setEditingReplyId(null);
     } catch (e: any) {
@@ -501,12 +1138,7 @@ export default function PostCommentThread({
     try {
       setCommentFlameBusy(true);
       setInlineError(null);
-
-      const result = await toggleCommentFlame({
-        postId,
-        commentId: comment.id,
-      });
-
+      const result = await toggleCommentFlame({ postId, commentId: comment.id });
       setCommentLiked(result.liked);
       setCommentLikes(result.likes);
     } catch (e: any) {
@@ -529,64 +1161,10 @@ export default function PostCommentThread({
     cursor: "pointer",
   };
 
-  const dangerButtonStyle: CSSProperties = {
-    ...actionButtonStyle,
-  };
-
   const disabledActionButtonStyle: CSSProperties = {
     ...actionButtonStyle,
     color: "rgba(255,255,255,0.36)",
     cursor: "not-allowed",
-  };
-
-  const menuShellStyle: CSSProperties = {
-    position: "relative",
-    flexShrink: 0,
-  };
-
-  const menuButtonStyle: CSSProperties = {
-    width: 24,
-    height: 24,
-    borderRadius: 7,
-    border: "1px solid rgba(255,255,255,0.08)",
-    background: "rgba(255,255,255,0.04)",
-    color: "rgba(255,255,255,0.74)",
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-    fontSize: 14,
-    lineHeight: 1,
-    padding: 0,
-  };
-
-  const menuPanelStyle: CSSProperties = {
-    position: "absolute",
-    top: 28,
-    right: 0,
-    minWidth: 170,
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(12,12,12,0.98)",
-    boxShadow: "0 12px 28px rgba(0,0,0,0.34)",
-    padding: 6,
-    zIndex: 20,
-    display: "grid",
-    gap: 4,
-  };
-
-  const menuItemStyle: CSSProperties = {
-    width: "100%",
-    minHeight: 32,
-    padding: "8px 10px",
-    borderRadius: 8,
-    border: "none",
-    background: "transparent",
-    color: "#ff8a8a",
-    fontSize: 11.5,
-    fontWeight: 600,
-    fontFamily: fontStack,
-    textAlign: "left",
-    cursor: "pointer",
   };
 
   const inputStyle: CSSProperties = {
@@ -635,45 +1213,29 @@ export default function PostCommentThread({
     cursor: "not-allowed",
   };
 
+  // Whether to show the comment ⋯ button
+  const showCommentActionsMenu =
+    !editingComment &&
+    (canEditOwnComment ||
+      canDeleteComment ||  // already includes isPostAuthor
+      (canUseGroupMemberBlock && !!groupId && !!currentUserId && !isOwnComment) ||
+      (canModerateGroupAuthor && !!groupId && !isOwnComment) ||
+      (!isOwner && !isModerator && !!currentUserId && !isOwnComment));
+
   return (
     <div style={{ display: "grid", gap: 8 }}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 10,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <Link href={author.profileHref} style={{ flexShrink: 0 }}>
           <Avatar name={author.authorName} avatarUrl={author.avatarUrl} />
         </Link>
 
         <div style={{ minWidth: 0, flex: 1 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              justifyContent: "space-between",
-              gap: 10,
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "baseline",
-                  gap: 6,
-                  flexWrap: "wrap",
-                }}
-              >
+              <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
                 <Link
                   href={author.profileHref}
-                  style={{
-                    color: "#fff",
-                    textDecoration: "none",
-                    fontSize: 12,
-                    fontWeight: 600,
-                  }}
+                  style={{ color: "#fff", textDecoration: "none", fontSize: 12, fontWeight: 600 }}
                 >
                   {author.authorName}
                 </Link>
@@ -744,11 +1306,7 @@ export default function PostCommentThread({
                       type="button"
                       onClick={handleSaveEditComment}
                       disabled={savingEditComment || !editCommentText.trim()}
-                      style={
-                        savingEditComment || !editCommentText.trim()
-                          ? disabledButtonStyle
-                          : primaryButtonStyle
-                      }
+                      style={savingEditComment || !editCommentText.trim() ? disabledButtonStyle : primaryButtonStyle}
                     >
                       {savingEditComment ? "Guardando..." : "Guardar"}
                     </button>
@@ -779,144 +1337,54 @@ export default function PostCommentThread({
               )}
             </div>
 
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                flexShrink: 0,
-              }}
-            >
-              <div
+            {/* Flame counter */}
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={handleToggleCommentFlame}
+                aria-pressed={commentLiked}
+                aria-label={commentLiked ? "Quitar flamita del comentario" : "Dar flamita al comentario"}
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 1,
+                  width: 22,
+                  height: 22,
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  display: "inline-grid",
+                  placeItems: "center",
+                  cursor: "pointer",
+                  transform: commentLiked ? "scale(1.04)" : "scale(1)",
+                  transition: "transform 140ms ease",
+                  WebkitTapHighlightColor: "transparent",
                   flexShrink: 0,
                 }}
               >
-                <button
-                  type="button"
-                  onClick={handleToggleCommentFlame}
-                  aria-pressed={commentLiked}
-                  aria-label={
-                    commentLiked
-                      ? "Quitar flamita del comentario"
-                      : "Dar flamita al comentario"
-                  }
-                  style={{
-                    width: 22,
-                    height: 22,
-                    border: "none",
-                    background: "transparent",
-                    padding: 0,
-                    display: "inline-grid",
-                    placeItems: "center",
-                    cursor: "pointer",
-                    opacity: 1,
-                    transform: commentLiked ? "scale(1.04)" : "scale(1)",
-                    transition: "transform 140ms ease, opacity 140ms ease",
-                    WebkitTapHighlightColor: "transparent",
-                    flexShrink: 0,
-                  }}
-                >
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      display: "inline-grid",
-                      placeItems: "center",
-                      lineHeight: 1,
-                    }}
-                  >
-                    <VibraFlameIcon active={commentLiked} size={18} />
-                  </span>
-                </button>
-
-                <span
-                  aria-label={`${commentLikes} flamitas`}
-                  style={{
-                    minWidth: 8,
-                    color: "rgba(255,255,255,0.62)",
-                    fontSize: 11.5,
-                    fontWeight: 600,
-                    lineHeight: 1,
-                  }}
-                >
-                  {commentLikes}
+                <span aria-hidden="true" style={{ display: "inline-grid", placeItems: "center", lineHeight: 1 }}>
+                  <VibraFlameIcon active={commentLiked} size={18} />
                 </span>
-              </div>
-
-              {shouldShowCommentGroupBlockAction && (
-                <div style={menuShellStyle}>
-                  <button
-                    type="button"
-                    aria-haspopup="menu"
-                    aria-expanded={commentMenuOpen}
-                    aria-label="Abrir acciones del comentario"
-                    onClick={() => setCommentMenuOpen((prev) => !prev)}
-                    style={menuButtonStyle}
-                  >
-                    ⋮
-                  </button>
-
-                  {commentMenuOpen && (
-                    <div role="menu" style={menuPanelStyle}>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        disabled={commentAuthorGroupBlockLoading}
-                        onClick={
-                          commentAuthorGroupBlockRelationship.hasBlocked
-                            ? handleUnblockCommentAuthorInGroup
-                            : handleBlockCommentAuthorInGroup
-                        }
-                        style={
-                          commentAuthorGroupBlockLoading
-                            ? {
-                                ...menuItemStyle,
-                                color: "rgba(255,255,255,0.40)",
-                                cursor: "not-allowed",
-                              }
-                            : menuItemStyle
-                        }
-                      >
-                        {commentAuthorGroupBlockLoading
-                          ? "Procesando..."
-                          : commentAuthorGroupBlockRelationship.hasBlocked
-                            ? "Desbloquear en este grupo"
-                            : "Bloquear en este grupo"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+              </button>
+              <span
+                aria-label={`${commentLikes} flamitas`}
+                style={{ minWidth: 8, color: "rgba(255,255,255,0.62)", fontSize: 11.5, fontWeight: 600, lineHeight: 1 }}
+              >
+                {commentLikes}
+              </span>
             </div>
           </div>
 
-          <div
-            style={{
-              marginTop: 5,
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              flexWrap: "wrap",
-            }}
-          >
+          {/* Comment action row */}
+          <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             {hasRepliesToLoad && (
               <button
                 type="button"
                 onClick={handleLoadReplies}
                 disabled={loadingReplies}
-                style={
-                  loadingReplies ? disabledActionButtonStyle : actionButtonStyle
-                }
+                style={loadingReplies ? disabledActionButtonStyle : actionButtonStyle}
               >
                 {loadingReplies
                   ? "Cargando..."
                   : replies === null
-                    ? replyCount === 1
-                      ? "Ver 1 respuesta"
-                      : `Ver ${replyCount} respuestas`
+                    ? replyCount === 1 ? "Ver 1 respuesta" : `Ver ${replyCount} respuestas`
                     : "Respuestas cargadas"}
               </button>
             )}
@@ -931,41 +1399,21 @@ export default function PostCommentThread({
               </button>
             )}
 
-            {canEditOwnComment && !editingComment && (
+            {showCommentActionsMenu && (
               <button
                 type="button"
-                onClick={handleStartEditComment}
+                onClick={() => setCommentMenuOpen(true)}
+                aria-label="Más acciones del comentario"
                 style={actionButtonStyle}
               >
-                Editar
-              </button>
-            )}
-
-            {canDeleteComment && (
-              <button
-                type="button"
-                onClick={() => onDeleteComment(comment.id)}
-                disabled={deletingCommentId === comment.id}
-                style={
-                  deletingCommentId === comment.id
-                    ? disabledActionButtonStyle
-                    : dangerButtonStyle
-                }
-              >
-                {deletingCommentId === comment.id ? "Eliminando..." : "Eliminar"}
+                Más opciones
               </button>
             )}
           </div>
 
+          {/* Reply box */}
           {replyBoxOpen && (
-            <div
-              style={{
-                marginTop: 8,
-                display: "flex",
-                alignItems: "flex-end",
-                gap: 8,
-              }}
-            >
+            <div style={{ marginTop: 8, display: "flex", alignItems: "flex-end", gap: 8 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <AutoGrowTextarea
                   value={replyText}
@@ -976,19 +1424,12 @@ export default function PostCommentThread({
                   disabled={!canCommentOnPosts}
                 />
               </div>
-
               <button
                 type="button"
                 onClick={handleCreateReply}
-                disabled={
-                  !canCommentOnPosts ||
-                  creatingReply ||
-                  replyText.trim().length === 0
-                }
+                disabled={!canCommentOnPosts || creatingReply || replyText.trim().length === 0}
                 style={
-                  !canCommentOnPosts ||
-                  creatingReply ||
-                  replyText.trim().length === 0
+                  !canCommentOnPosts || creatingReply || replyText.trim().length === 0
                     ? disabledButtonStyle
                     : primaryButtonStyle
                 }
@@ -1015,54 +1456,37 @@ export default function PostCommentThread({
             </div>
           )}
 
+          {/* Replies */}
           {replies !== null && replies.length > 0 && (
-            <div
-              style={{
-                marginTop: 10,
-                display: "grid",
-                gap: 10,
-              }}
-            >
+            <div style={{ marginTop: 10, display: "grid", gap: 10 }}>
               {replies.map((reply) => {
                 const replyAuthor = getAuthorInfo(reply);
-                const canDeleteReply =
-                  isOwner || isModerator || currentUserId === reply.authorId;
+                const canDeleteReply = isOwner || isModerator || currentUserId === reply.authorId;
+                const canEditReply = currentUserId === reply.authorId && editingReplyId !== reply.id;
+                const canBlockReply =
+                  canUseGroupMemberBlock &&
+                  !!groupId &&
+                  !!currentUserId &&
+                  currentUserId !== reply.authorId &&
+                  reply.viewerIsBlockedByAuthorInGroup !== true;
+                const showReplyActionsMenu =
+                  canEditReply ||
+                  canDeleteReply ||
+                  canBlockReply ||
+                  (canModerateGroupAuthor && !!groupId && !!currentUserId && currentUserId !== reply.authorId) ||
+                  (!isOwner && !isModerator && !!currentUserId && currentUserId !== reply.authorId);
 
                 return (
-                  <div
-                    key={reply.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 9,
-                      paddingLeft: 4,
-                    }}
-                  >
+                  <div key={reply.id} style={{ display: "flex", alignItems: "flex-start", gap: 9, paddingLeft: 4 }}>
                     <Link href={replyAuthor.profileHref} style={{ flexShrink: 0 }}>
-                      <Avatar
-                        name={replyAuthor.authorName}
-                        avatarUrl={replyAuthor.avatarUrl}
-                        size={26}
-                      />
+                      <Avatar name={replyAuthor.authorName} avatarUrl={replyAuthor.avatarUrl} size={26} />
                     </Link>
 
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "baseline",
-                          gap: 6,
-                          flexWrap: "wrap",
-                        }}
-                      >
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
                         <Link
                           href={replyAuthor.profileHref}
-                          style={{
-                            color: "#fff",
-                            textDecoration: "none",
-                            fontSize: 11.5,
-                            fontWeight: 600,
-                          }}
+                          style={{ color: "#fff", textDecoration: "none", fontSize: 11.5, fontWeight: 600 }}
                         >
                           {replyAuthor.authorName}
                         </Link>
@@ -1087,12 +1511,7 @@ export default function PostCommentThread({
 
                         <button
                           type="button"
-                          onClick={() =>
-                            setExactReplyDates((prev) => ({
-                              ...prev,
-                              [reply.id]: !prev[reply.id],
-                            }))
-                          }
+                          onClick={() => setExactReplyDates((prev) => ({ ...prev, [reply.id]: !prev[reply.id] }))}
                           title={formatExactDate(reply.createdAt)}
                           aria-label={
                             exactReplyDates[reply.id]
@@ -1129,10 +1548,7 @@ export default function PostCommentThread({
                           <AutoGrowTextarea
                             value={editReplyTexts[reply.id] ?? reply.text}
                             onChange={(e) =>
-                              setEditReplyTexts((prev) => ({
-                                ...prev,
-                                [reply.id]: e.target.value,
-                              }))
+                              setEditReplyTexts((prev) => ({ ...prev, [reply.id]: e.target.value }))
                             }
                             maxRows={6}
                             style={inputStyle}
@@ -1147,8 +1563,7 @@ export default function PostCommentThread({
                                 !(editReplyTexts[reply.id] ?? "").trim()
                               }
                               style={
-                                savingEditReplyId === reply.id ||
-                                !(editReplyTexts[reply.id] ?? "").trim()
+                                savingEditReplyId === reply.id || !(editReplyTexts[reply.id] ?? "").trim()
                                   ? disabledButtonStyle
                                   : primaryButtonStyle
                               }
@@ -1181,114 +1596,55 @@ export default function PostCommentThread({
                         </div>
                       )}
 
-                      <div
-                        style={{
-                          marginTop: 5,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          gap: 12,
-                          flexWrap: "wrap",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 12,
-                            flexWrap: "wrap",
-                          }}
-                        >
-                          {canCommentOnPosts && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setReplyBoxOpen(true);
-                                setReplyText(`@${replyAuthor.authorName} `);
-                              }}
-                              style={actionButtonStyle}
-                            >
-                              Responder
-                            </button>
-                          )}
+                      {/* Reply action row */}
+                      <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 12 }}>
+                        {canCommentOnPosts && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReplyBoxOpen(true);
+                              setReplyText(`@${replyAuthor.authorName} `);
+                            }}
+                            style={actionButtonStyle}
+                          >
+                            Responder
+                          </button>
+                        )}
 
-                          {currentUserId === reply.authorId &&
-                            editingReplyId !== reply.id && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleStartEditReply(reply.id, reply.text)
-                                }
-                                style={actionButtonStyle}
-                              >
-                                Editar
-                              </button>
-                            )}
-
-                          {canDeleteReply && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteReply(reply.id)}
-                              disabled={deletingReplyId === reply.id}
-                              style={
-                                deletingReplyId === reply.id
-                                  ? disabledActionButtonStyle
-                                  : dangerButtonStyle
-                              }
-                            >
-                              {deletingReplyId === reply.id
-                                ? "Eliminando..."
-                                : "Eliminar"}
-                            </button>
-                          )}
-                        </div>
-
-                        {canUseGroupMemberBlock &&
-                          !!groupId &&
-                          !!currentUserId &&
-                          currentUserId !== reply.authorId &&
-                          reply.viewerIsBlockedByAuthorInGroup !== true && (
-                            <div style={menuShellStyle}>
-                              <button
-                                type="button"
-                                aria-haspopup="menu"
-                                aria-expanded={replyMenuOpenById[reply.id] === true}
-                                aria-label="Abrir acciones de la respuesta"
-                                onClick={() =>
-                                  setReplyMenuOpenById((prev) => ({
-                                    ...prev,
-                                    [reply.id]: !prev[reply.id],
-                                  }))
-                                }
-                                style={menuButtonStyle}
-                              >
-                                ⋮
-                              </button>
-
-                              {replyMenuOpenById[reply.id] === true && (
-                                <ReplyGroupBlockMenu
-                                  groupId={groupId}
-                                  currentUserId={currentUserId}
-                                  targetUserId={reply.authorId}
-                                  initialHasBlocked={
-                                    reply.viewerHasBlockedAuthorInGroup === true
-                                  }
-                                  onClose={() =>
-                                    setReplyMenuOpenById((prev) => ({
-                                      ...prev,
-                                      [reply.id]: false,
-                                    }))
-                                  }
-                                  onError={setInlineError}
-                                  onComplete={onGroupMemberBlockComplete}
-                                  menuPanelStyle={menuPanelStyle}
-                                  menuItemStyle={menuItemStyle}
-                                />
-                              )}
-                            </div>
-                          )}
+                        {showReplyActionsMenu && !editingReplyId && (
+                          <button
+                            type="button"
+                            onClick={() => setReplyActionsMenuOpenId(reply.id)}
+                            aria-label="Más acciones de la respuesta"
+                            style={actionButtonStyle}
+                          >
+                            Más opciones
+                          </button>
+                        )}
                       </div>
                     </div>
+
+                    {/* Reply actions portal */}
+                    {replyActionsMenuOpenId === reply.id && (
+                      <ReplyActionsPortal
+                        reply={reply}
+                        groupId={groupId}
+                        currentUserId={currentUserId}
+                        isOwner={isOwner}
+                        isModerator={isModerator}
+                        canModerateGroupAuthor={canModerateGroupAuthor}
+                        canUseGroupMemberBlock={canUseGroupMemberBlock}
+                        isMobile={isMobile}
+                        editingReplyId={editingReplyId}
+                        deletingReplyId={deletingReplyId}
+                        onClose={() => setReplyActionsMenuOpenId(null)}
+                        onStartEdit={() => handleStartEditReply(reply.id, reply.text)}
+                        onDelete={() => handleDeleteReply(reply.id)}
+                        onBlockComplete={onGroupMemberBlockComplete}
+                        onModerationComplete={onModerationComplete}
+                        onError={setInlineError}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -1296,93 +1652,29 @@ export default function PostCommentThread({
           )}
         </div>
       </div>
-    </div>
-  );
-}
 
-function ReplyGroupBlockMenu({
-  groupId,
-  currentUserId,
-  targetUserId,
-  initialHasBlocked,
-  onClose,
-  onError,
-  onComplete,
-  menuPanelStyle,
-  menuItemStyle,
-}: {
-  groupId: string;
-  currentUserId: string;
-  targetUserId: string;
-  initialHasBlocked: boolean;
-  onClose: () => void;
-  onError: (message: string | null) => void;
-  onComplete?: () => Promise<void> | void;
-  menuPanelStyle: CSSProperties;
-  menuItemStyle: CSSProperties;
-}) {
-  const { relationship, loading, error, block, unblock } = useGroupMemberBlocks({
-    groupId,
-    currentUserId,
-    targetUserId,
-  });
-
-  useEffect(() => {
-    if (!error) return;
-
-    onError(error);
-  }, [error, onError]);
-
-  const hasBlocked = relationship.hasBlocked || initialHasBlocked;
-
-  async function handleAction() {
-    if (loading) return;
-
-    try {
-      onError(null);
-
-      if (hasBlocked) {
-        await unblock();
-      } else {
-        const confirmed = window.confirm(
-          "¿Seguro que quieres bloquear a este usuario en este grupo?"
-        );
-
-        if (!confirmed) return;
-
-        await block();
-      }
-
-      onClose();
-      await onComplete?.();
-    } catch (e: any) {
-      onError(e?.message ?? "No se pudo actualizar el bloqueo en este grupo.");
-    }
-  }
-
-  return (
-    <div role="menu" style={menuPanelStyle}>
-      <button
-        type="button"
-        role="menuitem"
-        disabled={loading}
-        onClick={handleAction}
-        style={
-          loading
-            ? {
-                ...menuItemStyle,
-                color: "rgba(255,255,255,0.40)",
-                cursor: "not-allowed",
-              }
-            : menuItemStyle
-        }
-      >
-        {loading
-          ? "Procesando..."
-          : hasBlocked
-            ? "Desbloquear en este grupo"
-            : "Bloquear en este grupo"}
-      </button>
+      {/* Comment actions portal */}
+      {commentMenuOpen && typeof document !== "undefined" && (
+        <CommentActionsPortal
+          comment={comment}
+          groupId={groupId}
+          currentUserId={currentUserId}
+          isOwner={isOwner}
+          isModerator={isModerator}
+          isPostAuthor={isPostAuthor}
+          canModerateGroupAuthor={canModerateGroupAuthor}
+          canUseGroupMemberBlock={canUseGroupMemberBlock}
+          isMobile={isMobile}
+          editingComment={editingComment}
+          deletingCommentId={deletingCommentId}
+          onClose={() => setCommentMenuOpen(false)}
+          onStartEdit={handleStartEditComment}
+          onDelete={() => { void onDeleteComment(comment.id); }}
+          onBlockComplete={onGroupMemberBlockComplete}
+          onModerationComplete={onModerationComplete}
+          onError={setInlineError}
+        />
+      )}
     </div>
   );
 }

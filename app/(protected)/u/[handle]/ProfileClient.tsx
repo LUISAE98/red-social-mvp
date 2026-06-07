@@ -121,6 +121,7 @@ type UserDoc = {
   showPosts?: boolean;
   showCreatedGroups?: boolean;
   profileRestricted?: boolean;
+  profileCommentsEnabled?: boolean;
   profileGreeting?: {
     enabled: boolean;
     price: number | null;
@@ -305,6 +306,7 @@ export default function ProfileClient() {
 
   const [uploading, setUploading] = useState(false);
   const [savingProfileRestricted, setSavingProfileRestricted] = useState(false);
+  const [savingProfileComments, setSavingProfileComments] = useState(false);
 
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
@@ -384,6 +386,7 @@ useEffect(() => {
   const ownerShowPosts = userDoc?.showPosts ?? true;
   const ownerShowGroups = userDoc?.showCreatedGroups ?? true;
   const profileRestricted = userDoc?.profileRestricted ?? false;
+  const profileCommentsEnabled = userDoc?.profileCommentsEnabled !== false;
 
   const isProfileRestrictedForVisitor = !isOwner && profileRestricted;
 
@@ -1181,6 +1184,28 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
       throw e;
     } finally {
       setSavingProfileRestricted(false);
+    }
+  }
+
+  async function handleToggleProfileCommentsEnabled(nextValue: boolean) {
+    if (!userDoc || !isOwner) return;
+
+    setSavingProfileComments(true);
+
+    try {
+      const userRef = doc(db, "users", userDoc.uid);
+
+      await updateDoc(userRef, {
+        profileCommentsEnabled: nextValue,
+      });
+
+      setUserDoc((prev) =>
+        prev ? { ...prev, profileCommentsEnabled: nextValue } : prev
+      );
+    } catch (e: any) {
+      throw e;
+    } finally {
+      setSavingProfileComments(false);
     }
   }
 
@@ -2142,6 +2167,7 @@ await createExclusiveSessionRequest({
   isOwner={isOwner}
   showPosts={isOwner ? ownerShowPosts : visitorCanSeePosts}
   profileRestricted={profileRestricted}
+  commentsEnabled={profileCommentsEnabled}
 />
                   </div>
                 </div>
@@ -2210,6 +2236,9 @@ await createExclusiveSessionRequest({
   isSaving={savingProfileRestricted}
   isRestricted={profileRestricted}
   onToggleRestricted={handleToggleProfileRestricted}
+  commentsEnabled={profileCommentsEnabled}
+  onToggleCommentsEnabled={handleToggleProfileCommentsEnabled}
+  isSavingComments={savingProfileComments}
   uid={userDoc.uid}
   email={viewer?.email ?? null}
   displayName={fullName}

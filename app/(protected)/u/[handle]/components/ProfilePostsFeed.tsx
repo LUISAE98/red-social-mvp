@@ -42,6 +42,7 @@ type ProfilePostsFeedProps = {
   isOwner: boolean;
   showPosts?: boolean;
   profileRestricted?: boolean;
+  commentsEnabled?: boolean;
 };
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
@@ -457,6 +458,7 @@ export default function ProfilePostsFeed({
   isOwner,
   showPosts = true,
   profileRestricted = false,
+  commentsEnabled = true,
 }: ProfilePostsFeedProps) {
   const [posts, setPosts] = useState<PostWithFlags[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -1331,6 +1333,7 @@ const shellStyle: CSSProperties = {
               showGroupContext={true}
               canModerateGroupAuthor={post.canModerateGroupAuthor === true}
               onModerationComplete={loadPosts}
+              canCommentOnPosts={!post.groupId ? (isOwner || commentsEnabled) : undefined}
             />
 
             {shouldRenderRecommendations && viewerUid && (

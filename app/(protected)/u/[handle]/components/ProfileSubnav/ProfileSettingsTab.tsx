@@ -10,6 +10,10 @@ type ProfileSettingsTabProps = {
   isRestricted: boolean;
   onToggleRestricted: (nextValue: boolean) => Promise<void> | void;
 
+  commentsEnabled?: boolean;
+  onToggleCommentsEnabled?: (nextValue: boolean) => Promise<void> | void;
+  isSavingComments?: boolean;
+
   uid?: string | null;
   email?: string | null;
   displayName?: string | null;
@@ -182,6 +186,9 @@ export default function ProfileSettingsTab({
   isSaving = false,
   isRestricted,
   onToggleRestricted,
+  commentsEnabled = true,
+  onToggleCommentsEnabled,
+  isSavingComments = false,
   uid = null,
   email = null,
   displayName,
@@ -193,6 +200,7 @@ export default function ProfileSettingsTab({
   onSendPasswordReset,
 }: ProfileSettingsTabProps) {
   const [localRestricted, setLocalRestricted] = useState(isRestricted);
+  const [localCommentsEnabled, setLocalCommentsEnabled] = useState(commentsEnabled);
   const [editNameOpen, setEditNameOpen] = useState(false);
   const [blockedAccountsOpen, setBlockedAccountsOpen] = useState(false);
   const [draftName, setDraftName] = useState(displayName ?? "");
@@ -204,6 +212,10 @@ export default function ProfileSettingsTab({
   useEffect(() => {
     setLocalRestricted(isRestricted);
   }, [isRestricted]);
+
+  useEffect(() => {
+    setLocalCommentsEnabled(commentsEnabled);
+  }, [commentsEnabled]);
 
   useEffect(() => {
     setDraftName(displayName ?? "");
@@ -223,8 +235,28 @@ export default function ProfileSettingsTab({
   const resolvedBirthDate = formatDate(birthDate);
   const resolvedAppCreatedAt = formatDate(appCreatedAt);
   const restrictedHelpText = localRestricted
-  ? "Reservado: nadie verá tus servicios, publicaciones ni comentarios desde tu perfil, incluyendo personas sin sesión."
-  : "Público: las personas, incluso sin sesión, podrán ver tus servicios activos y publicaciones públicas.";
+    ? "Reservado: nadie verá tus servicios, publicaciones ni comentarios desde tu perfil, incluyendo personas sin sesión."
+    : "Público: las personas, incluso sin sesión, podrán ver tus servicios activos y publicaciones públicas.";
+
+  const commentsHelpText = localCommentsEnabled
+    ? "Abiertos: cualquiera que te siga puede comentar en tus publicaciones."
+    : "Restringidos: solo tú puedes comentar en tus publicaciones.";
+
+  async function handleCommentsEnabledChange(nextValue: boolean) {
+    if (isSavingComments || !onToggleCommentsEnabled) return;
+
+    setLocalCommentsEnabled(nextValue);
+    setMsg(null);
+    setErr(null);
+
+    try {
+      await onToggleCommentsEnabled(nextValue);
+      setMsg(nextValue ? "Comentarios abiertos." : "Comentarios restringidos.");
+    } catch (error: any) {
+      setLocalCommentsEnabled(!nextValue);
+      setErr(error?.message ?? "No se pudo actualizar la configuración de comentarios.");
+    }
+  }
 
   async function handleRestrictedChange(nextValue: boolean) {
     if (isSaving) return;
@@ -488,6 +520,39 @@ export default function ProfileSettingsTab({
             }
           />
         </div>
+
+        {onToggleCommentsEnabled && (
+          <div className="profile-setting-item" style={item}>
+            <div>
+              <div style={labelStyle}>Comentarios en mis publicaciones</div>
+              <div style={valueStyle}>
+                {localCommentsEnabled ? "Abiertos" : "Solo yo"}
+              </div>
+              <div
+                style={{
+                  marginTop: 5,
+                  fontSize: 11.5,
+                  color: "rgba(255,255,255,0.58)",
+                  lineHeight: 1.4,
+                  maxWidth: 620,
+                }}
+              >
+                {commentsHelpText}
+              </div>
+            </div>
+
+            <Switch
+              checked={localCommentsEnabled}
+              disabled={isSavingComments}
+              onChange={handleCommentsEnabledChange}
+              label={
+                localCommentsEnabled
+                  ? "Restringir comentarios a solo yo"
+                  : "Abrir comentarios a seguidores"
+              }
+            />
+          </div>
+        )}
 
         <div className="profile-setting-item" style={item}>
           <div>
