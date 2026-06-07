@@ -28,6 +28,7 @@ import type {
 } from "./OwnerSidebar";
 
 import { Chevron, CountBadge, typeLabel } from "./OwnerSidebar";
+import GreetingReviewOverlay from "./GreetingReviewOverlay";
 
 import {
   acceptMeetGreetRequest,
@@ -409,6 +410,7 @@ export default function OwnerSidebarMyGroups({
   const pathname = usePathname();
   const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [reviewGreetingItem, setReviewGreetingItem] = useState<{ id: string; data: GreetingRequestDoc } | null>(null);
 
 useEffect(() => {
   if (typeof window === "undefined") return;
@@ -1528,7 +1530,7 @@ boxShadow:
                                 fontWeight: 550,
                               }}
                             >
-                              Solicitudes de acceso
+                              Solicitudes de Acceso
                             </span>
 
                             <CountBadge count={joinRequests.length} tone="pink" />
@@ -1695,7 +1697,7 @@ boxShadow:
                                 fontWeight: 550,
                               }}
                             >
-                              Saludos y consejos
+                              Saludos y Consejos
                             </span>
                             <CountBadge count={greetingServiceCount} tone="pink" />
                           </button>
@@ -1705,129 +1707,107 @@ boxShadow:
                               <div style={{ display: "grid", gap: 10 }}>
                                 {sortedGreetings.map((r) => {
                                   const req = r.data;
-                                  const busy = greetingBusyId === r.id;
                                   const chipStyle = getTypeChipStyle(req.type);
+                                  const buyer = userMiniMap[req.buyerId] ?? null;
+                                  const buyerLetter = getInitials(buyer?.displayName);
 
                                   return (
                                     <div key={r.id} style={styles.miniItem}>
-                                      <div style={{ display: "grid", gap: 6 }}>
-                                        <div
-                                          style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 8,
-                                            flexWrap: "wrap",
-                                          }}
-                                        >
-                                          <span
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                                        {buyer?.photoURL ? (
+                                          <img
+                                            src={buyer.photoURL}
+                                            alt={buyer.displayName}
                                             style={{
-                                              ...chipStyle,
-                                              borderRadius: 999,
-                                              padding: "4px 8px",
-                                              fontSize: 11,
-                                              fontWeight: 700,
-                                              lineHeight: 1,
-                                              display: "inline-flex",
-                                              alignItems: "center",
-                                              justifyContent: "center",
+                                              width: 28,
+                                              height: 28,
+                                              borderRadius: 10,
+                                              objectFit: "cover",
+                                              border: "1px solid rgba(255,255,255,0.12)",
+                                              flexShrink: 0,
                                             }}
-                                          >
-                                            {getServiceEmoji(req.type)}{" "}
-                                            {typeLabel(req.type)}
-                                          </span>
-
+                                          />
+                                        ) : (
                                           <div
                                             style={{
-                                              fontSize: 12,
+                                              width: 28,
+                                              height: 28,
+                                              borderRadius: 10,
+                                              background: "rgba(255,255,255,0.05)",
+                                              border: "1px solid rgba(255,255,255,0.12)",
+                                              display: "flex",
+                                              alignItems: "center",
+                                              justifyContent: "center",
                                               fontWeight: 700,
+                                              fontSize: 11,
                                               color: "#fff",
-                                              lineHeight: 1.25,
+                                              flexShrink: 0,
                                             }}
                                           >
-                                            Para{" "}
-                                            <span
+                                            {buyerLetter}
+                                          </div>
+                                        )}
+                                        <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
+                                          {buyer?.handle ? (
+                                            <Link
+                                              href={`/u/${buyer.handle}`}
                                               style={{
-                                                color: "rgba(255,255,255,0.88)",
+                                                color: "#fff",
+                                                fontWeight: 600,
+                                                fontSize: 12,
+                                                lineHeight: 1.2,
+                                                textDecoration: "none",
+                                                display: "block",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
                                               }}
                                             >
-                                              {req.toName}
+                                              {buyer.displayName}
+                                            </Link>
+                                          ) : (
+                                            <span style={{ color: "#fff", fontWeight: 600, fontSize: 12, lineHeight: 1.2 }}>
+                                              {buyer?.displayName ?? "Usuario"}
                                             </span>
-                                          </div>
+                                          )}
                                         </div>
-
-                                        <div
+                                        <span
                                           style={{
-                                            display: "flex",
+                                            ...chipStyle,
+                                            borderRadius: 999,
+                                            padding: "3px 7px",
+                                            fontSize: 10,
+                                            fontWeight: 700,
+                                            lineHeight: 1,
+                                            display: "inline-flex",
                                             alignItems: "center",
-                                            gap: 6,
-                                            flexWrap: "wrap",
+                                            gap: 3,
+                                            flexShrink: 0,
                                           }}
                                         >
-                                          <span style={styles.subtle}>
-                                            Comprador:
-                                          </span>
-                                          {renderUserLink(req.buyerId)}
-                                        </div>
+                                          {getServiceEmoji(req.type)}{" "}
+                                          {typeLabel(req.type)}
+                                        </span>
                                       </div>
-                                                                            {req.instructions ? (
-                                        <div
-                                          style={{
-                                            borderRadius: 12,
-                                            border:
-                                              "1px solid rgba(255,255,255,0.08)",
-                                            background: "rgba(255,255,255,0.03)",
-                                            padding: "8px 10px",
-                                            whiteSpace: "pre-wrap",
-                                            fontSize: 12,
-                                            lineHeight: 1.35,
-                                            color: "rgba(255,255,255,0.9)",
-                                          }}
-                                        >
-                                          {req.instructions}
-                                        </div>
-                                      ) : null}
 
-                                      <div
+                                      <button
+                                        type="button"
+                                        onClick={() => setReviewGreetingItem(r)}
                                         style={{
-                                          display: "flex",
-                                          gap: 8,
-                                          flexWrap: "wrap",
+                                          width: "100%",
+                                          height: 30,
+                                          borderRadius: 8,
+                                          border: "1px solid rgba(168,85,255,0.22)",
+                                          background: "rgba(168,85,255,0.08)",
+                                          color: "#d8b4fe",
+                                          fontWeight: 500,
+                                          fontSize: 12,
+                                          cursor: "pointer",
+                                          fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
                                         }}
                                       >
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleGreetingAction(r.id, "accept")
-                                          }
-                                          disabled={busy}
-                                          style={{
-                                            ...styles.buttonPrimary,
-                                            opacity: busy ? 0.8 : 1,
-                                            cursor: busy
-                                              ? "not-allowed"
-                                              : "pointer",
-                                          }}
-                                        >
-                                          {busy ? "Procesando..." : "Aceptar"}
-                                        </button>
-
-                                        <button
-                                          type="button"
-                                          onClick={() =>
-                                            handleGreetingAction(r.id, "reject")
-                                          }
-                                          disabled={busy}
-                                          style={{
-                                            ...styles.buttonSecondary,
-                                            opacity: busy ? 0.7 : 1,
-                                            cursor: busy
-                                              ? "not-allowed"
-                                              : "pointer",
-                                          }}
-                                        >
-                                          {busy ? "Procesando..." : "Rechazar"}
-                                        </button>
-                                      </div>
+                                        Revisar
+                                      </button>
                                     </div>
                                   );
                                 })}
@@ -1869,7 +1849,7 @@ boxShadow:
                                 fontWeight: 550,
                               }}
                             >
-                              Meet & Greet y sesiones exclusivas
+                              Meet & Greet y Sesiones Exclusivas
                             </span>
                             <CountBadge count={scheduledServiceRequests.length} tone="pink" />
                           </button>
@@ -2925,6 +2905,25 @@ maxWidth: 220,
         <InviteLinkModal
           groupId={inviteGroupId}
           onClose={() => setInviteGroupId(null)}
+        />
+      )}
+
+      {reviewGreetingItem && (
+        <GreetingReviewOverlay
+          item={reviewGreetingItem}
+          buyer={userMiniMap[reviewGreetingItem.data.buyerId] ?? null}
+          busy={greetingBusyId === reviewGreetingItem.id}
+          onAccept={async () => {
+            await handleGreetingAction(reviewGreetingItem.id, "accept");
+            setReviewGreetingItem(null);
+          }}
+          onReject={async () => {
+            await handleGreetingAction(reviewGreetingItem.id, "reject");
+            setReviewGreetingItem(null);
+          }}
+          onClose={() => setReviewGreetingItem(null)}
+          getInitials={getInitials}
+          typeLabel={typeLabel}
         />
       )}
     </>

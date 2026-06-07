@@ -890,34 +890,6 @@ return (
             Inicio
           </h2>
 
-          {isMobile ? (
-            <Link
-              href="/saved"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                minHeight: 34,
-                padding: "8px 12px",
-                borderRadius: 999,
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(255,255,255,0.04)",
-                color: "rgba(255,255,255,0.90)",
-                fontSize: 12,
-                fontWeight: 700,
-                lineHeight: 1,
-                textDecoration: "none",
-                whiteSpace: "nowrap",
-                flexShrink: 0,
-              }}
-            >
-<span aria-hidden="true">
-  <VibraSavedPostIcon saved={false} size={17} color="#a855ff" />
-</span>
-<span>Guardados</span>
-            </Link>
-          ) : null}
         </div>
 
         <p

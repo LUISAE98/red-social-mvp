@@ -594,7 +594,7 @@ export function CountBadge({
       : tone === "yellow"
         ? "linear-gradient(180deg, #facc15 0%, #eab308 100%)"
         : tone === "pink"
-          ? "#ec4899"
+          ? "rgba(236,72,153,0.72)"
           : "linear-gradient(180deg, #22c55e 0%, #16a34a 100%)";
 
   const shadow =
@@ -959,15 +959,15 @@ sectionPanel: {
   padding: "10px",
   borderRadius: 12,
   border: "none",
-  background: "rgba(90, 41, 174, 0.4)",
+  background: "rgba(90, 41, 174, 0.14)",
   boxShadow: "none",
   display: "grid",
   gap: 8,
 },
 miniItem: {
   borderRadius: 12,
-  border: "1px solid rgba(255,255,255,0.08)",
-  background: "#000",
+  border: "none",
+  background: "transparent",
   boxShadow: "none",
   padding: 9,
   display: "grid",

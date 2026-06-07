@@ -303,6 +303,7 @@ export default function GroupServiceModals({
                     onChange={(e) => onChangeInstructions(e.target.value)}
                     placeholder={greetingUi.instructionsPlaceholder}
                     disabled={greetSubmitting}
+                    maxLength={greetType === "saludo" ? 250 : 500}
                     rows={5}
                     style={{
                       ...inputStyle,
@@ -310,6 +311,9 @@ export default function GroupServiceModals({
                       minHeight: 110,
                     }}
                   />
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "right" }}>
+                    {instructions.length} / {greetType === "saludo" ? 250 : 500}
+                  </span>
                 </label>
 
                 {greetError && <div style={messageBox}>{greetError}</div>}
@@ -545,6 +549,7 @@ export default function GroupServiceModals({
                 onChange={(e) => params.onChangeMessage(e.target.value)}
                 placeholder={params.textareaPlaceholder}
                 disabled={params.submitting}
+                maxLength={500}
                 rows={5}
                 style={{
                   ...inputStyle,
@@ -552,6 +557,9 @@ export default function GroupServiceModals({
                   minHeight: 110,
                 }}
               />
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "right" }}>
+                {params.message.length} / 500
+              </span>
             </label>
 
             {params.error && <div style={messageBox}>{params.error}</div>}

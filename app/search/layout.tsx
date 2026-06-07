@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
 import LogoutButton from "@/app/LogoutButton";
 import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
@@ -762,6 +763,7 @@ function AuthenticatedSearchShell({
 }) {
 
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuth();
 
 const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
@@ -1260,6 +1262,15 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 </Link>
 
     <div className="mobileActions">
+      <button
+        type="button"
+        onClick={() => router.push("/saved")}
+        title="Guardados"
+        aria-label="Ver guardados"
+        className="mobileSearchIconButton"
+      >
+        <VibraSavedPostIcon size={22} color="#a855ff" />
+      </button>
 <button
   type="button"
 onClick={() => setMobileSearchOpen(true)}
