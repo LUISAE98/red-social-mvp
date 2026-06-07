@@ -370,9 +370,11 @@ function buildCommentBlockedMessage(reason: InteractionBlockedReason): string {
 function PremiumPostPanel({
   state,
   onOpenPayment,
+  overlay = false,
 }: {
   state: PostPremiumStateResult;
   onOpenPayment?: () => void;
+  overlay?: boolean;
 }) {
   const isUnlocked = !state.isBlocked;
 
@@ -385,7 +387,7 @@ function PremiumPostPanel({
   return (
     <div
       style={{
-        marginTop: 10,
+        ...(overlay ? {} : { marginTop: 10 }),
         border: "1px solid rgba(168,85,255,0.32)",
         borderRadius: 12,
         background:
@@ -2785,7 +2787,7 @@ cursor: isMobile ? "pointer" : "default",
         borderRadius: 999,
         display: "grid",
         placeItems: "center",
-        background: "rgba(124,58,237,0.48)",
+        background: "rgba(124,58,237,0.28)",
         border: "1px solid rgba(255,255,255,0.22)",
         color: "#fff",
         fontSize: 28,
@@ -2823,7 +2825,7 @@ cursor: isMobile ? "pointer" : "default",
         borderRadius: 999,
         display: "grid",
         placeItems: "center",
-        background: "rgba(124,58,237,0.48)",
+        background: "rgba(124,58,237,0.28)",
         border: "1px solid rgba(255,255,255,0.22)",
         color: "#fff",
         fontSize: 28,
@@ -2945,8 +2947,9 @@ function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
         openMediaViewer(media.url);
       }
 
-      function renderVideoOverlay(media: DisplayMediaItem) {
+      function renderVideoOverlay(media: DisplayMediaItem, blocked = false) {
         if (media.type !== "video") return null;
+        if (blocked) return null;
 
         const durationLabel = formatMediaDuration(media.duration);
 
@@ -2970,7 +2973,7 @@ function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
                   borderRadius: 999,
                   display: "grid",
                   placeItems: "center",
-                  background: "rgba(124,58,237,0.48)",
+                  background: "rgba(124,58,237,0.28)",
                   border: "1px solid rgba(255,255,255,0.22)",
                   color: "#fff",
                   fontSize: 23,
@@ -2993,7 +2996,8 @@ function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
                   minHeight: 20,
                   padding: "3px 7px",
                   borderRadius: 6,
-                  background: "rgba(0,0,0,0.72)",
+                  background: "rgba(124,58,237,0.48)",
+                  border: "1px solid rgba(255,255,255,0.18)",
                   color: "#fff",
                   fontSize: 11,
                   fontWeight: 700,
@@ -3186,7 +3190,7 @@ transformOrigin: "center center",
                 }}
               />
 
-              {renderVideoOverlay(media)}
+              {renderVideoOverlay(media, premiumState.isBlocked)}
             </>
           );
         }
@@ -3302,6 +3306,66 @@ style={{
         >
           {renderMediaContent(first, 0, "eager", true)}
         </button>
+
+        {premiumState.isBlocked && first.type === "video" && (() => {
+          const durationLabel = formatMediaDuration(first.duration);
+          return (
+            <>
+              <div
+                aria-hidden="true"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  zIndex: 5,
+                  display: "grid",
+                  placeItems: "center",
+                  pointerEvents: "none",
+                }}
+              >
+                <span
+                  style={{
+                    width: 50,
+                    height: 50,
+                    borderRadius: 999,
+                    display: "grid",
+                    placeItems: "center",
+                    background: "rgba(124,58,237,0.28)",
+                    border: "1px solid rgba(255,255,255,0.22)",
+                    color: "#fff",
+                    fontSize: 23,
+                    paddingLeft: 3,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.32)",
+                  }}
+                >
+                  ▶
+                </span>
+              </div>
+              {durationLabel && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: "absolute",
+                    right: 8,
+                    bottom: 8,
+                    zIndex: 5,
+                    minHeight: 20,
+                    padding: "3px 7px",
+                    borderRadius: 6,
+                    background: "rgba(124,58,237,0.48)",
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    color: "#fff",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  {durationLabel}
+                </span>
+              )}
+            </>
+          );
+        })()}
       </div>
     </div>
   );
@@ -3444,6 +3508,66 @@ padding: "0 0 2px 0",
             >
               ›
             </button>
+
+            {premiumState.isBlocked && activeMedia.type === "video" && (() => {
+              const durationLabel = formatMediaDuration(activeMedia.duration);
+              return (
+                <>
+                  <div
+                    aria-hidden="true"
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      zIndex: 5,
+                      display: "grid",
+                      placeItems: "center",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 50,
+                        height: 50,
+                        borderRadius: 999,
+                        display: "grid",
+                        placeItems: "center",
+                        background: "rgba(124,58,237,0.28)",
+                        border: "1px solid rgba(255,255,255,0.22)",
+                        color: "#fff",
+                        fontSize: 23,
+                        paddingLeft: 3,
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.32)",
+                      }}
+                    >
+                      ▶
+                    </span>
+                  </div>
+                  {durationLabel && (
+                    <span
+                      aria-hidden="true"
+                      style={{
+                        position: "absolute",
+                        right: 8,
+                        bottom: 8,
+                        zIndex: 5,
+                        minHeight: 20,
+                        padding: "3px 7px",
+                        borderRadius: 6,
+                        background: "rgba(124,58,237,0.48)",
+                        border: "1px solid rgba(255,255,255,0.18)",
+                        color: "#fff",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        lineHeight: 1,
+                        letterSpacing: "-0.01em",
+                      }}
+                    >
+                      {durationLabel}
+                    </span>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           <div

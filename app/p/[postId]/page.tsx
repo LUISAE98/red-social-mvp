@@ -207,6 +207,15 @@ function toPublicPostView(post: any): PublicPostView {
     playback: post.playback ?? null,
     processing: post.processing ?? null,
 
+    premium: post.premium ?? null,
+    access: post.access === "paid" ? "paid" : "free",
+    accessModel: post.accessModel === "one_time_purchase" ? "one_time_purchase" : "free",
+    requiresPayment: post.requiresPayment === true,
+    requiresSubscription: post.requiresSubscription === true,
+    oneTimePrice: typeof post.oneTimePrice === "number" ? post.oneTimePrice : null,
+    currency: typeof post.currency === "string" ? post.currency : null,
+    purchaseType: (post.purchaseType ?? null) as import("@/lib/posts/types").PostPurchaseType,
+
     media,
   };
 }

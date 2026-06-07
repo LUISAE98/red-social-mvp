@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase";
-import type { Comment, CommentReply, Post } from "@/lib/posts/types";
+import type { Comment, CommentReply, Post, PostPremium } from "@/lib/posts/types";
 import {
   createPostComment,
   createPostCommentReply,
@@ -60,6 +60,15 @@ export type PublicPostView = {
   videoData?: Post["videoData"];
   playback?: Post["playback"];
   processing?: Post["processing"];
+
+  premium: PostPremium | null;
+  access: "free" | "paid";
+  accessModel: "free" | "one_time_purchase";
+  requiresPayment: boolean;
+  requiresSubscription: boolean;
+  oneTimePrice: number | null;
+  currency: string | null;
+  purchaseType: Post["purchaseType"];
 
   media: Array<{
     type: "image" | "video";
@@ -289,14 +298,15 @@ export default function PublicPostPageClient({
     isLocked: false,
     isShareable: true,
 
-    access: "free",
-    accessModel: "free",
+    premium: post.premium ?? null,
+    access: post.access ?? "free",
+    accessModel: post.accessModel ?? "free",
     accessScope: isProfilePost ? "profile" : "group",
-    requiresPayment: false,
-    requiresSubscription: false,
-    oneTimePrice: null,
-    currency: null,
-    purchaseType: null,
+    requiresPayment: post.requiresPayment ?? false,
+    requiresSubscription: post.requiresSubscription ?? false,
+    oneTimePrice: post.oneTimePrice ?? null,
+    currency: post.currency ?? null,
+    purchaseType: post.purchaseType ?? null,
 
     media: post.media as Post["media"],
 

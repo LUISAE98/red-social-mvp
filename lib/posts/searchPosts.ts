@@ -262,9 +262,6 @@ export async function searchPosts(
         ...searchConstraints,
         where("groupVisibility", "==", "public"),
         where("isShareable", "==", true),
-        where("accessModel", "==", "free"),
-        where("requiresPayment", "==", false),
-        where("requiresSubscription", "==", false),
         where("search.visibility", "==", "public"),
         ...withCursor([orderBy("search.createdAt", "desc")], params.cursor),
         limit(pageSize + 1)
@@ -284,9 +281,6 @@ export async function searchPosts(
         ...searchConstraints,
         where("contextType", "==", "profile"),
         where("profileRestricted", "==", false),
-        where("accessModel", "==", "free"),
-        where("requiresPayment", "==", false),
-        where("requiresSubscription", "==", false),
         where("search.visibility", "==", "public"),
         ...withCursor([orderBy("search.createdAt", "desc")], params.cursor),
         limit(pageSize + 1)
