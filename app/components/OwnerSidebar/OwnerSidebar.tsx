@@ -599,7 +599,7 @@ export function CountBadge({
 
   const shadow =
     tone === "pink"
-      ? "0 2px 8px rgba(236,72,153,0.55)"
+      ? "none"
       : "0 6px 18px rgba(0,0,0,0.22)";
 
   const color = tone === "yellow" ? "#111" : "#fff";
@@ -958,8 +958,8 @@ card: {
 sectionPanel: {
   padding: "10px",
   borderRadius: 12,
-  border: "1px solid rgba(255,255,255,0.08)",
-  background: "#000",
+  border: "none",
+  background: "rgba(90, 41, 174, 0.4)",
   boxShadow: "none",
   display: "grid",
   gap: 8,
@@ -2418,8 +2418,8 @@ WebkitBackdropFilter: "none",
               src={g.avatarUrl}
               alt={communityName}
               style={{
-                width: 30,
-                height: 30,
+                width: 36,
+                height: 36,
                 borderRadius: "50%",
                 objectFit: "cover",
                 border: "1px solid rgba(255,255,255,0.10)",
@@ -2429,15 +2429,15 @@ WebkitBackdropFilter: "none",
           ) : (
             <div
               style={{
-                width: 30,
-                height: 30,
+                width: 36,
+                height: 36,
                 borderRadius: "50%",
                 background: "rgba(255,255,255,0.06)",
                 border: "1px solid rgba(255,255,255,0.10)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: 700,
                 color: "#fff",
                 flexShrink: 0,
@@ -2671,38 +2671,27 @@ return (
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
 }
-  .profile-owner-sidebar-scroll::-webkit-scrollbar {
+.profile-owner-sidebar-scroll::-webkit-scrollbar {
   display: none;
 }
 
-.profile-owner-sidebar-scroll::-webkit-scrollbar {
-  width: 3px;
-}
+        @keyframes ownerPanelReveal {
+          from {
+            opacity: 0;
+            transform: translateY(-6px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .owner-panel-reveal {
+          animation: ownerPanelReveal 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        }
 
         .mini-vertical-scroll {
-          max-height: 220px;
-          overflow-y: auto;
-          overflow-x: hidden;
-          padding-right: 4px;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
-        }
-
-        .mini-vertical-scroll::-webkit-scrollbar {
-          width: 6px;
-        }
-
-        .mini-vertical-scroll::-webkit-scrollbar-track {
-          background: transparent;
-        }
-
-        .mini-vertical-scroll::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.12);
-          border-radius: 999px;
-        }
-
-        .mini-vertical-scroll::-webkit-scrollbar-thumb:hover {
-          background: rgba(255, 255, 255, 0.18);
+          overflow: visible;
         }
 
 
@@ -2753,36 +2742,45 @@ return (
     position: fixed !important;
     left: 0 !important;
     right: 0 !important;
-    top: calc(env(safe-area-inset-top, 0px) + 90px) !important;
+    top: calc(env(safe-area-inset-top, 0px) + 68px) !important;
     bottom: auto !important;
     width: auto !important;
-    max-height: calc(100vh - 168px) !important;
+    max-height: calc(100vh - 146px) !important;
     height: auto !important;
     margin: 0 !important;
   }
 
   .profile-owner-sidebar-panel {
     height: auto !important;
-    max-height: calc(100vh - 168px) !important;
+    max-height: calc(100vh - 146px) !important;
     padding: 10px !important;
-    overflow: hidden !important;
-    border-left: none !important;
-    border-right: none !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    background: transparent !important;
+    border: none !important;
     border-radius: 0 !important;
+    box-shadow: none !important;
+    scrollbar-width: none !important;
+  }
+
+  .profile-owner-sidebar-panel::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .profile-owner-sidebar-panel::before,
+  .profile-owner-sidebar-panel::after {
+    display: none !important;
   }
 
   .profile-owner-sidebar-content {
     height: auto !important;
-    max-height: calc(100vh - 188px) !important;
-    overflow: hidden !important;
+    overflow: visible !important;
   }
 
   .profile-owner-sidebar-scroll {
-    flex: 1 1 auto !important;
-    min-height: 0 !important;
-    max-height: calc(100vh - 300px) !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
+    overflow: visible !important;
+    max-height: none !important;
   }
 }
 
@@ -2791,9 +2789,6 @@ return (
 }
 
 .profile-owner-sidebar-panel--profile-open .profile-owner-sidebar-scroll {
-  flex: 1 1 auto !important;
-  min-height: 0 !important;
-  max-height: none !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
 }
@@ -2879,8 +2874,6 @@ greetingBusyId={greetingBusyId}
   className="profile-owner-sidebar-scroll"
   style={{
     maxHeight: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom + 150}px)`,
-    minHeight: 0,
-    paddingRight: 0,
   }}
 >
 {activeView === "owned" && (

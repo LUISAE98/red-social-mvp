@@ -96,8 +96,8 @@ export default function OwnerSidebarFollowedProfiles({
                     src={profile.photoURL}
                     alt={displayName}
                     style={{
-                      width: 30,
-                      height: 30,
+                      width: 36,
+                      height: 36,
                       borderRadius: "50%",
                       objectFit: "cover",
                       border: "1px solid rgba(255,255,255,0.10)",
@@ -107,15 +107,15 @@ export default function OwnerSidebarFollowedProfiles({
                 ) : (
                   <div
                     style={{
-                      width: 30,
-                      height: 30,
+                      width: 36,
+                      height: 36,
                       borderRadius: "50%",
                       background: "rgba(255,255,255,0.06)",
                       border: "1px solid rgba(255,255,255,0.10)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: 11,
+                      fontSize: 13,
                       fontWeight: 700,
                       color: "#fff",
                       flexShrink: 0,

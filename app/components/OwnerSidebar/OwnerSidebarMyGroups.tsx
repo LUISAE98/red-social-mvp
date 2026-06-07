@@ -1277,8 +1277,8 @@ boxShadow:
                           src={g.avatarUrl}
                           alt={communityName}
                           style={{
-                            width: 30,
-                            height: 30,
+                            width: 36,
+                            height: 36,
                             borderRadius: "50%",
                             objectFit: "cover",
                             border: "1px solid rgba(255,255,255,0.10)",
@@ -1288,15 +1288,15 @@ boxShadow:
                       ) : (
                         <div
                           style={{
-                            width: 30,
-                            height: 30,
+                            width: 36,
+                            height: 36,
                             borderRadius: "50%",
                             background: "rgba(255,255,255,0.06)",
                             border: "1px solid rgba(255,255,255,0.10)",
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontSize: 11,
+                            fontSize: 13,
                             fontWeight: 700,
                             color: "#fff",
                             flexShrink: 0,
@@ -1455,6 +1455,7 @@ boxShadow:
 
                   {isOpen && hasOwnerSidebarAlerts && (
                     <div
+                      className="owner-panel-reveal"
                       style={{
                         marginTop: 9,
                         paddingTop: 9,
@@ -1523,8 +1524,8 @@ boxShadow:
                             <span
                               style={{
                                 fontSize: 12,
-                                color: "#fff",
-                                fontWeight: 700,
+                                color: "rgba(255,255,255,0.94)",
+                                fontWeight: 550,
                               }}
                             >
                               Solicitudes de acceso
@@ -1534,7 +1535,7 @@ boxShadow:
                           </button>
 
                           {joinListOpen && (
-                            <div className="mini-vertical-scroll">
+                            <div className="mini-vertical-scroll owner-panel-reveal" style={{ paddingTop: 6 }}>
                               <div style={{ display: "grid", gap: 7 }}>
                                 {joinRequests.map((r) => {
                                   const approveKey = `${g.id}:${r.userId}:approve`;
@@ -1690,8 +1691,8 @@ boxShadow:
                             <span
                               style={{
                                 fontSize: 12,
-                                color: "#fff",
-                                fontWeight: 700,
+                                color: "rgba(255,255,255,0.94)",
+                                fontWeight: 550,
                               }}
                             >
                               Saludos y consejos
@@ -1700,7 +1701,7 @@ boxShadow:
                           </button>
 
                           {greetingListOpen && (
-                            <div className="mini-vertical-scroll">
+                            <div className="mini-vertical-scroll owner-panel-reveal" style={{ paddingTop: 6 }}>
                               <div style={{ display: "grid", gap: 10 }}>
                                 {sortedGreetings.map((r) => {
                                   const req = r.data;
@@ -1864,8 +1865,8 @@ boxShadow:
                             <span
                               style={{
                                 fontSize: 12,
-                                color: "#fff",
-                                fontWeight: 700,
+                                color: "rgba(255,255,255,0.94)",
+                                fontWeight: 550,
                               }}
                             >
                               Meet & Greet y sesiones exclusivas
@@ -1873,7 +1874,7 @@ boxShadow:
                             <CountBadge count={scheduledServiceRequests.length} tone="pink" />
                           </button>
                           {meetGreetSectionOpen[g.id] === true && (
-                            <div className="mini-vertical-scroll">
+                            <div className="mini-vertical-scroll owner-panel-reveal" style={{ paddingTop: 6 }}>
                               <div style={{ display: "grid", gap: 10 }}>
                                 {sortedScheduledServiceRequests.map((r) => {
                                   const req = r.data;
