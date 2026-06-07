@@ -431,6 +431,7 @@ useEffect(() => {
   const [meetGreetErrorMap, setMeetGreetErrorMap] = useState<TextMap>({});
   const [meetGreetSuccessMap, setMeetGreetSuccessMap] = useState<TextMap>({});
 
+  const [meetGreetSectionOpen, setMeetGreetSectionOpen] = useState<Record<string, boolean>>({});
   const [rejectOpenMap, setRejectOpenMap] = useState<ToggleMap>({});
   const [scheduleOpenMap, setScheduleOpenMap] = useState<ToggleMap>({});
   const [calendarOpenMap, setCalendarOpenMap] = useState<ToggleMap>({});
@@ -1341,27 +1342,6 @@ boxShadow:
                           {hasNewJoin ? (
                             <span style={emojiAlertStyle}>🔵</span>
                           ) : null}
-
-                          {hasNewGreeting && hasSaludoAlert ? (
-                            <span style={emojiAlertStyle}>👋</span>
-                          ) : null}
-
-                          {hasNewGreeting && hasConsejoAlert ? (
-                            <span style={emojiAlertStyle}>💡</span>
-                          ) : null}
-
-                          {hasNewGreeting && hasMeetGreetServiceRequestAlert ? (
-                            <span style={emojiAlertStyle}>🤝</span>
-                          ) : null}
-
-                          {hasNewGreeting &&
-                          hasExclusiveSessionServiceRequestAlert ? (
-                            <span style={emojiAlertStyle}>👑</span>
-                          ) : null}
-
-                          {hasPreparingAlert ? (
-                            <span style={emojiAlertStyle}>⚠️</span>
-                          ) : null}
                         </div>
                       </div>
                     </Link>
@@ -1439,11 +1419,9 @@ boxShadow:
         : "Abrir opciones de comunidad"
     }
     style={{
-      width: 28,
-      height: 28,
-      borderRadius: 999,
-      border: "1px solid rgba(255,255,255,0.08)",
-      background: "rgba(255,255,255,0.012)",
+      border: "none",
+      background: "transparent",
+      padding: 0,
       display: "inline-flex",
       alignItems: "center",
       justifyContent: "center",
@@ -1451,7 +1429,26 @@ boxShadow:
       flexShrink: 0,
     }}
   >
-    <Chevron open={isOpen} />
+    <span
+      style={{
+        width: 20,
+        height: 20,
+        minWidth: 20,
+        borderRadius: "50%",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(135deg, #ec4899 0%, #9333ea 100%)",
+        boxShadow: "0 2px 8px rgba(236,72,153,0.50), 0 0 10px rgba(168,85,247,0.40)",
+        color: "#fff",
+        fontSize: 10,
+        fontWeight: 700,
+        lineHeight: 1,
+        flexShrink: 0,
+      }}
+    >
+      {totalServiceCount > 9 ? "+9" : totalServiceCount}
+    </span>
   </button>
 ) : null}
                   </div>
@@ -1523,27 +1520,17 @@ boxShadow:
                               textAlign: "left",
                             }}
                           >
-                            <div
+                            <span
                               style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
+                                fontSize: 12,
+                                color: "#fff",
+                                fontWeight: 700,
                               }}
                             >
-                              <span
-                                style={{
-                                  fontSize: 12,
-                                  color: "#fff",
-                                  fontWeight: 700,
-                                }}
-                              >
-                                Solicitudes de acceso
-                              </span>
+                              Solicitudes de acceso
+                            </span>
 
-                              <CountBadge count={joinRequests.length} tone="blue" />
-                            </div>
-
-                            <Chevron open={joinListOpen} />
+                            <CountBadge count={joinRequests.length} tone="pink" />
                           </button>
 
                           {joinListOpen && (
@@ -1676,7 +1663,7 @@ boxShadow:
                           )}
                         </div>
                       )}
-                                            {showGreetingsSection && (
+                                            {greetingServiceCount > 0 && (
                         <div style={styles.sectionPanel}>
                           <button
                             type="button"
@@ -1700,68 +1687,21 @@ boxShadow:
                               textAlign: "left",
                             }}
                           >
-                            <div
+                            <span
                               style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                                minWidth: 0,
+                                fontSize: 12,
+                                color: "#fff",
+                                fontWeight: 700,
                               }}
                             >
-                              <span
-                                style={{
-                                  fontSize: 12,
-                                  color: "#fff",
-                                  fontWeight: 700,
-                                }}
-                              >
-                                Solicitudes de servicios
-                              </span>
-
-                              {totalServiceCount > 0 ? (
-                                <span
-                                  style={{
-                                    width: 18,
-                                    height: 18,
-                                    minWidth: 18,
-                                    borderRadius: "50%",
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    background: "#ef4444",
-                                    color: "#fff",
-                                    fontSize: 10,
-                                    fontWeight: 700,
-                                    lineHeight: 1,
-                                    boxShadow: "0 4px 12px rgba(0,0,0,0.22)",
-                                  }}
-                                >
-                                  {totalServiceCount}
-                                </span>
-                              ) : null}
-                            </div>
-
-                            <Chevron open={greetingListOpen} />
+                              Saludos y consejos
+                            </span>
+                            <CountBadge count={greetingServiceCount} tone="pink" />
                           </button>
 
                           {greetingListOpen && (
                             <div className="mini-vertical-scroll">
                               <div style={{ display: "grid", gap: 10 }}>
-                                {sortedGreetings.length > 0 ? (
-                                  <div
-                                    style={{
-                                      fontSize: 11,
-                                      fontWeight: 700,
-                                      color: "rgba(255,255,255,0.42)",
-                                      textTransform: "uppercase",
-                                      letterSpacing: 0.5,
-                                      padding: "2px 2px 0",
-                                    }}
-                                  >
-                                    Saludos, consejos y mensajes
-                                  </div>
-                                ) : null}
-
                                 {sortedGreetings.map((r) => {
                                   const req = r.data;
                                   const busy = greetingBusyId === r.id;
@@ -1891,21 +1831,50 @@ boxShadow:
                                   );
                                 })}
 
-                                {sortedScheduledServiceRequests.length > 0 ? (
-                                  <div
-                                    style={{
-                                      fontSize: 11,
-                                      fontWeight: 700,
-                                      color: "rgba(255,255,255,0.42)",
-                                      textTransform: "uppercase",
-                                      letterSpacing: 0.5,
-                                      padding: "4px 2px 0",
-                                    }}
-                                  >
-                                    Meet & Greet y sesiones exclusivas
-                                  </div>
-                                ) : null}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
+                      {scheduledServiceRequests.length > 0 && (
+                        <div style={styles.sectionPanel}>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setMeetGreetSectionOpen((prev) => ({
+                                ...prev,
+                                [g.id]: !prev[g.id],
+                              }))
+                            }
+                            style={{
+                              background: "transparent",
+                              border: "none",
+                              padding: 0,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 10,
+                              width: "100%",
+                              color: "#fff",
+                              cursor: "pointer",
+                              textAlign: "left",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 12,
+                                color: "#fff",
+                                fontWeight: 700,
+                              }}
+                            >
+                              Meet & Greet y sesiones exclusivas
+                            </span>
+                            <CountBadge count={scheduledServiceRequests.length} tone="pink" />
+                          </button>
+                          {meetGreetSectionOpen[g.id] === true && (
+                            <div className="mini-vertical-scroll">
+                              <div style={{ display: "grid", gap: 10 }}>
                                 {sortedScheduledServiceRequests.map((r) => {
                                   const req = r.data;
                                   const isExclusiveSession =

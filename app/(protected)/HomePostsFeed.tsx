@@ -786,7 +786,7 @@ const shellStyle: CSSProperties = {
   maxWidth: 720,
   minWidth: 0,
   display: "grid",
-  gap: 20,
+  gap: 12,
   marginLeft: "auto",
   marginRight: "auto",
   marginBottom: 18,

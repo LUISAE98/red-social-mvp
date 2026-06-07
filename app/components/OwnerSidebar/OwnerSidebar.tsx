@@ -27,7 +27,7 @@ import {
   approveJoinRequest,
   rejectJoinRequest,
 } from "@/lib/groups/joinRequests.admin";
-import { getMyHiddenJoinedGroups } from "@/lib/groups/sidebarGroups";
+import { subscribeToMySidebarGroups } from "@/lib/groups/sidebarGroups";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
 import {
   acceptMeetGreetRequest,
@@ -586,33 +586,40 @@ export function CountBadge({
   tone,
 }: {
   count: number;
-  tone: "blue" | "green" | "yellow";
+  tone: "blue" | "green" | "yellow" | "pink";
 }) {
   const bg =
     tone === "blue"
       ? "linear-gradient(180deg, #2f8cff 0%, #1f6fe5 100%)"
       : tone === "yellow"
         ? "linear-gradient(180deg, #facc15 0%, #eab308 100%)"
-        : "linear-gradient(180deg, #22c55e 0%, #16a34a 100%)";
+        : tone === "pink"
+          ? "#ec4899"
+          : "linear-gradient(180deg, #22c55e 0%, #16a34a 100%)";
+
+  const shadow =
+    tone === "pink"
+      ? "0 2px 8px rgba(236,72,153,0.55)"
+      : "0 6px 18px rgba(0,0,0,0.22)";
 
   const color = tone === "yellow" ? "#111" : "#fff";
 
   return (
     <span
       style={{
-        width: 22,
-        height: 22,
-        minWidth: 22,
+        width: 20,
+        height: 20,
+        minWidth: 20,
         borderRadius: "50%",
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
         background: bg,
         color,
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: 700,
         lineHeight: 1,
-        boxShadow: "0 6px 18px rgba(0,0,0,0.22)",
+        boxShadow: shadow,
         border: "1px solid rgba(255,255,255,0.18)",
         flexShrink: 0,
       }}
@@ -836,6 +843,8 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
   }, [groupMetaMap]);
 
   const joinUnsubsRef = useRef<Array<() => void>>([]);
+  // Ref used by the browse-groups snapshot to filter already-joined groups without re-subscribing
+  const joinedGroupIdsRef = useRef<Set<string>>(new Set());
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -1168,16 +1177,102 @@ miniItem: {
     return () => unsub();
   }, [viewer?.uid, ownerSidebarRefreshKey]);
 
+  // Keep joinedGroupIdsRef in sync for browse-groups filtering
+  useEffect(() => {
+    joinedGroupIdsRef.current = new Set([
+      ...myGroups.map((g) => g.id),
+      ...joinedGroups.map((g) => g.id),
+      ...hiddenJoinedGroups.map((g) => g.id),
+    ]);
+  }, [myGroups, joinedGroups, hiddenJoinedGroups]);
+
+  // All group memberships (public + private + hidden) via a single real-time listener.
+  // Replaces the old loop that made up to 200 individual getDoc calls.
   useEffect(() => {
     if (!viewer?.uid) {
-      setBrowseGroups([]);
       setJoinedGroups([]);
       setPendingJoinRequestsSent([]);
+      setLoadingCommunities(false);
       return;
     }
 
     setLoadingCommunities(true);
     setGroupsErr(null);
+
+    const unsub = subscribeToMySidebarGroups(
+      viewer.uid,
+      (sidebarGroups) => {
+        const allMemberships: GroupDocLite[] = sidebarGroups
+          .filter((g) => g.ownerId !== viewer.uid)
+          .map((g) => ({
+            id: g.id,
+            name: g.name ?? undefined,
+            ownerId: g.ownerId ?? undefined,
+            visibility: g.visibility ?? undefined,
+            avatarUrl: g.avatarUrl ?? null,
+            memberStatus: normalizeSidebarMemberStatus(g.memberStatus ?? null),
+            memberRole: normalizeSidebarGroupRole(g.memberRole ?? null),
+            monetization: g.monetization ?? undefined,
+            offerings: g.offerings ?? [],
+            membershipAccessType: g.membershipAccessType ?? null,
+            requiresSubscription: g.requiresSubscription ?? null,
+            subscriptionActive: g.subscriptionActive ?? null,
+            legacyComplimentary: g.legacyComplimentary ?? null,
+            transitionPendingAction: g.transitionPendingAction ?? null,
+            transitionReason: g.transitionReason ?? null,
+            canDismiss: g.canDismiss ?? null,
+            sidebarState: g.sidebarState ?? null,
+          }));
+
+        // Public/private memberships → joinedGroups
+        const joined = allMemberships.filter((g) => g.visibility !== "hidden");
+        // Hidden memberships → merged into hiddenJoinedGroups keeping transition entries
+        const hiddenMembership = allMemberships.filter(
+          (g) => g.visibility === "hidden"
+        );
+
+        setJoinedGroups(joined);
+        setPendingJoinRequestsSent([]);
+
+        // Preserve existing "requires_subscription" transition entries (from hiddenGroupTransitions listener)
+        setHiddenJoinedGroups((prev) => {
+          const transitionEntries = prev.filter(
+            (g) => g.sidebarState === "requires_subscription"
+          );
+          const membershipIds = new Set(hiddenMembership.map((g) => g.id));
+          const newTransitions = transitionEntries.filter(
+            (g) => !membershipIds.has(g.id)
+          );
+          return [...hiddenMembership, ...newTransitions];
+        });
+
+        const meta: Record<string, GroupDocLite> = {};
+        allMemberships.forEach((g) => {
+          meta[g.id] = g;
+        });
+        setGroupMetaMap((prev) => ({ ...prev, ...meta }));
+
+        setLoadingCommunities(false);
+      },
+      (e: any) => {
+        setGroupsErr(
+          e?.message ?? "No se pudieron cargar tus comunidades."
+        );
+        setJoinedGroups([]);
+        setLoadingCommunities(false);
+      }
+    );
+
+    return () => unsub();
+  }, [viewer?.uid, ownerSidebarRefreshKey]);
+
+  // Browse groups (discovery): public/private groups the user hasn't joined.
+  // No membership checks — joinedGroupIdsRef already holds that data.
+  useEffect(() => {
+    if (!viewer?.uid) {
+      setBrowseGroups([]);
+      return;
+    }
 
     const communitiesQ = query(
       collection(db, "groups"),
@@ -1187,167 +1282,25 @@ miniItem: {
 
     const unsub = onSnapshot(
       communitiesQ,
-      async (snap) => {
-        try {
-          const allVisibleBase: GroupDocLite[] = snap.docs
-            .map((d) => ({
-              ...(d.data() as Omit<GroupDocLite, "id">),
-              id: d.id,
-            }))
-            .filter((g) => g?.ownerId !== viewer.uid);
-
-          const membershipChecks = await Promise.all(
-            allVisibleBase.map(async (g) => {
-              try {
-                const memberSnap = await getDoc(
-                  doc(db, "groups", g.id, "members", viewer.uid)
-                );
-
-                const joinReqSnap = await getDoc(
-                  doc(db, "groups", g.id, "joinRequests", viewer.uid)
-                );
-
-                const memberStatus = memberSnap.exists()
-                  ? normalizeSidebarMemberStatus(
-                      (memberSnap.data() as any)?.status ?? "active"
-                    )
-                  : null;
-
-                const memberRole = memberSnap.exists()
-                  ? normalizeSidebarGroupRole(
-                      (memberSnap.data() as any)?.roleInGroup ??
-                        (memberSnap.data() as any)?.role ??
-                        "member"
-                    )
-                  : null;
-
-                const memberData = memberSnap.exists()
-                  ? (memberSnap.data() as any)
-                  : null;
-
-                const hydratedGroup: GroupDocLite = {
-                  ...g,
-                  memberStatus,
-                  memberRole,
-                  membershipAccessType:
-                    memberData?.accessType === "subscription" ||
-                    memberData?.accessType === "subscribed" ||
-                    memberData?.accessType === "standard" ||
-                    memberData?.accessType === "legacy_free" ||
-                    memberData?.accessType === "subscription_required" ||
-                    memberData?.accessType === "unknown"
-                      ? memberData.accessType
-                      : null,
-                  requiresSubscription:
-                    memberData?.requiresSubscription === true,
-                  subscriptionActive: memberData?.subscriptionActive === true,
-                  legacyComplimentary:
-                    memberData?.legacyComplimentary === true ||
-                    memberData?.accessType === "legacy_free",
-                  transitionPendingAction:
-                    memberData?.transitionPendingAction === true,
-                  transitionReason:
-                    typeof memberData?.removedReason === "string"
-                      ? memberData.removedReason
-                      : null,
-                  canDismiss: false,
-                  sidebarState: memberStatus === "banned" ? "banned" : "joined",
-                };
-
-                const isJoined =
-                  isJoinedSidebarStatus(memberStatus) ||
-                  memberStatus === "banned";
-                const isExcluded = isExcludedSidebarStatus(memberStatus);
-
-                return {
-                  group: hydratedGroup,
-                  isJoined,
-                  isExcluded,
-                  hasPendingJoin:
-                    !isJoined &&
-                    !isExcluded &&
-                    joinReqSnap.exists() &&
-                    (joinReqSnap.data() as any)?.status === "pending",
-                  joinCreatedAt:
-                    !isJoined && !isExcluded && joinReqSnap.exists()
-                      ? ((joinReqSnap.data() as any)?.createdAt as
-                          | Timestamp
-                          | undefined)
-                      : undefined,
-                };
-              } catch {
-                return {
-                  group: {
-                    ...g,
-                    memberStatus: null,
-                    memberRole: null,
-                  } satisfies GroupDocLite,
-                  isJoined: false,
-                  isExcluded: false,
-                  hasPendingJoin: false,
-                  joinCreatedAt: undefined,
-                };
-              }
-            })
+      (snap) => {
+        const joinedIds = joinedGroupIdsRef.current;
+        const explorable = snap.docs
+          .map((d) => ({
+            ...(d.data() as Omit<GroupDocLite, "id">),
+            id: d.id,
+          }))
+          .filter(
+            (g) =>
+              !joinedIds.has(g.id) &&
+              g.ownerId !== viewer.uid &&
+              g.isDeleted !== true &&
+              !g.deletedAt
           );
-
-          const joined = membershipChecks
-            .filter((x) => x.isJoined)
-            .map((x) => x.group);
-
-          const pending = membershipChecks
-            .filter((x) => x.hasPendingJoin && !x.isExcluded)
-            .map((x) => ({
-              id: viewer.uid,
-              groupId: x.group.id,
-              status: "pending",
-              createdAt: x.joinCreatedAt,
-            }));
-
-          const explorable = membershipChecks
-            .filter(
-              (x) =>
-                !x.isJoined &&
-                !x.isExcluded &&
-                !x.hasPendingJoin &&
-                (x.group.visibility === "public" ||
-                  x.group.visibility === "private")
-            )
-            .map((x) => x.group);
-
-          setJoinedGroups(joined);
-          setPendingJoinRequestsSent(pending);
-          setBrowseGroups(explorable);
-
-          const meta: Record<string, GroupDocLite> = {};
-          membershipChecks.forEach(({ group, isExcluded }) => {
-            if (!isExcluded) {
-              meta[group.id] = group;
-            }
-          });
-
-          setGroupMetaMap((prev) => ({ ...prev, ...meta }));
-        } catch (e: any) {
-          setGroupsErr(
-            e?.message ??
-              "No se pudieron cargar las comunidades con tus reglas actuales."
-          );
-          setBrowseGroups([]);
-          setJoinedGroups([]);
-          setPendingJoinRequestsSent([]);
-        } finally {
-          setLoadingCommunities(false);
-        }
+        setBrowseGroups(explorable);
       },
       (e: any) => {
-        setGroupsErr(
-          e?.message ??
-            "No se pudieron cargar las comunidades con tus reglas actuales."
-        );
+        setGroupsErr(e?.message ?? "No se pudieron cargar las comunidades.");
         setBrowseGroups([]);
-        setJoinedGroups([]);
-        setPendingJoinRequestsSent([]);
-        setLoadingCommunities(false);
       }
     );
 
@@ -1460,119 +1413,74 @@ miniItem: {
     };
   }, [viewer?.uid, ownerSidebarRefreshKey]);
 
+  // Real-time listener for subscription-pending reminders (hiddenGroupTransitions).
+  // Replaces the old 10-second polling + Cloud Function call.
   useEffect(() => {
-    let cancelled = false;
+    if (!viewer?.uid) return;
 
-    async function loadHiddenJoinedGroups() {
-      if (!viewer?.uid) {
-        setHiddenJoinedGroups([]);
-        return;
-      }
+    const unsub = onSnapshot(
+      collection(db, "users", viewer.uid, "hiddenGroupTransitions"),
+      (snap) => {
+        if (snap.empty) return;
 
-      try {
-        const rows = await getMyHiddenJoinedGroups();
-        if (cancelled) return;
-
-        const groups = (await Promise.all(
-          rows.map(async (g) => {
-            let memberRole: GroupRoleLite = null;
-
-            try {
-              const memberSnap = await getDoc(
-                doc(db, "groups", g.id, "members", viewer.uid)
-              );
-              if (memberSnap.exists()) {
-                const memberData = memberSnap.data() as any;
-                memberRole = normalizeSidebarGroupRole(
-                  memberData?.roleInGroup ?? memberData?.role ?? "member"
-                );
-              }
-            } catch {
-              memberRole = null;
-            }
-
-            const normalizedSidebarState =
-              g.sidebarState === "joined" ||
-              g.sidebarState === "legacy_free" ||
-              g.sidebarState === "requires_subscription" ||
-              g.sidebarState === "banned"
-                ? g.sidebarState
-                : null;
-
-            return {
-              id: g.id,
-              name: g.name ?? undefined,
-              ownerId: g.ownerId ?? undefined,
-              visibility: g.visibility ?? undefined,
-              avatarUrl: g.avatarUrl ?? null,
-              memberStatus: normalizeSidebarMemberStatus(
-                g.memberStatus ?? null
-              ),
-              memberRole,
-              monetization: g.monetization ?? undefined,
-              offerings: g.offerings ?? [],
-
-              membershipAccessType:
-                g.membershipAccessType === "subscription" ||
-                g.membershipAccessType === "subscribed" ||
-                g.membershipAccessType === "standard" ||
-                g.membershipAccessType === "legacy_free" ||
-                g.membershipAccessType === "subscription_required" ||
-                g.membershipAccessType === "unknown"
-                  ? g.membershipAccessType
-                  : null,
-              requiresSubscription: g.requiresSubscription ?? null,
-              subscriptionActive: g.subscriptionActive ?? null,
-              legacyComplimentary: g.legacyComplimentary ?? null,
-              transitionPendingAction: g.transitionPendingAction ?? null,
-              transitionReason: g.transitionReason ?? null,
-              canDismiss: g.canDismiss === true,
-              sidebarState: normalizedSidebarState,
-
+        const transitionGroups: GroupDocLite[] = snap.docs
+          .flatMap((d) => {
+            const data = d.data() as Record<string, any>;
+            if (data.requiresSubscription !== true) return [];
+            const entry: GroupDocLite = {
+              id: d.id,
+              name: typeof data.groupName === "string" ? data.groupName : undefined,
+              ownerId: typeof data.ownerId === "string" ? data.ownerId : undefined,
+              visibility: typeof data.visibility === "string" ? data.visibility : "hidden",
+              avatarUrl: typeof data.avatarUrl === "string" ? data.avatarUrl : null,
+              memberStatus: null,
+              memberRole: null,
+              requiresSubscription: true,
+              subscriptionActive: data.subscriptionActive === true,
+              legacyComplimentary: null,
+              transitionPendingAction: data.transitionPendingAction === true,
+              transitionReason: typeof data.reason === "string" ? data.reason : null,
+              canDismiss: data.canDismiss === true,
+              sidebarState: "requires_subscription",
               previousSubscriptionPriceMonthly:
-                typeof (g as any).previousSubscriptionPriceMonthly === "number"
-                  ? (g as any).previousSubscriptionPriceMonthly
+                typeof data.previousSubscriptionPriceMonthly === "number"
+                  ? data.previousSubscriptionPriceMonthly
                   : null,
               nextSubscriptionPriceMonthly:
-                typeof (g as any).nextSubscriptionPriceMonthly === "number"
-                  ? (g as any).nextSubscriptionPriceMonthly
+                typeof data.nextSubscriptionPriceMonthly === "number"
+                  ? data.nextSubscriptionPriceMonthly
                   : null,
               subscriptionPriceChangeCurrency:
-                typeof (g as any).subscriptionPriceChangeCurrency === "string"
-                  ? (g as any).subscriptionPriceChangeCurrency
+                typeof data.subscriptionPriceChangeCurrency === "string"
+                  ? data.subscriptionPriceChangeCurrency
                   : null,
-            } as GroupDocLite;
-          })
-        )) as GroupDocLite[];
+            };
+            return [entry];
+          });
 
-        if (cancelled) return;
+        if (transitionGroups.length === 0) return;
 
-        setHiddenJoinedGroups(groups);
-
-        const meta: Record<string, GroupDocLite> = {};
-        groups.forEach((g) => {
-          meta[g.id] = g;
+        setHiddenJoinedGroups((prev) => {
+          // Remove stale transition entries, add fresh ones
+          const nonTransition = prev.filter(
+            (g) => g.sidebarState !== "requires_subscription"
+          );
+          const transitionIds = new Set(transitionGroups.map((g) => g.id));
+          const dedupedNonTransition = nonTransition.filter(
+            (g) => !transitionIds.has(g.id)
+          );
+          return [...dedupedNonTransition, ...transitionGroups];
         });
 
+        const meta: Record<string, GroupDocLite> = {};
+        transitionGroups.forEach((g) => {
+          meta[g.id] = g;
+        });
         setGroupMetaMap((prev) => ({ ...prev, ...meta }));
-      } catch (e: any) {
-        console.error("getMyHiddenJoinedGroups error", e);
-        if (!cancelled) {
-          setHiddenJoinedGroups([]);
-        }
       }
-    }
+    );
 
-    loadHiddenJoinedGroups();
-
-    const refreshInterval = window.setInterval(() => {
-      void loadHiddenJoinedGroups();
-    }, 10000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(refreshInterval);
-    };
+    return () => unsub();
   }, [viewer?.uid, ownerSidebarRefreshKey]);
 
   const hiddenSidebarMembershipGroups = useMemo(() => {
