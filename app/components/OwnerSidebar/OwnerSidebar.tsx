@@ -2666,7 +2666,7 @@ return (
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
@@ -2743,20 +2743,21 @@ return (
     left: 0 !important;
     right: 0 !important;
     top: calc(env(safe-area-inset-top, 0px) + 68px) !important;
-    bottom: auto !important;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 72px) !important;
     width: auto !important;
-    max-height: calc(100vh - 146px) !important;
     height: auto !important;
+    max-height: none !important;
     margin: 0 !important;
   }
 
   .profile-owner-sidebar-panel {
-    height: auto !important;
-    max-height: calc(100vh - 146px) !important;
+    height: 100% !important;
+    max-height: 100% !important;
     padding: 10px !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: none !important;
     background: transparent !important;
     border: none !important;
     border-radius: 0 !important;
@@ -2818,15 +2819,16 @@ className="profile-owner-sidebar-fixed"
       : "profile-owner-sidebar-panel"
   }
 >
-<div
-  className="profile-owner-sidebar-content"
-  style={{
-    maxHeight: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom + 28}px)`,
-  }}
->
+<div className="profile-owner-sidebar-content">
           {msg && <div style={styles.message}>{msg}</div>}
           {groupsErr && <div style={styles.message}>{groupsErr}</div>}
 
+<div
+  className="profile-owner-sidebar-scroll"
+  style={{
+    maxHeight: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom + 20}px)`,
+  }}
+>
 {profileSidebarGroup && (
   <div style={{ display: "grid", gap: 8 }}>
     <OwnerSidebarMyGroups
@@ -2870,12 +2872,6 @@ greetingBusyId={greetingBusyId}
             onChange={setActiveView}
             requestedCount={pendingCount}
           />
-<div
-  className="profile-owner-sidebar-scroll"
-  style={{
-    maxHeight: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom + 150}px)`,
-  }}
->
 {activeView === "owned" && (
   <div className="owner-sidebar-view-transition" key="owned">
     <OwnerSidebarMyGroups
