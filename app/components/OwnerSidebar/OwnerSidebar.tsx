@@ -2748,25 +2748,27 @@ return (
     height: auto !important;
     max-height: none !important;
     margin: 0 !important;
-  }
-
-  .profile-owner-sidebar-panel {
-    height: 100% !important;
-    max-height: 100% !important;
-    padding: 10px !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior: none !important;
+    scrollbar-width: none !important;
+  }
+
+  .profile-owner-sidebar-fixed::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .profile-owner-sidebar-panel,
+  .profile-owner-sidebar-panel--profile-open {
+    height: auto !important;
+    max-height: none !important;
+    padding: 10px !important;
+    overflow: visible !important;
     background: transparent !important;
     border: none !important;
     border-radius: 0 !important;
     box-shadow: none !important;
-    scrollbar-width: none !important;
-  }
-
-  .profile-owner-sidebar-panel::-webkit-scrollbar {
-    display: none !important;
   }
 
   .profile-owner-sidebar-panel::before,
@@ -2810,7 +2812,7 @@ className="profile-owner-sidebar-fixed"
 >
 <RefreshableArea
   onRefresh={handleOwnerSidebarPullRefresh}
-  enabled={isMobile}
+  enabled={false}
 >
 <div
   className={
