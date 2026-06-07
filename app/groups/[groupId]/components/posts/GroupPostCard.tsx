@@ -16,10 +16,12 @@ import { createPortal } from "react-dom";
 import type { Comment, CommentReply, Post } from "@/lib/posts/types";
 import PostFlamesPanel, { type PostFlameUser } from "./PostFlamesPanel";
 import PostCommentsPanel from "./PostCommentsPanel";
+import GroupPostComposer, { type GroupPostComposerSubmitPayload } from "./GroupPostComposer";
 import PostImageViewer from "./PostImageViewer";
 import PostPaymentPanel from "./PostPaymentPanel";
 import { usePostTempUnlock } from "@/lib/posts/usePostTempUnlock";
-import { fetchPostFlameUsers } from "@/lib/posts/post-service";
+import { fetchPostFlameUsers, updatePost } from "@/lib/posts/post-service";
+import { uploadPostImage } from "@/lib/posts/image-upload";
 import PostShareButton from "@/components/ui/PostShareButton";
 import PostSaveButton from "@/components/ui/PostSaveButton";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
@@ -83,6 +85,7 @@ type GroupPostCardProps = {
 };
 
 type ModerationAction =
+  | "edit_post"
   | "mute"
   | "unmute"
   | "ban"
@@ -577,6 +580,7 @@ function truncatePostText(text: string, maxLength: number) {
 }
 
 function buildActionLabel(action: ModerationAction) {
+  if (action === "edit_post") return "Editar publicación";
   if (action === "mute") return "Mutear";
   if (action === "unmute") return "Quitar mute";
   if (action === "ban") return "Banear";
@@ -649,6 +653,9 @@ onToggleProfilePin,
   const [shouldLoadFeedVideo, setShouldLoadFeedVideo] = useState(false);
   const [showExactPostDate, setShowExactPostDate] = useState(false);
   const [paymentPanelOpen, setPaymentPanelOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [localText, setLocalText] = useState<string | null>(null);
+  const [localMedia, setLocalMedia] = useState<import("@/lib/posts/types").PostMedia[] | null>(null);
   const { isTempUnlocked, unlock: applyTempUnlock } = usePostTempUnlock(post.id, currentUserId);
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | null>(null);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
@@ -991,6 +998,10 @@ useEffect(() => {
       }
     }
 
+    if (currentUserId && post.authorId === currentUserId) {
+      actions.push("edit_post");
+    }
+
     if (canDelete && onDelete) {
       actions.push("delete_post");
     }
@@ -1329,6 +1340,27 @@ async function handleToggleSave() {
     }
   }
 
+  async function handleEditSubmit(payload: GroupPostComposerSubmitPayload) {
+    const { text, mediaItems = [], premium } = payload;
+
+    const finalMedia: import("@/lib/posts/types").PostMedia[] = [];
+    for (const item of mediaItems) {
+      if (item.existingPostMedia) {
+        finalMedia.push(item.existingPostMedia);
+      } else if (item.file && item.file.size > 0 && item.type === "image") {
+        const uploaded = await uploadPostImage({
+          groupId: post.groupId ?? post.profileId ?? post.authorId,
+          file: item.file,
+        });
+        finalMedia.push(uploaded);
+      }
+    }
+
+    await updatePost({ postId: post.id, text, media: finalMedia, premium });
+    setLocalText(text);
+    setLocalMedia(finalMedia);
+  }
+
   async function handleModerationAction(action: ModerationAction) {
     if (action === "delete_post") {
       await handleDelete();
@@ -1365,6 +1397,12 @@ async function handleToggleSave() {
       return;
     }
 
+    if (action === "edit_post") {
+      setMenuOpen(false);
+      setEditModalOpen(true);
+      return;
+    }
+
     if (action === "mute") {
       setMuteDays("7");
       setMuteModalOpen(true);
@@ -1372,7 +1410,9 @@ async function handleToggleSave() {
       return;
     }
 
-    await runModerationAction(action);
+    await runModerationAction(
+      action as "unmute" | "ban" | "unban" | "remove",
+    );
   }
 
   async function handleDeleteComment(commentId: string) {
@@ -1920,7 +1960,9 @@ function renderBlurredMediaBackdrop(
   const postTypeLabel = getPostTypeLabel(post);
   const postStatusLabel = getPostStatusLabel(post);
   const shouldShowMediaStatus = !!postTypeLabel || !!postStatusLabel;
-  const mediaFromPost = Array.isArray(post.media) ? post.media : [];
+  const mediaFromPost = Array.isArray(localMedia ?? post.media)
+    ? (localMedia ?? post.media ?? [])
+    : [];
 
   const rootVideoPlaybackUrl =
     typeof post.playback?.hlsUrl === "string" && post.playback.hlsUrl.trim()
@@ -2318,7 +2360,9 @@ const rootVideoShellAspectRatio =
     };
   }, [isMobile, videoPlaybackUrl]);
 
-    const cleanPostText = typeof post.text === "string" ? post.text.trim() : "";
+    const cleanPostText = typeof (localText ?? post.text) === "string"
+      ? (localText ?? post.text).trim()
+      : "";
 const feedPostTextLimit = hasMediaGrid ? 120 : 150;
 const feedPostTextMaxLines = hasMediaGrid ? 3 : 5;
 
@@ -2513,6 +2557,11 @@ style={{
   {showExactPostDate
     ? formatExactDate(post.createdAt)
     : formatRelativeDate(post.createdAt)}
+  {(post.editedAt ?? localText !== null) ? (
+    <span style={{ opacity: 0.45, fontStyle: "italic", marginLeft: 2 }}>
+      {" · Editado"}
+    </span>
+  ) : null}
 </button>
 
           </div>
@@ -2916,17 +2965,11 @@ const activeMedia =
 const activeMediaRatio = mediaAspectRatios[activeMedia.url];
 const useNarrowActiveFrame = shouldUseNarrowVerticalFrame(activeMediaRatio);
 
-const carouselShellAspectRatio = isMobile
-  ? getResponsiveMediaAspectRatio(activeMediaRatio)
-  : "16 / 10";
+const carouselShellAspectRatio = "16 / 10";
 
 function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
   const ratio = mediaAspectRatios[media.url];
   const useNarrowFrame = shouldUseNarrowVerticalFrame(ratio);
-
-  if (isMobile) {
-    return "100%";
-  }
 
   if (!useNarrowFrame) return "100%";
 
@@ -3528,6 +3571,16 @@ padding: "0 0 2px 0",
   onPay={applyTempUnlock}
   onClose={() => setPaymentPanelOpen(false)}
 />
+{editModalOpen && (
+  <GroupPostComposer
+    editPost={post}
+    onEditClose={() => setEditModalOpen(false)}
+    onSubmit={handleEditSubmit}
+    contextType={post.contextType as "group" | "profile"}
+    groupVisibility={post.groupVisibility}
+    isOwner={isOwner}
+  />
+)}
 <div style={interactionRowStyle}>
   <div style={leftInteractionGroupStyle}>
     <div

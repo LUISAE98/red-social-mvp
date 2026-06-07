@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, getDocs, limit, query, where } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  limit,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 type WalletVisibilityCache = {
@@ -16,7 +24,7 @@ let walletVisibilityCache: WalletVisibilityCache = {
   loaded: false,
 };
 
-async function ownerHasAnyActiveServices(ownerId: string): Promise<boolean> {
+async function ownerHasAnyActiveGroupServices(ownerId: string): Promise<boolean> {
   const q = query(
     collection(db, "groups"),
     where("ownerId", "==", ownerId),
@@ -60,6 +68,52 @@ async function ownerHasAnyActiveServices(ownerId: string): Promise<boolean> {
 
     return offeringsActive || legacyFlagsActive || monetizationFlagsActive;
   });
+}
+
+async function ownerHasProfileActiveServices(ownerId: string): Promise<boolean> {
+  const userSnap = await getDoc(doc(db, "users", ownerId));
+  if (!userSnap.exists()) return false;
+
+  const data = userSnap.data() as {
+    offerings?: Array<{ enabled?: boolean }> | null;
+    monetization?: {
+      greetingsEnabled?: boolean;
+      adviceEnabled?: boolean;
+      customClassEnabled?: boolean;
+      digitalMeetGreetEnabled?: boolean;
+      donationsEnabled?: boolean;
+    } | null;
+  };
+
+  const offeringsActive =
+    Array.isArray(data.offerings) &&
+    data.offerings.some((item) => item?.enabled === true);
+
+  const monetizationFlagsActive =
+    data.monetization?.greetingsEnabled === true ||
+    data.monetization?.adviceEnabled === true ||
+    data.monetization?.customClassEnabled === true ||
+    data.monetization?.digitalMeetGreetEnabled === true;
+
+  return offeringsActive || monetizationFlagsActive;
+}
+
+async function ownerHasEverHadServiceRequest(ownerId: string): Promise<boolean> {
+  const requestCollections = [
+    "greetingRequests",
+    "meetGreetRequests",
+    "exclusiveSessionRequests",
+  ];
+
+  const checks = await Promise.all(
+    requestCollections.map((col) =>
+      getDocs(
+        query(collection(db, col), where("creatorId", "==", ownerId), limit(1))
+      )
+    )
+  );
+
+  return checks.some((snap) => !snap.empty);
 }
 
 export function useWalletVisibility(ownerId?: string | null) {
@@ -113,7 +167,15 @@ export function useWalletVisibility(ownerId?: string | null) {
       }
 
       try {
-        const nextHasWallet = await ownerHasAnyActiveServices(ownerId);
+        const [hasGroupServices, hasProfileServices, hasEverHadRequest] =
+          await Promise.all([
+            ownerHasAnyActiveGroupServices(ownerId),
+            ownerHasProfileActiveServices(ownerId),
+            ownerHasEverHadServiceRequest(ownerId),
+          ]);
+
+        const nextHasWallet =
+          hasGroupServices || hasProfileServices || hasEverHadRequest;
 
         walletVisibilityCache = {
           ownerId,

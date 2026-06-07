@@ -28,6 +28,7 @@ type SelectedMediaItem = {
   autoCoverUrl?: string | null;
   autoCoverFile?: File | null;
   coverStatus?: "loading" | "ready" | "error";
+  locked?: boolean;
 };
 
 type PostComposerMobileOverlayProps = {
@@ -58,6 +59,8 @@ type PostComposerMobileOverlayProps = {
   draggingPreviewIndex: number | null;
   dragOverPreviewIndex: number | null;
   isReorderingPreview: boolean;
+
+  isEditMode?: boolean;
 
   onSubmit: () => void | Promise<void>;
   onOpenMediaPicker: () => void;
@@ -172,6 +175,7 @@ export default function PostComposerMobileOverlay({
   draggingPreviewIndex,
   dragOverPreviewIndex,
   isReorderingPreview,
+  isEditMode = false,
   onSubmit,
   onOpenMediaPicker,
   onRemoveMedia,
@@ -606,7 +610,7 @@ export default function PostComposerMobileOverlay({
         letterSpacing: "-0.02em",
       }}
     >
-      Crear publicación
+      {isEditMode ? "Editar publicación" : "Crear publicación"}
     </h2>
 
     <button
@@ -665,7 +669,7 @@ export default function PostComposerMobileOverlay({
       ) : premiumComposer.premiumEnabled ? (
         <VibraNavigationIcon type="premiumCrown" size={22} />
       ) : (
-        "Publicar"
+        isEditMode ? "Guardar" : "Publicar"
       )}
     </button>
   </header>
@@ -834,7 +838,7 @@ export default function PostComposerMobileOverlay({
               </button>
 
               <div>
-                {hasVideos && premiumComposer.canEnablePremium ? (
+                {premiumComposer.canEnablePremium && !isEditMode ? (
                   <button
                     type="button"
                     onClick={premiumComposer.togglePremiumEnabled}
@@ -1102,16 +1106,18 @@ export default function PostComposerMobileOverlay({
                             {index + 1}
                           </div>
 
-                          <button
-                            type="button"
-                            onPointerDown={(event) => event.stopPropagation()}
-                            onClick={() => onRemoveMedia(index)}
-                            style={removeMediaButtonStyle}
-                            aria-label={`Quitar media ${index + 1}`}
-                            disabled={creating}
-                          >
-                            ×
-                          </button>
+                          {!item.locked && (
+                            <button
+                              type="button"
+                              onPointerDown={(event) => event.stopPropagation()}
+                              onClick={() => onRemoveMedia(index)}
+                              style={removeMediaButtonStyle}
+                              aria-label={`Quitar media ${index + 1}`}
+                              disabled={creating}
+                            >
+                              ×
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -1181,7 +1187,7 @@ export default function PostComposerMobileOverlay({
 
             </div>
 
-            {hasVideos && premiumComposer.premiumEnabled ? (
+            {premiumComposer.premiumEnabled ? (
             <div style={{ marginTop: 14 }}>
               <ComposerPremiumPanel
                 hasVideos={hasVideos}
@@ -1198,6 +1204,7 @@ export default function PostComposerMobileOverlay({
                 validation={premiumComposer.validation}
                 premiumErrorMessage={premiumComposer.premiumErrorMessage}
                 disabled={creating}
+                isEditMode={isEditMode}
               />
             </div>
             ) : null}

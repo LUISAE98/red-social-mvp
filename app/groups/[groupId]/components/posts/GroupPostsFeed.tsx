@@ -1334,7 +1334,7 @@ const shellStyle: CSSProperties = {
   maxWidth: "100%",
   minWidth: 0,
   display: "grid",
-  gap: 6,
+  gap: 20,
   overflowX: "hidden",
   boxSizing: "border-box",
 };

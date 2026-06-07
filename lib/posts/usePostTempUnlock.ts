@@ -30,6 +30,8 @@ export function usePostTempUnlock(postId: string, currentUserId?: string | null)
       localStorage.setItem(key, "1");
     } catch {}
 
+    setIsTempUnlocked(true);
+
     if (currentUserId) {
       const accessId = `${currentUserId}_${postId}`;
       await setDoc(doc(db, "postAccess", accessId), {
@@ -39,8 +41,6 @@ export function usePostTempUnlock(postId: string, currentUserId?: string | null)
         createdAt: serverTimestamp(),
       });
     }
-
-    setIsTempUnlocked(true);
   }, [key, postId, currentUserId]);
 
   return { isTempUnlocked, unlock };

@@ -4,8 +4,14 @@ import Link from "next/link";
 import {
   MAX_POST_IMAGES,
   type GroupVisibility,
+  type Post,
+  type PostMedia,
   type PostPremium,
 } from "@/lib/posts/types";
+import {
+  MAX_VIDEO_DURATION_FREE_SECONDS,
+  MAX_VIDEO_DURATION_PREMIUM_SECONDS,
+} from "@/lib/posts/premium";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import {
   useEffect,
@@ -27,6 +33,7 @@ type ComposerMediaItem = {
   type: "image" | "video";
   file: File;
   coverFile?: File | null;
+  existingPostMedia?: PostMedia;
 };
 
 type ComposerContextType = "group" | "profile";
@@ -40,11 +47,15 @@ type GroupPostComposerSubmitPayload = {
   premium?: PostPremium | null;
 };
 
+export type { GroupPostComposerSubmitPayload };
+
 type GroupPostComposerProps = {
   onSubmit: (payload: GroupPostComposerSubmitPayload) => Promise<void>;
   contextType?: ComposerContextType;
   groupVisibility?: GroupVisibility | null;
   isOwner?: boolean;
+  editPost?: Post | null;
+  onEditClose?: () => void;
 };
 
 type SelectedMediaItem = ComposerMediaItem & {
@@ -55,6 +66,7 @@ type SelectedMediaItem = ComposerMediaItem & {
   autoCoverUrl?: string | null;
   autoCoverFile?: File | null;
   coverStatus?: "loading" | "ready" | "error";
+  locked?: boolean;
 };
 
 const MAX_POST_VIDEOS = 3;
@@ -243,17 +255,40 @@ export default function GroupPostComposer({
   contextType = "group",
   groupVisibility = null,
   isOwner = false,
+  editPost,
+  onEditClose,
 }: GroupPostComposerProps) {
-  const [text, setText] = useState("");
+  const isEditMode = !!editPost;
+  const [text, setText] = useState(() => editPost?.text ?? "");
   const [creating, setCreating] = useState(false);
-  const [isComposerOverlayOpen, setIsComposerOverlayOpen] = useState(false);
+  const [isComposerOverlayOpen, setIsComposerOverlayOpen] = useState(() => isEditMode);
   const [isMobileComposer, setIsMobileComposer] = useState(false);
   const [currentUserHandle, setCurrentUserHandle] = useState<string | null>(
     null,
   );
   const [selectedMediaItems, setSelectedMediaItems] = useState<
     SelectedMediaItem[]
-  >([]);
+  >(() => {
+    if (!editPost || !Array.isArray(editPost.media)) return [];
+    return editPost.media
+      .filter((item) => typeof item.url === "string" && item.url.trim().length > 0)
+      .map((item) => ({
+        id: item.id ?? item.url,
+        type: item.type,
+        file: new File([], item.id ?? "media", {
+          type: item.mimeType ?? (item.type === "video" ? "video/mp4" : "image/jpeg"),
+        }),
+        previewUrl: item.type === "video" ? (item.thumbnailUrl ?? item.url) : item.url,
+        durationSeconds: item.duration ?? null,
+        coverFile: null,
+        coverPreviewUrl: null,
+        autoCoverUrl: item.type === "video" ? (item.thumbnailUrl ?? null) : null,
+        autoCoverFile: null,
+        coverStatus: "ready" as const,
+        existingPostMedia: item,
+        locked: editPost.premium?.enabled === true && item.type === "video",
+      }));
+  });
   const [localError, setLocalError] = useState<string | null>(null);
   const [processingImageSlots, setProcessingImageSlots] = useState(0);
   const [processingVideoSlots, setProcessingVideoSlots] = useState(0);
@@ -309,6 +344,7 @@ export default function GroupPostComposer({
           item.type === "video"
             ? (item.coverFile ?? item.autoCoverFile ?? null)
             : null,
+        existingPostMedia: item.existingPostMedia,
       })),
     [selectedMediaItems],
   );
@@ -420,6 +456,7 @@ export default function GroupPostComposer({
     contextType,
     groupVisibility,
     viewerIsOwner: isOwner,
+    initialPremium: editPost?.premium,
   });
 
   function handleOpenComposerOverlay() {
@@ -696,6 +733,25 @@ export default function GroupPostComposer({
 
     nextItems.forEach((item) => {
       void readVideoDurationFromUrl(item.previewUrl).then((durationSeconds) => {
+        const isPremium = composerPremium.premiumEnabled;
+        const maxDuration = isPremium
+          ? MAX_VIDEO_DURATION_PREMIUM_SECONDS
+          : MAX_VIDEO_DURATION_FREE_SECONDS;
+
+        if (durationSeconds !== null && durationSeconds > maxDuration) {
+          URL.revokeObjectURL(item.previewUrl);
+          setSelectedMediaItems((current) =>
+            current.filter((i) => i.id !== item.id),
+          );
+          const maxMin = Math.round(maxDuration / 60);
+          setLocalError(
+            isPremium
+              ? `Tu video excede el límite de ${maxMin} minutos para posts premium.`
+              : `Tu video excede los ${maxMin} minutos permitidos. Activa "Monetizar Video" antes de subirlo para poder subir videos de hasta 3 horas.`,
+          );
+          return;
+        }
+
         setSelectedMediaItems((current) =>
           current.map((currentItem) =>
             currentItem.id === item.id
@@ -783,6 +839,8 @@ export default function GroupPostComposer({
   function handleRemoveMedia(indexToRemove: number) {
     setSelectedMediaItems((current) => {
       const itemToRemove = current[indexToRemove];
+
+      if (itemToRemove?.locked) return current;
 
       if (itemToRemove) {
         URL.revokeObjectURL(itemToRemove.previewUrl);
@@ -891,10 +949,15 @@ export default function GroupPostComposer({
         premium: composerPremium.premium,
       });
 
-      setText("");
-      clearSelectedMedia();
-      composerPremium.resetPremium();
-      setIsComposerOverlayOpen(false);
+      if (isEditMode) {
+        setIsComposerOverlayOpen(false);
+        onEditClose?.();
+      } else {
+        setText("");
+        clearSelectedMedia();
+        composerPremium.resetPremium();
+        setIsComposerOverlayOpen(false);
+      }
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
@@ -1002,7 +1065,7 @@ const launcherButtonStyle: CSSProperties = {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*,.heic,.heif,video/*"
+          accept={isEditMode && composerPremium.premiumEnabled ? "image/*,.heic,.heif" : "image/*,.heic,.heif,video/*"}
           multiple
           style={{ display: "none" }}
           onChange={async (event) => {
@@ -1133,7 +1196,11 @@ const launcherButtonStyle: CSSProperties = {
       {isMobileComposer ? (
         <PostComposerMobileOverlay
           open={isComposerOverlayOpen}
-          onClose={() => setIsComposerOverlayOpen(false)}
+          isEditMode={isEditMode}
+          onClose={() => {
+            setIsComposerOverlayOpen(false);
+            if (isEditMode) onEditClose?.();
+          }}
           text={text}
           setText={setText}
           contextType={contextType}
@@ -1165,7 +1232,11 @@ const launcherButtonStyle: CSSProperties = {
       ) : (
         <PostComposerDesktopOverlay
           open={isComposerOverlayOpen}
-          onClose={() => setIsComposerOverlayOpen(false)}
+          isEditMode={isEditMode}
+          onClose={() => {
+            setIsComposerOverlayOpen(false);
+            if (isEditMode) onEditClose?.();
+          }}
           text={text}
           setText={setText}
           contextType={contextType}

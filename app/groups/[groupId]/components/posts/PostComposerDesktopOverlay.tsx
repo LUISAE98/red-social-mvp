@@ -28,6 +28,7 @@ type SelectedMediaItem = {
   autoCoverUrl?: string | null;
   autoCoverFile?: File | null;
   coverStatus?: "loading" | "ready" | "error";
+  locked?: boolean;
 };
 
 type PostComposerDesktopOverlayProps = {
@@ -58,6 +59,8 @@ type PostComposerDesktopOverlayProps = {
   draggingPreviewIndex: number | null;
   dragOverPreviewIndex: number | null;
   isReorderingPreview: boolean;
+
+  isEditMode?: boolean;
 
   onSubmit: () => void | Promise<void>;
   onOpenMediaPicker: () => void;
@@ -170,6 +173,7 @@ export default function PostComposerDesktopOverlay({
   draggingPreviewIndex,
   dragOverPreviewIndex,
   isReorderingPreview,
+  isEditMode = false,
   onSubmit,
   onOpenMediaPicker,
   onRemoveMedia,
@@ -303,7 +307,7 @@ const removeMediaButtonStyle: CSSProperties = {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Crear publicación"
+      aria-label={isEditMode ? "Editar publicación" : "Crear publicación"}
       style={{
 position: "fixed",
 top: 0,
@@ -417,7 +421,7 @@ fontFamily: fontStack,
     letterSpacing: "-0.02em",
   }}
 >
-  Crear publicación
+  {isEditMode ? "Editar publicación" : "Crear publicación"}
 </h2>
 
           <button
@@ -600,7 +604,7 @@ style={{
   </button>
 
   <div>
-    {hasVideos && premiumComposer.canEnablePremium ? (
+    {premiumComposer.canEnablePremium && !isEditMode ? (
       <button
         type="button"
         onClick={premiumComposer.togglePremiumEnabled}
@@ -860,16 +864,18 @@ style={{
                             {index + 1}
                           </div>
 
-                          <button
-                            type="button"
-                            onPointerDown={(event) => event.stopPropagation()}
-                            onClick={() => onRemoveMedia(index)}
-                            style={removeMediaButtonStyle}
-                            aria-label={`Quitar media ${index + 1}`}
-                            disabled={creating}
-                          >
-                            ×
-                          </button>
+                          {!item.locked && (
+                            <button
+                              type="button"
+                              onPointerDown={(event) => event.stopPropagation()}
+                              onClick={() => onRemoveMedia(index)}
+                              style={removeMediaButtonStyle}
+                              aria-label={`Quitar media ${index + 1}`}
+                              disabled={creating}
+                            >
+                              ×
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -939,7 +945,7 @@ borderRadius: 14,
 
             </div>
 
-            {hasVideos && premiumComposer.premiumEnabled ? (
+            {premiumComposer.premiumEnabled ? (
             <div style={{ marginTop: 14 }}>
               <ComposerPremiumPanel
                 hasVideos={hasVideos}
@@ -956,6 +962,7 @@ borderRadius: 14,
                 validation={premiumComposer.validation}
                 premiumErrorMessage={premiumComposer.premiumErrorMessage}
                 disabled={creating}
+                isEditMode={isEditMode}
               />
             </div>
             ) : null}
@@ -1012,10 +1019,10 @@ style={{
               {isPreparingImages
                 ? "Preparando..."
                 : creating
-                  ? "Publicando..."
+                  ? (isEditMode ? "Guardando..." : "Publicando...")
                   : premiumComposer.premiumEnabled
                     ? <VibraNavigationIcon type="premiumCrown" size={22} />
-                    : "Publicar"}
+                    : (isEditMode ? "Guardar cambios" : "Publicar")}
             </button>
         </div>
       </section>

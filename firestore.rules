@@ -2153,11 +2153,34 @@ allow list: if canReadPost()
 
       allow create: if validCreatePost();
 
+      function canEditPost() {
+        return signedIn()
+          && resource.data.authorId == request.auth.uid
+          && resource.data.get('isDeleted', false) != true
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            "text", "media", "premium", "editedAt", "updatedAt"
+          ])
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.editedAt is timestamp
+          && request.resource.data.updatedAt is timestamp;
+      }
+
       allow update: if canSoftDeletePost()
         || canUpdateCommentCount(1)
-        || canUpdateCommentCount(-1);
+        || canUpdateCommentCount(-1)
+        || canEditPost();
 
       allow delete: if false;
+
+      match /editHistory/{historyId} {
+        allow create: if signedIn()
+          && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
+          && request.resource.data.editedBy == request.auth.uid
+          && request.resource.data.editedAt is timestamp;
+        allow read: if signedIn()
+          && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid;
+        allow update, delete: if false;
+      }
 
       match /comments/{commentId} {
 
@@ -2184,6 +2207,19 @@ allow list: if canReadPost()
               resource.data.authorId == request.auth.uid
               || canModeratePostCommentData(parentPost().data)
             );
+        }
+
+        function canEditComment() {
+          return signedIn()
+            && resource.data.authorId == request.auth.uid
+            && resource.data.get('isDeleted', false) != true
+            && request.resource.data.diff(resource.data).changedKeys().hasOnly(["text", "editedAt", "updatedAt"])
+            && request.resource.data.authorId == resource.data.authorId
+            && request.resource.data.text is string
+            && request.resource.data.text.size() >= 1
+            && request.resource.data.text.size() <= 2000
+            && request.resource.data.editedAt is timestamp
+            && request.resource.data.updatedAt is timestamp;
         }
         
         function currentReplyCount() {
@@ -2227,9 +2263,19 @@ function canUpdateReplyCount(delta) {
         allow create: if canCreateComment();
 
         allow update: if canUpdateReplyCount(1)
-  || canUpdateReplyCount(-1);
+          || canUpdateReplyCount(-1)
+          || canEditComment();
 
         allow delete: if canDeleteComment();
+
+        match /editHistory/{historyId} {
+          allow create: if signedIn()
+            && get(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)).data.authorId == request.auth.uid
+            && request.resource.data.editedBy == request.auth.uid
+            && request.resource.data.editedAt is timestamp;
+          allow read: if get(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)).data.authorId == request.auth.uid;
+          allow update, delete: if false;
+        }
 
         match /replies/{replyId} {
 
@@ -2254,13 +2300,34 @@ function canUpdateReplyCount(delta) {
               );
           }
 
+          function canEditReply() {
+            return signedIn()
+              && resource.data.authorId == request.auth.uid
+              && request.resource.data.diff(resource.data).changedKeys().hasOnly(["text", "editedAt", "updatedAt"])
+              && request.resource.data.authorId == resource.data.authorId
+              && request.resource.data.text is string
+              && request.resource.data.text.size() >= 1
+              && request.resource.data.text.size() <= 2000
+              && request.resource.data.editedAt is timestamp
+              && request.resource.data.updatedAt is timestamp;
+          }
+
           allow get, list: if canReadReply();
 
           allow create: if canCreateReply();
 
-          allow update: if false;
+          allow update: if canEditReply();
 
           allow delete: if canDeleteReply();
+
+          match /editHistory/{historyId} {
+            allow create: if signedIn()
+              && get(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)/replies/$(replyId)).data.authorId == request.auth.uid
+              && request.resource.data.editedBy == request.auth.uid
+              && request.resource.data.editedAt is timestamp;
+            allow read: if get(/databases/$(database)/documents/posts/$(postId)/comments/$(commentId)/replies/$(replyId)).data.authorId == request.auth.uid;
+            allow update, delete: if false;
+          }
         }
       }
 

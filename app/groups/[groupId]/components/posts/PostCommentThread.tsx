@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Timestamp } from "firebase/firestore";
 import {
   useCallback,
   useEffect,
@@ -10,7 +11,7 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 import type { Comment, CommentReply } from "@/lib/posts/types";
-import { toggleCommentFlame } from "@/lib/posts/post-service";
+import { toggleCommentFlame, updatePostComment, updatePostCommentReply } from "@/lib/posts/post-service";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 import { useGroupMemberBlocks } from "@/lib/groups/useGroupMemberBlocks";
 
@@ -280,9 +281,20 @@ export default function PostCommentThread({
   const [commentMenuOpen, setCommentMenuOpen] = useState(false);
   const [replyMenuOpenById, setReplyMenuOpenById] = useState<Record<string, boolean>>({});
 
+  const [editingComment, setEditingComment] = useState(false);
+  const [editCommentText, setEditCommentText] = useState(comment.text);
+  const [savingEditComment, setSavingEditComment] = useState(false);
+  const [localCommentText, setLocalCommentText] = useState(comment.text);
+  const [localCommentEditedAt, setLocalCommentEditedAt] = useState(comment.editedAt ?? null);
+
+  const [editingReplyId, setEditingReplyId] = useState<string | null>(null);
+  const [editReplyTexts, setEditReplyTexts] = useState<Record<string, string>>({});
+  const [savingEditReplyId, setSavingEditReplyId] = useState<string | null>(null);
+
   const author = getAuthorInfo(comment);
   const canDeleteComment =
     isOwner || isModerator || currentUserId === comment.authorId;
+  const canEditOwnComment = currentUserId === comment.authorId;
 
   const canBlockCommentAuthorInGroup =
     canUseGroupMemberBlock &&
@@ -407,6 +419,67 @@ export default function PostCommentThread({
       setInlineError(e?.message ?? "No se pudo eliminar la respuesta.");
     } finally {
       setDeletingReplyId(null);
+    }
+  }
+
+  function handleStartEditComment() {
+    setEditingComment(true);
+    setEditCommentText(localCommentText);
+  }
+
+  function handleCancelEditComment() {
+    setEditingComment(false);
+    setEditCommentText(localCommentText);
+  }
+
+  async function handleSaveEditComment() {
+    const trimmed = editCommentText.trim();
+    if (savingEditComment || !trimmed) return;
+
+    try {
+      setSavingEditComment(true);
+      setInlineError(null);
+      await updatePostComment({ postId, commentId: comment.id, text: trimmed });
+      setLocalCommentText(trimmed);
+      setLocalCommentEditedAt(Timestamp.now());
+      setEditingComment(false);
+    } catch (e: any) {
+      setInlineError(e?.message ?? "No se pudo guardar el comentario.");
+    } finally {
+      setSavingEditComment(false);
+    }
+  }
+
+  function handleStartEditReply(replyId: string, currentText: string) {
+    setEditingReplyId(replyId);
+    setEditReplyTexts((prev) => ({ ...prev, [replyId]: currentText }));
+  }
+
+  function handleCancelEditReply() {
+    setEditingReplyId(null);
+  }
+
+  async function handleSaveEditReply(replyId: string) {
+    const text = (editReplyTexts[replyId] ?? "").trim();
+    if (savingEditReplyId || !text) return;
+
+    try {
+      setSavingEditReplyId(replyId);
+      setInlineError(null);
+      await updatePostCommentReply({ postId, commentId: comment.id, replyId, text });
+      setReplies(
+        (prev) =>
+          prev?.map((r) =>
+            r.id === replyId
+              ? { ...r, text, editedAt: Timestamp.now() }
+              : r,
+          ) ?? null,
+      );
+      setEditingReplyId(null);
+    } catch (e: any) {
+      setInlineError(e?.message ?? "No se pudo guardar la respuesta.");
+    } finally {
+      setSavingEditReplyId(null);
     }
   }
 
@@ -649,22 +722,61 @@ export default function PostCommentThread({
                   {showExactCommentDate
                     ? formatExactDate(comment.createdAt)
                     : formatRelativeDate(comment.createdAt)}
+                  {(localCommentEditedAt ?? comment.editedAt) ? (
+                    <span style={{ opacity: 0.45, fontStyle: "italic", marginLeft: 2 }}>
+                      {" · Editado"}
+                    </span>
+                  ) : null}
                 </button>
               </div>
 
-              <div
-                style={{
-                  marginTop: 4,
-                  fontSize: 12.5,
-                  fontWeight: 300,
-                  lineHeight: 1.55,
-                  color: "rgba(255,255,255,0.9)",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                }}
-              >
-                {comment.text}
-              </div>
+              {editingComment ? (
+                <div style={{ marginTop: 4 }}>
+                  <AutoGrowTextarea
+                    value={editCommentText}
+                    onChange={(e) => setEditCommentText(e.target.value)}
+                    maxRows={6}
+                    style={inputStyle}
+                    disabled={savingEditComment}
+                  />
+                  <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                    <button
+                      type="button"
+                      onClick={handleSaveEditComment}
+                      disabled={savingEditComment || !editCommentText.trim()}
+                      style={
+                        savingEditComment || !editCommentText.trim()
+                          ? disabledButtonStyle
+                          : primaryButtonStyle
+                      }
+                    >
+                      {savingEditComment ? "Guardando..." : "Guardar"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelEditComment}
+                      disabled={savingEditComment}
+                      style={actionButtonStyle}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: 12.5,
+                    fontWeight: 300,
+                    lineHeight: 1.55,
+                    color: "rgba(255,255,255,0.9)",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {localCommentText}
+                </div>
+              )}
             </div>
 
             <div
@@ -816,6 +928,16 @@ export default function PostCommentThread({
                 style={actionButtonStyle}
               >
                 Responder
+              </button>
+            )}
+
+            {canEditOwnComment && !editingComment && (
+              <button
+                type="button"
+                onClick={handleStartEditComment}
+                style={actionButtonStyle}
+              >
+                Editar
               </button>
             )}
 
@@ -994,22 +1116,70 @@ export default function PostCommentThread({
                           {exactReplyDates[reply.id]
                             ? formatExactDate(reply.createdAt)
                             : formatRelativeDate(reply.createdAt)}
+                          {reply.editedAt ? (
+                            <span style={{ opacity: 0.45, fontStyle: "italic", marginLeft: 2 }}>
+                              {" · Editado"}
+                            </span>
+                          ) : null}
                         </button>
                       </div>
 
-                      <div
-                        style={{
-                          marginTop: 4,
-                          fontSize: 12,
-                          fontWeight: 300,
-                          lineHeight: 1.5,
-                          color: "rgba(255,255,255,0.86)",
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {reply.text}
-                      </div>
+                      {editingReplyId === reply.id ? (
+                        <div style={{ marginTop: 4 }}>
+                          <AutoGrowTextarea
+                            value={editReplyTexts[reply.id] ?? reply.text}
+                            onChange={(e) =>
+                              setEditReplyTexts((prev) => ({
+                                ...prev,
+                                [reply.id]: e.target.value,
+                              }))
+                            }
+                            maxRows={6}
+                            style={inputStyle}
+                            disabled={savingEditReplyId === reply.id}
+                          />
+                          <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEditReply(reply.id)}
+                              disabled={
+                                savingEditReplyId === reply.id ||
+                                !(editReplyTexts[reply.id] ?? "").trim()
+                              }
+                              style={
+                                savingEditReplyId === reply.id ||
+                                !(editReplyTexts[reply.id] ?? "").trim()
+                                  ? disabledButtonStyle
+                                  : primaryButtonStyle
+                              }
+                            >
+                              {savingEditReplyId === reply.id ? "Guardando..." : "Guardar"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCancelEditReply}
+                              disabled={savingEditReplyId === reply.id}
+                              style={actionButtonStyle}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            marginTop: 4,
+                            fontSize: 12,
+                            fontWeight: 300,
+                            lineHeight: 1.5,
+                            color: "rgba(255,255,255,0.86)",
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {reply.text}
+                        </div>
+                      )}
 
                       <div
                         style={{
@@ -1041,6 +1211,19 @@ export default function PostCommentThread({
                               Responder
                             </button>
                           )}
+
+                          {currentUserId === reply.authorId &&
+                            editingReplyId !== reply.id && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleStartEditReply(reply.id, reply.text)
+                                }
+                                style={actionButtonStyle}
+                              >
+                                Editar
+                              </button>
+                            )}
 
                           {canDeleteReply && (
                             <button

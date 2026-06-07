@@ -19,6 +19,7 @@ type UseComposerPremiumParams = {
   contextType: PostContextType;
   groupVisibility?: GroupVisibility | null;
   viewerIsOwner?: boolean;
+  initialPremium?: PostPremium | null;
 };
 
 type SetPremiumEnabledOptions = {
@@ -58,12 +59,15 @@ export function useComposerPremium({
   contextType,
   groupVisibility = null,
   viewerIsOwner = false,
+  initialPremium,
 }: UseComposerPremiumParams) {
-  const [premiumEnabled, setPremiumEnabledState] = useState(false);
+  const [premiumEnabled, setPremiumEnabledState] = useState(() => initialPremium?.enabled === true);
   const [accessMode, setAccessModeState] =
-    useState<PostPremium["accessMode"]>("public");
-  const [freeFor, setFreeForState] = useState<PostPremium["freeFor"]>("none");
-  const [priceInput, setPriceInput] = useState("");
+    useState<PostPremium["accessMode"]>(() => initialPremium?.accessMode ?? "public");
+  const [freeFor, setFreeForState] = useState<PostPremium["freeFor"]>(() => initialPremium?.freeFor ?? "none");
+  const [priceInput, setPriceInput] = useState(() =>
+    initialPremium?.price != null ? String(initialPremium.price) : "",
+  );
 
   const premiumContext = useMemo(
     () => ({
@@ -83,12 +87,33 @@ export function useComposerPremium({
     [hasVideos, premiumContext],
   );
 
+  // En edit mode con post ya premium, forzamos canEnablePremium = true aunque
+  // el contexto (isOwner, groupVisibility) no lo permita normalmente.
+  const isEditModePremium = initialPremium?.enabled === true;
+
+  const effectiveCapabilities = useMemo<PremiumCapabilities>(() => {
+    if (!isEditModePremium || capabilities.canEnablePremium) return capabilities;
+    const allowedAccessModes: PostPremium["accessMode"][] =
+      capabilities.allowedAccessModes.length > 0
+        ? capabilities.allowedAccessModes
+        : initialPremium?.accessMode
+          ? [initialPremium.accessMode]
+          : ["public"];
+    const allowedFreeForOptions: PostPremium["freeFor"][] =
+      capabilities.allowedFreeForOptions.length > 0
+        ? capabilities.allowedFreeForOptions
+        : initialPremium?.freeFor !== undefined
+          ? [initialPremium.freeFor]
+          : ["none"];
+    return { canEnablePremium: true, allowedAccessModes, allowedFreeForOptions, disabledReason: null };
+  }, [capabilities, initialPremium, isEditModePremium]);
+
   const price = useMemo(() => parsePriceInput(priceInput), [priceInput]);
 
   function resetPremium() {
     setPremiumEnabledState(false);
-    setAccessModeState(getFallbackAccessMode(capabilities));
-    setFreeForState(getFallbackFreeFor(capabilities));
+    setAccessModeState(getFallbackAccessMode(effectiveCapabilities));
+    setFreeForState(getFallbackFreeFor(effectiveCapabilities));
     setPriceInput("");
   }
 
@@ -106,61 +131,61 @@ export function useComposerPremium({
       return;
     }
 
-    if (!capabilities.canEnablePremium) {
+    if (!effectiveCapabilities.canEnablePremium) {
       resetPremium();
       return;
     }
 
     setPremiumEnabledState(true);
     setAccessModeState((current) =>
-      capabilities.allowedAccessModes.includes(current)
+      effectiveCapabilities.allowedAccessModes.includes(current)
         ? current
-        : getFallbackAccessMode(capabilities),
+        : getFallbackAccessMode(effectiveCapabilities),
     );
     setFreeForState((current) =>
-      capabilities.allowedFreeForOptions.includes(current)
+      effectiveCapabilities.allowedFreeForOptions.includes(current)
         ? current
-        : getFallbackFreeFor(capabilities),
+        : getFallbackFreeFor(effectiveCapabilities),
     );
   }
 
-    function togglePremiumEnabled() {
+  function togglePremiumEnabled() {
     setPremiumEnabled(!premiumEnabled);
   }
 
   function setAccessMode(nextAccessMode: PostPremium["accessMode"]) {
-    if (!capabilities.allowedAccessModes.includes(nextAccessMode)) return;
+    if (!effectiveCapabilities.allowedAccessModes.includes(nextAccessMode)) return;
     setAccessModeState(nextAccessMode);
   }
 
   function setFreeFor(nextFreeFor: PostPremium["freeFor"]) {
-    if (!capabilities.allowedFreeForOptions.includes(nextFreeFor)) return;
+    if (!effectiveCapabilities.allowedFreeForOptions.includes(nextFreeFor)) return;
     setFreeForState(nextFreeFor);
   }
 
   useEffect(() => {
-    if (!hasVideos || !capabilities.canEnablePremium) {
+    if (!effectiveCapabilities.canEnablePremium) {
       resetPremium();
     }
-    // resetPremium depende de capabilities; aquí queremos reaccionar solo al cambio real de elegibilidad.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasVideos, capabilities.canEnablePremium]);
+  }, [effectiveCapabilities.canEnablePremium]);
 
   useEffect(() => {
-    if (!capabilities.canEnablePremium) return;
+    if (!effectiveCapabilities.canEnablePremium) return;
 
     setAccessModeState((current) =>
-      capabilities.allowedAccessModes.includes(current)
+      effectiveCapabilities.allowedAccessModes.includes(current)
         ? current
-        : getFallbackAccessMode(capabilities),
+        : getFallbackAccessMode(effectiveCapabilities),
     );
 
     setFreeForState((current) =>
-      capabilities.allowedFreeForOptions.includes(current)
+      effectiveCapabilities.allowedFreeForOptions.includes(current)
         ? current
-        : getFallbackFreeFor(capabilities),
+        : getFallbackFreeFor(effectiveCapabilities),
     );
-  }, [capabilities]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveCapabilities]);
 
   useEffect(() => {
     if (contextType !== "profile") return;
@@ -170,7 +195,7 @@ export function useComposerPremium({
   }, [contextType]);
 
   const premium = useMemo<PostPremium | null>(() => {
-    if (!premiumEnabled || !capabilities.canEnablePremium) return null;
+    if (!premiumEnabled || !effectiveCapabilities.canEnablePremium) return null;
 
     return {
       enabled: true,
@@ -183,7 +208,7 @@ export function useComposerPremium({
     };
   }, [
     premiumEnabled,
-    capabilities.canEnablePremium,
+    effectiveCapabilities.canEnablePremium,
     contextType,
     accessMode,
     freeFor,
@@ -196,12 +221,18 @@ export function useComposerPremium({
         premium,
         hasVideos,
         context: premiumContext,
+        allowedAccessModesOverride: isEditModePremium
+          ? effectiveCapabilities.allowedAccessModes
+          : undefined,
+        allowedFreeForOptionsOverride: isEditModePremium
+          ? effectiveCapabilities.allowedFreeForOptions
+          : undefined,
       }),
-    [premium, hasVideos, premiumContext],
+    [premium, hasVideos, premiumContext, isEditModePremium, effectiveCapabilities.allowedAccessModes, effectiveCapabilities.allowedFreeForOptions],
   );
 
   const premiumErrorMessage =
-    validation.errors[0]?.message ?? capabilities.disabledReason ?? null;
+    validation.errors[0]?.message ?? effectiveCapabilities.disabledReason ?? null;
 
   return {
     premium,
@@ -220,13 +251,13 @@ export function useComposerPremium({
     setPriceInput,
     price,
 
-    capabilities,
+    capabilities: effectiveCapabilities,
     validation,
     premiumErrorMessage,
 
-    canEnablePremium: capabilities.canEnablePremium,
+    canEnablePremium: effectiveCapabilities.canEnablePremium,
     canSubmitPremium: validation.valid,
-    allowedAccessModes: capabilities.allowedAccessModes,
-    allowedFreeForOptions: capabilities.allowedFreeForOptions,
+    allowedAccessModes: effectiveCapabilities.allowedAccessModes,
+    allowedFreeForOptions: effectiveCapabilities.allowedFreeForOptions,
   };
 }

@@ -3955,3 +3955,160 @@ function isPostLocked(post: Post): boolean {
 
   return false;
 }
+
+// ─── Edición de posts ──────────────────────────────────────────────────────────
+
+export async function updatePost(params: {
+  postId: string;
+  text: string;
+  media: PostMedia[];
+  premium?: PostPremium | null;
+}): Promise<void> {
+  const author = auth.currentUser;
+  if (!author) throw new Error("Debes iniciar sesión para editar publicaciones.");
+
+  const postRef = doc(db, "posts", params.postId);
+  const postSnap = await getDoc(postRef);
+
+  if (!postSnap.exists()) throw new Error("La publicación no existe.");
+
+  const postData = postSnap.data() as Post;
+
+  if (postData.authorId !== author.uid) {
+    throw new Error("Solo el autor puede editar esta publicación.");
+  }
+
+  if (postData.isDeleted) {
+    throw new Error("No se puede editar una publicación eliminada.");
+  }
+
+  // Guardar historial antes de modificar
+  const historyRef = doc(collection(db, "posts", params.postId, "editHistory"));
+  await setDoc(historyRef, {
+    editedAt: serverTimestamp(),
+    editedBy: author.uid,
+    previousText: postData.text ?? "",
+    previousMedia: Array.isArray(postData.media) ? postData.media : [],
+  });
+
+  const cleanText = typeof params.text === "string" ? params.text.trim() : "";
+  const cleanMedia = Array.isArray(params.media)
+    ? params.media.filter(
+        (item) => typeof item.url === "string" && item.url.trim().length > 0,
+      )
+    : [];
+
+  const updatePayload: Record<string, unknown> = {
+    text: cleanText,
+    media: cleanMedia,
+    editedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+
+  if (params.premium !== undefined) {
+    updatePayload.premium = params.premium ?? null;
+  }
+
+  await updateDoc(postRef, updatePayload);
+}
+
+// ─── Edición de comentarios y respuestas ───────────────────────────────────────
+
+export async function updatePostComment(params: {
+  postId: string;
+  commentId: string;
+  text: string;
+}): Promise<void> {
+  assertValidId(params.postId, "postId");
+  assertValidId(params.commentId, "commentId");
+
+  const cleanText = params.text.trim();
+  if (!cleanText) throw new Error("El comentario no puede estar vacío.");
+  if (cleanText.length > 2000) throw new Error("El comentario es demasiado largo.");
+
+  const author = auth.currentUser;
+  if (!author) throw new Error("Debes iniciar sesión para editar comentarios.");
+
+  const commentRef = doc(db, "posts", params.postId, "comments", params.commentId);
+  const commentSnap = await getDoc(commentRef);
+
+  if (!commentSnap.exists()) throw new Error("El comentario no existe.");
+
+  const commentData = commentSnap.data() as Record<string, unknown>;
+  if (commentData.authorId !== author.uid) {
+    throw new Error("Solo el autor puede editar este comentario.");
+  }
+
+  const historyRef = doc(
+    collection(db, "posts", params.postId, "comments", params.commentId, "editHistory")
+  );
+  await setDoc(historyRef, {
+    editedAt: serverTimestamp(),
+    editedBy: author.uid,
+    previousText: commentData.text ?? "",
+  });
+
+  await updateDoc(commentRef, {
+    text: cleanText,
+    editedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  clearPostCommentsCache(params.postId);
+}
+
+export async function updatePostCommentReply(params: {
+  postId: string;
+  commentId: string;
+  replyId: string;
+  text: string;
+}): Promise<void> {
+  assertValidId(params.postId, "postId");
+  assertValidId(params.commentId, "commentId");
+  assertValidId(params.replyId, "replyId");
+
+  const cleanText = params.text.trim();
+  if (!cleanText) throw new Error("La respuesta no puede estar vacía.");
+  if (cleanText.length > 2000) throw new Error("La respuesta es demasiado larga.");
+
+  const author = auth.currentUser;
+  if (!author) throw new Error("Debes iniciar sesión para editar respuestas.");
+
+  const replyRef = doc(
+    db,
+    "posts", params.postId,
+    "comments", params.commentId,
+    "replies", params.replyId
+  );
+  const replySnap = await getDoc(replyRef);
+
+  if (!replySnap.exists()) throw new Error("La respuesta no existe.");
+
+  const replyData = replySnap.data() as Record<string, unknown>;
+  if (replyData.authorId !== author.uid) {
+    throw new Error("Solo el autor puede editar esta respuesta.");
+  }
+
+  const historyRef = doc(
+    collection(
+      db,
+      "posts", params.postId,
+      "comments", params.commentId,
+      "replies", params.replyId,
+      "editHistory"
+    )
+  );
+  await setDoc(historyRef, {
+    editedAt: serverTimestamp(),
+    editedBy: author.uid,
+    previousText: replyData.text ?? "",
+  });
+
+  await updateDoc(replyRef, {
+    text: cleanText,
+    editedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+
+  clearCommentRepliesCache(params.postId, params.commentId);
+}

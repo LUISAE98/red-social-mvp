@@ -31,6 +31,7 @@ type ComposerPremiumPanelProps = {
   premiumErrorMessage: string | null;
 
   disabled?: boolean;
+  isEditMode?: boolean;
 };
 
 const accessModeLabels: Record<
@@ -63,6 +64,22 @@ const freeForLabels: Record<
 
 const fontStack =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+
+function buildReadonlyConfigText(
+  accessMode: PostPremiumAccessMode,
+  freeFor: PostPremiumFreeFor,
+): string {
+  if (accessMode === "public" && freeFor === "none") {
+    return "El acceso a este video premium es público. Cualquier persona dentro y fuera de Vibra puede pagar para desbloquearlo.";
+  }
+  if (accessMode === "public" && freeFor === "members_and_subscribers") {
+    return "El acceso es público. Los miembros y suscriptores del grupo lo ven gratis; cualquier otra persona puede pagar para desbloquearlo.";
+  }
+  if (accessMode === "members_only" && freeFor === "none") {
+    return "El acceso está limitado a los miembros del grupo, quienes deben pagar para desbloquear el video.";
+  }
+  return "El acceso está limitado a los miembros del grupo. Los suscriptores lo ven gratis; el resto de los miembros paga para desbloquearlo.";
+}
 
 function formatThousands(raw: string): string {
   if (!raw) return raw;
@@ -178,16 +195,17 @@ export default function ComposerPremiumPanel({
   validation,
   premiumErrorMessage,
   disabled = false,
+  isEditMode = false,
 }: ComposerPremiumPanelProps) {
   if (!hasVideos || !premiumEnabled) return null;
 
-  const showAccessModeOptions = capabilities.allowedAccessModes.length > 1;
-  const showFreeForOptions = capabilities.allowedFreeForOptions.length > 1;
-  const showFixedAccessMode = capabilities.allowedAccessModes.length === 1;
-  const showFixedFreeFor = capabilities.allowedFreeForOptions.length === 1;
+  const showAccessModeOptions = !isEditMode && capabilities.allowedAccessModes.length > 1;
+  const showFreeForOptions = !isEditMode && capabilities.allowedFreeForOptions.length > 1;
+  const showFixedAccessMode = !isEditMode && capabilities.allowedAccessModes.length === 1;
+  const showFixedFreeFor = !isEditMode && capabilities.allowedFreeForOptions.length === 1;
 
   const isHiddenGroupContext =
-    showFixedAccessMode && capabilities.allowedAccessModes[0] === "members_only";
+    !isEditMode && showFixedAccessMode && capabilities.allowedAccessModes[0] === "members_only";
 
   const requiresPrice = true;
 
@@ -240,7 +258,22 @@ export default function ComposerPremiumPanel({
         </div>
       </div>
 
-      {contextType === "profile" ? (
+      {isEditMode ? (
+        <p
+          style={{
+            margin: 0,
+            color: "#fff",
+            fontSize: 11.5,
+            lineHeight: 1.55,
+            fontFamily: fontStack,
+            textAlign: "justify",
+          }}
+        >
+          {buildReadonlyConfigText(accessMode, freeFor)}
+        </p>
+      ) : null}
+
+      {!isEditMode && contextType === "profile" ? (
         <p
           style={{
             margin: 0,

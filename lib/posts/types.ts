@@ -392,6 +392,9 @@ export type Post = {
   playback?: PostPlayback | null;
   processing?: PostProcessing | null;
   search?: PostSearchIndex | null;
+
+  /** Fecha de la última edición. null si nunca se editó. */
+  editedAt?: Timestamp | null;
 };
 
 export type CommentCounts = {
@@ -415,6 +418,7 @@ export type Comment = {
   text: string;
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
+  editedAt?: Timestamp | null;
 
   authorId: string;
   authorName?: string;
@@ -441,6 +445,7 @@ export type CommentReply = {
   text: string;
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
+  editedAt?: Timestamp | null;
 
   postId: string;
   commentId: string;

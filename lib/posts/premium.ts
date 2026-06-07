@@ -5,6 +5,9 @@ import type {
   PostPremium,
 } from "./types";
 
+export const MAX_VIDEO_DURATION_FREE_SECONDS = 30 * 60;       // 30 min
+export const MAX_VIDEO_DURATION_PREMIUM_SECONDS = 3 * 60 * 60; // 3 horas
+
 export type PremiumPostContextInput = {
   contextType: PostContextType;
   groupVisibility?: GroupVisibility | null;
@@ -15,6 +18,8 @@ export type PremiumConfigurationInput = {
   premium?: PostPremium | null;
   hasVideos: boolean;
   context: PremiumPostContextInput;
+  allowedAccessModesOverride?: PostPremium["accessMode"][];
+  allowedFreeForOptionsOverride?: PostPremium["freeFor"][];
 };
 
 export type PremiumValidationError = {
@@ -121,15 +126,6 @@ export function getPremiumCapabilities(params: {
   hasVideos: boolean;
   context: PremiumPostContextInput;
 }): PremiumCapabilities {
-  if (!params.hasVideos) {
-    return {
-      canEnablePremium: false,
-      allowedAccessModes: [],
-      allowedFreeForOptions: [],
-      disabledReason: "Solo las publicaciones con video pueden activar premium.",
-    };
-  }
-
   if (params.context.contextType === "group" && !params.context.viewerIsOwner) {
     return {
       canEnablePremium: false,
@@ -175,7 +171,7 @@ export function validatePremiumConfiguration(
   if (!params.hasVideos) {
     errors.push({
       code: "premium_requires_video",
-      message: "Solo las publicaciones con video pueden activar premium.",
+      message: "Agrega un video para publicar este post premium.",
     });
   }
 
@@ -200,8 +196,8 @@ export function validatePremiumConfiguration(
     });
   }
 
-  const allowedAccessModes = getAllowedAccessModes(params.context);
-  const allowedFreeForOptions = getAllowedFreeForOptions(params.context);
+  const allowedAccessModes = params.allowedAccessModesOverride ?? getAllowedAccessModes(params.context);
+  const allowedFreeForOptions = params.allowedFreeForOptionsOverride ?? getAllowedFreeForOptions(params.context);
 
   if (!allowedAccessModes.includes(premium.accessMode)) {
     errors.push({
