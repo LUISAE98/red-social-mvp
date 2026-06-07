@@ -2743,12 +2743,12 @@ return (
     left: 0 !important;
     right: 0 !important;
     top: calc(env(safe-area-inset-top, 0px) + 68px) !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 72px) !important;
+    bottom: 0 !important;
     width: auto !important;
     height: auto !important;
     max-height: none !important;
     margin: 0 !important;
-    overflow-y: auto !important;
+    overflow-y: scroll !important;
     overflow-x: hidden !important;
     -webkit-overflow-scrolling: touch !important;
     overscroll-behavior: none !important;
@@ -2794,6 +2794,13 @@ return (
 .profile-owner-sidebar-panel--profile-open .profile-owner-sidebar-scroll {
   overflow-y: auto !important;
   overflow-x: hidden !important;
+}
+
+@media (max-width: 1220px) {
+  .profile-owner-sidebar-fixed .profile-owner-sidebar-panel--profile-open .profile-owner-sidebar-scroll {
+    overflow: visible !important;
+    max-height: none !important;
+  }
 }
       `}</style>
 
@@ -2965,6 +2972,14 @@ onCreateCommunity={() => router.push("/groups/new")}
               meetGreetsByGroup={{}}
     />
   </div>
+)}
+{isMobile && (
+  <div style={{
+    flexShrink: 0,
+    height: "calc(72px + env(safe-area-inset-bottom, 0px))",
+    background: "linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.85) 55%)",
+    pointerEvents: "none",
+  }} />
 )}
 </div>
          </div>

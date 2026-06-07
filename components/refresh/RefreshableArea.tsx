@@ -57,7 +57,7 @@ export default function RefreshableArea({
 
       <div
         className="vibraPullRefreshContent"
-        style={{
+        style={enabled ? {
           transform:
             contentOffset > 0
               ? `translateY(${contentOffset}px)`
@@ -66,7 +66,7 @@ export default function RefreshableArea({
             isRefreshing || contentOffset === 0
               ? "transform 0.22s ease"
               : undefined,
-        }}
+        } : undefined}
       >
         {children}
       </div>
