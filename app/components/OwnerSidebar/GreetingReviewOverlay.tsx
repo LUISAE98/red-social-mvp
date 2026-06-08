@@ -56,12 +56,26 @@ export default function GreetingReviewOverlay({
 
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [recordedBlobUrl, setRecordedBlobUrl] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Review panel bottom sheet (mobile only)
+  const [reviewSheetTransform, setReviewSheetTransform] = useState("translateY(100%)");
+  const [reviewSheetDragging, setReviewSheetDragging] = useState(false);
+  const reviewDragStartRef = useRef({ y: 0, time: 0 });
+  const reviewLastDragRef = useRef({ y: 0, time: 0 });
+
+  // Mobile camera split-panel
+  const [mobilePanelHeight, setMobilePanelHeight] = useState(200);
+  const [mobilePanelDragging, setMobilePanelDragging] = useState(false);
+  const panelDragStartRef = useRef({ y: 0, height: 0 });
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const blobUrlRef = useRef<string | null>(null);
+  const wasUploadedRef = useRef(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -71,6 +85,13 @@ export default function GreetingReviewOverlay({
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
+
+  // Slide-in animation for review bottom sheet on mobile
+  useEffect(() => {
+    if (!mounted) return;
+    const t = setTimeout(() => setReviewSheetTransform("translateY(0)"), 16);
+    return () => clearTimeout(t);
+  }, [mounted]);
 
   // Fetch earning from Firestore
   useEffect(() => {
@@ -181,10 +202,22 @@ export default function GreetingReviewOverlay({
     setCameraError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
-        audio: true,
+        video: {
+          facingMode: "user",
+          width: { ideal: 3840 },
+          height: { ideal: 2160 },
+          frameRate: { ideal: 60 },
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: { ideal: 48000 },
+          channelCount: { ideal: 2 },
+        },
       });
       streamRef.current = stream;
+      setMobilePanelHeight(280);
       setViewState("camera");
       setRecordPhase("preview");
     } catch {
@@ -222,14 +255,86 @@ export default function GreetingReviewOverlay({
     chunksRef.current = [];
     setRecordingSeconds(0);
     setCameraError(null);
+    setUploadError(null);
+    // If video came from upload, just go back to review — no need to re-open camera
+    if (wasUploadedRef.current) {
+      wasUploadedRef.current = false;
+      setRecordPhase("preview");
+      setViewState("review");
+      return;
+    }
+    wasUploadedRef.current = false;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user", width: { ideal: 3840 }, height: { ideal: 2160 }, frameRate: { ideal: 60 } },
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: { ideal: 48000 }, channelCount: { ideal: 2 } },
+      });
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
       setRecordPhase("preview");
     } catch {
       setCameraError("No se pudo acceder a la cámara.");
       stopCamera();
+    }
+  };
+
+  const handleUploadVideo = (file: File) => {
+    setUploadError(null);
+    const maxSeconds = item.data.type === "saludo" ? 240 : item.data.type === "consejo" ? 420 : 240;
+    const maxLabel = item.data.type === "saludo" ? "4 minutos" : item.data.type === "consejo" ? "7 minutos" : "4 minutos";
+
+    const url = URL.createObjectURL(file);
+    const tempVideo = document.createElement("video");
+    tempVideo.preload = "metadata";
+    tempVideo.onloadedmetadata = () => {
+      if (tempVideo.duration > maxSeconds) {
+        URL.revokeObjectURL(url);
+        setUploadError(`El video supera el máximo de ${maxLabel} para este tipo de servicio.`);
+        return;
+      }
+      if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+      blobUrlRef.current = url;
+      wasUploadedRef.current = true;
+      setRecordedBlobUrl(url);
+      setRecordPhase("done");
+      setViewState("camera");
+    };
+    tempVideo.onerror = () => {
+      URL.revokeObjectURL(url);
+      setUploadError("No se pudo leer el archivo de video.");
+    };
+    tempVideo.src = url;
+  };
+
+  const handleReviewBackdropClose = () => {
+    setReviewSheetTransform("translateY(100%)");
+    setTimeout(handleClose, 330);
+  };
+
+  const handleReviewTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    reviewDragStartRef.current = { y: touch.clientY, time: Date.now() };
+    reviewLastDragRef.current = { y: touch.clientY, time: Date.now() };
+    setReviewSheetDragging(true);
+  };
+
+  const handleReviewTouchMove = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    const delta = Math.max(0, touch.clientY - reviewDragStartRef.current.y);
+    setReviewSheetTransform(`translateY(${delta}px)`);
+    reviewLastDragRef.current = { y: touch.clientY, time: Date.now() };
+  };
+
+  const handleReviewTouchEnd = () => {
+    setReviewSheetDragging(false);
+    const distance = reviewLastDragRef.current.y - reviewDragStartRef.current.y;
+    const elapsed = reviewLastDragRef.current.time - reviewDragStartRef.current.time;
+    const velocity = elapsed > 0 ? distance / elapsed : 0; // px/ms, positive = downward
+    if (velocity > 0.45 || distance > 120) {
+      setReviewSheetTransform("translateY(100%)");
+      setTimeout(handleClose, 330);
+    } else {
+      setReviewSheetTransform("translateY(0)");
     }
   };
 
@@ -369,6 +474,20 @@ export default function GreetingReviewOverlay({
     </button>
   ) : null;
 
+  const fileInput = (
+    <input
+      ref={fileInputRef}
+      type="file"
+      accept="video/*"
+      style={{ display: "none" }}
+      onChange={(e) => {
+        const file = e.target.files?.[0];
+        if (file) handleUploadVideo(file);
+        e.target.value = "";
+      }}
+    />
+  );
+
   const containerBase: React.CSSProperties = {
     background: "linear-gradient(145deg, rgb(6,3,12) 0%, rgb(10,5,20) 100%)",
     border: "1px solid rgba(168,85,255,0.15)",
@@ -381,89 +500,131 @@ export default function GreetingReviewOverlay({
 
   // ─── MOBILE CAMERA VIEW ──────────────────────────────────────────────────────
   if (viewState === "camera" && isMobile) {
+    const MIN_H = 130;
+    const MAX_H = Math.round(window.innerHeight * 0.65);
+
+    const handlePanelTouchStart = (e: React.TouchEvent) => {
+      const touch = e.touches[0];
+      panelDragStartRef.current = { y: touch.clientY, height: mobilePanelHeight };
+      setMobilePanelDragging(true);
+    };
+    const handlePanelTouchMove = (e: React.TouchEvent) => {
+      const touch = e.touches[0];
+      const delta = panelDragStartRef.current.y - touch.clientY; // positive = dragging up = panel grows
+      const next = Math.max(MIN_H, Math.min(MAX_H, panelDragStartRef.current.height + delta));
+      setMobilePanelHeight(next);
+    };
+    const handlePanelTouchEnd = () => setMobilePanelDragging(false);
+
     return createPortal(
       <div style={{ position: "fixed", inset: 0, zIndex: 10050, fontFamily: fontStack }}>
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          disablePictureInPicture
-          onContextMenu={(e) => e.preventDefault()}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-        />
-        {/* Close */}
-        <button type="button" onClick={handleClose} style={{
-          position: "absolute", top: 16, right: 16, zIndex: 3,
-          background: "rgba(0,0,0,0.55)", border: "none", color: "rgba(255,255,255,0.8)",
-          cursor: "pointer", width: 36, height: 36, borderRadius: "50%",
-          fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          ✕
-        </button>
 
-        {/* Milestone message above record button */}
-        {recordPhase === "recording" && getRecordingMessage(recordingSeconds, req.type) && (
-          <div style={{
-            position: "absolute", bottom: 178, left: "50%", transform: "translateX(-50%)", zIndex: 3,
-            background: "rgba(0,0,0,0.62)", borderRadius: 20, padding: "5px 14px",
-            color: "#fff", fontWeight: 500, fontSize: 12, fontFamily: fontStack,
-            whiteSpace: "nowrap", backdropFilter: "blur(4px)",
-          }}>
-            {getRecordingMessage(recordingSeconds, req.type)}
-          </div>
-        )}
-
-        {/* Record button overlaid on camera */}
-        {cameraRecordButton && (
-          <div style={{ position: "absolute", bottom: 100, left: 0, right: 0, display: "flex", justifyContent: "center", zIndex: 3 }}>
-            {cameraRecordButton}
-          </div>
-        )}
-
-        {/* Timer overlaid on camera */}
-        {recordPhase === "recording" && (
-          <div style={{
-            position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", zIndex: 3,
-            background: "rgba(0,0,0,0.55)", borderRadius: 20, padding: "4px 14px",
-            display: "flex", alignItems: "center", gap: 7,
-            color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: fontStack,
-          }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block" }} />
-            {formatTime(recordingSeconds)}
-          </div>
-        )}
-
-        {/* Bottom sheet */}
+        {/* ── Camera / playback area — fills from top to panel ── */}
         <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 2,
-          background: "rgba(6,3,12,0.94)",
-          borderRadius: "16px 16px 0 0",
-          backdropFilter: "blur(12px)",
-          transform: `translateY(${sheetExpanded ? "0%" : "calc(100% - 90px)"})`,
-          transition: "transform 320ms cubic-bezier(0.4,0,0.2,1)",
-          maxHeight: "75vh",
-          overflowY: "auto",
+          position: "absolute", top: 0, left: 0, right: 0,
+          bottom: mobilePanelHeight,
+          background: "#000", overflow: "hidden",
         }}>
-          {/* Handle */}
-          <div onClick={() => setSheetExpanded((v) => !v)} style={{
-            display: "flex", justifyContent: "center", padding: "10px 0 8px", cursor: "pointer",
-          }}>
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.28)" }} />
+          {/* Live webcam */}
+          <video
+            ref={videoRef}
+            autoPlay muted playsInline
+            disablePictureInPicture
+            onContextMenu={(e) => e.preventDefault()}
+            style={{
+              width: "100%", height: "100%", objectFit: "cover",
+              display: recordPhase === "done" ? "none" : "block",
+            }}
+          />
+          {/* Playback */}
+          {recordPhase === "done" && recordedBlobUrl && (
+            <video
+              src={recordedBlobUrl}
+              controls playsInline
+              disablePictureInPicture
+              onContextMenu={(e) => e.preventDefault()}
+              style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
+            />
+          )}
+
+          {/* Timer — respects Dynamic Island */}
+          {recordPhase === "recording" && (
+            <div style={{
+              position: "absolute",
+              top: "calc(16px + env(safe-area-inset-top))",
+              left: "50%", transform: "translateX(-50%)",
+              background: "rgba(0,0,0,0.55)", borderRadius: 20, padding: "4px 14px",
+              display: "flex", alignItems: "center", gap: 7,
+              color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: fontStack,
+            }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block" }} />
+              {formatTime(recordingSeconds)}
+            </div>
+          )}
+
+          {/* Milestone message */}
+          {recordPhase === "recording" && getRecordingMessage(recordingSeconds, req.type) && (
+            <div style={{
+              position: "absolute", bottom: 110, left: "50%", transform: "translateX(-50%)",
+              background: "rgba(0,0,0,0.62)", borderRadius: 20, padding: "5px 14px",
+              color: "#fff", fontWeight: 500, fontSize: 12, fontFamily: fontStack,
+              whiteSpace: "nowrap", backdropFilter: "blur(4px)",
+            }}>
+              {getRecordingMessage(recordingSeconds, req.type)}
+            </div>
+          )}
+
+          {/* Record button — positioned inside camera area */}
+          {cameraRecordButton}
+        </div>
+
+        {/* ── Draggable panel ── */}
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          height: mobilePanelHeight,
+          borderRadius: "20px 20px 0 0",
+          background: "linear-gradient(145deg, rgb(6,3,12) 0%, rgb(10,5,20) 100%)",
+          border: "1px solid rgba(168,85,255,0.15)",
+          borderBottom: "none",
+          boxShadow: "0 -8px 24px rgba(0,0,0,0.5)",
+          overflow: "hidden",
+          transition: mobilePanelDragging ? "none" : "height 120ms ease",
+          boxSizing: "border-box",
+        }}>
+          {/* Drag handle */}
+          <div
+            onTouchStart={handlePanelTouchStart}
+            onTouchMove={handlePanelTouchMove}
+            onTouchEnd={handlePanelTouchEnd}
+            style={{ padding: "10px 16px 8px", touchAction: "none", userSelect: "none" }}
+          >
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.22)", margin: "0 auto" }} />
           </div>
 
-          <div style={{ padding: "0 16px 32px", display: "grid", gap: 14 }}>
+          {/* Scrollable content */}
+          <div style={{ overflowY: "auto", padding: "4px 16px", paddingBottom: "calc(14px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", gap: 12 }}>
+            {buyerRow}
+            {divider}
+            {infoSection}
+            {divider}
             {recordControls}
-            {sheetExpanded && (
-              <>
-                {divider}
-                {buyerRow}
-                {divider}
-                {infoSection}
-              </>
+            {recordPhase === "preview" && (
+              <button type="button" onClick={() => { setUploadError(null); fileInputRef.current?.click(); }} style={{
+                width: "100%", height: 38, borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
+                color: "rgba(255,255,255,0.5)", fontWeight: 500, fontSize: 13,
+                cursor: "pointer", fontFamily: fontStack,
+              }}>
+                Subir video
+              </button>
+            )}
+            {uploadError && (
+              <span style={{ fontSize: 11, color: "#f87171", textAlign: "center" }}>{uploadError}</span>
             )}
           </div>
         </div>
+
+        {fileInput}
       </div>,
       document.body
     );
@@ -520,11 +681,25 @@ export default function GreetingReviewOverlay({
             {buyerRow}
             {divider}
             {infoSection}
-            <div style={{ marginTop: "auto", paddingTop: 8 }}>
+            <div style={{ marginTop: "auto", paddingTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
               {recordControls}
+              {recordPhase === "preview" && (
+                <button type="button" onClick={() => { setUploadError(null); fileInputRef.current?.click(); }} style={{
+                  width: "100%", height: 34, borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.08)", background: "transparent",
+                  color: "rgba(255,255,255,0.38)", fontWeight: 500, fontSize: 12,
+                  cursor: "pointer", fontFamily: fontStack,
+                }}>
+                  Subir video
+                </button>
+              )}
+              {uploadError && (
+                <span style={{ fontSize: 11, color: "#f87171", textAlign: "center" }}>{uploadError}</span>
+              )}
             </div>
           </div>
 
+          {fileInput}
           {/* Right: camera / playback fills remaining height */}
           <div style={{ flex: 1, minWidth: 0, padding: "20px 20px 20px 0", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ position: "relative", height: "100%", display: "flex", alignItems: "center" }}>
@@ -594,7 +769,95 @@ export default function GreetingReviewOverlay({
     );
   }
 
-  // ─── REVIEW VIEW (default) ───────────────────────────────────────────────────
+  // ─── REVIEW VIEW — MOBILE (bottom sheet) ────────────────────────────────────
+  if (isMobile) {
+    return createPortal(
+      <>
+        {/* Backdrop */}
+        <div
+          onClick={handleReviewBackdropClose}
+          style={{
+            position: "fixed", inset: 0, zIndex: 10050,
+            background: "rgba(0,0,0,0.62)",
+          }}
+        />
+        {/* Bottom sheet */}
+        <div style={{
+          position: "fixed", bottom: 0, left: 0, right: 0,
+          zIndex: 10051,
+          height: "55vh",
+          overflowY: "auto",
+          borderRadius: "20px 20px 0 0",
+          background: "linear-gradient(145deg, rgb(6,3,12) 0%, rgb(10,5,20) 100%)",
+          border: "1px solid rgba(168,85,255,0.15)",
+          borderBottom: "none",
+          boxShadow: "0 -10px 40px rgba(0,0,0,0.55)",
+          transform: reviewSheetTransform,
+          transition: reviewSheetDragging ? "none" : "transform 320ms cubic-bezier(0.4,0,0.2,1)",
+          fontFamily: fontStack,
+          boxSizing: "border-box",
+          willChange: "transform",
+        }}>
+          {/* Draggable header */}
+          <div
+            onTouchStart={handleReviewTouchStart}
+            onTouchMove={handleReviewTouchMove}
+            onTouchEnd={handleReviewTouchEnd}
+            style={{ flexShrink: 0, padding: "10px 16px 12px", userSelect: "none", touchAction: "none" }}
+          >
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.22)", margin: "0 auto 14px" }} />
+            <span style={{ color: "#fff", fontWeight: 500, fontSize: 17, letterSpacing: "-0.02em" }}>
+              {titleText}
+            </span>
+          </div>
+
+          {/* Scrollable content + actions inline */}
+          <div style={{ overflowY: "auto", padding: "0 16px", paddingBottom: "calc(20px + env(safe-area-inset-bottom))" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {buyerRow}
+              {divider}
+              {infoSection}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button type="button" onClick={handleGrabar} disabled={busy} style={{
+                  flex: 1, height: 44, borderRadius: 12,
+                  border: "1px solid rgba(59,130,246,0.35)",
+                  background: busy ? "rgba(59,130,246,0.06)" : "rgba(59,130,246,0.18)",
+                  color: busy ? "rgba(147,197,253,0.4)" : "#93c5fd",
+                  fontWeight: 700, fontSize: 14, cursor: busy ? "not-allowed" : "pointer",
+                  fontFamily: fontStack,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                }}>
+                  <span style={{
+                    width: 16, height: 16, borderRadius: "50%",
+                    border: "2px solid rgba(255,255,255,0.85)",
+                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                  }}>
+                    <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block" }} />
+                  </span>
+                  Comenzar
+                </button>
+                <button type="button" onClick={onReject} disabled={busy} style={{
+                  flex: 1, height: 44, borderRadius: 12,
+                  border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
+                  color: busy ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.65)",
+                  fontWeight: 600, fontSize: 14, cursor: busy ? "not-allowed" : "pointer",
+                  fontFamily: fontStack,
+                }}>
+                  {busy ? "Procesando..." : "Rechazar"}
+                </button>
+              </div>
+              {cameraError && (
+                <span style={{ fontSize: 12, color: "#f87171", textAlign: "center" }}>{cameraError}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </>,
+      document.body
+    );
+  }
+
+  // ─── REVIEW VIEW — DESKTOP (centered modal) ──────────────────────────────────
   return createPortal(
     <div style={{
       position: "fixed", inset: 0, zIndex: 10050,
@@ -658,6 +921,7 @@ export default function GreetingReviewOverlay({
             {busy ? "Procesando..." : "Rechazar"}
           </button>
         </div>
+
         {cameraError && (
           <span style={{ fontSize: 12, color: "#f87171", textAlign: "center" }}>{cameraError}</span>
         )}
