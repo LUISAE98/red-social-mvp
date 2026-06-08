@@ -524,6 +524,7 @@ export default function GreetingReviewOverlay({
           position: "absolute", top: 0, left: 0, right: 0,
           bottom: mobilePanelHeight,
           background: "#000", overflow: "hidden",
+          borderRadius: "0 0 24px 24px",
         }}>
           {/* Live webcam */}
           <video
@@ -532,8 +533,7 @@ export default function GreetingReviewOverlay({
             disablePictureInPicture
             onContextMenu={(e) => e.preventDefault()}
             style={{
-              width: "100%", height: "100%", objectFit: "cover",
-              display: recordPhase === "done" ? "none" : "block",
+              width: "100%", height: "100%", objectFit: "cover", display: recordPhase === "done" ? "none" : "block",
             }}
           />
           {/* Playback */}
@@ -609,14 +609,24 @@ export default function GreetingReviewOverlay({
             {divider}
             {recordControls}
             {recordPhase === "preview" && (
-              <button type="button" onClick={() => { setUploadError(null); fileInputRef.current?.click(); }} style={{
-                width: "100%", height: 38, borderRadius: 10,
-                border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
-                color: "rgba(255,255,255,0.5)", fontWeight: 500, fontSize: 13,
-                cursor: "pointer", fontFamily: fontStack,
-              }}>
-                Subir video
-              </button>
+              <>
+                <button type="button" onClick={() => { setUploadError(null); fileInputRef.current?.click(); }} style={{
+                  width: "100%", height: 38, borderRadius: 10,
+                  border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
+                  color: "rgba(255,255,255,0.5)", fontWeight: 500, fontSize: 13,
+                  cursor: "pointer", fontFamily: fontStack,
+                }}>
+                  Subir video
+                </button>
+                <button type="button" onClick={stopCamera} style={{
+                  width: "100%", height: 38, borderRadius: 10,
+                  border: "none", background: "transparent",
+                  color: "rgba(255,255,255,0.3)", fontWeight: 500, fontSize: 13,
+                  cursor: "pointer", fontFamily: fontStack,
+                }}>
+                  Cancelar
+                </button>
+              </>
             )}
             {uploadError && (
               <span style={{ fontSize: 11, color: "#f87171", textAlign: "center" }}>{uploadError}</span>
