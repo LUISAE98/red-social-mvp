@@ -591,19 +591,19 @@ export default function GreetingReviewOverlay({
           transition: mobilePanelDragging ? "none" : "height 120ms ease",
           boxSizing: "border-box",
         }}>
-          {/* Drag handle */}
+          {/* Drag handle — incluye handle bar + buyer row */}
           <div
             onTouchStart={handlePanelTouchStart}
             onTouchMove={handlePanelTouchMove}
             onTouchEnd={handlePanelTouchEnd}
-            style={{ padding: "10px 16px 8px", touchAction: "none", userSelect: "none" }}
+            style={{ padding: "10px 16px 12px", touchAction: "none", userSelect: "none", display: "flex", flexDirection: "column", gap: 12 }}
           >
             <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.22)", margin: "0 auto" }} />
+            {buyerRow}
           </div>
 
           {/* Scrollable content */}
-          <div style={{ overflowY: "auto", padding: "4px 16px", paddingBottom: "calc(14px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", gap: 12 }}>
-            {buyerRow}
+          <div style={{ overflowY: "auto", padding: "0 16px", paddingBottom: "calc(14px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", gap: 12 }}>
             {divider}
             {infoSection}
             {divider}
@@ -808,23 +808,23 @@ export default function GreetingReviewOverlay({
           boxSizing: "border-box",
           willChange: "transform",
         }}>
-          {/* Draggable header */}
+          {/* Draggable header — handle + título + buyer row */}
           <div
             onTouchStart={handleReviewTouchStart}
             onTouchMove={handleReviewTouchMove}
             onTouchEnd={handleReviewTouchEnd}
-            style={{ flexShrink: 0, padding: "10px 16px 12px", userSelect: "none", touchAction: "none" }}
+            style={{ padding: "10px 16px 14px", userSelect: "none", touchAction: "none", display: "flex", flexDirection: "column", gap: 14 }}
           >
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.22)", margin: "0 auto 14px" }} />
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.22)", margin: "0 auto" }} />
             <span style={{ color: "#fff", fontWeight: 500, fontSize: 17, letterSpacing: "-0.02em" }}>
               {titleText}
             </span>
+            {buyerRow}
           </div>
 
           {/* Scrollable content + actions inline */}
           <div style={{ overflowY: "auto", padding: "0 16px", paddingBottom: "calc(20px + env(safe-area-inset-bottom))" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {buyerRow}
               {divider}
               {infoSection}
               <div style={{ display: "flex", gap: 8 }}>
