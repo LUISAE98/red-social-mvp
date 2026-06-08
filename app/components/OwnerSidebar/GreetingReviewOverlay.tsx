@@ -74,6 +74,7 @@ export default function GreetingReviewOverlay({
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const blobUrlRef = useRef<string | null>(null);
+  const mimeTypeRef = useRef<string>("");
   const wasUploadedRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -228,14 +229,20 @@ export default function GreetingReviewOverlay({
   const handleStartRecording = () => {
     if (!streamRef.current) return;
     chunksRef.current = [];
-    const mr = new MediaRecorder(streamRef.current);
+    const preferredTypes = [
+      "video/mp4",
+      "video/webm;codecs=vp9,opus",
+      "video/webm;codecs=vp8,opus",
+      "video/webm",
+    ];
+    const mimeType = preferredTypes.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
+    mimeTypeRef.current = mimeType;
+    const mr = new MediaRecorder(streamRef.current, mimeType ? { mimeType } : undefined);
     mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
     mr.onstop = () => {
-      // Stop camera tracks — release webcam
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
-      // Build playback URL
-      const blob = new Blob(chunksRef.current, { type: "video/webm" });
+      const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || "video/webm" });
       const url = URL.createObjectURL(blob);
       blobUrlRef.current = url;
       setRecordedBlobUrl(url);
