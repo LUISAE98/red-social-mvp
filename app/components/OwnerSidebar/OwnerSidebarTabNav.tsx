@@ -7,17 +7,19 @@ type Props = {
   activeView: TopView;
   onChange: (view: TopView) => void;
   requestedCount?: number;
+  deliveredCount?: number;
 };
 
 export default function OwnerSidebarTabNav({
   activeView,
   onChange,
   requestedCount = 0,
+  deliveredCount = 0,
 }: Props) {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
-  const hasRequests = requestedCount > 0;
+  const hasRequests = requestedCount > 0 || deliveredCount > 0;
 
   const tabs = [
     {

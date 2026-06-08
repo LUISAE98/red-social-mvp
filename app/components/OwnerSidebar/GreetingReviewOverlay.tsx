@@ -27,20 +27,22 @@ type ViewState = "review" | "camera";
 type RecordPhase = "preview" | "recording" | "done";
 
 type Props = {
-  item: { id: string; data: GreetingRequestDoc };
-  buyer: UserMini | null;
-  busy: boolean;
-  onAccept?: () => void;
-  onReject: () => void;
+  items: Array<{ id: string; data: GreetingRequestDoc }>;
+  buyers: Record<string, UserMini | null>;
+  startIndex?: number;
+  greetingBusyId: string | null;
+  onAccept?: (id: string) => void;
+  onReject: (id: string) => void;
   onClose: () => void;
   getInitials: (name?: string | null) => string;
   typeLabel: (t: string) => string;
 };
 
 export default function GreetingReviewOverlay({
-  item,
-  buyer,
-  busy,
+  items,
+  buyers,
+  startIndex = 0,
+  greetingBusyId,
   onAccept,
   onReject,
   onClose,
@@ -49,6 +51,7 @@ export default function GreetingReviewOverlay({
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [earningFormatted, setEarningFormatted] = useState<string | null>(null);
+  const [sourceInfo, setSourceInfo] = useState<{ name: string; photoURL: string | null } | null>(null);
   const [viewState, setViewState] = useState<ViewState>("review");
   const [recordPhase, setRecordPhase] = useState<RecordPhase>("preview");
   const [isMobile, setIsMobile] = useState(false);
@@ -62,6 +65,13 @@ export default function GreetingReviewOverlay({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileDuration, setFileDuration] = useState<number | null>(null);
   const uploadBlobRef = useRef<Blob | File | null>(null);
+
+  // Multi-item queue state
+  const [currentIndex, setCurrentIndex] = useState(startIndex);
+  const [uploadSucceeded, setUploadSucceeded] = useState(false);
+  const [completedEarningsNet, setCompletedEarningsNet] = useState<number[]>([]);
+  const [slideState, setSlideState] = useState<"idle" | "exit" | "enter">("idle");
+  const [earningNet, setEarningNet] = useState<number | null>(null);
 
   // Review panel bottom sheet (mobile only)
   const [reviewSheetTransform, setReviewSheetTransform] = useState("translateY(100%)");
@@ -99,9 +109,13 @@ export default function GreetingReviewOverlay({
     return () => clearTimeout(t);
   }, [mounted]);
 
-  // Fetch earning from Firestore
+  // Fetch earning + source info from Firestore — re-runs when cycling to next item
   useEffect(() => {
-    const req = item.data;
+    setEarningFormatted(null);
+    setEarningNet(null);
+    setSourceInfo(null);
+    const req = items[currentIndex]?.data;
+    if (!req) return;
     const source = req.source ?? "group";
     const id = source === "profile" ? req.profileUserId ?? req.creatorId : req.groupId;
     if (!id) return;
@@ -109,6 +123,22 @@ export default function GreetingReviewOverlay({
     getDoc(doc(db, col, id)).then((snap) => {
       if (!snap.exists()) return;
       const data = snap.data() as Record<string, unknown>;
+
+      // Source name and avatar — only needed for groups (profile uses buyers[creatorId] directly)
+      if (source !== "profile") {
+        const rawName =
+          typeof data.name === "string" && data.name.trim()
+            ? data.name.trim()
+            : null;
+        const resolvedName = rawName || "Comunidad";
+        const photoURL =
+          typeof data.avatarUrl === "string" && data.avatarUrl ? data.avatarUrl :
+          typeof data.photoURL === "string" && data.photoURL ? data.photoURL :
+          null;
+        setSourceInfo({ name: resolvedName, photoURL });
+      }
+
+      // Earnings
       const offerings = Array.isArray(data.offerings)
         ? (data.offerings as Array<Record<string, unknown>>)
         : [];
@@ -123,6 +153,7 @@ export default function GreetingReviewOverlay({
       if (rawPrice == null || rawPrice <= 0) return;
       const net = rawPrice * 0.77;
       const cur = typeof offering.currency === "string" ? offering.currency : "MXN";
+      setEarningNet(net);
       setEarningFormatted(
         "$" +
           new Intl.NumberFormat("es-MX", {
@@ -132,7 +163,7 @@ export default function GreetingReviewOverlay({
           ` ${cur}`
       );
     }).catch(() => {});
-  }, [item]);
+  }, [currentIndex, items]);
 
   // Attach stream to video element after camera activates
   useEffect(() => {
@@ -152,7 +183,7 @@ export default function GreetingReviewOverlay({
   // Seconds counter while recording — auto-stops at max duration
   useEffect(() => {
     if (recordPhase !== "recording") { setRecordingSeconds(0); return; }
-    const maxSeconds = item.data.type === "saludo" ? 240 : item.data.type === "consejo" ? 420 : 240;
+    const maxSeconds = items[currentIndex]?.data.type === "saludo" ? 240 : items[currentIndex]?.data.type === "consejo" ? 420 : 240;
     const id = setInterval(() => {
       setRecordingSeconds((s) => {
         const next = s + 1;
@@ -161,7 +192,7 @@ export default function GreetingReviewOverlay({
       });
     }, 1000);
     return () => clearInterval(id);
-  }, [recordPhase, item.data.type]);
+  }, [recordPhase, currentIndex, items]);
 
   const formatTime = (s: number) =>
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -196,7 +227,7 @@ export default function GreetingReviewOverlay({
     setUploadProgress(0);
 
     try {
-      const { uploadUrl } = await createGreetingMuxUpload({ greetingRequestId: item.id });
+      const { uploadUrl } = await createGreetingMuxUpload({ greetingRequestId: currentItem.id });
 
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
@@ -212,7 +243,13 @@ export default function GreetingReviewOverlay({
         xhr.send(blob);
       });
 
-      handleClose();
+      // Stop camera stream if still running (file upload path)
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+      setIsUploading(false);
+      setUploadProgress(0);
+      setCompletedEarningsNet((prev) => [...prev, earningNet ?? 0]);
+      setUploadSucceeded(true);
     } catch (e: any) {
       setUploadError(e?.message ?? "No se pudo subir el video. Intenta de nuevo.");
       setIsUploading(false);
@@ -220,7 +257,10 @@ export default function GreetingReviewOverlay({
     }
   };
 
-  const req = item.data;
+  const currentItem = items[currentIndex] ?? items[0];
+  const req = currentItem.data;
+  const buyer = buyers[req.buyerId] ?? null;
+  const busy = greetingBusyId === currentItem.id;
   const buyerLetter = getInitials(buyer?.displayName);
 
   const titleText =
@@ -324,8 +364,8 @@ export default function GreetingReviewOverlay({
 
   const handleUploadVideo = (file: File) => {
     setUploadError(null);
-    const maxSeconds = item.data.type === "saludo" ? 240 : item.data.type === "consejo" ? 420 : 240;
-    const maxLabel = item.data.type === "saludo" ? "4 minutos" : item.data.type === "consejo" ? "7 minutos" : "4 minutos";
+    const maxSeconds = req.type === "saludo" ? 240 : req.type === "consejo" ? 420 : 240;
+    const maxLabel = req.type === "saludo" ? "4 minutos" : req.type === "consejo" ? "7 minutos" : "4 minutos";
 
     const url = URL.createObjectURL(file);
     const tempVideo = document.createElement("video");
@@ -384,6 +424,38 @@ export default function GreetingReviewOverlay({
     }
   };
 
+  const handleNextGreeting = () => {
+    // Reset recording state and advance to next item — stay in camera panel
+    if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
+    uploadBlobRef.current = null;
+    wasUploadedRef.current = false;
+    recorderRef.current = null;
+    chunksRef.current = [];
+    setRecordedBlobUrl(null);
+    setRecordPhase("preview");
+    setRecordingSeconds(0);
+    setCameraError(null);
+    setUploadError(null);
+    setIsUploading(false);
+    setUploadProgress(0);
+    setFileDuration(null);
+    setUploadSucceeded(false);
+    setCurrentIndex((ci) => ci + 1);
+    // Slide-in animation for new item info
+    setSlideState("enter");
+    requestAnimationFrame(() => requestAnimationFrame(() => setSlideState("idle")));
+    // Re-open camera for the next greeting
+    void navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "user", width: { ideal: 3840 }, height: { ideal: 2160 }, frameRate: { ideal: 60 } },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, sampleRate: { ideal: 48000 }, channelCount: { ideal: 2 } },
+    }).then((stream) => {
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    }).catch(() => {
+      setCameraError("No se pudo acceder a la cámara.");
+    });
+  };
+
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
@@ -402,7 +474,130 @@ export default function GreetingReviewOverlay({
 
   if (!mounted) return null;
 
+  const slideStyle: React.CSSProperties = {
+    transform: slideState === "exit" ? "translateX(-20px)" : slideState === "enter" ? "translateX(20px)" : "translateX(0)",
+    opacity: slideState === "idle" ? 1 : 0,
+    transition: slideState === "exit" ? "transform 200ms ease, opacity 200ms ease" : slideState === "idle" ? "transform 260ms ease, opacity 260ms ease" : "none",
+  };
+
   // ─── Shared sub-sections ────────────────────────────────────────────────────
+  // Success state helpers — used inside camera panels when uploadSucceeded
+  const successIsLast = currentIndex >= items.length - 1;
+  const successCompletedCount = completedEarningsNet.length;
+  const successTotalEarned = completedEarningsNet.reduce((a, b) => a + b, 0);
+  const successFmt = new Intl.NumberFormat("es-MX", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const successLabel = req.type === "consejo" ? "¡Consejo enviado!" : req.type === "mensaje" ? "¡Mensaje enviado!" : "¡Saludo enviado!";
+
+  // Success content — shown inline in the panel below the info section
+  const successContent = (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+      <style>{`
+        @keyframes vibraSuccessPop {
+          0%   { transform: scale(0.3); opacity: 0; }
+          65%  { transform: scale(1.12); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes vibraCheckDraw {
+          0%   { stroke-dashoffset: 32; opacity: 0; }
+          30%  { opacity: 1; }
+          100% { stroke-dashoffset: 0; opacity: 1; }
+        }
+      `}</style>
+      {/* Solid green circle with white checkmark */}
+      <div style={{
+        width: 48, height: 48, borderRadius: "50%",
+        background: "#22c55e",
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+        animation: "vibraSuccessPop 0.45s cubic-bezier(0.4,0,0.2,1) both",
+      }}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M5 12L10 17L19 8"
+            stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            strokeDasharray="32" strokeDashoffset="0"
+            style={{ animation: "vibraCheckDraw 0.5s 0.25s ease both" }}
+          />
+        </svg>
+      </div>
+      <span style={{ color: "#fff", fontWeight: 700, fontSize: 14, letterSpacing: "-0.02em", lineHeight: 1.2, textAlign: "center" }}>
+        {successLabel}
+      </span>
+      {/* Earnings + completion — only shown on the very last item */}
+      {successIsLast && successTotalEarned > 0 && (
+        <span style={{ color: "#86efac", fontWeight: 600, fontSize: 12, lineHeight: 1.5, textAlign: "center" }}>
+          {`Grabaste ${successCompletedCount} ${successCompletedCount === 1 ? "saludo o consejo" : "saludos y consejos"} y ganaste $${successFmt.format(successTotalEarned)} MXN`}
+        </span>
+      )}
+      {successIsLast && (
+        <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 12, lineHeight: 1.5, textAlign: "center" }}>
+          Terminaste todos tus saludos y consejos pendientes
+        </span>
+      )}
+      <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
+        {!successIsLast && (
+          <button type="button" onClick={handleNextGreeting} style={{
+            width: "100%", height: 42, borderRadius: 12,
+            border: "1px solid rgba(59,130,246,0.3)", background: "rgba(59,130,246,0.15)",
+            color: "#93c5fd", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: fontStack,
+          }}>
+            Revisar el siguiente
+          </button>
+        )}
+        <button type="button" onClick={handleClose} style={{
+          width: "100%", height: 38, borderRadius: 10,
+          border: "none", background: "transparent",
+          color: "rgba(255,255,255,0.38)", fontWeight: 500, fontSize: 13,
+          cursor: "pointer", fontFamily: fontStack,
+        }}>
+          {successIsLast ? "Cerrar" : "Cancelar"}
+        </button>
+      </div>
+    </div>
+  );
+
+  const typeWord = req.type === "consejo" ? "consejo" : req.type === "mensaje" ? "mensaje" : "saludo";
+  // Profile source: name is always "Tu perfil", photo comes from buyers[creatorId] (already loaded)
+  // Group source: name and photo come from sourceInfo (loaded async from Firestore)
+  const sourceName = req.source === "profile" ? "Tu perfil" : (sourceInfo?.name ?? null);
+  const sourcePhotoURL = req.source === "profile"
+    ? (buyers[req.creatorId]?.photoURL ?? null)
+    : (sourceInfo?.photoURL ?? null);
+
+  function renderSourceChip(topValue: number | string) {
+    if (!sourceName) return null;
+    return (
+      <div style={{
+        position: "absolute", top: topValue, left: "50%", transform: "translateX(-50%)",
+        background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)",
+        borderRadius: 20, padding: "5px 10px 5px 13px",
+        display: "flex", alignItems: "center", gap: 7,
+        pointerEvents: "none", zIndex: 2,
+      }}>
+        <span style={{
+          color: "rgba(255,255,255,0.78)", fontSize: 11, fontWeight: 500,
+          fontFamily: fontStack, whiteSpace: "nowrap", lineHeight: 1.2,
+        }}>
+          {`Este ${typeWord} fue solicitado desde ${sourceName}`}
+        </span>
+        {sourcePhotoURL ? (
+          <img
+            src={sourcePhotoURL}
+            alt={sourceName}
+            style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.15)" }}
+          />
+        ) : (
+          <div style={{
+            width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+            background: "rgba(255,255,255,0.12)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.7)",
+          }}>
+            {sourceName.charAt(0).toUpperCase()}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const buyerRow = (
     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
@@ -411,13 +606,13 @@ export default function GreetingReviewOverlay({
           src={buyer.photoURL}
           alt={buyer.displayName}
           style={{
-            width: 38, height: 38, borderRadius: 12, objectFit: "cover",
+            width: 38, height: 38, borderRadius: "50%", objectFit: "cover",
             border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0,
           }}
         />
       ) : (
         <div style={{
-          width: 38, height: 38, borderRadius: 12, background: "rgba(255,255,255,0.07)",
+          width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,0.07)",
           border: "1px solid rgba(255,255,255,0.12)", display: "flex", alignItems: "center",
           justifyContent: "center", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0,
         }}>
@@ -619,7 +814,6 @@ export default function GreetingReviewOverlay({
               style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
             />
           )}
-
           {/* Timer — respects Dynamic Island */}
           {recordPhase === "recording" && (
             <div style={{
@@ -634,7 +828,12 @@ export default function GreetingReviewOverlay({
               {formatTime(recordingSeconds)}
             </div>
           )}
-
+          {/* Source chip — always visible in camera area */}
+          {recordPhase !== "done" && renderSourceChip(
+            recordPhase === "recording"
+              ? "calc(54px + env(safe-area-inset-top))"
+              : "calc(16px + env(safe-area-inset-top))"
+          )}
           {/* Milestone message */}
           {recordPhase === "recording" && getRecordingMessage(recordingSeconds, req.type) && (
             <div style={{
@@ -646,8 +845,6 @@ export default function GreetingReviewOverlay({
               {getRecordingMessage(recordingSeconds, req.type)}
             </div>
           )}
-
-          {/* Record button — positioned inside camera area */}
           {cameraRecordButton}
         </div>
 
@@ -664,7 +861,7 @@ export default function GreetingReviewOverlay({
           transition: mobilePanelDragging ? "none" : "height 120ms ease",
           boxSizing: "border-box",
         }}>
-          {/* Drag handle — incluye handle bar + buyer row */}
+          {/* Drag handle — handle bar + buyer row with slide */}
           <div
             onTouchStart={handlePanelTouchStart}
             onTouchMove={handlePanelTouchMove}
@@ -672,35 +869,41 @@ export default function GreetingReviewOverlay({
             style={{ padding: "10px 16px 12px", touchAction: "none", userSelect: "none", display: "flex", flexDirection: "column", gap: 12 }}
           >
             <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.22)", margin: "0 auto" }} />
-            {buyerRow}
+            <div style={slideStyle}>{buyerRow}</div>
           </div>
 
           {/* Scrollable content */}
           <div style={{ overflowY: "auto", padding: "0 16px", paddingBottom: "calc(14px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", gap: 12 }}>
-            {divider}
-            {infoSection}
-            {divider}
-            {recordControls}
-            {recordPhase === "preview" && (
-              <button type="button" onClick={() => { setUploadError(null); fileInputRef.current?.click(); }} style={{
-                width: "100%", height: 38, borderRadius: 10,
-                border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
-                color: "rgba(255,255,255,0.5)", fontWeight: 500, fontSize: 13,
-                cursor: "pointer", fontFamily: fontStack,
-              }}>
-                Subir video
-              </button>
-            )}
-            <button type="button" onClick={stopCamera} style={{
-              width: "100%", height: 38, borderRadius: 10,
-              border: "none", background: "transparent",
-              color: "rgba(255,255,255,0.3)", fontWeight: 500, fontSize: 13,
-              cursor: "pointer", fontFamily: fontStack,
-            }}>
-              Cancelar
-            </button>
-            {uploadError && (
-              <span style={{ fontSize: 11, color: "#f87171", textAlign: "center" }}>{uploadError}</span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12, ...slideStyle }}>
+              {divider}
+              {infoSection}
+              {divider}
+            </div>
+            {uploadSucceeded ? successContent : (
+              <>
+                {recordControls}
+                {recordPhase === "preview" && (
+                  <button type="button" onClick={() => { setUploadError(null); fileInputRef.current?.click(); }} style={{
+                    width: "100%", height: 38, borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
+                    color: "rgba(255,255,255,0.5)", fontWeight: 500, fontSize: 13,
+                    cursor: "pointer", fontFamily: fontStack,
+                  }}>
+                    Subir video
+                  </button>
+                )}
+                <button type="button" onClick={stopCamera} style={{
+                  width: "100%", height: 38, borderRadius: 10,
+                  border: "none", background: "transparent",
+                  color: "rgba(255,255,255,0.3)", fontWeight: 500, fontSize: 13,
+                  cursor: "pointer", fontFamily: fontStack,
+                }}>
+                  Cancelar
+                </button>
+                {uploadError && (
+                  <span style={{ fontSize: 11, color: "#f87171", textAlign: "center" }}>{uploadError}</span>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -759,23 +962,29 @@ export default function GreetingReviewOverlay({
                 ✕
               </button>
             </div>
-            {buyerRow}
-            {divider}
-            {infoSection}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16, ...slideStyle }}>
+              {buyerRow}
+              {divider}
+              {infoSection}
+            </div>
             <div style={{ marginTop: "auto", paddingTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-              {recordControls}
-              {recordPhase === "preview" && (
-                <button type="button" onClick={() => { setUploadError(null); fileInputRef.current?.click(); }} style={{
-                  width: "100%", height: 34, borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.08)", background: "transparent",
-                  color: "rgba(255,255,255,0.38)", fontWeight: 500, fontSize: 12,
-                  cursor: "pointer", fontFamily: fontStack,
-                }}>
-                  Subir video
-                </button>
-              )}
-              {uploadError && (
-                <span style={{ fontSize: 11, color: "#f87171", textAlign: "center" }}>{uploadError}</span>
+              {uploadSucceeded ? successContent : (
+                <>
+                  {recordControls}
+                  {recordPhase === "preview" && (
+                    <button type="button" onClick={() => { setUploadError(null); fileInputRef.current?.click(); }} style={{
+                      width: "100%", height: 34, borderRadius: 10,
+                      border: "1px solid rgba(255,255,255,0.08)", background: "transparent",
+                      color: "rgba(255,255,255,0.38)", fontWeight: 500, fontSize: 12,
+                      cursor: "pointer", fontFamily: fontStack,
+                    }}>
+                      Subir video
+                    </button>
+                  )}
+                  {uploadError && (
+                    <span style={{ fontSize: 11, color: "#f87171", textAlign: "center" }}>{uploadError}</span>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -784,7 +993,6 @@ export default function GreetingReviewOverlay({
           {/* Right: camera / playback fills remaining height */}
           <div style={{ flex: 1, minWidth: 0, padding: "20px 20px 20px 0", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <div style={{ position: "relative", height: "100%", display: "flex", alignItems: "center" }}>
-
               {/* Live webcam — hidden when done */}
               <video
                 ref={videoRef}
@@ -800,7 +1008,6 @@ export default function GreetingReviewOverlay({
                   border: "1px solid rgba(255,255,255,0.08)",
                 }}
               />
-
               {/* Playback video — shown when done */}
               {recordPhase === "done" && recordedBlobUrl && (
                 <video
@@ -816,7 +1023,6 @@ export default function GreetingReviewOverlay({
                   }}
                 />
               )}
-
               {/* Timer */}
               {recordPhase === "recording" && (
                 <div style={{
@@ -830,6 +1036,8 @@ export default function GreetingReviewOverlay({
                   {formatTime(recordingSeconds)}
                 </div>
               )}
+              {/* Source chip — always visible in camera area */}
+              {recordPhase !== "done" && renderSourceChip(recordPhase === "recording" ? 56 : 14)}
               {/* Milestone message */}
               {recordPhase === "recording" && getRecordingMessage(recordingSeconds, req.type) && (
                 <div style={{
@@ -890,12 +1098,12 @@ export default function GreetingReviewOverlay({
             <span style={{ color: "#fff", fontWeight: 500, fontSize: 17, letterSpacing: "-0.02em" }}>
               {titleText}
             </span>
-            {buyerRow}
+            <div style={slideStyle}>{buyerRow}</div>
           </div>
 
           {/* Scrollable content + actions inline */}
           <div style={{ overflowY: "auto", padding: "0 16px", paddingBottom: "calc(20px + env(safe-area-inset-bottom))" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14, ...slideStyle }}>
               {divider}
               {infoSection}
               <div style={{ display: "flex", gap: 8 }}>
@@ -917,7 +1125,7 @@ export default function GreetingReviewOverlay({
                   </span>
                   Comenzar
                 </button>
-                <button type="button" onClick={onReject} disabled={busy} style={{
+                <button type="button" onClick={() => onReject(currentItem.id)} disabled={busy} style={{
                   flex: 1, height: 44, borderRadius: 12,
                   border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
                   color: busy ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.65)",
@@ -964,48 +1172,50 @@ export default function GreetingReviewOverlay({
           </button>
         </div>
 
-        {buyerRow}
-        {divider}
-        {infoSection}
+        <div style={{ display: "grid", gap: 16, ...slideStyle }}>
+          {buyerRow}
+          {divider}
+          {infoSection}
 
-        {/* Actions */}
-        <div style={{ display: "flex", gap: 8 }}>
-          <button type="button" onClick={handleGrabar} disabled={busy} style={{
-            flex: 1, height: 38, borderRadius: 10,
-            border: "1px solid rgba(59,130,246,0.35)", background: busy ? "rgba(59,130,246,0.06)" : "rgba(59,130,246,0.18)",
-            color: busy ? "rgba(147,197,253,0.4)" : "#93c5fd",
-            fontWeight: 700, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
-            fontFamily: fontStack, transition: "background 150ms",
-            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-          }}>
-            <span style={{
-              width: 16, height: 16, borderRadius: "50%",
-              border: "2px solid rgba(255,255,255,0.85)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              flexShrink: 0,
+          {/* Actions */}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="button" onClick={handleGrabar} disabled={busy} style={{
+              flex: 1, height: 38, borderRadius: 10,
+              border: "1px solid rgba(59,130,246,0.35)", background: busy ? "rgba(59,130,246,0.06)" : "rgba(59,130,246,0.18)",
+              color: busy ? "rgba(147,197,253,0.4)" : "#93c5fd",
+              fontWeight: 700, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
+              fontFamily: fontStack, transition: "background 150ms",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             }}>
               <span style={{
-                width: 8, height: 8, borderRadius: "50%",
-                background: "#ef4444",
-                display: "block",
-              }} />
-            </span>
-            Comenzar
-          </button>
-          <button type="button" onClick={onReject} disabled={busy} style={{
-            flex: 1, height: 38, borderRadius: 10,
-            border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
-            color: busy ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.65)",
-            fontWeight: 600, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
-            fontFamily: fontStack, transition: "background 150ms",
-          }}>
-            {busy ? "Procesando..." : "Rechazar"}
-          </button>
-        </div>
+                width: 16, height: 16, borderRadius: "50%",
+                border: "2px solid rgba(255,255,255,0.85)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <span style={{
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: "#ef4444",
+                  display: "block",
+                }} />
+              </span>
+              Comenzar
+            </button>
+            <button type="button" onClick={() => onReject(currentItem.id)} disabled={busy} style={{
+              flex: 1, height: 38, borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
+              color: busy ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.65)",
+              fontWeight: 600, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
+              fontFamily: fontStack, transition: "background 150ms",
+            }}>
+              {busy ? "Procesando..." : "Rechazar"}
+            </button>
+          </div>
 
-        {cameraError && (
-          <span style={{ fontSize: 12, color: "#f87171", textAlign: "center" }}>{cameraError}</span>
-        )}
+          {cameraError && (
+            <span style={{ fontSize: 12, color: "#f87171", textAlign: "center" }}>{cameraError}</span>
+          )}
+        </div>
       </div>
     </div>,
     document.body

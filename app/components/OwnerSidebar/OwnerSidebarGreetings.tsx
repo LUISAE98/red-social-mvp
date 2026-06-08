@@ -1951,7 +1951,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 const itemKey = `delivered-${row.id}`;
                 const isOpen = deliveredItemOpen === itemKey;
                 const playbackId = req.muxPlaybackId ?? null;
-                const hlsUrl = req.muxHlsUrl ?? (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null);
+
                 const mp4Url = playbackId ? `https://stream.mux.com/${playbackId}/high.mp4` : null;
                 const thumbnailUrl = playbackId ? `https://image.mux.com/${playbackId}/thumbnail.jpg` : null;
 
@@ -2062,12 +2062,13 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                                 poster={thumbnailUrl ?? undefined}
                                 controls
                                 playsInline
+                                preload="auto"
                                 disablePictureInPicture
                                 onContextMenu={(e) => e.preventDefault()}
                                 style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
                               >
-                                {hlsUrl && <source src={hlsUrl} type="application/x-mpegURL" />}
                                 {mp4Url && <source src={mp4Url} type="video/mp4" />}
+                                {playbackId && <source src={`https://stream.mux.com/${playbackId}.m3u8`} type="application/x-mpegURL" />}
                               </video>
                               {req.videoDuration != null && (
                                 <span

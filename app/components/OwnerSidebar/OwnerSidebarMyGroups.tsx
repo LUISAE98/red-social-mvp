@@ -298,6 +298,19 @@ function toDateSafe(value: unknown): Date | null {
   return null;
 }
 
+function getRelativeTime(value: unknown): string {
+  const date = toDateSafe(value);
+  if (!date) return "Hace un momento";
+  const diffMs = Date.now() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
+  if (diffHours >= 1) return `Hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
+  if (diffMins >= 1) return `Hace ${diffMins} ${diffMins === 1 ? "minuto" : "minutos"}`;
+  return "Hace un momento";
+}
+
 function isPrepareWindowOpen(value: unknown): boolean {
   const date = toDateSafe(value);
   if (!date) return false;
@@ -412,8 +425,17 @@ export default function OwnerSidebarMyGroups({
   const pathname = usePathname();
   const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [reviewGreetingItem, setReviewGreetingItem] = useState<{ id: string; data: GreetingRequestDoc } | null>(null);
+  const [reviewGreetingState, setReviewGreetingState] = useState<{ items: Array<{ id: string; data: GreetingRequestDoc }>; startIndex: number } | null>(null);
   const [greetingEarningsMap, setGreetingEarningsMap] = useState<Record<string, string | null>>({});
+
+  const allSortedGreetings = useMemo(() => {
+    const all = Object.values(greetingsByGroup).flat();
+    return all.sort((a, b) => {
+      const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
+      const bTime = toDateSafe(b.data.createdAt)?.getTime() ?? 0;
+      return aTime - bTime;
+    });
+  }, [greetingsByGroup]);
 
   useEffect(() => {
     // Deduplicate by (bucketKey, type) — same logic as getServiceBucketKey in OwnerSidebar
@@ -1775,7 +1797,7 @@ boxShadow:
                                             style={{
                                               width: 28,
                                               height: 28,
-                                              borderRadius: 10,
+                                              borderRadius: "50%",
                                               objectFit: "cover",
                                               border: "1px solid rgba(255,255,255,0.12)",
                                               flexShrink: 0,
@@ -1786,7 +1808,7 @@ boxShadow:
                                             style={{
                                               width: 28,
                                               height: 28,
-                                              borderRadius: 10,
+                                              borderRadius: "50%",
                                               background: "rgba(255,255,255,0.05)",
                                               border: "1px solid rgba(255,255,255,0.12)",
                                               display: "flex",
@@ -1824,6 +1846,9 @@ boxShadow:
                                               {buyer?.displayName ?? "Usuario"}
                                             </span>
                                           )}
+                                          <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>
+                                            {getRelativeTime(req.createdAt)}
+                                          </span>
                                         </div>
                                         {listEarning ? (
                                           <span style={{ color: "#86efac", fontSize: 11, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, flexShrink: 0 }}>{listEarning}</span>
@@ -1832,7 +1857,10 @@ boxShadow:
 
                                       <button
                                         type="button"
-                                        onClick={() => setReviewGreetingItem(r)}
+                                        onClick={() => {
+                                          const startIndex = allSortedGreetings.findIndex((item) => item.id === r.id);
+                                          setReviewGreetingState({ items: allSortedGreetings, startIndex: startIndex >= 0 ? startIndex : 0 });
+                                        }}
                                         style={{
                                           width: "100%",
                                           height: 30,
@@ -2950,20 +2978,21 @@ maxWidth: 220,
         />
       )}
 
-      {reviewGreetingItem && (
+      {reviewGreetingState && (
         <GreetingReviewOverlay
-          item={reviewGreetingItem}
-          buyer={userMiniMap[reviewGreetingItem.data.buyerId] ?? null}
-          busy={greetingBusyId === reviewGreetingItem.id}
-          onAccept={async () => {
-            await handleGreetingAction(reviewGreetingItem.id, "accept");
-            setReviewGreetingItem(null);
+          items={reviewGreetingState.items}
+          startIndex={reviewGreetingState.startIndex}
+          buyers={userMiniMap}
+          greetingBusyId={greetingBusyId}
+          onAccept={async (id) => {
+            await handleGreetingAction(id, "accept");
+            setReviewGreetingState(null);
           }}
-          onReject={async () => {
-            await handleGreetingAction(reviewGreetingItem.id, "reject");
-            setReviewGreetingItem(null);
+          onReject={async (id) => {
+            await handleGreetingAction(id, "reject");
+            setReviewGreetingState(null);
           }}
-          onClose={() => setReviewGreetingItem(null)}
+          onClose={() => setReviewGreetingState(null)}
           getInitials={getInitials}
           typeLabel={typeLabel}
         />

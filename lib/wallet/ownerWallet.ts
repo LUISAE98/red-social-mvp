@@ -82,7 +82,7 @@ export type WalletExclusiveSessionDoc = WalletScheduledDoc & {
 
 export type GreetingType = "saludo" | "consejo" | "mensaje";
 export type GreetingSource = "group" | "profile";
-export type GreetingStatus = "pending" | "accepted" | "rejected";
+export type GreetingStatus = "pending" | "accepted" | "rejected" | "delivered";
 
 export type WalletGreetingDoc = {
   id: string;
@@ -95,6 +95,9 @@ export type WalletGreetingDoc = {
   instructions: string | null;
   source: GreetingSource | null;
   status: GreetingStatus;
+  priceSnapshot?: number | null;
+  currency?: string | null;
+  deliveredAt?: FirestoreTimestampLike;
   createdAt: FirestoreTimestampLike;
   updatedAt: FirestoreTimestampLike;
 };
@@ -512,7 +515,8 @@ function normalizeGreetingRow(
     creatorScheduleNoteUpdatedAt: null,
     rejectionReason: null,
     refundReason: null,
-    priceSnapshot: null,
+    priceSnapshot: typeof data.priceSnapshot === "number" ? data.priceSnapshot : null,
+    currency: data.currency === "USD" ? "USD" : "MXN",
     durationMinutes: null,
     source: "greeting",
     scheduledAt: null,
@@ -727,7 +731,7 @@ export function useOwnerWalletData(
     const history = combined
       .filter((row) =>
         row.source === "greeting"
-          ? row.status === "accepted" || row.status === "rejected"
+          ? row.status === "delivered" || row.status === "accepted" || row.status === "rejected"
           : isHistoryScheduledStatus(row.status) || shouldTreatAsAutoRejected(row)
       )
       .sort((a, b) => compareDesc(a.updatedAt, b.updatedAt));

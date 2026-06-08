@@ -2185,6 +2185,16 @@ const groupsForSeen = [
     }
   }, [pendingCount, buyerDelivered.length, activeView]);
 
+  const prevGreetingsTotalRef = useRef(0);
+  useEffect(() => {
+    const total = pendingCount + buyerDelivered.length;
+    const prev = prevGreetingsTotalRef.current;
+    prevGreetingsTotalRef.current = total;
+    if (total > 0 && prev === 0) {
+      setActiveView("greetings");
+    }
+  }, [pendingCount, buyerDelivered.length]);
+
   async function handleApproveJoin(groupId: string, userId: string) {
     try {
       setGroupsErr(null);
@@ -2919,6 +2929,7 @@ greetingBusyId={greetingBusyId}
             activeView={activeView}
             onChange={setActiveView}
             requestedCount={pendingCount}
+            deliveredCount={buyerDelivered.length}
           />
 {activeView === "owned" && (
   <div className="owner-sidebar-view-transition" key="owned">

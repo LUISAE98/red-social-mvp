@@ -153,6 +153,16 @@ function isProfileGreetingServiceEnabled(user: UserShape, type: GreetingType): b
   });
 }
 
+function getOfferingPrice(offerings: GroupOfferingShape[] | null | undefined, type: GreetingType): number | null {
+  const arr = Array.isArray(offerings) ? offerings : [];
+  const offering = arr.find((o) => o?.type === type && o?.enabled === true);
+  if (!offering) return null;
+  if (typeof offering.memberPrice === "number" && offering.memberPrice > 0) return offering.memberPrice;
+  if (typeof offering.publicPrice === "number" && offering.publicPrice > 0) return offering.publicPrice;
+  if (typeof offering.price === "number" && offering.price > 0) return offering.price;
+  return null;
+}
+
 function buildUserDisplayName(user: UserShape, fallbackUid: string): string {
   const displayName = user.displayName?.trim();
   if (displayName) return displayName;
@@ -278,6 +288,8 @@ const profileUserId =
       );
     }
 
+    const profilePriceSnapshot = getOfferingPrice(profile.offerings, type);
+
     tx.set(requestRef, {
       groupId: null,
       profileUserId,
@@ -291,6 +303,10 @@ const profileUserId =
       source,
       requestSource: "profile",
       status: "pending" as GreetingStatus,
+      priceSnapshot: profilePriceSnapshot,
+      currency: "MXN",
+      paymentMode: "simulated_no_real_payment",
+      paymentStatus: "simulated_paid",
       createdAt: now,
       updatedAt: now,
     });
@@ -351,6 +367,8 @@ const profileUserId =
     );
   }
 
+  const groupPriceSnapshot = getOfferingPrice(group.offerings, type);
+
   tx.set(requestRef, {
     groupId,
     profileUserId: null,
@@ -362,6 +380,10 @@ const profileUserId =
     source,
     requestSource: "group",
     status: "pending" as GreetingStatus,
+    priceSnapshot: groupPriceSnapshot,
+    currency: "MXN",
+    paymentMode: "simulated_no_real_payment",
+    paymentStatus: "simulated_paid",
     createdAt: now,
     updatedAt: now,
   });
@@ -443,7 +465,7 @@ export const createGreetingMuxUpload = onCall(
         cors_origin: "*",
         new_asset_settings: {
           playback_policy: ["public"],
-          video_quality: "basic",
+          mp4_support: "standard",
           passthrough: JSON.stringify({
             contextType: "greeting",
             greetingRequestId,
