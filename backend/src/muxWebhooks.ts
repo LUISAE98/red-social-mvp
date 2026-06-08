@@ -5,6 +5,8 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import {
   FieldValue,
   getFirestore,
+  type DocumentReference,
+  type DocumentData,
 } from "firebase-admin/firestore";
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
@@ -21,12 +23,14 @@ export const muxWebhookSecret = defineSecret("MUX_WEBHOOK_SECRET");
 type MuxPassthrough = {
   postId?: string;
   authorId?: string;
-  contextType?: "group" | "profile";
+  contextType?: "group" | "profile" | "greeting";
   groupId?: string | null;
   profileId?: string | null;
   mediaId?: string;
   mediaIndex?: number;
   source?: string;
+  greetingRequestId?: string;
+  creatorId?: string;
 };
 
 type MuxWebhookEvent = {
@@ -140,6 +144,63 @@ async function findMuxUploadDoc(params: {
   return null;
 }
 
+async function markGreetingAssetReady(params: {
+  greetingRequestId: string;
+  assetId: string;
+  playbackId: string;
+  duration: number | null;
+  uploadId: string | null;
+  uploadRef: DocumentReference<DocumentData> | null;
+}) {
+  const { greetingRequestId, assetId, playbackId, duration, uploadRef } = params;
+  const now = FieldValue.serverTimestamp();
+  const hlsUrl = `https://stream.mux.com/${playbackId}.m3u8`;
+
+  const greetingRef = db.collection("greetingRequests").doc(greetingRequestId);
+
+  await db.runTransaction(async (tx) => {
+    const greetingSnap = await tx.get(greetingRef);
+    if (!greetingSnap.exists) {
+      logger.warn("muxWebhook greeting asset.ready: greeting not found", {
+        greetingRequestId,
+      });
+      return;
+    }
+
+    tx.update(greetingRef, {
+      muxAssetId: assetId,
+      muxPlaybackId: playbackId,
+      muxHlsUrl: hlsUrl,
+      videoDuration: duration,
+      videoStatus: "ready",
+      status: "delivered",
+      deliveredAt: now,
+      updatedAt: now,
+    });
+
+    if (uploadRef) {
+      tx.set(
+        uploadRef,
+        {
+          status: "ready",
+          assetId,
+          playbackId,
+          duration,
+          hlsUrl,
+          updatedAt: now,
+        },
+        { merge: true }
+      );
+    }
+  });
+
+  logger.info("muxWebhook greeting asset.ready processed", {
+    greetingRequestId,
+    assetId,
+    playbackId,
+  });
+}
+
 async function markAssetReady(event: MuxWebhookEvent) {
   const assetId = event.data?.id ?? null;
   const uploadId = event.data?.upload_id ?? null;
@@ -150,8 +211,12 @@ async function markAssetReady(event: MuxWebhookEvent) {
 
   let postId = passthrough.postId ?? null;
   let authorId = passthrough.authorId ?? null;
-  let contextType =
-    passthrough.contextType === "profile" ? "profile" : "group";
+  let contextType: "group" | "profile" | "greeting" =
+    passthrough.contextType === "profile"
+      ? "profile"
+      : passthrough.contextType === "greeting"
+        ? "greeting"
+        : "group";
   let groupId = passthrough.groupId ?? null;
   let profileId = passthrough.profileId ?? null;
   let mediaId = passthrough.mediaId ?? null;
@@ -160,6 +225,7 @@ async function markAssetReady(event: MuxWebhookEvent) {
     Number.isInteger(passthrough.mediaIndex)
       ? passthrough.mediaIndex
       : null;
+  let greetingRequestId: string | null = passthrough.greetingRequestId ?? null;
   let uploadCustomThumbnailUrl: string | null = null;
 
   const uploadRef = await findMuxUploadDoc({
@@ -173,6 +239,7 @@ async function markAssetReady(event: MuxWebhookEvent) {
       !authorId ||
       !mediaId ||
       mediaIndex === null ||
+      !greetingRequestId ||
       (contextType === "group" && !groupId) ||
       (contextType === "profile" && !profileId)
     ) &&
@@ -189,8 +256,11 @@ async function markAssetReady(event: MuxWebhookEvent) {
       authorId ??
       (typeof uploadData.authorId === "string" ? uploadData.authorId : null);
 
-    contextType =
-      uploadData.contextType === "profile" ? "profile" : contextType;
+    if (uploadData.contextType === "greeting") {
+      contextType = "greeting";
+    } else if (uploadData.contextType === "profile") {
+      contextType = "profile";
+    }
 
     groupId =
       groupId ??
@@ -210,6 +280,35 @@ async function markAssetReady(event: MuxWebhookEvent) {
       Number.isInteger(uploadData.mediaIndex)
         ? uploadData.mediaIndex
         : null);
+
+    greetingRequestId =
+      greetingRequestId ??
+      (typeof uploadData.greetingRequestId === "string"
+        ? uploadData.greetingRequestId
+        : null);
+  }
+
+  // Handle greeting uploads separately — no post document to update
+  if (contextType === "greeting") {
+    if (!greetingRequestId || !assetId || !playbackId) {
+      logger.warn("muxWebhook greeting asset.ready missing required data", {
+        greetingRequestId,
+        assetId,
+        playbackId,
+        uploadId,
+      });
+      return;
+    }
+
+    await markGreetingAssetReady({
+      greetingRequestId,
+      assetId,
+      playbackId,
+      duration,
+      uploadId,
+      uploadRef,
+    });
+    return;
   }
 
   if (uploadRef) {

@@ -62,6 +62,7 @@ export { getMyHiddenJoinedGroups } from "./sidebarGroups";
 export {
   createGreetingRequest,
   respondGreetingRequest,
+  createGreetingMuxUpload,
 } from "./greetingRequests";
 
 // Meet & greet requests

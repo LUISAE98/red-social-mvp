@@ -48,6 +48,7 @@ type ScheduledRow = {
 
 type Props = {
   buyerPending: Array<{ id: string; data: GreetingRequestDoc }>;
+  buyerDelivered: Array<{ id: string; data: GreetingRequestDoc }>;
   buyerMeetGreets: Array<{ id: string; data: MeetGreetRequestDoc }>;
   buyerExclusiveSessions: Array<{ id: string; data: ExclusiveSessionRequestDoc }>;
   exclusiveSessionsByGroup: Record<
@@ -694,8 +695,15 @@ function SectionBlock({
   );
 }
 
+function formatDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
 export default function OwnerSidebarGreetings({
   buyerPending,
+  buyerDelivered,
   buyerMeetGreets,
   buyerExclusiveSessions,
   meetGreetsByGroup,
@@ -711,6 +719,8 @@ export default function OwnerSidebarGreetings({
   const [errorMap, setErrorMap] = useState<TextMap>({});
   const [successMap, setSuccessMap] = useState<TextMap>({});
   const [openSectionKey, setOpenSectionKey] = useState<ServiceSectionKey | null>("requested");
+  const [deliveredSectionOpen, setDeliveredSectionOpen] = useState(true);
+  const [deliveredItemOpen, setDeliveredItemOpen] = useState<string | null>(null);
   const [openItemKey, setOpenItemKey] = useState<string | null>(null);
   const [rejectOpenMap, setRejectOpenMap] = useState<ToggleMap>({});
   const [scheduleOpenMap, setScheduleOpenMap] = useState<ToggleMap>({});
@@ -1853,6 +1863,299 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           {refundRows.map(renderDisplayRow)}
         </div>
       </SectionBlock>
+
+      {buyerDelivered.length > 0 && (
+        <div
+          style={{
+            ...styles.card,
+            border: "none",
+            margin: 0,
+            borderRadius: 16,
+            background: "rgba(0,0,0,0.96)",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setDeliveredSectionOpen((v) => !v)}
+            aria-expanded={deliveredSectionOpen}
+            style={{
+              width: "100%",
+              border: "none",
+              background: "transparent",
+              color: "#fff",
+              cursor: "pointer",
+              padding: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              textAlign: "left",
+            }}
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              <span
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: "50%",
+                  background: "rgba(34,197,94,0.12)",
+                  border: "1px solid rgba(34,197,94,0.24)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 15,
+                  flexShrink: 0,
+                }}
+              >
+                🎬
+              </span>
+              <span style={{ display: "grid", gap: 4, minWidth: 0 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1.15 }}>
+                  Entregados
+                </span>
+              </span>
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <span style={{ color: "#86efac", fontSize: 13, fontWeight: 800, lineHeight: 1, minWidth: 10, textAlign: "center" }}>
+                {buyerDelivered.length}
+              </span>
+              <span
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  background: "rgba(255,255,255,0.02)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Chevron open={deliveredSectionOpen} />
+              </span>
+            </span>
+          </button>
+
+          {deliveredSectionOpen && (
+            <div
+              style={{
+                marginTop: 9,
+                paddingTop: 9,
+                borderTop: "1px solid rgba(255,255,255,0.06)",
+                display: "grid",
+                gap: 8,
+              }}
+            >
+              {buyerDelivered.map((row) => {
+                const req = row.data;
+                const itemKey = `delivered-${row.id}`;
+                const isOpen = deliveredItemOpen === itemKey;
+                const playbackId = req.muxPlaybackId ?? null;
+                const hlsUrl = req.muxHlsUrl ?? (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null);
+                const mp4Url = playbackId ? `https://stream.mux.com/${playbackId}/high.mp4` : null;
+                const thumbnailUrl = playbackId ? `https://image.mux.com/${playbackId}/thumbnail.jpg` : null;
+
+                return (
+                  <div
+                    key={itemKey}
+                    style={{
+                      ...styles.miniItem,
+                      background: isOpen ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.02)",
+                      border: isOpen ? "1px solid rgba(34,197,94,0.16)" : "1px solid rgba(255,255,255,0.07)",
+                      borderRadius: 16,
+                      padding: 0,
+                      overflow: "hidden",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setDeliveredItemOpen((prev) => (prev === itemKey ? null : itemKey))}
+                      aria-expanded={isOpen}
+                      style={{
+                        width: "100%",
+                        border: "none",
+                        background: "transparent",
+                        padding: 10,
+                        margin: 0,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        display: "grid",
+                        gap: 7,
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0, flexShrink: 0 }}>
+                            <span
+                              style={{
+                                width: 30,
+                                height: 30,
+                                borderRadius: 12,
+                                border: "1px solid rgba(34,197,94,0.24)",
+                                background: "rgba(34,197,94,0.10)",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 18,
+                                lineHeight: 1,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {getServiceEmoji(req.type)}
+                            </span>
+                            <span style={{ fontSize: 12, fontWeight: 750, color: "#fff", lineHeight: 1.2, whiteSpace: "nowrap" }}>
+                              {getServiceName(req.type, typeLabel)}
+                            </span>
+                          </span>
+                          <span
+                            style={{
+                              borderRadius: 999,
+                              padding: "5px 9px",
+                              fontSize: 11,
+                              fontWeight: 700,
+                              lineHeight: 1,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              border: "1px solid rgba(34,197,94,0.24)",
+                              background: "rgba(34,197,94,0.12)",
+                              color: "#86efac",
+                            }}
+                          >
+                            Entregado
+                          </span>
+                        </div>
+                        <span
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 999,
+                            border: "1px solid rgba(255,255,255,0.08)",
+                            background: "rgba(255,255,255,0.02)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Chevron open={isOpen} />
+                        </span>
+                      </div>
+                      <div style={{ ...styles.subtle, lineHeight: 1.35 }}>
+                        Para {req.toName}
+                        {req.deliveredAt ? <> · {fmtDate(req.deliveredAt)}</> : null}
+                      </div>
+                    </button>
+
+                    {isOpen && (
+                      <div
+                        style={{
+                          borderTop: "1px solid rgba(255,255,255,0.06)",
+                          padding: 10,
+                          display: "grid",
+                          gap: 10,
+                        }}
+                      >
+                        {playbackId ? (
+                          <>
+                            <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", background: "#000", aspectRatio: "16/9" }}>
+                              <video
+                                poster={thumbnailUrl ?? undefined}
+                                controls
+                                playsInline
+                                disablePictureInPicture
+                                onContextMenu={(e) => e.preventDefault()}
+                                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+                              >
+                                {hlsUrl && <source src={hlsUrl} type="application/x-mpegURL" />}
+                                {mp4Url && <source src={mp4Url} type="video/mp4" />}
+                              </video>
+                              {req.videoDuration != null && (
+                                <span
+                                  style={{
+                                    position: "absolute",
+                                    bottom: 8,
+                                    right: 8,
+                                    background: "rgba(0,0,0,0.72)",
+                                    borderRadius: 6,
+                                    padding: "2px 7px",
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: "#fff",
+                                    lineHeight: 1.4,
+                                    backdropFilter: "blur(4px)",
+                                  }}
+                                >
+                                  {formatDuration(req.videoDuration)}
+                                </span>
+                              )}
+                            </div>
+                            {mp4Url && (
+                              <a
+                                href={mp4Url}
+                                download
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: 6,
+                                  padding: "8px 12px",
+                                  borderRadius: 10,
+                                  border: "1px solid rgba(255,255,255,0.10)",
+                                  background: "rgba(255,255,255,0.05)",
+                                  color: "#fff",
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  textDecoration: "none",
+                                  cursor: "pointer",
+                                  width: "100%",
+                                  boxSizing: "border-box",
+                                  textAlign: "center",
+                                }}
+                              >
+                                ⬇ Descargar video
+                              </a>
+                            )}
+                          </>
+                        ) : (
+                          <div style={{ ...styles.subtle, padding: "6px 0" }}>
+                            El video está siendo procesado. Vuelve en unos minutos.
+                          </div>
+                        )}
+                        {req.instructions ? (
+                          <div
+                            style={{
+                              borderRadius: 10,
+                              border: "1px solid rgba(255,255,255,0.10)",
+                              background: "rgba(0,0,0,0.18)",
+                              padding: "7px 8px",
+                              whiteSpace: "pre-wrap",
+                              fontSize: 12,
+                              lineHeight: 1.3,
+                              color: "rgba(255,255,255,0.92)",
+                            }}
+                          >
+                            {req.instructions}
+                          </div>
+                        ) : null}
+                        {req.createdAt ? (
+                          <div style={styles.subtle}>Solicitado: {fmtDate(req.createdAt)}</div>
+                        ) : null}
+                        {renderUserLink(req.creatorId) && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, ...styles.subtle }}>
+                            Creador: {renderUserLink(req.creatorId)}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

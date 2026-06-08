@@ -143,6 +143,8 @@ export type GreetingRequestDoc = {
   creatorId: string;
   groupId?: string | null;
   profileUserId?: string | null;
+  profileDisplayName?: string | null;
+  profileUsername?: string | null;
   type: GreetingType;
   toName: string;
   instructions: string;
@@ -150,6 +152,13 @@ export type GreetingRequestDoc = {
   status: GreetingStatus;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
+  deliveredAt?: Timestamp | null;
+  muxUploadId?: string | null;
+  muxAssetId?: string | null;
+  muxPlaybackId?: string | null;
+  muxHlsUrl?: string | null;
+  videoStatus?: "uploading" | "ready" | "error" | string | null;
+  videoDuration?: number | null;
 };
 
 export type MeetGreetStatus =
@@ -656,6 +665,7 @@ type OwnerSidebarCache = {
   joinRequestsByGroup: Record<string, JoinRequestRow[]>;
   greetingsByGroup: Record<string, Array<{ id: string; data: GreetingRequestDoc }>>;
   buyerPending: Array<{ id: string; data: GreetingRequestDoc }>;
+  buyerDelivered: Array<{ id: string; data: GreetingRequestDoc }>;
 
   meetGreetsByGroup: Record<string, Array<{ id: string; data: MeetGreetRequestDoc }>>;
   exclusiveSessionsByGroup: Record<
@@ -799,6 +809,10 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
   const [buyerPending, setBuyerPending] = useState<
     Array<{ id: string; data: GreetingRequestDoc }>
   >(() => ownerSidebarCache?.buyerPending ?? []);
+
+  const [buyerDelivered, setBuyerDelivered] = useState<
+    Array<{ id: string; data: GreetingRequestDoc }>
+  >(() => ownerSidebarCache?.buyerDelivered ?? []);
 
   const [meetGreetsByGroup, setMeetGreetsByGroup] = useState<
     Record<string, Array<{ id: string; data: MeetGreetRequestDoc }>>
@@ -1008,6 +1022,7 @@ miniItem: {
       joinRequestsByGroup,
       greetingsByGroup,
       buyerPending,
+      buyerDelivered,
 
       meetGreetsByGroup,
       exclusiveSessionsByGroup,
@@ -1049,6 +1064,7 @@ miniItem: {
     joinRequestsByGroup,
     greetingsByGroup,
     buyerPending,
+    buyerDelivered,
 
     meetGreetsByGroup,
     exclusiveSessionsByGroup,
@@ -1586,6 +1602,7 @@ miniItem: {
     if (!viewer?.uid) {
       setGreetingsByGroup({});
       setBuyerPending([]);
+      setBuyerDelivered([]);
       return;
     }
 
@@ -1600,6 +1617,13 @@ miniItem: {
       collection(db, "greetingRequests"),
       where("buyerId", "==", viewer.uid),
       where("status", "==", "pending"),
+      limit(50)
+    );
+
+    const buyerDeliveredQ = query(
+      collection(db, "greetingRequests"),
+      where("buyerId", "==", viewer.uid),
+      where("status", "==", "delivered"),
       limit(50)
     );
 
@@ -1687,9 +1711,24 @@ miniItem: {
       }
     );
 
+    const unsubBuyerDelivered = onSnapshot(
+      buyerDeliveredQ,
+      (snap) => {
+        const rows = snap.docs.map((d) => ({
+          id: d.id,
+          data: d.data() as GreetingRequestDoc,
+        }));
+        setBuyerDelivered(rows);
+      },
+      () => {
+        setBuyerDelivered([]);
+      }
+    );
+
     return () => {
       unsubIncoming();
       unsubBuyer();
+      unsubBuyerDelivered();
     };
   }, [viewer?.uid, ownerSidebarRefreshKey]);
 
@@ -2141,10 +2180,10 @@ const groupsForSeen = [
   }, [buyerPending, buyerMeetGreets, buyerExclusiveSessions]);
 
   useEffect(() => {
-    if (pendingCount === 0 && activeView === "greetings") {
+    if (pendingCount === 0 && buyerDelivered.length === 0 && activeView === "greetings") {
       setActiveView("owned");
     }
-  }, [pendingCount, activeView]);
+  }, [pendingCount, buyerDelivered.length, activeView]);
 
   async function handleApproveJoin(groupId: string, userId: string) {
     try {
@@ -2957,10 +2996,11 @@ onCreateCommunity={() => router.push("/groups/new")}
   </div>
 )}
 
-{activeView === "greetings" && pendingCount > 0 && (
+{activeView === "greetings" && (pendingCount > 0 || buyerDelivered.length > 0) && (
   <div className="owner-sidebar-view-transition" key="greetings">
     <OwnerSidebarGreetings
               buyerPending={buyerPending}
+              buyerDelivered={buyerDelivered}
               buyerExclusiveSessions={buyerExclusiveSessions}
               exclusiveSessionsByGroup={{}}
               groupMetaMap={groupMetaMap}

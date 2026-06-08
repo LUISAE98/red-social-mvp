@@ -97,6 +97,23 @@ export async function createGreetingRequest(input: {
   return res.data;
 }
 
+export async function createGreetingMuxUpload(input: {
+  greetingRequestId: string;
+}): Promise<{ uploadId: string; uploadUrl: string }> {
+  const greetingRequestId = normalizeRequiredText(
+    input.greetingRequestId,
+    "greetingRequestId"
+  );
+
+  const fn = httpsCallable<
+    { greetingRequestId: string },
+    { uploadId: string; uploadUrl: string }
+  >(functions, "createGreetingMuxUpload");
+
+  const res = await fn({ greetingRequestId });
+  return res.data;
+}
+
 export async function respondGreetingRequest(input: {
   requestId: string;
   action: "accept" | "reject";

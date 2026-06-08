@@ -1,6 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import * as admin from "firebase-admin";
+import { createMuxClient, muxTokenId, muxTokenSecret } from "./mux";
 
 if (admin.apps.length === 0) {
   admin.initializeApp();
@@ -389,7 +390,111 @@ const profileUserId =
   }
 );
 
-// 2) Responder solicitud (owner): accepted / rejected
+// 2) Crear URL de subida directa a Mux para una solicitud de saludo/consejo
+export const createGreetingMuxUpload = onCall(
+  {
+    region: "us-central1",
+    cors: true,
+    secrets: [muxTokenId, muxTokenSecret],
+  },
+  async (request) => {
+    const auth = request.auth;
+    if (!auth?.uid) {
+      throw new HttpsError("unauthenticated", "You must be signed in.");
+    }
+
+    const actorId = auth.uid;
+    const greetingRequestId = assertString(request.data?.greetingRequestId, "greetingRequestId", 200);
+
+    const reqRef = db.doc(`greetingRequests/${greetingRequestId}`);
+    const reqSnap = await reqRef.get();
+
+    if (!reqSnap.exists) {
+      throw new HttpsError("not-found", "Greeting request not found.");
+    }
+
+    const gr = reqSnap.data() as {
+      creatorId?: string;
+      status?: string;
+      videoStatus?: string;
+    };
+
+    if (gr.creatorId !== actorId) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only the creator can upload video for this request."
+      );
+    }
+
+    const allowedStatuses = ["pending", "accepted", "uploading"];
+    if (!allowedStatuses.includes(gr.status ?? "")) {
+      throw new HttpsError(
+        "failed-precondition",
+        `Request status "${gr.status}" does not allow video upload.`
+      );
+    }
+
+    const mux = createMuxClient();
+
+    let upload: Awaited<ReturnType<typeof mux.video.uploads.create>>;
+
+    try {
+      upload = await mux.video.uploads.create({
+        cors_origin: "*",
+        new_asset_settings: {
+          playback_policy: ["public"],
+          video_quality: "basic",
+          passthrough: JSON.stringify({
+            contextType: "greeting",
+            greetingRequestId,
+            creatorId: actorId,
+          }),
+        },
+      });
+    } catch (error) {
+      logger.error("createGreetingMuxUpload Mux upload creation failed", {
+        greetingRequestId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new HttpsError("internal", "No se pudo crear la subida de video.");
+    }
+
+    const now = admin.firestore.FieldValue.serverTimestamp();
+
+    await db.collection("muxUploads").doc(upload.id).set({
+      provider: "mux",
+      uploadId: upload.id,
+      uploadUrlCreated: true,
+      contextType: "greeting",
+      greetingRequestId,
+      authorId: actorId,
+      status: "waiting_for_upload",
+      assetId: null,
+      playbackId: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await reqRef.update({
+      videoStatus: "uploading",
+      muxUploadId: upload.id,
+      updatedAt: now,
+    });
+
+    logger.info("createGreetingMuxUpload created", {
+      greetingRequestId,
+      uploadId: upload.id,
+      actorId,
+    });
+
+    return {
+      uploadId: upload.id,
+      uploadUrl: upload.url,
+    };
+  }
+);
+
+// 3) Responder solicitud (owner): accepted / rejected
 export const respondGreetingRequest = onCall(
   {
     region: "us-central1",

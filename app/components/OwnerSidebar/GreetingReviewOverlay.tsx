@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { createGreetingMuxUpload } from "@/lib/greetings/greetingRequests";
 import type { GreetingRequestDoc, UserMini } from "./OwnerSidebar";
 
 const fontStack =
@@ -29,7 +30,7 @@ type Props = {
   item: { id: string; data: GreetingRequestDoc };
   buyer: UserMini | null;
   busy: boolean;
-  onAccept: () => void;
+  onAccept?: () => void;
   onReject: () => void;
   onClose: () => void;
   getInitials: (name?: string | null) => string;
@@ -57,6 +58,10 @@ export default function GreetingReviewOverlay({
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [recordedBlobUrl, setRecordedBlobUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [fileDuration, setFileDuration] = useState<number | null>(null);
+  const uploadBlobRef = useRef<Blob | File | null>(null);
 
   // Review panel bottom sheet (mobile only)
   const [reviewSheetTransform, setReviewSheetTransform] = useState("translateY(100%)");
@@ -182,6 +187,39 @@ export default function GreetingReviewOverlay({
     return null;
   }
 
+  const handleSendGreeting = async () => {
+    const blob = uploadBlobRef.current;
+    if (!blob) return;
+
+    setIsUploading(true);
+    setUploadError(null);
+    setUploadProgress(0);
+
+    try {
+      const { uploadUrl } = await createGreetingMuxUpload({ greetingRequestId: item.id });
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100));
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) resolve();
+          else reject(new Error(`Error al subir: ${xhr.status}`));
+        };
+        xhr.onerror = () => reject(new Error("Error de red al subir el video."));
+        xhr.open("PUT", uploadUrl);
+        xhr.send(blob);
+      });
+
+      handleClose();
+    } catch (e: any) {
+      setUploadError(e?.message ?? "No se pudo subir el video. Intenta de nuevo.");
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
   const req = item.data;
   const buyerLetter = getInitials(buyer?.displayName);
 
@@ -243,9 +281,11 @@ export default function GreetingReviewOverlay({
       streamRef.current?.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || "video/webm" });
+      uploadBlobRef.current = blob;
       const url = URL.createObjectURL(blob);
       blobUrlRef.current = url;
       setRecordedBlobUrl(url);
+      setFileDuration(null);
       setRecordPhase("done");
     };
     mr.start();
@@ -257,19 +297,16 @@ export default function GreetingReviewOverlay({
 
   const handleRepeat = async () => {
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
+    uploadBlobRef.current = null;
     setRecordedBlobUrl(null);
     recorderRef.current = null;
     chunksRef.current = [];
     setRecordingSeconds(0);
     setCameraError(null);
     setUploadError(null);
-    // If video came from upload, just go back to review — no need to re-open camera
-    if (wasUploadedRef.current) {
-      wasUploadedRef.current = false;
-      setRecordPhase("preview");
-      setViewState("review");
-      return;
-    }
+    setIsUploading(false);
+    setUploadProgress(0);
+    setFileDuration(null);
     wasUploadedRef.current = false;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -301,7 +338,9 @@ export default function GreetingReviewOverlay({
       }
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
       blobUrlRef.current = url;
+      uploadBlobRef.current = file;
       wasUploadedRef.current = true;
+      setFileDuration(Number.isFinite(tempVideo.duration) ? tempVideo.duration : null);
       setRecordedBlobUrl(url);
       setRecordPhase("done");
       setViewState("camera");
@@ -439,22 +478,49 @@ export default function GreetingReviewOverlay({
 
   const recordControls = recordPhase === "done" ? (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <button type="button" onClick={handleRepeat} disabled={busy} style={{
+      {isUploading && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ height: 4, borderRadius: 2, background: "rgba(255,255,255,0.08)", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${uploadProgress}%`, background: "linear-gradient(90deg, #22c55e, #86efac)", borderRadius: 2, transition: "width 200ms ease" }} />
+          </div>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", textAlign: "center", fontFamily: fontStack }}>
+            {uploadProgress < 100 ? `Subiendo... ${uploadProgress}%` : "Procesando..."}
+          </span>
+        </div>
+      )}
+      {wasUploadedRef.current && fileDuration != null && !isUploading && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 2px" }}>
+          <span style={{
+            borderRadius: 6, padding: "2px 8px",
+            background: "rgba(0,0,0,0.55)", fontSize: 11, fontWeight: 700, color: "#fff",
+            display: "inline-flex", alignItems: "center", gap: 4,
+          }}>
+            🎬 {`${Math.floor(fileDuration / 60)}:${String(Math.round(fileDuration % 60)).padStart(2, "0")}`}
+          </span>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", fontFamily: fontStack }}>Archivo listo para subir</span>
+        </div>
+      )}
+      <button type="button" onClick={handleRepeat} disabled={busy || isUploading} style={{
         width: "100%", height: 38, borderRadius: 10,
         border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)",
-        color: "rgba(255,255,255,0.65)", fontWeight: 600, fontSize: 13,
-        cursor: busy ? "not-allowed" : "pointer", fontFamily: fontStack,
+        color: (busy || isUploading) ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.65)",
+        fontWeight: 600, fontSize: 13,
+        cursor: (busy || isUploading) ? "not-allowed" : "pointer", fontFamily: fontStack,
       }}>
-        Repetir grabación
+        {wasUploadedRef.current ? "Cambiar archivo" : "Repetir grabación"}
       </button>
-      <button type="button" onClick={onAccept} disabled={busy} style={{
+      <button type="button" onClick={handleSendGreeting} disabled={busy || isUploading} style={{
         width: "100%", height: 42, borderRadius: 10,
         border: "1px solid rgba(34,197,94,0.3)",
-        background: busy ? "rgba(34,197,94,0.08)" : "rgba(34,197,94,0.2)",
-        color: busy ? "rgba(134,239,172,0.45)" : "#86efac",
-        fontWeight: 700, fontSize: 14, cursor: busy ? "not-allowed" : "pointer", fontFamily: fontStack,
+        background: (busy || isUploading) ? "rgba(34,197,94,0.08)" : "rgba(34,197,94,0.2)",
+        color: (busy || isUploading) ? "rgba(134,239,172,0.45)" : "#86efac",
+        fontWeight: 700, fontSize: 14,
+        cursor: (busy || isUploading) ? "not-allowed" : "pointer",
+        fontFamily: fontStack,
       }}>
-        {busy ? "Enviando..." : `Enviar ${req.type === "consejo" ? "consejo" : "saludo"}`}
+        {isUploading
+          ? (uploadProgress < 100 ? `Subiendo ${uploadProgress}%` : "Procesando...")
+          : `Enviar ${req.type === "consejo" ? "consejo" : req.type === "mensaje" ? "mensaje" : "saludo"}`}
       </button>
     </div>
   ) : null;
@@ -616,25 +682,23 @@ export default function GreetingReviewOverlay({
             {divider}
             {recordControls}
             {recordPhase === "preview" && (
-              <>
-                <button type="button" onClick={() => { setUploadError(null); fileInputRef.current?.click(); }} style={{
-                  width: "100%", height: 38, borderRadius: 10,
-                  border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
-                  color: "rgba(255,255,255,0.5)", fontWeight: 500, fontSize: 13,
-                  cursor: "pointer", fontFamily: fontStack,
-                }}>
-                  Subir video
-                </button>
-                <button type="button" onClick={stopCamera} style={{
-                  width: "100%", height: 38, borderRadius: 10,
-                  border: "none", background: "transparent",
-                  color: "rgba(255,255,255,0.3)", fontWeight: 500, fontSize: 13,
-                  cursor: "pointer", fontFamily: fontStack,
-                }}>
-                  Cancelar
-                </button>
-              </>
+              <button type="button" onClick={() => { setUploadError(null); fileInputRef.current?.click(); }} style={{
+                width: "100%", height: 38, borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
+                color: "rgba(255,255,255,0.5)", fontWeight: 500, fontSize: 13,
+                cursor: "pointer", fontFamily: fontStack,
+              }}>
+                Subir video
+              </button>
             )}
+            <button type="button" onClick={stopCamera} style={{
+              width: "100%", height: 38, borderRadius: 10,
+              border: "none", background: "transparent",
+              color: "rgba(255,255,255,0.3)", fontWeight: 500, fontSize: 13,
+              cursor: "pointer", fontFamily: fontStack,
+            }}>
+              Cancelar
+            </button>
             {uploadError && (
               <span style={{ fontSize: 11, color: "#f87171", textAlign: "center" }}>{uploadError}</span>
             )}
