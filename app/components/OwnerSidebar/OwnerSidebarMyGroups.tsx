@@ -859,6 +859,7 @@ if (scheduleConflict.hasConflict) {
         buyerDisplayName: (row.data as any).buyerDisplayName ?? null,
         buyerUsername: (row.data as any).buyerUsername ?? null,
         buyerAvatarUrl: (row.data as any).buyerAvatarUrl ?? null,
+        sourceAvatarUrl: null,
         targetName: null,
         requestText: row.data.buyerMessage ?? null,
         status: row.data.status,
@@ -912,6 +913,7 @@ if (scheduleConflict.hasConflict) {
         buyerDisplayName: (row.data as any).buyerDisplayName ?? null,
         buyerUsername: (row.data as any).buyerUsername ?? null,
         buyerAvatarUrl: (row.data as any).buyerAvatarUrl ?? null,
+        sourceAvatarUrl: null,
         targetName: null,
         requestText: row.data.buyerMessage ?? null,
         status: row.data.status,
@@ -1785,7 +1787,7 @@ boxShadow:
                                   const buyerLetter = getInitials(buyer?.displayName);
 
                                   const listEarning = greetingEarningsMap[`${g.id}_${req.type}`] ?? null;
-                                  const reviewLabel = req.type === "consejo" ? "Revisar consejo" : req.type === "saludo" ? "Revisar saludo" : "Revisar";
+                                  const reviewLabel = req.type === "consejo" ? "Grabar consejo" : req.type === "saludo" ? "Grabar saludo" : "Grabar";
 
                                   return (
                                     <div key={r.id} style={styles.miniItem}>

@@ -161,6 +161,20 @@ function buildSourceLabel(row: WalletServiceItem): string | null {
   return null;
 }
 
+function getRelativeTime(date: Date | null): string {
+  if (!date) return "Hace un momento";
+  const diffMs = Date.now() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
+  if (diffHours >= 1) return `Hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
+  if (diffMins >= 1) return `Hace ${diffMins} ${diffMins === 1 ? "minuto" : "minutos"}`;
+  return "Hace un momento";
+}
+
+const walletFontStack = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+
 export function WalletCard({
   title,
   description,
@@ -177,14 +191,10 @@ export function WalletCard({
       <style jsx>{`
         .card {
           border-radius: 22px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: linear-gradient(
-            180deg,
-            rgba(255, 255, 255, 0.05) 0%,
-            rgba(255, 255, 255, 0.025) 100%
-          );
+          border: none;
+          background: rgba(90, 41, 174, 0.14);
           padding: 18px;
-          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.16);
+          box-shadow: none;
         }
 
         .cardHeader {
@@ -485,11 +495,13 @@ export function WalletServiceRow({
   open,
   onToggle,
   calendarItems = [],
+  onRecord,
 }: {
   row: WalletServiceItem;
   open: boolean;
   onToggle: () => void;
   calendarItems?: WalletServiceItem[];
+  onRecord?: (row: WalletServiceItem) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -500,9 +512,6 @@ export function WalletServiceRow({
   const [rejectReason, setRejectReason] = useState("");
   const [scheduleNote, setScheduleNote] = useState(row.creatorScheduleNote ?? "");
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarRowOpenKey, setCalendarRowOpenKey] = useState<string | null>(
-    null
-  );
   const [scheduleParts, setScheduleParts] = useState<ScheduleParts>(
     getSchedulePartsFromDate(row.scheduledAt)
   );
@@ -702,7 +711,103 @@ export function WalletServiceRow({
       setBusy(false);
     }
   }
+  // ── Greeting card (flat, no accordion) ──────────────────────────────────────
+  if (isGreeting) {
+    const initial = (row.buyerDisplayName ?? "U").charAt(0).toUpperCase();
+    const recordLabel = row.kind === "consejo" ? "Grabar consejo" : row.kind === "saludo" ? "Grabar saludo" : "Grabar";
+    const sourceName =
+      row.requestSource === "profile"
+        ? (row.profileDisplayName ?? "Mi perfil")
+        : (row.groupName ?? null);
+    const sourceAvatarUrl = row.sourceAvatarUrl ?? null;
     return (
+      <>
+      <style jsx>{`
+        .greetingCardRow {
+          border-radius: 14px;
+          border: 1px solid transparent;
+          background: transparent;
+          padding: 13px 2px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          box-sizing: border-box;
+          font-family: ${walletFontStack};
+        }
+      `}</style>
+      <div className="greetingCardRow">
+        {row.buyerAvatarUrl ? (
+          <img
+            src={row.buyerAvatarUrl}
+            alt={row.buyerDisplayName ?? ""}
+            style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.12)" }}
+          />
+        ) : (
+          <div style={{
+            width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+            background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontWeight: 700, fontSize: 13, color: "#fff",
+          }}>
+            {initial}
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "nowrap", overflow: "hidden" }}>
+            <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
+              {row.buyerDisplayName ?? "Usuario"}
+            </span>
+            {sourceName ? (
+              <>
+                <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 12, lineHeight: 1, flexShrink: 0 }}>|</span>
+                {sourceAvatarUrl ? (
+                  <img
+                    src={sourceAvatarUrl}
+                    alt={sourceName}
+                    style={{ width: 16, height: 16, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.1)" }}
+                  />
+                ) : (
+                  <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, background: "rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: "#fff" }}>
+                    {sourceName.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
+                  {sourceName}
+                </span>
+              </>
+            ) : null}
+          </div>
+          <div style={{ color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3, marginTop: 2 }}>
+            {getRelativeTime(row.createdAt)}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => onRecord?.(row)}
+          style={{
+            flexShrink: 0,
+            width: 122,
+            height: 32,
+            padding: 0,
+            borderRadius: 8,
+            border: "none",
+            background: "rgba(168,85,255,0.18)",
+            color: "#d8b4fe",
+            fontWeight: 600,
+            fontSize: 12,
+            cursor: "pointer",
+            fontFamily: walletFontStack,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {recordLabel}
+        </button>
+      </div>
+      </>
+    );
+  }
+
+  return (
     <>
       <style jsx>{`
         .walletServiceCard {
@@ -1383,9 +1488,11 @@ export function WalletServiceRow({
 export function WalletList({
   items,
   calendarItems,
+  onRecord,
 }: {
   items: WalletServiceItem[];
   calendarItems?: WalletServiceItem[];
+  onRecord?: (row: WalletServiceItem) => void;
 }) {
   const [openRowKey, setOpenRowKey] = useState<string | null>(null);
 
@@ -1401,6 +1508,7 @@ export function WalletList({
             row={row}
             open={isOpen}
             calendarItems={calendarItems ?? items}
+            onRecord={onRecord}
             onToggle={() =>
               setOpenRowKey((prev) => (prev === rowKey ? null : rowKey))
             }

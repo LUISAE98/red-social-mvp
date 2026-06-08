@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useAuth } from "@/app/providers";
-import { useOwnerWalletData } from "@/lib/wallet/ownerWallet";
+import { useOwnerWalletData, type WalletServiceItem } from "@/lib/wallet/ownerWallet";
 import WalletSectionShell from "../components/WalletSectionShell";
 import {
   EmptyRows,
@@ -11,6 +11,8 @@ import {
   WalletFilterMenu,
   WalletList,
 } from "../components/WalletUi";
+import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
+import type { GreetingRequestDoc, UserMini } from "@/app/components/OwnerSidebar/OwnerSidebar";
 
 type PendingFilter =
   | "all"
@@ -74,10 +76,31 @@ function isExpiredScheduledService(item: {
   return isNoShowExpired(item.scheduledAt);
 }
 
+function rowToGreetingDoc(row: WalletServiceItem, creatorId: string): GreetingRequestDoc {
+  return {
+    buyerId: row.buyerId,
+    creatorId,
+    groupId: row.groupId ?? null,
+    profileUserId: row.profileUserId ?? null,
+    profileDisplayName: row.profileDisplayName ?? null,
+    profileUsername: row.profileUsername ?? null,
+    type: row.kind as "saludo" | "consejo" | "mensaje",
+    toName: row.targetName ?? "",
+    instructions: row.requestText ?? "",
+    source: (row.requestSource ?? "group") as "group" | "profile",
+    status: row.status as "pending" | "accepted" | "rejected" | "delivered",
+    createdAt: row.createdAt
+      ? ({ toDate: () => row.createdAt as Date } as any)
+      : undefined,
+  };
+}
+
 export default function WalletPendientesPage() {
   const { user } = useAuth();
   const walletData = useOwnerWalletData(user?.uid);
   const [filter, setFilter] = useState<PendingFilter>("all");
+  const [recordRow, setRecordRow] = useState<WalletServiceItem | null>(null);
+  const [greetingBusyId, setGreetingBusyId] = useState<string | null>(null);
 
   const safePendingItems = useMemo(() => {
   return walletData.pendingCurrent.filter((item) => {
@@ -96,6 +119,23 @@ export default function WalletPendientesPage() {
   }, [filter, safePendingItems]);
 
   const filteredCount = filteredItems.length;
+
+  const overlayBuyers: Record<string, UserMini | null> = useMemo(() => {
+    if (!recordRow) return {};
+    return {
+      [recordRow.buyerId]: {
+        uid: recordRow.buyerId,
+        displayName: recordRow.buyerDisplayName ?? "Usuario",
+        photoURL: recordRow.buyerAvatarUrl ?? null,
+        handle: recordRow.buyerUsername ?? null,
+      },
+    };
+  }, [recordRow]);
+
+  const overlayItems = useMemo(() => {
+    if (!recordRow || !user?.uid) return [];
+    return [{ id: recordRow.id, data: rowToGreetingDoc(recordRow, user.uid) }];
+  }, [recordRow, user?.uid]);
 
   return (
     <WalletSectionShell activeTab="pending">
@@ -120,9 +160,10 @@ export default function WalletPendientesPage() {
           />
         ) : filteredCount > 0 ? (
           <WalletList
-  items={filteredItems}
-  calendarItems={walletData.calendar}
-/>
+            items={filteredItems}
+            calendarItems={walletData.calendar}
+            onRecord={setRecordRow}
+          />
         ) : (
           <EmptyRows
             title={
@@ -138,6 +179,37 @@ export default function WalletPendientesPage() {
           />
         )}
       </WalletCard>
+
+      {recordRow && overlayItems.length > 0 && (
+        <GreetingReviewOverlay
+          items={overlayItems}
+          buyers={overlayBuyers}
+          startIndex={0}
+          greetingBusyId={greetingBusyId}
+          onAccept={async (id) => {
+            setGreetingBusyId(id);
+            try {
+              const { respondGreetingRequest } = await import("@/lib/greetings/greetingRequests");
+              await respondGreetingRequest({ requestId: id, action: "accept" });
+            } finally {
+              setGreetingBusyId(null);
+            }
+          }}
+          onReject={async (id) => {
+            setGreetingBusyId(id);
+            try {
+              const { respondGreetingRequest } = await import("@/lib/greetings/greetingRequests");
+              await respondGreetingRequest({ requestId: id, action: "reject" });
+            } finally {
+              setGreetingBusyId(null);
+              setRecordRow(null);
+            }
+          }}
+          onClose={() => setRecordRow(null)}
+          getInitials={(name) => (name ?? "U").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+          typeLabel={(t) => t === "consejo" ? "Consejo" : t === "mensaje" ? "Mensaje" : "Saludo"}
+        />
+      )}
     </WalletSectionShell>
   );
 }

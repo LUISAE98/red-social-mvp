@@ -1484,6 +1484,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         buyerDisplayName: (item.data as any).buyerDisplayName ?? null,
         buyerUsername: (item.data as any).buyerUsername ?? null,
         buyerAvatarUrl: (item.data as any).buyerAvatarUrl ?? null,
+        sourceAvatarUrl: null,
         profileUserId: (item.data as any).profileUserId ?? null,
         profileDisplayName: (item.data as any).profileDisplayName ?? null,
         profileUsername: (item.data as any).profileUsername ?? null,

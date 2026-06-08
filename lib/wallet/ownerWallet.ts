@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { orderBy } from "firebase/firestore";
 import {
   collection,
+  doc,
+  getDoc,
   limit,
   onSnapshot,
   query,
@@ -88,6 +90,8 @@ export type WalletGreetingDoc = {
   id: string;
   groupId?: string | null;
   profileUserId?: string | null;
+  profileDisplayName?: string | null;
+  profileUsername?: string | null;
   creatorId: string;
   buyerId: string;
   type: GreetingType;
@@ -123,6 +127,7 @@ export type WalletServiceItem = {
   buyerDisplayName: string | null;
   buyerUsername: string | null;
   buyerAvatarUrl: string | null;
+  sourceAvatarUrl: string | null;
   targetName: string | null;
   requestText: string | null;
   status: string;
@@ -450,6 +455,7 @@ function normalizeScheduledRow(
     buyerDisplayName: data.buyerDisplayName ?? null,
     buyerUsername: data.buyerUsername ?? null,
     buyerAvatarUrl: data.buyerAvatarUrl ?? null,
+    sourceAvatarUrl: null,
     targetName: null,
     requestText: data.buyerMessage ?? null,
     status: normalizedStatus,
@@ -499,13 +505,20 @@ function normalizeGreetingRow(
     groupId: data.groupId ?? null,
     groupName: null,
     profileUserId: data.profileUserId ?? null,
-    profileDisplayName: null,
-    profileUsername: null,
+    profileDisplayName:
+      typeof data.profileDisplayName === "string" && data.profileDisplayName.trim()
+        ? data.profileDisplayName.trim()
+        : null,
+    profileUsername:
+      typeof data.profileUsername === "string" && data.profileUsername.trim()
+        ? data.profileUsername.trim()
+        : null,
     requestSource: data.source === "profile" ? "profile" : "group",
     buyerId: data.buyerId ?? "",
     buyerDisplayName: null,
     buyerUsername: null,
     buyerAvatarUrl: null,
+    sourceAvatarUrl: null,
     targetName: data.toName?.trim() || null,
     requestText: data.instructions?.trim() || null,
     status,
@@ -680,11 +693,121 @@ export function useOwnerWalletData(
 
     const unsub = onSnapshot(
       q,
-      (snap) => {
+      async (snap) => {
+        const rows = snap.docs.map((d) =>
+          normalizeGreetingRow(d.id, d.data() as Partial<WalletGreetingDoc>)
+        );
+
+        // Fetch buyer display info for all unique buyerIds
+        const uniqueBuyerIds = [...new Set(rows.map((r) => r.buyerId).filter(Boolean))];
+        const buyerMap: Record<string, { displayName: string | null; photoURL: string | null; username: string | null }> = {};
+
+        await Promise.all(
+          uniqueBuyerIds.map(async (uid) => {
+            try {
+              const snap = await getDoc(doc(db, "users", uid));
+              if (!snap.exists()) return;
+              const d = snap.data() as Record<string, unknown>;
+              const displayName =
+                typeof d.displayName === "string" && d.displayName.trim()
+                  ? d.displayName.trim()
+                  : [d.firstName, d.lastName]
+                      .filter((v) => typeof v === "string" && (v as string).trim())
+                      .map((v) => (v as string).trim())
+                      .join(" ") || null;
+              const photoURL =
+                typeof d.photoURL === "string" && d.photoURL.trim()
+                  ? d.photoURL.trim()
+                  : null;
+              const username =
+                typeof d.handle === "string" && d.handle.trim()
+                  ? d.handle.trim()
+                  : null;
+              buyerMap[uid] = { displayName, photoURL, username };
+            } catch {
+              // silently skip — row will show fallback
+            }
+          })
+        );
+
+        // Fetch source info: profile avatar or group avatar + name
+        const uniqueProfileSourceIds = [
+          ...new Set(
+            rows
+              .filter((r) => r.requestSource === "profile" && r.profileUserId)
+              .map((r) => r.profileUserId!)
+          ),
+        ];
+        const uniqueGroupIds = [
+          ...new Set(
+            rows
+              .filter((r) => r.requestSource === "group" && r.groupId)
+              .map((r) => r.groupId!)
+          ),
+        ];
+
+        const profileSourceAvatarMap: Record<string, string | null> = {};
+        const groupSourceMap: Record<string, { avatarUrl: string | null; name: string | null }> = {};
+
+        await Promise.all([
+          ...uniqueProfileSourceIds.map(async (uid) => {
+            try {
+              const uSnap = await getDoc(doc(db, "users", uid));
+              if (!uSnap.exists()) return;
+              const d = uSnap.data() as Record<string, unknown>;
+              profileSourceAvatarMap[uid] =
+                typeof d.photoURL === "string" && d.photoURL.trim()
+                  ? d.photoURL.trim()
+                  : null;
+            } catch {
+              // silently skip
+            }
+          }),
+          ...uniqueGroupIds.map(async (gid) => {
+            try {
+              const gSnap = await getDoc(doc(db, "groups", gid));
+              if (!gSnap.exists()) return;
+              const d = gSnap.data() as Record<string, unknown>;
+              groupSourceMap[gid] = {
+                avatarUrl:
+                  typeof d.avatarUrl === "string" && d.avatarUrl.trim()
+                    ? d.avatarUrl.trim()
+                    : null,
+                name:
+                  typeof d.name === "string" && d.name.trim()
+                    ? d.name.trim()
+                    : null,
+              };
+            } catch {
+              // silently skip
+            }
+          }),
+        ]);
+
         setGreetingRows(
-          snap.docs.map((d) =>
-            normalizeGreetingRow(d.id, d.data() as Partial<WalletGreetingDoc>)
-          )
+          rows.map((r) => {
+            const buyer = buyerMap[r.buyerId];
+
+            let sourceAvatarUrl: string | null = null;
+            let groupName = r.groupName;
+
+            if (r.requestSource === "profile" && r.profileUserId) {
+              sourceAvatarUrl = profileSourceAvatarMap[r.profileUserId] ?? null;
+            } else if (r.requestSource === "group" && r.groupId) {
+              const gi = groupSourceMap[r.groupId];
+              sourceAvatarUrl = gi?.avatarUrl ?? null;
+              groupName = gi?.name ?? r.groupName;
+            }
+
+            return {
+              ...r,
+              buyerDisplayName: buyer?.displayName ?? r.buyerDisplayName,
+              buyerAvatarUrl: buyer?.photoURL ?? r.buyerAvatarUrl,
+              buyerUsername: buyer?.username ?? r.buyerUsername,
+              groupName,
+              sourceAvatarUrl,
+            };
+          })
         );
         setGreetingError(null);
         setLoadingGreetings(false);
