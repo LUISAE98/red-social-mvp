@@ -1287,18 +1287,17 @@ const canShareGroup = group.visibility !== "hidden";
 const groupVisualUi = {
   ...groupPageUi,
   coverHeight: "clamp(240px, 38vw, 360px)",
-  avatarSize: "clamp(112px, 24vw, 220px)",
-  avatarOffsetTop: "calc(clamp(112px, 24vw, 220px) / -2)",
-  contentTopPadding: "calc((clamp(112px, 24vw, 220px) / 2) + 22px)",
+  avatarSize: mobileRefreshEnabled ? "clamp(146px, 31.2vw, 286px)" : "clamp(112px, 24vw, 220px)",
+  avatarOffsetTop: mobileRefreshEnabled ? "calc(clamp(146px, 31.2vw, 286px) / -2)" : "calc(clamp(112px, 24vw, 220px) / -2)",
+  contentTopPadding: mobileRefreshEnabled ? "calc((clamp(146px, 31.2vw, 286px) / 2) + 22px)" : "calc((clamp(112px, 24vw, 220px) / 2) + 22px)",
 };
 
 const groupHeaderCardStyle = {
   ...cardStyle,
   borderRadius: 18,
-  border: "1px solid rgba(168,85,255,0.08)",
-  background:
-    "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
-  boxShadow: "0 18px 54px rgba(0,0,0,0.68)",
+  border: "none",
+  background: "transparent",
+  boxShadow: "none",
   backdropFilter: "none",
 };
 
@@ -1518,6 +1517,11 @@ const avatarNode = (
   min-height: 110px;
   min-width: 0;
 }
+@media (max-width: 768px) {
+  .group-header-copy {
+    padding-top: calc((clamp(146px, 31.2vw, 286px) / 2) + 22px);
+  }
+}
             .group-meta {
               display: grid;
               place-items: center;
@@ -1610,7 +1614,6 @@ const avatarNode = (
                   }}
                 />
 
-                <div style={groupCoverAuraStyle} />
                 <div style={groupCoverGradientStyle} />
                 {canShareGroup && (
   <CopyLinkButton
@@ -2026,6 +2029,11 @@ const avatarNode = (
   z-index: 1;
   min-height: 110px;
   min-width: 0;
+}
+@media (max-width: 768px) {
+  .group-header-copy {
+    padding-top: calc((clamp(146px, 31.2vw, 286px) / 2) + 22px);
+  }
 }
 
           .group-meta {

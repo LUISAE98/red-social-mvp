@@ -337,6 +337,9 @@ const [serviceToast, setServiceToast] = useState<string | null>(null);
 const [profileComposerError, setProfileComposerError] = useState<string | null>(null);
 const [profilePostsRefreshKey, setProfilePostsRefreshKey] = useState(0);
 const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
+const avatarSz = mobileRefreshEnabled ? "clamp(146px, 31.2vw, 286px)" : "clamp(112px, 24vw, 220px)";
+const avatarOffsetTopSz = mobileRefreshEnabled ? "calc(clamp(146px, 31.2vw, 286px) / -2)" : "calc(clamp(112px, 24vw, 220px) / -2)";
+const contentTopPaddingSz = mobileRefreshEnabled ? "calc((clamp(146px, 31.2vw, 286px) / 2) + 22px)" : "calc((clamp(112px, 24vw, 220px) / 2) + 22px)";
 const [profileVideoUploadProgress, setProfileVideoUploadProgress] = useState<number | null>(null);
 const [profileVideoUploadStatus, setProfileVideoUploadStatus] = useState<string | null>(null);
 const [followersOverlayOpen, setFollowersOverlayOpen] = useState(false);
@@ -1658,6 +1661,9 @@ await createExclusiveSessionRequest({
             className="profile-card"
             style={{
               ...styles.card,
+              background: "transparent",
+              border: "none",
+              boxShadow: "none",
             }}
           >
             <div
@@ -1679,18 +1685,6 @@ await createExclusiveSessionRequest({
                 }}
               />
 
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  zIndex: 8,
-                  pointerEvents: "none",
-                  background:
-                    "radial-gradient(circle at 18% 10%, rgba(168,85,255,0.075), transparent 34%), radial-gradient(circle at 86% 18%, rgba(126,34,206,0.055), transparent 36%), radial-gradient(circle at 22% 92%, rgba(168,85,255,0.045), transparent 40%)",
-                  boxShadow:
-                    "inset 0 0 24px rgba(79,70,255,0.07), inset 0 0 20px rgba(168,85,255,0.065), inset 0 1px 0 rgba(255,255,255,0.05)",
-                }}
-              />
 
 <div
   style={{
@@ -1825,7 +1819,7 @@ await createExclusiveSessionRequest({
                 style={{
                   position: "absolute",
                   left: "50%",
-                  top: ui.avatarOffsetTop,
+                  top: avatarOffsetTopSz,
                   transform: "translateX(-50%)",
                   zIndex: 20,
                 }}
@@ -1840,8 +1834,8 @@ await createExclusiveSessionRequest({
                     }}
                     disabled={!isOwner || uploading}
                     style={{
-                      width: ui.avatarSize,
-                      height: ui.avatarSize,
+                      width: avatarSz,
+                      height: avatarSz,
                       borderRadius: "50%",
                       overflow: "hidden",
                       border: "4px solid rgba(0,0,0,0.96)",
@@ -1929,7 +1923,7 @@ await createExclusiveSessionRequest({
 
 <div
   style={{
-    paddingTop: ui.contentTopPadding,
+    paddingTop: contentTopPaddingSz,
     position: "relative",
     zIndex: 1,
   }}
