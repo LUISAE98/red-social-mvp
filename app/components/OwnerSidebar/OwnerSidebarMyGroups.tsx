@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import {
   VibraNavigationIcon,
@@ -411,6 +413,53 @@ export default function OwnerSidebarMyGroups({
   const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [reviewGreetingItem, setReviewGreetingItem] = useState<{ id: string; data: GreetingRequestDoc } | null>(null);
+  const [greetingEarningsMap, setGreetingEarningsMap] = useState<Record<string, string | null>>({});
+
+  useEffect(() => {
+    // Deduplicate by (bucketKey, type) — same logic as getServiceBucketKey in OwnerSidebar
+    const unique = new Map<string, { col: string; docId: string; type: string }>();
+    for (const [bucketKey, rows] of Object.entries(greetingsByGroup)) {
+      for (const row of rows) {
+        const key = `${bucketKey}_${row.data.type}`;
+        if (unique.has(key)) continue;
+        const req = row.data;
+        // Derive collection + doc from the request's own source fields, same as GreetingReviewOverlay
+        const isProfile = req.source === "profile" || bucketKey.startsWith("profile:");
+        const docId = isProfile
+          ? (req.profileUserId ?? req.creatorId ?? bucketKey.slice("profile:".length))
+          : (req.groupId ?? bucketKey);
+        if (!docId) continue;
+        const col = isProfile ? "users" : "groups";
+        unique.set(key, { col, docId, type: req.type });
+      }
+    }
+    if (unique.size === 0) return;
+    Promise.all(
+      Array.from(unique.entries()).map(async ([key, { col, docId, type }]) => {
+        try {
+          const snap = await getDoc(doc(db, col, docId));
+          if (!snap.exists()) return [key, null] as const;
+          const data = snap.data() as Record<string, unknown>;
+          const offerings = Array.isArray(data.offerings) ? data.offerings as Array<Record<string, unknown>> : [];
+          const offering = offerings.find((o) => o.type === type);
+          const rawPrice =
+            typeof offering?.memberPrice === "number" ? (offering.memberPrice as number)
+            : typeof offering?.price === "number" ? (offering.price as number)
+            : null;
+          const formatted = rawPrice != null && rawPrice > 0
+            ? "$" + new Intl.NumberFormat("es-MX", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(rawPrice * 0.77) + " MXN"
+            : null;
+          return [key, formatted] as const;
+        } catch {
+          return [key, null] as const;
+        }
+      })
+    ).then((results) => {
+      const updates: Record<string, string | null> = {};
+      for (const [key, val] of results) updates[key] = val;
+      setGreetingEarningsMap((prev) => ({ ...prev, ...updates }));
+    });
+  }, [greetingsByGroup]);
 
 useEffect(() => {
   if (typeof window === "undefined") return;
@@ -1077,9 +1126,10 @@ const isProfileCard = g.visibility === "profile";
 
 const profileHref = g.profileHref ?? (g.handle ? `/u/${g.handle}` : null);
 
-const isSelectedGroup = isProfileCard
+const isSelectedGroup = (isProfileCard
   ? !!profileHref && pathname === profileHref
-  : pathname === `/groups/${g.id}`;
+  : pathname === `/groups/${g.id}`)
+  || (isMobile && isOpen);
 
             const joinRequests = joinRequestsByGroup[g.id] ?? [];
             const greetings = greetingsByGroup[g.id] ?? [];
@@ -1400,10 +1450,8 @@ boxShadow:
     onClick={() => {
       const nextOpen = !openCommunities[g.id];
 
-      setOpenCommunities((prev) => ({
-        ...prev,
-        [g.id]: nextOpen,
-      }));
+      // Accordion: close all other cards when opening this one
+      setOpenCommunities(nextOpen ? { [g.id]: true } : { [g.id]: false });
 
       if (nextOpen) {
         setSeenCountsByGroup((prev) => ({
@@ -1503,12 +1551,14 @@ boxShadow:
                         <div style={styles.sectionPanel}>
                           <button
                             type="button"
-                            onClick={() =>
-                              setJoinSectionOpen((prev) => ({
-                                ...prev,
-                                [g.id]: !prev[g.id],
-                              }))
-                            }
+                            onClick={() => {
+                              const opening = !joinSectionOpen[g.id];
+                              setJoinSectionOpen((prev) => ({ ...prev, [g.id]: opening }));
+                              if (opening) {
+                                setGreetingSectionOpen((prev) => ({ ...prev, [g.id]: false }));
+                                setMeetGreetSectionOpen((prev) => ({ ...prev, [g.id]: false }));
+                              }
+                            }}
                             style={{
                               background: "transparent",
                               border: "none",
@@ -1670,12 +1720,14 @@ boxShadow:
                         <div style={styles.sectionPanel}>
                           <button
                             type="button"
-                            onClick={() =>
-                              setGreetingSectionOpen((prev) => ({
-                                ...prev,
-                                [g.id]: !prev[g.id],
-                              }))
-                            }
+                            onClick={() => {
+                              const opening = !greetingSectionOpen[g.id];
+                              setGreetingSectionOpen((prev) => ({ ...prev, [g.id]: opening }));
+                              if (opening) {
+                                setJoinSectionOpen((prev) => ({ ...prev, [g.id]: false }));
+                                setMeetGreetSectionOpen((prev) => ({ ...prev, [g.id]: false }));
+                              }
+                            }}
                             style={{
                               background: "transparent",
                               border: "none",
@@ -1707,9 +1759,11 @@ boxShadow:
                               <div style={{ display: "grid", gap: 10 }}>
                                 {sortedGreetings.map((r) => {
                                   const req = r.data;
-                                  const chipStyle = getTypeChipStyle(req.type);
                                   const buyer = userMiniMap[req.buyerId] ?? null;
                                   const buyerLetter = getInitials(buyer?.displayName);
+
+                                  const listEarning = greetingEarningsMap[`${g.id}_${req.type}`] ?? null;
+                                  const reviewLabel = req.type === "consejo" ? "Revisar consejo" : req.type === "saludo" ? "Revisar saludo" : "Revisar";
 
                                   return (
                                     <div key={r.id} style={styles.miniItem}>
@@ -1771,23 +1825,9 @@ boxShadow:
                                             </span>
                                           )}
                                         </div>
-                                        <span
-                                          style={{
-                                            ...chipStyle,
-                                            borderRadius: 999,
-                                            padding: "3px 7px",
-                                            fontSize: 10,
-                                            fontWeight: 700,
-                                            lineHeight: 1,
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            gap: 3,
-                                            flexShrink: 0,
-                                          }}
-                                        >
-                                          {getServiceEmoji(req.type)}{" "}
-                                          {typeLabel(req.type)}
-                                        </span>
+                                        {listEarning ? (
+                                          <span style={{ color: "#86efac", fontSize: 11, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, flexShrink: 0 }}>{listEarning}</span>
+                                        ) : null}
                                       </div>
 
                                       <button
@@ -1797,16 +1837,16 @@ boxShadow:
                                           width: "100%",
                                           height: 30,
                                           borderRadius: 8,
-                                          border: "1px solid rgba(168,85,255,0.22)",
-                                          background: "rgba(168,85,255,0.08)",
+                                          border: "none",
+                                          background: "rgba(168,85,255,0.18)",
                                           color: "#d8b4fe",
-                                          fontWeight: 500,
+                                          fontWeight: 520,
                                           fontSize: 12,
                                           cursor: "pointer",
                                           fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
                                         }}
                                       >
-                                        Revisar
+                                        {reviewLabel}
                                       </button>
                                     </div>
                                   );
@@ -1822,12 +1862,14 @@ boxShadow:
                         <div style={styles.sectionPanel}>
                           <button
                             type="button"
-                            onClick={() =>
-                              setMeetGreetSectionOpen((prev) => ({
-                                ...prev,
-                                [g.id]: !prev[g.id],
-                              }))
-                            }
+                            onClick={() => {
+                              const opening = !meetGreetSectionOpen[g.id];
+                              setMeetGreetSectionOpen((prev) => ({ ...prev, [g.id]: opening }));
+                              if (opening) {
+                                setJoinSectionOpen((prev) => ({ ...prev, [g.id]: false }));
+                                setGreetingSectionOpen((prev) => ({ ...prev, [g.id]: false }));
+                              }
+                            }}
                             style={{
                               background: "transparent",
                               border: "none",
