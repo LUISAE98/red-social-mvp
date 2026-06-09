@@ -1006,6 +1006,7 @@ const previewUrl = media.url;
     if (currentMedia.type === "video") {
       const videoSurface = (
         <div
+          onClick={useMobileLayout ? toggleMobileChrome : undefined}
           style={{
             position: "absolute",
             top: "env(safe-area-inset-top)",
@@ -1013,6 +1014,7 @@ const previewUrl = media.url;
             bottom: "env(safe-area-inset-bottom)",
             left: "env(safe-area-inset-left)",
             background: "#000",
+            cursor: "pointer",
           }}
         >
           {currentVideoSrc ? (
@@ -1059,7 +1061,10 @@ const previewUrl = media.url;
                 onTimeUpdate={(event) => {
                   setVideoCurrentTime(event.currentTarget.currentTime);
                 }}
-                onPlay={() => setVideoPlaying(true)}
+                onPlay={() => {
+                  setVideoPlaying(true);
+                  if (useMobileLayout) scheduleChromeHide();
+                }}
                 onPause={() => setVideoPlaying(false)}
                 style={{
                   width: "100%",
@@ -1070,7 +1075,7 @@ const previewUrl = media.url;
                       : "contain",
                   background: "#000",
                   opacity: videoReady || !currentVideoPoster ? 1 : 0,
-                  pointerEvents: "auto",
+                  pointerEvents: "none",
                 }}
               />
             </>
@@ -1415,18 +1420,19 @@ const previewUrl = media.url;
         </div>
       )}
 
-      {false && isCurrentVideo && shouldShowMobileControls && (
+      {isCurrentVideo && shouldShowMobileControls && (
         <div
           style={{
             position: "fixed",
-            left: 16,
-            right: 16,
-            bottom: shouldShowMobileMeta
-              ? "calc(104px + env(safe-area-inset-bottom))"
-              : "calc(22px + env(safe-area-inset-bottom))",
+            left: 0,
+            right: 0,
+            bottom: 0,
             zIndex: 2147483647,
+            padding: "20px 16px calc(14px + env(safe-area-inset-bottom))",
+            background:
+              "linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0.44) 65%, transparent 100%)",
             display: "grid",
-            gap: 6,
+            gap: 10,
           }}
         >
           <div
@@ -1515,7 +1521,6 @@ const previewUrl = media.url;
               }}
             />
 
-
             <button
               type="button"
               onClick={(event) => {
@@ -1545,98 +1550,162 @@ const previewUrl = media.url;
             </button>
 
             <div style={{ position: "relative", width: 46, height: 34 }}>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setMobileLandscapeSpeedMenuOpen((prev) => !prev);
-                    setMobileChromeVisible(true);
-                    clearChromeTimer();
-                  }}
-                  aria-label="Elegir velocidad de reproducción"
-                  aria-expanded={mobileLandscapeSpeedMenuOpen}
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setMobileLandscapeSpeedMenuOpen((prev) => !prev);
+                  setMobileChromeVisible(true);
+                  clearChromeTimer();
+                }}
+                aria-label="Elegir velocidad de reproducción"
+                aria-expanded={mobileLandscapeSpeedMenuOpen}
+                style={{
+                  width: 46,
+                  height: 34,
+                  borderRadius: 999,
+                  border: "1px solid rgba(255,255,255,0.18)",
+                  background: "rgba(0,0,0,0.58)",
+                  color: "#fff",
+                  display: "grid",
+                  placeItems: "center",
+                  fontSize: 12,
+                  fontWeight: 800,
+                  fontFamily: fontStack,
+                  WebkitTapHighlightColor: "transparent",
+                }}
+              >
+                {videoPlaybackRate.toFixed(
+                  videoPlaybackRate % 1 === 0 ? 0 : 2,
+                )}
+                x
+              </button>
+
+              {mobileLandscapeSpeedMenuOpen && (
+                <div
+                  role="menu"
+                  aria-label="Velocidad de reproducción"
                   style={{
-                    width: 46,
-                    height: 34,
-                    borderRadius: 999,
-                    border: "1px solid rgba(255,255,255,0.18)",
-                    background: "rgba(0,0,0,0.58)",
-                    color: "#fff",
+                    position: "absolute",
+                    right: 0,
+                    bottom: 42,
+                    minWidth: 88,
+                    padding: 5,
+                    borderRadius: 12,
+                    border: "1px solid rgba(255,255,255,0.16)",
+                    background: "rgba(10,10,10,0.94)",
+                    boxShadow: "0 12px 30px rgba(0,0,0,0.38)",
                     display: "grid",
-                    placeItems: "center",
-                    fontSize: 12,
-                    fontWeight: 800,
-                    fontFamily: fontStack,
-                    WebkitTapHighlightColor: "transparent",
+                    gap: 3,
                   }}
                 >
-                  {videoPlaybackRate.toFixed(
-                    videoPlaybackRate % 1 === 0 ? 0 : 2,
-                  )}
-                  x
-                </button>
+                  {playbackRates.map((rate) => (
+                    <button
+                      key={rate}
+                      type="button"
+                      role="menuitem"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setVideoPlaybackRate(rate);
+                        setMobileLandscapeSpeedMenuOpen(false);
+                        setMobileChromeVisible(true);
+                        scheduleChromeHide();
+                      }}
+                      style={{
+                        minHeight: 28,
+                        borderRadius: 8,
+                        border: "none",
+                        background:
+                          videoPlaybackRate === rate
+                            ? "rgba(255,255,255,0.16)"
+                            : "transparent",
+                        color: "#fff",
+                        fontSize: 12,
+                        fontWeight: videoPlaybackRate === rate ? 850 : 700,
+                        fontFamily: fontStack,
+                        textAlign: "left",
+                        padding: "6px 9px",
+                        WebkitTapHighlightColor: "transparent",
+                      }}
+                    >
+                      {rate
+                        .toFixed(rate % 1 === 0 ? 0 : 2)
+                        .replace(/\.00$/, "")}
+                      x
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
-                {mobileLandscapeSpeedMenuOpen && (
-                  <div
-                    role="menu"
-                    aria-label="Velocidad de reproducción"
-                    style={{
-                      position: "absolute",
-                      right: 0,
-                      bottom: 42,
-                      minWidth: 88,
-                      padding: 5,
-                      borderRadius: 12,
-                      border: "1px solid rgba(255,255,255,0.16)",
-                      background: "rgba(10,10,10,0.94)",
-                      boxShadow: "0 12px 30px rgba(0,0,0,0.38)",
-                      display: "grid",
-                      gap: 3,
-                    }}
-                  >
-                    {playbackRates.map((rate) => (
-                      <button
-                        key={rate}
-                        type="button"
-                        role="menuitem"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setVideoPlaybackRate(rate);
-                          setMobileLandscapeSpeedMenuOpen(false);
-                          setMobileChromeVisible(true);
-                          scheduleChromeHide();
-                        }}
-                        style={{
-                          minHeight: 28,
-                          borderRadius: 8,
-                          border: "none",
-                          background:
-                            videoPlaybackRate === rate
-                              ? "rgba(255,255,255,0.16)"
-                              : "transparent",
-                          color: "#fff",
-                          fontSize: 12,
-                          fontWeight: videoPlaybackRate === rate ? 850 : 700,
-                          fontFamily: fontStack,
-                          textAlign: "left",
-                          padding: "6px 9px",
-                          WebkitTapHighlightColor: "transparent",
-                        }}
-                      >
-                        {rate
-                          .toFixed(rate % 1 === 0 ? 0 : 2)
-                          .replace(/\.00$/, "")}
-                        x
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+          <div
+            style={{
+              display: "inline-flex",
+              justifyContent: "flex-start",
+              alignItems: "center",
+              gap: 14,
+            }}
+          >
+            <div style={actionGroupStyle}>
+              <button
+                type="button"
+                onClick={onToggleFlame}
+                aria-pressed={viewerHasFlamed}
+                aria-label={
+                  viewerHasFlamed
+                    ? "Quitar flamita de la publicación"
+                    : "Dar flamita a la publicación"
+                }
+                style={flameButtonStyle}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: "inline-grid",
+                    placeItems: "center",
+                    lineHeight: 1,
+                  }}
+                >
+                  <VibraFlameIcon active={viewerHasFlamed} size={23} />
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onOpenFlames}
+                disabled={!onOpenFlames || likesCount === 0}
+                aria-label="Ver usuarios que dieron flamita"
+                style={{
+                  ...actionButtonStyle,
+                  opacity: !onOpenFlames || likesCount === 0 ? 0.55 : 1,
+                  cursor:
+                    !onOpenFlames || likesCount === 0 ? "default" : "pointer",
+                }}
+              >
+                {likesCount}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                onOpenComments();
+                setMobileCommentsOpen(true);
+              }}
+              aria-label="Abrir comentarios"
+              style={actionButtonStyle}
+            >
+              <span aria-hidden="true" style={{ fontSize: 21, lineHeight: 1 }}>
+                💬
+              </span>
+              <span>{commentsCount}</span>
+            </button>
           </div>
         </div>
       )}
 
-      {false && isCurrentVideo && mobileSpeedGestureActive && (
+      {isCurrentVideo && mobileSpeedGestureActive && (
         <div
           style={{
             position: "fixed",
@@ -1660,7 +1729,235 @@ const previewUrl = media.url;
         </div>
       )}
 
-      {shouldShowMobileMeta && (
+      {isCurrentVideo && shouldShowMobileMeta && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 2147483646,
+            padding: "calc(env(safe-area-inset-top) + 58px) 16px 24px",
+            background:
+              "linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.28) 60%, transparent 100%)",
+            display: "grid",
+            gap: 7,
+            justifyItems: "start",
+            pointerEvents: "none",
+          }}
+        >
+          <div style={{ display: "grid", gap: 2, minWidth: 0, pointerEvents: "auto" }}>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                minWidth: 0,
+                maxWidth: "calc(100vw - 32px)",
+                overflow: "hidden",
+              }}
+            >
+              <Link
+                href={author.profileHref}
+                style={{
+                  color: "#fff",
+                  textDecoration: "none",
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  lineHeight: 1.1,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                {author.authorName}
+              </Link>
+
+              {group && (
+                <>
+                  <span
+                    aria-hidden="true"
+                    style={{ color: "rgba(255,255,255,0.34)", fontSize: 12 }}
+                  >
+                    •
+                  </span>
+
+                  {group.href ? (
+                    <Link
+                      href={group.href}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        minWidth: 0,
+                        color: "rgba(255,255,255,0.68)",
+                        textDecoration: "none",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <Avatar
+                        name={group.name}
+                        avatarUrl={group.avatarUrl}
+                        size={15}
+                      />
+                      <span
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {group.name}
+                      </span>
+                    </Link>
+                  ) : (
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 5,
+                        minWidth: 0,
+                        color: "rgba(255,255,255,0.68)",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <Avatar
+                        name={group.name}
+                        avatarUrl={group.avatarUrl}
+                        size={15}
+                      />
+                      <span
+                        style={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {group.name}
+                      </span>
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowExactDate((prev) => !prev)}
+              title={exactDate}
+              aria-label={
+                showExactDate
+                  ? "Mostrar fecha relativa de la publicación"
+                  : "Mostrar fecha exacta de la publicación"
+              }
+              style={{
+                width: "fit-content",
+                color: "rgba(255,255,255,0.58)",
+                fontSize: 10.5,
+                lineHeight: 1.1,
+                border: "none",
+                background: "transparent",
+                padding: 0,
+                fontFamily: fontStack,
+                cursor: "pointer",
+                textAlign: "left",
+                WebkitTapHighlightColor: "transparent",
+              }}
+            >
+              {showExactDate ? exactDate : relativeDate}
+            </button>
+          </div>
+
+          {shouldShowMobilePostText && (
+            <div
+              style={{
+                maxWidth: "calc(100vw - 32px)",
+                color: "rgba(255,255,255,0.86)",
+                fontSize: 12,
+                fontWeight: 300,
+                lineHeight: 1.35,
+                wordBreak: "break-word",
+                pointerEvents: "auto",
+              }}
+            >
+              {!mobilePostTextExpanded ? (
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    maxWidth: "100%",
+                    minWidth: 0,
+                    gap: 4,
+                  }}
+                >
+                  <span
+                    style={{
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {cleanPostText}
+                  </span>
+
+                  {shouldClampMobilePostText && (
+                    <button
+                      type="button"
+                      onClick={() => setMobilePostTextExpanded(true)}
+                      style={{
+                        flexShrink: 0,
+                        border: "none",
+                        background: "transparent",
+                        color: "rgba(255,255,255,0.78)",
+                        padding: 0,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        fontFamily: fontStack,
+                        cursor: "pointer",
+                        WebkitTapHighlightColor: "transparent",
+                      }}
+                    >
+                      + Ver más
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div style={{ whiteSpace: "pre-wrap" }}>
+                  {cleanPostText}
+                  {shouldClampMobilePostText && (
+                    <button
+                      type="button"
+                      onClick={() => setMobilePostTextExpanded(false)}
+                      style={{
+                        marginLeft: 6,
+                        border: "none",
+                        background: "transparent",
+                        color: "rgba(255,255,255,0.78)",
+                        padding: 0,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        fontFamily: fontStack,
+                        cursor: "pointer",
+                        WebkitTapHighlightColor: "transparent",
+                      }}
+                    >
+                      - Ver menos
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isCurrentVideo && shouldShowMobileMeta && (
         <div
           style={{
             position: "fixed",
@@ -1893,28 +2190,28 @@ const previewUrl = media.url;
             }}
           >
             <div style={actionGroupStyle}>
-<button
-  type="button"
-  onClick={onToggleFlame}
-  aria-pressed={viewerHasFlamed}
-  aria-label={
-    viewerHasFlamed
-      ? "Quitar flamita de la publicación"
-      : "Dar flamita a la publicación"
-  }
-  style={flameButtonStyle}
->
-  <span
-    aria-hidden="true"
-    style={{
-      display: "inline-grid",
-      placeItems: "center",
-      lineHeight: 1,
-    }}
-  >
-    <VibraFlameIcon active={viewerHasFlamed} size={23} />
-  </span>
-</button>
+              <button
+                type="button"
+                onClick={onToggleFlame}
+                aria-pressed={viewerHasFlamed}
+                aria-label={
+                  viewerHasFlamed
+                    ? "Quitar flamita de la publicación"
+                    : "Dar flamita a la publicación"
+                }
+                style={flameButtonStyle}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: "inline-grid",
+                    placeItems: "center",
+                    lineHeight: 1,
+                  }}
+                >
+                  <VibraFlameIcon active={viewerHasFlamed} size={23} />
+                </span>
+              </button>
 
               <button
                 type="button"
