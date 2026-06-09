@@ -1346,18 +1346,31 @@ const previewUrl = media.url;
             const endY = touch?.clientY ?? startY;
             const diff = endY - startY;
             const maxOffset = Math.max(0, sheet.offsetHeight - 96);
+            // Re-enable transition for the snap
             sheet.style.transition = "transform 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)";
-            sheet.style.transform = "";
             if (Math.abs(diff) < 8) {
               const target = e.target as HTMLElement;
-              if (target.closest("button, a, input, textarea, select")) return;
+              if (target.closest("button, a, input, textarea, select")) {
+                // Micro-drag on a button: restore position, let the button onClick fire
+                sheet.style.transform = mobileSheetExpanded ? "translateY(0)" : `translateY(${maxOffset}px)`;
+                setTimeout(() => { if (mobileSheetRef.current) mobileSheetRef.current.style.transform = ""; }, 340);
+                return;
+              }
+              // Plain tap on non-interactive area: toggle
               setMobileSheetExpanded((prev) => !prev);
               return;
             }
             const shouldExpand = diff < -20 ? true : diff > 20 ? false : mobileSheetExpanded;
-            sheet.style.transform = shouldExpand ? "translateY(0)" : `translateY(${maxOffset}px)`;
-            setMobileSheetExpanded(shouldExpand);
-            setTimeout(() => { if (mobileSheetRef.current) mobileSheetRef.current.style.transform = ""; }, 340);
+            if (shouldExpand !== mobileSheetExpanded) {
+              // State changes → React re-renders, overwrites the drag inline transform,
+              // and the CSS transition fires from the drag position to the snap target.
+              // No setTimeout needed — React owns the DOM value after its commit.
+              setMobileSheetExpanded(shouldExpand);
+            } else {
+              // State stays the same → manually snap back and clean up inline
+              sheet.style.transform = shouldExpand ? "translateY(0)" : `translateY(${maxOffset}px)`;
+              setTimeout(() => { if (mobileSheetRef.current) mobileSheetRef.current.style.transform = ""; }, 340);
+            }
           }}
         >
         <div
@@ -1541,7 +1554,7 @@ const previewUrl = media.url;
             display: "flex",
             alignItems: "center",
             gap: 12,
-            padding: "0 16px calc(8px + env(safe-area-inset-bottom))",
+            padding: "0 16px 4px",
           }}
         >
           <div style={actionGroupStyle}>
@@ -1609,7 +1622,7 @@ const previewUrl = media.url;
             opacity: mobileSheetExpanded ? 1 : 0,
             pointerEvents: mobileSheetExpanded ? "auto" : "none",
             transition: "opacity 200ms ease",
-            padding: "16px 16px calc(20px + env(safe-area-inset-bottom))",
+            padding: "6px 16px calc(20px + env(safe-area-inset-bottom))",
             overscrollBehavior: "contain",
           }}
         >
