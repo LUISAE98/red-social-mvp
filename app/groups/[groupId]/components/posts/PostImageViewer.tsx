@@ -637,8 +637,6 @@ const previousMedia =
     setVideoReady(false);
     setDesktopSpeedMenuOpen(false);
     setDesktopControlsVisible(true);
-    setMobileSheetExpanded(false);
-    setMobileSheetShowComments(false);
     resetMobileVideoSpeed();
     setMobileChromeVisible(true);
   }, [
@@ -670,6 +668,10 @@ const previousMedia =
       setMobileCommentsOpen(false);
       setMobileSheetExpanded(false);
       setMobileSheetShowComments(false);
+      if (mobileSheetRef.current) {
+        mobileSheetRef.current.style.transform = "";
+        mobileSheetRef.current.style.transition = "";
+      }
       setDesktopPostTextExpanded(false);
       clearChromeTimer();
       clearDesktopControlsTimer();
@@ -880,10 +882,10 @@ const previewUrl = media.url;
         <div
           style={{
             position: "absolute",
-            top: useMobileLayout ? 0 : "env(safe-area-inset-top)",
-            right: useMobileLayout ? 0 : "env(safe-area-inset-right)",
+            top: "env(safe-area-inset-top)",
+            right: "env(safe-area-inset-right)",
             bottom: useMobileLayout ? 0 : "env(safe-area-inset-bottom)",
-            left: useMobileLayout ? 0 : "env(safe-area-inset-left)",
+            left: "env(safe-area-inset-left)",
             background: "#000",
           }}
         >
@@ -1245,9 +1247,7 @@ const previewUrl = media.url;
         style={{
           position: "relative",
           width: "100%",
-          height: useMobileLayout
-            ? "calc(100dvh - 80px - env(safe-area-inset-bottom))"
-            : "100%",
+          height: useMobileLayout ? "calc(100dvh - 80px)" : "100%",
           overflow: "hidden",
           touchAction: "none",
           background: "#000",
@@ -1298,12 +1298,12 @@ const previewUrl = media.url;
           maxHeight: "88dvh",
           display: "flex",
           flexDirection: "column",
-          background: "rgba(10, 10, 14, 0.97)",
+          background: "rgb(10, 10, 14)",
           borderRadius: "14px 14px 0 0",
           borderTop: "1px solid rgba(255,255,255,0.08)",
           transform: mobileSheetExpanded
             ? "translateY(0)"
-            : "translateY(calc(100% - 80px - env(safe-area-inset-bottom)))",
+            : "translateY(calc(100% - 80px))",
           transition: "transform 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
           touchAction: "none",
           userSelect: "none",
@@ -1382,7 +1382,7 @@ const previewUrl = media.url;
             display: "flex",
             alignItems: "center",
             gap: 10,
-            padding: "4px 16px 16px",
+            padding: "4px 16px calc(16px + env(safe-area-inset-bottom))",
             minWidth: 0,
           }}
         >
