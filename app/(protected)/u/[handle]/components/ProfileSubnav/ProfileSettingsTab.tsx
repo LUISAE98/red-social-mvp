@@ -23,6 +23,8 @@ type ProfileSettingsTabProps = {
   displayNameLastChangedAt?: string | Date | null;
 
   onUpdateDisplayName?: (nextName: string) => Promise<void> | void;
+  bio?: string | null;
+  onUpdateBio?: (nextBio: string) => Promise<void> | void;
   onSendPasswordReset?: () => Promise<void> | void;
 };
 
@@ -197,14 +199,19 @@ export default function ProfileSettingsTab({
   appCreatedAt,
   displayNameLastChangedAt = null,
   onUpdateDisplayName,
+  bio = null,
+  onUpdateBio,
   onSendPasswordReset,
 }: ProfileSettingsTabProps) {
   const [localRestricted, setLocalRestricted] = useState(isRestricted);
   const [localCommentsEnabled, setLocalCommentsEnabled] = useState(commentsEnabled);
   const [editNameOpen, setEditNameOpen] = useState(false);
+  const [editBioOpen, setEditBioOpen] = useState(false);
   const [blockedAccountsOpen, setBlockedAccountsOpen] = useState(false);
   const [draftName, setDraftName] = useState(displayName ?? "");
+  const [draftBio, setDraftBio] = useState(bio ?? "");
   const [savingName, setSavingName] = useState(false);
+  const [savingBio, setSavingBio] = useState(false);
   const [sendingPassword, setSendingPassword] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -220,6 +227,10 @@ export default function ProfileSettingsTab({
   useEffect(() => {
     setDraftName(displayName ?? "");
   }, [displayName]);
+
+  useEffect(() => {
+    setDraftBio(bio ?? "");
+  }, [bio]);
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
@@ -304,6 +315,24 @@ export default function ProfileSettingsTab({
       setErr(error?.message ?? "No se pudo actualizar el nombre.");
     } finally {
       setSavingName(false);
+    }
+  }
+
+  async function handleSaveBio() {
+    if (!onUpdateBio) return;
+
+    setSavingBio(true);
+    setMsg(null);
+    setErr(null);
+
+    try {
+      await onUpdateBio(draftBio);
+      setMsg("Descripción actualizada.");
+      setEditBioOpen(false);
+    } catch (error: any) {
+      setErr(error?.message ?? "No se pudo actualizar la descripción.");
+    } finally {
+      setSavingBio(false);
     }
   }
 
@@ -585,6 +614,41 @@ export default function ProfileSettingsTab({
           </button>
         </div>
 
+        {onUpdateBio && (
+          <div className="profile-setting-item" style={item}>
+            <div style={{ minWidth: 0 }}>
+              <div style={labelStyle}>Descripción del perfil</div>
+              <div
+                style={{
+                  ...valueStyle,
+                  fontWeight: 400,
+                  color: bio?.trim()
+                    ? "rgba(255,255,255,0.82)"
+                    : "rgba(255,255,255,0.38)",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {bio?.trim() || "Sin descripción"}
+              </div>
+            </div>
+
+            <button
+              className="profile-setting-button"
+              type="button"
+              style={buttonStyle}
+              onClick={() => {
+                setErr(null);
+                setMsg(null);
+                setDraftBio(bio ?? "");
+                setEditBioOpen(true);
+              }}
+            >
+              Modificar
+            </button>
+          </div>
+        )}
+
         <div className="profile-setting-item" style={item}>
           <div>
             <div style={labelStyle}>Usuario</div>
@@ -728,6 +792,71 @@ export default function ProfileSettingsTab({
               }}
             >
               {savingName ? (
+                <>
+                  <SpinningGear /> Guardando...
+                </>
+              ) : (
+                "Guardar"
+              )}
+            </button>
+          </div>
+        </div>
+      </FullScreenModal>
+
+      <FullScreenModal open={editBioOpen} onClose={() => !savingBio && setEditBioOpen(false)}>
+        <div style={modalCard} onClick={(e) => e.stopPropagation()}>
+          <strong style={{ fontSize: 16, color: "#fff", lineHeight: 1.2 }}>
+            Descripción del perfil
+          </strong>
+
+          <textarea
+            style={{
+              ...inputStyle,
+              minHeight: 110,
+              padding: "10px 12px",
+              resize: "vertical",
+            }}
+            value={draftBio}
+            onChange={(e) => setDraftBio(e.target.value.slice(0, 300))}
+            placeholder="Cuéntale a tu audiencia quién eres..."
+            maxLength={300}
+          />
+
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", textAlign: "right" }}>
+            {draftBio.length}/300
+          </div>
+
+          {err && <div style={noticeStyle}>{err}</div>}
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => !savingBio && setEditBioOpen(false)}
+              disabled={savingBio}
+              style={{
+                ...buttonStyle,
+                flex: "1 1 140px",
+                opacity: savingBio ? 0.7 : 1,
+                cursor: savingBio ? "not-allowed" : "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSaveBio}
+              disabled={savingBio}
+              style={{
+                ...buttonStyle,
+                flex: "1 1 160px",
+                background: savingBio ? "rgba(255,255,255,0.16)" : "#fff",
+                color: savingBio ? "#fff" : "#000",
+                opacity: savingBio ? 0.8 : 1,
+                cursor: savingBio ? "not-allowed" : "pointer",
+              }}
+            >
+              {savingBio ? (
                 <>
                   <SpinningGear /> Guardando...
                 </>

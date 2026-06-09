@@ -122,6 +122,7 @@ type UserDoc = {
   showCreatedGroups?: boolean;
   profileRestricted?: boolean;
   profileCommentsEnabled?: boolean;
+  bio?: string | null;
   profileGreeting?: {
     enabled: boolean;
     price: number | null;
@@ -1228,6 +1229,13 @@ async function handleUpdateDisplayName(nextName: string) {
   );
 }
 
+async function handleUpdateBio(nextBio: string) {
+  if (!userDoc || !isOwner) return;
+  const uref = doc(db, "users", userDoc.uid);
+  await updateDoc(uref, { bio: nextBio.trim() });
+  setUserDoc((prev) => (prev ? { ...prev, bio: nextBio.trim() } : prev));
+}
+
 async function handleSendPasswordReset() {
   const email = viewer?.email;
 
@@ -1933,6 +1941,24 @@ await createExclusiveSessionRequest({
 
                   <div className="profile-handle">@{userDoc.handle}</div>
 
+                  {!!userDoc.bio?.trim() && (
+                    <div
+                      style={{
+                        marginTop: 6,
+                        fontSize: 14,
+                        fontWeight: 400,
+                        lineHeight: 1.5,
+                        color: "rgba(255,255,255,0.82)",
+                        maxWidth: 560,
+                        wordBreak: "break-word",
+                        overflowWrap: "anywhere",
+                        textAlign: "center",
+                      }}
+                    >
+                      {userDoc.bio}
+                    </div>
+                  )}
+
                                     <div
                     className="profile-visibility"
                     style={{
@@ -2241,6 +2267,8 @@ await createExclusiveSessionRequest({
   appCreatedAt={normalizedCreatedAt}
   displayNameLastChangedAt={normalizedDisplayNameLastChangedAt}
   onUpdateDisplayName={handleUpdateDisplayName}
+  bio={userDoc.bio ?? null}
+  onUpdateBio={handleUpdateBio}
   onSendPasswordReset={handleSendPasswordReset}
 />
               </section>

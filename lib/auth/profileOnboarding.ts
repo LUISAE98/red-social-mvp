@@ -85,6 +85,7 @@ type CompleteGoogleProfileInput = {
   lastName: string;
   birthDate: string;
   sex: string;
+  bio?: string;
 };
 
 export async function completeGoogleProfile(
@@ -137,7 +138,7 @@ if (!email) {
       lastName,
       birthDate: input.birthDate,
       sex: input.sex,
-      bio: "",
+      bio: input.bio?.trim() ?? "",
       role: "user",
       provider: "google",
       authProvider: "google.com",

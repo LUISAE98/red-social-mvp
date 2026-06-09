@@ -1846,6 +1846,24 @@ const avatarNode = (
                 </div>
               </div>
             </section>
+
+          {!isBanned && (
+            <div style={{ paddingTop: 16, width: "100%" }}>
+              <GroupPostsFeed
+                key={`group-posts-public-${groupId}`}
+                groupId={groupId}
+                groupVisibility={normalizeVisibility(group.visibility)}
+                isOwner={false}
+                isModerator={false}
+                viewerIsMember={false}
+                canCreatePosts={false}
+                canCommentOnPosts={false}
+                postBlockedReason={user ? "join" : "login"}
+                commentBlockedReason={user ? "join" : "login"}
+                publicPremiumOnly={true}
+              />
+            </div>
+          )}
           </div>
 
         </main>

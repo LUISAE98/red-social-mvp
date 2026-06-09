@@ -520,15 +520,6 @@ useEffect(() => {
     Record<string, ScheduleParts>
   >({});
 
-  const emojiAlertStyle: React.CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: 15,
-    lineHeight: 1,
-    color: "#fff",
-    animation: "ownerSidebarBuzz 4.8s infinite",
-  };
   const lastRealGroupSectionIndex = ownedGrouped.reduce(
     (lastIndex, section, index) => {
       const hasRealGroup = section.items.some(
@@ -1222,6 +1213,7 @@ const copyTitle = isProfileCard
 
             const totalServiceCount =
                   greetingServiceCount + scheduledServiceRequestCount;
+            const cardBadgeCount = totalServiceCount + joinRequests.length;
 
             const sortedGreetings = [...greetings].sort((a, b) => {
               const aTime = toDateSafe(a.data.createdAt)?.getTime() ?? 0;
@@ -1421,59 +1413,9 @@ boxShadow:
   {communityName}
 </span>
 
-                          {hasNewJoin ? (
-                            <span style={emojiAlertStyle}>🔵</span>
-                          ) : null}
                         </div>
                       </div>
                     </Link>
-{canShowLinkAction && (
-  isInviteEligible ? (
-    <button
-      type="button"
-      onClick={() => setInviteGroupId(g.id)}
-      title="Generar link de invitación"
-      aria-label="Generar link de invitación"
-      style={{
-        flexShrink: 0,
-        marginLeft: hasOwnerSidebarAlerts ? 0 : "auto",
-        width: 24,
-        height: 24,
-        border: "none",
-        background: "transparent",
-        color: "#fff",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 0,
-        cursor: "pointer",
-        opacity: isMobile ? 0.85 : 0.65,
-        position: "relative",
-        overflow: "visible",
-      }}
-    >
-      <VibraNavigationIcon type="copyLink" size={21} />
-
-      <span aria-hidden="true" className="ownerInviteMagicOrbit">
-        {[0, 1, 2, 3, 4].map((index) => (
-          <span
-            key={index}
-            className={`ownerInviteMagicParticle ownerInviteMagicParticle${index + 1}`}
-          />
-        ))}
-      </span>
-    </button>
-  ) : (
-    <CopyLinkButton
-      href={copyHref}
-      title={copyTitle}
-      style={{
-        flexShrink: 0,
-        marginLeft: hasOwnerSidebarAlerts ? 0 : "auto",
-      }}
-    />
-  )
-)}
 {hasOwnerSidebarAlerts ? (
   <button
     type="button"
@@ -1527,10 +1469,58 @@ boxShadow:
         flexShrink: 0,
       }}
     >
-      {totalServiceCount > 9 ? "+9" : totalServiceCount}
+      {cardBadgeCount > 9 ? "+9" : cardBadgeCount}
     </span>
   </button>
 ) : null}
+
+{canShowLinkAction && (
+  isInviteEligible ? (
+    <button
+      type="button"
+      onClick={() => setInviteGroupId(g.id)}
+      title="Generar link de invitación"
+      aria-label="Generar link de invitación"
+      style={{
+        flexShrink: 0,
+        marginLeft: "auto",
+        width: 24,
+        height: 24,
+        border: "none",
+        background: "transparent",
+        color: "#fff",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 0,
+        cursor: "pointer",
+        opacity: isMobile ? 0.85 : 0.65,
+        position: "relative",
+        overflow: "visible",
+      }}
+    >
+      <VibraNavigationIcon type="copyLink" size={21} />
+
+      <span aria-hidden="true" className="ownerInviteMagicOrbit">
+        {[0, 1, 2, 3, 4].map((index) => (
+          <span
+            key={index}
+            className={`ownerInviteMagicParticle ownerInviteMagicParticle${index + 1}`}
+          />
+        ))}
+      </span>
+    </button>
+  ) : (
+    <CopyLinkButton
+      href={copyHref}
+      title={copyTitle}
+      style={{
+        flexShrink: 0,
+        marginLeft: "auto",
+      }}
+    />
+  )
+)}
                   </div>
 
                   {isOpen && hasOwnerSidebarAlerts && (
@@ -1700,8 +1690,8 @@ boxShadow:
                                       <div
                                         style={{
                                           display: "flex",
-                                          gap: 8,
-                                          flexWrap: "wrap",
+                                          gap: 6,
+                                          width: "100%",
                                         }}
                                       >
                                         <button
@@ -1711,14 +1701,20 @@ boxShadow:
                                           }
                                           disabled={busy}
                                           style={{
-                                            ...styles.buttonPrimary,
-                                            opacity: busy ? 0.8 : 1,
-                                            cursor: busy
-                                              ? "not-allowed"
-                                              : "pointer",
+                                            flex: 1,
+                                            height: 30,
+                                            borderRadius: 8,
+                                            border: "none",
+                                            background: "rgba(59,130,246,0.18)",
+                                            color: "#93c5fd",
+                                            fontWeight: 520,
+                                            fontSize: 12,
+                                            cursor: busy ? "not-allowed" : "pointer",
+                                            fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
+                                            opacity: busy ? 0.6 : 1,
                                           }}
                                         >
-                                          {busy ? "Procesando..." : "Aprobar"}
+                                          {busy ? "..." : "Aprobar"}
                                         </button>
 
                                         <button
@@ -1728,14 +1724,20 @@ boxShadow:
                                           }
                                           disabled={busy}
                                           style={{
-                                            ...styles.buttonSecondary,
-                                            opacity: busy ? 0.7 : 1,
-                                            cursor: busy
-                                              ? "not-allowed"
-                                              : "pointer",
+                                            flex: 1,
+                                            height: 30,
+                                            borderRadius: 8,
+                                            border: "none",
+                                            background: "rgba(239,68,68,0.15)",
+                                            color: "#fca5a5",
+                                            fontWeight: 520,
+                                            fontSize: 12,
+                                            cursor: busy ? "not-allowed" : "pointer",
+                                            fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
+                                            opacity: busy ? 0.6 : 1,
                                           }}
                                         >
-                                          {busy ? "Procesando..." : "Rechazar"}
+                                          {busy ? "..." : "Rechazar"}
                                         </button>
                                       </div>
                                     </div>

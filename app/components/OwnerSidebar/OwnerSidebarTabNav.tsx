@@ -8,6 +8,7 @@ type Props = {
   onChange: (view: TopView) => void;
   requestedCount?: number;
   deliveredCount?: number;
+  joinRequestsCount?: number;
 };
 
 export default function OwnerSidebarTabNav({
@@ -15,6 +16,7 @@ export default function OwnerSidebarTabNav({
   onChange,
   requestedCount = 0,
   deliveredCount = 0,
+  joinRequestsCount = 0,
 }: Props) {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -32,7 +34,7 @@ export default function OwnerSidebarTabNav({
       key: "owned" as const,
       label: "Mis comunidades",
       title: "Mis comunidades",
-      showBadge: false,
+      showBadge: joinRequestsCount > 0,
     },
     {
       key: "communities" as const,
@@ -61,6 +63,7 @@ export default function OwnerSidebarTabNav({
   );
 
   const badgeText = requestedCount > 99 ? "99+" : String(requestedCount);
+  const joinBadgeText = joinRequestsCount > 99 ? "99+" : String(joinRequestsCount);
 
   const wrapStyle: CSSProperties = {
     position: "relative",
@@ -182,8 +185,10 @@ export default function OwnerSidebarTabNav({
           >
             <span style={labelStyle}>{tab.label}</span>
 
-            {tab.showBadge && requestedCount > 0 ? (
-              <span style={badgeStyle}>{badgeText}</span>
+            {tab.showBadge ? (
+              <span style={badgeStyle}>
+                {tab.key === "owned" ? joinBadgeText : badgeText}
+              </span>
             ) : null}
           </button>
         );

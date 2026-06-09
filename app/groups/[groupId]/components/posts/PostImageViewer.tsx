@@ -1005,23 +1005,13 @@ const previewUrl = media.url;
   function renderCurrentMedia() {
     if (currentMedia.type === "video") {
       const videoSurface = (
-        <button
-          type="button"
-          onClick={undefined}
-          aria-label="Mostrar u ocultar controles del video"
+        <div
           style={{
             position: "absolute",
             inset: 0,
             width: "100%",
             height: "100%",
-            border: "none",
-            padding: 0,
             background: "#000",
-            cursor: useMobileLayout ? "pointer" : "default",
-            WebkitTapHighlightColor: "transparent",
-            userSelect: "none",
-            WebkitUserSelect: "none",
-            WebkitTouchCallout: "none",
           }}
         >
           {currentVideoSrc ? (
@@ -1050,7 +1040,7 @@ const previewUrl = media.url;
                 ref={videoRef}
                 src={currentVideoSrc}
                 poster={currentVideoPoster}
-                controls={false}
+                controls
                 autoPlay
                 playsInline
                 preload="metadata"
@@ -1068,10 +1058,7 @@ const previewUrl = media.url;
                 onTimeUpdate={(event) => {
                   setVideoCurrentTime(event.currentTarget.currentTime);
                 }}
-                onPlay={() => {
-                  setVideoPlaying(true);
-                  scheduleChromeHide();
-                }}
+                onPlay={() => setVideoPlaying(true)}
                 onPause={() => setVideoPlaying(false)}
                 style={{
                   width: "100%",
@@ -1082,7 +1069,7 @@ const previewUrl = media.url;
                       : "contain",
                   background: "#000",
                   opacity: videoReady || !currentVideoPoster ? 1 : 0,
-                  pointerEvents: "none",
+                  pointerEvents: "auto",
                 }}
               />
             </>
@@ -1100,7 +1087,7 @@ const previewUrl = media.url;
               Video no disponible
             </div>
           )}
-        </button>
+        </div>
       );
 
       return (
@@ -1117,20 +1104,7 @@ const previewUrl = media.url;
             background: "#000",
           }}
         >
-          {useMobileLayout ? (
-<PostPinchZoomVideo
-  key={currentMediaKey}
-  resetKey={currentMediaKey}
-  onClose={onClose}
-  onZoomStateChange={setIsCurrentVideoZoomed}
-  onPinchStateChange={setIsCurrentVideoPinching}
-  swipeAxis={mobileGestureAxis}
->
-              {videoSurface}
-            </PostPinchZoomVideo>
-          ) : (
-            videoSurface
-          )}
+          {videoSurface}
         </div>
       );
     }
@@ -1440,7 +1414,7 @@ const previewUrl = media.url;
         </div>
       )}
 
-      {isCurrentVideo && shouldShowMobileControls && (
+      {false && isCurrentVideo && shouldShowMobileControls && (
         <div
           style={{
             position: "fixed",
@@ -1661,7 +1635,7 @@ const previewUrl = media.url;
         </div>
       )}
 
-      {isCurrentVideo && mobileSpeedGestureActive && (
+      {false && isCurrentVideo && mobileSpeedGestureActive && (
         <div
           style={{
             position: "fixed",
@@ -2059,7 +2033,7 @@ const previewUrl = media.url;
                 ref={videoRef}
                 src={currentVideoSrc}
                 poster={currentVideoPoster}
-                controls={false}
+                controls
                 autoPlay
                 playsInline
                 preload="metadata"
@@ -2075,16 +2049,8 @@ const previewUrl = media.url;
                 onTimeUpdate={(event) =>
                   setVideoCurrentTime(event.currentTarget.currentTime)
                 }
-                onPlay={() => {
-                  setVideoPlaying(true);
-                  setDesktopControlsVisible(true);
-                  scheduleDesktopControlsHide();
-                }}
-                onPause={() => {
-                  setVideoPlaying(false);
-                  setDesktopControlsVisible(true);
-                  clearDesktopControlsTimer();
-                }}
+                onPlay={() => setVideoPlaying(true)}
+                onPause={() => setVideoPlaying(false)}
                 style={{
                   display: "block",
                   maxWidth: "100%",
@@ -2175,7 +2141,7 @@ const previewUrl = media.url;
             </div>
           )}
 
-          {(!desktopFullscreenActive || desktopControlsVisible) &&
+          {false &&
             currentMedia.type === "video" &&
             currentVideoSrc && (
             <div

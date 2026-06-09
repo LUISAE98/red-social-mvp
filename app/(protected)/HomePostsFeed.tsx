@@ -933,6 +933,7 @@ return (
               onToggleSave={handleToggleSave}
               currentUserId={currentUserId}
               isOwner={false}
+              viewerIsMember={post.contextType === "group"}
               isModerator={post.canModerateGroupAuthor === true}
               showGroupContext={true}
               canModerateGroupAuthor={post.canModerateGroupAuthor === true}

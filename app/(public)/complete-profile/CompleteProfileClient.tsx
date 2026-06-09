@@ -36,6 +36,7 @@ export default function CompleteProfileClient() {
   const [birthMonth, setBirthMonth] = useState("");
   const [birthYear, setBirthYear] = useState("");
   const [sex, setSex] = useState("");
+  const [bio, setBio] = useState("");
 
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -136,6 +137,7 @@ export default function CompleteProfileClient() {
         lastName: cleanedLastName,
         birthDate,
         sex,
+        bio,
       });
 
       router.replace(nextPath);
@@ -391,6 +393,29 @@ export default function CompleteProfileClient() {
                 <option value="other">Otro</option>
                 <option value="prefer_not_say">Prefiero no decirlo</option>
               </select>
+            </label>
+
+            <label style={{ display: "grid", gap: 4 }}>
+              <span style={labelTextStyle}>
+                Descripción del perfil{" "}
+                <span style={{ color: "rgba(255,255,255,0.40)" }}>(opcional)</span>
+              </span>
+              <textarea
+                className="completeProfileInput"
+                value={bio}
+                onChange={(e) => setBio(e.target.value.slice(0, 300))}
+                placeholder="Cuéntale a tu audiencia quién eres..."
+                rows={3}
+                style={{
+                  ...inputStyle,
+                  height: "auto",
+                  padding: "9px 11px",
+                  resize: "vertical",
+                }}
+              />
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", textAlign: "right" }}>
+                {bio.length}/300
+              </span>
             </label>
 
             <button

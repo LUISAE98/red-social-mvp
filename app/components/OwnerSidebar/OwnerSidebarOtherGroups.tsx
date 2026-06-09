@@ -275,19 +275,7 @@ function buildJoinedSubtitle(
         </>
       )}
 
-      {accessState === "subscribed" && (
-        <>
-          <span
-            aria-hidden="true"
-            style={{ color: "rgba(255,255,255,0.34)", flexShrink: 0 }}
-          >
-            •
-          </span>
-          <span style={{ color: "#93c5fd" }}>Suscripción activa</span>
-        </>
-      )}
-
-      {accessState === "requires_subscription" && (
+{accessState === "requires_subscription" && (
         <>
           <span
             aria-hidden="true"
@@ -367,16 +355,6 @@ function buildAccessNotice(
       title: "Acceso conservado",
       text: "Esta comunidad ahora es de suscripción, pero conservas acceso gratis porque ya estabas dentro antes del cambio.",
       tone: "success",
-      showSubscribeCta: false,
-      showDismissCta: false,
-    };
-  }
-
-  if (state === "subscribed") {
-    return {
-      title: "Suscripción activa",
-      text: "Tu acceso a esta comunidad está activo mediante suscripción.",
-      tone: "info",
       showSubscribeCta: false,
       showDismissCta: false,
     };

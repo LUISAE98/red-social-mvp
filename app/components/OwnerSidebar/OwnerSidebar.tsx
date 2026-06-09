@@ -2159,6 +2159,13 @@ const groupsForSeen = [
     };
   }, [greetingsByGroup, meetGreetsByGroup, exclusiveSessionsByGroup]);
 
+  const totalPendingJoinRequests = useMemo(() => {
+    return Object.values(joinRequestsByGroup).reduce(
+      (sum, rows) => sum + rows.length,
+      0
+    );
+  }, [joinRequestsByGroup]);
+
   const pendingCount = useMemo(() => {
     let total = buyerPending.length;
 
@@ -2369,8 +2376,7 @@ const groupsForSeen = [
           fontWeight: 600,
           fontSize: 12,
           lineHeight: 1.2,
-          textDecoration: "underline",
-          textUnderlineOffset: 2,
+          textDecoration: "none",
         }}
       >
         {label}
@@ -2928,6 +2934,7 @@ greetingBusyId={greetingBusyId}
             onChange={setActiveView}
             requestedCount={pendingCount}
             deliveredCount={buyerDelivered.length}
+            joinRequestsCount={totalPendingJoinRequests}
           />
 {activeView === "owned" && (
   <div className="owner-sidebar-view-transition" key="owned">
