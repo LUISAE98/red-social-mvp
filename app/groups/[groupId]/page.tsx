@@ -338,6 +338,25 @@ const hasLegacyServiceAccess =
 
 const effectiveIsMember = isOwner || hasJoinedMembership;
 
+// When a group switches from public to private mid-session, force a refresh
+// so any stale Firestore cache doesn't keep showing the full-page view.
+const prevGroupVisibilityRef = useRef<string | undefined>(undefined);
+useEffect(() => {
+  const prev = prevGroupVisibilityRef.current;
+  const curr = group?.visibility;
+  prevGroupVisibilityRef.current = curr;
+
+  if (
+    prev === "public" &&
+    (curr === "private" || curr === "hidden") &&
+    !isOwner &&
+    !effectiveIsMember &&
+    !loading
+  ) {
+    router.refresh();
+  }
+}, [group?.visibility, isOwner, effectiveIsMember, loading, router]);
+
 const canRequestCreatorServices =
   !groupIsPausedForAccess &&
   (isOwner ||
@@ -1829,13 +1848,6 @@ const avatarNode = (
             </section>
           </div>
 
-          <div style={{ padding: "0 0 24px" }}>
-            <GroupPostsFeed
-              groupId={groupId}
-              groupVisibility={group.visibility as "public" | "private" | "hidden" | null}
-              publicPremiumOnly
-            />
-          </div>
         </main>
 
         <GroupServiceModals

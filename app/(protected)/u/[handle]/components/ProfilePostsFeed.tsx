@@ -30,11 +30,7 @@ import {
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import { buildRandomRecommendationSlots } from "@/app/components/GroupRecommendations/recommendation-engine";
-import {
-  clearSlowLoadTimer,
-  createSlowLoadTimer,
-  loadFeedWithRetry,
-} from "@/lib/posts/feed-load-helpers";
+import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
 
 type ProfilePostsFeedProps = {
   profileUid: string;
@@ -468,8 +464,6 @@ export default function ProfilePostsFeed({
   const [pageCursor, setPageCursor] =
     useState<UserProfilePostsPageCursor | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [isTakingTooLong, setIsTakingTooLong] = useState(false);
-
   const infiniteScrollTargetRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(false);
@@ -578,7 +572,6 @@ const cacheKey = useMemo(
         setHasMore(false);
         setLoadingInitial(false);
         setLoadingMore(false);
-        setIsTakingTooLong(false);
         return;
       }
 
@@ -589,7 +582,6 @@ const cacheKey = useMemo(
         setError(null);
         setLoadingInitial(false);
         setLoadingMore(false);
-        setIsTakingTooLong(false);
         return;
       }
 
@@ -603,16 +595,6 @@ const cacheKey = useMemo(
 
       const requestId = feedRequestIdRef.current + 1;
       feedRequestIdRef.current = requestId;
-
-      let slowLoadTimer: ReturnType<typeof setTimeout> | null = null;
-
-      setIsTakingTooLong(false);
-
-      slowLoadTimer = createSlowLoadTimer(() => {
-        if (feedRequestIdRef.current === requestId) {
-          setIsTakingTooLong(true);
-        }
-      }, 7000);
 
       try {
         setError(null);
@@ -641,11 +623,7 @@ const cacheKey = useMemo(
               posts: hydratedPosts,
             };
           },
-          {
-            timeoutMs: mode === "more" ? 15000 : 12000,
-            retries: 1,
-            retryDelayMs: 900,
-          }
+          { timeoutMs: mode === "more" ? 25000 : 20000 }
         );
 
         if (feedRequestIdRef.current !== requestId) {
@@ -689,12 +667,6 @@ const cacheKey = useMemo(
             "No se pudieron cargar las publicaciones. Intenta de nuevo."
         );
       } finally {
-        clearSlowLoadTimer(slowLoadTimer);
-
-        if (feedRequestIdRef.current === requestId) {
-          setIsTakingTooLong(false);
-        }
-
         if (mode === "more") {
           loadingMoreRef.current = false;
           setLoadingMore(false);
@@ -1260,20 +1232,6 @@ const shellStyle: CSSProperties = {
       </div>
 
       {error && <div style={noticeStyle}>{error}</div>}
-
-      {isTakingTooLong && (
-        <button
-          type="button"
-          onClick={() => void loadPostsPage("refresh")}
-          style={{
-            ...noticeStyle,
-            cursor: "pointer",
-            textAlign: "left",
-          }}
-        >
-          Esto está tardando más de lo normal. Toca aquí para reintentar.
-        </button>
-      )}
 
       {loadingInitial && <div style={noticeStyle}>Cargando publicaciones...</div>}
 

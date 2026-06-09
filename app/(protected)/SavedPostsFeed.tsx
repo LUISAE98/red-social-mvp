@@ -22,11 +22,7 @@ import {
 
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
-import {
-  clearSlowLoadTimer,
-  createSlowLoadTimer,
-  loadFeedWithRetry,
-} from "@/lib/posts/feed-load-helpers";
+import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
 import {
   patchPostInAllFeedCaches,
   registerPostFeedCacheListener,
@@ -157,7 +153,7 @@ export default function SavedPostsFeed() {
   const [isMobile, setIsMobile] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
-  const [isTakingTooLong, setIsTakingTooLong] = useState(false);
+
 
   const loadingMoreRef = useRef(false);
   const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
@@ -260,7 +256,6 @@ const syncPostsState = useCallback(
         setHasMore(false);
         setLoadingInitial(false);
         setLoadingMore(false);
-        setIsTakingTooLong(false);
         return;
       }
 
@@ -275,22 +270,13 @@ const syncPostsState = useCallback(
       const requestId = feedRequestIdRef.current + 1;
       feedRequestIdRef.current = requestId;
 
-      let slowLoadTimer: ReturnType<typeof setTimeout> | null = null;
-
       loadingMoreRef.current = true;
-      setIsTakingTooLong(false);
 
       if (reset) {
         setLoadingInitial(true);
       } else {
         setLoadingMore(true);
       }
-
-      slowLoadTimer = createSlowLoadTimer(() => {
-        if (feedRequestIdRef.current === requestId) {
-          setIsTakingTooLong(true);
-        }
-      }, 7000);
 
       try {
         setError(null);
@@ -302,11 +288,7 @@ const syncPostsState = useCallback(
               pageSize: SAVED_POSTS_PAGE_SIZE,
               cursor: nextCursor,
             }),
-          {
-            timeoutMs: reset ? 12000 : 15000,
-            retries: 1,
-            retryDelayMs: 900,
-          }
+          { timeoutMs: reset ? 20000 : 25000 }
         );
 
         if (feedRequestIdRef.current !== requestId) {
@@ -344,12 +326,6 @@ const syncPostsState = useCallback(
             "No se pudieron cargar tus publicaciones guardadas. Intenta de nuevo."
         );
       } finally {
-        clearSlowLoadTimer(slowLoadTimer);
-
-        if (feedRequestIdRef.current === requestId) {
-          setIsTakingTooLong(false);
-        }
-
         loadingMoreRef.current = false;
         setLoadingInitial(false);
         setLoadingMore(false);
@@ -954,20 +930,6 @@ return (
       </form>
 
       {error && <div style={noticeStyle}>{error}</div>}
-
-      {isTakingTooLong && (
-        <button
-          type="button"
-          onClick={() => void refreshPosts()}
-          style={{
-            ...noticeStyle,
-            cursor: "pointer",
-            textAlign: "left",
-          }}
-        >
-          Esto está tardando más de lo normal. Toca aquí para reintentar.
-        </button>
-      )}
 
       {loadingInitial && (
         <div style={noticeStyle}>Cargando publicaciones guardadas...</div>

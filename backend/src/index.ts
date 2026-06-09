@@ -143,6 +143,9 @@ export {
   onProfileFeedGroupUpdated,
 } from "./profile-feed";
 
+// Group memberships sync
+export { onGroupMembershipMetaUpdated } from "./groupMembershipsSync";
+
 // Mux uploads
 export { createMuxDirectUpload } from "./muxUploads";
 

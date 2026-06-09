@@ -182,7 +182,11 @@ function normalizeSidebarGroupFromUserMembership(
         ? "banned"
         : data.accessType === "legacy_free" || data.legacyComplimentary === true
           ? "legacy_free"
-          : data.requiresSubscription === true
+          : data.requiresSubscription === true &&
+            data.accessType !== "subscription" &&
+            data.accessType !== "subscribed" &&
+            data.subscriptionActive !== true &&
+            status !== "subscribed"
             ? "requires_subscription"
             : "joined",
   };

@@ -295,11 +295,7 @@ function buildJoinedSubtitle(
           >
             •
           </span>
-          <span style={{ color: "#fbbf24" }}>
-            {group.canDismiss === true
-              ? "Tu acceso requiere actualización"
-              : "Debes suscribirte"}
-          </span>
+          <span style={{ color: "#fbbf24" }}>Debes suscribirte</span>
         </>
       )}
     </span>
@@ -340,26 +336,26 @@ function buildAccessNotice(
 
       return {
         title: "Esta comunidad aumentó su precio de suscripción",
-        text: `${priceText} Para seguir dentro debes suscribirte de nuevo con el nuevo monto, o puedes quitar esta comunidad del sidebar.`,
+        text: `${priceText} Para seguir dentro debes suscribirte con el nuevo monto.`,
         tone: "warning",
         showSubscribeCta: true,
-        showDismissCta: true,
+        showDismissCta: false,
       };
     }
 
     if (isFreeToSubscriptionReminder) {
       return {
         title: "Esta comunidad cambió a suscripción",
-        text: "Antes estabas dentro gratis, pero esta comunidad ahora requiere suscripción. Puedes suscribirte para volver a entrar o quitar esta comunidad del sidebar.",
+        text: "Antes estabas dentro gratis, pero esta comunidad ahora requiere suscripción para continuar.",
         tone: "warning",
         showSubscribeCta: true,
-        showDismissCta: true,
+        showDismissCta: false,
       };
     }
 
     return {
-      title: "Acceso pendiente de suscripción",
-      text: "Esta comunidad ahora requiere suscripción. Como tu acceso anterior ya no es suficiente, debes suscribirte para continuar dentro.",
+      title: "Acceso requiere suscripción",
+      text: "Esta comunidad requiere suscripción. Debes suscribirte para continuar.",
       tone: "warning",
       showSubscribeCta: true,
       showDismissCta: false,
@@ -779,12 +775,6 @@ async function handleConfirmLeaveGroup() {
       .filter((section) => section.items.length > 0);
   }, [joinedGrouped, dismissedGroupIds]);
 
-  const visibleSubscriptionPendingGroups = useMemo(() => {
-    return subscriptionPendingGroups.filter((g) =>
-      shouldShowGroup(g, dismissedGroupIds)
-    );
-  }, [subscriptionPendingGroups, dismissedGroupIds]);
-
  const visiblePendingJoinRequestsSent: OutgoingJoinRequestRow[] =
   pendingJoinRequestsSent.filter((row: OutgoingJoinRequestRow) => {
     const community = groupMetaMap[row.groupId] ?? null;
@@ -804,51 +794,16 @@ async function handleConfirmLeaveGroup() {
     (section) => section.items.length > 0
   );
 
-  const hasAnySubscriptionPending = visibleSubscriptionPendingGroups.length > 0;
   const hasAnyPending = visiblePendingJoinRequestsSent.length > 0;
 
   return (
     <>
-      {hasAnySubscriptionPending && (
-        <div style={{ display: "grid", gap: 8 }}>
-          <div style={styles.sectionHeaderRow}>
-            <div style={styles.sectionTitle}>
-              Comunidades pendientes de suscripción
-            </div>
-
-            <button
-              type="button"
-              onClick={onCreateCommunity}
-              style={styles.createInlineButton}
-              aria-label="Crear comunidad"
-              title="Crear comunidad"
-            >
-              <span aria-hidden="true">+</span>
-              <span>Crear</span>
-            </button>
-          </div>
-
-          <div style={{ display: "grid", gap: 8 }}>
-            {visibleSubscriptionPendingGroups.map((g) =>
-              renderJoinedCardWithAccessNotice({
-                group: g,
-                isMobile,
-                renderCommunityCard,
-                onSubscribe: handleSubscribe,
-                onDismiss: handleDismiss,
-                isDismissing: dismissingGroupIds.has(g.id),
-              })
-            )}
-          </div>
-        </div>
-      )}
-
       {visibleJoinedGrouped.map((section, sectionIndex) => (
         <div key={`joined-${section.key}`} style={{ display: "grid", gap: 8 }}>
           <div style={styles.sectionHeaderRow}>
             <div style={styles.sectionTitle}>{section.title}</div>
 
-            {!hasAnySubscriptionPending && sectionIndex === 0 ? (
+            {sectionIndex === 0 ? (
               <button
                 type="button"
                 onClick={onCreateCommunity}
@@ -884,6 +839,7 @@ async function handleConfirmLeaveGroup() {
                 isActuallyJoinedStatus(memberStatus);
 
               if (!showJoinSection) {
+                const notice = buildAccessNotice(g);
 return (
   <div key={g.id} style={{ display: "grid", gap: 6 }}>
 <LeaveGroupActionCard
@@ -894,15 +850,37 @@ return (
   onLeave={openLeaveConfirm}
 />
 
-    {buildAccessNotice(g) && (
-      <div style={noticeStyles(buildAccessNotice(g)!.tone, isMobile)}>
-        {buildAccessNotice(g)!.title ? (
+    {notice && (
+      <div style={noticeStyles(notice.tone, isMobile)}>
+        {notice.title ? (
           <div style={{ fontWeight: 700 }}>
-            {buildAccessNotice(g)!.title}
+            {notice.title}
           </div>
         ) : null}
 
-        <div>{buildAccessNotice(g)!.text}</div>
+        <div>{notice.text}</div>
+
+        {notice.showSubscribeCta && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 2 }}>
+            <button
+              type="button"
+              onClick={() => handleSubscribe(g.id)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.16)",
+                background: "#fff",
+                color: "#000",
+                fontSize: 12,
+                fontWeight: 700,
+                lineHeight: 1.1,
+                cursor: "pointer",
+              }}
+            >
+              Suscribirme
+            </button>
+          </div>
+        )}
       </div>
     )}
   </div>
@@ -1189,7 +1167,7 @@ return (
           <div style={styles.sectionHeaderRow}>
             <div style={styles.sectionTitle}>Solicitudes de acceso enviadas</div>
 
-            {!hasAnySubscriptionPending && !hasAnyJoined ? (
+            {!hasAnyJoined ? (
               <button
                 type="button"
                 onClick={onCreateCommunity}
@@ -1219,7 +1197,6 @@ return (
 
       {!loadingCommunities &&
         !hasAnyJoined &&
-        !hasAnySubscriptionPending &&
         !hasAnyPending && (
           <div style={{ display: "grid", gap: 8 }}>
             <div style={styles.sectionHeaderRow}>

@@ -1437,8 +1437,6 @@ miniItem: {
     const unsub = onSnapshot(
       collection(db, "users", viewer.uid, "hiddenGroupTransitions"),
       (snap) => {
-        if (snap.empty) return;
-
         const transitionGroups: GroupDocLite[] = snap.docs
           .flatMap((d) => {
             const data = d.data() as Record<string, any>;
@@ -1474,13 +1472,11 @@ miniItem: {
             return [entry];
           });
 
-        if (transitionGroups.length === 0) return;
-
         setHiddenJoinedGroups((prev) => {
-          // Remove stale transition entries, add fresh ones
           const nonTransition = prev.filter(
             (g) => g.sidebarState !== "requires_subscription"
           );
+          if (transitionGroups.length === 0) return nonTransition;
           const transitionIds = new Set(transitionGroups.map((g) => g.id));
           const dedupedNonTransition = nonTransition.filter(
             (g) => !transitionIds.has(g.id)
@@ -1488,11 +1484,13 @@ miniItem: {
           return [...dedupedNonTransition, ...transitionGroups];
         });
 
-        const meta: Record<string, GroupDocLite> = {};
-        transitionGroups.forEach((g) => {
-          meta[g.id] = g;
-        });
-        setGroupMetaMap((prev) => ({ ...prev, ...meta }));
+        if (transitionGroups.length > 0) {
+          const meta: Record<string, GroupDocLite> = {};
+          transitionGroups.forEach((g) => {
+            meta[g.id] = g;
+          });
+          setGroupMetaMap((prev) => ({ ...prev, ...meta }));
+        }
       }
     );
 

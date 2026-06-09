@@ -33,11 +33,7 @@ import {
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
-import {
-  clearSlowLoadTimer,
-  createSlowLoadTimer,
-  loadFeedWithRetry,
-} from "@/lib/posts/feed-load-helpers";
+import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
 
 type HomePostsFeedProps = {
   currentUserId: string | null;
@@ -173,8 +169,6 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
   const [hasMore, setHasMore] = useState(false);
   const [pageCursor, setPageCursor] = useState<HomePostsPageCursor | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [isTakingTooLong, setIsTakingTooLong] = useState(false);
-
   const infiniteScrollTargetRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(false);
@@ -274,15 +268,12 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
       const requestId = feedRequestIdRef.current + 1;
       feedRequestIdRef.current = requestId;
 
-      let slowLoadTimer: ReturnType<typeof setTimeout> | null = null;
-
       if (!currentUserId) {
         setPosts([]);
         setPageCursor(null);
         setHasMore(false);
         setLoadingInitial(false);
         setLoadingMore(false);
-        setIsTakingTooLong(false);
         return;
       }
 
@@ -294,14 +285,6 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
         setLoadingInitial(true);
       }
 
-      setIsTakingTooLong(false);
-
-      slowLoadTimer = createSlowLoadTimer(() => {
-        if (feedRequestIdRef.current === requestId) {
-          setIsTakingTooLong(true);
-        }
-      }, 7000);
-
       try {
         setError(null);
 
@@ -312,11 +295,7 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
               pageSize: HOME_FEED_PAGE_SIZE,
               cursor: mode === "more" ? pageCursorRef.current : null,
             }),
-          {
-            timeoutMs: mode === "more" ? 15000 : 12000,
-            retries: 1,
-            retryDelayMs: 900,
-          }
+          { timeoutMs: mode === "more" ? 25000 : 20000 }
         );
 
         if (feedRequestIdRef.current !== requestId) {
@@ -364,12 +343,6 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
             "No se pudieron cargar las publicaciones. Intenta de nuevo."
         );
       } finally {
-        clearSlowLoadTimer(slowLoadTimer);
-
-        if (feedRequestIdRef.current === requestId) {
-          setIsTakingTooLong(false);
-        }
-
         if (mode === "more") {
           loadingMoreRef.current = false;
           setLoadingMore(false);
@@ -909,20 +882,6 @@ return (
       </div>
 
       {error && <div style={noticeStyle}>{error}</div>}
-
-      {isTakingTooLong && (
-        <button
-          type="button"
-          onClick={() => void loadPostsPage("refresh")}
-          style={{
-            ...noticeStyle,
-            cursor: "pointer",
-            textAlign: "left",
-          }}
-        >
-          Esto está tardando más de lo normal. Toca aquí para reintentar.
-        </button>
-      )}
 
       {loadingInitial && (
         <div style={noticeStyle}>Cargando publicaciones de tus comunidades...</div>

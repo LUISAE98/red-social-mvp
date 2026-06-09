@@ -217,6 +217,7 @@ export async function joinGroupWithSubscription(
 ) {
   const memberRef = doc(db, "groups", groupId, "members", uid);
   const userMembershipRef = doc(db, "users", uid, "groupMemberships", groupId);
+  const hiddenTransitionRef = doc(db, "users", uid, "hiddenGroupTransitions", groupId);
 
   const groupSummary = await getGroupMembershipSummary(groupId);
   const batch = writeBatch(db);
@@ -266,6 +267,9 @@ export async function joinGroupWithSubscription(
     },
     { merge: true }
   );
+
+  // Limpia el recordatorio de transición pendiente si existía
+  batch.delete(hiddenTransitionRef);
 
   await batch.commit();
 }

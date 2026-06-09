@@ -818,40 +818,30 @@ async function fetchUsersByIds(
     return {};
   }
 
-  const entries = await Promise.all(
-    uniqueIds.map(async (uid) => {
+  const result: Record<string, UserProfileLookup> = {};
+  const chunks = chunkArray(uniqueIds, 30);
+
+  await Promise.all(
+    chunks.map(async (chunk) => {
       try {
-        const snap = await getDoc(doc(db, "users", uid));
-        if (!snap.exists()) {
-          return [
-            uid,
-            { displayName: null, avatarUrl: null, username: null },
-          ] as const;
-        }
-
-        const data = snap.data() as Record<string, unknown>;
-
-        return [
-          uid,
-          {
-            displayName:
-              pickString(data.displayName) || pickString(data.name) || null,
-            avatarUrl:
-              pickString(data.avatarUrl) || pickString(data.photoURL) || null,
-            username:
-              pickString(data.username) || pickString(data.handle) || null,
-          },
-        ] as const;
+        const snap = await getDocs(
+          query(collection(db, "users"), where(documentId(), "in", chunk))
+        );
+        snap.docs.forEach((userDoc) => {
+          const data = userDoc.data() as Record<string, unknown>;
+          result[userDoc.id] = {
+            displayName: pickString(data.displayName) || pickString(data.name) || null,
+            avatarUrl: pickString(data.avatarUrl) || pickString(data.photoURL) || null,
+            username: pickString(data.username) || pickString(data.handle) || null,
+          };
+        });
       } catch {
-        return [
-          uid,
-          { displayName: null, avatarUrl: null, username: null },
-        ] as const;
+        // Si un chunk falla, hydratePost cae en los datos del snapshot del post
       }
     })
   );
 
-  return Object.fromEntries(entries);
+  return result;
 }
 
 async function fetchGroupsByIds(
@@ -865,37 +855,30 @@ async function fetchGroupsByIds(
     return {};
   }
 
-  const entries = await Promise.all(
-    uniqueIds.map(async (groupId) => {
+  const result: Record<string, GroupLookup> = {};
+  const chunks = chunkArray(uniqueIds, 30);
+
+  await Promise.all(
+    chunks.map(async (chunk) => {
       try {
-        const snap = await getDoc(doc(db, "groups", groupId));
-        if (!snap.exists()) {
-          return [
-            groupId,
-            { name: null, avatarUrl: null, visibility: null },
-          ] as const;
-        }
-
-        const data = snap.data() as Record<string, unknown>;
-
-        return [
-          groupId,
-          {
+        const snap = await getDocs(
+          query(collection(db, "groups"), where(documentId(), "in", chunk))
+        );
+        snap.docs.forEach((groupDoc) => {
+          const data = groupDoc.data() as Record<string, unknown>;
+          result[groupDoc.id] = {
             name: readGroupName(data),
             avatarUrl: readGroupAvatarUrl(data),
             visibility: normalizeGroupVisibility(data.visibility),
-          },
-        ] as const;
+          };
+        });
       } catch {
-        return [
-          groupId,
-          { name: null, avatarUrl: null, visibility: null },
-        ] as const;
+        // Si un chunk falla, hydratePost cae en los datos del snapshot del post
       }
     })
   );
 
-  return Object.fromEntries(entries);
+  return result;
 }
 
 
@@ -3823,32 +3806,34 @@ export async function fetchSavedPostsPage(params: {
     })
     .filter((postId) => postId.trim().length > 0);
 
-  const rawPosts = await Promise.all(
-    savedPostIds.map(async (postId) => {
+  const chunks = chunkArray(savedPostIds, 30);
+  const postsByIdMap = new Map<string, Post>();
+
+  await Promise.all(
+    chunks.map(async (chunk) => {
       try {
-        const postSnap = await getDoc(doc(db, "posts", postId));
-
-        if (!postSnap.exists()) {
-          return null;
-        }
-
-        const post = {
-          id: postSnap.id,
-          ...(postSnap.data() as Omit<Post, "id">),
-        } as Post;
-
-        if (post.isDeleted === true) {
-          return null;
-        }
-
-        return post;
+        const snap = await getDocs(
+          query(collection(db, "posts"), where(documentId(), "in", chunk))
+        );
+        snap.docs.forEach((postDoc) => {
+          const post = {
+            id: postDoc.id,
+            ...(postDoc.data() as Omit<Post, "id">),
+          } as Post;
+          if (post.isDeleted !== true) {
+            postsByIdMap.set(postDoc.id, post);
+          }
+        });
       } catch {
-        return null;
+        // Si un chunk falla, esos posts se omiten silenciosamente
       }
     })
   );
 
-  const visiblePosts = rawPosts.filter((post): post is Post => Boolean(post));
+  // Preservar el orden de savedAt del cursor
+  const visiblePosts = savedPostIds
+    .map((postId) => postsByIdMap.get(postId) ?? null)
+    .filter((post): post is Post => Boolean(post));
 
   const [userMap, groupMap] = await Promise.all([
     fetchUsersByIds(visiblePosts.map((post) => post.authorId)),

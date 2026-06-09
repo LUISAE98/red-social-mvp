@@ -131,7 +131,8 @@ type TransitionPlan =
       subscriptionPriceChangeCurrency: string | null;
     };
 
-const MAX_BATCH_WRITES = 400;
+// Reducido a 150 porque cada miembro genera hasta 3 escrituras (member + groupMemberships + reminder)
+const MAX_BATCH_WRITES = 150;
 
 function requireAuth(request: unknown): string {
   const uid =
@@ -507,6 +508,56 @@ function buildPriceIncreasePatch(params: {
   subscriptionPriceChangeCurrency: string | null;
 }) {
   if (params.policy !== "keep_legacy_price") {
+    // require_resubscribe_new_price: solo expulsa suscriptores de pago, preserva legacy_free
+    if (params.memberStatus === "banned") {
+      return {
+        status: "banned",
+        transitionPendingAction: false,
+        transitionDirection: "subscription_price_increase",
+        transitionResolvedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+    }
+
+    if (isLegacyComplimentaryMember(params.member)) {
+      return {
+        status: params.memberStatus === "muted" ? "muted" : "active",
+        accessType: "legacy_free",
+        legacyComplimentary: true,
+        requiresSubscription: false,
+        subscriptionActive: false,
+        legacySubscriptionPriceMonthly: FieldValue.delete(),
+        legacySubscriptionCurrency: FieldValue.delete(),
+        nextSubscriptionPriceMonthly: FieldValue.delete(),
+        subscriptionPriceIncreasedAt: FieldValue.serverTimestamp(),
+        subscriptionPriceIncreasedBy: params.actorUid,
+        removedReason: FieldValue.delete(),
+        removedAt: FieldValue.delete(),
+        removedBy: FieldValue.delete(),
+        removedDueToSubscriptionTransition: false,
+        transitionPendingAction: false,
+        transitionDirection: "subscription_price_increase",
+        transitionResolvedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+    }
+
+    if (!isPaidSubscriberMember(params.member)) {
+      // Caso borde: no es legacy_free ni suscriptor de pago — preservar
+      return {
+        status: params.memberStatus === "muted" ? "muted" : "active",
+        accessType: "standard",
+        requiresSubscription: false,
+        subscriptionActive: false,
+        removedDueToSubscriptionTransition: false,
+        transitionPendingAction: false,
+        transitionDirection: "subscription_price_increase",
+        transitionResolvedAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      };
+    }
+
+    // Suscriptor de pago: expulsar (el loop principal le asignará recordatorio)
     return null;
   }
 
@@ -624,6 +675,14 @@ function hiddenTransitionRef(userId: string, groupId: string): DocumentReference
     .collection("users")
     .doc(userId)
     .collection("hiddenGroupTransitions")
+    .doc(groupId);
+}
+
+function userGroupMembershipRef(userId: string, groupId: string): DocumentReference {
+  return db
+    .collection("users")
+    .doc(userId)
+    .collection("groupMemberships")
     .doc(groupId);
 }
 
@@ -807,6 +866,7 @@ export const applyGroupSubscriptionTransition = onCall(
         }
 
         const reminderRef = hiddenTransitionRef(targetUserId, groupId);
+        const membershipRef = userGroupMembershipRef(targetUserId, groupId);
 
         const patch =
           plan.direction === "free_to_subscription"
@@ -839,6 +899,7 @@ export const applyGroupSubscriptionTransition = onCall(
           }
 
           batch.delete(memberDoc.ref);
+          batch.delete(membershipRef);
 
           if (
             (plan.direction === "free_to_subscription" &&
@@ -881,6 +942,7 @@ export const applyGroupSubscriptionTransition = onCall(
         }
 
         batch.set(memberDoc.ref, patch, { merge: true });
+        batch.set(membershipRef, patch, { merge: true });
         batch.delete(reminderRef);
 
         if (
@@ -1090,11 +1152,10 @@ export const removeLegacyFreeMembersAfterSubscriptionTransition = onCall(
           continue;
         }
 
-        batch.set(
-          memberDoc.ref,
-          buildManualLegacyRemovalPatch({ actorUid }),
-          { merge: true }
-        );
+        const legacyRemovalPatch = buildManualLegacyRemovalPatch({ actorUid });
+
+        batch.set(memberDoc.ref, legacyRemovalPatch, { merge: true });
+        batch.delete(userGroupMembershipRef(targetUserId, groupId));
 
         batch.set(
           hiddenTransitionRef(targetUserId, groupId),
