@@ -14,6 +14,8 @@ import PostCommentThread from "./PostCommentThread";
 type PostCommentsPanelProps = {
   open: boolean;
   isMobile: boolean;
+  /** Render content directly in flow (no animation wrapper, no portal). Used inside the mobile sheet. */
+  inline?: boolean;
   postId: string;
   groupId?: string | null;
   comments: Comment[] | null;
@@ -114,6 +116,7 @@ function AutoGrowTextarea({
 export default function PostCommentsPanel({
   open,
   isMobile,
+  inline = false,
   postId,
   groupId = null,
   comments,
@@ -256,6 +259,160 @@ export default function PostCommentsPanel({
 
   // ── Desktop path ──────────────────────────────────────────────────────────
   if (!isMobile) {
+    const desktopSection = (
+      <div
+        style={{
+          marginTop: inline ? 0 : 14,
+          paddingTop: 12,
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        <section style={{ display: "grid", gap: 10 }}>
+          {/* Header */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+            }}
+          >
+            <h3
+              style={{
+                ...titleStyle,
+                cursor: onCloseDesktop ? "pointer" : "default",
+                userSelect: "none",
+              }}
+              onClick={onCloseDesktop}
+            >
+              Comentarios
+            </h3>
+          </div>
+
+          {/* Comment list */}
+          <div style={listStyle}>
+            {loading && (
+              <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
+                Cargando comentarios...
+              </p>
+            )}
+
+            {!loading && comments !== null && comments.length === 0 && (
+              <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
+                Aún no hay comentarios.
+              </p>
+            )}
+
+            {!loading &&
+              displayedComments?.map((comment) => (
+                <PostCommentThread
+                  key={comment.id}
+                  postId={postId}
+                  groupId={groupId}
+                  comment={comment}
+                  currentUserId={currentUserId}
+                  isOwner={isOwner}
+                  isModerator={isModerator}
+                  canCommentOnPosts={canCommentOnPosts}
+                  canUseGroupMemberBlock={canUseGroupMemberBlock}
+                  canModerateGroupAuthor={canModerateGroupAuthor}
+                  isPostAuthor={isPostAuthor}
+                  deletingCommentId={deletingCommentId}
+                  onDeleteComment={onDeleteComment}
+                  onLoadReplies={onLoadReplies}
+                  onCreateReply={onCreateReply}
+                  onDeleteReply={onDeleteReply}
+                  onGroupMemberBlockComplete={onGroupMemberBlockComplete}
+                  onModerationComplete={onModerationComplete}
+                />
+              ))}
+
+            {/* Load more (older comments) */}
+            {!loading && hasMore && onLoadMore && (
+              <button
+                type="button"
+                onClick={onLoadMore}
+                style={{
+                  alignSelf: "start",
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "rgba(255,255,255,0.52)",
+                  fontSize: 11.5,
+                  fontWeight: 500,
+                  fontFamily: fontStack,
+                  cursor: "pointer",
+                  letterSpacing: "-0.01em",
+                  textDecoration: "underline",
+                  textUnderlineOffset: 2,
+                }}
+              >
+                Ver más comentarios
+              </button>
+            )}
+          </div>
+
+          {/* Composer */}
+          <div style={{ display: "grid", gap: 8 }}>
+            {inlineError && <div style={inlineErrorStyle}>{inlineError}</div>}
+
+            <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <AutoGrowTextarea
+                  value={commentText}
+                  onChange={(e) => onCommentTextChange(e.target.value)}
+                  placeholder={
+                    canCommentOnPosts
+                      ? "Escribe un comentario..."
+                      : groupId
+                        ? "Comentarios bloqueados en esta comunidad"
+                        : "Solo el dueño puede comentar en este perfil"
+                  }
+                  maxRows={3}
+                  style={canCommentOnPosts ? inputStyle : disabledTextareaStyle}
+                  disabled={!canCommentOnPosts}
+                />
+
+                {!canCommentOnPosts && commentBlockedMessage && (
+                  <div
+                    style={{
+                      marginTop: 2,
+                      fontSize: 11.5,
+                      lineHeight: 1.45,
+                      color: "rgba(255,255,255,0.58)",
+                    }}
+                  >
+                    {commentBlockedMessage}
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={onCreateComment}
+                disabled={
+                  !canCommentOnPosts ||
+                  creatingComment ||
+                  commentText.trim().length === 0
+                }
+                style={
+                  !canCommentOnPosts ||
+                  creatingComment ||
+                  commentText.trim().length === 0
+                    ? disabledButtonStyle
+                    : primaryButtonStyle
+                }
+              >
+                {creatingComment ? "Comentando..." : "Comentar"}
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+
+    if (inline) return desktopSection;
+
     return (
       <div
         style={{
@@ -265,155 +422,7 @@ export default function PostCommentsPanel({
         }}
       >
         <div style={{ overflow: "hidden", minHeight: 0 }}>
-          <div
-            style={{
-              marginTop: 14,
-              paddingTop: 12,
-              borderTop: "1px solid rgba(255,255,255,0.06)",
-            }}
-          >
-            <section style={{ display: "grid", gap: 10 }}>
-              {/* Header */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 10,
-                }}
-              >
-                <h3
-                  style={{
-                    ...titleStyle,
-                    cursor: onCloseDesktop ? "pointer" : "default",
-                    userSelect: "none",
-                  }}
-                  onClick={onCloseDesktop}
-                >
-                  Comentarios
-                </h3>
-              </div>
-
-              {/* Comment list */}
-              <div style={listStyle}>
-                {loading && (
-                  <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
-                    Cargando comentarios...
-                  </p>
-                )}
-
-                {!loading && comments !== null && comments.length === 0 && (
-                  <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
-                    Aún no hay comentarios.
-                  </p>
-                )}
-
-                {!loading &&
-                  displayedComments?.map((comment) => (
-                    <PostCommentThread
-                      key={comment.id}
-                      postId={postId}
-                      groupId={groupId}
-                      comment={comment}
-                      currentUserId={currentUserId}
-                      isOwner={isOwner}
-                      isModerator={isModerator}
-                      canCommentOnPosts={canCommentOnPosts}
-                      canUseGroupMemberBlock={canUseGroupMemberBlock}
-                      canModerateGroupAuthor={canModerateGroupAuthor}
-                      isPostAuthor={isPostAuthor}
-                      deletingCommentId={deletingCommentId}
-                      onDeleteComment={onDeleteComment}
-                      onLoadReplies={onLoadReplies}
-                      onCreateReply={onCreateReply}
-                      onDeleteReply={onDeleteReply}
-                      onGroupMemberBlockComplete={onGroupMemberBlockComplete}
-                      onModerationComplete={onModerationComplete}
-                    />
-                  ))}
-
-                {/* Load more (older comments) */}
-                {!loading && hasMore && onLoadMore && (
-                  <button
-                    type="button"
-                    onClick={onLoadMore}
-                    style={{
-                      alignSelf: "start",
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      color: "rgba(255,255,255,0.52)",
-                      fontSize: 11.5,
-                      fontWeight: 500,
-                      fontFamily: fontStack,
-                      cursor: "pointer",
-                      letterSpacing: "-0.01em",
-                      textDecoration: "underline",
-                      textUnderlineOffset: 2,
-                    }}
-                  >
-                    Ver más comentarios
-                  </button>
-                )}
-              </div>
-
-              {/* Composer */}
-              <div style={{ display: "grid", gap: 8 }}>
-                {inlineError && <div style={inlineErrorStyle}>{inlineError}</div>}
-
-                <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <AutoGrowTextarea
-                      value={commentText}
-                      onChange={(e) => onCommentTextChange(e.target.value)}
-                      placeholder={
-                        canCommentOnPosts
-                          ? "Escribe un comentario..."
-                          : groupId
-                            ? "Comentarios bloqueados en esta comunidad"
-                            : "Solo el dueño puede comentar en este perfil"
-                      }
-                      maxRows={3}
-                      style={canCommentOnPosts ? inputStyle : disabledTextareaStyle}
-                      disabled={!canCommentOnPosts}
-                    />
-
-                    {!canCommentOnPosts && commentBlockedMessage && (
-                      <div
-                        style={{
-                          marginTop: 2,
-                          fontSize: 11.5,
-                          lineHeight: 1.45,
-                          color: "rgba(255,255,255,0.58)",
-                        }}
-                      >
-                        {commentBlockedMessage}
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={onCreateComment}
-                    disabled={
-                      !canCommentOnPosts ||
-                      creatingComment ||
-                      commentText.trim().length === 0
-                    }
-                    style={
-                      !canCommentOnPosts ||
-                      creatingComment ||
-                      commentText.trim().length === 0
-                        ? disabledButtonStyle
-                        : primaryButtonStyle
-                    }
-                  >
-                    {creatingComment ? "Comentando..." : "Comentar"}
-                  </button>
-                </div>
-              </div>
-            </section>
-          </div>
+          {desktopSection}
         </div>
       </div>
     );

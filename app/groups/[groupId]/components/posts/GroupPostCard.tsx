@@ -4110,6 +4110,43 @@ padding: "0 0 2px 0",
       }}
     />
   }
+  mobileSheetCommentsContent={
+    <PostCommentsPanel
+      open={selectedMediaUrl !== null}
+      isMobile={false}
+      inline={true}
+      postId={post.id}
+      groupId={effectiveGroupId}
+      comments={comments}
+      loading={loadingComments}
+      currentUserId={currentUserId}
+      isOwner={isOwner}
+      isModerator={isModerator}
+      canCommentOnPosts={canCommentOnPosts && !premiumState.isBlocked}
+      commentBlockedMessage={commentBlockedMessage}
+      commentText={commentText}
+      creatingComment={creatingComment}
+      deletingCommentId={deletingCommentId}
+      inlineError={premiumState.isBlocked ? null : inlineActionError}
+      canUseGroupMemberBlock={canUseGroupMemberBlock}
+      canModerateGroupAuthor={canModerateGroupAuthor}
+      isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
+      onCommentTextChange={setCommentText}
+      onClose={() => setCommentsPanelOpen(false)}
+      onCreateComment={handleCreateComment}
+      onDeleteComment={handleDeleteComment}
+      onLoadReplies={onLoadReplies}
+      onCreateReply={onCreateReply}
+      onDeleteReply={onDeleteReply}
+      onGroupMemberBlockComplete={async () => {
+        setComments(null);
+        await onGroupMemberBlockComplete?.();
+      }}
+      onModerationComplete={async () => {
+        await onModerationComplete?.();
+      }}
+    />
+  }
   onClose={closeMediaViewer}
   onToggleFlame={handleToggleFlame}
   onOpenFlames={handleOpenFlamesPanel}
