@@ -44,8 +44,8 @@ export default function OwnerSidebarTabNav({
       ? [
           {
             key: "greetings" as const,
-            label: "Solicitados",
-            title: "Solicitados",
+            label: "Pendientes",
+            title: "Pendientes",
             showBadge: true,
           },
         ]

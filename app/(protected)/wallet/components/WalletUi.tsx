@@ -496,12 +496,16 @@ export function WalletServiceRow({
   onToggle,
   calendarItems = [],
   onRecord,
+  onView,
+  mode = "pending",
 }: {
   row: WalletServiceItem;
   open: boolean;
   onToggle: () => void;
   calendarItems?: WalletServiceItem[];
   onRecord?: (row: WalletServiceItem) => void;
+  onView?: (row: WalletServiceItem) => void;
+  mode?: "pending" | "history";
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -714,12 +718,18 @@ export function WalletServiceRow({
   // ── Greeting card (flat, no accordion) ──────────────────────────────────────
   if (isGreeting) {
     const initial = (row.buyerDisplayName ?? "U").charAt(0).toUpperCase();
-    const recordLabel = row.kind === "consejo" ? "Grabar consejo" : row.kind === "saludo" ? "Grabar saludo" : "Grabar";
+    const isHistory = mode === "history";
+    const actionLabel = isHistory
+      ? (row.kind === "consejo" ? "Ver consejo" : row.kind === "mensaje" ? "Ver mensaje" : "Ver saludo")
+      : (row.kind === "consejo" ? "Grabar consejo" : row.kind === "saludo" ? "Grabar saludo" : "Grabar");
     const sourceName =
       row.requestSource === "profile"
         ? (row.profileDisplayName ?? "Mi perfil")
         : (row.groupName ?? null);
     const sourceAvatarUrl = row.sourceAvatarUrl ?? null;
+    const sentLabel = isHistory && row.deliveredAt
+      ? `${row.kind === "consejo" ? "Consejo" : row.kind === "mensaje" ? "Mensaje" : "Saludo"} enviado el ${new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", year: "numeric" }).format(row.deliveredAt)}`
+      : null;
     return (
       <>
       <style jsx>{`
@@ -778,12 +788,12 @@ export function WalletServiceRow({
             ) : null}
           </div>
           <div style={{ color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3, marginTop: 2 }}>
-            {getRelativeTime(row.createdAt)}
+            {sentLabel ?? getRelativeTime(row.createdAt)}
           </div>
         </div>
         <button
           type="button"
-          onClick={() => onRecord?.(row)}
+          onClick={() => isHistory ? onView?.(row) : onRecord?.(row)}
           style={{
             flexShrink: 0,
             width: 122,
@@ -800,7 +810,7 @@ export function WalletServiceRow({
             whiteSpace: "nowrap",
           }}
         >
-          {recordLabel}
+          {actionLabel}
         </button>
       </div>
       </>
@@ -1489,10 +1499,14 @@ export function WalletList({
   items,
   calendarItems,
   onRecord,
+  onView,
+  mode = "pending",
 }: {
   items: WalletServiceItem[];
   calendarItems?: WalletServiceItem[];
   onRecord?: (row: WalletServiceItem) => void;
+  onView?: (row: WalletServiceItem) => void;
+  mode?: "pending" | "history";
 }) {
   const [openRowKey, setOpenRowKey] = useState<string | null>(null);
 
@@ -1509,6 +1523,8 @@ export function WalletList({
             open={isOpen}
             calendarItems={calendarItems ?? items}
             onRecord={onRecord}
+            onView={onView}
+            mode={mode}
             onToggle={() =>
               setOpenRowKey((prev) => (prev === rowKey ? null : rowKey))
             }

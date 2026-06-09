@@ -3015,6 +3015,7 @@ onCreateCommunity={() => router.push("/groups/new")}
               buyerExclusiveSessions={buyerExclusiveSessions}
               exclusiveSessionsByGroup={{}}
               groupMetaMap={groupMetaMap}
+              userMiniMap={userMiniMap}
               styles={styles}
               typeLabel={typeLabel}
               fmtDate={fmtDate}

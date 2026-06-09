@@ -101,6 +101,9 @@ export type WalletGreetingDoc = {
   status: GreetingStatus;
   priceSnapshot?: number | null;
   currency?: string | null;
+  muxPlaybackId?: string | null;
+  muxHlsUrl?: string | null;
+  videoDuration?: number | null;
   deliveredAt?: FirestoreTimestampLike;
   createdAt: FirestoreTimestampLike;
   updatedAt: FirestoreTimestampLike;
@@ -128,6 +131,9 @@ export type WalletServiceItem = {
   buyerUsername: string | null;
   buyerAvatarUrl: string | null;
   sourceAvatarUrl: string | null;
+  muxPlaybackId: string | null;
+  videoDuration: number | null;
+  deliveredAt: Date | null;
   targetName: string | null;
   requestText: string | null;
   status: string;
@@ -456,6 +462,9 @@ function normalizeScheduledRow(
     buyerUsername: data.buyerUsername ?? null,
     buyerAvatarUrl: data.buyerAvatarUrl ?? null,
     sourceAvatarUrl: null,
+    muxPlaybackId: null,
+    videoDuration: null,
+    deliveredAt: null,
     targetName: null,
     requestText: data.buyerMessage ?? null,
     status: normalizedStatus,
@@ -519,6 +528,9 @@ function normalizeGreetingRow(
     buyerUsername: null,
     buyerAvatarUrl: null,
     sourceAvatarUrl: null,
+    muxPlaybackId: typeof data.muxPlaybackId === "string" && data.muxPlaybackId.trim() ? data.muxPlaybackId.trim() : null,
+    videoDuration: typeof data.videoDuration === "number" ? data.videoDuration : null,
+    deliveredAt: toDateSafe(data.deliveredAt),
     targetName: data.toName?.trim() || null,
     requestText: data.instructions?.trim() || null,
     status,

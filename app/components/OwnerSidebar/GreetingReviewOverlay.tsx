@@ -36,7 +36,22 @@ type Props = {
   onClose: () => void;
   getInitials: (name?: string | null) => string;
   typeLabel: (t: string) => string;
+  viewMode?: boolean;
+  buyerViewMode?: boolean;
+  buyerSourceName?: string;
+  buyerSourceAvatar?: string | null;
 };
+
+function formatDateDisplay(date: Date): string {
+  try {
+    return new Intl.DateTimeFormat("es-MX", {
+      day: "numeric", month: "long", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    }).format(date);
+  } catch {
+    return date.toLocaleString("es-MX");
+  }
+}
 
 export default function GreetingReviewOverlay({
   items,
@@ -48,11 +63,15 @@ export default function GreetingReviewOverlay({
   onClose,
   getInitials,
   typeLabel,
+  viewMode = false,
+  buyerViewMode = false,
+  buyerSourceName,
+  buyerSourceAvatar,
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [earningFormatted, setEarningFormatted] = useState<string | null>(null);
   const [sourceInfo, setSourceInfo] = useState<{ name: string; photoURL: string | null } | null>(null);
-  const [viewState, setViewState] = useState<ViewState>("review");
+  const [viewState, setViewState] = useState<ViewState>(viewMode ? "camera" : "review");
   const [recordPhase, setRecordPhase] = useState<RecordPhase>("preview");
   const [isMobile, setIsMobile] = useState(false);
   const [sheetExpanded, setSheetExpanded] = useState(false);
@@ -263,15 +282,23 @@ export default function GreetingReviewOverlay({
   const busy = greetingBusyId === currentItem.id;
   const buyerLetter = getInitials(buyer?.displayName);
 
-  const titleText =
-    req.type === "consejo"
+  const viewMp4Url = (viewMode || buyerViewMode) && req.muxPlaybackId
+    ? `https://stream.mux.com/${req.muxPlaybackId}/high.mp4`
+    : null;
+  const viewThumbnailUrl = (viewMode || buyerViewMode) && req.muxPlaybackId
+    ? `https://image.mux.com/${req.muxPlaybackId}/thumbnail.jpg`
+    : null;
+
+  const titleText = viewMode
+    ? (req.type === "consejo" ? "Ver Consejo" : req.type === "mensaje" ? "Ver Mensaje" : "Ver Saludo")
+    : req.type === "consejo"
       ? "Revisar Consejo"
       : req.type === "mensaje"
         ? "Revisar Mensaje"
         : "Revisar Saludo";
 
-  const cameraTitleText =
-    req.type === "consejo"
+  const cameraTitleText = viewMode ? titleText
+    : req.type === "consejo"
       ? "Responder Consejo"
       : req.type === "mensaje"
         ? "Responder Mensaje"
@@ -599,7 +626,33 @@ export default function GreetingReviewOverlay({
     );
   }
 
-  const buyerRow = (
+  const buyerRow = buyerViewMode ? (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+      {buyerSourceAvatar ? (
+        <img
+          src={buyerSourceAvatar}
+          alt={buyerSourceName}
+          style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}
+        />
+      ) : (
+        <div style={{
+          width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,0.07)",
+          border: "1px solid rgba(255,255,255,0.12)", display: "flex", alignItems: "center",
+          justifyContent: "center", fontWeight: 700, fontSize: 13, color: "#fff", flexShrink: 0,
+        }}>
+          {(buyerSourceName ?? "?").charAt(0).toUpperCase()}
+        </div>
+      )}
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {buyerSourceName ?? "Creador"}
+        </span>
+        <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>
+          {getRelativeTime(req.deliveredAt ?? req.createdAt)}
+        </span>
+      </div>
+    </div>
+  ) : (
     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
       {buyer?.photoURL ? (
         <img
@@ -668,6 +721,18 @@ export default function GreetingReviewOverlay({
           </span>
         </div>
       ) : null}
+      {viewMode && req.createdAt && (
+        <div style={{ display: "grid", gap: 2 }}>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Solicitado el</span>
+          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDateDisplay(req.createdAt.toDate())}</span>
+        </div>
+      )}
+      {viewMode && req.deliveredAt && (
+        <div style={{ display: "grid", gap: 2 }}>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Enviado el</span>
+          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDateDisplay(req.deliveredAt.toDate())}</span>
+        </div>
+      )}
     </>
   );
 
@@ -792,60 +857,74 @@ export default function GreetingReviewOverlay({
           position: "absolute", top: 0, left: 0, right: 0,
           bottom: mobilePanelHeight,
           background: "#000", overflow: "hidden",
-          borderRadius: "0 0 24px 24px",
+          borderRadius: "16px 16px 24px 24px",
         }}>
-          {/* Live webcam */}
-          <video
-            ref={videoRef}
-            autoPlay muted playsInline
-            disablePictureInPicture
-            onContextMenu={(e) => e.preventDefault()}
-            style={{
-              width: "100%", height: "100%", objectFit: "cover", display: recordPhase === "done" ? "none" : "block",
-            }}
-          />
-          {/* Playback */}
-          {recordPhase === "done" && recordedBlobUrl && (
-            <video
-              src={recordedBlobUrl}
-              controls playsInline
-              disablePictureInPicture
-              onContextMenu={(e) => e.preventDefault()}
-              style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
-            />
+          {(viewMode || buyerViewMode) ? (
+            viewMp4Url ? (
+              <video
+                src={viewMp4Url}
+                poster={viewThumbnailUrl ?? undefined}
+                controls playsInline
+                disablePictureInPicture
+                onContextMenu={(e) => e.preventDefault()}
+                style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
+              />
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, height: "100%" }}>
+                Video no disponible
+              </div>
+            )
+          ) : (
+            <>
+              {/* Live webcam */}
+              <video
+                ref={videoRef}
+                autoPlay muted playsInline
+                disablePictureInPicture
+                onContextMenu={(e) => e.preventDefault()}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: recordPhase === "done" ? "none" : "block" }}
+              />
+              {/* Playback */}
+              {recordPhase === "done" && recordedBlobUrl && (
+                <video
+                  src={recordedBlobUrl}
+                  controls playsInline
+                  disablePictureInPicture
+                  onContextMenu={(e) => e.preventDefault()}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
+                />
+              )}
+              {/* Timer */}
+              {recordPhase === "recording" && (
+                <div style={{
+                  position: "absolute", top: "calc(16px + env(safe-area-inset-top))",
+                  left: "50%", transform: "translateX(-50%)",
+                  background: "rgba(0,0,0,0.55)", borderRadius: 20, padding: "4px 14px",
+                  display: "flex", alignItems: "center", gap: 7,
+                  color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: fontStack,
+                }}>
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block" }} />
+                  {formatTime(recordingSeconds)}
+                </div>
+              )}
+              {recordPhase !== "done" && renderSourceChip(
+                recordPhase === "recording"
+                  ? "calc(54px + env(safe-area-inset-top))"
+                  : "calc(16px + env(safe-area-inset-top))"
+              )}
+              {recordPhase === "recording" && getRecordingMessage(recordingSeconds, req.type) && (
+                <div style={{
+                  position: "absolute", bottom: 110, left: "50%", transform: "translateX(-50%)",
+                  background: "rgba(0,0,0,0.62)", borderRadius: 20, padding: "5px 14px",
+                  color: "#fff", fontWeight: 500, fontSize: 12, fontFamily: fontStack,
+                  whiteSpace: "nowrap", backdropFilter: "blur(4px)",
+                }}>
+                  {getRecordingMessage(recordingSeconds, req.type)}
+                </div>
+              )}
+              {cameraRecordButton}
+            </>
           )}
-          {/* Timer — respects Dynamic Island */}
-          {recordPhase === "recording" && (
-            <div style={{
-              position: "absolute",
-              top: "calc(16px + env(safe-area-inset-top))",
-              left: "50%", transform: "translateX(-50%)",
-              background: "rgba(0,0,0,0.55)", borderRadius: 20, padding: "4px 14px",
-              display: "flex", alignItems: "center", gap: 7,
-              color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: fontStack,
-            }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block" }} />
-              {formatTime(recordingSeconds)}
-            </div>
-          )}
-          {/* Source chip — always visible in camera area */}
-          {recordPhase !== "done" && renderSourceChip(
-            recordPhase === "recording"
-              ? "calc(54px + env(safe-area-inset-top))"
-              : "calc(16px + env(safe-area-inset-top))"
-          )}
-          {/* Milestone message */}
-          {recordPhase === "recording" && getRecordingMessage(recordingSeconds, req.type) && (
-            <div style={{
-              position: "absolute", bottom: 110, left: "50%", transform: "translateX(-50%)",
-              background: "rgba(0,0,0,0.62)", borderRadius: 20, padding: "5px 14px",
-              color: "#fff", fontWeight: 500, fontSize: 12, fontFamily: fontStack,
-              whiteSpace: "nowrap", backdropFilter: "blur(4px)",
-            }}>
-              {getRecordingMessage(recordingSeconds, req.type)}
-            </div>
-          )}
-          {cameraRecordButton}
         </div>
 
         {/* ── Draggable panel ── */}
@@ -879,7 +958,29 @@ export default function GreetingReviewOverlay({
               {infoSection}
               {divider}
             </div>
-            {uploadSucceeded ? successContent : (
+            {(viewMode || buyerViewMode) ? (
+              <>
+                {buyerViewMode && viewMp4Url && (
+                  <a href={viewMp4Url} download target="_blank" rel="noopener noreferrer" style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    width: "100%", height: 42, borderRadius: 12,
+                    border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
+                    color: "rgba(255,255,255,0.75)", fontWeight: 600, fontSize: 13,
+                    textDecoration: "none", fontFamily: fontStack, boxSizing: "border-box",
+                  }}>
+                    ↓ Descargar video
+                  </a>
+                )}
+                <button type="button" onClick={handleClose} style={{
+                  width: "100%", height: 42, borderRadius: 12,
+                  border: "none", background: "transparent",
+                  color: "rgba(255,255,255,0.45)", fontWeight: 500, fontSize: 13,
+                  cursor: "pointer", fontFamily: fontStack,
+                }}>
+                  Cerrar
+                </button>
+              </>
+            ) : uploadSucceeded ? successContent : (
               <>
                 {recordControls}
                 {recordPhase === "preview" && (
@@ -968,7 +1069,29 @@ export default function GreetingReviewOverlay({
               {infoSection}
             </div>
             <div style={{ marginTop: "auto", paddingTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-              {uploadSucceeded ? successContent : (
+              {(viewMode || buyerViewMode) ? (
+                <>
+                  {buyerViewMode && viewMp4Url && (
+                    <a href={viewMp4Url} download target="_blank" rel="noopener noreferrer" style={{
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      width: "100%", height: 38, borderRadius: 10,
+                      border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
+                      color: "rgba(255,255,255,0.75)", fontWeight: 600, fontSize: 13,
+                      textDecoration: "none", fontFamily: fontStack, boxSizing: "border-box",
+                    }}>
+                      ↓ Descargar video
+                    </a>
+                  )}
+                  <button type="button" onClick={handleClose} style={{
+                    width: "100%", height: 38, borderRadius: 10,
+                    border: "none", background: "transparent",
+                    color: "rgba(255,255,255,0.38)", fontWeight: 500, fontSize: 13,
+                    cursor: "pointer", fontFamily: fontStack,
+                  }}>
+                    Cerrar
+                  </button>
+                </>
+              ) : uploadSucceeded ? successContent : (
                 <>
                   {recordControls}
                   {recordPhase === "preview" && (
@@ -992,64 +1115,80 @@ export default function GreetingReviewOverlay({
           {fileInput}
           {/* Right: camera / playback fills remaining height */}
           <div style={{ flex: 1, minWidth: 0, padding: "20px 20px 20px 0", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ position: "relative", height: "100%", display: "flex", alignItems: "center" }}>
-              {/* Live webcam — hidden when done */}
-              <video
-                ref={videoRef}
-                autoPlay
-                muted
-                playsInline
-                disablePictureInPicture
-                onContextMenu={(e) => e.preventDefault()}
-                style={{
-                  height: "100%", width: "auto", maxWidth: "100%",
-                  borderRadius: 14, objectFit: "contain", background: "#000",
-                  display: recordPhase === "done" ? "none" : "block",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
-              />
-              {/* Playback video — shown when done */}
-              {recordPhase === "done" && recordedBlobUrl && (
-                <video
-                  src={recordedBlobUrl}
-                  controls
-                  playsInline
-                  disablePictureInPicture
-                  onContextMenu={(e) => e.preventDefault()}
-                  style={{
-                    height: "100%", width: "auto", maxWidth: "100%",
-                    borderRadius: 14, objectFit: "contain", background: "#000",
-                    display: "block", border: "1px solid rgba(255,255,255,0.08)",
-                  }}
-                />
+            <div style={{ position: "relative", height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {(viewMode || buyerViewMode) ? (
+                viewMp4Url ? (
+                  <video
+                    src={viewMp4Url}
+                    poster={viewThumbnailUrl ?? undefined}
+                    controls playsInline
+                    disablePictureInPicture
+                    onContextMenu={(e) => e.preventDefault()}
+                    style={{
+                      height: "100%", width: "auto", maxWidth: "100%",
+                      borderRadius: 14, objectFit: "contain", background: "#000",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  />
+                ) : (
+                  <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
+                    Video no disponible
+                  </div>
+                )
+              ) : (
+                <>
+                  {/* Live webcam — hidden when done */}
+                  <video
+                    ref={videoRef}
+                    autoPlay muted playsInline
+                    disablePictureInPicture
+                    onContextMenu={(e) => e.preventDefault()}
+                    style={{
+                      height: "100%", width: "auto", maxWidth: "100%",
+                      borderRadius: 14, objectFit: "contain", background: "#000",
+                      display: recordPhase === "done" ? "none" : "block",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  />
+                  {recordPhase === "done" && recordedBlobUrl && (
+                    <video
+                      src={recordedBlobUrl}
+                      controls playsInline
+                      disablePictureInPicture
+                      onContextMenu={(e) => e.preventDefault()}
+                      style={{
+                        height: "100%", width: "auto", maxWidth: "100%",
+                        borderRadius: 14, objectFit: "contain", background: "#000",
+                        display: "block", border: "1px solid rgba(255,255,255,0.08)",
+                      }}
+                    />
+                  )}
+                  {recordPhase === "recording" && (
+                    <div style={{
+                      position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)",
+                      background: "rgba(0,0,0,0.55)", borderRadius: 20, padding: "4px 14px",
+                      display: "flex", alignItems: "center", gap: 7,
+                      color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: fontStack,
+                      backdropFilter: "blur(4px)",
+                    }}>
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block", flexShrink: 0 }} />
+                      {formatTime(recordingSeconds)}
+                    </div>
+                  )}
+                  {recordPhase !== "done" && renderSourceChip(recordPhase === "recording" ? 56 : 14)}
+                  {recordPhase === "recording" && getRecordingMessage(recordingSeconds, req.type) && (
+                    <div style={{
+                      position: "absolute", bottom: 110, left: "50%", transform: "translateX(-50%)",
+                      background: "rgba(0,0,0,0.62)", borderRadius: 20, padding: "5px 14px",
+                      color: "#fff", fontWeight: 500, fontSize: 12, fontFamily: fontStack,
+                      whiteSpace: "nowrap", backdropFilter: "blur(4px)", textAlign: "center",
+                    }}>
+                      {getRecordingMessage(recordingSeconds, req.type)}
+                    </div>
+                  )}
+                  {cameraRecordButton}
+                </>
               )}
-              {/* Timer */}
-              {recordPhase === "recording" && (
-                <div style={{
-                  position: "absolute", top: 14, left: "50%", transform: "translateX(-50%)",
-                  background: "rgba(0,0,0,0.55)", borderRadius: 20, padding: "4px 14px",
-                  display: "flex", alignItems: "center", gap: 7,
-                  color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: fontStack,
-                  backdropFilter: "blur(4px)",
-                }}>
-                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block", flexShrink: 0 }} />
-                  {formatTime(recordingSeconds)}
-                </div>
-              )}
-              {/* Source chip — always visible in camera area */}
-              {recordPhase !== "done" && renderSourceChip(recordPhase === "recording" ? 56 : 14)}
-              {/* Milestone message */}
-              {recordPhase === "recording" && getRecordingMessage(recordingSeconds, req.type) && (
-                <div style={{
-                  position: "absolute", bottom: 110, left: "50%", transform: "translateX(-50%)",
-                  background: "rgba(0,0,0,0.62)", borderRadius: 20, padding: "5px 14px",
-                  color: "#fff", fontWeight: 500, fontSize: 12, fontFamily: fontStack,
-                  whiteSpace: "nowrap", backdropFilter: "blur(4px)", textAlign: "center",
-                }}>
-                  {getRecordingMessage(recordingSeconds, req.type)}
-                </div>
-              )}
-              {cameraRecordButton}
             </div>
           </div>
         </div>

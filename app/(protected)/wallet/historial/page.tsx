@@ -12,6 +12,8 @@ import {
   WalletFilterMenu,
   WalletList,
 } from "../components/WalletUi";
+import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
+import type { GreetingRequestDoc, UserMini } from "@/app/components/OwnerSidebar/OwnerSidebar";
 
 type HistoryFilter =
   | "all"
@@ -33,6 +35,46 @@ const FILTER_OPTIONS: Array<{ value: HistoryFilter; label: string; emoji?: strin
   { value: "consejo", label: "Consejos", emoji: "💡" },
   { value: "mensaje", label: "Mensajes", emoji: "💬" },
 ];
+
+function getInitials(name?: string | null): string {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function typeLabel(t: string): string {
+  if (t === "consejo") return "Consejo";
+  if (t === "mensaje") return "Mensaje";
+  return "Saludo";
+}
+
+function rowToGreetingDoc(row: WalletServiceItem, creatorId: string): GreetingRequestDoc {
+  return {
+    buyerId: row.buyerId,
+    creatorId,
+    groupId: row.groupId ?? null,
+    profileUserId: row.profileUserId ?? null,
+    profileDisplayName: row.profileDisplayName ?? null,
+    profileUsername: row.profileUsername ?? null,
+    type: row.kind as "saludo" | "consejo" | "mensaje",
+    toName: row.targetName ?? "",
+    instructions: row.requestText ?? "",
+    source: (row.requestSource ?? "group") as "group" | "profile",
+    status: row.status as "pending" | "accepted" | "rejected" | "delivered",
+    createdAt: row.createdAt
+      ? ({ toDate: () => row.createdAt as Date } as any)
+      : undefined,
+    muxPlaybackId: row.muxPlaybackId ?? undefined,
+    videoDuration: row.videoDuration ?? undefined,
+    deliveredAt: row.deliveredAt
+      ? ({ toDate: () => row.deliveredAt as Date } as any)
+      : undefined,
+  };
+}
 
 function isScheduledService(row: WalletServiceItem): boolean {
   return row.source === "meet_greet" || row.source === "exclusive_session";
@@ -103,6 +145,25 @@ export default function WalletHistorialPage() {
   const { user } = useAuth();
   const walletData = useOwnerWalletData(user?.uid);
   const [filter, setFilter] = useState<HistoryFilter>("all");
+  const [viewRow, setViewRow] = useState<WalletServiceItem | null>(null);
+
+  const overlayBuyers: Record<string, UserMini | null> = useMemo(() => {
+    if (!viewRow) return {};
+    return {
+      [viewRow.buyerId]: {
+        uid: viewRow.buyerId,
+        displayName: viewRow.buyerDisplayName ?? "Usuario",
+        photoURL: viewRow.buyerAvatarUrl ?? null,
+        handle: viewRow.buyerUsername ?? null,
+      },
+    };
+  }, [viewRow]);
+
+  const overlayItems = useMemo(() => {
+    if (!viewRow || !user?.uid) return [];
+    return [{ id: viewRow.id, data: rowToGreetingDoc(viewRow, user.uid) }];
+  }, [viewRow, user?.uid]);
+
   const historyItems = useMemo(() => {
   const expiredItems = walletData.pendingCurrent
     .filter(isExpiredScheduledService)
@@ -131,6 +192,7 @@ const filteredItems = useMemo(() => {
 }, [filter, historyItems]);
 
   return (
+    <>
     <WalletSectionShell activeTab="history">
       {walletData.error ? <WalletErrorBox message={walletData.error} /> : null}
 
@@ -152,7 +214,7 @@ const filteredItems = useMemo(() => {
             subtitle="Estamos leyendo tus servicios procesados."
           />
         ) : filteredItems.length > 0 ? (
-          <WalletList items={filteredItems} />
+          <WalletList items={filteredItems} mode="history" onView={setViewRow} />
         ) : (
           <EmptyRows
             title="Sin historial"
@@ -161,5 +223,19 @@ const filteredItems = useMemo(() => {
         )}
       </WalletCard>
     </WalletSectionShell>
+
+    {viewRow && overlayItems.length > 0 && (
+      <GreetingReviewOverlay
+        viewMode
+        items={overlayItems}
+        buyers={overlayBuyers}
+        greetingBusyId={null}
+        onReject={() => {}}
+        onClose={() => setViewRow(null)}
+        getInitials={getInitials}
+        typeLabel={typeLabel}
+      />
+    )}
+  </>
   );
 }

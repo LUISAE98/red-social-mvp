@@ -22,8 +22,11 @@ import type {
   GreetingRequestDoc,
   MeetGreetRequestDoc,
   ExclusiveSessionRequestDoc,
+  UserMini,
 } from "./OwnerSidebar";
-import { Chevron } from "./OwnerSidebar";
+import { Chevron, CountBadge } from "./OwnerSidebar";
+import BuyerGreetingRequestOverlay from "./BuyerGreetingRequestOverlay";
+import GreetingReviewOverlay from "./GreetingReviewOverlay";
 import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
 import ScheduleDateTimeSelector, {
   getSchedulePartsFromDate,
@@ -60,6 +63,7 @@ type Props = {
     Array<{ id: string; data: MeetGreetRequestDoc }>
   >;
   groupMetaMap: Record<string, GroupDocLite>;
+  userMiniMap: Record<string, UserMini>;
   styles: Record<string, React.CSSProperties>;
   typeLabel: (t: string) => string;
   fmtDate: (ts?: any) => string;
@@ -242,6 +246,18 @@ function toDateSafe(value: unknown): Date | null {
   return null;
 }
 
+function getRelativeTime(ts?: { toDate: () => Date } | null): string {
+  if (!ts) return "Hace un momento";
+  const diffMs = Date.now() - ts.toDate().getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
+  if (diffHours >= 1) return `Hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
+  if (diffMins >= 1) return `Hace ${diffMins} ${diffMins === 1 ? "minuto" : "minutos"}`;
+  return "Hace un momento";
+}
+
 function isPrepareWindowOpen(value: unknown): boolean {
   const date = toDateSafe(value);
   if (!date) return false;
@@ -372,7 +388,7 @@ function getSectionVisual(key: ServiceSectionKey): {
 
   return {
     icon: "🧾",
-    title: "Servicios solicitados",
+    title: "Pendientes",
     countTone: {
       color: "#f43f5e",
     },
@@ -442,9 +458,9 @@ function CleanServiceCard({
     <div
       style={{
         ...styles.miniItem,
-        background: expanded ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.02)",
-        border: expanded ? "1px solid rgba(255,255,255,0.09)" : "1px solid rgba(255,255,255,0.07)",
-        borderRadius: 16,
+        background: "rgba(90,41,174,0.14)",
+        border: "none",
+        borderRadius: 12,
         padding: 0,
         overflow: "hidden",
       }}
@@ -586,10 +602,16 @@ function SectionBlock({
     <div
       style={{
         ...styles.card,
-        border: "none",
         margin: 0,
         borderRadius: 16,
-        background: "rgba(0,0,0,0.96)",
+        background: open
+          ? "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)"
+          : "rgba(0,0,0,0.96)",
+        border: "none",
+        boxShadow: open
+          ? "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)"
+          : "none",
+        transition: "background 0.25s ease, box-shadow 0.25s ease",
       }}
     >
       <button
@@ -648,34 +670,7 @@ function SectionBlock({
           </span>
         </span>
 
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <span
-            style={{
-              ...visual.countTone,
-              fontSize: 13,
-              fontWeight: 800,
-              lineHeight: 1,
-              minWidth: 10,
-              textAlign: "center",
-            }}
-          >
-            {count}
-          </span>
-          <span
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 999,
-              border: "1px solid rgba(255,255,255,0.08)",
-              background: "rgba(255,255,255,0.02)",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <Chevron open={open} />
-          </span>
-        </span>
+        <CountBadge count={count} tone="pink" />
       </button>
 
       {open ? (
@@ -709,6 +704,7 @@ export default function OwnerSidebarGreetings({
   meetGreetsByGroup,
   exclusiveSessionsByGroup,
   groupMetaMap,
+  userMiniMap,
   styles,
   typeLabel,
   fmtDate,
@@ -718,8 +714,12 @@ export default function OwnerSidebarGreetings({
   const [busyMap, setBusyMap] = useState<BusyMap>({});
   const [errorMap, setErrorMap] = useState<TextMap>({});
   const [successMap, setSuccessMap] = useState<TextMap>({});
-  const [openSectionKey, setOpenSectionKey] = useState<ServiceSectionKey | null>("requested");
-  const [deliveredSectionOpen, setDeliveredSectionOpen] = useState(true);
+  const [viewItem, setViewItem] = useState<{ item: { id: string; data: GreetingRequestDoc }; sourceName: string; sourceAvatar: string | null } | null>(null);
+  const [viewDeliveredItem, setViewDeliveredItem] = useState<{ item: { id: string; data: GreetingRequestDoc }; sourceName: string; sourceAvatar: string | null } | null>(null);
+  const [openSectionKey, setOpenSectionKey] = useState<ServiceSectionKey | null>(null);
+  const [deliveredSectionOpen, setDeliveredSectionOpen] = useState(false);
+  const [pendingVisibleCount, setPendingVisibleCount] = useState(6);
+  const [deliveredVisibleCount, setDeliveredVisibleCount] = useState(6);
   const [deliveredItemOpen, setDeliveredItemOpen] = useState<string | null>(null);
   const [openItemKey, setOpenItemKey] = useState<string | null>(null);
   const [rejectOpenMap, setRejectOpenMap] = useState<ToggleMap>({});
@@ -836,6 +836,7 @@ export default function OwnerSidebarGreetings({
 
   function toggleSection(sectionKey: ServiceSectionKey) {
     setOpenSectionKey((prev) => (prev === sectionKey ? null : sectionKey));
+    setDeliveredSectionOpen(false);
     setOpenItemKey(null);
   }
 
@@ -1216,34 +1217,80 @@ async function handleCreatorSchedule(
 
   function renderBuyerGreetingCard(row: { id: string; data: GreetingRequestDoc }, itemKey: string) {
     const req = row.data;
+    const isProfile = req.source === "profile";
     const group = req.groupId ? groupMetaMap[req.groupId] ?? null : null;
+    const creator = userMiniMap[req.creatorId] ?? null;
+
+    const sourceName = isProfile
+      ? (req.profileDisplayName ?? creator?.displayName ?? "Perfil")
+      : (group?.name ?? "Comunidad");
+    const sourceAvatar = isProfile
+      ? (creator?.photoURL ?? null)
+      : (group?.avatarUrl ?? null);
+    const sourceInitial = sourceName.charAt(0).toUpperCase();
+
+    const relTime = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }) : null;
 
     return (
-      <CleanServiceCard
+      <div
         key={itemKey}
-        id={itemKey}
-        type={req.type}
-        title={getServiceName(req.type, typeLabel)}
-        subtitle={
-          <>
-            Comprado a {renderUserLink(req.creatorId)}
-            {req.toName ? <> · Para {req.toName}</> : null}
-          </>
-        }
-        meta={
-          <StatusPill style={getTypeChipStyle(req.type)}>
-            Solicitado
-          </StatusPill>
-        }
-        expanded={openItemKey === itemKey}
-        onToggle={() => toggleItem(itemKey)}
-        styles={styles}
+        style={{
+          ...styles.miniItem,
+          background: "rgba(90,41,174,0.14)",
+          border: "none",
+          borderRadius: 12,
+          padding: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
       >
-        {renderContextLink(group, req)}
-        {req.instructions ? renderTextBox(req.instructions) : null}
-        {req.createdAt ? <div style={styles.subtle}>Solicitado: {fmtDate(req.createdAt)}</div> : null}
-        {renderRequestFeedback(row.id)}
-      </CleanServiceCard>
+        {sourceAvatar ? (
+          <img
+            src={sourceAvatar}
+            alt={sourceName}
+            style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
+          />
+        ) : (
+          <div style={{
+            width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+            background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontWeight: 700, fontSize: 14, color: "#fff",
+          }}>
+            {sourceInitial}
+          </div>
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {sourceName}
+          </div>
+          {relTime && (
+            <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 }}>
+              {relTime}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setViewItem({ item: row, sourceName, sourceAvatar })}
+          style={{
+            flexShrink: 0,
+            height: 28,
+            padding: "0 12px",
+            borderRadius: 8,
+            border: "none",
+            background: "rgba(168,85,255,0.18)",
+            color: "#d8b4fe",
+            fontWeight: 600,
+            fontSize: 11,
+            cursor: "pointer",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Ver solicitud
+        </button>
+      </div>
     );
   }
 
@@ -1485,6 +1532,9 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         buyerUsername: (item.data as any).buyerUsername ?? null,
         buyerAvatarUrl: (item.data as any).buyerAvatarUrl ?? null,
         sourceAvatarUrl: null,
+        muxPlaybackId: null,
+        videoDuration: null,
+        deliveredAt: null,
         profileUserId: (item.data as any).profileUserId ?? null,
         profileDisplayName: (item.data as any).profileDisplayName ?? null,
         profileUsername: (item.data as any).profileUsername ?? null,
@@ -1826,6 +1876,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
   }
 
   return (
+    <>
     <div style={{ display: "grid", gap: 8 }}>
       <SectionHeading>Mis servicios</SectionHeading>
 
@@ -1837,7 +1888,20 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         styles={styles}
       >
         <div className="mini-vertical-scroll" style={{ display: "grid", gap: 8 }}>
-          {requestedRows.map(renderDisplayRow)}
+          {requestedRows.slice(0, pendingVisibleCount).map(renderDisplayRow)}
+          {requestedRows.length > pendingVisibleCount && (
+            <button
+              type="button"
+              onClick={() => setPendingVisibleCount((v) => v + 6)}
+              style={{
+                width: "100%", height: 36, borderRadius: 8, border: "none",
+                background: "rgba(168,85,255,0.18)", color: "#d8b4fe",
+                fontWeight: 600, fontSize: 12, cursor: "pointer",
+              }}
+            >
+              Ver más
+            </button>
+          )}
         </div>
       </SectionBlock>
 
@@ -1869,15 +1933,25 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         <div
           style={{
             ...styles.card,
-            border: "none",
             margin: 0,
             borderRadius: 16,
-            background: "rgba(0,0,0,0.96)",
+            background: deliveredSectionOpen
+              ? "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)"
+              : "rgba(0,0,0,0.96)",
+            border: "none",
+            boxShadow: deliveredSectionOpen
+              ? "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)"
+              : "none",
+            transition: "background 0.25s ease, box-shadow 0.25s ease",
           }}
         >
           <button
             type="button"
-            onClick={() => setDeliveredSectionOpen((v) => !v)}
+            onClick={() => {
+              setDeliveredSectionOpen((v) => !v);
+              setOpenSectionKey(null);
+              setOpenItemKey(null);
+            }}
             aria-expanded={deliveredSectionOpen}
             style={{
               width: "100%",
@@ -1916,25 +1990,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 </span>
               </span>
             </span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-              <span style={{ color: "#86efac", fontSize: 13, fontWeight: 800, lineHeight: 1, minWidth: 10, textAlign: "center" }}>
-                {buyerDelivered.length}
-              </span>
-              <span
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 999,
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  background: "rgba(255,255,255,0.02)",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Chevron open={deliveredSectionOpen} />
-              </span>
-            </span>
+            <CountBadge count={buyerDelivered.length} tone="pink" />
           </button>
 
           {deliveredSectionOpen && (
@@ -1947,217 +2003,129 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 gap: 8,
               }}
             >
-              {buyerDelivered.map((row) => {
+              {buyerDelivered.slice(0, deliveredVisibleCount).map((row) => {
                 const req = row.data;
                 const itemKey = `delivered-${row.id}`;
-                const isOpen = deliveredItemOpen === itemKey;
-                const playbackId = req.muxPlaybackId ?? null;
+                const isProfile = req.source === "profile";
+                const group = req.groupId ? groupMetaMap[req.groupId] ?? null : null;
+                const creator = userMiniMap[req.creatorId] ?? null;
 
-                const mp4Url = playbackId ? `https://stream.mux.com/${playbackId}/high.mp4` : null;
-                const thumbnailUrl = playbackId ? `https://image.mux.com/${playbackId}/thumbnail.jpg` : null;
+                const sourceName = isProfile
+                  ? (req.profileDisplayName ?? creator?.displayName ?? "Perfil")
+                  : (group?.name ?? "Comunidad");
+                const sourceAvatar = isProfile
+                  ? (creator?.photoURL ?? null)
+                  : (group?.avatarUrl ?? null);
+                const sourceInitial = sourceName.charAt(0).toUpperCase();
+
+                const deliveredTs = req.deliveredAt as { toDate: () => Date } | undefined;
+                const relTime = deliveredTs ? getRelativeTime(deliveredTs) : null;
+
+                const btnLabel = req.type === "consejo" ? "Ver consejo" : req.type === "mensaje" ? "Ver mensaje" : "Ver saludo";
 
                 return (
                   <div
                     key={itemKey}
                     style={{
                       ...styles.miniItem,
-                      background: isOpen ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.02)",
-                      border: isOpen ? "1px solid rgba(34,197,94,0.16)" : "1px solid rgba(255,255,255,0.07)",
-                      borderRadius: 16,
-                      padding: 0,
-                      overflow: "hidden",
+                      background: "rgba(90,41,174,0.14)",
+                      border: "none",
+                      borderRadius: 12,
+                      padding: 10,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
                     }}
                   >
-                    <button
-                      type="button"
-                      onClick={() => setDeliveredItemOpen((prev) => (prev === itemKey ? null : itemKey))}
-                      aria-expanded={isOpen}
-                      style={{
-                        width: "100%",
-                        border: "none",
-                        background: "transparent",
-                        padding: 10,
-                        margin: 0,
-                        cursor: "pointer",
-                        textAlign: "left",
-                        display: "grid",
-                        gap: 7,
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flexWrap: "wrap" }}>
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 8, minWidth: 0, flexShrink: 0 }}>
-                            <span
-                              style={{
-                                width: 30,
-                                height: 30,
-                                borderRadius: 12,
-                                border: "1px solid rgba(34,197,94,0.24)",
-                                background: "rgba(34,197,94,0.10)",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                fontSize: 18,
-                                lineHeight: 1,
-                                flexShrink: 0,
-                              }}
-                            >
-                              {getServiceEmoji(req.type)}
-                            </span>
-                            <span style={{ fontSize: 12, fontWeight: 750, color: "#fff", lineHeight: 1.2, whiteSpace: "nowrap" }}>
-                              {getServiceName(req.type, typeLabel)}
-                            </span>
-                          </span>
-                          <span
-                            style={{
-                              borderRadius: 999,
-                              padding: "5px 9px",
-                              fontSize: 11,
-                              fontWeight: 700,
-                              lineHeight: 1,
-                              display: "inline-flex",
-                              alignItems: "center",
-                              border: "1px solid rgba(34,197,94,0.24)",
-                              background: "rgba(34,197,94,0.12)",
-                              color: "#86efac",
-                            }}
-                          >
-                            Entregado
-                          </span>
-                        </div>
-                        <span
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 999,
-                            border: "1px solid rgba(255,255,255,0.08)",
-                            background: "rgba(255,255,255,0.02)",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Chevron open={isOpen} />
-                        </span>
-                      </div>
-                      <div style={{ ...styles.subtle, lineHeight: 1.35 }}>
-                        Para {req.toName}
-                        {req.deliveredAt ? <> · {fmtDate(req.deliveredAt)}</> : null}
-                      </div>
-                    </button>
-
-                    {isOpen && (
-                      <div
-                        style={{
-                          borderTop: "1px solid rgba(255,255,255,0.06)",
-                          padding: 10,
-                          display: "grid",
-                          gap: 10,
-                        }}
-                      >
-                        {playbackId ? (
-                          <>
-                            <div style={{ position: "relative", borderRadius: 12, overflow: "hidden", background: "#000", aspectRatio: "16/9" }}>
-                              <video
-                                poster={thumbnailUrl ?? undefined}
-                                controls
-                                playsInline
-                                preload="auto"
-                                disablePictureInPicture
-                                onContextMenu={(e) => e.preventDefault()}
-                                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
-                              >
-                                {mp4Url && <source src={mp4Url} type="video/mp4" />}
-                                {playbackId && <source src={`https://stream.mux.com/${playbackId}.m3u8`} type="application/x-mpegURL" />}
-                              </video>
-                              {req.videoDuration != null && (
-                                <span
-                                  style={{
-                                    position: "absolute",
-                                    bottom: 8,
-                                    right: 8,
-                                    background: "rgba(0,0,0,0.72)",
-                                    borderRadius: 6,
-                                    padding: "2px 7px",
-                                    fontSize: 11,
-                                    fontWeight: 700,
-                                    color: "#fff",
-                                    lineHeight: 1.4,
-                                    backdropFilter: "blur(4px)",
-                                  }}
-                                >
-                                  {formatDuration(req.videoDuration)}
-                                </span>
-                              )}
-                            </div>
-                            {mp4Url && (
-                              <a
-                                href={mp4Url}
-                                download
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  gap: 6,
-                                  padding: "8px 12px",
-                                  borderRadius: 10,
-                                  border: "1px solid rgba(255,255,255,0.10)",
-                                  background: "rgba(255,255,255,0.05)",
-                                  color: "#fff",
-                                  fontSize: 12,
-                                  fontWeight: 600,
-                                  textDecoration: "none",
-                                  cursor: "pointer",
-                                  width: "100%",
-                                  boxSizing: "border-box",
-                                  textAlign: "center",
-                                }}
-                              >
-                                ⬇ Descargar video
-                              </a>
-                            )}
-                          </>
-                        ) : (
-                          <div style={{ ...styles.subtle, padding: "6px 0" }}>
-                            El video está siendo procesado. Vuelve en unos minutos.
-                          </div>
-                        )}
-                        {req.instructions ? (
-                          <div
-                            style={{
-                              borderRadius: 10,
-                              border: "1px solid rgba(255,255,255,0.10)",
-                              background: "rgba(0,0,0,0.18)",
-                              padding: "7px 8px",
-                              whiteSpace: "pre-wrap",
-                              fontSize: 12,
-                              lineHeight: 1.3,
-                              color: "rgba(255,255,255,0.92)",
-                            }}
-                          >
-                            {req.instructions}
-                          </div>
-                        ) : null}
-                        {req.createdAt ? (
-                          <div style={styles.subtle}>Solicitado: {fmtDate(req.createdAt)}</div>
-                        ) : null}
-                        {renderUserLink(req.creatorId) && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, ...styles.subtle }}>
-                            Creador: {renderUserLink(req.creatorId)}
-                          </div>
-                        )}
+                    {sourceAvatar ? (
+                      <img
+                        src={sourceAvatar}
+                        alt={sourceName}
+                        style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                        background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontWeight: 700, fontSize: 14, color: "#fff",
+                      }}>
+                        {sourceInitial}
                       </div>
                     )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {sourceName}
+                      </div>
+                      {relTime && (
+                        <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 }}>
+                          {relTime}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setViewDeliveredItem({ item: row, sourceName, sourceAvatar })}
+                      style={{
+                        flexShrink: 0,
+                        height: 28,
+                        padding: "0 12px",
+                        borderRadius: 8,
+                        border: "none",
+                        background: "rgba(168,85,255,0.18)",
+                        color: "#d8b4fe",
+                        fontWeight: 600,
+                        fontSize: 11,
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {btnLabel}
+                    </button>
                   </div>
                 );
               })}
+              {buyerDelivered.length > deliveredVisibleCount && (
+                <button
+                  type="button"
+                  onClick={() => setDeliveredVisibleCount((v) => v + 6)}
+                  style={{
+                    width: "100%", height: 36, borderRadius: 8, border: "none",
+                    background: "rgba(168,85,255,0.18)", color: "#d8b4fe",
+                    fontWeight: 600, fontSize: 12, cursor: "pointer",
+                  }}
+                >
+                  Ver más
+                </button>
+              )}
             </div>
           )}
         </div>
       )}
     </div>
+    {viewItem && (
+      <BuyerGreetingRequestOverlay
+        item={viewItem.item}
+        sourceName={viewItem.sourceName}
+        sourceAvatar={viewItem.sourceAvatar}
+        onClose={() => setViewItem(null)}
+      />
+    )}
+    {viewDeliveredItem && (
+      <GreetingReviewOverlay
+        viewMode
+        buyerViewMode
+        buyerSourceName={viewDeliveredItem.sourceName}
+        buyerSourceAvatar={viewDeliveredItem.sourceAvatar}
+        items={[viewDeliveredItem.item]}
+        buyers={{}}
+        greetingBusyId={null}
+        onReject={() => {}}
+        onClose={() => setViewDeliveredItem(null)}
+        getInitials={(name) => (name ?? "?").charAt(0).toUpperCase()}
+        typeLabel={(t) => t === "consejo" ? "Consejo" : t === "mensaje" ? "Mensaje" : "Saludo"}
+      />
+    )}
+    </>
   );
 }
