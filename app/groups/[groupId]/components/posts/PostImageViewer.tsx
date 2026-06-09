@@ -1247,7 +1247,7 @@ const previewUrl = media.url;
         style={{
           position: "relative",
           width: "100%",
-          height: useMobileLayout ? "calc(100dvh - 80px)" : "100%",
+          height: useMobileLayout ? "calc(100dvh - 96px)" : "100%",
           overflow: "hidden",
           touchAction: "none",
           background: "#000",
@@ -1295,7 +1295,7 @@ const previewUrl = media.url;
           right: 0,
           bottom: 0,
           zIndex: 2147483646,
-          maxHeight: "88dvh",
+          height: "88dvh",
           display: "flex",
           flexDirection: "column",
           background: "rgb(10, 10, 14)",
@@ -1303,59 +1303,63 @@ const previewUrl = media.url;
           borderTop: "1px solid rgba(255,255,255,0.08)",
           transform: mobileSheetExpanded
             ? "translateY(0)"
-            : "translateY(calc(100% - 80px))",
+            : "translateY(calc(100% - 96px))",
           transition: "transform 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-          touchAction: "none",
-          userSelect: "none",
-          WebkitUserSelect: "none",
-        }}
-        onTouchStart={(e) => {
-          const sheet = mobileSheetRef.current;
-          const touch = e.touches[0];
-          if (!sheet || !touch) return;
-          mobileSheetDragStartYRef.current = touch.clientY;
-          mobileSheetBaseOffsetRef.current = mobileSheetExpanded
-            ? 0
-            : Math.max(0, sheet.offsetHeight - 80);
-          sheet.style.transition = "none";
-        }}
-        onTouchMove={(e) => {
-          const sheet = mobileSheetRef.current;
-          const startY = mobileSheetDragStartYRef.current;
-          if (!sheet || startY === null) return;
-          const touch = e.touches[0];
-          if (!touch) return;
-          const diff = touch.clientY - startY;
-          const maxOffset = Math.max(0, sheet.offsetHeight - 80);
-          const clamped = Math.max(0, Math.min(maxOffset, mobileSheetBaseOffsetRef.current + diff));
-          sheet.style.transform = `translateY(${clamped}px)`;
-        }}
-        onTouchEnd={(e) => {
-          const sheet = mobileSheetRef.current;
-          const startY = mobileSheetDragStartYRef.current;
-          mobileSheetDragStartYRef.current = null;
-          if (!sheet || startY === null) return;
-          const touch = e.changedTouches[0];
-          const endY = touch?.clientY ?? startY;
-          const diff = endY - startY;
-          const maxOffset = Math.max(0, sheet.offsetHeight - 80);
-          sheet.style.transition = "transform 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)";
-          sheet.style.transform = "";
-          // If the touch landed on an interactive element and barely moved, let the click fire — don't toggle sheet
-          if (Math.abs(diff) < 8) {
-            const target = e.target as HTMLElement;
-            if (target.closest("button, a, input, textarea, select")) return;
-            setMobileSheetExpanded((prev) => !prev);
-            return;
-          }
-          const currentOffset = Math.max(0, Math.min(maxOffset, mobileSheetBaseOffsetRef.current + diff));
-          const shouldExpand = diff < -40 ? true : diff > 40 ? false : currentOffset < maxOffset / 2;
-          // Animate inline to snap target, then hand off to CSS after transition
-          sheet.style.transform = shouldExpand ? "translateY(0)" : `translateY(${maxOffset}px)`;
-          setMobileSheetExpanded(shouldExpand);
-          setTimeout(() => { if (mobileSheetRef.current) mobileSheetRef.current.style.transform = ""; }, 340);
+          overflow: "hidden",
         }}
       >
+        {/* Drag zone — touch handlers scoped here so the content area below can scroll freely */}
+        <div
+          style={{
+            flexShrink: 0,
+            touchAction: "none",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+          }}
+          onTouchStart={(e) => {
+            const sheet = mobileSheetRef.current;
+            const touch = e.touches[0];
+            if (!sheet || !touch) return;
+            mobileSheetDragStartYRef.current = touch.clientY;
+            mobileSheetBaseOffsetRef.current = mobileSheetExpanded
+              ? 0
+              : Math.max(0, sheet.offsetHeight - 96);
+            sheet.style.transition = "none";
+          }}
+          onTouchMove={(e) => {
+            const sheet = mobileSheetRef.current;
+            const startY = mobileSheetDragStartYRef.current;
+            if (!sheet || startY === null) return;
+            const touch = e.touches[0];
+            if (!touch) return;
+            const diff = touch.clientY - startY;
+            const maxOffset = Math.max(0, sheet.offsetHeight - 96);
+            const clamped = Math.max(0, Math.min(maxOffset, mobileSheetBaseOffsetRef.current + diff));
+            sheet.style.transform = `translateY(${clamped}px)`;
+          }}
+          onTouchEnd={(e) => {
+            const sheet = mobileSheetRef.current;
+            const startY = mobileSheetDragStartYRef.current;
+            mobileSheetDragStartYRef.current = null;
+            if (!sheet || startY === null) return;
+            const touch = e.changedTouches[0];
+            const endY = touch?.clientY ?? startY;
+            const diff = endY - startY;
+            const maxOffset = Math.max(0, sheet.offsetHeight - 96);
+            sheet.style.transition = "transform 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)";
+            sheet.style.transform = "";
+            if (Math.abs(diff) < 8) {
+              const target = e.target as HTMLElement;
+              if (target.closest("button, a, input, textarea, select")) return;
+              setMobileSheetExpanded((prev) => !prev);
+              return;
+            }
+            const shouldExpand = diff < -20 ? true : diff > 20 ? false : mobileSheetExpanded;
+            sheet.style.transform = shouldExpand ? "translateY(0)" : `translateY(${maxOffset}px)`;
+            setMobileSheetExpanded(shouldExpand);
+            setTimeout(() => { if (mobileSheetRef.current) mobileSheetRef.current.style.transform = ""; }, 340);
+          }}
+        >
         <div
           style={{
             flexShrink: 0,
@@ -1376,18 +1380,19 @@ const previewUrl = media.url;
           />
         </div>
 
+        {/* Row 1: Avatar + Name/Date */}
         <div
           style={{
             flexShrink: 0,
             display: "flex",
             alignItems: "center",
             gap: 10,
-            padding: "4px 16px calc(16px + env(safe-area-inset-bottom))",
+            padding: "2px 16px 6px",
             minWidth: 0,
           }}
         >
           <Link href={author.profileHref} style={{ flexShrink: 0, lineHeight: 0 }}>
-            <Avatar name={author.authorName} avatarUrl={author.avatarUrl} size={34} />
+            <Avatar name={author.authorName} avatarUrl={author.avatarUrl} size={36} />
           </Link>
 
           <div
@@ -1396,7 +1401,7 @@ const previewUrl = media.url;
               minWidth: 0,
               display: "flex",
               flexDirection: "column",
-              gap: 3,
+              gap: 2,
             }}
           >
             <div
@@ -1527,104 +1532,109 @@ const previewUrl = media.url;
               {showExactDate ? exactDate : relativeDate}
             </button>
           </div>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              flexShrink: 0,
-            }}
-          >
-            <div style={actionGroupStyle}>
-              <button
-                type="button"
-                onClick={onToggleFlame}
-                aria-pressed={viewerHasFlamed}
-                aria-label={
-                  viewerHasFlamed
-                    ? "Quitar flamita de la publicación"
-                    : "Dar flamita a la publicación"
-                }
-                style={flameButtonStyle}
-              >
-                <span
-                  aria-hidden="true"
-                  style={{
-                    display: "inline-grid",
-                    placeItems: "center",
-                    lineHeight: 1,
-                  }}
-                >
-                  <VibraFlameIcon active={viewerHasFlamed} size={22} />
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={onOpenFlames}
-                disabled={!onOpenFlames || likesCount === 0}
-                aria-label="Ver usuarios que dieron flamita"
-                style={{
-                  ...actionButtonStyle,
-                  opacity: !onOpenFlames || likesCount === 0 ? 0.55 : 1,
-                  cursor:
-                    !onOpenFlames || likesCount === 0 ? "default" : "pointer",
-                }}
-              >
-                {likesCount}
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                onOpenComments();
-                setMobileSheetExpanded(true);
-                setMobileSheetShowComments(true);
-              }}
-              aria-label="Ver comentarios"
-              style={actionButtonStyle}
-            >
-              <span aria-hidden="true" style={{ fontSize: 20, lineHeight: 1 }}>
-                💬
-              </span>
-              <span>{commentsCount}</span>
-            </button>
-          </div>
         </div>
 
-        {mobileSheetExpanded && (
-          <div
-            style={{
-              flex: 1,
-              overflowY: "auto",
-              padding: "4px 16px calc(20px + env(safe-area-inset-bottom))",
-              overscrollBehavior: "contain",
-            }}
-          >
-            {shouldShowMobilePostText && (
-              <p
+        {/* Row 2: Actions — always visible in peek */}
+        <div
+          style={{
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            padding: "0 16px calc(8px + env(safe-area-inset-bottom))",
+          }}
+        >
+          <div style={actionGroupStyle}>
+            <button
+              type="button"
+              onClick={onToggleFlame}
+              aria-pressed={viewerHasFlamed}
+              aria-label={
+                viewerHasFlamed
+                  ? "Quitar flamita de la publicación"
+                  : "Dar flamita a la publicación"
+              }
+              style={flameButtonStyle}
+            >
+              <span
+                aria-hidden="true"
                 style={{
-                  margin: 0,
-                  color: "rgba(255,255,255,0.86)",
-                  fontSize: 13,
-                  fontWeight: 300,
-                  lineHeight: 1.55,
-                  wordBreak: "break-word",
-                  whiteSpace: "pre-wrap",
+                  display: "inline-grid",
+                  placeItems: "center",
+                  lineHeight: 1,
                 }}
               >
-                {cleanPostText}
-              </p>
-            )}
-
-            {mobileSheetShowComments && mobileSheetCommentsContent && (
-              <div style={{ marginTop: 16 }}>
-                {mobileSheetCommentsContent}
-              </div>
-            )}
+                <VibraFlameIcon active={viewerHasFlamed} size={22} />
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={onOpenFlames}
+              disabled={!onOpenFlames || likesCount === 0}
+              aria-label="Ver usuarios que dieron flamita"
+              style={{
+                ...actionButtonStyle,
+                opacity: !onOpenFlames || likesCount === 0 ? 0.55 : 1,
+                cursor:
+                  !onOpenFlames || likesCount === 0 ? "default" : "pointer",
+              }}
+            >
+              {likesCount}
+            </button>
           </div>
-        )}
+
+          <button
+            type="button"
+            onClick={() => {
+              onOpenComments();
+              setMobileSheetExpanded(true);
+              setMobileSheetShowComments(true);
+            }}
+            aria-label="Ver comentarios"
+            style={actionButtonStyle}
+          >
+            <span aria-hidden="true" style={{ fontSize: 20, lineHeight: 1 }}>
+              💬
+            </span>
+            <span>{commentsCount}</span>
+          </button>
+        </div>
+        </div>{/* end drag zone */}
+
+        {/* Expanded section — always in DOM to prevent height changes during animation */}
+        <div
+          style={{
+            flex: 1,
+            overflowY: mobileSheetExpanded ? "auto" : "hidden",
+            opacity: mobileSheetExpanded ? 1 : 0,
+            pointerEvents: mobileSheetExpanded ? "auto" : "none",
+            transition: "opacity 200ms ease",
+            padding: "16px 16px calc(20px + env(safe-area-inset-bottom))",
+            overscrollBehavior: "contain",
+          }}
+        >
+          {shouldShowMobilePostText && (
+            <p
+              style={{
+                margin: 0,
+                color: "rgba(255,255,255,0.86)",
+                fontSize: 13,
+                fontWeight: 300,
+                lineHeight: 1.55,
+                wordBreak: "break-word",
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {cleanPostText}
+            </p>
+          )}
+
+          {mobileSheetShowComments && mobileSheetCommentsContent && (
+            <div style={{ marginTop: 16 }}>
+              {mobileSheetCommentsContent}
+            </div>
+          )}
+        </div>
       </div>
 
       {mobileCommentsOpen && (
