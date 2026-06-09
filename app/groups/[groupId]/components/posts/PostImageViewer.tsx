@@ -1008,9 +1008,10 @@ const previewUrl = media.url;
         <div
           style={{
             position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
+            top: "env(safe-area-inset-top)",
+            right: "env(safe-area-inset-right)",
+            bottom: "env(safe-area-inset-bottom)",
+            left: "env(safe-area-inset-left)",
             background: "#000",
           }}
         >
@@ -2095,29 +2096,6 @@ const previewUrl = media.url;
                 gap: 8,
               }}
             >
-              {currentMedia.type === "video" && currentVideoSrc && (
-                <button
-                  type="button"
-                  onClick={handleVibraPictureInPicture}
-                  aria-label="Activar imagen en imagen"
-                  title="Imagen en imagen"
-                  style={{
-                    minHeight: 30,
-                    minWidth: 34,
-                    borderRadius: 999,
-                    border: "1px solid rgba(255,255,255,0.16)",
-                    background: "rgba(0,0,0,0.52)",
-                    color: "#fff",
-                    display: "grid",
-                    placeItems: "center",
-                    cursor: "pointer",
-                    fontSize: 15,
-                    fontWeight: 800,
-                  }}
-                >
-                  ⧉
-                </button>
-              )}
 
               {canNavigateMedia && (
                 <div
