@@ -310,8 +310,8 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 
 function resolveThumb(story: StoryDoc): string | null {
+  if (story.muxPlaybackId) return `https://image.mux.com/${story.muxPlaybackId}/thumbnail.jpg?time=0`;
   if (story.thumbnailUrl) return story.thumbnailUrl;
-  if (story.muxPlaybackId) return `https://image.mux.com/${story.muxPlaybackId}/thumbnail.jpg`;
   return null;
 }
 

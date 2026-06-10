@@ -2,10 +2,7 @@
 
 import type { StoryType } from "@/lib/stories/types";
 
-const GRADIENTS: Record<StoryType, string> = {
-  saludo: "linear-gradient(135deg, #a855f7 0%, #ec4899 60%, #f97316 100%)",
-  consejo: "linear-gradient(135deg, #f59e0b 0%, #f97316 60%, #ef4444 100%)",
-};
+const VIBRA_GRADIENT = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 
 const LABELS: Record<StoryType, string> = {
   saludo: "Saludos",
@@ -22,7 +19,6 @@ type Props = {
 export default function StoryCircle({ type, thumbnailUrl, onClick, size = 60 }: Props) {
   const borderSize = size + 6;
   const label = LABELS[type];
-  const gradient = GRADIENTS[type];
 
   return (
     <button
@@ -48,7 +44,7 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 60 }: 
           width: borderSize,
           height: borderSize,
           borderRadius: "50%",
-          background: gradient,
+          background: VIBRA_GRADIENT,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",

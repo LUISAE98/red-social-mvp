@@ -159,6 +159,7 @@ export type GreetingRequestDoc = {
   muxHlsUrl?: string | null;
   videoStatus?: "uploading" | "ready" | "error" | string | null;
   videoDuration?: number | null;
+  allowCreatorStory?: boolean;
 };
 
 export type MeetGreetStatus =

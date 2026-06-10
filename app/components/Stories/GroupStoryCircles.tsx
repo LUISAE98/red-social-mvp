@@ -39,7 +39,9 @@ export default function GroupStoryCircles({ groupId, canView, currentUserId }: P
   const latestConsejo = consejos[0] ?? null;
 
   const resolveThumb = (s: typeof latestSaludo) =>
-    s?.thumbnailUrl ?? (s?.muxPlaybackId ? `https://image.mux.com/${s.muxPlaybackId}/thumbnail.jpg` : null);
+    s?.muxPlaybackId
+      ? `https://image.mux.com/${s.muxPlaybackId}/thumbnail.jpg?time=0`
+      : (s?.thumbnailUrl ?? null);
 
   return (
     <>

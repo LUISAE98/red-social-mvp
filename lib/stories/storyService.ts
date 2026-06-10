@@ -3,14 +3,44 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { StoryDoc, StoryType } from "./types";
+
+// Resolves muxPlaybackId for stories that don't have it by reading the
+// greetingRequest doc. Mutates the story objects in-place so the caller
+// can pass them directly to the callback without a second render cycle.
+// Also writes back to Firestore so future loads are instant.
+async function patchMissingPlaybackIds(stories: StoryDoc[]): Promise<void> {
+  const unresolved = stories.filter((s) => !s.muxPlaybackId && s.greetingRequestId);
+  if (unresolved.length === 0) return;
+  await Promise.all(
+    unresolved.map(async (s) => {
+      try {
+        const snap = await getDoc(doc(db, "greetingRequests", s.greetingRequestId));
+        const pid = snap.data()?.muxPlaybackId as string | null | undefined;
+        if (!pid) return;
+        // Mutate in-place so the callback renders with the image on first call
+        s.muxPlaybackId = pid;
+        s.thumbnailUrl = `https://image.mux.com/${pid}/thumbnail.jpg?time=0`;
+        // Background write — future loads won't need resolution
+        updateDoc(doc(db, "stories", s.id), {
+          muxPlaybackId: pid,
+          thumbnailUrl: `https://image.mux.com/${pid}/thumbnail.jpg?time=0`,
+        }).catch(() => {});
+      } catch {
+        // best-effort — silently skip
+      }
+    }),
+  );
+}
 
 function sortByDate(stories: StoryDoc[]): StoryDoc[] {
   return [...stories].sort((a, b) => {
@@ -49,8 +79,9 @@ export function subscribeToCreatorStories(
   );
   return onSnapshot(
     q,
-    (snap) => {
+    async (snap) => {
       const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as StoryDoc);
+      await patchMissingPlaybackIds(docs);
       callback(sortByDate(docs));
     },
     (err) => console.error("[subscribeToCreatorStories]", err),
@@ -68,8 +99,9 @@ export function subscribeToGroupStories(
   );
   return onSnapshot(
     q,
-    (snap) => {
+    async (snap) => {
       const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as StoryDoc);
+      await patchMissingPlaybackIds(docs);
       callback(sortByDate(docs));
     },
     (err) => console.error("[subscribeToGroupStories]", err),
@@ -149,10 +181,11 @@ export function subscribeToStoriesFromCreators(
   const q = query(collection(db, "stories"), where("creatorId", "in", ids));
   return onSnapshot(
     q,
-    (snap) => {
+    async (snap) => {
       const docs = snap.docs
         .map((d) => ({ id: d.id, ...d.data() }) as StoryDoc)
         .filter((s) => s.source === "profile");
+      await patchMissingPlaybackIds(docs);
       callback(sortByDate(docs));
     },
     (err) => console.error("[subscribeToStoriesFromCreators]", err),
@@ -172,10 +205,11 @@ export function subscribeToStoriesFromGroups(
   const q = query(collection(db, "stories"), where("groupId", "in", ids));
   return onSnapshot(
     q,
-    (snap) => {
+    async (snap) => {
       const docs = snap.docs
         .map((d) => ({ id: d.id, ...d.data() }) as StoryDoc)
         .filter((s) => s.source === "group");
+      await patchMissingPlaybackIds(docs);
       callback(sortByDate(docs));
     },
     (err) => console.error("[subscribeToStoriesFromGroups]", err),

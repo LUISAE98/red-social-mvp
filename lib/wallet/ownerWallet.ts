@@ -107,6 +107,7 @@ export type WalletGreetingDoc = {
   deliveredAt?: FirestoreTimestampLike;
   createdAt: FirestoreTimestampLike;
   updatedAt: FirestoreTimestampLike;
+  allowCreatorStory?: boolean;
 };
 
 export type WalletServiceKind =
@@ -159,6 +160,7 @@ rejectionReason: string | null;
   noShowRole: "buyer" | "creator" | "both" | null;
   createdAt: Date | null;
   updatedAt: Date | null;
+  allowCreatorStory?: boolean;
 };
 
 export type WalletHistoryFilter =
@@ -556,6 +558,7 @@ function normalizeGreetingRow(
     noShowRole: null,
     createdAt: toDateSafe(data.createdAt),
     updatedAt: toDateSafe(data.updatedAt),
+    allowCreatorStory: typeof data.allowCreatorStory === "boolean" ? data.allowCreatorStory : undefined,
   };
 }
 

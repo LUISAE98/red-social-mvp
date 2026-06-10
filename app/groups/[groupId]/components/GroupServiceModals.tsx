@@ -18,6 +18,8 @@ type GroupServiceModalsProps = {
   onSubmitGreeting: () => void;
   onChangeToName: (value: string) => void;
   onChangeInstructions: (value: string) => void;
+  allowCreatorStory: boolean;
+  onChangeAllowCreatorStory: (value: boolean) => void;
 
   subscriptionOpen: boolean;
   subscriptionSubmitting: boolean;
@@ -125,6 +127,8 @@ export default function GroupServiceModals({
   onSubmitGreeting,
   onChangeToName,
   onChangeInstructions,
+  allowCreatorStory,
+  onChangeAllowCreatorStory,
 
   subscriptionOpen,
   subscriptionSubmitting,
@@ -315,6 +319,58 @@ export default function GroupServiceModals({
                     {instructions.length} / {greetType === "saludo" ? 250 : 500}
                   </span>
                 </label>
+
+                {(greetType === "saludo" || greetType === "consejo") && (
+                  <div style={{
+                    borderRadius: 14,
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    background: "rgba(255,255,255,0.04)",
+                    padding: 14,
+                    display: "grid",
+                    gap: 10,
+                  }}>
+                    <span style={{ ...labelStyle, fontSize: 13, fontWeight: 600 }}>
+                      Comparte este momento con la comunidad
+                    </span>
+                    <span style={{ ...microText, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+                      Permite que el creador publique este {greetType} en historias para que otros usuarios puedan verlo.
+                    </span>
+                    <span style={{ ...microText, color: "rgba(255,255,255,0.42)", lineHeight: 1.5 }}>
+                      Tu identidad permanecerá privada. Solo se mostrará el video y el contexto de la solicitud.
+                    </span>
+                    <label style={{ display: "flex", alignItems: "center", gap: 12, cursor: greetSubmitting ? "not-allowed" : "pointer" }}>
+                      <div
+                        role="switch"
+                        aria-checked={allowCreatorStory}
+                        tabIndex={0}
+                        onClick={() => { if (!greetSubmitting) onChangeAllowCreatorStory(!allowCreatorStory); }}
+                        onKeyDown={(e) => { if (!greetSubmitting && (e.key === "Enter" || e.key === " ")) onChangeAllowCreatorStory(!allowCreatorStory); }}
+                        style={{
+                          width: 44, height: 24, borderRadius: 12, flexShrink: 0,
+                          background: allowCreatorStory ? "rgba(168,85,247,0.8)" : "rgba(255,255,255,0.12)",
+                          border: allowCreatorStory ? "1px solid rgba(168,85,247,0.9)" : "1px solid rgba(255,255,255,0.18)",
+                          position: "relative",
+                          cursor: greetSubmitting ? "not-allowed" : "pointer",
+                          transition: "background 200ms ease, border-color 200ms ease",
+                          boxSizing: "border-box",
+                        }}
+                      >
+                        <div style={{
+                          position: "absolute",
+                          top: 2,
+                          left: allowCreatorStory ? 22 : 2,
+                          width: 18, height: 18, borderRadius: "50%",
+                          background: "#fff",
+                          transition: "left 200ms ease",
+                          boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+                        }} />
+                      </div>
+                      <span style={{ ...microText, color: "rgba(255,255,255,0.82)", fontSize: 13 }}>
+                        Permitir publicación en historias
+                      </span>
+                    </label>
+                  </div>
+                )}
 
                 {greetError && <div style={messageBox}>{greetError}</div>}
                 {greetSuccess && <div style={messageBox}>{greetSuccess}</div>}

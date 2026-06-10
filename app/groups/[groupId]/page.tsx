@@ -571,6 +571,7 @@ const canRequestMeetGreet =
   const [greetType, setGreetType] = useState<GreetingType>("saludo");
   const [toName, setToName] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [allowCreatorStory, setAllowCreatorStory] = useState(false);
   const [greetSubmitting, setGreetSubmitting] = useState(false);
   const [greetError, setGreetError] = useState<string | null>(null);
   const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
@@ -785,6 +786,7 @@ function redirectToLogin() {
     setGreetSuccess(null);
     setToName("");
     setInstructions("");
+    setAllowCreatorStory(false);
     clearServiceQuery();
   }
 
@@ -826,6 +828,7 @@ function redirectToLogin() {
         toName: toName.trim(),
         instructions: instructions.trim(),
         source: "group",
+        allowCreatorStory,
       });
 
       const successMessage = `✅ Solicitud enviada correctamente. ID: ${res.requestId}`;
@@ -1881,6 +1884,8 @@ const avatarNode = (
           onSubmitGreeting={submitGreetingRequest}
           onChangeToName={setToName}
           onChangeInstructions={setInstructions}
+          allowCreatorStory={allowCreatorStory}
+          onChangeAllowCreatorStory={setAllowCreatorStory}
           subscriptionOpen={subscriptionOpen}
           subscriptionSubmitting={subscriptionSubmitting}
           subscriptionError={subscriptionError}
@@ -2547,6 +2552,8 @@ const avatarNode = (
         onSubmitGreeting={submitGreetingRequest}
         onChangeToName={setToName}
         onChangeInstructions={setInstructions}
+        allowCreatorStory={allowCreatorStory}
+        onChangeAllowCreatorStory={setAllowCreatorStory}
         subscriptionOpen={subscriptionOpen}
         subscriptionSubmitting={subscriptionSubmitting}
         subscriptionError={subscriptionError}

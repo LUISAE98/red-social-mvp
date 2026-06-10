@@ -322,6 +322,7 @@ const [greetSubmitting, setGreetSubmitting] = useState(false);
 const [greetType, setGreetType] = useState<GreetingType>("saludo");
 const [toName, setToName] = useState("");
 const [instructions, setInstructions] = useState("");
+const [allowCreatorStory, setAllowCreatorStory] = useState(false);
 const [greetError, setGreetError] = useState<string | null>(null);
 const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
 
@@ -672,6 +673,7 @@ function resetGreetingModal() {
   setGreetSuccess(null);
   setToName("");
   setInstructions("");
+  setAllowCreatorStory(false);
 }
 
 function resetMeetGreetModal() {
@@ -1326,6 +1328,7 @@ await createGreetingRequest({
   type: greetType,
   toName,
   instructions,
+  allowCreatorStory,
 });
 
     setGreetOpen(false);
@@ -2326,6 +2329,8 @@ await createExclusiveSessionRequest({
   onSubmitGreeting={handleSubmitGreeting}
   onChangeToName={setToName}
   onChangeInstructions={setInstructions}
+  allowCreatorStory={allowCreatorStory}
+  onChangeAllowCreatorStory={setAllowCreatorStory}
   meetGreetOpen={meetGreetOpen}
   meetGreetSubmitting={meetGreetSubmitting}
   meetGreetMessage={meetGreetMessage}

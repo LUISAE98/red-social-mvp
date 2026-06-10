@@ -253,6 +253,7 @@ const profileUserId =
       "instructions",
       1000
     );
+    const allowCreatorStory = request.data?.allowCreatorStory === true;
 
     const result = await db.runTransaction(async (tx) => {
   const now = admin.firestore.FieldValue.serverTimestamp();
@@ -307,6 +308,7 @@ const profileUserId =
       currency: "MXN",
       paymentMode: "simulated_no_real_payment",
       paymentStatus: "simulated_paid",
+      allowCreatorStory,
       createdAt: now,
       updatedAt: now,
     });
@@ -384,6 +386,7 @@ const profileUserId =
     currency: "MXN",
     paymentMode: "simulated_no_real_payment",
     paymentStatus: "simulated_paid",
+    allowCreatorStory,
     createdAt: now,
     updatedAt: now,
   });

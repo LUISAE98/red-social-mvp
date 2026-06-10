@@ -15,6 +15,7 @@ type CreateGreetingRequestParams = {
   instructions: string;
   source: GreetingSource;
   requestSource: GreetingSource;
+  allowCreatorStory: boolean;
 };
 
 type CreateGreetingRequestResult = {
@@ -60,6 +61,7 @@ export async function createGreetingRequest(input: {
   instructions: string;
   source?: GreetingSource;
   requestSource?: GreetingSource;
+  allowCreatorStory?: boolean;
 }) {
   const groupId = normalizeOptionalId(input.groupId);
   const profileUserId = normalizeOptionalId(input.profileUserId);
@@ -85,6 +87,7 @@ export async function createGreetingRequest(input: {
     instructions: normalizeRequiredText(input.instructions, "instructions"),
     source,
     requestSource,
+    allowCreatorStory: input.allowCreatorStory ?? false,
   };
 
   const fn = httpsCallable<

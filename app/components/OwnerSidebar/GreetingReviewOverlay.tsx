@@ -486,14 +486,20 @@ export default function GreetingReviewOverlay({
     if (type !== "saludo" && type !== "consejo") return;
     setAddingStory(true);
     setStoryError(null);
-    const playbackId = currentItem.data.muxPlaybackId ?? null;
+    let playbackId = currentItem.data.muxPlaybackId ?? null;
+    if (!playbackId) {
+      try {
+        const fresh = await getDoc(doc(db, "greetingRequests", currentItem.id));
+        playbackId = (fresh.data()?.muxPlaybackId as string | null) ?? null;
+      } catch { /* ignore — story will be created without thumbnail */ }
+    }
     try {
       await addStoryFromGreeting({
         creatorId: currentItem.data.creatorId,
         type,
         muxPlaybackId: playbackId,
         thumbnailUrl: playbackId
-          ? `https://image.mux.com/${playbackId}/thumbnail.jpg`
+          ? `https://image.mux.com/${playbackId}/thumbnail.jpg?time=0`
           : null,
         videoDuration: currentItem.data.videoDuration ?? null,
         greetingRequestId: currentItem.id,
@@ -534,13 +540,19 @@ export default function GreetingReviewOverlay({
     if (!buyerUid) return;
     setAddingStory(true);
     setStoryError(null);
-    const playbackId = currentItem.data.muxPlaybackId ?? null;
+    let playbackId = currentItem.data.muxPlaybackId ?? null;
+    if (!playbackId) {
+      try {
+        const fresh = await getDoc(doc(db, "greetingRequests", currentItem.id));
+        playbackId = (fresh.data()?.muxPlaybackId as string | null) ?? null;
+      } catch { /* ignore */ }
+    }
     try {
       await addStoryFromGreeting({
         creatorId: buyerUid,
         type,
         muxPlaybackId: playbackId,
-        thumbnailUrl: playbackId ? `https://image.mux.com/${playbackId}/thumbnail.jpg` : null,
+        thumbnailUrl: playbackId ? `https://image.mux.com/${playbackId}/thumbnail.jpg?time=0` : null,
         videoDuration: currentItem.data.videoDuration ?? null,
         greetingRequestId: currentItem.id,
         source: "profile",
@@ -665,38 +677,52 @@ export default function GreetingReviewOverlay({
         </span>
       )}
       <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
-        {/* Add to story button — only for saludos and consejos */}
+        {/* Add to story — only for saludos/consejos */}
         {(req.type === "saludo" || req.type === "consejo") && !viewMode && !buyerViewMode && (
-          <button
-            type="button"
-            onClick={handleAddToStory}
-            disabled={addingStory || storyAdded}
-            style={{
-              width: "100%", height: 42, borderRadius: 12,
-              border: storyAdded
-                ? "1px solid rgba(168,85,247,0.4)"
-                : "1px solid rgba(168,85,247,0.6)",
-              background: storyAdded
-                ? "rgba(168,85,247,0.12)"
-                : "rgba(168,85,247,0.18)",
-              color: storyAdded ? "#c084fc" : "#d8b4fe",
-              fontWeight: 700, fontSize: 14,
-              cursor: addingStory || storyAdded ? "default" : "pointer",
-              fontFamily: fontStack,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-              transition: "background 200ms ease, color 200ms ease",
-              opacity: addingStory ? 0.7 : 1,
-            }}
-          >
-            <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>
-              {storyAdded ? "✓" : "◎"}
-            </span>
-            {addingStory
-              ? "Agregando..."
-              : storyAdded
-                ? "Agregado a tu historia"
-                : "Agregar a historia"}
-          </button>
+          req.allowCreatorStory !== false ? (
+            <button
+              type="button"
+              onClick={handleAddToStory}
+              disabled={addingStory || storyAdded}
+              style={{
+                width: "100%", height: 42, borderRadius: 12,
+                border: storyAdded
+                  ? "1px solid rgba(168,85,247,0.4)"
+                  : "1px solid rgba(168,85,247,0.6)",
+                background: storyAdded
+                  ? "rgba(168,85,247,0.12)"
+                  : "rgba(168,85,247,0.18)",
+                color: storyAdded ? "#c084fc" : "#d8b4fe",
+                fontWeight: 700, fontSize: 14,
+                cursor: addingStory || storyAdded ? "default" : "pointer",
+                fontFamily: fontStack,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                transition: "background 200ms ease, color 200ms ease",
+                opacity: addingStory ? 0.7 : 1,
+              }}
+            >
+              <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>
+                {storyAdded ? "✓" : "◎"}
+              </span>
+              {addingStory
+                ? "Agregando..."
+                : storyAdded
+                  ? "Agregado a tu historia"
+                  : "Agregar a historia"}
+            </button>
+          ) : (
+            <div style={{
+              width: "100%", borderRadius: 12, padding: "10px 14px",
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.04)",
+              display: "flex", alignItems: "center", gap: 8, boxSizing: "border-box",
+            }}>
+              <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>🔒</span>
+              <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 12, lineHeight: 1.4, fontFamily: fontStack }}>
+                El comprador no permitió publicar este {req.type === "consejo" ? "consejo" : "saludo"} en historias
+              </span>
+            </div>
+          )
         )}
         {storyError && (
           <span style={{ color: "#f87171", fontSize: 12, textAlign: "center", fontFamily: fontStack }}>
@@ -1149,39 +1175,48 @@ export default function GreetingReviewOverlay({
                   </a>
                 )}
                 {viewMode && !buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={existingStory ? handleRemoveFromStory : handleAddToStory}
-                      disabled={addingStory || removingStory}
-                      style={{
-                        width: "100%", height: 42, borderRadius: 12,
-                        border: existingStory
-                          ? "1px solid rgba(239,68,68,0.35)"
-                          : "1px solid rgba(168,85,247,0.6)",
-                        background: existingStory
-                          ? "rgba(239,68,68,0.1)"
-                          : "rgba(168,85,247,0.18)",
-                        color: existingStory ? "#fca5a5" : "#d8b4fe",
-                        fontWeight: 700, fontSize: 14,
-                        cursor: (addingStory || removingStory) ? "default" : "pointer",
-                        fontFamily: fontStack,
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                        opacity: (addingStory || removingStory) ? 0.7 : 1,
-                        transition: "background 200ms ease, color 200ms ease",
-                      }}
-                    >
-                      <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>
-                        {existingStory ? "✕" : "◎"}
+                  req.allowCreatorStory !== false ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={existingStory ? handleRemoveFromStory : handleAddToStory}
+                        disabled={addingStory || removingStory}
+                        style={{
+                          width: "100%", height: 42, borderRadius: 12,
+                          border: existingStory
+                            ? "1px solid rgba(239,68,68,0.35)"
+                            : "1px solid rgba(168,85,247,0.6)",
+                          background: existingStory
+                            ? "rgba(239,68,68,0.1)"
+                            : "rgba(168,85,247,0.18)",
+                          color: existingStory ? "#fca5a5" : "#d8b4fe",
+                          fontWeight: 700, fontSize: 14,
+                          cursor: (addingStory || removingStory) ? "default" : "pointer",
+                          fontFamily: fontStack,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                          opacity: (addingStory || removingStory) ? 0.7 : 1,
+                          transition: "background 200ms ease, color 200ms ease",
+                        }}
+                      >
+                        <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>
+                          {existingStory ? "✕" : "◎"}
+                        </span>
+                        {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar historia" : "Agregar a historia"}
+                      </button>
+                      {storyError && (
+                        <span style={{ color: "#f87171", fontSize: 12, textAlign: "center", fontFamily: fontStack }}>
+                          {storyError}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ borderRadius: 12, padding: "10px 14px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8 }}>
+                      <span>🔒</span>
+                      <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 12, fontFamily: fontStack }}>
+                        El comprador no permitió publicar este {req.type === "consejo" ? "consejo" : "saludo"} en historias
                       </span>
-                      {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar historia" : "Agregar a historia"}
-                    </button>
-                    {storyError && (
-                      <span style={{ color: "#f87171", fontSize: 12, textAlign: "center", fontFamily: fontStack }}>
-                        {storyError}
-                      </span>
-                    )}
-                  </>
+                    </div>
+                  )
                 )}
                 <button type="button" onClick={handleClose} style={{
                   width: "100%", height: 42, borderRadius: 12,
@@ -1330,39 +1365,48 @@ export default function GreetingReviewOverlay({
                     </a>
                   )}
                   {viewMode && !buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={existingStory ? handleRemoveFromStory : handleAddToStory}
-                        disabled={addingStory || removingStory}
-                        style={{
-                          width: "100%", height: 38, borderRadius: 10,
-                          border: existingStory
-                            ? "1px solid rgba(239,68,68,0.35)"
-                            : "1px solid rgba(168,85,247,0.6)",
-                          background: existingStory
-                            ? "rgba(239,68,68,0.1)"
-                            : "rgba(168,85,247,0.18)",
-                          color: existingStory ? "#fca5a5" : "#d8b4fe",
-                          fontWeight: 700, fontSize: 13,
-                          cursor: (addingStory || removingStory) ? "default" : "pointer",
-                          fontFamily: fontStack,
-                          display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
-                          opacity: (addingStory || removingStory) ? 0.7 : 1,
-                          transition: "background 200ms ease, color 200ms ease",
-                        }}
-                      >
-                        <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>
-                          {existingStory ? "✕" : "◎"}
+                    req.allowCreatorStory !== false ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={existingStory ? handleRemoveFromStory : handleAddToStory}
+                          disabled={addingStory || removingStory}
+                          style={{
+                            width: "100%", height: 38, borderRadius: 10,
+                            border: existingStory
+                              ? "1px solid rgba(239,68,68,0.35)"
+                              : "1px solid rgba(168,85,247,0.6)",
+                            background: existingStory
+                              ? "rgba(239,68,68,0.1)"
+                              : "rgba(168,85,247,0.18)",
+                            color: existingStory ? "#fca5a5" : "#d8b4fe",
+                            fontWeight: 700, fontSize: 13,
+                            cursor: (addingStory || removingStory) ? "default" : "pointer",
+                            fontFamily: fontStack,
+                            display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                            opacity: (addingStory || removingStory) ? 0.7 : 1,
+                            transition: "background 200ms ease, color 200ms ease",
+                          }}
+                        >
+                          <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>
+                            {existingStory ? "✕" : "◎"}
+                          </span>
+                          {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar historia" : "Agregar a historia"}
+                        </button>
+                        {storyError && (
+                          <span style={{ color: "#f87171", fontSize: 11, textAlign: "center", fontFamily: fontStack }}>
+                            {storyError}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <div style={{ borderRadius: 10, padding: "10px 14px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8 }}>
+                        <span>🔒</span>
+                        <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 11, fontFamily: fontStack }}>
+                          El comprador no permitió publicar este {req.type === "consejo" ? "consejo" : "saludo"} en historias
                         </span>
-                        {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar historia" : "Agregar a historia"}
-                      </button>
-                      {storyError && (
-                        <span style={{ color: "#f87171", fontSize: 11, textAlign: "center", fontFamily: fontStack }}>
-                          {storyError}
-                        </span>
-                      )}
-                    </>
+                      </div>
+                    )
                   )}
                   <button type="button" onClick={handleClose} style={{
                     width: "100%", height: 38, borderRadius: 10,

@@ -73,6 +73,7 @@ function rowToGreetingDoc(row: WalletServiceItem, creatorId: string): GreetingRe
     deliveredAt: row.deliveredAt
       ? ({ toDate: () => row.deliveredAt as Date } as any)
       : undefined,
+    allowCreatorStory: row.allowCreatorStory,
   };
 }
 
