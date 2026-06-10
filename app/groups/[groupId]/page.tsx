@@ -2427,6 +2427,7 @@ const avatarNode = (
             groupId={groupId}
             canView={canViewPublicFeed}
             currentUserId={user?.uid ?? null}
+            isOwner={isOwner}
           />
 
           {effectiveIsMember && (

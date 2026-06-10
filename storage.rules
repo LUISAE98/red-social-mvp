@@ -60,6 +60,24 @@ match /posts/{groupId}/{uid}/{folder}/{fileName} {
     && maxSize(10 * 1024 * 1024);
 }
     // ==============================
+    // STORY COVERS (foto portada)
+    // ==============================
+    match /storyCovers/users/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn()
+        && request.auth.uid == uid
+        && isImage()
+        && maxSize(5 * 1024 * 1024);
+    }
+
+    match /storyCovers/groups/{groupId}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn()
+        && isImage()
+        && maxSize(5 * 1024 * 1024);
+    }
+
+    // ==============================
     // GREETINGS (videos)
     // ==============================
     match /greetings/{requestId}/{fileName} {

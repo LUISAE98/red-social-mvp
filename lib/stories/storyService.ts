@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   onSnapshot,
@@ -214,4 +215,46 @@ export function subscribeToStoriesFromGroups(
     },
     (err) => console.error("[subscribeToStoriesFromGroups]", err),
   );
+}
+
+// ─── Story cover (portada) ────────────────────────────────────────────────────
+
+export async function setProfileStoryCover(
+  creatorId: string,
+  type: StoryType,
+  storyId: string | null,
+): Promise<void> {
+  await updateDoc(doc(db, "users", creatorId), {
+    [`storyCovers.${type}`]: storyId ?? deleteField(),
+  });
+}
+
+export async function setGroupStoryCover(
+  groupId: string,
+  type: StoryType,
+  storyId: string | null,
+): Promise<void> {
+  await updateDoc(doc(db, "groups", groupId), {
+    [`storyCovers.${type}`]: storyId ?? deleteField(),
+  });
+}
+
+export async function setProfileStoryCoverPhoto(
+  creatorId: string,
+  type: StoryType,
+  url: string | null,
+): Promise<void> {
+  await updateDoc(doc(db, "users", creatorId), {
+    [`storyCoverPhoto.${type}`]: url ?? deleteField(),
+  });
+}
+
+export async function setGroupStoryCoverPhoto(
+  groupId: string,
+  type: StoryType,
+  url: string | null,
+): Promise<void> {
+  await updateDoc(doc(db, "groups", groupId), {
+    [`storyCoverPhoto.${type}`]: url ?? deleteField(),
+  });
 }
