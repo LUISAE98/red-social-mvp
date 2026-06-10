@@ -915,7 +915,7 @@ const previewUrl = media.url;
                 ref={videoRef}
                 src={currentVideoSrc}
                 poster={currentVideoPoster}
-                controls
+                controls={!useMobileLayout || mobileSheetSnap === 0}
                 autoPlay
                 playsInline
                 preload="metadata"
@@ -970,17 +970,22 @@ const previewUrl = media.url;
             transform: mobileGestureAxis === "vertical"
               ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
               : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
-            transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
+            transition: mobileSwipeAnimating
+              ? "transform 180ms ease, clip-path 320ms ease"
+              : "clip-path 320ms ease",
             opacity: mobileOverlayOpacity,
             background: "#000",
+            clipPath: useMobileLayout && mobileSheetSnap > 0
+              ? "inset(0 round 12px)"
+              : "none",
           }}
         >
           <div style={{
             position: "absolute",
-            inset: 0,
-            borderRadius: useMobileLayout && mobileSheetSnap > 0 ? 12 : 0,
-            overflow: "hidden",
-            transition: "border-radius 320ms ease",
+            top: useMobileLayout ? "env(safe-area-inset-top)" : 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
           }}>
             {videoSurface}
           </div>
@@ -996,30 +1001,28 @@ const previewUrl = media.url;
           transform: mobileGestureAxis === "vertical"
             ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
             : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
-          transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
+          transition: mobileSwipeAnimating
+            ? "transform 180ms ease, clip-path 320ms ease"
+            : "clip-path 320ms ease",
           opacity: mobileOverlayOpacity,
           background: "#000",
+          clipPath: useMobileLayout && mobileSheetSnap > 0
+            ? "inset(0 round 12px)"
+            : "none",
         }}
       >
-        <div style={{
-          position: "absolute",
-          inset: 0,
-          borderRadius: useMobileLayout && mobileSheetSnap > 0 ? 12 : 0,
-          overflow: "hidden",
-          transition: "border-radius 320ms ease",
-        }}>
-{useMobileLayout ? (
-  <PostPinchZoomImage
-    key={currentMediaKey}
-    src={currentMedia.url}
-    alt={currentMedia.altText || "Imagen de la publicación"}
-    onClose={onClose}
-    onZoomStateChange={setIsCurrentImageZoomed}
-    onPinchStateChange={setIsCurrentImagePinching}
-    swipeAxis="horizontal"
-    disableMinHeight
-  />
-) : (
+        {useMobileLayout ? (
+          <PostPinchZoomImage
+            key={currentMediaKey}
+            src={currentMedia.url}
+            alt={currentMedia.altText || "Imagen de la publicación"}
+            onClose={onClose}
+            onZoomStateChange={setIsCurrentImageZoomed}
+            onPinchStateChange={setIsCurrentImagePinching}
+            swipeAxis="horizontal"
+            disableMinHeight
+          />
+        ) : (
           <img
             src={currentMedia.url}
             alt={currentMedia.altText || "Imagen de la publicación"}
@@ -1032,7 +1035,6 @@ const previewUrl = media.url;
             }}
           />
         )}
-        </div>
       </div>
     );
   }
@@ -1224,6 +1226,10 @@ const previewUrl = media.url;
           }
 
           if (!axis && Math.abs(diffX) < 10 && Math.abs(diffY) < 10) {
+            if (isCurrentVideo && mobileSheetSnap > 0) {
+              const video = videoRef.current;
+              if (video) video.muted = !video.muted;
+            }
             setMobileDragOffsetX(0);
             setMobileDragOffsetY(0);
             return;
@@ -1274,8 +1280,12 @@ const previewUrl = media.url;
           userSelect: "none",
           WebkitUserSelect: "none",
           WebkitTouchCallout: "none",
+          borderRadius: useMobileLayout && mobileSheetSnap > 0 ? 12 : 0,
+          boxShadow: useMobileLayout && mobileSheetSnap > 0
+            ? "0 0 0 1.5px rgba(255,255,255,0.18)"
+            : "none",
           transition: useMobileLayout
-            ? "height 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+            ? "height 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94), border-radius 320ms ease, box-shadow 320ms ease"
             : undefined,
         }}
       >
@@ -1384,7 +1394,7 @@ const previewUrl = media.url;
             const twoThirdOffset = Math.max(0, sheet.offsetHeight - Math.round(window.innerHeight * 2 / 3));
             const snapOffsets: [number, number, number] = [maxOffset, thirdOffset, twoThirdOffset];
             sheet.style.transition = "transform 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)";
-            if (mobileMediaClipRef.current) mobileMediaClipRef.current.style.transition = "height 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94), border-radius 320ms ease";
+            if (mobileMediaClipRef.current) mobileMediaClipRef.current.style.transition = "height 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94), border-radius 320ms ease, box-shadow 320ms ease";
             if (Math.abs(diff) < 8) {
               const target = e.target as HTMLElement;
               if (target.closest("button, a, input, textarea, select")) {
@@ -1396,16 +1406,15 @@ const previewUrl = media.url;
               if (tapTarget !== mobileSheetSnap) setMobileSheetSnap(tapTarget);
               return;
             }
-            // Swipe: avanza/retrocede un tope
+            // Snap al tope más cercano a la posición de release
             let newSnap: 0 | 1 | 2;
-            if (diff < -20) {
-              newSnap = Math.min(2, mobileSheetSnap + 1) as 0 | 1 | 2;
-            } else if (diff > 20) {
-              newSnap = Math.max(0, mobileSheetSnap - 1) as 0 | 1 | 2;
-            } else {
-              const cur = Math.max(0, Math.min(maxOffset, mobileSheetBaseOffsetRef.current + diff));
-              newSnap = cur < (twoThirdOffset + thirdOffset) / 2 ? 2 : cur < (thirdOffset + maxOffset) / 2 ? 1 : 0;
-            }
+            const releasePos = Math.max(twoThirdOffset, Math.min(maxOffset, mobileSheetBaseOffsetRef.current + diff));
+            const d0 = Math.abs(releasePos - maxOffset);
+            const d1 = Math.abs(releasePos - thirdOffset);
+            const d2 = Math.abs(releasePos - twoThirdOffset);
+            if (d0 <= d1 && d0 <= d2) newSnap = 0;
+            else if (d1 <= d2) newSnap = 1;
+            else newSnap = 2;
             if (newSnap !== mobileSheetSnap) {
               setMobileSheetSnap(newSnap);
             } else {
@@ -1419,10 +1428,16 @@ const previewUrl = media.url;
                   s === 2 ? "translateY(calc(100% - 200dvh / 3))" :
                   s === 1 ? "translateY(calc(100% - 100dvh / 3))" :
                   "translateY(calc(100% - 120px))";
-                if (mobileMediaClipRef.current) mobileMediaClipRef.current.style.height =
-                  s === 2 ? "calc(100dvh / 3)" :
-                  s === 1 ? "calc(200dvh / 3)" :
-                  "calc(100dvh - 120px)";
+                if (mobileMediaClipRef.current) {
+                  mobileMediaClipRef.current.style.height =
+                    s === 2 ? "calc(100dvh / 3)" :
+                    s === 1 ? "calc(200dvh / 3)" :
+                    "calc(100dvh - 120px)";
+                  mobileMediaClipRef.current.style.borderRadius = s > 0 ? "12px" : "0";
+                  mobileMediaClipRef.current.style.boxShadow = s > 0
+                    ? "0 0 0 1.5px rgba(255,255,255,0.18)"
+                    : "none";
+                }
               }, 340);
             }
           }}
