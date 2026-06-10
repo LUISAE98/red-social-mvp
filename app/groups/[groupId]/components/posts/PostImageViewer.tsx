@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -14,6 +15,7 @@ import { createPortal } from "react-dom";
 import type { Post } from "@/lib/posts/types";
 import PostPinchZoomImage from "./PostPinchZoomImage";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
+import VibraCommentIcon from "@/app/components/VibraServiceIcons/VibraCommentIcon";
 
 type ImageMedia = {
   url: string;
@@ -227,6 +229,8 @@ export default function PostImageViewer({
   const [mobileSheetSnap, setMobileSheetSnap] = useState<0 | 1 | 2>(0);
   const [mobileSheetShowComments, setMobileSheetShowComments] = useState(false);
   const [mobilePostTextExpanded, setMobilePostTextExpanded] = useState(false);
+  const [postTextNeedsExpand, setPostTextNeedsExpand] = useState(false);
+  const postTextPRef = useRef<HTMLParagraphElement | null>(null);
   const [mediaAspectRatio, setMediaAspectRatio] = useState<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -417,6 +421,20 @@ const previousMedia =
   const shouldShowMobilePostText = cleanPostText.length > 0;
   const shouldShowDesktopPostText = cleanPostText.length > 0;
   const shouldClampDesktopPostText = cleanPostText.length > 160;
+
+  // Resetear estado de texto al cambiar de post
+  useEffect(() => {
+    setMobilePostTextExpanded(false);
+  }, [cleanPostText]);
+
+  // Medir si el texto desborda una línea (solo cuando está colapsado)
+  useLayoutEffect(() => {
+    if (mobilePostTextExpanded) return;
+    const p = postTextPRef.current;
+    if (!p) return;
+    // scrollHeight en el <p> devuelve su altura natural, ignorando maxHeight del padre
+    setPostTextNeedsExpand(p.scrollHeight > 22);
+  }, [cleanPostText, mobilePostTextExpanded, mounted, open]);
 
   const playbackRates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 
@@ -904,17 +922,21 @@ const previewUrl = media.url;
     );
   }
 
-  function computeContentClipPath(containerH: number, ar: number | null): string {
+  function computeContentClipPath(containerH: number, ar: number | null, sideInset = 0): string {
     if (!ar || containerH <= 0 || typeof window === "undefined") return "inset(0 0 0 0 round 0px)";
     const cW = window.innerWidth;
     const cAR = cW / containerH;
-    if (Math.abs(cAR - ar) < 0.02) return "inset(0 0 0 0 round 12px)";
+    if (Math.abs(cAR - ar) < 0.02) {
+      return `inset(0 ${sideInset}px 0 ${sideInset}px round 12px)`;
+    }
     if (cAR > ar) {
+      // Pillarbox (contenido portrait/estrecho): sin inset lateral extra
       const barPx = Math.max(0, Math.floor((cW - containerH * ar) / 2));
       return `inset(0 ${barPx}px 0 ${barPx}px round 12px)`;
     } else {
+      // Letterbox (contenido landscape/horizontal): aplica inset lateral
       const barPx = Math.max(0, Math.floor((containerH - cW / ar) / 2));
-      return `inset(${barPx}px 0 ${barPx}px 0 round 12px)`;
+      return `inset(${barPx}px ${sideInset}px ${barPx}px ${sideInset}px round 12px)`;
     }
   }
 
@@ -923,7 +945,8 @@ const previewUrl = media.url;
     const cH = snap === 2 ? window.innerHeight / 3
       : snap === 1 ? (window.innerHeight * 2) / 3
       : window.innerHeight - 120;
-    return computeContentClipPath(snap === 0 ? 0 : cH, snap === 0 ? null : ar);
+    const sideInset = snap > 0 ? 12 : 0;
+    return computeContentClipPath(snap === 0 ? 0 : cH, snap === 0 ? null : ar, sideInset);
   }
 
   function renderCurrentMedia() {
@@ -1435,7 +1458,7 @@ const previewUrl = media.url;
             }
             if (mobileContentClipRef.current) {
               mobileContentClipRef.current.style.clipPath =
-                computeContentClipPath(mediaH, mediaAspectRatioRef.current);
+                computeContentClipPath(mediaH, mediaAspectRatioRef.current, 12);
             }
           }}
           onTouchEnd={(e) => {
@@ -1501,7 +1524,7 @@ const previewUrl = media.url;
                     : s === 1 ? (window.innerHeight * 2) / 3
                     : window.innerHeight - 120;
                   mobileContentClipRef.current.style.clipPath =
-                    computeContentClipPath(s === 0 ? 0 : snapH, mediaAspectRatioRef.current);
+                    computeContentClipPath(s === 0 ? 0 : snapH, mediaAspectRatioRef.current, s > 0 ? 12 : 0);
                 }
               }, 340);
             }
@@ -1740,8 +1763,8 @@ const previewUrl = media.url;
             aria-label="Ver comentarios"
             style={actionButtonStyle}
           >
-            <span aria-hidden="true" style={{ fontSize: 20, lineHeight: 1 }}>
-              💬
+            <span aria-hidden="true">
+              <VibraCommentIcon size={20} color="rgba(255,255,255,0.88)" />
             </span>
             <span>{commentsCount}</span>
           </button>
@@ -1764,30 +1787,34 @@ const previewUrl = media.url;
             mobilePostTextExpanded ? (
               <p style={{ margin: 0, color: "rgba(255,255,255,0.86)", fontSize: 13, fontWeight: 300, lineHeight: 1.55, wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
                 {cleanPostText}{" "}
-                <span
-                  onClick={() => setMobilePostTextExpanded(false)}
-                  style={{ color: "rgba(255,255,255,0.45)", cursor: "pointer" }}
-                >
-                  ...- Ver menos
-                </span>
+                {postTextNeedsExpand && (
+                  <span
+                    onClick={() => setMobilePostTextExpanded(false)}
+                    style={{ color: "rgba(255,255,255,0.45)", cursor: "pointer" }}
+                  >
+                    ...menos
+                  </span>
+                )}
               </p>
             ) : (
               <div style={{ position: "relative", overflow: "hidden", maxHeight: 21 }}>
-                <p style={{ margin: 0, color: "rgba(255,255,255,0.86)", fontSize: 13, fontWeight: 300, lineHeight: 1.55, wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
+                <p ref={postTextPRef} style={{ margin: 0, color: "rgba(255,255,255,0.86)", fontSize: 13, fontWeight: 300, lineHeight: 1.55, wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
                   {cleanPostText}
                 </p>
-                <span
-                  onClick={() => setMobilePostTextExpanded(true)}
-                  style={{
-                    position: "absolute", right: 0, bottom: 0,
-                    paddingLeft: 36,
-                    background: "linear-gradient(to right, transparent, rgb(10,10,14) 40%)",
-                    color: "rgba(255,255,255,0.86)", fontSize: 13, fontWeight: 400,
-                    lineHeight: "21px", cursor: "pointer",
-                  }}
-                >
-                  ...&thinsp;+ Ver más
-                </span>
+                {postTextNeedsExpand && (
+                  <span
+                    onClick={() => setMobilePostTextExpanded(true)}
+                    style={{
+                      position: "absolute", right: 0, bottom: 0,
+                      paddingLeft: 36,
+                      background: "linear-gradient(to right, transparent, rgb(10,10,14) 40%)",
+                      color: "rgba(255,255,255,0.86)", fontSize: 13, fontWeight: 400,
+                      lineHeight: "21px", cursor: "pointer",
+                    }}
+                  >
+                    ...más
+                  </span>
+                )}
               </div>
             )
           )}
