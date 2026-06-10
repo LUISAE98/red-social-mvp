@@ -6,6 +6,8 @@ import Link from "next/link";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { createGreetingMuxUpload } from "@/lib/greetings/greetingRequests";
+import { addStoryFromGreeting, deleteStory, subscribeToStoryByGreeting } from "@/lib/stories/storyService";
+import type { StoryDoc } from "@/lib/stories/types";
 import type { GreetingRequestDoc, UserMini } from "./OwnerSidebar";
 
 const fontStack =
@@ -91,6 +93,14 @@ export default function GreetingReviewOverlay({
   const [completedEarningsNet, setCompletedEarningsNet] = useState<number[]>([]);
   const [slideState, setSlideState] = useState<"idle" | "exit" | "enter">("idle");
   const [earningNet, setEarningNet] = useState<number | null>(null);
+
+  // Story state — reset per item
+  const [storyAdded, setStoryAdded] = useState(false);
+  const [addingStory, setAddingStory] = useState(false);
+  const [storyError, setStoryError] = useState<string | null>(null);
+  // viewMode story state
+  const [existingStory, setExistingStory] = useState<StoryDoc | null>(null);
+  const [removingStory, setRemovingStory] = useState(false);
 
   // Review panel bottom sheet (mobile only)
   const [reviewSheetTransform, setReviewSheetTransform] = useState("translateY(100%)");
@@ -451,6 +461,100 @@ export default function GreetingReviewOverlay({
     }
   };
 
+  useEffect(() => {
+    setStoryAdded(false);
+    setAddingStory(false);
+    setStoryError(null);
+    setExistingStory(null);
+    setRemovingStory(false);
+  }, [currentIndex]);
+
+  // Subscribe to existing story for this greeting when in viewMode or buyerViewMode
+  useEffect(() => {
+    if (!viewMode && !buyerViewMode) return;
+    const id = items[currentIndex]?.id;
+    if (!id) return;
+    // Filter by the user who would add the story (creator or buyer)
+    const filterBy = buyerViewMode ? req.buyerId : req.creatorId;
+    if (!filterBy) return;
+    return subscribeToStoryByGreeting(id, setExistingStory, filterBy);
+  }, [viewMode, buyerViewMode, currentIndex, items, req.buyerId, req.creatorId]);
+
+  const handleAddToStory = async () => {
+    if (addingStory || storyAdded) return;
+    const type = currentItem.data.type;
+    if (type !== "saludo" && type !== "consejo") return;
+    setAddingStory(true);
+    setStoryError(null);
+    const playbackId = currentItem.data.muxPlaybackId ?? null;
+    try {
+      await addStoryFromGreeting({
+        creatorId: currentItem.data.creatorId,
+        type,
+        muxPlaybackId: playbackId,
+        thumbnailUrl: playbackId
+          ? `https://image.mux.com/${playbackId}/thumbnail.jpg`
+          : null,
+        videoDuration: currentItem.data.videoDuration ?? null,
+        greetingRequestId: currentItem.id,
+        source: (currentItem.data.source as "profile" | "group") ?? "profile",
+        groupId: currentItem.data.groupId ?? null,
+      });
+      setStoryAdded(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[addStoryFromGreeting]", msg);
+      setStoryError(`Error: ${msg}`);
+    } finally {
+      setAddingStory(false);
+    }
+  };
+
+  const handleRemoveFromStory = async () => {
+    if (!existingStory || removingStory) return;
+    setRemovingStory(true);
+    setStoryError(null);
+    try {
+      await deleteStory(existingStory.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[deleteStory]", msg);
+      setStoryError(`Error: ${msg}`);
+    } finally {
+      setRemovingStory(false);
+    }
+  };
+
+  // Buyer adds the received greeting to their own profile story
+  const handleAddToStoryAsBuyer = async () => {
+    if (addingStory) return;
+    const type = currentItem.data.type;
+    if (type !== "saludo" && type !== "consejo") return;
+    const buyerUid = currentItem.data.buyerId;
+    if (!buyerUid) return;
+    setAddingStory(true);
+    setStoryError(null);
+    const playbackId = currentItem.data.muxPlaybackId ?? null;
+    try {
+      await addStoryFromGreeting({
+        creatorId: buyerUid,
+        type,
+        muxPlaybackId: playbackId,
+        thumbnailUrl: playbackId ? `https://image.mux.com/${playbackId}/thumbnail.jpg` : null,
+        videoDuration: currentItem.data.videoDuration ?? null,
+        greetingRequestId: currentItem.id,
+        source: "profile",
+        groupId: null,
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[addStoryFromGreeting buyer]", msg);
+      setStoryError(`Error: ${msg}`);
+    } finally {
+      setAddingStory(false);
+    }
+  };
+
   const handleNextGreeting = () => {
     // Reset recording state and advance to next item — stay in camera panel
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
@@ -561,6 +665,44 @@ export default function GreetingReviewOverlay({
         </span>
       )}
       <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 8 }}>
+        {/* Add to story button — only for saludos and consejos */}
+        {(req.type === "saludo" || req.type === "consejo") && !viewMode && !buyerViewMode && (
+          <button
+            type="button"
+            onClick={handleAddToStory}
+            disabled={addingStory || storyAdded}
+            style={{
+              width: "100%", height: 42, borderRadius: 12,
+              border: storyAdded
+                ? "1px solid rgba(168,85,247,0.4)"
+                : "1px solid rgba(168,85,247,0.6)",
+              background: storyAdded
+                ? "rgba(168,85,247,0.12)"
+                : "rgba(168,85,247,0.18)",
+              color: storyAdded ? "#c084fc" : "#d8b4fe",
+              fontWeight: 700, fontSize: 14,
+              cursor: addingStory || storyAdded ? "default" : "pointer",
+              fontFamily: fontStack,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+              transition: "background 200ms ease, color 200ms ease",
+              opacity: addingStory ? 0.7 : 1,
+            }}
+          >
+            <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>
+              {storyAdded ? "✓" : "◎"}
+            </span>
+            {addingStory
+              ? "Agregando..."
+              : storyAdded
+                ? "Agregado a tu historia"
+                : "Agregar a historia"}
+          </button>
+        )}
+        {storyError && (
+          <span style={{ color: "#f87171", fontSize: 12, textAlign: "center", fontFamily: fontStack }}>
+            {storyError}
+          </span>
+        )}
         {!successIsLast && (
           <button type="button" onClick={handleNextGreeting} style={{
             width: "100%", height: 42, borderRadius: 12,
@@ -960,6 +1102,41 @@ export default function GreetingReviewOverlay({
             </div>
             {(viewMode || buyerViewMode) ? (
               <>
+                {buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={existingStory ? handleRemoveFromStory : handleAddToStoryAsBuyer}
+                      disabled={addingStory || removingStory}
+                      style={{
+                        width: "100%", height: 42, borderRadius: 12,
+                        border: existingStory
+                          ? "1px solid rgba(239,68,68,0.35)"
+                          : "1px solid rgba(168,85,247,0.6)",
+                        background: existingStory
+                          ? "rgba(239,68,68,0.1)"
+                          : "rgba(168,85,247,0.18)",
+                        color: existingStory ? "#fca5a5" : "#d8b4fe",
+                        fontWeight: 700, fontSize: 14,
+                        cursor: (addingStory || removingStory) ? "default" : "pointer",
+                        fontFamily: fontStack,
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                        opacity: (addingStory || removingStory) ? 0.7 : 1,
+                        transition: "background 200ms ease, color 200ms ease",
+                      }}
+                    >
+                      <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>
+                        {existingStory ? "✕" : "◎"}
+                      </span>
+                      {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar de mi historia" : "Agregar a mi historia"}
+                    </button>
+                    {storyError && (
+                      <span style={{ color: "#f87171", fontSize: 12, textAlign: "center", fontFamily: fontStack }}>
+                        {storyError}
+                      </span>
+                    )}
+                  </>
+                )}
                 {buyerViewMode && viewMp4Url && (
                   <a href={viewMp4Url} download target="_blank" rel="noopener noreferrer" style={{
                     display: "flex", alignItems: "center", justifyContent: "center",
@@ -970,6 +1147,41 @@ export default function GreetingReviewOverlay({
                   }}>
                     ↓ Descargar video
                   </a>
+                )}
+                {viewMode && !buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={existingStory ? handleRemoveFromStory : handleAddToStory}
+                      disabled={addingStory || removingStory}
+                      style={{
+                        width: "100%", height: 42, borderRadius: 12,
+                        border: existingStory
+                          ? "1px solid rgba(239,68,68,0.35)"
+                          : "1px solid rgba(168,85,247,0.6)",
+                        background: existingStory
+                          ? "rgba(239,68,68,0.1)"
+                          : "rgba(168,85,247,0.18)",
+                        color: existingStory ? "#fca5a5" : "#d8b4fe",
+                        fontWeight: 700, fontSize: 14,
+                        cursor: (addingStory || removingStory) ? "default" : "pointer",
+                        fontFamily: fontStack,
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                        opacity: (addingStory || removingStory) ? 0.7 : 1,
+                        transition: "background 200ms ease, color 200ms ease",
+                      }}
+                    >
+                      <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>
+                        {existingStory ? "✕" : "◎"}
+                      </span>
+                      {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar historia" : "Agregar a historia"}
+                    </button>
+                    {storyError && (
+                      <span style={{ color: "#f87171", fontSize: 12, textAlign: "center", fontFamily: fontStack }}>
+                        {storyError}
+                      </span>
+                    )}
+                  </>
                 )}
                 <button type="button" onClick={handleClose} style={{
                   width: "100%", height: 42, borderRadius: 12,
@@ -1071,6 +1283,41 @@ export default function GreetingReviewOverlay({
             <div style={{ marginTop: "auto", paddingTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
               {(viewMode || buyerViewMode) ? (
                 <>
+                  {buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={existingStory ? handleRemoveFromStory : handleAddToStoryAsBuyer}
+                        disabled={addingStory || removingStory}
+                        style={{
+                          width: "100%", height: 38, borderRadius: 10,
+                          border: existingStory
+                            ? "1px solid rgba(239,68,68,0.35)"
+                            : "1px solid rgba(168,85,247,0.6)",
+                          background: existingStory
+                            ? "rgba(239,68,68,0.1)"
+                            : "rgba(168,85,247,0.18)",
+                          color: existingStory ? "#fca5a5" : "#d8b4fe",
+                          fontWeight: 700, fontSize: 13,
+                          cursor: (addingStory || removingStory) ? "default" : "pointer",
+                          fontFamily: fontStack,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                          opacity: (addingStory || removingStory) ? 0.7 : 1,
+                          transition: "background 200ms ease, color 200ms ease",
+                        }}
+                      >
+                        <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>
+                          {existingStory ? "✕" : "◎"}
+                        </span>
+                        {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar de mi historia" : "Agregar a mi historia"}
+                      </button>
+                      {storyError && (
+                        <span style={{ color: "#f87171", fontSize: 11, textAlign: "center", fontFamily: fontStack }}>
+                          {storyError}
+                        </span>
+                      )}
+                    </>
+                  )}
                   {buyerViewMode && viewMp4Url && (
                     <a href={viewMp4Url} download target="_blank" rel="noopener noreferrer" style={{
                       display: "flex", alignItems: "center", justifyContent: "center",
@@ -1081,6 +1328,41 @@ export default function GreetingReviewOverlay({
                     }}>
                       ↓ Descargar video
                     </a>
+                  )}
+                  {viewMode && !buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={existingStory ? handleRemoveFromStory : handleAddToStory}
+                        disabled={addingStory || removingStory}
+                        style={{
+                          width: "100%", height: 38, borderRadius: 10,
+                          border: existingStory
+                            ? "1px solid rgba(239,68,68,0.35)"
+                            : "1px solid rgba(168,85,247,0.6)",
+                          background: existingStory
+                            ? "rgba(239,68,68,0.1)"
+                            : "rgba(168,85,247,0.18)",
+                          color: existingStory ? "#fca5a5" : "#d8b4fe",
+                          fontWeight: 700, fontSize: 13,
+                          cursor: (addingStory || removingStory) ? "default" : "pointer",
+                          fontFamily: fontStack,
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                          opacity: (addingStory || removingStory) ? 0.7 : 1,
+                          transition: "background 200ms ease, color 200ms ease",
+                        }}
+                      >
+                        <span aria-hidden="true" style={{ fontSize: 14, lineHeight: 1 }}>
+                          {existingStory ? "✕" : "◎"}
+                        </span>
+                        {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar historia" : "Agregar a historia"}
+                      </button>
+                      {storyError && (
+                        <span style={{ color: "#f87171", fontSize: 11, textAlign: "center", fontFamily: fontStack }}>
+                          {storyError}
+                        </span>
+                      )}
+                    </>
                   )}
                   <button type="button" onClick={handleClose} style={{
                     width: "100%", height: 38, borderRadius: 10,

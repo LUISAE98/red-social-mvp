@@ -4153,6 +4153,10 @@ padding: "0 0 2px 0",
   onOpenComments={() => {
     void handleOpenCommentsPanel();
   }}
+  onToggleSave={handleToggleSave}
+  isSaved={optimisticViewerHasSaved}
+  saveBusy={saveBusy}
+  savesCount={optimisticSavesCount}
 />
   <style>
   {`

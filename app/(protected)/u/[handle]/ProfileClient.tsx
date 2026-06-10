@@ -63,6 +63,7 @@ import { uploadPostImages } from "@/lib/posts/image-upload";
 import { clearAllPostFeedCaches } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import type { PostMedia, PostPremium } from "@/lib/posts/types";
+import StoryCircles from "@/app/components/Stories/StoryCircles";
 
 type SafeCropperProps = {
   image: string;
@@ -2084,6 +2085,10 @@ await createExclusiveSessionRequest({
 
             </div>
           </div>
+
+{profileUid && (
+  <StoryCircles creatorId={profileUid} currentUserId={viewer?.uid ?? null} />
+)}
 
 {shouldShowSubnav && (
   <div style={{ marginTop: 8 }}>

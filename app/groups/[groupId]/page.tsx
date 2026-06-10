@@ -27,6 +27,7 @@ import {
 import { requestToJoin, cancelJoinRequest } from "@/lib/groups/joinRequests";
 import OwnerAdminPanel from "./components/OwnerAdminPanel";
 import GroupSubnav from "./components/GroupSubnav";
+import GroupStoryCircles from "@/app/components/Stories/GroupStoryCircles";
 import GroupMembersTab from "./components/GroupMembersTab";
 import GroupPostsFeed from "./components/posts/GroupPostsFeed";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
@@ -2416,6 +2417,12 @@ const avatarNode = (
               </div>
             </div>
           )}
+
+          <GroupStoryCircles
+            groupId={groupId}
+            canView={canViewPublicFeed}
+            currentUserId={user?.uid ?? null}
+          />
 
           {effectiveIsMember && (
             <div className="group-subnav-wrap" style={{ marginTop: 12 }}>

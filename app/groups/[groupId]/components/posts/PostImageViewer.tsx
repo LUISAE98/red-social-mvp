@@ -14,6 +14,8 @@ import {
 import { createPortal } from "react-dom";
 import type { Post } from "@/lib/posts/types";
 import PostPinchZoomImage from "./PostPinchZoomImage";
+import PostSaveButton from "@/components/ui/PostSaveButton";
+import PostShareButton from "@/components/ui/PostShareButton";
 import VibraFlameIcon from "@/app/components/VibraServiceIcons/VibraFlameIcon";
 import VibraCommentIcon from "@/app/components/VibraServiceIcons/VibraCommentIcon";
 
@@ -69,6 +71,10 @@ type PostImageViewerProps = {
   onToggleFlame: () => void;
   onOpenComments: () => void;
   onOpenFlames?: () => void;
+  onToggleSave?: () => void;
+  isSaved?: boolean;
+  saveBusy?: boolean;
+  savesCount?: number;
 };
 
 const fontStack =
@@ -193,6 +199,10 @@ export default function PostImageViewer({
   onToggleFlame,
   onOpenComments,
   onOpenFlames,
+  onToggleSave,
+  isSaved = false,
+  saveBusy = false,
+  savesCount = 0,
 }: PostImageViewerProps) {
   const [mounted, setMounted] = useState(false);
   const [showExactDate, setShowExactDate] = useState(false);
@@ -1806,6 +1816,23 @@ const previewUrl = media.url;
             </span>
             <span>{commentsCount}</span>
           </button>
+
+          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
+            <PostSaveButton
+              count={savesCount}
+              saved={isSaved}
+              loading={saveBusy}
+              disabled={!onToggleSave}
+              onClick={onToggleSave}
+            />
+            {post.isShareable === true && (
+              <PostShareButton
+                postId={post.id}
+                title={post.shareTitle || "Publicación"}
+                text={post.shareDescription || post.text || "Mira esta publicación."}
+              />
+            )}
+          </div>
         </div>
         </div>{/* end drag zone */}
 
@@ -2528,10 +2555,11 @@ const previewUrl = media.url;
 
             <div
               style={{
-                display: "inline-flex",
+                display: "flex",
                 alignItems: "center",
                 gap: 12,
                 marginTop: 0,
+                width: "100%",
               }}
             >
               <div style={actionGroupStyle}>
@@ -2588,6 +2616,23 @@ const previewUrl = media.url;
                 </span>
                 <span>{commentsCount}</span>
               </button>
+
+              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
+                <PostSaveButton
+                  count={savesCount}
+                  saved={isSaved}
+                  loading={saveBusy}
+                  disabled={!onToggleSave}
+                  onClick={onToggleSave}
+                />
+                {post.isShareable === true && (
+                  <PostShareButton
+                    postId={post.id}
+                    title={post.shareTitle || "Publicación"}
+                    text={post.shareDescription || post.text || "Mira esta publicación."}
+                  />
+                )}
+              </div>
             </div>
 
             <div style={{ marginTop: 0, paddingTop: 0, minWidth: 0 }}>

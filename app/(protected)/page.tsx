@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import HomePostsFeed from "./HomePostsFeed";
+import HomeStoriesRow from "@/app/components/Stories/HomeStoriesRow";
 
 export default function GroupsHome() {
   const { user, loading, startAuthTransition } = useAuth();
@@ -57,6 +58,7 @@ const pageWrap: CSSProperties = {
     <main style={pageWrap}>
       <div style={container}>
         <div style={feedWrap}>
+          <HomeStoriesRow currentUserId={user.uid} />
           <HomePostsFeed currentUserId={user.uid} />
         </div>
       </div>

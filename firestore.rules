@@ -1552,6 +1552,38 @@ match /memberBlocks/{blockId} {
     }
 
     // ==========================
+    // STORIES
+    // ==========================
+    match /stories/{storyId} {
+      // Anyone can read stories (public profiles)
+      allow read: if true;
+
+      // Only the authenticated creator can create their own story
+      allow create: if signedIn()
+        && request.resource.data.creatorId == request.auth.uid
+        && request.resource.data.type in ["saludo", "consejo"]
+        && request.resource.data.greetingRequestId is string
+        && request.resource.data.greetingRequestId.size() > 0;
+
+      // Creator can delete their own stories
+      allow delete: if signedIn()
+        && resource.data.creatorId == request.auth.uid;
+
+      allow update: if false;
+    }
+
+    // ==========================
+    // STORY VIEWS
+    // ==========================
+    match /userStoryViews/{userId}/views/{storyId} {
+      // Users can only read and write their own view records
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow write: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.storyId == storyId;
+    }
+
+    // ==========================
     // MEET & GREET REQUESTS
     // ==========================
     match /meetGreetRequests/{requestId} {
