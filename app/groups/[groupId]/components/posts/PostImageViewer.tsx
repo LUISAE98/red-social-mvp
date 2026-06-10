@@ -227,6 +227,7 @@ export default function PostImageViewer({
   const [mobileSheetSnap, setMobileSheetSnap] = useState<0 | 1 | 2>(0);
   const [mobileSheetShowComments, setMobileSheetShowComments] = useState(false);
   const [mobilePostTextExpanded, setMobilePostTextExpanded] = useState(false);
+  const [mediaAspectRatio, setMediaAspectRatio] = useState<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const desktopVideoShellRef = useRef<HTMLDivElement | null>(null);
@@ -241,6 +242,8 @@ export default function PostImageViewer({
   const mobileSheetBaseOffsetRef = useRef<number>(0);
   const mobileSheetRef = useRef<HTMLDivElement | null>(null);
   const mobileMediaClipRef = useRef<HTMLDivElement | null>(null);
+  const mobileContentClipRef = useRef<HTMLDivElement | null>(null);
+  const mediaAspectRatioRef = useRef<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -360,6 +363,28 @@ const currentMedia = mediaList[currentMediaIndex] ?? mediaList[0] ?? null;
 const currentMediaKey = currentMedia
   ? `${currentMedia.type}-${currentMedia.url}-${currentMediaIndex}`
   : "empty-media";
+
+  // Keep ref in sync for imperative access in drag handlers
+  useEffect(() => {
+    mediaAspectRatioRef.current = mediaAspectRatio;
+  }, [mediaAspectRatio]);
+
+  // Reset aspect ratio when media changes
+  useEffect(() => {
+    setMediaAspectRatio(null);
+  }, [currentMedia?.url]);
+
+  // Load image natural dimensions to compute precise clip-path
+  useEffect(() => {
+    if (!currentMedia || currentMedia.type === "video" || !currentMedia.url) return;
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth && img.naturalHeight) {
+        setMediaAspectRatio(img.naturalWidth / img.naturalHeight);
+      }
+    };
+    img.src = currentMedia.url;
+  }, [currentMedia?.url, currentMedia?.type]);
 
 const previousMedia =
     mediaList.length > 1
@@ -879,6 +904,28 @@ const previewUrl = media.url;
     );
   }
 
+  function computeContentClipPath(containerH: number, ar: number | null): string {
+    if (!ar || containerH <= 0 || typeof window === "undefined") return "inset(0 0 0 0 round 0px)";
+    const cW = window.innerWidth;
+    const cAR = cW / containerH;
+    if (Math.abs(cAR - ar) < 0.02) return "inset(0 0 0 0 round 12px)";
+    if (cAR > ar) {
+      const barPx = Math.max(0, Math.floor((cW - containerH * ar) / 2));
+      return `inset(0 ${barPx}px 0 ${barPx}px round 12px)`;
+    } else {
+      const barPx = Math.max(0, Math.floor((containerH - cW / ar) / 2));
+      return `inset(${barPx}px 0 ${barPx}px 0 round 12px)`;
+    }
+  }
+
+  function getMobileContentClipPath(snap: 0 | 1 | 2, ar: number | null): string {
+    if (typeof window === "undefined") return "inset(0 0 0 0 round 0px)";
+    const cH = snap === 2 ? window.innerHeight / 3
+      : snap === 1 ? (window.innerHeight * 2) / 3
+      : window.innerHeight - 120;
+    return computeContentClipPath(snap === 0 ? 0 : cH, snap === 0 ? null : ar);
+  }
+
   function renderCurrentMedia() {
     if (currentMedia.type === "video") {
       const videoSurface = (
@@ -921,12 +968,15 @@ const previewUrl = media.url;
                 preload="metadata"
                 onLoadedMetadata={(event) => {
                   event.currentTarget.playbackRate = videoPlaybackRate;
-                  const duration = event.currentTarget.duration;
+                  const { duration, videoWidth, videoHeight } = event.currentTarget;
                   setVideoDuration(
                     Number.isFinite(duration) && duration > 0
                       ? duration
                       : (currentMedia.duration ?? 0),
                   );
+                  if (videoWidth && videoHeight) {
+                    setMediaAspectRatio(videoWidth / videoHeight);
+                  }
                 }}
                 onLoadedData={() => setVideoReady(true)}
                 onCanPlay={() => setVideoReady(true)}
@@ -964,6 +1014,7 @@ const previewUrl = media.url;
 
       return (
         <div
+          ref={mobileContentClipRef}
           style={{
             position: "absolute",
             inset: 0,
@@ -975,8 +1026,8 @@ const previewUrl = media.url;
               : "clip-path 320ms ease",
             opacity: mobileOverlayOpacity,
             background: "#000",
-            clipPath: useMobileLayout && mobileSheetSnap > 0
-              ? "inset(0 round 12px)"
+            clipPath: useMobileLayout
+              ? getMobileContentClipPath(mobileSheetSnap, mediaAspectRatio)
               : "none",
           }}
         >
@@ -995,6 +1046,7 @@ const previewUrl = media.url;
 
     return (
       <div
+        ref={mobileContentClipRef}
         style={{
           position: "absolute",
           inset: 0,
@@ -1006,8 +1058,8 @@ const previewUrl = media.url;
             : "clip-path 320ms ease",
           opacity: mobileOverlayOpacity,
           background: "#000",
-          clipPath: useMobileLayout && mobileSheetSnap > 0
-            ? "inset(0 round 12px)"
+          clipPath: useMobileLayout
+            ? getMobileContentClipPath(mobileSheetSnap, mediaAspectRatio)
             : "none",
         }}
       >
@@ -1364,6 +1416,7 @@ const previewUrl = media.url;
               maxOffset;
             sheet.style.transition = "none";
             if (mobileMediaClipRef.current) mobileMediaClipRef.current.style.transition = "none";
+            if (mobileContentClipRef.current) mobileContentClipRef.current.style.transition = "none";
           }}
           onTouchMove={(e) => {
             const sheet = mobileSheetRef.current;
@@ -1376,9 +1429,13 @@ const previewUrl = media.url;
             const twoThirdOffset = Math.max(0, sheet.offsetHeight - Math.round(window.innerHeight * 2 / 3));
             const clamped = Math.max(twoThirdOffset, Math.min(maxOffset, mobileSheetBaseOffsetRef.current + diff));
             sheet.style.transform = `translateY(${clamped}px)`;
+            const mediaH = Math.max(0, window.innerHeight - (sheet.offsetHeight - clamped));
             if (mobileMediaClipRef.current) {
-              const mediaH = Math.max(0, window.innerHeight - (sheet.offsetHeight - clamped));
               mobileMediaClipRef.current.style.height = `${mediaH}px`;
+            }
+            if (mobileContentClipRef.current) {
+              mobileContentClipRef.current.style.clipPath =
+                computeContentClipPath(mediaH, mediaAspectRatioRef.current);
             }
           }}
           onTouchEnd={(e) => {
@@ -1395,6 +1452,7 @@ const previewUrl = media.url;
             const snapOffsets: [number, number, number] = [maxOffset, thirdOffset, twoThirdOffset];
             sheet.style.transition = "transform 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)";
             if (mobileMediaClipRef.current) mobileMediaClipRef.current.style.transition = "height 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94), border-radius 320ms ease, box-shadow 320ms ease";
+            if (mobileContentClipRef.current) mobileContentClipRef.current.style.transition = "clip-path 320ms ease";
             if (Math.abs(diff) < 8) {
               const target = e.target as HTMLElement;
               if (target.closest("button, a, input, textarea, select")) {
@@ -1437,6 +1495,13 @@ const previewUrl = media.url;
                   mobileMediaClipRef.current.style.boxShadow = s > 0
                     ? "0 0 0 1.5px rgba(255,255,255,0.18)"
                     : "none";
+                }
+                if (mobileContentClipRef.current) {
+                  const snapH = s === 2 ? window.innerHeight / 3
+                    : s === 1 ? (window.innerHeight * 2) / 3
+                    : window.innerHeight - 120;
+                  mobileContentClipRef.current.style.clipPath =
+                    computeContentClipPath(s === 0 ? 0 : snapH, mediaAspectRatioRef.current);
                 }
               }, 340);
             }
