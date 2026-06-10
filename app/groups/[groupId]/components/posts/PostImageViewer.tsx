@@ -223,8 +223,10 @@ export default function PostImageViewer({
     useState(false);
   const [desktopControlsVisible, setDesktopControlsVisible] = useState(true);
   const [desktopFullscreenActive, setDesktopFullscreenActive] = useState(false);
-  const [mobileSheetExpanded, setMobileSheetExpanded] = useState(false);
+  // 0 = peek (96px), 1 = mid (~50% screen), 2 = full (88dvh)
+  const [mobileSheetSnap, setMobileSheetSnap] = useState<0 | 1 | 2>(0);
   const [mobileSheetShowComments, setMobileSheetShowComments] = useState(false);
+  const [mobilePostTextExpanded, setMobilePostTextExpanded] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const desktopVideoShellRef = useRef<HTMLDivElement | null>(null);
@@ -238,6 +240,7 @@ export default function PostImageViewer({
   const mobileSheetDragStartYRef = useRef<number | null>(null);
   const mobileSheetBaseOffsetRef = useRef<number>(0);
   const mobileSheetRef = useRef<HTMLDivElement | null>(null);
+  const mobileMediaClipRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -666,7 +669,7 @@ const previousMedia =
   useEffect(() => {
     if (!open) {
       setMobileCommentsOpen(false);
-      setMobileSheetExpanded(false);
+      setMobileSheetSnap(0);
       setMobileSheetShowComments(false);
       if (mobileSheetRef.current) {
         mobileSheetRef.current.style.transform = "";
@@ -882,10 +885,7 @@ const previewUrl = media.url;
         <div
           style={{
             position: "absolute",
-            top: "env(safe-area-inset-top)",
-            right: "env(safe-area-inset-right)",
-            bottom: useMobileLayout ? 0 : "env(safe-area-inset-bottom)",
-            left: "env(safe-area-inset-left)",
+            inset: 0,
             background: "#000",
           }}
         >
@@ -967,16 +967,23 @@ const previewUrl = media.url;
           style={{
             position: "absolute",
             inset: 0,
-            transform:
-              mobileGestureAxis === "vertical"
-                ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
-                : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
+            transform: mobileGestureAxis === "vertical"
+              ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
+              : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
             transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
             opacity: mobileOverlayOpacity,
             background: "#000",
           }}
         >
-          {videoSurface}
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            borderRadius: useMobileLayout && mobileSheetSnap > 0 ? 12 : 0,
+            overflow: "hidden",
+            transition: "border-radius 320ms ease",
+          }}>
+            {videoSurface}
+          </div>
         </div>
       );
     }
@@ -986,15 +993,21 @@ const previewUrl = media.url;
         style={{
           position: "absolute",
           inset: 0,
-          transform:
-            mobileGestureAxis === "vertical"
-              ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
-              : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
+          transform: mobileGestureAxis === "vertical"
+            ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
+            : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
           transition: mobileSwipeAnimating ? "transform 180ms ease" : "none",
           opacity: mobileOverlayOpacity,
           background: "#000",
         }}
       >
+        <div style={{
+          position: "absolute",
+          inset: 0,
+          borderRadius: useMobileLayout && mobileSheetSnap > 0 ? 12 : 0,
+          overflow: "hidden",
+          transition: "border-radius 320ms ease",
+        }}>
 {useMobileLayout ? (
   <PostPinchZoomImage
     key={currentMediaKey}
@@ -1004,6 +1017,7 @@ const previewUrl = media.url;
     onZoomStateChange={setIsCurrentImageZoomed}
     onPinchStateChange={setIsCurrentImagePinching}
     swipeAxis="horizontal"
+    disableMinHeight
   />
 ) : (
           <img
@@ -1018,6 +1032,7 @@ const previewUrl = media.url;
             }}
           />
         )}
+        </div>
       </div>
     );
   }
@@ -1244,16 +1259,24 @@ const previewUrl = media.url;
             setMobileSwipeAnimating(false);
           }, 180);
         }}
+        ref={mobileMediaClipRef}
         style={{
           position: "relative",
           width: "100%",
-          height: useMobileLayout ? "calc(100dvh - 96px)" : "100%",
+          height: useMobileLayout
+            ? mobileSheetSnap === 2 ? "calc(100dvh / 3)"
+              : mobileSheetSnap === 1 ? "calc(200dvh / 3)"
+              : "calc(100dvh - 120px)"
+            : "100%",
           overflow: "hidden",
           touchAction: "none",
           background: "#000",
           userSelect: "none",
           WebkitUserSelect: "none",
           WebkitTouchCallout: "none",
+          transition: useMobileLayout
+            ? "height 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+            : undefined,
         }}
       >
         {renderMediaPreview(previousMedia, "Anterior")}
@@ -1301,9 +1324,10 @@ const previewUrl = media.url;
           background: "rgb(10, 10, 14)",
           borderRadius: "14px 14px 0 0",
           borderTop: "1px solid rgba(255,255,255,0.08)",
-          transform: mobileSheetExpanded
-            ? "translateY(0)"
-            : "translateY(calc(100% - 96px))",
+          transform:
+            mobileSheetSnap === 2 ? "translateY(calc(100% - 200dvh / 3))" :
+            mobileSheetSnap === 1 ? "translateY(calc(100% - 100dvh / 3))" :
+            "translateY(calc(100% - 120px))",
           transition: "transform 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
           overflow: "hidden",
         }}
@@ -1321,10 +1345,15 @@ const previewUrl = media.url;
             const touch = e.touches[0];
             if (!sheet || !touch) return;
             mobileSheetDragStartYRef.current = touch.clientY;
-            mobileSheetBaseOffsetRef.current = mobileSheetExpanded
-              ? 0
-              : Math.max(0, sheet.offsetHeight - 96);
+            const maxOffset = Math.max(0, sheet.offsetHeight - 120);
+            const thirdOffset = Math.max(0, sheet.offsetHeight - Math.round(window.innerHeight / 3));
+            const twoThirdOffset = Math.max(0, sheet.offsetHeight - Math.round(window.innerHeight * 2 / 3));
+            mobileSheetBaseOffsetRef.current =
+              mobileSheetSnap === 2 ? twoThirdOffset :
+              mobileSheetSnap === 1 ? thirdOffset :
+              maxOffset;
             sheet.style.transition = "none";
+            if (mobileMediaClipRef.current) mobileMediaClipRef.current.style.transition = "none";
           }}
           onTouchMove={(e) => {
             const sheet = mobileSheetRef.current;
@@ -1333,9 +1362,14 @@ const previewUrl = media.url;
             const touch = e.touches[0];
             if (!touch) return;
             const diff = touch.clientY - startY;
-            const maxOffset = Math.max(0, sheet.offsetHeight - 96);
-            const clamped = Math.max(0, Math.min(maxOffset, mobileSheetBaseOffsetRef.current + diff));
+            const maxOffset = Math.max(0, sheet.offsetHeight - 120);
+            const twoThirdOffset = Math.max(0, sheet.offsetHeight - Math.round(window.innerHeight * 2 / 3));
+            const clamped = Math.max(twoThirdOffset, Math.min(maxOffset, mobileSheetBaseOffsetRef.current + diff));
             sheet.style.transform = `translateY(${clamped}px)`;
+            if (mobileMediaClipRef.current) {
+              const mediaH = Math.max(0, window.innerHeight - (sheet.offsetHeight - clamped));
+              mobileMediaClipRef.current.style.height = `${mediaH}px`;
+            }
           }}
           onTouchEnd={(e) => {
             const sheet = mobileSheetRef.current;
@@ -1345,31 +1379,51 @@ const previewUrl = media.url;
             const touch = e.changedTouches[0];
             const endY = touch?.clientY ?? startY;
             const diff = endY - startY;
-            const maxOffset = Math.max(0, sheet.offsetHeight - 96);
-            // Re-enable transition for the snap
+            const maxOffset = Math.max(0, sheet.offsetHeight - 120);
+            const thirdOffset = Math.max(0, sheet.offsetHeight - Math.round(window.innerHeight / 3));
+            const twoThirdOffset = Math.max(0, sheet.offsetHeight - Math.round(window.innerHeight * 2 / 3));
+            const snapOffsets: [number, number, number] = [maxOffset, thirdOffset, twoThirdOffset];
             sheet.style.transition = "transform 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)";
+            if (mobileMediaClipRef.current) mobileMediaClipRef.current.style.transition = "height 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94), border-radius 320ms ease";
             if (Math.abs(diff) < 8) {
               const target = e.target as HTMLElement;
               if (target.closest("button, a, input, textarea, select")) {
-                // Micro-drag on a button: restore position, let the button onClick fire
-                sheet.style.transform = mobileSheetExpanded ? "translateY(0)" : `translateY(${maxOffset}px)`;
-                setTimeout(() => { if (mobileSheetRef.current) mobileSheetRef.current.style.transform = ""; }, 340);
+                sheet.style.transform = `translateY(${snapOffsets[mobileSheetSnap]}px)`;
                 return;
               }
-              // Plain tap on non-interactive area: toggle
-              setMobileSheetExpanded((prev) => !prev);
+              // Tap: peek→1/3, 1/3 o 2/3→peek
+              const tapTarget: 0 | 1 | 2 = mobileSheetSnap === 0 ? 1 : 0;
+              if (tapTarget !== mobileSheetSnap) setMobileSheetSnap(tapTarget);
               return;
             }
-            const shouldExpand = diff < -20 ? true : diff > 20 ? false : mobileSheetExpanded;
-            if (shouldExpand !== mobileSheetExpanded) {
-              // State changes → React re-renders, overwrites the drag inline transform,
-              // and the CSS transition fires from the drag position to the snap target.
-              // No setTimeout needed — React owns the DOM value after its commit.
-              setMobileSheetExpanded(shouldExpand);
+            // Swipe: avanza/retrocede un tope
+            let newSnap: 0 | 1 | 2;
+            if (diff < -20) {
+              newSnap = Math.min(2, mobileSheetSnap + 1) as 0 | 1 | 2;
+            } else if (diff > 20) {
+              newSnap = Math.max(0, mobileSheetSnap - 1) as 0 | 1 | 2;
             } else {
-              // State stays the same → manually snap back and clean up inline
-              sheet.style.transform = shouldExpand ? "translateY(0)" : `translateY(${maxOffset}px)`;
-              setTimeout(() => { if (mobileSheetRef.current) mobileSheetRef.current.style.transform = ""; }, 340);
+              const cur = Math.max(0, Math.min(maxOffset, mobileSheetBaseOffsetRef.current + diff));
+              newSnap = cur < (twoThirdOffset + thirdOffset) / 2 ? 2 : cur < (thirdOffset + maxOffset) / 2 ? 1 : 0;
+            }
+            if (newSnap !== mobileSheetSnap) {
+              setMobileSheetSnap(newSnap);
+            } else {
+              sheet.style.transform = `translateY(${snapOffsets[newSnap]}px)`;
+              if (mobileMediaClipRef.current) {
+                mobileMediaClipRef.current.style.height = `${window.innerHeight - (sheet.offsetHeight - snapOffsets[newSnap])}px`;
+              }
+              const s = newSnap;
+              setTimeout(() => {
+                if (mobileSheetRef.current) mobileSheetRef.current.style.transform =
+                  s === 2 ? "translateY(calc(100% - 200dvh / 3))" :
+                  s === 1 ? "translateY(calc(100% - 100dvh / 3))" :
+                  "translateY(calc(100% - 120px))";
+                if (mobileMediaClipRef.current) mobileMediaClipRef.current.style.height =
+                  s === 2 ? "calc(100dvh / 3)" :
+                  s === 1 ? "calc(200dvh / 3)" :
+                  "calc(100dvh - 120px)";
+              }, 340);
             }
           }}
         >
@@ -1600,7 +1654,7 @@ const previewUrl = media.url;
             type="button"
             onClick={() => {
               onOpenComments();
-              setMobileSheetExpanded(true);
+              setMobileSheetSnap(2);
               setMobileSheetShowComments(true);
             }}
             aria-label="Ver comentarios"
@@ -1618,28 +1672,44 @@ const previewUrl = media.url;
         <div
           style={{
             flex: 1,
-            overflowY: mobileSheetExpanded ? "auto" : "hidden",
-            opacity: mobileSheetExpanded ? 1 : 0,
-            pointerEvents: mobileSheetExpanded ? "auto" : "none",
+            overflowY: mobileSheetSnap > 0 ? "auto" : "hidden",
+            opacity: mobileSheetSnap > 0 ? 1 : 0,
+            pointerEvents: mobileSheetSnap > 0 ? "auto" : "none",
             transition: "opacity 200ms ease",
             padding: "6px 16px calc(20px + env(safe-area-inset-bottom))",
             overscrollBehavior: "contain",
           }}
         >
           {shouldShowMobilePostText && (
-            <p
-              style={{
-                margin: 0,
-                color: "rgba(255,255,255,0.86)",
-                fontSize: 13,
-                fontWeight: 300,
-                lineHeight: 1.55,
-                wordBreak: "break-word",
-                whiteSpace: "pre-wrap",
-              }}
-            >
-              {cleanPostText}
-            </p>
+            mobilePostTextExpanded ? (
+              <p style={{ margin: 0, color: "rgba(255,255,255,0.86)", fontSize: 13, fontWeight: 300, lineHeight: 1.55, wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
+                {cleanPostText}{" "}
+                <span
+                  onClick={() => setMobilePostTextExpanded(false)}
+                  style={{ color: "rgba(255,255,255,0.45)", cursor: "pointer" }}
+                >
+                  ...- Ver menos
+                </span>
+              </p>
+            ) : (
+              <div style={{ position: "relative", overflow: "hidden", maxHeight: 21 }}>
+                <p style={{ margin: 0, color: "rgba(255,255,255,0.86)", fontSize: 13, fontWeight: 300, lineHeight: 1.55, wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
+                  {cleanPostText}
+                </p>
+                <span
+                  onClick={() => setMobilePostTextExpanded(true)}
+                  style={{
+                    position: "absolute", right: 0, bottom: 0,
+                    paddingLeft: 36,
+                    background: "linear-gradient(to right, transparent, rgb(10,10,14) 40%)",
+                    color: "rgba(255,255,255,0.86)", fontSize: 13, fontWeight: 400,
+                    lineHeight: "21px", cursor: "pointer",
+                  }}
+                >
+                  ...&thinsp;+ Ver más
+                </span>
+              </div>
+            )
           )}
 
           {mobileSheetShowComments && mobileSheetCommentsContent && (

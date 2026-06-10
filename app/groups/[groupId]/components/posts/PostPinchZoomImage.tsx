@@ -9,6 +9,7 @@ type Props = {
   onZoomStateChange?: (isZoomed: boolean) => void;
   onPinchStateChange?: (isPinching: boolean) => void;
   swipeAxis?: "horizontal" | "vertical" | null;
+  disableMinHeight?: boolean;
 };
 
 type GestureState = {
@@ -49,6 +50,7 @@ export default function PostPinchZoomImage({
   onZoomStateChange,
   onPinchStateChange,
   swipeAxis = null,
+  disableMinHeight = false,
 }: Props) {
   const frameRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
@@ -122,7 +124,7 @@ export default function PostPinchZoomImage({
     display: "block",
     width: "100%",
     height: "100%",
-    minHeight: "100dvh",
+    minHeight: disableMinHeight ? undefined : "100dvh",
     objectFit: "contain",
     background: "#000",
     transform: "translate3d(0px, 0px, 0) scale(1)",
