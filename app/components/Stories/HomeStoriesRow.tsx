@@ -199,15 +199,14 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
           overflowX: "auto",
           scrollbarWidth: "none",
           WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          marginBottom: 4,
+          marginBottom: 14,
         }}
       >
         {storyGroups.map((group) => {
           const isGroup = group.source === "group";
           const emoji = isGroup ? "🏘️" : "👤";
           const name = group.info.displayName ?? (isGroup ? "Comunidad" : "Usuario");
-          const ring = group.hasUnviewed ? VIBRA_GRADIENT : SEEN_RING;
+          const ring = VIBRA_GRADIENT;
 
           return (
             <button
@@ -270,7 +269,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
               {/* Name */}
               <span
                 style={{
-                  color: group.hasUnviewed ? "rgba(255,255,255,0.72)" : "rgba(255,255,255,0.38)",
+                  color: "rgba(255,255,255,0.72)",
                   fontSize: 10.5,
                   fontWeight: 500,
                   lineHeight: 1.4,
@@ -377,7 +376,7 @@ function buildStoryGroups(
 
     // Array order: [...viewed, ...unviewed] — going left from start reaches viewed
     const stories = [...sortedRecent, ...sortedUnviewed];
-    const startIndex = sortedRecent.length; // first unviewed story
+    const startIndex = hasUnviewed ? sortedRecent.length : 0;
 
     // Thumbnail from newest unviewed; fallback to most recently viewed
     const thumbSource = hasUnviewed

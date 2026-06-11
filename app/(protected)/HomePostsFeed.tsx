@@ -836,51 +836,6 @@ const shellStyle: CSSProperties = {
 return (
   <RefreshableArea onRefresh={handleHomePullRefresh}>
     <section style={shellStyle}>
-      <div style={headerStyle}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            width: "100%",
-            minWidth: 0,
-          }}
-        >
-          <h2
-            style={{
-              margin: 0,
-              maxWidth: "100%",
-              minWidth: 0,
-              fontSize: "clamp(18px, 2.2vw, 20px)",
-              fontWeight: 600,
-              lineHeight: 1.1,
-              color: "#fff",
-              overflowWrap: "anywhere",
-              wordBreak: "break-word",
-            }}
-          >
-            Inicio
-          </h2>
-
-        </div>
-
-        <p
-          style={{
-            margin: 0,
-            maxWidth: "100%",
-            minWidth: 0,
-            fontSize: 12,
-            color: "rgba(255,255,255,0.60)",
-            lineHeight: 1.45,
-            overflowWrap: "anywhere",
-            wordBreak: "break-word",
-          }}
-        >
-          Publicaciones recientes de tus comunidades y perfiles que sigues.
-        </p>
-      </div>
-
       {error && <div style={noticeStyle}>{error}</div>}
 
       {loadingInitial && (
