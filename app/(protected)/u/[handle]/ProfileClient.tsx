@@ -64,6 +64,9 @@ import { clearAllPostFeedCaches } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import type { PostMedia, PostPremium } from "@/lib/posts/types";
 import StoryCircles from "@/app/components/Stories/StoryCircles";
+import { useStoryRingState } from "@/lib/stories/useStoryRingState";
+import { recordStoryView } from "@/lib/stories/storyService";
+import StoryViewer from "@/app/components/Stories/StoryViewer";
 
 type SafeCropperProps = {
   image: string;
@@ -388,6 +391,10 @@ useEffect(() => {
 
   const isOwner = !!viewer && !!userDoc && viewer.uid === userDoc.uid;
   const profileUid = userDoc?.uid ?? null;
+
+  const { ring: profileRing, stories: profileRingStories, startIndex: profileRingStart } =
+    useStoryRingState(profileUid, "profile", viewer?.uid ?? null);
+  const [profileStoriesOpen, setProfileStoriesOpen] = useState(false);
 
   const ownerShowPosts = userDoc?.showPosts ?? true;
   const ownerShowGroups = userDoc?.showCreatedGroups ?? true;
@@ -1837,14 +1844,33 @@ await createExclusiveSessionRequest({
                 }}
               >
                 <div style={{ position: "relative" }}>
+                  {/* Vibra ring when profile has active stories */}
+                  {profileRing !== "none" && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: -6,
+                        borderRadius: "50%",
+                        background: profileRing === "vibra"
+                          ? "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)"
+                          : "rgba(255,255,255,0.28)",
+                        zIndex: 0,
+                        pointerEvents: "none",
+                      }}
+                    />
+                  )}
                   <button
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      handlePickAvatar();
+                      if (profileRing !== "none" && profileRingStories.length > 0) {
+                        setProfileStoriesOpen(true);
+                      } else if (isOwner) {
+                        handlePickAvatar();
+                      }
                     }}
-                    disabled={!isOwner || uploading}
+                    disabled={(!isOwner && profileRing === "none") || uploading}
                     style={{
                       width: avatarSz,
                       height: avatarSz,
@@ -1858,11 +1884,18 @@ await createExclusiveSessionRequest({
                       userSelect: "none",
                       padding: 0,
                       margin: 0,
-                      cursor: !isOwner || uploading ? "default" : "pointer",
-                      pointerEvents: isOwner ? "auto" : "none",
+                      cursor: (isOwner || profileRing !== "none") && !uploading ? "pointer" : "default",
+                      position: "relative",
+                      zIndex: 1,
                     }}
-                    aria-label="Cambiar foto de perfil"
-                    title={isOwner ? "Cambiar foto de perfil" : undefined}
+                    aria-label={
+                      profileRing !== "none" && profileRingStories.length > 0
+                        ? `Ver historias de ${fullName}`
+                        : isOwner
+                          ? "Cambiar foto de perfil"
+                          : undefined
+                    }
+                    title={isOwner && profileRing === "none" ? "Cambiar foto de perfil" : undefined}
                   >
                     {avatarSrc ? (
                       <img
@@ -2422,6 +2455,17 @@ await createExclusiveSessionRequest({
   }}
   formatMoney={formatMoney}
 />
+
+      {profileStoriesOpen && profileRingStories.length > 0 && (
+        <StoryViewer
+          stories={profileRingStories}
+          initialIndex={profileRingStart}
+          onClose={() => setProfileStoriesOpen(false)}
+          onStoryViewed={(storyId) => {
+            if (viewer?.uid) recordStoryView(viewer.uid, storyId).catch(console.error);
+          }}
+        />
+      )}
 
       {!cropOpen ? null : (
         <div

@@ -471,6 +471,7 @@ function SearchPageContent() {
             fontStack="inherit"
             profiles={profiles}
             onNavigate={handleNavigate}
+            currentUserId={user?.uid ?? null}
           />
         )}
 

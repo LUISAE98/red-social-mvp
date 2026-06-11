@@ -36,6 +36,7 @@ import {
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import { useGroupMemberBlocks } from "@/lib/groups/useGroupMemberBlocks";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+import StoryRingAvatar from "@/app/components/Stories/StoryRingAvatar";
 import {
   resolvePostPremiumState,
   type PostPremiumStateResult,
@@ -2377,19 +2378,15 @@ const shouldClampFeedPostText =
             flex: 1,
           }}
         >
-          <Link
-            href={postAuthor.profileHref}
-            style={{
-              display: "inline-flex",
-              flexShrink: 0,
-            }}
-          >
-            <Avatar
-              name={postAuthor.authorName}
-              avatarUrl={postAuthor.avatarUrl}
-              size={38}
-            />
-          </Link>
+          <StoryRingAvatar
+            entityId={postAuthor.authorId}
+            entityType="profile"
+            currentUserId={currentUserId}
+            photoURL={postAuthor.avatarUrl}
+            displayName={postAuthor.authorName}
+            size={38}
+            onClick={() => { window.location.href = postAuthor.profileHref; }}
+          />
 
           <div style={{ minWidth: 0, flex: 1, paddingTop: 3 }}>
             <div

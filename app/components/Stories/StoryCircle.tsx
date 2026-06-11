@@ -16,7 +16,7 @@ type Props = {
   size?: number;
 };
 
-export default function StoryCircle({ type, thumbnailUrl, onClick, size = 60 }: Props) {
+export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74 }: Props) {
   const borderSize = size + 6;
   const label = LABELS[type];
 

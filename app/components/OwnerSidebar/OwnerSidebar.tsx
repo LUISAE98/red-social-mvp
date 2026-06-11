@@ -3006,9 +3006,9 @@ onCreateCommunity={() => router.push("/groups/new")}
       loadingFollowing={loadingFollowing}
       followedProfiles={followedProfiles}
       styles={styles}
-      getInitials={getInitials}
       onOpenProfile={(handle) => router.push(`/u/${handle}`)}
       isMobile={isMobile}
+      currentUserId={viewer?.uid ?? null}
     />
   </div>
 )}

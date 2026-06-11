@@ -3806,26 +3806,22 @@ export async function fetchSavedPostsPage(params: {
     })
     .filter((postId) => postId.trim().length > 0);
 
-  const chunks = chunkArray(savedPostIds, 30);
   const postsByIdMap = new Map<string, Post>();
 
   await Promise.all(
-    chunks.map(async (chunk) => {
+    savedPostIds.map(async (postId) => {
       try {
-        const snap = await getDocs(
-          query(collection(db, "posts"), where(documentId(), "in", chunk))
-        );
-        snap.docs.forEach((postDoc) => {
-          const post = {
-            id: postDoc.id,
-            ...(postDoc.data() as Omit<Post, "id">),
-          } as Post;
-          if (post.isDeleted !== true) {
-            postsByIdMap.set(postDoc.id, post);
-          }
-        });
+        const postDoc = await getDoc(doc(db, "posts", postId));
+        if (!postDoc.exists()) return;
+        const post = {
+          id: postDoc.id,
+          ...(postDoc.data() as Omit<Post, "id">),
+        } as Post;
+        if (post.isDeleted !== true) {
+          postsByIdMap.set(postDoc.id, post);
+        }
       } catch {
-        // Si un chunk falla, esos posts se omiten silenciosamente
+        // Si un post individual no es accesible, se omite silenciosamente
       }
     })
   );

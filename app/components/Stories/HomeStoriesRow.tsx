@@ -18,11 +18,12 @@ import {
 } from "@/lib/stories/storyService";
 import type { StoryDoc } from "@/lib/stories/types";
 import StoryViewer from "./StoryViewer";
+import HomeStoryCarouselDesktop, { type CarouselGroup } from "./HomeStoryCarouselDesktop";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 const VIBRA_GRADIENT = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
-const SEEN_RING = "rgba(255,255,255,0.32)";
+const SEEN_COLOR = "rgba(255,255,255,0.28)";
 
 type DisplayInfo = {
   displayName: string | null;
@@ -54,8 +55,24 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   const [viewedMap, setViewedMap] = useState<Map<string, number>>(new Map());
   const [displayInfoMap, setDisplayInfoMap] = useState<Map<string, DisplayInfo>>(new Map());
   const [activeGroup, setActiveGroup] = useState<StoryGroup | null>(null);
+  // Desktop-only carousel: snapshot of groups at click time + initial index
+  const [desktopOpen, setDesktopOpen] = useState<{ groups: CarouselGroup[]; initialIdx: number } | null>(null);
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches,
+  );
 
   const fetchedInfoKeys = useRef<Set<string>>(new Set());
+  // Refs so the mobile "group finished" callback always sees the latest data without stale closures
+  const storyGroupsRef = useRef<StoryGroup[]>([]);
+  const activeGroupRef = useRef<StoryGroup | null>(null);
+
+  // Sync isDesktop with media query changes (e.g. connecting/disconnecting a mouse)
+  useEffect(() => {
+    const mql = window.matchMedia("(pointer: fine)");
+    const h = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mql.addEventListener("change", h);
+    return () => mql.removeEventListener("change", h);
+  }, []);
 
   // 1. Load followed creator IDs + member group IDs
   useEffect(() => {
@@ -186,6 +203,26 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   );
 
   const storyGroups = buildStoryGroups(profileStories, groupStories, viewedMap, displayInfoMap);
+  // Keep refs in sync so callbacks always see current data
+  storyGroupsRef.current = storyGroups;
+  activeGroupRef.current = activeGroup;
+
+  // Mobile: when the last story in a group is exhausted (or swipe-left), advance to next unread group
+  const handleMobileGroupFinished = useCallback(() => {
+    const groups = storyGroupsRef.current;
+    const currentKey = activeGroupRef.current?.key;
+    const currentIdx = currentKey ? groups.findIndex((g) => g.key === currentKey) : -1;
+    const next = currentIdx >= 0 ? groups.slice(currentIdx + 1).find((g) => g.hasUnviewed) : null;
+    setActiveGroup(next ?? null);
+  }, []);
+
+  // Mobile: swipe-right or tap-left on first story → go to previous group
+  const handleMobileGroupBack = useCallback(() => {
+    const groups = storyGroupsRef.current;
+    const currentKey = activeGroupRef.current?.key;
+    const currentIdx = currentKey ? groups.findIndex((g) => g.key === currentKey) : -1;
+    if (currentIdx > 0) setActiveGroup(groups[currentIdx - 1]);
+  }, []);
 
   if (storyGroups.length === 0) return null;
 
@@ -206,13 +243,20 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
           const isGroup = group.source === "group";
           const emoji = isGroup ? "🏘️" : "👤";
           const name = group.info.displayName ?? (isGroup ? "Comunidad" : "Usuario");
-          const ring = VIBRA_GRADIENT;
+          const ring = group.hasUnviewed ? VIBRA_GRADIENT : SEEN_COLOR;
 
           return (
             <button
               key={group.key}
               type="button"
-              onClick={() => setActiveGroup(group)}
+              onClick={() => {
+                if (isDesktop) {
+                  const idx = storyGroups.findIndex((g) => g.key === group.key);
+                  setDesktopOpen({ groups: storyGroups, initialIdx: idx >= 0 ? idx : 0 });
+                } else {
+                  setActiveGroup(group);
+                }
+              }}
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -230,8 +274,8 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
               {/* Ring */}
               <div
                 style={{
-                  width: 66,
-                  height: 66,
+                  width: 80,
+                  height: 80,
                   borderRadius: "50%",
                   background: ring,
                   display: "flex",
@@ -270,12 +314,12 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
               <span
                 style={{
                   color: "rgba(255,255,255,0.72)",
-                  fontSize: 10.5,
+                  fontSize: 11,
                   fontWeight: 500,
                   lineHeight: 1.4,
                   letterSpacing: "-0.01em",
                   fontFamily: fontStack,
-                  maxWidth: 80,
+                  maxWidth: 88,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -288,11 +332,25 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
         })}
       </div>
 
+      {/* Desktop: carousel with next-group preview */}
+      {desktopOpen && (
+        <HomeStoryCarouselDesktop
+          groups={desktopOpen.groups}
+          initialGroupIndex={desktopOpen.initialIdx}
+          onClose={() => setDesktopOpen(null)}
+          onStoryViewed={handleStoryViewed}
+        />
+      )}
+
+      {/* Mobile: tap navigates within group; swipe or exhaustion changes group; swipe-down closes */}
       {activeGroup && (
         <StoryViewer
+          key={activeGroup.key}
           stories={activeGroup.stories}
           initialIndex={activeGroup.startIndex}
           onClose={() => setActiveGroup(null)}
+          onGroupFinished={handleMobileGroupFinished}
+          onPrevGroup={handleMobileGroupBack}
           onStoryViewed={handleStoryViewed}
         />
       )}

@@ -20,6 +20,8 @@ type Props = {
   stories: StoryDoc[];
   type?: StoryType;
   onClose: () => void;
+  /** Called when the last story is exhausted (tap-next or video ended). Separate from user-initiated close (swipe-down). Falls back to onClose if not provided. */
+  onGroupFinished?: () => void;
   onStoryViewed?: (storyId: string) => void;
   initialIndex?: number;
   /** Render inline (no portal/backdrop). Parent provides sizing. */
@@ -38,6 +40,7 @@ export default function StoryViewer({
   stories,
   type,
   onClose,
+  onGroupFinished,
   onStoryViewed,
   initialIndex = 0,
   contained = false,
@@ -114,7 +117,7 @@ export default function StoryViewer({
 
   const goTo = useCallback(
     (nextIndex: number) => {
-      if (nextIndex >= stories.length) { onClose(); return; }
+      if (nextIndex >= stories.length) { onGroupFinished ? onGroupFinished() : onClose(); return; }
       if (nextIndex < 0) { onPrevGroup?.(); return; }
       clearViewTimer();
       setIndex(nextIndex);
@@ -122,7 +125,7 @@ export default function StoryViewer({
       setVideoReady(false);
       setVideoAspect(null);
     },
-    [stories.length, onClose, onPrevGroup, clearViewTimer],
+    [stories.length, onClose, onGroupFinished, onPrevGroup, clearViewTimer],
   );
 
   useEffect(() => {
@@ -206,9 +209,17 @@ export default function StoryViewer({
         return;
       }
       setDragY(0);
-      if (Math.abs(dx) > 40) goTo(dx < 0 ? index + 1 : index - 1);
+      // Horizontal swipe (dx dominant, >50px) → change group directly
+      if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+        if (dx < 0) {
+          if (onGroupFinished) onGroupFinished(); else onClose();
+        } else {
+          onPrevGroup?.();
+        }
+        return;
+      }
     },
-    [index, goTo, onClose, contained],
+    [onClose, onGroupFinished, onPrevGroup, contained],
   );
 
   if (!mounted || !story) return null;
@@ -225,9 +236,11 @@ export default function StoryViewer({
     : null;
 
   // ── Shared avatar ring (desktop + mobile) ────────────────────────────────
+  const avatarSz = isDesktop ? 40 : 54;
+  const avatarInset = isDesktop ? 5 : 6;
   const avatarRing = (
-    <div style={{ position: "relative", width: 42, height: 42, flexShrink: 0 }}>
-      <div style={{ position: "absolute", inset: 5, borderRadius: "50%", overflow: "hidden", background: "rgba(255,255,255,0.1)" }}>
+    <div style={{ position: "relative", width: avatarSz, height: avatarSz, flexShrink: 0 }}>
+      <div style={{ position: "absolute", inset: avatarInset, borderRadius: "50%", overflow: "hidden", background: "rgba(255,255,255,0.1)" }}>
         {creator?.photo
           ? <img src={creator.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           : <div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />
@@ -294,11 +307,11 @@ export default function StoryViewer({
       </div>
 
       {/* Creator header */}
-      <div style={{ position: "absolute", top: typeof safeTop === "number" ? safeTop + 20 : `calc(${safeTop} + 20px)`, left: 12, zIndex: 10, display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ position: "absolute", top: typeof safeTop === "number" ? safeTop + 36 : `calc(${safeTop} + 36px)`, left: 12, zIndex: 10, display: "flex", alignItems: "center", gap: isDesktop ? 6 : 8 }}>
         {avatarRing}
         <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          <span style={{ color: "#fff", fontSize: 13, fontWeight: 600, lineHeight: "1.2", fontFamily: FONT, textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}>{creator?.name ?? ""}</span>
-          <span style={{ color: "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: 500, lineHeight: "1.2", fontFamily: FONT, textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}>{label}</span>
+          <span style={{ color: "#fff", fontSize: isDesktop ? 13 : 17, fontWeight: 600, lineHeight: "1.2", fontFamily: FONT, textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}>{creator?.name ?? ""}</span>
+          <span style={{ color: "rgba(255,255,255,0.75)", fontSize: isDesktop ? 11 : 13, fontWeight: 500, lineHeight: "1.2", fontFamily: FONT, textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}>{label}</span>
         </div>
       </div>
 
@@ -307,7 +320,27 @@ export default function StoryViewer({
       <button type="button" aria-label="Historia siguiente" onClick={() => goTo(index + 1)} style={{ position: "absolute", top: 0, right: 0, width: "65%", height: "100%", background: "none", border: "none", cursor: "e-resize", zIndex: 5 }} />
 
       {showClose && (
-        <button type="button" aria-label="Cerrar" onClick={onClose} style={{ position: "absolute", top: 16, right: 14, width: 32, height: 32, borderRadius: "50%", background: "rgba(0,0,0,0.5)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 11, color: "#fff", fontSize: 18, lineHeight: "1" }}>
+        <button
+          type="button"
+          aria-label="Cerrar"
+          onClick={onClose}
+          style={{
+            position: "absolute",
+            top: typeof safeTop === "number" ? safeTop + 28 : `calc(${safeTop} + 28px)`,
+            right: 14,
+            height: avatarSz,
+            display: "flex",
+            alignItems: "center",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            zIndex: 11,
+            color: "rgba(255,255,255,0.9)",
+            fontSize: isDesktop ? 26 : 30,
+            lineHeight: "1",
+            padding: "0 2px",
+          }}
+        >
           ×
         </button>
       )}
@@ -349,7 +382,7 @@ export default function StoryViewer({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {renderPanelContent("env(safe-area-inset-top, 0px)", false)}
+      {renderPanelContent("env(safe-area-inset-top, 0px)", true)}
     </div>,
     document.body,
   );

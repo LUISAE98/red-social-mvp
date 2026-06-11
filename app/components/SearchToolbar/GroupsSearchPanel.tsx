@@ -12,6 +12,7 @@ import { auth, db } from "@/lib/firebase";
 import { searchGroups } from "@/lib/groups/searchGroups";
 import { searchProfiles } from "@/lib/profile/searchProfiles";
 import GroupsSearchToolbar from "./GroupsSearchToolbar";
+import StoryRingAvatar from "@/app/components/Stories/StoryRingAvatar";
 
 
 export type CommunitySearchMatchType = "exact" | "related" | "suggested";
@@ -1403,23 +1404,15 @@ const visLabel =
                       >
                         <div className="result-grid">
                           <div className="result-main-mobile">
-                            <div className="result-avatar">
-                              {g.avatarUrl ? (
-                                <img
-                                  src={g.avatarUrl}
-                                  alt={g.name ?? "Comunidad"}
-                                  style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    objectFit: "cover",
-                                  }}
-                                />
-                              ) : (
-                                <span className="result-avatar-fallback">
-                                  {initialsFromName(g.name ?? "Comunidad")}
-                                </span>
-                              )}
-                            </div>
+                            <StoryRingAvatar
+                              entityId={g.id}
+                              entityType="group"
+                              currentUserId={user?.uid ?? null}
+                              photoURL={g.avatarUrl ?? null}
+                              displayName={g.name ?? "Comunidad"}
+                              size={42}
+                              onClick={(e) => { e.stopPropagation(); handleNavigateAndClose(`/groups/${g.id}`); }}
+                            />
 
                             <div className="result-content">
 <h3 className="result-name result-name-with-meta">
@@ -1560,23 +1553,15 @@ const visLabel =
                       >
                         <div className="result-grid">
 <div className="result-main-mobile">
-  <div className="result-avatar">
-    {p.photoURL ? (
-      <img
-        src={p.photoURL}
-        alt={fullName}
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-        }}
-      />
-    ) : (
-      <span className="result-avatar-fallback">
-        {initialsFromName(fullName)}
-      </span>
-    )}
-  </div>
+  <StoryRingAvatar
+    entityId={p.uid}
+    entityType="profile"
+    currentUserId={user?.uid ?? null}
+    photoURL={p.photoURL}
+    displayName={fullName}
+    size={42}
+    onClick={(e) => { e.stopPropagation(); handleNavigateAndClose(`/u/${p.handle}`); }}
+  />
 
   <div className="result-content">
     <h3 className="result-name result-name-with-meta">

@@ -10,12 +10,14 @@ import {
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 
 import type { PublicUser } from "./GroupsSearchPanel";
+import StoryRingAvatar from "@/app/components/Stories/StoryRingAvatar";
 
 type SearchProfilesResultsProps = {
   fontStack: string;
   profiles: PublicUser[];
   onNavigate: (href: string) => void;
   onRefresh?: () => Promise<void> | void;
+  currentUserId?: string | null;
 };
 
 function initialsFromName(name: string) {
@@ -30,6 +32,7 @@ export default function SearchProfilesResults({
   profiles,
   onNavigate,
   onRefresh,
+  currentUserId,
 }: SearchProfilesResultsProps) {
   const [visibleCount, setVisibleCount] = useState(10);
   const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
@@ -126,24 +129,6 @@ export default function SearchProfilesResults({
     alignItems: "center",
   };
 
-  const avatarStyle: CSSProperties = {
-    width: 42,
-    height: 42,
-    borderRadius: "50%",
-    overflow: "hidden",
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.04)",
-    display: "grid",
-    placeItems: "center",
-    flexShrink: 0,
-  };
-
-  const fallbackStyle: CSSProperties = {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: 700,
-  };
-
   const contentStyle: CSSProperties = {
     minWidth: 0,
     display: "grid",
@@ -226,23 +211,15 @@ export default function SearchProfilesResults({
             onClick={() => openProfile(profile.handle)}
           >
             <div style={rowStyle} className="search-profile-row">
-              <div style={avatarStyle} className="search-profile-avatar">
-                {profile.photoURL ? (
-                  <img
-                    src={profile.photoURL}
-                    alt={fullName}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
-                  />
-                ) : (
-                  <span style={fallbackStyle}>
-                    {initialsFromName(fullName)}
-                  </span>
-                )}
-              </div>
+              <StoryRingAvatar
+                entityId={profile.uid}
+                entityType="profile"
+                currentUserId={currentUserId}
+                photoURL={profile.photoURL}
+                displayName={fullName}
+                size={42}
+                onClick={(e) => { e.stopPropagation(); openProfile(profile.handle); }}
+              />
 
               <div style={contentStyle}>
                 <h3 style={titleStyle}>{fullName}</h3>

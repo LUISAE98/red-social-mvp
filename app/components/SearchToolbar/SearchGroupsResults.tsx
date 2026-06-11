@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { User } from "firebase/auth";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
+import StoryRingAvatar from "@/app/components/Stories/StoryRingAvatar";
 
 import type {
   CanonicalMemberStatus,
@@ -535,24 +536,6 @@ const cardStyle: CSSProperties = {
     minWidth: 0,
   };
 
-  const avatarStyle: CSSProperties = {
-    width: 42,
-    height: 42,
-    borderRadius: "50%",
-    overflow: "hidden",
-    border: "1px solid rgba(255,255,255,0.14)",
-    background: "rgba(255,255,255,0.04)",
-    display: "grid",
-    placeItems: "center",
-    flexShrink: 0,
-  };
-
-  const fallbackStyle: CSSProperties = {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: 700,
-  };
-
   const contentStyle: CSSProperties = {
     minWidth: 0,
     display: "grid",
@@ -872,23 +855,15 @@ const serviceDots = buildSearchServiceDots(group);
       >
         <div style={mainGridStyle} className="search-result-grid">
           <div style={mainInfoStyle} className="search-result-main">
-            <div style={avatarStyle} className="search-result-avatar">
-              {group.avatarUrl ? (
-                <img
-                  src={group.avatarUrl}
-                  alt={group.name ?? "Comunidad"}
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                  }}
-                />
-              ) : (
-                <span style={fallbackStyle}>
-                  {initialsFromName(group.name ?? "Comunidad")}
-                </span>
-              )}
-            </div>
+            <StoryRingAvatar
+              entityId={group.id}
+              entityType="group"
+              currentUserId={currentUser?.uid ?? null}
+              photoURL={group.avatarUrl ?? null}
+              displayName={group.name ?? "Comunidad"}
+              size={42}
+              onClick={(e) => { e.stopPropagation(); onNavigate(`/groups/${group.id}`); }}
+            />
 
             <div style={contentStyle} className="search-result-content">
 <h3

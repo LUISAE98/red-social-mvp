@@ -4,23 +4,24 @@ import { usePathname } from "next/navigation";
 import type { CSSProperties } from "react";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import type { FollowedProfileLite } from "./OwnerSidebar";
+import StoryRingAvatar from "@/app/components/Stories/StoryRingAvatar";
 
 type Props = {
   loadingFollowing: boolean;
   followedProfiles: FollowedProfileLite[];
   styles: Record<string, CSSProperties>;
-  getInitials: (name?: string | null) => string;
   onOpenProfile: (handle: string) => void;
   isMobile?: boolean;
+  currentUserId?: string | null;
 };
 
 export default function OwnerSidebarFollowedProfiles({
   loadingFollowing,
   followedProfiles,
   styles,
-  getInitials,
   onOpenProfile,
   isMobile = false,
+  currentUserId,
 }: Props) {
   const pathname = usePathname();
 
@@ -93,39 +94,14 @@ export default function OwnerSidebarFollowedProfiles({
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                {profile.photoURL ? (
-                  <img
-                    src={profile.photoURL}
-                    alt={displayName}
-                    style={{
-                      width: isMobile ? 43 : 36,
-                      height: isMobile ? 43 : 36,
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                      border: "1px solid rgba(255,255,255,0.10)",
-                      flexShrink: 0,
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      width: isMobile ? 43 : 36,
-                      height: isMobile ? 43 : 36,
-                      borderRadius: "50%",
-                      background: "rgba(255,255,255,0.06)",
-                      border: "1px solid rgba(255,255,255,0.10)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: isMobile ? 15 : 13,
-                      fontWeight: 700,
-                      color: "#fff",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {getInitials(displayName)}
-                  </div>
-                )}
+                <StoryRingAvatar
+                  entityId={profile.uid}
+                  entityType="profile"
+                  currentUserId={currentUserId}
+                  photoURL={profile.photoURL}
+                  displayName={displayName}
+                  size={isMobile ? 43 : 36}
+                />
 
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <div
