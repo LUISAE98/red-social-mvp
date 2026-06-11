@@ -310,8 +310,8 @@ export default function StoryViewer({
       <div style={{ position: "absolute", top: typeof safeTop === "number" ? safeTop + 36 : `calc(${safeTop} + 36px)`, left: 12, zIndex: 10, display: "flex", alignItems: "center", gap: isDesktop ? 6 : 8 }}>
         {avatarRing}
         <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          <span style={{ color: "#fff", fontSize: isDesktop ? 13 : 17, fontWeight: 600, lineHeight: "1.2", fontFamily: FONT, textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}>{creator?.name ?? ""}</span>
-          <span style={{ color: "rgba(255,255,255,0.75)", fontSize: isDesktop ? 11 : 13, fontWeight: 500, lineHeight: "1.2", fontFamily: FONT, textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}>{label}</span>
+          <span style={{ color: "#fff", fontSize: isDesktop ? 13 : 17, fontWeight: 600, lineHeight: "1.2", fontFamily: FONT }}>{creator?.name ?? ""}</span>
+          <span style={{ color: "rgba(255,255,255,0.75)", fontSize: isDesktop ? 11 : 13, fontWeight: 500, lineHeight: "1.2", fontFamily: FONT }}>{label}</span>
         </div>
       </div>
 

@@ -212,7 +212,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     const groups = storyGroupsRef.current;
     const currentKey = activeGroupRef.current?.key;
     const currentIdx = currentKey ? groups.findIndex((g) => g.key === currentKey) : -1;
-    const next = currentIdx >= 0 ? groups.slice(currentIdx + 1).find((g) => g.hasUnviewed) : null;
+    const next = currentIdx >= 0 && currentIdx < groups.length - 1 ? groups[currentIdx + 1] : null;
     setActiveGroup(next ?? null);
   }, []);
 
