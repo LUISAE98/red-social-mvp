@@ -2077,8 +2077,8 @@ useEffect(() => {
   const el = carouselShellRef.current;
   if (!el) return;
 
-  const axisThreshold = 10;
-  const axisBias = 1.25;
+  const axisThreshold = 5;   // detect direction sooner — less blocking on vertical scroll
+  const axisBias = 1.0;      // 45° split — forgiving for human diagonal swipes
   const swipeThreshold = 70;
 
   function resetGesture() {
@@ -3125,6 +3125,7 @@ const tileImageStyle: CSSProperties = {
   height: "100%",
   display: "block",
   objectFit: "cover",
+  touchAction: "pan-y",
 };
 
 function renderMediaContent(
@@ -3410,6 +3411,7 @@ style={{
   flex: `0 0 ${100 / totalMedia}%`,
   overflow: "hidden",
   background: "#000",
+  touchAction: "pan-y",
 }}
                 >
                   <button
@@ -3438,6 +3440,7 @@ style={{
   WebkitClipPath: "inset(0 round 12px)",
   WebkitTapHighlightColor: "transparent",
   isolation: "isolate",
+  touchAction: "pan-y",
 }}
                   >
                     {renderMediaContent(

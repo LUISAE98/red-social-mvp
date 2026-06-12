@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
@@ -58,7 +59,7 @@ export default function StoryViewer({
   const [resolvedPlaybackId, setResolvedPlaybackId] = useState<string | null>(null);
   const [isDesktop, setIsDesktop] = useState(false);
   const [videoAspect, setVideoAspect] = useState<{ w: number; h: number } | null>(null);
-  const [creator, setCreator] = useState<{ name: string | null; photo: string | null } | null>(null);
+  const [creator, setCreator] = useState<{ name: string | null; photo: string | null; handle: string | null } | null>(null);
   const [greetingAuthorUid, setGreetingAuthorUid] = useState<string | null>(null);
   const [greetingAuthorName, setGreetingAuthorName] = useState<string | null>(null);
   const [greetOpen, setGreetOpen] = useState(false);
@@ -75,7 +76,12 @@ export default function StoryViewer({
   const [isClosing, setIsClosing] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [instructions, setInstructions] = useState<string | null>(null);
+  const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
+  const [speechHighlight, setSpeechHighlight] = useState<{ start: number; length: number } | null>(null);
   const contextDragStartY = useRef<number | null>(null);
+  const speechOffsetRef = useRef(0);
+  const speechGenRef = useRef(0);
+  const speechTextRef = useRef<HTMLParagraphElement>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progressRafRef = useRef<number | null>(null);
@@ -103,6 +109,7 @@ export default function StoryViewer({
       setCreator({
         name: typeof d?.displayName === "string" ? d.displayName : null,
         photo: typeof d?.photoURL === "string" ? d.photoURL : null,
+        handle: typeof d?.handle === "string" ? d.handle : null,
       });
     }).catch(() => {});
   }, [stories, index]);
@@ -160,6 +167,83 @@ export default function StoryViewer({
     }).catch(() => {});
   }, [story?.greetingCreatorId, story?.creatorId]);
 
+  const startSpeechFrom = useCallback((charIndex: number) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const text = instructions ?? "Sin contexto disponible.";
+    window.speechSynthesis.cancel();
+    speechOffsetRef.current = charIndex;
+    const gen = ++speechGenRef.current;
+    // Pre-bold everything before the seek point
+    setSpeechHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
+    const utterance = new SpeechSynthesisUtterance(text.slice(charIndex));
+    utterance.lang = "es-MX";
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.onboundary = (e) => {
+      if (speechGenRef.current !== gen) return;
+      if (e.name !== "word") return;
+      const absIndex = charIndex + e.charIndex;
+      const fromIndex = text.slice(absIndex);
+      const spaceAt = fromIndex.search(/[\s\n]/);
+      const length = e.charLength ?? (spaceAt === -1 ? fromIndex.length : spaceAt);
+      setSpeechHighlight({ start: absIndex, length });
+    };
+    utterance.onend = () => {
+      if (speechGenRef.current !== gen) return;
+      setSpeechState("idle");
+      setSpeechHighlight(null);
+      setContextOpen(false);
+    };
+    utterance.onerror = () => {
+      if (speechGenRef.current !== gen) return;
+      setSpeechState("idle");
+      setSpeechHighlight(null);
+    };
+    window.speechSynthesis.speak(utterance);
+    setSpeechState("playing");
+  }, [instructions]);
+
+  const handleToggleSpeech = useCallback(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    if (speechState === "playing") {
+      window.speechSynthesis.pause();
+      setSpeechState("paused");
+      return;
+    }
+    if (speechState === "paused") {
+      window.speechSynthesis.resume();
+      setSpeechState("playing");
+      return;
+    }
+    startSpeechFrom(0);
+  }, [speechState, startSpeechFrom]);
+
+  const handleTextSeek = useCallback((e: React.MouseEvent<HTMLParagraphElement>) => {
+    e.stopPropagation();
+    const x = e.clientX;
+    const y = e.clientY;
+    let charIndex = 0;
+    const el = speechTextRef.current;
+    if (el) {
+      try {
+        let range: Range | null = null;
+        if ("caretRangeFromPoint" in document) {
+          range = (document as Document & { caretRangeFromPoint(x: number, y: number): Range | null }).caretRangeFromPoint(x, y);
+        } else if ("caretPositionFromPoint" in document) {
+          const pos = (document as Document & { caretPositionFromPoint(x: number, y: number): { offsetNode: Node; offset: number } | null }).caretPositionFromPoint(x, y);
+          if (pos) { range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); }
+        }
+        if (range) {
+          const pre = document.createRange();
+          pre.selectNodeContents(el);
+          pre.setEnd(range.startContainer, range.startOffset);
+          charIndex = pre.toString().length;
+        }
+      } catch { /* unsupported */ }
+    }
+    startSpeechFrom(charIndex);
+  }, [startSpeechFrom]);
+
   const goTo = useCallback(
     (nextIndex: number) => {
       if (nextIndex >= stories.length) { onGroupFinished ? onGroupFinished() : onClose(); return; }
@@ -178,8 +262,23 @@ export default function StoryViewer({
     setProgress(0);
     setVideoReady(false);
     setContextOpen(false);
+    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    speechGenRef.current++;
+    setSpeechState("idle");
+    setSpeechHighlight(null);
     if (videoRef.current) videoRef.current.currentTime = 0;
   }, [index, clearViewTimer]);
+
+  // Cancel speech when panel closes or component unmounts
+  useEffect(() => {
+    if (!contextOpen && typeof window !== "undefined") {
+      window.speechSynthesis?.cancel();
+      speechGenRef.current++;
+      setSpeechState("idle");
+      setSpeechHighlight(null);
+    }
+  }, [contextOpen]);
+  useEffect(() => () => { speechGenRef.current++; window.speechSynthesis?.cancel(); }, []);
 
   useEffect(() => () => clearViewTimer(), [clearViewTimer]);
 
@@ -417,14 +516,34 @@ export default function StoryViewer({
         ))}
       </div>
 
-      {/* Creator header */}
-      <div style={{ position: "absolute", top: typeof safeTop === "number" ? safeTop + 36 : `calc(${safeTop} + 36px)`, left: 12, zIndex: 10, display: "flex", alignItems: "center", gap: isDesktop ? 6 : 8 }}>
-        {avatarRing}
-        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          <span style={{ color: "#fff", fontSize: isDesktop ? 13 : 17, fontWeight: 600, lineHeight: "1.2", fontFamily: FONT }}>{creator?.name ?? ""}</span>
-          <span style={{ color: "rgba(255,255,255,0.75)", fontSize: isDesktop ? 11 : 13, fontWeight: 500, lineHeight: "1.2", fontFamily: FONT }}>{label}</span>
-        </div>
-      </div>
+      {/* Creator header — clickable link to profile when handle is available */}
+      {(() => {
+        const profileHref = creator?.handle ? `/u/${creator.handle}` : null;
+        const headerStyle: React.CSSProperties = {
+          position: "absolute",
+          top: typeof safeTop === "number" ? safeTop + 36 : `calc(${safeTop} + 36px)`,
+          left: 12,
+          zIndex: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: isDesktop ? 6 : 8,
+          textDecoration: "none",
+          WebkitTapHighlightColor: "transparent",
+          cursor: profileHref ? "pointer" : "default",
+        };
+        const inner = (
+          <>
+            {avatarRing}
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={{ color: "#fff", fontSize: isDesktop ? 13 : 17, fontWeight: 600, lineHeight: "1.2", fontFamily: FONT }}>{creator?.name ?? ""}</span>
+              <span style={{ color: "rgba(255,255,255,0.75)", fontSize: isDesktop ? 11 : 13, fontWeight: 500, lineHeight: "1.2", fontFamily: FONT }}>{label}</span>
+            </div>
+          </>
+        );
+        return profileHref
+          ? <Link href={profileHref} onClick={(e) => e.stopPropagation()} style={headerStyle}>{inner}</Link>
+          : <div style={headerStyle}>{inner}</div>;
+      })()}
 
       {/* Tap zones */}
       <button type="button" aria-label="Historia anterior" onClick={() => goTo(index - 1)} style={{ position: "absolute", top: 0, left: 0, width: "35%", height: "100%", background: "none", border: "none", cursor: index > 0 ? "w-resize" : "default", zIndex: 5 }} />
@@ -533,23 +652,39 @@ export default function StoryViewer({
             >
               <div
                 style={{
-                  background: "rgba(12,12,22,0.96)",
-                  border: "1px solid rgba(255,255,255,0.10)",
+                  background: "rgba(37,99,235,0.62)",
+                  border: "1px solid rgba(255,255,255,0.18)",
                   borderRadius: 16,
                   maxHeight: "50vh",
                   overflowY: "auto",
                 }}
               >
-                {/* Header row: pill handle + close button */}
-                <div style={{ display: "flex", alignItems: "center", paddingTop: 10, paddingBottom: 4, paddingLeft: 18, paddingRight: 10 }}>
-                  <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-                    <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.22)" }} />
-                  </div>
+                {/* Header row: play/stop + close */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "8px 10px 4px" }}>
+                  <button
+                    type="button"
+                    aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer contexto"}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); handleToggleSpeech(); }}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.85)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 6, transition: "color 0.15s" }}
+                  >
+                    {speechState === "playing" ? (
+                      <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor">
+                        <rect x="5" y="4" width="4" height="16" rx="1"/>
+                        <rect x="15" y="4" width="4" height="16" rx="1"/>
+                      </svg>
+                    ) : (
+                      <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor">
+                        <polygon points="5,3 19,12 5,21"/>
+                      </svg>
+                    )}
+                  </button>
                   <button
                     type="button"
                     aria-label="Cerrar contexto"
+                    onTouchStart={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); setContextOpen(false); }}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.55)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.75)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                   >
                     <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                       <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -557,6 +692,8 @@ export default function StoryViewer({
                   </button>
                 </div>
                 <p
+                  ref={speechTextRef}
+                  onClick={handleTextSeek}
                   style={{
                     margin: "4px 18px 14px",
                     color: "rgba(255,255,255,0.88)",
@@ -565,9 +702,21 @@ export default function StoryViewer({
                     lineHeight: 1.55,
                     whiteSpace: "pre-wrap",
                     wordBreak: "break-word",
+                    cursor: "text",
+                    userSelect: "none",
                   }}
                 >
-                  {instructions ?? "Sin contexto disponible."}
+                  {(() => {
+                    const text = instructions ?? "Sin contexto disponible.";
+                    if (speechState === "idle" || !speechHighlight) return text;
+                    const { start, length } = speechHighlight;
+                    return (
+                      <>
+                        <strong style={{ color: "#fff", fontWeight: 700 }}>{text.slice(0, start + length)}</strong>
+                        {text.slice(start + length)}
+                      </>
+                    );
+                  })()}
                 </p>
               </div>
             </div>

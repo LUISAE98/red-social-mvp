@@ -250,15 +250,6 @@ export default function MobileBottomNav({
           transition: transform 0.1s ease;
         }
 
-        .selCircle {
-          position: absolute;
-          width: 48px;
-          height: 48px;
-          border-radius: 50%;
-          background: rgba(255, 255, 255, 0.13);
-          pointer-events: none;
-        }
-
         .itemInner {
           position: relative;
           z-index: 1;
@@ -288,7 +279,6 @@ export default function MobileBottomNav({
                 title={item.label}
                 aria-current={item.active ? "page" : undefined}
               >
-                {item.active && <span className="selCircle" />}
                 <div className="itemInner">
                   {item.type === "avatar" ? (
                     <ProfileAvatarIcon src={photoURL} active={item.active} />
