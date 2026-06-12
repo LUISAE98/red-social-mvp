@@ -101,11 +101,9 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
 
   if (groups.length === 0) return null;
 
-  const getCoverThumbnail = (key: string, type: StoryType, list: StoryDoc[]): string | null => {
-    // Prefer new key, fall back to legacy StoryType key for backward compat
+  const getCoverThumbnail = (key: string, list: StoryDoc[]): string | null => {
     if (storyCoverPhoto[key]) return storyCoverPhoto[key]!;
-    if (storyCoverPhoto[type]) return storyCoverPhoto[type]!;
-    const coverId = storyCovers[key] ?? storyCovers[type];
+    const coverId = storyCovers[key];
     const story = (coverId ? list.find((s) => s.id === coverId) : null) ?? list[0] ?? null;
     return resolveThumb(story);
   };
@@ -126,7 +124,7 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
           <div key={i} style={{ position: "relative", flexShrink: 0 }}>
             <StoryCircle
               type={g.type}
-              thumbnailUrl={getCoverThumbnail(g.key, g.type, g.list)}
+              thumbnailUrl={getCoverThumbnail(g.key, g.list)}
               sublabel={g.sublabel}
               onClick={() => setViewerState({ stories: g.list, type: g.type })}
             />
