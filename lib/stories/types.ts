@@ -8,6 +8,8 @@ export type StoryDoc = {
   creatorId: string;
   /** UID of the creator who made the greeting (A). May differ from creatorId when the buyer (B) shared it. */
   greetingCreatorId?: string;
+  /** Context/instructions written by the buyer when ordering the greeting. */
+  instructions?: string;
   type: StoryType;
   muxPlaybackId: string | null;
   thumbnailUrl: string | null;

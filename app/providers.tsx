@@ -36,6 +36,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useState<AuthTransitionMode>("checking");
 
   const transitionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const authTransitionModeRef = useRef<AuthTransitionMode>("checking");
+  authTransitionModeRef.current = authTransitionMode;
 
   function clearTransitionTimer() {
     if (transitionTimerRef.current) {
@@ -57,7 +59,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
-      scheduleIdle();
+      // When signing out (u=null during "exiting"), don't restart the timer —
+      // the one from startAuthTransition already covers the navigation window.
+      if (!(u === null && authTransitionModeRef.current === "exiting")) {
+        scheduleIdle();
+      }
     });
 
     return () => {

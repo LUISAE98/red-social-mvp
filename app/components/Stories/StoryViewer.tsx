@@ -73,6 +73,9 @@ export default function StoryViewer({
   );
   const [dragY, setDragY] = useState(0);
   const [isClosing, setIsClosing] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [instructions, setInstructions] = useState<string | null>(null);
+  const contextDragStartY = useRef<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progressRafRef = useRef<number | null>(null);
@@ -80,6 +83,7 @@ export default function StoryViewer({
   const touchStartYRef = useRef<number | null>(null);
   const viewedInSessionRef = useRef<Set<string>>(new Set());
   const viewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdingRef = useRef(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -132,6 +136,19 @@ export default function StoryViewer({
     );
   }, [story?.greetingRequestId, story?.muxPlaybackId]);
 
+  // Read instructions — from story doc (new stories) or greetingRequest fallback (A/B only)
+  useEffect(() => {
+    if (story?.instructions) { setInstructions(story.instructions); return; }
+    if (!story?.greetingRequestId) { setInstructions(null); return; }
+    setInstructions(null);
+    getDoc(doc(db, "greetingRequests", story.greetingRequestId))
+      .then((snap) => {
+        const instr = snap.data()?.instructions;
+        if (typeof instr === "string" && instr) setInstructions(instr);
+      })
+      .catch(() => {});
+  }, [story?.instructions, story?.greetingRequestId]);
+
   // Resolve the actual greeting creator (A) from the story doc itself (no greetingRequests read needed)
   useEffect(() => {
     const authorId = story?.greetingCreatorId ?? story?.creatorId ?? null;
@@ -160,6 +177,7 @@ export default function StoryViewer({
     clearViewTimer();
     setProgress(0);
     setVideoReady(false);
+    setContextOpen(false);
     if (videoRef.current) videoRef.current.currentTime = 0;
   }, [index, clearViewTimer]);
 
@@ -172,8 +190,8 @@ export default function StoryViewer({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (greetOpen) { video.pause(); } else { video.play().catch(() => {}); }
-  }, [greetOpen]);
+    if (greetOpen || contextOpen) { video.pause(); } else { video.play().catch(() => {}); }
+  }, [greetOpen, contextOpen]);
 
 
   useEffect(() => {
@@ -222,7 +240,11 @@ export default function StoryViewer({
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0]?.clientX ?? null;
     touchStartYRef.current = e.touches[0]?.clientY ?? null;
-  }, []);
+    if (!greetOpen && videoRef.current) {
+      holdingRef.current = true;
+      videoRef.current.pause();
+    }
+  }, [greetOpen]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (contained || touchStartYRef.current === null) return;
@@ -242,6 +264,7 @@ export default function StoryViewer({
       const dy = endY - (startY ?? endY);
 
       if (!contained && dy > 80 && dy > Math.abs(dx)) {
+        holdingRef.current = false;
         setIsClosing(true);
         setDragY(window.innerHeight);
         setTimeout(onClose, 280);
@@ -250,6 +273,7 @@ export default function StoryViewer({
       setDragY(0);
       // Horizontal swipe (dx dominant, >50px) → change group directly
       if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+        holdingRef.current = false;
         if (dx < 0) {
           if (onGroupFinished) onGroupFinished(); else onClose();
         } else {
@@ -257,8 +281,15 @@ export default function StoryViewer({
         }
         return;
       }
+      // Tap or lift with no swipe → resume video
+      if (holdingRef.current) {
+        holdingRef.current = false;
+        if (!greetOpen && videoRef.current) {
+          videoRef.current.play().catch(() => {});
+        }
+      }
     },
-    [onClose, onGroupFinished, onPrevGroup, contained],
+    [onClose, onGroupFinished, onPrevGroup, contained, greetOpen],
   );
 
   if (!mounted || !story) return null;
@@ -457,59 +488,139 @@ export default function StoryViewer({
         </div>
       )}
 
-      {/* Bottom action buttons */}
-      <div
-        style={{
-          position: "absolute",
-          left: 14,
-          right: 14,
-          bottom: typeof safeBottom === "number"
-            ? safeBottom + 20
-            : `calc(${safeBottom} + 20px)`,
-          display: "flex",
-          gap: 10,
-          zIndex: 10,
-        }}
-      >
-        <button
-          type="button"
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            flex: 1,
-            padding: isDesktop ? "8px 10px" : "11px 10px",
-            borderRadius: 10,
-            border: "none",
-            background: "#60a5fa",
-            color: "#fff",
-            fontSize: isDesktop ? 12 : 14,
-            fontWeight: 600,
-            fontFamily: FONT,
-            cursor: "pointer",
-            letterSpacing: "-0.01em",
-          }}
-        >
-          Contexto
-        </button>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); handleWantGreeting(); }}
-          style={{
-            flex: 1,
-            padding: isDesktop ? "8px 10px" : "11px 10px",
-            borderRadius: 10,
-            border: "none",
-            background: "linear-gradient(135deg, #f472b6 0%, #a855f7 100%)",
-            color: "#fff",
-            fontSize: isDesktop ? 12 : 14,
-            fontWeight: 600,
-            fontFamily: FONT,
-            cursor: "pointer",
-            letterSpacing: "-0.01em",
-          }}
-        >
-          {effectiveType === "saludo" ? "Quiero mi saludo" : "Quiero mi consejo"}
-        </button>
-      </div>
+      {/* Bottom: floating context panel + floating buttons */}
+      {(() => {
+        const btnPadBottom = contextOpen
+          ? "8px"
+          : typeof safeBottom === "string"
+            ? `max(8px, ${safeBottom})`
+            : "8px";
+        return (
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: "flex",
+              flexDirection: "column",
+              zIndex: 10,
+            }}
+          >
+            {/* Floating context panel — above buttons */}
+            <div
+              style={{
+                margin: `0 14px ${contextOpen ? 8 : 0}px`,
+                borderRadius: 16,
+                overflow: "hidden",
+                maxHeight: contextOpen ? "50vh" : "0px",
+                transition: "max-height 0.28s cubic-bezier(0.4,0,0.2,1), margin-bottom 0.28s",
+                boxShadow: contextOpen ? "0 8px 32px rgba(0,0,0,0.5)" : "none",
+                backdropFilter: "blur(14px) saturate(1.2)",
+                WebkitBackdropFilter: "blur(14px) saturate(1.2)",
+              }}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                contextDragStartY.current = e.touches[0]?.clientY ?? null;
+              }}
+              onTouchMove={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => {
+                e.stopPropagation();
+                const startY = contextDragStartY.current;
+                contextDragStartY.current = null;
+                if (startY === null) return;
+                const dy = (e.changedTouches[0]?.clientY ?? startY) - startY;
+                if (dy > 40) setContextOpen(false);
+              }}
+            >
+              <div
+                style={{
+                  background: "rgba(12,12,22,0.96)",
+                  border: "1px solid rgba(255,255,255,0.10)",
+                  borderRadius: 16,
+                  maxHeight: "50vh",
+                  overflowY: "auto",
+                }}
+              >
+                {/* Header row: pill handle + close button */}
+                <div style={{ display: "flex", alignItems: "center", paddingTop: 10, paddingBottom: 4, paddingLeft: 18, paddingRight: 10 }}>
+                  <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+                    <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.22)" }} />
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Cerrar contexto"
+                    onClick={(e) => { e.stopPropagation(); setContextOpen(false); }}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.55)", padding: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                  >
+                    <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                </div>
+                <p
+                  style={{
+                    margin: "4px 18px 14px",
+                    color: "rgba(255,255,255,0.88)",
+                    fontSize: isDesktop ? 13 : 15,
+                    fontFamily: FONT,
+                    lineHeight: 1.55,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {instructions ?? "Sin contexto disponible."}
+                </p>
+              </div>
+            </div>
+
+            {/* Buttons row */}
+            <div style={{ display: "flex", gap: 10, padding: `0 14px`, paddingBottom: btnPadBottom }}>
+              <button
+                type="button"
+                onTouchStart={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); setContextOpen((v) => !v); }}
+                style={{
+                  flex: 1,
+                  padding: isDesktop ? "8px 10px" : "11px 10px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: contextOpen ? "#3b82f6" : "#60a5fa",
+                  color: "#fff",
+                  fontSize: isDesktop ? 12 : 14,
+                  fontWeight: 600,
+                  fontFamily: FONT,
+                  cursor: "pointer",
+                  letterSpacing: "-0.01em",
+                  transition: "background 0.15s",
+                }}
+              >
+                Contexto
+              </button>
+              <button
+                type="button"
+                onTouchStart={(e) => e.stopPropagation()}
+                onClick={(e) => { e.stopPropagation(); handleWantGreeting(); }}
+                style={{
+                  flex: 1,
+                  padding: isDesktop ? "8px 10px" : "11px 10px",
+                  borderRadius: 10,
+                  border: "none",
+                  background: "linear-gradient(135deg, #f472b6 0%, #a855f7 100%)",
+                  color: "#fff",
+                  fontSize: isDesktop ? 12 : 14,
+                  fontWeight: 600,
+                  fontFamily: FONT,
+                  cursor: "pointer",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {effectiveType === "saludo" ? "Quiero mi saludo" : "Quiero mi consejo"}
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
     </>
   );

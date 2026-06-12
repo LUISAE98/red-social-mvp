@@ -211,10 +211,17 @@ export default function StoryCoverPicker({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // file.type can be empty on iOS/Android — guess from extension so Storage rules pass
+    const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+    const extMap: Record<string, string> = {
+      jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png",
+      webp: "image/webp", gif: "image/gif", heic: "image/heic", heif: "image/heif",
+    };
+    const contentType = file.type || extMap[ext] || "image/jpeg";
     setUploading(true);
     try {
       const storageRef = ref(storage, uploadStoragePath);
-      await uploadBytes(storageRef, file, { contentType: file.type });
+      await uploadBytes(storageRef, file, { contentType });
       const url = await getDownloadURL(storageRef);
       await onUploadPhoto(url);
     } catch (err) {
@@ -232,6 +239,7 @@ export default function StoryCoverPicker({
         // buyer publishes as themselves; creator publishes as themselves (item.creatorId === entityId)
         creatorId: role === "buyer" ? entityId : item.creatorId,
         greetingCreatorId: item.creatorId,
+        instructions: item.instructions || undefined,
         type,
         muxPlaybackId: item.muxPlaybackId,
         thumbnailUrl: item.muxPlaybackId

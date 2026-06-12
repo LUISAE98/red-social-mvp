@@ -1325,7 +1325,11 @@ export default function PublicProfileLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, loading, authTransitionMode } = useAuth();
+
+  if (authTransitionMode === "exiting") {
+    return <div style={{ minHeight: "100dvh", background: "#000" }} />;
+  }
 
 if (loading) {
   return (

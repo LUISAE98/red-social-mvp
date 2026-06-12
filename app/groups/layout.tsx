@@ -1323,8 +1323,11 @@ export default function GroupsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = useAuth();
+  const { user, authTransitionMode } = useAuth();
 
+  if (authTransitionMode === "exiting") {
+    return <div style={{ minHeight: "100dvh", background: "#000" }} />;
+  }
 
   if (user) {
     return <AuthenticatedGroupsShell>{children}</AuthenticatedGroupsShell>;

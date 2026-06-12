@@ -497,6 +497,7 @@ export default function GreetingReviewOverlay({
       await addStoryFromGreeting({
         creatorId: currentItem.data.creatorId,
         greetingCreatorId: currentItem.data.creatorId,
+        instructions: currentItem.data.instructions,
         type,
         muxPlaybackId: playbackId,
         thumbnailUrl: playbackId
@@ -552,6 +553,7 @@ export default function GreetingReviewOverlay({
       await addStoryFromGreeting({
         creatorId: buyerUid,
         greetingCreatorId: currentItem.data.creatorId,
+        instructions: currentItem.data.instructions,
         type,
         muxPlaybackId: playbackId,
         thumbnailUrl: playbackId ? `https://image.mux.com/${playbackId}/thumbnail.jpg?time=0` : null,

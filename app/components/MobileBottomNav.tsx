@@ -215,6 +215,8 @@ export default function MobileBottomNav({
           -webkit-backface-visibility: hidden;
           pointer-events: none;
           background: #000000;
+          /* Safe area fill: the wrap's own background covers the inset on all OS */
+          padding-bottom: env(safe-area-inset-bottom, 0px);
         }
 
         .navShell {
@@ -227,7 +229,7 @@ export default function MobileBottomNav({
           display: grid;
           grid-template-columns: repeat(var(--mobile-nav-count), minmax(0, 1fr));
           align-items: center;
-          padding: 8px 6px calc(8px + env(safe-area-inset-bottom, 0px));
+          padding: 8px 6px 8px;
           background: #000000;
           box-sizing: border-box;
           transform: translateZ(0);

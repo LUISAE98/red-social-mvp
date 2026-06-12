@@ -54,6 +54,7 @@ function sortByDate(stories: StoryDoc[]): StoryDoc[] {
 export async function addStoryFromGreeting(params: {
   creatorId: string;
   greetingCreatorId?: string;
+  instructions?: string;
   type: StoryType;
   muxPlaybackId: string | null;
   thumbnailUrl: string | null;

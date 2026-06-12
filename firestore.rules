@@ -285,6 +285,19 @@ service cloud.firestore {
               )
             )
           )
+          ||
+          (
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              "storyCovers",
+              "storyCoverPhoto"
+            ])
+            && (!("storyCovers" in request.resource.data)
+              || request.resource.data.storyCovers == null
+              || request.resource.data.storyCovers is map)
+            && (!("storyCoverPhoto" in request.resource.data)
+              || request.resource.data.storyCoverPhoto == null
+              || request.resource.data.storyCoverPhoto is map)
+          )
             )
           )
           ||
