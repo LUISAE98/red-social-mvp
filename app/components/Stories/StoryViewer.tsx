@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useRouter } from "next/navigation";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
@@ -57,15 +56,14 @@ export default function StoryViewer({
   const [resolvedPlaybackId, setResolvedPlaybackId] = useState<string | null>(null);
   const [isDesktop, setIsDesktop] = useState(false);
   const [videoAspect, setVideoAspect] = useState<{ w: number; h: number } | null>(null);
-  const [creator, setCreator] = useState<{ name: string | null; photo: string | null; handle: string | null } | null>(null);
-  const [greetingAuthorHandle, setGreetingAuthorHandle] = useState<string | null>(null);
+  const [creator, setCreator] = useState<{ name: string | null; photo: string | null } | null>(null);
+  const [greetingAuthorUid, setGreetingAuthorUid] = useState<string | null>(null);
+  const [greetingAuthorName, setGreetingAuthorName] = useState<string | null>(null);
   const [muted, setMuted] = useState(() =>
     typeof window !== "undefined" && localStorage.getItem("vibra_stories_muted") === "1"
   );
   const [dragY, setDragY] = useState(0);
   const [isClosing, setIsClosing] = useState(false);
-
-  const router = useRouter();
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progressRafRef = useRef<number | null>(null);
@@ -92,7 +90,6 @@ export default function StoryViewer({
       setCreator({
         name: typeof d?.displayName === "string" ? d.displayName : null,
         photo: typeof d?.photoURL === "string" ? d.photoURL : null,
-        handle: typeof d?.handle === "string" ? d.handle : null,
       });
     }).catch(() => {});
   }, [stories, index]);
@@ -126,17 +123,19 @@ export default function StoryViewer({
     );
   }, [story?.greetingRequestId, story?.muxPlaybackId]);
 
-  // Resolve the handle of the greeting author (always the creator A, even when buyer B shared the story)
+  // Resolve the actual greeting creator (A), even when a buyer (B) shared the story
   useEffect(() => {
     const reqId = story?.greetingRequestId;
-    if (!reqId) { setGreetingAuthorHandle(null); return; }
-    setGreetingAuthorHandle(null);
+    if (!reqId) { setGreetingAuthorUid(null); setGreetingAuthorName(null); return; }
+    setGreetingAuthorUid(null);
+    setGreetingAuthorName(null);
     getDoc(doc(db, "greetingRequests", reqId)).then((reqSnap) => {
       const authorId = reqSnap.data()?.creatorId as string | undefined;
       if (!authorId) return;
+      setGreetingAuthorUid(authorId);
       getDoc(doc(db, "users", authorId)).then((userSnap) => {
-        const h = userSnap.data()?.handle;
-        if (typeof h === "string") setGreetingAuthorHandle(h);
+        const name = userSnap.data()?.displayName;
+        if (typeof name === "string") setGreetingAuthorName(name);
       }).catch(() => {});
     }).catch(() => {});
   }, [story?.greetingRequestId]);
@@ -166,6 +165,7 @@ export default function StoryViewer({
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = muted;
   }, [muted]);
+
 
   useEffect(() => {
     const video = videoRef.current;
@@ -256,18 +256,6 @@ export default function StoryViewer({
 
   const effectiveType = type ?? story.type;
 
-  function handleWantGreeting() {
-    const closer = onCloseCarousel ?? onClose;
-    // For group stories, open the group's purchase panel
-    if (story.source === "group" && story.groupId) {
-      closer();
-      router.push(`/groups/${story.groupId}?service=${effectiveType}`);
-    } else if (greetingAuthorHandle) {
-      // Always navigate to the actual greeting creator (A), even if a buyer (B) shared the story
-      closer();
-      router.push(`/u/${greetingAuthorHandle}?service=${effectiveType}`);
-    }
-  }
 
   const videoProcessing = !resolvedPlaybackId;
   const videoUrl = resolvedPlaybackId
@@ -457,7 +445,7 @@ export default function StoryViewer({
         </button>
         <button
           type="button"
-          onClick={(e) => { e.stopPropagation(); handleWantGreeting(); }}
+          onClick={(e) => e.stopPropagation()}
           style={{
             flex: 1,
             padding: isDesktop ? "8px 10px" : "11px 10px",
@@ -475,6 +463,7 @@ export default function StoryViewer({
           {effectiveType === "saludo" ? "Quiero mi saludo" : "Quiero mi consejo"}
         </button>
       </div>
+
     </>
   );
 

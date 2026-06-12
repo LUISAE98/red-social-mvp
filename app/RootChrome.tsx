@@ -76,7 +76,7 @@ if (isPublicPostRoute) {
           z-index: 100;
           padding-top: env(safe-area-inset-top);
           border-bottom: none;
-          background: transparent;
+          background: #000000;
         }
 
         .rootChromePublicHeaderInner {

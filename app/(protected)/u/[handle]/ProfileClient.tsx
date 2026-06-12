@@ -2354,6 +2354,7 @@ await createExclusiveSessionRequest({
   greetOpen={greetOpen}
   greetSubmitting={greetSubmitting}
   greetType={greetType}
+  creatorName={fullName}
   toName={toName}
   instructions={instructions}
   greetError={greetError}

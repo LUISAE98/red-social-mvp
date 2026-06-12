@@ -10,6 +10,7 @@ type CreatorServiceModalsProps = {
   greetOpen: boolean;
   greetSubmitting: boolean;
   greetType: GreetingType;
+  creatorName?: string;
   toName: string;
   instructions: string;
   greetError: string | null;
@@ -111,6 +112,7 @@ export default function CreatorServiceModals({
   greetOpen,
   greetSubmitting,
   greetType,
+  creatorName,
   toName,
   instructions,
   greetError,
@@ -260,7 +262,7 @@ export default function CreatorServiceModals({
             >
                             <div style={modalHeaderStyle}>
                 <div id="creator-service-modal-title" style={subtitleStyle}>
-                  {greetingUi.title}
+                  {creatorName ? `${greetingUi.title} a ${creatorName}` : greetingUi.title}
                 </div>
 
                 <button

@@ -229,7 +229,7 @@ export default function MobileBottomNav({
     grid-template-columns: repeat(var(--mobile-nav-count), minmax(0, 1fr));
     align-items: center;
     padding: 10px 10px calc(10px + env(safe-area-inset-bottom, 0px));
-    background: rgba(20, 20, 22, 0.95);
+    background: rgb(14, 14, 16);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-top: 1px solid rgba(255, 255, 255, 0.12);

@@ -1,6 +1,7 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 
 interface PullToRefreshProps {
   pullDistance: number;
@@ -15,20 +16,23 @@ export default function PullToRefresh({
   isReadyToRefresh,
   indicatorTop,
 }: PullToRefreshProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   const visible = pullDistance > 0 || isRefreshing;
 
-  if (!visible) return null;
+  if (!visible || !mounted) return null;
 
   const progress = Math.min(pullDistance / 55, 1);
   const size = 24 + progress * 8;
   const rotation = pullDistance * 4.5;
 
-  return (
+  return createPortal(
     <div
       className="vibraPullRefreshIndicator"
       style={{
         position: "fixed",
-        top: indicatorTop ?? "calc(env(safe-area-inset-top) + 72px)",
+        top: indicatorTop ?? "calc(env(safe-area-inset-top) + 20px)",
         left: 0,
         right: 0,
         zIndex: 99999,
@@ -55,6 +59,7 @@ export default function PullToRefresh({
         }
         aria-label="Actualizando"
       />
-    </div>
+    </div>,
+    document.body
   );
 }
