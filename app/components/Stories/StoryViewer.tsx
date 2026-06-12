@@ -490,11 +490,9 @@ export default function StoryViewer({
 
       {/* Bottom: floating context panel + floating buttons */}
       {(() => {
-        const btnPadBottom = contextOpen
-          ? "8px"
-          : typeof safeBottom === "string"
-            ? `max(8px, ${safeBottom})`
-            : "8px";
+        const btnPadBottom = typeof safeBottom === "string"
+          ? `max(8px, ${safeBottom})`
+          : "8px";
         return (
           <div
             style={{
