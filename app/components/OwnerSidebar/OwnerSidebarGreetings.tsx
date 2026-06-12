@@ -2041,11 +2041,11 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                       <img
                         src={sourceAvatar}
                         alt={sourceName}
-                        style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
+                        style={{ width: 36, height: 36, borderRadius: 999, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
                       />
                     ) : (
                       <div style={{
-                        width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                        width: 36, height: 36, borderRadius: 999, flexShrink: 0,
                         background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontWeight: 700, fontSize: 14, color: "#fff",

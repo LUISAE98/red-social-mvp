@@ -26,6 +26,8 @@ type Props = {
   type: StoryType;
   entityId: string;
   entityType: "profile" | "group";
+  /** "creator" = fetch greetings where creatorId === entityId (enviados); "buyer" = buyerId === entityId (recibidos) */
+  role?: "creator" | "buyer";
   currentCoverStoryId: string | null;
   currentCustomPhotoUrl: string | null;
   uploadStoragePath: string;
@@ -109,6 +111,7 @@ export default function StoryCoverPicker({
   type,
   entityId,
   entityType,
+  role = "creator",
   currentCoverStoryId,
   currentCustomPhotoUrl,
   uploadStoragePath,
@@ -141,18 +144,22 @@ export default function StoryCoverPicker({
   // Fetch delivered greetings that have story permission
   useEffect(() => {
     const constraint =
-      entityType === "profile"
-        ? where("creatorId", "==", entityId)
-        : where("groupId", "==", entityId);
+      entityType === "group"
+        ? where("groupId", "==", entityId)
+        : role === "buyer"
+          ? where("buyerId", "==", entityId)
+          : where("creatorId", "==", entityId);
     getDocs(query(collection(db, "greetingRequests"), constraint))
       .then((snap) => {
         const items: GreetingItem[] = [];
         for (const d of snap.docs) {
           const g = d.data();
+          const hasPermission =
+            role === "buyer" ? true : g.allowCreatorStory !== false;
           if (
             g.type === type &&
             g.status === "delivered" &&
-            g.allowCreatorStory !== false &&
+            hasPermission &&
             g.muxPlaybackId
           ) {
             items.push({
@@ -169,7 +176,7 @@ export default function StoryCoverPicker({
         setGreetingList(items);
       })
       .catch(console.error);
-  }, [entityId, entityType, type]);
+  }, [entityId, entityType, role, type]);
 
   const updateScrollState = () => {
     const el = scrollRef.current;
@@ -184,7 +191,11 @@ export default function StoryCoverPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, stories]);
 
-  const title = type === "saludo" ? "Portada de Saludos" : "Portada de Consejos";
+  const dirLabel = role === "buyer" ? "recibidos" : "enviados";
+  const title =
+    type === "saludo"
+      ? `Portada de Saludos ${dirLabel}`
+      : `Portada de Consejos ${dirLabel}`;
   const emoji = type === "saludo" ? "👋" : "💡";
   const typeLabel = type === "saludo" ? "saludos" : "consejos";
 
@@ -218,7 +229,9 @@ export default function StoryCoverPicker({
     setProcessingId(item.id);
     try {
       await addStoryFromGreeting({
-        creatorId: item.creatorId,
+        // buyer publishes as themselves; creator publishes as themselves (item.creatorId === entityId)
+        creatorId: role === "buyer" ? entityId : item.creatorId,
+        greetingCreatorId: item.creatorId,
         type,
         muxPlaybackId: item.muxPlaybackId,
         thumbnailUrl: item.muxPlaybackId

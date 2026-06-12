@@ -9,7 +9,7 @@ import {
   setProfileStoryCoverPhoto,
   subscribeToCreatorStories,
 } from "@/lib/stories/storyService";
-import type { StoryDoc, StoryType } from "@/lib/stories/types";
+import type { StoryDoc, StoryGroupKey, StoryType } from "@/lib/stories/types";
 import StoryCircle from "./StoryCircle";
 import StoryViewer from "./StoryViewer";
 import StoryCoverPicker from "./StoryCoverPicker";
@@ -26,12 +26,15 @@ function resolveThumb(story: StoryDoc | null): string | null {
   return story.thumbnailUrl ?? null;
 }
 
+type ViewerState = { stories: StoryDoc[]; type: StoryType } | null;
+type PickerGroup = { key: StoryGroupKey; type: StoryType; role: "creator" | "buyer" } | null;
+
 export default function StoryCircles({ creatorId, currentUserId }: Props) {
   const [stories, setStories] = useState<StoryDoc[]>([]);
-  const [viewerType, setViewerType] = useState<StoryType | null>(null);
-  const [pickerType, setPickerType] = useState<StoryType | null>(null);
-  const [storyCovers, setStoryCovers] = useState<Partial<Record<StoryType, string>>>({});
-  const [storyCoverPhoto, setStoryCoverPhoto] = useState<Partial<Record<StoryType, string>>>({});
+  const [viewerState, setViewerState] = useState<ViewerState>(null);
+  const [pickerGroup, setPickerGroup] = useState<PickerGroup>(null);
+  const [storyCovers, setStoryCovers] = useState<Partial<Record<string, string>>>({});
+  const [storyCoverPhoto, setStoryCoverPhoto] = useState<Partial<Record<string, string>>>({});
 
   const isOwner = !!currentUserId && currentUserId === creatorId;
 
@@ -45,8 +48,8 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
     getDoc(doc(db, "users", creatorId))
       .then((snap) => {
         const data = snap.data();
-        const covers = data?.storyCovers as Partial<Record<StoryType, string>> | undefined;
-        const photos = data?.storyCoverPhoto as Partial<Record<StoryType, string>> | undefined;
+        const covers = data?.storyCovers as Partial<Record<string, string>> | undefined;
+        const photos = data?.storyCoverPhoto as Partial<Record<string, string>> | undefined;
         if (covers) setStoryCovers(covers);
         if (photos) setStoryCoverPhoto(photos);
       })
@@ -60,36 +63,49 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
     [currentUserId],
   );
 
-  const handleSelectStory = async (type: StoryType, storyId: string | null) => {
+  const handleSelectStory = async (key: string, storyId: string | null) => {
     setStoryCovers((prev) => {
       const next = { ...prev };
-      if (storyId) next[type] = storyId;
-      else delete next[type];
+      if (storyId) next[key] = storyId;
+      else delete next[key];
       return next;
     });
-    // Clear custom photo when a story is selected
-    setStoryCoverPhoto((prev) => { const next = { ...prev }; delete next[type]; return next; });
-    await setProfileStoryCover(creatorId, type, storyId);
-    if (storyCoverPhoto[type]) await setProfileStoryCoverPhoto(creatorId, type, null);
+    setStoryCoverPhoto((prev) => { const next = { ...prev }; delete next[key]; return next; });
+    await setProfileStoryCover(creatorId, key, storyId);
+    if (storyCoverPhoto[key]) await setProfileStoryCoverPhoto(creatorId, key, null);
   };
 
-  const handleUploadPhoto = async (type: StoryType, url: string) => {
-    setStoryCoverPhoto((prev) => ({ ...prev, [type]: url }));
-    // Clear story cover when custom photo is uploaded
-    setStoryCovers((prev) => { const next = { ...prev }; delete next[type]; return next; });
-    await setProfileStoryCoverPhoto(creatorId, type, url);
-    if (storyCovers[type]) await setProfileStoryCover(creatorId, type, null);
+  const handleUploadPhoto = async (key: string, url: string) => {
+    setStoryCoverPhoto((prev) => ({ ...prev, [key]: url }));
+    setStoryCovers((prev) => { const next = { ...prev }; delete next[key]; return next; });
+    await setProfileStoryCoverPhoto(creatorId, key, url);
+    if (storyCovers[key]) await setProfileStoryCover(creatorId, key, null);
   };
 
-  const saludos = stories.filter((s) => s.type === "saludo");
-  const consejos = stories.filter((s) => s.type === "consejo");
+  // Sent = I created this greeting; Received = someone else created it for me
+  const isSent = (s: StoryDoc) =>
+    s.greetingCreatorId ? s.greetingCreatorId === creatorId : true;
 
-  if (saludos.length === 0 && consejos.length === 0) return null;
+  const saludosEnviados = stories.filter((s) => s.type === "saludo" && isSent(s));
+  const consejosEnviados = stories.filter((s) => s.type === "consejo" && isSent(s));
+  const saludosRecibidos = stories.filter((s) => s.type === "saludo" && !isSent(s));
+  const consejosRecibidos = stories.filter((s) => s.type === "consejo" && !isSent(s));
 
-  // Priority: custom photo > selected story > latest
-  const getCoverThumbnail = (type: StoryType, list: StoryDoc[]): string | null => {
+  const allGroups: { key: StoryGroupKey; list: StoryDoc[]; type: StoryType; sublabel: string; role: "creator" | "buyer" }[] = [
+    { key: "saludo_sent", list: saludosEnviados, type: "saludo", sublabel: "Enviados", role: "creator" },
+    { key: "consejo_sent", list: consejosEnviados, type: "consejo", sublabel: "Enviados", role: "creator" },
+    { key: "saludo_received", list: saludosRecibidos, type: "saludo", sublabel: "Recibidos", role: "buyer" },
+    { key: "consejo_received", list: consejosRecibidos, type: "consejo", sublabel: "Recibidos", role: "buyer" },
+  ];
+  const groups = allGroups.filter((g) => g.list.length > 0);
+
+  if (groups.length === 0) return null;
+
+  const getCoverThumbnail = (key: string, type: StoryType, list: StoryDoc[]): string | null => {
+    // Prefer new key, fall back to legacy StoryType key for backward compat
+    if (storyCoverPhoto[key]) return storyCoverPhoto[key]!;
     if (storyCoverPhoto[type]) return storyCoverPhoto[type]!;
-    const coverId = storyCovers[type];
+    const coverId = storyCovers[key] ?? storyCovers[type];
     const story = (coverId ? list.find((s) => s.id === coverId) : null) ?? list[0] ?? null;
     return resolveThumb(story);
   };
@@ -102,73 +118,57 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
           gap: 18,
           padding: "10px 16px 6px",
           overflowX: "auto",
-          WebkitOverflowScrolling:
-            "touch" as React.CSSProperties["WebkitOverflowScrolling"],
+          WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
           scrollbarWidth: "none",
         }}
       >
-        {saludos.length > 0 && (
-          <div style={{ position: "relative", flexShrink: 0 }}>
+        {groups.map((g, i) => (
+          <div key={i} style={{ position: "relative", flexShrink: 0 }}>
             <StoryCircle
-              type="saludo"
-              thumbnailUrl={getCoverThumbnail("saludo", saludos)}
-              onClick={() => setViewerType("saludo")}
+              type={g.type}
+              thumbnailUrl={getCoverThumbnail(g.key, g.type, g.list)}
+              sublabel={g.sublabel}
+              onClick={() => setViewerState({ stories: g.list, type: g.type })}
             />
             {isOwner && (
               <button
                 type="button"
-                aria-label="Cambiar portada de saludos"
-                onClick={(e) => { e.stopPropagation(); setPickerType("saludo"); }}
+                aria-label={`Cambiar portada de ${g.type}s ${g.sublabel.toLowerCase()}`}
+                onClick={(e) => { e.stopPropagation(); setPickerGroup({ key: g.key, type: g.type, role: g.role }); }}
                 style={gearBtnStyle}
               >
                 <GearIcon />
               </button>
             )}
           </div>
-        )}
-
-        {consejos.length > 0 && (
-          <div style={{ position: "relative", flexShrink: 0 }}>
-            <StoryCircle
-              type="consejo"
-              thumbnailUrl={getCoverThumbnail("consejo", consejos)}
-              onClick={() => setViewerType("consejo")}
-            />
-            {isOwner && (
-              <button
-                type="button"
-                aria-label="Cambiar portada de consejos"
-                onClick={(e) => { e.stopPropagation(); setPickerType("consejo"); }}
-                style={gearBtnStyle}
-              >
-                <GearIcon />
-              </button>
-            )}
-          </div>
-        )}
+        ))}
       </div>
 
-      {viewerType && (
+      {viewerState && (
         <StoryViewer
-          stories={viewerType === "saludo" ? saludos : consejos}
-          type={viewerType}
-          onClose={() => setViewerType(null)}
+          stories={viewerState.stories}
+          type={viewerState.type}
+          onClose={() => setViewerState(null)}
           onStoryViewed={handleStoryViewed}
         />
       )}
 
-      {pickerType && (
+      {pickerGroup && (
         <StoryCoverPicker
-          stories={pickerType === "saludo" ? saludos : consejos}
-          type={pickerType}
+          stories={stories.filter((s) =>
+            s.type === pickerGroup.type &&
+            (pickerGroup.role === "buyer" ? !isSent(s) : isSent(s))
+          )}
+          type={pickerGroup.type}
+          role={pickerGroup.role}
           entityId={creatorId}
           entityType="profile"
-          currentCoverStoryId={storyCovers[pickerType] ?? null}
-          currentCustomPhotoUrl={storyCoverPhoto[pickerType] ?? null}
-          uploadStoragePath={`storyCovers/users/${creatorId}/${pickerType}`}
-          onSelectStory={(storyId) => handleSelectStory(pickerType, storyId)}
-          onUploadPhoto={(url) => handleUploadPhoto(pickerType, url)}
-          onClose={() => setPickerType(null)}
+          currentCoverStoryId={storyCovers[pickerGroup.key] ?? null}
+          currentCustomPhotoUrl={storyCoverPhoto[pickerGroup.key] ?? null}
+          uploadStoragePath={`storyCovers/users/${creatorId}/${pickerGroup.key}`}
+          onSelectStory={(storyId) => handleSelectStory(pickerGroup.key, storyId)}
+          onUploadPhoto={(url) => handleUploadPhoto(pickerGroup.key, url)}
+          onClose={() => setPickerGroup(null)}
         />
       )}
     </>

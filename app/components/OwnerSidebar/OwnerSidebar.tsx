@@ -2030,6 +2030,7 @@ const groupsForSeen = [
     }
 
     buyerPending.forEach((r) => ids.add(r.data.creatorId));
+    buyerDelivered.forEach((r) => ids.add(r.data.creatorId));
     buyerMeetGreets.forEach((r) => ids.add(r.data.creatorId));
     buyerExclusiveSessions.forEach((r) => ids.add(r.data.creatorId));
 
@@ -2039,6 +2040,7 @@ const groupsForSeen = [
     greetingsByGroup,
     meetGreetsByGroup,
     buyerPending,
+    buyerDelivered,
     buyerMeetGreets,
     exclusiveSessionsByGroup,
     buyerExclusiveSessions,

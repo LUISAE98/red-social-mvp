@@ -1,11 +1,12 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import HomePostsFeed from "./HomePostsFeed";
 import HomeStoriesRow from "@/app/components/Stories/HomeStoriesRow";
+import RefreshableArea from "@/components/refresh/RefreshableArea";
 
 export default function GroupsHome() {
   const { user, loading, startAuthTransition } = useAuth();
@@ -50,6 +51,8 @@ const pageWrap: CSSProperties = {
     boxSizing: "border-box",
   };
 
+  const refreshRef = useRef<() => Promise<void>>(async () => {});
+
   if (loading || !user) {
     return null;
   }
@@ -58,8 +61,10 @@ const pageWrap: CSSProperties = {
     <main style={pageWrap}>
       <div style={container}>
         <div style={feedWrap}>
-          <HomeStoriesRow currentUserId={user.uid} />
-          <HomePostsFeed currentUserId={user.uid} />
+          <RefreshableArea onRefresh={() => refreshRef.current()}>
+            <HomeStoriesRow currentUserId={user.uid} />
+            <HomePostsFeed currentUserId={user.uid} refreshRef={refreshRef} />
+          </RefreshableArea>
         </div>
       </div>
     </main>

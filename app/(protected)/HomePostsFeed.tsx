@@ -32,11 +32,11 @@ import {
   registerPostFeedCacheListener,
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
-import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
 
 type HomePostsFeedProps = {
   currentUserId: string | null;
+  refreshRef?: React.MutableRefObject<() => Promise<void>>;
 };
 
 type PostWithFlags = Post & {
@@ -161,7 +161,7 @@ function mergeUniquePosts(
 
   return Array.from(map.values());
 }
-export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
+export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFeedProps) {
   const [posts, setPosts] = useState<PostWithFlags[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loadingInitial, setLoadingInitial] = useState(true);
@@ -361,6 +361,12 @@ export default function HomePostsFeed({ currentUserId }: HomePostsFeedProps) {
 const handleHomePullRefresh = useCallback(async () => {
   await loadPostsPage("refresh");
 }, [loadPostsPage]);
+
+  useEffect(() => {
+    if (refreshRef) {
+      refreshRef.current = handleHomePullRefresh;
+    }
+  }, [refreshRef, handleHomePullRefresh]);
 
   useEffect(() => {
     let active = true;
@@ -834,96 +840,94 @@ const shellStyle: CSSProperties = {
   }
 
 return (
-  <RefreshableArea onRefresh={handleHomePullRefresh}>
-    <section style={shellStyle}>
-      {error && <div style={noticeStyle}>{error}</div>}
+  <section style={shellStyle}>
+    {error && <div style={noticeStyle}>{error}</div>}
 
-      {loadingInitial && (
-        <div style={noticeStyle}>Cargando publicaciones de tus comunidades...</div>
-      )}
+    {loadingInitial && (
+      <div style={noticeStyle}>Cargando publicaciones de tus comunidades...</div>
+    )}
 
-      {!loadingInitial && posts.length === 0 && (
-        <div style={recommendationWrapperStyle}>
-          <GroupRecommendationsRail
-            currentUserId={currentUserId}
-            context="home"
-          />
-        </div>
-      )}
+    {!loadingInitial && posts.length === 0 && (
+      <div style={recommendationWrapperStyle}>
+        <GroupRecommendationsRail
+          currentUserId={currentUserId}
+          context="home"
+        />
+      </div>
+    )}
 
-      {posts.map((post, index) => {
-        const canDeletePost =
-          currentUserId === post.authorId ||
-          post.canModerateGroupAuthor === true;
+    {posts.map((post, index) => {
+      const canDeletePost =
+        currentUserId === post.authorId ||
+        post.canModerateGroupAuthor === true;
 
-        const shouldRenderRecommendations = recommendationSlots.has(index + 1);
-        const shouldAttachInfiniteScrollTarget =
-          hasMore && index === infiniteScrollTriggerIndex;
+      const shouldRenderRecommendations = recommendationSlots.has(index + 1);
+      const shouldAttachInfiniteScrollTarget =
+        hasMore && index === infiniteScrollTriggerIndex;
 
-        return (
-          <div key={post.id} style={postItemStyle}>
-            {shouldAttachInfiniteScrollTarget ? (
-              <div
-                ref={infiniteScrollTargetRef}
-                aria-hidden="true"
-                style={{
-                  width: "100%",
-                  height: 1,
-                  pointerEvents: "none",
-                }}
-              />
-            ) : null}
-
-            <GroupPostCard
-              post={post}
-              canDelete={canDeletePost}
-              onDelete={canDeletePost ? handleDeletePost : undefined}
-              onLoadComments={handleLoadComments}
-              onCreateComment={handleCreateComment}
-              onDeleteComment={handleDeleteComment}
-              onLoadReplies={handleLoadReplies}
-              onCreateReply={handleCreateReply}
-              onDeleteReply={handleDeleteReply}
-              onToggleFlame={handleToggleFlame}
-              onToggleSave={handleToggleSave}
-              currentUserId={currentUserId}
-              isOwner={false}
-              viewerIsMember={post.contextType === "group"}
-              isModerator={post.canModerateGroupAuthor === true}
-              showGroupContext={true}
-              canModerateGroupAuthor={post.canModerateGroupAuthor === true}
-              onModerationComplete={loadPosts}
+      return (
+        <div key={post.id} style={postItemStyle}>
+          {shouldAttachInfiniteScrollTarget ? (
+            <div
+              ref={infiniteScrollTargetRef}
+              aria-hidden="true"
+              style={{
+                width: "100%",
+                height: 1,
+                pointerEvents: "none",
+              }}
             />
+          ) : null}
 
-            {shouldRenderRecommendations && (
-              <div style={recommendationWrapperStyle}>
-                <GroupRecommendationsRail
-                  currentUserId={currentUserId}
-                  context="home"
-                />
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      {loadingMore && (
-        <div style={noticeStyle}>Cargando más publicaciones...</div>
-      )}
-
-      {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
-        <div style={noticeStyle}>Ya viste todas las publicaciones disponibles.</div>
-      )}
-
-      {!loadingInitial && posts.length > 0 && !hasInlineRecommendation && (
-        <div style={recommendationWrapperStyle}>
-          <GroupRecommendationsRail
+          <GroupPostCard
+            post={post}
+            canDelete={canDeletePost}
+            onDelete={canDeletePost ? handleDeletePost : undefined}
+            onLoadComments={handleLoadComments}
+            onCreateComment={handleCreateComment}
+            onDeleteComment={handleDeleteComment}
+            onLoadReplies={handleLoadReplies}
+            onCreateReply={handleCreateReply}
+            onDeleteReply={handleDeleteReply}
+            onToggleFlame={handleToggleFlame}
+            onToggleSave={handleToggleSave}
             currentUserId={currentUserId}
-            context="home"
+            isOwner={false}
+            viewerIsMember={post.contextType === "group"}
+            isModerator={post.canModerateGroupAuthor === true}
+            showGroupContext={true}
+            canModerateGroupAuthor={post.canModerateGroupAuthor === true}
+            onModerationComplete={loadPosts}
           />
+
+          {shouldRenderRecommendations && (
+            <div style={recommendationWrapperStyle}>
+              <GroupRecommendationsRail
+                currentUserId={currentUserId}
+                context="home"
+              />
+            </div>
+          )}
         </div>
-      )}
-    </section>
-  </RefreshableArea>
+      );
+    })}
+
+    {loadingMore && (
+      <div style={noticeStyle}>Cargando más publicaciones...</div>
+    )}
+
+    {!loadingInitial && !loadingMore && posts.length > 0 && !hasMore && (
+      <div style={noticeStyle}>Ya viste todas las publicaciones disponibles.</div>
+    )}
+
+    {!loadingInitial && posts.length > 0 && !hasInlineRecommendation && (
+      <div style={recommendationWrapperStyle}>
+        <GroupRecommendationsRail
+          currentUserId={currentUserId}
+          context="home"
+        />
+      </div>
+    )}
+  </section>
 );
 }

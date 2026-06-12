@@ -1,8 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
-import { SidebarClockIcon } from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
+import {
+  VibraNavigationIcon,
+  VibraNavigationIconsStyles,
+  type VibraNavigationIconType,
+} from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 
 export type WalletTabKey = "finances" | "calendar" | "pending" | "history";
 
@@ -10,14 +13,14 @@ type WalletTabItem = {
   key: WalletTabKey;
   label: string;
   href: string;
-  icon: ReactNode;
+  icon: VibraNavigationIconType;
 };
 
 const TABS: WalletTabItem[] = [
-  { key: "finances", label: "Finanzas", href: "/wallet/finanzas", icon: "📈" },
-  { key: "calendar", label: "Calendario", href: "/wallet/calendario", icon: "📅" },
-  { key: "pending", label: "Pendientes", href: "/wallet/pendientes", icon: "⏳" },
-  { key: "history", label: "Historial", href: "/wallet/historial", icon: <SidebarClockIcon size={20} strokeWidth={1.75} /> },
+  { key: "finances", label: "Finanzas", href: "/wallet/finanzas", icon: "finance" },
+  { key: "calendar", label: "Calendario", href: "/wallet/calendario", icon: "calendar" },
+  { key: "pending", label: "Pendientes", href: "/wallet/pendientes", icon: "pending" },
+  { key: "history", label: "Historial", href: "/wallet/historial", icon: "history" },
 ];
 
 export default function WalletSubNav({
@@ -122,6 +125,8 @@ export default function WalletSubNav({
         }
       `}</style>
 
+      <VibraNavigationIconsStyles />
+
       <div className="wrap">
         <nav className="nav" aria-label="Secciones de wallet">
           {TABS.map((tab) => {
@@ -136,7 +141,7 @@ export default function WalletSubNav({
               >
                 <span className={`tabInner ${isActive ? "tabInnerActive" : ""}`}>
                   <span className="emoji" aria-hidden="true">
-                    {tab.icon}
+                    <VibraNavigationIcon type={tab.icon} size={20} strokeWidth={1.75} />
                   </span>
                   <span className="label">{tab.label}</span>
                   {isActive ? <span className="indicator" /> : null}

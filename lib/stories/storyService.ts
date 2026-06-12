@@ -53,6 +53,7 @@ function sortByDate(stories: StoryDoc[]): StoryDoc[] {
 
 export async function addStoryFromGreeting(params: {
   creatorId: string;
+  greetingCreatorId?: string;
   type: StoryType;
   muxPlaybackId: string | null;
   thumbnailUrl: string | null;
@@ -221,11 +222,11 @@ export function subscribeToStoriesFromGroups(
 
 export async function setProfileStoryCover(
   creatorId: string,
-  type: StoryType,
+  key: string,
   storyId: string | null,
 ): Promise<void> {
   await updateDoc(doc(db, "users", creatorId), {
-    [`storyCovers.${type}`]: storyId ?? deleteField(),
+    [`storyCovers.${key}`]: storyId ?? deleteField(),
   });
 }
 
@@ -241,11 +242,11 @@ export async function setGroupStoryCover(
 
 export async function setProfileStoryCoverPhoto(
   creatorId: string,
-  type: StoryType,
+  key: string,
   url: string | null,
 ): Promise<void> {
   await updateDoc(doc(db, "users", creatorId), {
-    [`storyCoverPhoto.${type}`]: url ?? deleteField(),
+    [`storyCoverPhoto.${key}`]: url ?? deleteField(),
   });
 }
 

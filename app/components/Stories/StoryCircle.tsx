@@ -14,9 +14,10 @@ type Props = {
   thumbnailUrl: string | null;
   onClick: () => void;
   size?: number;
+  sublabel?: string;
 };
 
-export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74 }: Props) {
+export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, sublabel }: Props) {
   const borderSize = size + 6;
   const label = LABELS[type];
 
@@ -82,19 +83,34 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74 }: 
         </div>
       </div>
 
-      <span
-        style={{
-          color: "rgba(255,255,255,0.72)",
-          fontSize: 10.5,
-          fontWeight: 500,
-          lineHeight: 1,
-          letterSpacing: "-0.01em",
-          fontFamily:
-            '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif',
-        }}
-      >
-        {label}
-      </span>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+        <span
+          style={{
+            color: "rgba(255,255,255,0.72)",
+            fontSize: 10.5,
+            fontWeight: 500,
+            lineHeight: 1,
+            letterSpacing: "-0.01em",
+            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif',
+          }}
+        >
+          {label}
+        </span>
+        {sublabel && (
+          <span
+            style={{
+              color: "rgba(255,255,255,0.40)",
+              fontSize: 9.5,
+              fontWeight: 400,
+              lineHeight: 1,
+              letterSpacing: "-0.01em",
+              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif',
+            }}
+          >
+            {sublabel}
+          </span>
+        )}
+      </div>
     </button>
   );
 }

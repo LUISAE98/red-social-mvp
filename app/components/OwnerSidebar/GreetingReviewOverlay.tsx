@@ -496,6 +496,7 @@ export default function GreetingReviewOverlay({
     try {
       await addStoryFromGreeting({
         creatorId: currentItem.data.creatorId,
+        greetingCreatorId: currentItem.data.creatorId,
         type,
         muxPlaybackId: playbackId,
         thumbnailUrl: playbackId
@@ -550,6 +551,7 @@ export default function GreetingReviewOverlay({
     try {
       await addStoryFromGreeting({
         creatorId: buyerUid,
+        greetingCreatorId: currentItem.data.creatorId,
         type,
         muxPlaybackId: playbackId,
         thumbnailUrl: playbackId ? `https://image.mux.com/${playbackId}/thumbnail.jpg?time=0` : null,
@@ -1032,7 +1034,7 @@ export default function GreetingReviewOverlay({
               <video
                 src={viewMp4Url}
                 poster={viewThumbnailUrl ?? undefined}
-                controls playsInline
+                autoPlay controls playsInline
                 disablePictureInPicture
                 onContextMenu={(e) => e.preventDefault()}
                 style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
@@ -1447,7 +1449,7 @@ export default function GreetingReviewOverlay({
                   <video
                     src={viewMp4Url}
                     poster={viewThumbnailUrl ?? undefined}
-                    controls playsInline
+                    autoPlay controls playsInline
                     disablePictureInPicture
                     onContextMenu={(e) => e.preventDefault()}
                     style={{

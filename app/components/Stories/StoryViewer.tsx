@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
+import { createGreetingRequest } from "@/lib/greetings/greetingRequests";
+import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 
 const LABELS: Record<StoryType, string> = {
   saludo: "Saludo",
@@ -59,6 +61,13 @@ export default function StoryViewer({
   const [creator, setCreator] = useState<{ name: string | null; photo: string | null } | null>(null);
   const [greetingAuthorUid, setGreetingAuthorUid] = useState<string | null>(null);
   const [greetingAuthorName, setGreetingAuthorName] = useState<string | null>(null);
+  const [greetOpen, setGreetOpen] = useState(false);
+  const [greetToName, setGreetToName] = useState("");
+  const [greetInstructions, setGreetInstructions] = useState("");
+  const [greetAllowStory, setGreetAllowStory] = useState(false);
+  const [greetSubmitting, setGreetSubmitting] = useState(false);
+  const [greetError, setGreetError] = useState<string | null>(null);
+  const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
   const [muted, setMuted] = useState(() =>
     typeof window !== "undefined" && localStorage.getItem("vibra_stories_muted") === "1"
   );
@@ -123,22 +132,16 @@ export default function StoryViewer({
     );
   }, [story?.greetingRequestId, story?.muxPlaybackId]);
 
-  // Resolve the actual greeting creator (A), even when a buyer (B) shared the story
+  // Resolve the actual greeting creator (A) from the story doc itself (no greetingRequests read needed)
   useEffect(() => {
-    const reqId = story?.greetingRequestId;
-    if (!reqId) { setGreetingAuthorUid(null); setGreetingAuthorName(null); return; }
-    setGreetingAuthorUid(null);
-    setGreetingAuthorName(null);
-    getDoc(doc(db, "greetingRequests", reqId)).then((reqSnap) => {
-      const authorId = reqSnap.data()?.creatorId as string | undefined;
-      if (!authorId) return;
-      setGreetingAuthorUid(authorId);
-      getDoc(doc(db, "users", authorId)).then((userSnap) => {
-        const name = userSnap.data()?.displayName;
-        if (typeof name === "string") setGreetingAuthorName(name);
-      }).catch(() => {});
+    const authorId = story?.greetingCreatorId ?? story?.creatorId ?? null;
+    if (!authorId) { setGreetingAuthorUid(null); setGreetingAuthorName(null); return; }
+    setGreetingAuthorUid(authorId);
+    getDoc(doc(db, "users", authorId)).then((snap) => {
+      const name = snap.data()?.displayName;
+      if (typeof name === "string") setGreetingAuthorName(name);
     }).catch(() => {});
-  }, [story?.greetingRequestId]);
+  }, [story?.greetingCreatorId, story?.creatorId]);
 
   const goTo = useCallback(
     (nextIndex: number) => {
@@ -165,6 +168,12 @@ export default function StoryViewer({
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = muted;
   }, [muted]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (greetOpen) { video.pause(); } else { video.play().catch(() => {}); }
+  }, [greetOpen]);
 
 
   useEffect(() => {
@@ -256,6 +265,44 @@ export default function StoryViewer({
 
   const effectiveType = type ?? story.type;
 
+  function handleWantGreeting() {
+    setGreetToName("");
+    setGreetInstructions("");
+    setGreetAllowStory(false);
+    setGreetError(null);
+    setGreetSuccess(null);
+    setGreetOpen(true);
+  }
+
+  function resetGreetModal() {
+    setGreetOpen(false);
+    setGreetSubmitting(false);
+    setGreetError(null);
+    setGreetSuccess(null);
+  }
+
+  async function handleSubmitGreeting() {
+    if (greetSubmitting || !greetToName.trim() || !greetInstructions.trim()) return;
+    setGreetSubmitting(true);
+    setGreetError(null);
+    try {
+      await createGreetingRequest({
+        creatorId: greetingAuthorUid,
+        profileUserId: greetingAuthorUid,
+        type: effectiveType,
+        toName: greetToName.trim(),
+        instructions: greetInstructions.trim(),
+        source: story.source === "group" ? "group" : "profile",
+        groupId: story.source === "group" ? story.groupId : null,
+        allowCreatorStory: greetAllowStory,
+      });
+      setGreetSuccess("¡Solicitud enviada! El creador la revisará pronto.");
+    } catch (err: unknown) {
+      setGreetError(err instanceof Error ? err.message : "Error al enviar la solicitud.");
+    } finally {
+      setGreetSubmitting(false);
+    }
+  }
 
   const videoProcessing = !resolvedPlaybackId;
   const videoUrl = resolvedPlaybackId
@@ -445,7 +492,7 @@ export default function StoryViewer({
         </button>
         <button
           type="button"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); handleWantGreeting(); }}
           style={{
             flex: 1,
             padding: isDesktop ? "8px 10px" : "11px 10px",
@@ -467,43 +514,107 @@ export default function StoryViewer({
     </>
   );
 
+  // ── Shared: greeting purchase modal (renders above everything via its own portal) ──
+  const greetModal = (
+    <CreatorServiceModals
+      greetOpen={greetOpen}
+      greetSubmitting={greetSubmitting}
+      greetType={effectiveType}
+      creatorName={greetingAuthorName ?? undefined}
+      toName={greetToName}
+      instructions={greetInstructions}
+      greetError={greetError}
+      greetSuccess={greetSuccess}
+      onCloseGreeting={resetGreetModal}
+      onSubmitGreeting={handleSubmitGreeting}
+      onChangeToName={setGreetToName}
+      onChangeInstructions={setGreetInstructions}
+      allowCreatorStory={greetAllowStory}
+      onChangeAllowCreatorStory={setGreetAllowStory}
+      meetGreetOpen={false}
+      meetGreetSubmitting={false}
+      meetGreetMessage=""
+      meetGreetError={null}
+      meetGreetPriceLabel=""
+      meetGreetDurationLabel=""
+      onCloseMeetGreet={() => {}}
+      onSubmitMeetGreet={() => {}}
+      onChangeMeetGreetMessage={() => {}}
+      exclusiveSessionOpen={false}
+      exclusiveSessionSubmitting={false}
+      exclusiveSessionMessage=""
+      exclusiveSessionError={null}
+      exclusiveSessionPriceLabel=""
+      exclusiveSessionDurationLabel=""
+      onCloseExclusiveSession={() => {}}
+      onSubmitExclusiveSession={() => {}}
+      onChangeExclusiveSessionMessage={() => {}}
+      serviceToast={null}
+      subtitleStyle={{ fontSize: 16, fontWeight: 600, lineHeight: 1.2, color: "#fff", fontFamily: FONT }}
+      textStyle={{ fontSize: 12, fontWeight: 400, lineHeight: 1.4, color: "rgba(255,255,255,0.70)", fontFamily: FONT }}
+      microText={{ fontSize: 12, fontWeight: 400, lineHeight: 1.4, color: "rgba(255,255,255,0.70)", fontFamily: FONT }}
+      labelStyle={{ fontSize: 12, fontWeight: 500, lineHeight: 1.3, color: "#fff", fontFamily: FONT }}
+      primaryButton={{ padding: "10px 16px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.24)", background: "#fff", color: "#000", cursor: "pointer", fontWeight: 600, fontSize: 14, lineHeight: 1.2, fontFamily: FONT }}
+      secondaryButton={{ padding: "10px 16px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.07)", color: "#fff", cursor: "pointer", fontWeight: 600, fontSize: 14, lineHeight: 1.2, fontFamily: FONT }}
+      panelStyle={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)", padding: 14 }}
+      inputStyle={{ width: "100%", borderRadius: 10, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(255,255,255,0.06)", color: "#fff", padding: "10px 12px", fontSize: 14, fontFamily: FONT, boxSizing: "border-box" }}
+      messageBox={{ padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 12, lineHeight: 1.45, fontFamily: FONT }}
+      serviceModalBackdropStyle={{ position: "fixed", inset: 0, zIndex: 100001, background: "rgba(0,0,0,0.80)", display: "grid", placeItems: "center", padding: 14, fontFamily: FONT }}
+      serviceModalCardStyle={{ width: "min(720px, calc(100vw - 28px))", maxHeight: "calc(100dvh - 28px)", overflowY: "auto", background: "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))", border: "1px solid rgba(255,255,255,0.16)", borderRadius: 18, overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.72)", color: "#fff" }}
+      serviceToastStyle={{ position: "fixed", left: "50%", bottom: "calc(24px + env(safe-area-inset-bottom))", transform: "translateX(-50%)", zIndex: 100002, maxWidth: "min(520px, calc(100vw - 28px))", padding: "10px 12px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.16)", background: "rgba(12,12,12,0.94)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT }}
+    />
+  );
+
   // ── Contained mode (used by HomeStoryCarousel) ────────────────────────────
   if (contained) {
     return (
-      <div
-        style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#000" }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {renderPanelContent(12, false)}
-      </div>
+      <>
+        <div
+          style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#000" }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {renderPanelContent(12, false)}
+        </div>
+        {greetModal}
+      </>
     );
   }
 
   // ── Desktop: centered modal ───────────────────────────────────────────────
   if (isDesktop) {
     const { width: panelW, height: panelH } = desktopPanelSize();
-    return createPortal(
-      <div style={{ position: "fixed", inset: 0, zIndex: 99999, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
-        <div style={{ position: "relative", width: panelW, height: panelH, borderRadius: 18, overflow: "hidden", background: "#000", flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
-          {renderPanelContent(12, true)}
-        </div>
-      </div>,
-      document.body,
+    return (
+      <>
+        {createPortal(
+          <div style={{ position: "fixed", inset: 0, zIndex: 99999, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
+            <div style={{ position: "relative", width: panelW, height: panelH, borderRadius: 18, overflow: "hidden", background: "#000", flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+              {renderPanelContent(12, true)}
+            </div>
+          </div>,
+          document.body,
+        )}
+        {greetModal}
+      </>
     );
   }
 
   // ── Mobile: fullscreen, swipe down to close ───────────────────────────────
-  return createPortal(
-    <div
-      style={{ position: "fixed", inset: 0, zIndex: 99999, background: "#000", display: "flex", flexDirection: "column", touchAction: "none", transform: `translateY(${dragY}px)`, transition: !isClosing && dragY > 0 ? "none" : "transform 0.28s ease, opacity 0.28s ease", opacity: 1 - Math.min(1, dragY / 300) }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      {renderPanelContent("env(safe-area-inset-top, 0px)", true, "env(safe-area-inset-bottom, 0px)")}
-    </div>,
-    document.body,
+  return (
+    <>
+      {createPortal(
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 99999, background: "#000", display: "flex", flexDirection: "column", touchAction: "none", transform: `translateY(${dragY}px)`, transition: !isClosing && dragY > 0 ? "none" : "transform 0.28s ease, opacity 0.28s ease", opacity: 1 - Math.min(1, dragY / 300) }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        >
+          {renderPanelContent("env(safe-area-inset-top, 0px)", true, "env(safe-area-inset-bottom, 0px)")}
+        </div>,
+        document.body,
+      )}
+      {greetModal}
+    </>
   );
 }

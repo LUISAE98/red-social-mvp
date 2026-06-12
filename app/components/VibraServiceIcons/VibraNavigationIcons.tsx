@@ -20,9 +20,9 @@ export type VibraNavigationIconType =
   | "premiumLock"
   | "premiumUnlocked";
 
-const vibraPink = "#ff2fb3";
-const vibraPurple = "#a855ff";
-const vibraBlue = "#4f46ff";
+const vibraPink = "#ec4899";
+const vibraPurple = "#9333ea";
+const vibraBlue = "#3b82f6";
 
 const gradientStroke = "url(#vibraNavigationGradient)";
 const purpleStroke = vibraPurple;
@@ -39,7 +39,7 @@ function VibraGradientDefs() {
         gradientUnits="userSpaceOnUse"
       >
         <stop offset="0%" stopColor={vibraPink} />
-        <stop offset="45%" stopColor={vibraPurple} />
+        <stop offset="52%" stopColor={vibraPurple} />
         <stop offset="100%" stopColor={vibraBlue} />
       </linearGradient>
     </defs>
@@ -241,12 +241,10 @@ premiumUnlocked: {
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <VibraGradientDefs />
-        <path stroke={gradientStroke} d="M4.5 18.5h15" />
-        <path stroke={gradientStroke} d="M7.2 18.5v-6" />
-        <path stroke={gradientStroke} d="M12 18.5v-11" />
-        <path stroke={gradientStroke} d="M16.8 18.5v-8" />
-        <path stroke={gradientStroke} d="M6.4 7.2h4" />
-        <path stroke={gradientStroke} d="M8.4 5.2v4" />
+        <path stroke={gradientStroke} d="M5 4.5V19.5H21" />
+        <path stroke={gradientStroke} d="M8.5 19.5V14.5" />
+        <path stroke={gradientStroke} d="M12.5 19.5V10" />
+        <path stroke={gradientStroke} d="M16.5 19.5V6.5" />
       </svg>
     ),
   },
@@ -292,9 +290,9 @@ premiumUnlocked: {
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
         <VibraGradientDefs />
-        <path stroke={gradientStroke} d="M7.2 8.4A7.5 7.5 0 1 1 6.4 15" />
-        <path stroke={gradientStroke} d="M4.5 8.4h2.8v2.8" />
-        <path stroke={gradientStroke} d="M12 8.2v4.2l3 1.8" />
+        <circle stroke={gradientStroke} cx="12" cy="12" r="8.2" />
+        <path stroke={gradientStroke} d="M12 7.5V12.5" />
+        <path stroke={gradientStroke} d="M12 12.5L15.2 14.3" />
       </svg>
     ),
   },
