@@ -44,6 +44,7 @@ import OwnerSidebarFollowedProfiles from "./OwnerSidebarFollowedProfiles";
 import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
+import { useSidebarVisitCounts } from "@/lib/hooks/useSidebarVisitCounts";
 
 export type Currency = "MXN" | "USD";
 export type SidebarMemberStatus =
@@ -713,6 +714,10 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
 
   const [viewer, setViewer] = useState<any>(
     () => ownerSidebarCache?.viewer ?? null
+  );
+
+  const { counts: visitCounts, increment: incrementVisit } = useSidebarVisitCounts(
+    viewer?.uid ?? null
   );
   const [authReady, setAuthReady] = useState(
     () => ownerSidebarCache?.authReady ?? false
@@ -2452,7 +2457,7 @@ WebkitBackdropFilter: "none",
 <button
   type="button"
   className="owner-sidebar-community-card-main"
-  onClick={() => router.push(isProfileCard ? g.profileHref! : `/groups/${g.id}`)}
+  onClick={() => { incrementVisit(g.id); router.push(isProfileCard ? g.profileHref! : `/groups/${g.id}`); }}
           style={{
             background: "transparent",
             border: "none",
@@ -2599,6 +2604,27 @@ color: "rgba(255,255,255,0.94)",
       { key: "other", title: visibilitySectionTitle("other"), items: others },
     ].filter((section) => section.items.length > 0);
   }, [joinedGroups, hiddenSidebarMembershipGroups]);
+
+  const sortedFollowedProfiles = useMemo(
+    () => [...followedProfiles].sort((a, b) => (visitCounts[b.uid] ?? 0) - (visitCounts[a.uid] ?? 0)),
+    [followedProfiles, visitCounts]
+  );
+
+  const sortedOwnedGrouped = useMemo(
+    () => ownedGrouped.map((section) => ({
+      ...section,
+      items: [...section.items].sort((a, b) => (visitCounts[b.id] ?? 0) - (visitCounts[a.id] ?? 0)),
+    })),
+    [ownedGrouped, visitCounts]
+  );
+
+  const sortedJoinedGrouped = useMemo(
+    () => joinedGrouped.map((section) => ({
+      ...section,
+      items: [...section.items].sort((a, b) => (visitCounts[b.id] ?? 0) - (visitCounts[a.id] ?? 0)),
+    })),
+    [joinedGrouped, visitCounts]
+  );
 
   const browseGrouped = useMemo(() => {
     const withoutJoined = browseGroups.filter(
@@ -2936,6 +2962,11 @@ greetingBusyId={greetingBusyId}
             requestedCount={pendingCount}
             deliveredCount={buyerDelivered.length}
             joinRequestsCount={totalPendingJoinRequests}
+            followedCount={followedProfiles.length}
+            myGroupsCount={myGroups.length}
+            joinedGroupsCount={joinedGroups.length}
+            loadingFollowing={loadingFollowing}
+            loadingGroups={loadingGroups}
           />
 {activeView === "owned" && (
   <div className="owner-sidebar-view-transition" key="owned">
@@ -2944,7 +2975,7 @@ greetingBusyId={greetingBusyId}
               myGroups={myGroups}
               meetGreetsByGroup={meetGreetsByGroup}
               exclusiveSessionsByGroup={exclusiveSessionsByGroup}
-              ownedGrouped={ownedGrouped}
+              ownedGrouped={sortedOwnedGrouped}
               openCommunities={openCommunities}
               joinRequestsByGroup={joinRequestsByGroup}
               greetingsByGroup={greetingsByGroup}
@@ -2978,7 +3009,7 @@ greetingBusyId={greetingBusyId}
       joinedGroups={joinedGroups}
       pendingJoinRequestsSent={pendingJoinRequestsSent}
       browseGroups={browseGroups}
-      joinedGrouped={joinedGrouped}
+      joinedGrouped={sortedJoinedGrouped}
       subscriptionPendingGroups={subscriptionPendingGroups}
       browseGrouped={browseGrouped}
       groupMetaMap={groupMetaMap}
@@ -3004,9 +3035,10 @@ onCreateCommunity={() => router.push("/groups/new")}
   <div className="owner-sidebar-view-transition" key="following">
     <OwnerSidebarFollowedProfiles
       loadingFollowing={loadingFollowing}
-      followedProfiles={followedProfiles}
+      followedProfiles={sortedFollowedProfiles}
       styles={styles}
       onOpenProfile={(handle) => router.push(`/u/${handle}`)}
+      onProfileVisit={(uid) => incrementVisit(uid)}
       isMobile={isMobile}
       currentUserId={viewer?.uid ?? null}
     />

@@ -207,6 +207,7 @@ export default function HomeStoryCarouselDesktop({
             onClose={advance}
             onPrevGroup={goBack}
             onStoryViewed={onStoryViewed}
+            onCloseCarousel={onClose}
           />
         </div>
 
@@ -216,31 +217,6 @@ export default function HomeStoryCarouselDesktop({
             <GroupPreview group={nextGroup} />
           </div>
         )}
-
-        {/* Close button — sibling of panels, positioned inside active panel bounds */}
-        <button
-          type="button"
-          aria-label="Cerrar"
-          onClick={onClose}
-          style={{
-            position: "absolute",
-            top: 40,
-            right: 14,
-            height: 40,
-            display: "flex",
-            alignItems: "center",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            zIndex: 10,
-            color: "rgba(255,255,255,0.9)",
-            fontSize: 26,
-            lineHeight: "1",
-            padding: "0 2px",
-          }}
-        >
-          ×
-        </button>
       </div>
 
       {/* Left hit area (prev group click) */}

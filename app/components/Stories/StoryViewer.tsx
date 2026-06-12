@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
@@ -28,6 +29,8 @@ type Props = {
   contained?: boolean;
   /** Called when user tries to navigate before the first story. */
   onPrevGroup?: () => void;
+  /** When provided, renders a close button inside the panel calling this handler (used by carousel so the button animates with the panel). */
+  onCloseCarousel?: () => void;
 };
 
 export function desktopPanelSize(): { width: number; height: number } {
@@ -45,6 +48,7 @@ export default function StoryViewer({
   initialIndex = 0,
   contained = false,
   onPrevGroup,
+  onCloseCarousel,
 }: Props) {
   const [index, setIndex] = useState(initialIndex);
   const [progress, setProgress] = useState(0);
@@ -53,9 +57,15 @@ export default function StoryViewer({
   const [resolvedPlaybackId, setResolvedPlaybackId] = useState<string | null>(null);
   const [isDesktop, setIsDesktop] = useState(false);
   const [videoAspect, setVideoAspect] = useState<{ w: number; h: number } | null>(null);
-  const [creator, setCreator] = useState<{ name: string | null; photo: string | null } | null>(null);
+  const [creator, setCreator] = useState<{ name: string | null; photo: string | null; handle: string | null } | null>(null);
+  const [greetingAuthorHandle, setGreetingAuthorHandle] = useState<string | null>(null);
+  const [muted, setMuted] = useState(() =>
+    typeof window !== "undefined" && localStorage.getItem("vibra_stories_muted") === "1"
+  );
   const [dragY, setDragY] = useState(0);
   const [isClosing, setIsClosing] = useState(false);
+
+  const router = useRouter();
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progressRafRef = useRef<number | null>(null);
@@ -82,6 +92,7 @@ export default function StoryViewer({
       setCreator({
         name: typeof d?.displayName === "string" ? d.displayName : null,
         photo: typeof d?.photoURL === "string" ? d.photoURL : null,
+        handle: typeof d?.handle === "string" ? d.handle : null,
       });
     }).catch(() => {});
   }, [stories, index]);
@@ -115,6 +126,21 @@ export default function StoryViewer({
     );
   }, [story?.greetingRequestId, story?.muxPlaybackId]);
 
+  // Resolve the handle of the greeting author (always the creator A, even when buyer B shared the story)
+  useEffect(() => {
+    const reqId = story?.greetingRequestId;
+    if (!reqId) { setGreetingAuthorHandle(null); return; }
+    setGreetingAuthorHandle(null);
+    getDoc(doc(db, "greetingRequests", reqId)).then((reqSnap) => {
+      const authorId = reqSnap.data()?.creatorId as string | undefined;
+      if (!authorId) return;
+      getDoc(doc(db, "users", authorId)).then((userSnap) => {
+        const h = userSnap.data()?.handle;
+        if (typeof h === "string") setGreetingAuthorHandle(h);
+      }).catch(() => {});
+    }).catch(() => {});
+  }, [story?.greetingRequestId]);
+
   const goTo = useCallback(
     (nextIndex: number) => {
       if (nextIndex >= stories.length) { onGroupFinished ? onGroupFinished() : onClose(); return; }
@@ -136,6 +162,10 @@ export default function StoryViewer({
   }, [index, clearViewTimer]);
 
   useEffect(() => () => clearViewTimer(), [clearViewTimer]);
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.muted = muted;
+  }, [muted]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -225,6 +255,20 @@ export default function StoryViewer({
   if (!mounted || !story) return null;
 
   const effectiveType = type ?? story.type;
+
+  function handleWantGreeting() {
+    const closer = onCloseCarousel ?? onClose;
+    // For group stories, open the group's purchase panel
+    if (story.source === "group" && story.groupId) {
+      closer();
+      router.push(`/groups/${story.groupId}?service=${effectiveType}`);
+    } else if (greetingAuthorHandle) {
+      // Always navigate to the actual greeting creator (A), even if a buyer (B) shared the story
+      closer();
+      router.push(`/u/${greetingAuthorHandle}?service=${effectiveType}`);
+    }
+  }
+
   const videoProcessing = !resolvedPlaybackId;
   const videoUrl = resolvedPlaybackId
     ? `https://stream.mux.com/${resolvedPlaybackId}/high.mp4`
@@ -256,7 +300,7 @@ export default function StoryViewer({
   );
 
   // ── Shared panel content ──────────────────────────────────────────────────
-  const renderPanelContent = (safeTop: string | number = 12, showClose = false) => (
+  const renderPanelContent = (safeTop: string | number = 12, showClose = false, safeBottom: string | number = 0) => (
     <>
       {isLandscape && thumbUrl && (
         <div style={{
@@ -276,6 +320,7 @@ export default function StoryViewer({
           poster={thumbUrl ?? undefined}
           autoPlay
           playsInline
+          muted={muted}
           onLoadedMetadata={() => {
             const v = videoRef.current;
             if (v && v.videoWidth > 0 && v.videoHeight > 0)
@@ -319,31 +364,117 @@ export default function StoryViewer({
       <button type="button" aria-label="Historia anterior" onClick={() => goTo(index - 1)} style={{ position: "absolute", top: 0, left: 0, width: "35%", height: "100%", background: "none", border: "none", cursor: index > 0 ? "w-resize" : "default", zIndex: 5 }} />
       <button type="button" aria-label="Historia siguiente" onClick={() => goTo(index + 1)} style={{ position: "absolute", top: 0, right: 0, width: "65%", height: "100%", background: "none", border: "none", cursor: "e-resize", zIndex: 5 }} />
 
-      {showClose && (
-        <button
-          type="button"
-          aria-label="Cerrar"
-          onClick={onClose}
+      {(showClose || onCloseCarousel) && (
+        <div
           style={{
             position: "absolute",
-            top: typeof safeTop === "number" ? safeTop + 28 : `calc(${safeTop} + 28px)`,
-            right: 14,
-            height: avatarSz,
+            top: typeof safeTop === "number"
+              ? safeTop + 28 + avatarSz / 2
+              : `calc(${safeTop} + ${28 + avatarSz / 2}px)`,
+            right: 10,
+            transform: "translateY(-50%)",
             display: "flex",
             alignItems: "center",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
+            gap: 4,
             zIndex: 11,
-            color: "rgba(255,255,255,0.9)",
-            fontSize: isDesktop ? 26 : 30,
-            lineHeight: "1",
-            padding: "0 2px",
           }}
         >
-          ×
-        </button>
+          {/* Mute / unmute */}
+          <button
+            type="button"
+            aria-label={muted ? "Activar sonido" : "Silenciar"}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMuted((m) => {
+                const next = !m;
+                localStorage.setItem("vibra_stories_muted", next ? "1" : "0");
+                return next;
+              });
+            }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            {muted ? (
+              <svg width={isDesktop ? 20 : 24} height={isDesktop ? 20 : 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <line x1="23" y1="9" x2="17" y2="15"/>
+                <line x1="17" y1="9" x2="23" y2="15"/>
+              </svg>
+            ) : (
+              <svg width={isDesktop ? 20 : 24} height={isDesktop ? 20 : 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+              </svg>
+            )}
+          </button>
+          {/* Close */}
+          <button
+            type="button"
+            aria-label="Cerrar"
+            onClick={onCloseCarousel ?? onClose}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <svg width={isDesktop ? 20 : 24} height={isDesktop ? 20 : 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
       )}
+
+      {/* Bottom action buttons */}
+      <div
+        style={{
+          position: "absolute",
+          left: 14,
+          right: 14,
+          bottom: typeof safeBottom === "number"
+            ? safeBottom + 20
+            : `calc(${safeBottom} + 20px)`,
+          display: "flex",
+          gap: 10,
+          zIndex: 10,
+        }}
+      >
+        <button
+          type="button"
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            flex: 1,
+            padding: isDesktop ? "8px 10px" : "11px 10px",
+            borderRadius: 10,
+            border: "none",
+            background: "#60a5fa",
+            color: "#fff",
+            fontSize: isDesktop ? 12 : 14,
+            fontWeight: 600,
+            fontFamily: FONT,
+            cursor: "pointer",
+            letterSpacing: "-0.01em",
+          }}
+        >
+          Contexto
+        </button>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); handleWantGreeting(); }}
+          style={{
+            flex: 1,
+            padding: isDesktop ? "8px 10px" : "11px 10px",
+            borderRadius: 10,
+            border: "none",
+            background: "linear-gradient(135deg, #f472b6 0%, #a855f7 100%)",
+            color: "#fff",
+            fontSize: isDesktop ? 12 : 14,
+            fontWeight: 600,
+            fontFamily: FONT,
+            cursor: "pointer",
+            letterSpacing: "-0.01em",
+          }}
+        >
+          {effectiveType === "saludo" ? "Quiero mi saludo" : "Quiero mi consejo"}
+        </button>
+      </div>
     </>
   );
 
@@ -382,7 +513,7 @@ export default function StoryViewer({
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {renderPanelContent("env(safe-area-inset-top, 0px)", true)}
+      {renderPanelContent("env(safe-area-inset-top, 0px)", true, "env(safe-area-inset-bottom, 0px)")}
     </div>,
     document.body,
   );

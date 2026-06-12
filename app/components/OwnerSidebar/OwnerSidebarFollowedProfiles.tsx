@@ -11,6 +11,7 @@ type Props = {
   followedProfiles: FollowedProfileLite[];
   styles: Record<string, CSSProperties>;
   onOpenProfile: (handle: string) => void;
+  onProfileVisit?: (uid: string) => void;
   isMobile?: boolean;
   currentUserId?: string | null;
 };
@@ -20,6 +21,7 @@ export default function OwnerSidebarFollowedProfiles({
   followedProfiles,
   styles,
   onOpenProfile,
+  onProfileVisit,
   isMobile = false,
   currentUserId,
 }: Props) {
@@ -27,7 +29,7 @@ export default function OwnerSidebarFollowedProfiles({
 
   if (loadingFollowing) {
     return (
-      <div style={styles.sectionPanel}>
+      <div style={{ ...styles.sectionPanel, background: "transparent" }}>
         <div style={styles.sectionTitle}>Perfiles seguidos</div>
         <div style={styles.subtle}>Cargando perfiles...</div>
       </div>
@@ -36,7 +38,7 @@ export default function OwnerSidebarFollowedProfiles({
 
   if (followedProfiles.length === 0) {
     return (
-      <div style={styles.sectionPanel}>
+      <div style={{ ...styles.sectionPanel, background: "transparent" }}>
         <div style={styles.sectionTitle}>Perfiles seguidos</div>
         <div style={styles.subtle}>Aún no sigues perfiles.</div>
       </div>
@@ -44,7 +46,7 @@ export default function OwnerSidebarFollowedProfiles({
   }
 
   return (
-    <div style={styles.sectionPanel}>
+    <div style={{ ...styles.sectionPanel, background: "transparent" }}>
       <div style={styles.sectionHeaderRow}>
         <div style={styles.sectionTitle}>Perfiles seguidos</div>
       </div>
@@ -78,7 +80,7 @@ export default function OwnerSidebarFollowedProfiles({
             >
               <button
                 type="button"
-                onClick={() => onOpenProfile(handle)}
+                onClick={() => { onOpenProfile(handle); onProfileVisit?.(profile.uid); }}
                 style={{
                   minWidth: 0,
                   flex: 1,

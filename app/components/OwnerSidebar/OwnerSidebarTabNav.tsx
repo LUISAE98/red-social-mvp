@@ -2,6 +2,12 @@
 
 import type { CSSProperties } from "react";
 import type { TopView } from "./OwnerSidebar";
+import {
+  SidebarFollowingIcon,
+  SidebarMyCommunitiesIcon,
+  SidebarOtherCommunitiesIcon,
+  SidebarExperiencesIcon,
+} from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
 
 type Props = {
   activeView: TopView;
@@ -9,6 +15,11 @@ type Props = {
   requestedCount?: number;
   deliveredCount?: number;
   joinRequestsCount?: number;
+  followedCount?: number;
+  myGroupsCount?: number;
+  joinedGroupsCount?: number;
+  loadingFollowing?: boolean;
+  loadingGroups?: boolean;
 };
 
 export default function OwnerSidebarTabNav({
@@ -17,45 +28,71 @@ export default function OwnerSidebarTabNav({
   requestedCount = 0,
   deliveredCount = 0,
   joinRequestsCount = 0,
+  followedCount = 0,
+  myGroupsCount = 0,
+  joinedGroupsCount = 0,
+  loadingFollowing = false,
+  loadingGroups = false,
 }: Props) {
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
   const hasRequests = requestedCount > 0 || deliveredCount > 0;
+  const showFollowing = loadingFollowing || followedCount > 0;
+  const showMyGroups = loadingGroups || myGroupsCount > 0;
+  const showOtherGroups = loadingGroups || joinedGroupsCount > 0;
 
   const tabs = [
-    {
-      key: "following" as const,
-      label: "Perfiles seguidos",
-      title: "Perfiles seguidos",
-      showBadge: false,
-    },
-    {
-      key: "owned" as const,
-      label: "Mis comunidades",
-      title: "Mis comunidades",
-      showBadge: joinRequestsCount > 0,
-    },
-    {
-      key: "communities" as const,
-      label: "Otras comunidades",
-      title: "Otras comunidades",
-      showBadge: false,
-    },
+    ...(showFollowing
+      ? [
+          {
+            key: "following" as const,
+            label: "Seguidos",
+            title: "Seguidos",
+            showBadge: false,
+            icon: <SidebarFollowingIcon size={21} strokeWidth={1.6} />,
+          },
+        ]
+      : []),
+    ...(showMyGroups
+      ? [
+          {
+            key: "owned" as const,
+            label: "Mis comunidades",
+            title: "Mis comunidades",
+            showBadge: joinRequestsCount > 0,
+            icon: <SidebarMyCommunitiesIcon size={21} strokeWidth={1.6} />,
+          },
+        ]
+      : []),
+    ...(showOtherGroups
+      ? [
+          {
+            key: "communities" as const,
+            label: "Comunidades que sigo",
+            title: "Comunidades que sigo",
+            showBadge: false,
+            icon: <SidebarOtherCommunitiesIcon size={21} strokeWidth={1.6} />,
+          },
+        ]
+      : []),
     ...(hasRequests
       ? [
           {
             key: "greetings" as const,
-            label: "Pendientes",
-            title: "Pendientes",
-            showBadge: true,
+            label: "Experiencias",
+            title: "Experiencias",
+            showBadge: false,
+            icon: <SidebarExperiencesIcon size={21} strokeWidth={1.6} />,
           },
         ]
       : []),
   ];
 
-  const safeActiveView =
-    !hasRequests && activeView === "greetings" ? "following" : activeView;
+  const tabKeys = new Set(tabs.map((t) => t.key));
+  const safeActiveView = tabKeys.has(activeView)
+    ? activeView
+    : (tabs[0]?.key ?? "following");
 
   const activeIndex = Math.max(
     0,
@@ -72,7 +109,7 @@ export default function OwnerSidebarTabNav({
     gap: 2,
     fontFamily: fontStack,
     boxSizing: "border-box",
-    padding: "4px 8px 6px",
+    padding: "4px 2px 6px",
   };
 
   const itemBase: CSSProperties = {
@@ -89,7 +126,7 @@ export default function OwnerSidebarTabNav({
     cursor: "pointer",
     transition: "color 0.2s ease, background 0.2s ease",
     WebkitTapHighlightColor: "transparent",
-    padding: "7px 8px 7px 14px",
+    padding: "7px 8px 7px 6px",
     borderRadius: 10,
     textAlign: "left",
     overflow: "hidden",
@@ -97,7 +134,6 @@ export default function OwnerSidebarTabNav({
 
   const activeStyle: CSSProperties = {
     color: "rgba(255,255,255,0.95)",
-    background: "rgba(255,255,255,0.035)",
   };
 
   const labelStyle: CSSProperties = {
@@ -136,36 +172,45 @@ export default function OwnerSidebarTabNav({
     flexShrink: 0,
   };
 
-  const indicatorTrackStyle: CSSProperties = {
-    position: "absolute",
-    left: 8,
-    top: 4,
-    width: 3,
-    height: 34,
-    pointerEvents: "none",
-    transform: `translate3d(0, ${activeIndex * 36}px, 0)`,
-    transition: "transform 420ms cubic-bezier(0.2, 0.9, 0.2, 1)",
-    willChange: "transform",
-    zIndex: 4,
-  };
-
-  const indicatorBarStyle: CSSProperties = {
-    position: "absolute",
-    left: 0,
-    top: 7,
-    width: 3,
-    height: 20,
-    borderRadius: 999,
-    background: "#a855ff",
-    opacity: 0.9,
-    boxShadow: "0 0 12px rgba(168,85,255,0.42)",
-  };
-
   return (
     <div style={wrapStyle}>
-      <span style={indicatorTrackStyle}>
-        <span style={indicatorBarStyle} />
-      </span>
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          left: 2,
+          right: 2,
+          top: 4,
+          height: 34,
+          borderRadius: 10,
+          background: "rgba(255,255,255,0.035)",
+          pointerEvents: "none",
+          transform: `translate3d(0, ${activeIndex * 36}px, 0)`,
+          transition: "transform 420ms cubic-bezier(0.2, 0.9, 0.2, 1)",
+          willChange: "transform",
+          zIndex: 1,
+        }}
+      />
+
+      <img
+        src="/suscomunidades.png"
+        alt=""
+        aria-hidden
+        style={{
+          position: "absolute",
+          right: 10,
+          top: 7,
+          height: 28,
+          width: "auto",
+          objectFit: "contain",
+          pointerEvents: "none",
+          userSelect: "none",
+          transform: `translate3d(0, ${activeIndex * 36}px, 0)`,
+          transition: "transform 420ms cubic-bezier(0.2, 0.9, 0.2, 1)",
+          willChange: "transform",
+          zIndex: 4,
+        }}
+      />
 
       {tabs.map((tab) => {
         const active = safeActiveView === tab.key;
@@ -183,13 +228,17 @@ export default function OwnerSidebarTabNav({
               ...(active ? activeStyle : null),
             }}
           >
-            <span style={labelStyle}>{tab.label}</span>
+            <span style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0, opacity: active ? 1 : 0.55 }}>
+              {tab.icon}
+              <span style={labelStyle}>{tab.label}</span>
+            </span>
 
             {tab.showBadge ? (
               <span style={badgeStyle}>
                 {tab.key === "owned" ? joinBadgeText : badgeText}
               </span>
             ) : null}
+
           </button>
         );
       })}

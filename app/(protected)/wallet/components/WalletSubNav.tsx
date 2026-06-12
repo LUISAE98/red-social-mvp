@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { SidebarClockIcon } from "@/app/components/VibraServiceIcons/OwnerSidebarNavIcons/OwnerSidebarNavIcons";
 
 export type WalletTabKey = "finances" | "calendar" | "pending" | "history";
 
@@ -8,14 +10,14 @@ type WalletTabItem = {
   key: WalletTabKey;
   label: string;
   href: string;
-  emoji: string;
+  icon: ReactNode;
 };
 
 const TABS: WalletTabItem[] = [
-  { key: "finances", label: "Finanzas", href: "/wallet/finanzas", emoji: "📈" },
-  { key: "calendar", label: "Calendario", href: "/wallet/calendario", emoji: "📅" },
-  { key: "pending", label: "Pendientes", href: "/wallet/pendientes", emoji: "⏳" },
-  { key: "history", label: "Historial", href: "/wallet/historial", emoji: "🧾" },
+  { key: "finances", label: "Finanzas", href: "/wallet/finanzas", icon: "📈" },
+  { key: "calendar", label: "Calendario", href: "/wallet/calendario", icon: "📅" },
+  { key: "pending", label: "Pendientes", href: "/wallet/pendientes", icon: "⏳" },
+  { key: "history", label: "Historial", href: "/wallet/historial", icon: <SidebarClockIcon size={20} strokeWidth={1.75} /> },
 ];
 
 export default function WalletSubNav({
@@ -134,7 +136,7 @@ export default function WalletSubNav({
               >
                 <span className={`tabInner ${isActive ? "tabInnerActive" : ""}`}>
                   <span className="emoji" aria-hidden="true">
-                    {tab.emoji}
+                    {tab.icon}
                   </span>
                   <span className="label">{tab.label}</span>
                   {isActive ? <span className="indicator" /> : null}
