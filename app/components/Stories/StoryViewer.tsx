@@ -231,8 +231,9 @@ export default function StoryViewer({
         if ("caretRangeFromPoint" in document) {
           range = (document as Document & { caretRangeFromPoint(x: number, y: number): Range | null }).caretRangeFromPoint(x, y);
         } else if ("caretPositionFromPoint" in document) {
-          const pos = (document as Document & { caretPositionFromPoint(x: number, y: number): { offsetNode: Node; offset: number } | null }).caretPositionFromPoint(x, y);
-          if (pos) { range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); }
+          const d = document as Document & { caretPositionFromPoint(x: number, y: number): { offsetNode: Node; offset: number } | null };
+          const pos = d.caretPositionFromPoint(x, y);
+          if (pos) { range = d.createRange(); range.setStart(pos.offsetNode, pos.offset); }
         }
         if (range) {
           const pre = document.createRange();
