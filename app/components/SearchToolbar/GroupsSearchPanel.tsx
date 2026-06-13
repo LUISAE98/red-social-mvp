@@ -352,6 +352,56 @@ function getCommunityPreviewPriority(
   return 7;
 }
 
+const HISTORY_KEY = "vibra_search_history";
+const MAX_HISTORY = 15;
+
+type SearchHistoryEntity = {
+  kind: "entity";
+  entityType: "profile" | "community";
+  id: string;
+  name: string;
+  handle?: string;
+  avatarUrl?: string | null;
+  href: string;
+  ts: number;
+};
+
+type SearchHistoryText = {
+  kind: "text";
+  query: string;
+  ts: number;
+};
+
+type SearchHistoryEntry = SearchHistoryEntity | SearchHistoryText;
+
+function loadHistory(): SearchHistoryEntry[] {
+  try {
+    if (typeof localStorage === "undefined") return [];
+    const raw = localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as SearchHistoryEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function pushToHistory(
+  current: SearchHistoryEntry[],
+  entry: SearchHistoryEntry
+): SearchHistoryEntry[] {
+  const filtered = current.filter((e) => {
+    if (e.kind === "text" && entry.kind === "text") return e.query !== entry.query;
+    if (e.kind === "entity" && entry.kind === "entity") return e.href !== entry.href;
+    return true;
+  });
+  const updated = [entry, ...filtered].slice(0, MAX_HISTORY);
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+  } catch {}
+  return updated;
+}
+
 type GroupsSearchPanelProps = {
   fontStack: string;
   showCreateGroup?: boolean;
@@ -397,6 +447,9 @@ const previousPathnameRef = useRef<string | null>(null);
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [mounted, setMounted] = useState(false);
   const [isSearchClosing, setIsSearchClosing] = useState(false);
+  const [history, setHistory] = useState<SearchHistoryEntry[]>([]);
+  const [isFocused, setIsFocused] = useState(false);
+  const isFocusedRef = useRef(false);
 
   const cardBorder = "1px solid rgba(255,255,255,0.14)";
   const softBorder = "1px solid rgba(255,255,255,0.18)";
@@ -404,9 +457,13 @@ const previousPathnameRef = useRef<string | null>(null);
 
 const normalizedSearch = debouncedSearch.trim().toLowerCase();
 const hasSearch = normalizedSearch.length >= MIN_SEARCH_LENGTH;
+const historyVisible = !hasSearch && isFocused && history.length > 0;
+
+isFocusedRef.current = isFocused;
 
   useEffect(() => {
     setMounted(true);
+    setHistory(loadHistory());
 
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
@@ -425,15 +482,18 @@ const hasSearch = normalizedSearch.length >= MIN_SEARCH_LENGTH;
 
 useEffect(() => {
   function handlePointerDown(event: PointerEvent) {
-if (!hasSearch && !showCloseSearch) return;
-
     const target = event.target;
     if (!(target instanceof Node)) return;
 
     if (searchAreaRef.current?.contains(target)) return;
     if (dropdownRef.current?.contains(target)) return;
 
-handleCloseSearch();
+    if (isFocusedRef.current) {
+      setIsFocused(false);
+    }
+
+    if (!hasSearch && !showCloseSearch) return;
+    handleCloseSearch();
   }
 
   document.addEventListener("pointerdown", handlePointerDown, true);
@@ -812,6 +872,12 @@ function handleCloseSearch() {
 
 function handleOpenFullResults() {
   if (!normalizedSearch) return;
+
+  const trimmed = search.trim();
+  if (trimmed) {
+    const entry: SearchHistoryEntry = { kind: "text", query: trimmed, ts: Date.now() };
+    setHistory((h) => pushToHistory(h, entry));
+  }
 
   const params = new URLSearchParams();
   params.set("q", search);
@@ -1341,12 +1407,100 @@ to {
     showCreateGroup ? () => router.push(createGroupHref) : undefined
   }
   onCloseSearch={showCloseSearch ? handleCloseSearch : undefined}
+  onFocusChange={setIsFocused}
+  onEnterKey={handleOpenFullResults}
   fontStack={fontStack}
   showCreateGroup={showCreateGroup}
   showCloseSearch={showCloseSearch}
   isMobileClosing={isSearchClosing}
   autoFocusOnMount={autoFocusOnMount}
 />
+
+{mounted && historyVisible && (
+  <div
+    ref={dropdownRef}
+    className="search-dropdown"
+    onMouseDown={(e) => e.preventDefault()}
+  >
+    <div className="search-dropdown-inner">
+      <section className="dropdown-section">
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 14px 4px" }}>
+          <h2 className="dropdown-title" style={{ padding: 0 }}>Recientes</h2>
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              try { localStorage.removeItem(HISTORY_KEY); } catch {}
+              setHistory([]);
+            }}
+            style={{ background: "none", border: "none", color: "rgba(255,255,255,0.44)", fontSize: "12px", cursor: "pointer", fontFamily: fontStack, padding: "2px 4px", borderRadius: 6 }}
+          >
+            Limpiar
+          </button>
+        </div>
+        {history.map((entry, i) => {
+          const removeBtn = (
+            <button
+              type="button"
+              aria-label="Eliminar del historial"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => {
+                e.stopPropagation();
+                const updated = history.filter((_, j) => j !== i);
+                try { localStorage.setItem(HISTORY_KEY, JSON.stringify(updated)); } catch {}
+                setHistory(updated);
+              }}
+              style={{ flexShrink: 0, background: "none", border: "none", color: "rgba(255,255,255,0.35)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: 28, height: 28, borderRadius: 6, padding: 0 }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          );
+
+          if (entry.kind === "text") {
+            return (
+              <div
+                key={i}
+                className="result-item"
+                style={{ display: "flex", alignItems: "center", gap: 10 }}
+                onClick={() => setSearch(entry.query)}
+              >
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </div>
+                <span style={{ color: "rgba(255,255,255,0.88)", fontSize: 13, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.query}</span>
+                {removeBtn}
+              </div>
+            );
+          }
+          const isProfile = entry.entityType === "profile";
+          return (
+            <div
+              key={i}
+              className="result-item"
+              style={{ display: "flex", alignItems: "center", gap: 10 }}
+              onClick={() => handleNavigateAndClose(entry.href)}
+            >
+              {entry.avatarUrl ? (
+                <img src={entry.avatarUrl} alt="" style={{ width: 36, height: 36, borderRadius: isProfile ? "50%" : 10, objectFit: "cover", flexShrink: 0 }} />
+              ) : (
+                <div style={{ width: 36, height: 36, borderRadius: isProfile ? "50%" : 10, background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.7)", flexShrink: 0 }}>
+                  {initialsFromName(entry.name)}
+                </div>
+              )}
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ color: "rgba(255,255,255,0.9)", fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{entry.name}</div>
+                <div style={{ color: "rgba(255,255,255,0.44)", fontSize: 12 }}>
+                  {isProfile && entry.handle ? `@${entry.handle}` : "Comunidad"}
+                </div>
+              </div>
+              {removeBtn}
+            </div>
+          );
+        })}
+      </section>
+    </div>
+  </div>
+)}
 
 {mounted && hasSearch && (
   <div
@@ -1400,7 +1554,11 @@ const visLabel =
                       <div
                         key={g.id}
                         className="result-item"
-                        onClick={() => handleNavigateAndClose(`/groups/${g.id}`)}
+                        onClick={() => {
+                          const entry: SearchHistoryEntry = { kind: "entity", entityType: "community", id: g.id, name: g.name ?? "(sin nombre)", avatarUrl: g.avatarUrl ?? null, href: `/groups/${g.id}`, ts: Date.now() };
+                          setHistory((h) => pushToHistory(h, entry));
+                          handleNavigateAndClose(`/groups/${g.id}`);
+                        }}
                       >
                         <div className="result-grid">
                           <div className="result-main-mobile">
@@ -1411,7 +1569,12 @@ const visLabel =
                               photoURL={g.avatarUrl ?? null}
                               displayName={g.name ?? "Comunidad"}
                               size={42}
-                              onClick={(e) => { e.stopPropagation(); handleNavigateAndClose(`/groups/${g.id}`); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const entry: SearchHistoryEntry = { kind: "entity", entityType: "community", id: g.id, name: g.name ?? "(sin nombre)", avatarUrl: g.avatarUrl ?? null, href: `/groups/${g.id}`, ts: Date.now() };
+                                setHistory((h) => pushToHistory(h, entry));
+                                handleNavigateAndClose(`/groups/${g.id}`);
+                              }}
                             />
 
                             <div className="result-content">
@@ -1549,7 +1712,11 @@ const visLabel =
                       <div
                         key={p.uid}
                         className="result-item"
-                        onClick={() => handleNavigateAndClose(`/u/${p.handle}`)}
+                        onClick={() => {
+                          const entry: SearchHistoryEntry = { kind: "entity", entityType: "profile", id: p.uid, name: fullName, handle: p.handle, avatarUrl: p.photoURL ?? null, href: `/u/${p.handle}`, ts: Date.now() };
+                          setHistory((h) => pushToHistory(h, entry));
+                          handleNavigateAndClose(`/u/${p.handle}`);
+                        }}
                       >
                         <div className="result-grid">
 <div className="result-main-mobile">
@@ -1560,7 +1727,12 @@ const visLabel =
     photoURL={p.photoURL}
     displayName={fullName}
     size={42}
-    onClick={(e) => { e.stopPropagation(); handleNavigateAndClose(`/u/${p.handle}`); }}
+    onClick={(e) => {
+      e.stopPropagation();
+      const entry: SearchHistoryEntry = { kind: "entity", entityType: "profile", id: p.uid, name: fullName, handle: p.handle, avatarUrl: p.photoURL ?? null, href: `/u/${p.handle}`, ts: Date.now() };
+      setHistory((h) => pushToHistory(h, entry));
+      handleNavigateAndClose(`/u/${p.handle}`);
+    }}
   />
 
   <div className="result-content">

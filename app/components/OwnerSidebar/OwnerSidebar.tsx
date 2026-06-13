@@ -1722,6 +1722,11 @@ miniItem: {
           id: d.id,
           data: d.data() as GreetingRequestDoc,
         }));
+        rows.sort((a, b) => {
+          const ta = a.data.deliveredAt?.toMillis?.() ?? 0;
+          const tb = b.data.deliveredAt?.toMillis?.() ?? 0;
+          return tb - ta;
+        });
         setBuyerDelivered(rows);
       },
       () => {

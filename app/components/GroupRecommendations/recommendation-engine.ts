@@ -2,9 +2,13 @@
 
 import {
   collection,
+  collectionGroup,
+  doc,
+  getDoc,
   getDocs,
   limit,
   query,
+  setDoc,
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -24,14 +28,128 @@ import type {
 
 const STORAGE_KEY_PREFIX = "red-social-mvp:group-recommendations:";
 const RANDOM_SLOT_OPTIONS = [6, 10, 15] as const;
-const MIN_ONBOARDING_CATEGORIES = 6;
+const MIN_ONBOARDING_CATEGORIES = 1; // J: any selection is enough to start recommendations
 const MAX_CATEGORY_QUERY_SIZE = 10;
 const MAX_RECOMMENDATIONS = 18;
 const MAX_TAGS_TRACKED = 40;
 const RANDOM_GROUP_FETCH_LIMIT = 40;
+const RECOMMENDATION_CACHE_TTL_MS = 90_000;
+const SHOWN_GROUPS_KEY_PREFIX = "red-social-mvp:shown-groups:";
+const SHOWN_GROUPS_MAX = 100;
+const SHOWN_GROUPS_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+const MIN_FRESH_RESULTS = 4; // don't filter shown groups if we'd be left with fewer than this
+// I: persist results to localStorage so page reloads skip Firestore until TTL expires
+const PERSISTED_RESULT_KEY_PREFIX = "red-social-mvp:rec-result:";
+const PERSISTED_RESULT_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+// ---------------------------------------------------------------------------
+// In-memory result cache — shared across all Rail instances in the same tab
+// ---------------------------------------------------------------------------
+type CachedResult = { result: RecommendationFetchResult; cachedAt: number };
+const resultCache = new Map<string, CachedResult>();
+type InvalidationListener = () => void;
+const invalidationListeners = new Set<InvalidationListener>();
+
+function getCachedResult(uid: string): RecommendationFetchResult | null {
+  const entry = resultCache.get(uid);
+  if (!entry) return null;
+  if (Date.now() - entry.cachedAt > RECOMMENDATION_CACHE_TTL_MS) {
+    resultCache.delete(uid);
+    return null;
+  }
+  return entry.result;
+}
+
+function setCachedResult(uid: string, result: RecommendationFetchResult) {
+  resultCache.set(uid, { result, cachedAt: Date.now() });
+}
+
+export function invalidateRecommendationCache(uid: string) {
+  resultCache.delete(uid);
+  // I: also clear the persisted localStorage result so the next fetch hits Firestore fresh
+  if (uid && typeof window !== "undefined") {
+    try { window.localStorage.removeItem(getPersistedResultKey(uid)); } catch {}
+  }
+  invalidationListeners.forEach((fn) => fn());
+}
+
+export function onRecommendationCacheInvalidated(fn: InvalidationListener): () => void {
+  invalidationListeners.add(fn);
+  return () => invalidationListeners.delete(fn);
+}
 
 function getStorageKey(uid: string) {
   return `${STORAGE_KEY_PREFIX}${uid}`;
+}
+
+// ---------------------------------------------------------------------------
+// I: persisted result cache — survives page reloads, TTL 30 minutes
+// ---------------------------------------------------------------------------
+type PersistedResultEntry = { result: RecommendationFetchResult; savedAt: number };
+
+function getPersistedResultKey(uid: string) {
+  return `${PERSISTED_RESULT_KEY_PREFIX}${uid}`;
+}
+
+function getPersistedResult(uid: string): RecommendationFetchResult | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(getPersistedResultKey(uid));
+    if (!raw) return null;
+    const entry = JSON.parse(raw) as PersistedResultEntry;
+    if (Date.now() - entry.savedAt > PERSISTED_RESULT_TTL_MS) {
+      window.localStorage.removeItem(getPersistedResultKey(uid));
+      return null;
+    }
+    return entry.result;
+  } catch {
+    return null;
+  }
+}
+
+function persistResult(uid: string, result: RecommendationFetchResult): void {
+  if (typeof window === "undefined") return;
+  try {
+    const entry: PersistedResultEntry = { result, savedAt: Date.now() };
+    window.localStorage.setItem(getPersistedResultKey(uid), JSON.stringify(entry));
+  } catch {}
+}
+
+// ---------------------------------------------------------------------------
+// G: shown-groups tracking — prevents the same cards from repeating each visit
+// ---------------------------------------------------------------------------
+type ShownEntry = { id: string; shownAt: number };
+
+function getShownGroupsKey(uid: string) {
+  return `${SHOWN_GROUPS_KEY_PREFIX}${uid}`;
+}
+
+function getShownGroupIds(uid: string): Set<string> {
+  if (!uid || typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(getShownGroupsKey(uid));
+    if (!raw) return new Set();
+    const entries = JSON.parse(raw) as ShownEntry[];
+    const cutoff = Date.now() - SHOWN_GROUPS_TTL_MS;
+    return new Set(
+      entries.filter((e) => e.shownAt > cutoff).map((e) => e.id)
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+function markGroupsAsShown(uid: string, ids: string[]): void {
+  if (!uid || ids.length === 0 || typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(getShownGroupsKey(uid));
+    const existing: ShownEntry[] = raw ? (JSON.parse(raw) as ShownEntry[]) : [];
+    const cutoff = Date.now() - SHOWN_GROUPS_TTL_MS;
+    const fresh = existing.filter((e) => e.shownAt > cutoff && !ids.includes(e.id));
+    const newEntries: ShownEntry[] = ids.map((id) => ({ id, shownAt: Date.now() }));
+    const merged = [...newEntries, ...fresh].slice(0, SHOWN_GROUPS_MAX);
+    window.localStorage.setItem(getShownGroupsKey(uid), JSON.stringify(merged));
+  } catch {}
 }
 
 function emptyPreferences(): StoredRecommendationPreferences {
@@ -102,7 +220,7 @@ function normalizeRecommendationMonetization(
 
 function toRecommendationCard(
   groupId: string,
-  data: Partial<Group>
+  data: Partial<Group> & { memberCount?: number }
 ): RecommendationGroupCard | null {
   const category = normalizeGroupCategory(data.category);
   const tags = normalizeGroupTags(data.tags);
@@ -118,7 +236,7 @@ function toRecommendationCard(
     visibility: data.visibility,
     category,
     tags,
-    memberCount: null,
+    memberCount: typeof data.memberCount === "number" ? data.memberCount : null,
     monetization: normalizeRecommendationMonetization(data.monetization),
   };
 }
@@ -194,6 +312,9 @@ export function saveRecommendationPreferences(
   };
 
   window.localStorage.setItem(getStorageKey(uid), JSON.stringify(next));
+
+  // Fire-and-forget: keep Firestore in sync for cross-device persistence
+  syncPreferencesToFirestore(uid, next);
 }
 
 export function completeRecommendationsOnboarding(
@@ -239,6 +360,55 @@ export function trackGroupRecommendationSignalFromGroup(input: {
   saveRecommendationPreferences(input.uid, {
     joinedCategories,
     joinedTags,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Firestore persistence — cross-device sync for recommendation preferences
+// ---------------------------------------------------------------------------
+const FIRESTORE_PREFS_PATH = (uid: string) =>
+  doc(db, "users", uid, "preferences", "recommendations");
+
+async function loadPreferencesFromFirestore(
+  uid: string
+): Promise<StoredRecommendationPreferences | null> {
+  try {
+    const snap = await getDoc(FIRESTORE_PREFS_PATH(uid));
+    if (!snap.exists()) return null;
+    const data = snap.data() as Partial<StoredRecommendationPreferences>;
+    return {
+      selectedCategories: uniqueCanonicalCategories(
+        Array.isArray(data.selectedCategories) ? data.selectedCategories : []
+      ),
+      joinedCategories: uniqueCanonicalCategories(
+        Array.isArray(data.joinedCategories) ? data.joinedCategories : []
+      ),
+      joinedTags: uniqueTags(Array.isArray(data.joinedTags) ? data.joinedTags : []),
+      onboardingCompleted: Boolean(data.onboardingCompleted),
+      updatedAt: typeof data.updatedAt === "number" ? data.updatedAt : 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function syncPreferencesToFirestore(
+  uid: string,
+  prefs: StoredRecommendationPreferences
+): void {
+  if (!uid) return;
+  void setDoc(
+    FIRESTORE_PREFS_PATH(uid),
+    {
+      selectedCategories: prefs.selectedCategories,
+      joinedCategories: prefs.joinedCategories,
+      joinedTags: prefs.joinedTags,
+      onboardingCompleted: prefs.onboardingCompleted,
+      updatedAt: prefs.updatedAt,
+    },
+    { merge: true }
+  ).catch(() => {
+    // silent — localStorage is the source of truth for this session
   });
 }
 
@@ -296,6 +466,151 @@ if (memberGroupIds.has(docSnap.id)) continue;
   return Array.from(found.values()).slice(0, MAX_RECOMMENDATIONS);
 }
 
+async function fetchGroupsByTags(
+  tags: string[],
+  memberGroupIds: Set<string>
+): Promise<RecommendationGroupCard[]> {
+  if (tags.length === 0) return [];
+
+  // Firestore array-contains-any accepts up to 10 values
+  const topTags = tags.slice(0, 10);
+
+  try {
+    // Cannot combine array-contains-any with 'in' on another field in Firestore,
+    // so visibility is filtered in memory after the query.
+    const q = query(
+      collection(db, "groups"),
+      where("tags", "array-contains-any", topTags),
+      where("isActive", "==", true),
+      limit(24)
+    );
+
+    const snap = await getDocs(q);
+    const found: RecommendationGroupCard[] = [];
+
+    for (const docSnap of snap.docs) {
+      const data = docSnap.data() as Partial<Group>;
+      if (data.visibility !== "public" && data.visibility !== "private") continue;
+      const card = toRecommendationCard(docSnap.id, data);
+      if (!card) continue;
+      if (data.discoverable === false) continue;
+      if (memberGroupIds.has(docSnap.id)) continue;
+      found.push(card);
+    }
+
+    return found;
+  } catch {
+    // Fails gracefully if the composite index doesn't exist yet;
+    // category-based signals still work normally.
+    return [];
+  }
+}
+
+// E: fetch IDs of profiles the user follows (capped to avoid excess reads)
+async function fetchFollowedProfileIds(uid: string): Promise<string[]> {
+  if (!uid) return [];
+  try {
+    const snap = await getDocs(
+      query(collection(db, "users", uid, "following"), limit(20))
+    );
+    return snap.docs.map((d) => d.id);
+  } catch {
+    return [];
+  }
+}
+
+// E: fetch groups created (owned) by a set of profile UIDs
+async function fetchGroupsByOwnerIds(
+  ownerIds: string[],
+  memberGroupIds: Set<string>
+): Promise<RecommendationGroupCard[]> {
+  if (ownerIds.length === 0) return [];
+
+  // Firestore 'in' operator accepts up to 10 values — chunk if needed
+  const chunks = chunkArray(ownerIds.slice(0, 20), 10);
+  const found = new Map<string, RecommendationGroupCard>();
+
+  for (const chunk of chunks) {
+    try {
+      const q = query(
+        collection(db, "groups"),
+        where("ownerId", "in", chunk),
+        where("isActive", "==", true),
+        limit(24)
+      );
+      const snap = await getDocs(q);
+      for (const docSnap of snap.docs) {
+        const data = docSnap.data() as Partial<Group> & { memberCount?: number };
+        if (data.visibility !== "public" && data.visibility !== "private") continue;
+        const card = toRecommendationCard(docSnap.id, data);
+        if (!card) continue;
+        if (data.discoverable === false) continue;
+        if (memberGroupIds.has(docSnap.id)) continue;
+        found.set(docSnap.id, card);
+      }
+    } catch {
+      // graceful degradation if index is missing
+    }
+  }
+
+  return Array.from(found.values());
+}
+
+// H: groups where followed profiles are members (social signal, weaker than ownership)
+async function fetchGroupsByFollowedMembers(
+  followedIds: string[],
+  memberGroupIds: Set<string>
+): Promise<RecommendationGroupCard[]> {
+  if (followedIds.length === 0) return [];
+
+  // Cap to 10 per Firestore 'in' limit
+  const topFollowed = followedIds.slice(0, 10);
+
+  try {
+    // collectionGroup queries ALL groups/{groupId}/members subcollections at once
+    const q = query(
+      collectionGroup(db, "members"),
+      where("userId", "in", topFollowed),
+      limit(30)
+    );
+
+    const snap = await getDocs(q);
+
+    // Extract unique groupIds from the document path (parent of members subcollection)
+    const rawIds = snap.docs.map((d) => d.ref.parent.parent?.id);
+    const groupIds = Array.from(
+      new Set(rawIds.filter((id): id is string => id != null && !memberGroupIds.has(id)))
+    );
+
+    if (groupIds.length === 0) return [];
+
+    // Batch-fetch the group docs to build cards
+    const found: RecommendationGroupCard[] = [];
+    for (const chunk of chunkArray(groupIds, 10)) {
+      try {
+        const gq = query(
+          collection(db, "groups"),
+          where("__name__", "in", chunk),
+          where("isActive", "==", true)
+        );
+        const gSnap = await getDocs(gq);
+        for (const docSnap of gSnap.docs) {
+          const data = docSnap.data() as Partial<Group> & { memberCount?: number };
+          if (data.visibility !== "public" && data.visibility !== "private") continue;
+          if (data.discoverable === false) continue;
+          const card = toRecommendationCard(docSnap.id, data);
+          if (card) found.push(card);
+        }
+      } catch {}
+    }
+
+    return found;
+  } catch {
+    // Graceful degradation if collection group index is missing
+    return [];
+  }
+}
+
 async function fetchRandomFallbackGroups(
   uid: string,
   memberGroupIds: Set<string>
@@ -327,11 +642,18 @@ if (memberGroupIds.has(docSnap.id)) continue;
   return seededShuffle(found, `fallback:${uid}`).slice(0, MAX_RECOMMENDATIONS);
 }
 
-function buildCategoryAffinity(preferences: StoredRecommendationPreferences) {
-  return uniqueCanonicalCategories([
-    ...preferences.selectedCategories,
-    ...preferences.joinedCategories,
-  ]);
+function buildCategorySignals(preferences: StoredRecommendationPreferences) {
+  return {
+    // Behavioral (stronger): categories inferred from groups the user actually joined
+    joinedCategories: preferences.joinedCategories,
+    // Declared (weaker): categories chosen manually during onboarding
+    selectedCategories: preferences.selectedCategories,
+    // Full union used as a coverage query when the above return nothing
+    allCategories: uniqueCanonicalCategories([
+      ...preferences.joinedCategories,
+      ...preferences.selectedCategories,
+    ]),
+  };
 }
 
 export async function fetchRecommendedGroupsForUser(
@@ -346,62 +668,147 @@ export async function fetchRecommendedGroupsForUser(
     };
   }
 
-  const preferences = getStoredRecommendationPreferences(uid);
-  const affinityCategories = buildCategoryAffinity(preferences);
+  const cached = getCachedResult(uid);
+  if (cached) return cached;
+
+  // I: hit localStorage before touching Firestore — survives page reloads up to 30 min
+  const persisted = getPersistedResult(uid);
+  if (persisted) {
+    setCachedResult(uid, persisted);
+    return persisted;
+  }
+
+  let preferences = getStoredRecommendationPreferences(uid);
+
+  // If localStorage shows no completed onboarding, try Firestore as cross-device fallback
+  if (!preferences.onboardingCompleted) {
+    const remote = await loadPreferencesFromFirestore(uid);
+    if (remote && remote.onboardingCompleted) {
+      // Sync back to localStorage so future reads are instant
+      window.localStorage.setItem(getStorageKey(uid), JSON.stringify(remote));
+      preferences = remote;
+    }
+  }
 
   if (
     !preferences.onboardingCompleted ||
     preferences.selectedCategories.length < MIN_ONBOARDING_CATEGORIES
   ) {
-    return {
+    const onboardingResult: RecommendationFetchResult = {
       groups: [],
       reason: "onboarding_categories",
       selectedCategories: preferences.selectedCategories,
       onboardingCompleted: false,
     };
+    setCachedResult(uid, onboardingResult);
+    return onboardingResult;
   }
 
- const memberGroupIds = await fetchUserMembershipGroupIds(uid);
+  const signals = buildCategorySignals(preferences);
 
-const groups = await fetchGroupsByCategories(
-  affinityCategories,
-  memberGroupIds
-);
+  // Fetch membership IDs and followed profile IDs in parallel (both needed for scoring)
+  const [memberGroupIds, followedProfileIds] = await Promise.all([
+    fetchUserMembershipGroupIds(uid),
+    fetchFollowedProfileIds(uid),
+  ]);
 
-  if (groups.length > 0) {
-    return {
-      groups,
-      reason:
-        preferences.joinedCategories.length > 0
-          ? "mixed_affinity"
-          : "onboarding_categories",
+  // C + D + E + H: run all signal queries in parallel
+  //   joinedCategories:      behavioral — categories from groups you actually joined  (+3)
+  //   joinedTags:            behavioral — tags from groups you joined                 (+2)
+  //   followedOwnerGroups:   social    — groups created by profiles you follow        (+2)
+  //   followedMemberGroups:  social    — groups where followed profiles are members   (+1)
+  //   allCategories:         declared  — full coverage including onboarding picks     (+1)
+  const [joinedCatGroups, tagGroups, followedOwnerGroups, followedMemberGroups, allCatGroups] =
+    await Promise.all([
+      signals.joinedCategories.length > 0
+        ? fetchGroupsByCategories(signals.joinedCategories, memberGroupIds)
+        : Promise.resolve([] as RecommendationGroupCard[]),
+      preferences.joinedTags.length > 0
+        ? fetchGroupsByTags(preferences.joinedTags, memberGroupIds)
+        : Promise.resolve([] as RecommendationGroupCard[]),
+      followedProfileIds.length > 0
+        ? fetchGroupsByOwnerIds(followedProfileIds, memberGroupIds)
+        : Promise.resolve([] as RecommendationGroupCard[]),
+      followedProfileIds.length > 0
+        ? fetchGroupsByFollowedMembers(followedProfileIds, memberGroupIds)
+        : Promise.resolve([] as RecommendationGroupCard[]),
+      fetchGroupsByCategories(signals.allCategories, memberGroupIds),
+    ]);
+
+  // Score and merge — scores are cumulative across signal types
+  //   Joined category match:      +3 pts  (behavioral, strongest)
+  //   Tag match:                  +2 pts  (behavioral)
+  //   Followed-profile owner:     +2 pts  (social — they built it)
+  //   Followed-profile member:    +1 pt   (social — they're in it)
+  //   Declared-only category:     +1 pt   (stated preference only)
+  const scored = new Map<string, { card: RecommendationGroupCard; score: number }>();
+
+  for (const g of joinedCatGroups) {
+    scored.set(g.id, { card: g, score: (scored.get(g.id)?.score ?? 0) + 3 });
+  }
+  for (const g of tagGroups) {
+    scored.set(g.id, { card: g, score: (scored.get(g.id)?.score ?? 0) + 2 });
+  }
+  for (const g of followedOwnerGroups) {
+    scored.set(g.id, { card: g, score: (scored.get(g.id)?.score ?? 0) + 2 });
+  }
+  for (const g of followedMemberGroups) {
+    scored.set(g.id, { card: g, score: (scored.get(g.id)?.score ?? 0) + 1 });
+  }
+  for (const g of allCatGroups) {
+    if (!scored.has(g.id)) {
+      scored.set(g.id, { card: g, score: 1 });
+    }
+  }
+
+  // F: primary sort by relevance score, secondary by memberCount (popularity tiebreaker)
+  const allRanked = Array.from(scored.values())
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return (b.card.memberCount ?? 0) - (a.card.memberCount ?? 0);
+    })
+    .map(({ card }) => card);
+
+  // G: filter out groups already shown in previous sessions
+  const shownIds = getShownGroupIds(uid);
+  const freshRanked = allRanked.filter((g) => !shownIds.has(g.id));
+
+  // Only apply the shown-filter if it leaves enough results
+  const ranked =
+    freshRanked.length >= MIN_FRESH_RESULTS ? freshRanked : allRanked;
+
+  const finalSlice = ranked.slice(0, MAX_RECOMMENDATIONS);
+
+  if (finalSlice.length > 0) {
+    // G: mark these groups as shown so they rotate out next session
+    markGroupsAsShown(uid, finalSlice.map((g) => g.id));
+
+    const hasBehavioralSignals =
+      preferences.joinedCategories.length > 0 ||
+      preferences.joinedTags.length > 0 ||
+      followedProfileIds.length > 0;
+    const result: RecommendationFetchResult = {
+      groups: finalSlice,
+      reason: hasBehavioralSignals ? "mixed_affinity" : "onboarding_categories",
       selectedCategories: preferences.selectedCategories,
       onboardingCompleted: true,
     };
+    persistResult(uid, result); // I: persist so next page load skips Firestore
+    setCachedResult(uid, result);
+    return result;
   }
 
-const fallback = await fetchGroupsByCategories(
-  preferences.selectedCategories,
-  memberGroupIds
-);
-
-  if (fallback.length > 0) {
-    return {
-      groups: fallback,
-      reason: "fallback_popular",
-      selectedCategories: preferences.selectedCategories,
-      onboardingCompleted: true,
-    };
-  }
-
-const randomFallback = await fetchRandomFallbackGroups(uid, memberGroupIds);
-
-  return {
+  // Final fallback: random discoverable groups
+  const randomFallback = await fetchRandomFallbackGroups(uid, memberGroupIds);
+  const result: RecommendationFetchResult = {
     groups: randomFallback,
     reason: "fallback_popular",
     selectedCategories: preferences.selectedCategories,
     onboardingCompleted: true,
   };
+  persistResult(uid, result); // I: persist fallback too
+  setCachedResult(uid, result);
+  return result;
 }
 
 export function buildRandomRecommendationSlots(

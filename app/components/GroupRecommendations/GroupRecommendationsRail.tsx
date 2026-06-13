@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { joinGroup } from "@/lib/groups/membership";
 import { requestToJoin } from "@/lib/groups/joinRequests";
 import {
@@ -16,6 +16,8 @@ import {
 import {
   completeRecommendationsOnboarding,
   fetchRecommendedGroupsForUser,
+  invalidateRecommendationCache,
+  onRecommendationCacheInvalidated,
   recommendationEngineConstants,
   trackGroupRecommendationSignalFromGroup,
 } from "./recommendation-engine";
@@ -469,11 +471,8 @@ export default function GroupRecommendationsRail({
   const railSubtitle = subtitle ?? getDefaultSubtitle(context);
   const minCategories = recommendationEngineConstants.MIN_ONBOARDING_CATEGORIES;
 
-  const hasRealSession =
-    Boolean(currentUserId) && auth.currentUser?.uid === currentUserId;
-
   const loadRecommendations = useCallback(async () => {
-    if (!currentUserId || !hasRealSession) {
+    if (!currentUserId) {
       setResult(null);
       setJoinStates({});
       setSelectedCategories([]);
@@ -515,11 +514,23 @@ export default function GroupRecommendationsRail({
     } finally {
       setLoading(false);
     }
-  }, [currentUserId, hasRealSession]);
+  }, [currentUserId]);
 
   useEffect(() => {
     void loadRecommendations();
   }, [loadRecommendations]);
+
+  // Ref that always points to the latest loadRecommendations — used in the
+  // cache-invalidation subscription so we don't need to re-register on every render
+  const loadRecommendationsRef = useRef(loadRecommendations);
+  loadRecommendationsRef.current = loadRecommendations;
+
+  // When any Rail instance invalidates the shared cache, all instances re-fetch
+  useEffect(() => {
+    return onRecommendationCacheInvalidated(() => {
+      void loadRecommendationsRef.current();
+    });
+  }, []);
 
   const toggleCategory = (category: CanonicalGroupCategory) => {
     setSelectedCategories((prev) =>
@@ -530,14 +541,16 @@ export default function GroupRecommendationsRail({
   };
 
   const handleSaveOnboarding = async () => {
-    if (!currentUserId || !hasRealSession) return;
+    if (!currentUserId) return;
 
     setSavingOnboarding(true);
     setError(null);
 
     try {
       completeRecommendationsOnboarding(currentUserId, selectedCategories);
-      await loadRecommendations();
+      // Invalidate shared cache so all Rail instances on this page pick up the new state
+      invalidateRecommendationCache(currentUserId);
+      // loadRecommendations will be triggered automatically by the invalidation listener
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "No se pudo guardar la selección."
@@ -548,7 +561,7 @@ export default function GroupRecommendationsRail({
   };
 
   const handleJoin = async (group: RecommendationGroupCard) => {
-    if (!currentUserId || !hasRealSession) return;
+    if (!currentUserId) return;
 
     setJoinLoadingByGroup((prev) => ({ ...prev, [group.id]: true }));
     setError(null);
@@ -574,6 +587,9 @@ export default function GroupRecommendationsRail({
         tags: group.tags,
       });
 
+      // Invalidate cache so all Rail instances exclude this group on next fetch
+      invalidateRecommendationCache(currentUserId);
+
       router.refresh();
     } catch (err) {
       const message =
@@ -594,7 +610,7 @@ export default function GroupRecommendationsRail({
     return !loading && result && !result.onboardingCompleted;
   }, [loading, result]);
 
-  if (!currentUserId || !hasRealSession) {
+  if (!currentUserId) {
     return null;
   }
 

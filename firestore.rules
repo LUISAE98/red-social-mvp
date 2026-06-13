@@ -515,6 +515,17 @@ match /hiddenGroupTransitions/{groupId} {
     && request.auth.uid == uid;
 }
 
+      match /preferences/{docId} {
+        allow get: if signedIn() && request.auth.uid == uid;
+        allow write: if signedIn()
+          && request.auth.uid == uid
+          && docId == "recommendations"
+          && (!("selectedCategories" in request.resource.data) || request.resource.data.selectedCategories is list)
+          && (!("joinedCategories" in request.resource.data) || request.resource.data.joinedCategories is list)
+          && (!("joinedTags" in request.resource.data) || request.resource.data.joinedTags is list)
+          && (!("onboardingCompleted" in request.resource.data) || request.resource.data.onboardingCompleted is bool);
+      }
+
       allow delete: if false;
     }
 

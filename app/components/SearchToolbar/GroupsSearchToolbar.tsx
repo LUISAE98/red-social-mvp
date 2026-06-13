@@ -7,6 +7,8 @@ export type GroupsSearchToolbarProps = {
   onSearchChange: (value: string) => void;
   onCreateGroup?: () => void;
   onCloseSearch?: () => void;
+  onFocusChange?: (focused: boolean) => void;
+  onEnterKey?: () => void;
   fontStack: string;
   showCreateGroup?: boolean;
   showCloseSearch?: boolean;
@@ -21,6 +23,8 @@ export default function GroupsSearchToolbar({
   onSearchChange,
   onCreateGroup,
   onCloseSearch,
+  onFocusChange,
+  onEnterKey,
   fontStack,
   showCreateGroup = true,
   showCloseSearch = false,
@@ -293,13 +297,15 @@ export default function GroupsSearchToolbar({
               type="text"
               placeholder={placeholder}
               value={search}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
+              onFocus={() => { setIsFocused(true); onFocusChange?.(true); }}
+              onBlur={() => { setIsFocused(false); onFocusChange?.(false); }}
               onChange={(e) => onSearchChange(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Escape") {
                   e.preventDefault();
                   handleClose();
+                } else if (e.key === "Enter") {
+                  onEnterKey?.();
                 }
               }}
               className="search-input"

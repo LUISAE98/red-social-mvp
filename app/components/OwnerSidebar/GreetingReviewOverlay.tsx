@@ -55,6 +55,147 @@ function formatDateDisplay(date: Date): string {
   }
 }
 
+// ─── Canvas recording helpers ─────────────────────────────────────────────────
+
+function rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+  const cr = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + cr, y);
+  ctx.lineTo(x + w - cr, y);
+  ctx.arcTo(x + w, y, x + w, y + cr, cr);
+  ctx.lineTo(x + w, y + h - cr);
+  ctx.arcTo(x + w, y + h, x + w - cr, y + h, cr);
+  ctx.lineTo(x + cr, y + h);
+  ctx.arcTo(x, y + h, x, y + h - cr, cr);
+  ctx.lineTo(x, y + cr);
+  ctx.arcTo(x, y, x + cr, y, cr);
+  ctx.closePath();
+}
+
+function drawRecordingFrame(
+  ctx: CanvasRenderingContext2D,
+  videoEl: HTMLVideoElement,
+  w: number,
+  h: number,
+  elapsedSeconds: number,
+  avatarImg: HTMLImageElement | null,
+  creatorName: string,
+  serviceType: string,
+  initials: string,
+): void {
+  ctx.clearRect(0, 0, w, h);
+
+  // Rounded corners clip + camera frame
+  const cornerR = Math.round(Math.min(w, h) * 0.04);
+  ctx.save();
+  rrect(ctx, 0, 0, w, h, cornerR);
+  ctx.clip();
+  ctx.drawImage(videoEl, 0, 0, w, h);
+  ctx.restore();
+
+  // Sizes proportional to shorter side, -10% vs previous version
+  const base = Math.min(w, h);
+  const pad    = Math.round(base * 0.032);
+  const aSize  = Math.round(base * 0.099);
+  const gap    = Math.round(base * 0.018);
+  const nameFs = Math.round(base * 0.034);
+  const typeFs = Math.round(base * 0.025);
+  const ringW  = Math.round(base * 0.007);
+  const ax = pad + aSize / 2;
+  const ay = pad + aSize / 2;
+
+  // Gradient story ring — exact Vibra colors: linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)
+  // 135deg in canvas: top-left → bottom-right
+  const ringR = aSize / 2 + ringW;
+  const d135 = ringR * Math.SQRT1_2; // cos/sin(45°) * ringR
+  const ringGrad = ctx.createLinearGradient(ax - d135, ay - d135, ax + d135, ay + d135);
+  ringGrad.addColorStop(0,    "#ec4899");
+  ringGrad.addColorStop(0.52, "#9333ea");
+  ringGrad.addColorStop(1,    "#3b82f6");
+  ctx.save();
+  ctx.strokeStyle = ringGrad;
+  ctx.lineWidth = ringW;
+  ctx.beginPath();
+  ctx.arc(ax, ay, ringR, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  // Avatar circle (drawn AFTER ring so it sits on top cleanly)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(ax, ay, aSize / 2, 0, Math.PI * 2);
+  ctx.clip();
+  if (avatarImg) {
+    ctx.drawImage(avatarImg, ax - aSize / 2, ay - aSize / 2, aSize, aSize);
+  } else {
+    const g = ctx.createLinearGradient(ax - aSize / 2, ay - aSize / 2, ax + aSize / 2, ay + aSize / 2);
+    g.addColorStop(0, "#3b82f6");
+    g.addColorStop(1, "#8b5cf6");
+    ctx.fillStyle = g;
+    ctx.fillRect(ax - aSize / 2, ay - aSize / 2, aSize, aSize);
+    ctx.fillStyle = "#fff";
+    ctx.font = `700 ${Math.round(aSize * 0.38)}px -apple-system, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(initials.slice(0, 2), ax, ay);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+  }
+  ctx.restore();
+
+  // Name + service type — no shadows
+  const textX = ax + aSize / 2 + gap + ringW;
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `700 ${nameFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText(creatorName, textX, ay - Math.round(typeFs * 0.3));
+  ctx.fillStyle = "rgba(255,255,255,0.80)";
+  ctx.font = `500 ${typeFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.fillText(serviceType, textX, ay + typeFs + Math.round(typeFs * 0.1));
+  ctx.restore();
+
+  // Vibra.com animated pill — period 25s (20s hidden → 0.5s in → 4s visible → 0.5s out)
+  const cycle = elapsedSeconds % 25;
+  let t = 0;
+  if (cycle >= 20 && cycle < 20.5)        t = (cycle - 20) / 0.5;
+  else if (cycle >= 20.5 && cycle < 24.5) t = 1;
+  else if (cycle >= 24.5 && cycle < 25)   t = 1 - (cycle - 24.5) / 0.5;
+  const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+  if (ease > 0.005) {
+    const urlFs   = Math.round(base * 0.025);
+    const pillPad = Math.round(base * 0.016);
+    const pillH   = Math.round(base * 0.050);
+    const dotR    = Math.round(base * 0.006);
+
+    ctx.font = `700 ${nameFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+    const nameW = ctx.measureText(creatorName).width;
+    ctx.font = `700 ${urlFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+    const urlW  = ctx.measureText("vibra.com").width;
+    const pillW = pillPad + dotR * 2 + Math.round(base * 0.011) + urlW + pillPad;
+
+    const pillNX = textX + nameW + Math.round(base * 0.011);
+    const pillX  = pillNX + (1 - ease) * (pillW + Math.round(base * 0.06));
+    const pillY  = ay - aSize / 2;
+
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, ease * 1.5);
+    ctx.fillStyle = "rgba(37,99,235,0.90)";
+    rrect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.beginPath();
+    ctx.arc(pillX + pillPad + dotR, pillY + pillH / 2, dotR, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `700 ${urlFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+    ctx.textBaseline = "middle";
+    ctx.fillText("vibra.com", pillX + pillPad + dotR * 2 + Math.round(base * 0.011), pillY + pillH / 2);
+    ctx.restore();
+  }
+}
+
 export default function GreetingReviewOverlay({
   items,
   buyers,
@@ -132,6 +273,10 @@ export default function GreetingReviewOverlay({
   const mimeTypeRef = useRef<string>("");
   const wasUploadedRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const canvasRecRef = useRef<HTMLCanvasElement | null>(null);
+  const rafRecRef = useRef<number | null>(null);
+  const recStartTimeRef = useRef<number>(0);
+  const overlayAvatarRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -327,37 +472,76 @@ export default function GreetingReviewOverlay({
         ? "Responder Mensaje"
         : "Responder Saludo";
 
+  const preloadOverlayAvatar = async () => {
+    overlayAvatarRef.current = null;
+    // Priority: buyerSourceAvatar prop (already resolved) → buyers map → Firestore
+    let url: string | null =
+      (typeof buyerSourceAvatar === "string" && buyerSourceAvatar) ? buyerSourceAvatar
+      : buyers[req.creatorId]?.photoURL ?? null;
+    if (!url) {
+      try {
+        const snap = await getDoc(doc(db, "users", req.creatorId));
+        const d = snap.data() as Record<string, unknown> | undefined;
+        url = (typeof d?.photoURL === "string" && d.photoURL) ? d.photoURL : null;
+      } catch { /* best-effort */ }
+    }
+    if (!url) return;
+    // Fetch via same-origin proxy → blob URL (blob: is always same-origin, no canvas taint).
+    // Using fetch+blob lets us await completion so the image is ready before recording starts.
+    try {
+      const res = await fetch(`/api/proxy-avatar?url=${encodeURIComponent(url)}`);
+      if (!res.ok) throw new Error(`proxy ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      await new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => { overlayAvatarRef.current = img; URL.revokeObjectURL(blobUrl); resolve(); };
+        img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(); };
+        img.src = blobUrl;
+      });
+    } catch { /* avatar won't show — initials fallback */ }
+  };
+
   const handleGrabar = async () => {
     setCameraError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-          width: { ideal: 3840 },
-          height: { ideal: 2160 },
-          frameRate: { ideal: 60 },
-        },
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          sampleRate: { ideal: 48000 },
-          channelCount: { ideal: 2 },
-        },
-      });
+      // Load avatar and request camera in parallel — both complete before preview shows
+      const [stream] = await Promise.all([
+        navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: "user",
+            width: { ideal: 3840 },
+            height: { ideal: 2160 },
+            frameRate: { ideal: 60 },
+          },
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: { ideal: 48000 },
+            channelCount: { ideal: 2 },
+          },
+        }),
+        preloadOverlayAvatar(),
+      ]);
       streamRef.current = stream;
       setMobilePanelHeight(280);
       setViewState("camera");
       setRecordPhase("preview");
     } catch {
       setCameraError("No se pudo acceder a la cámara. Verifica los permisos.");
+      stopCamera();
     }
   };
 
   const handleStartRecording = () => {
     if (!streamRef.current) return;
     chunksRef.current = [];
+
+    // H.264 first: hardware-accelerated in all modern browsers — no dropped frames.
+    // VP9 is software-only and can't keep up at high resolutions, causing quality loss.
     const preferredTypes = [
+      "video/mp4;codecs=avc1,mp4a.40.2",
       "video/mp4",
       "video/webm;codecs=vp9,opus",
       "video/webm;codecs=vp8,opus",
@@ -365,10 +549,10 @@ export default function GreetingReviewOverlay({
     ];
     const mimeType = preferredTypes.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
     mimeTypeRef.current = mimeType;
-    const mr = new MediaRecorder(streamRef.current, mimeType ? { mimeType } : undefined);
-    mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-    mr.onstop = () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+
+    const onStop = (stream: MediaStream) => {
+      if (rafRecRef.current) { cancelAnimationFrame(rafRecRef.current); rafRecRef.current = null; }
+      stream.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || "video/webm" });
       uploadBlobRef.current = blob;
@@ -378,6 +562,87 @@ export default function GreetingReviewOverlay({
       setFileDuration(null);
       setRecordPhase("done");
     };
+
+    const cameraStream = streamRef.current;
+    const videoTrack = cameraStream.getVideoTracks()[0];
+    const { width: camW = 1280, height: camH = 720 } = videoTrack?.getSettings() ?? {};
+
+    // Canvas always at 4K on the long side — overlay is rendered natively at 4K
+    // regardless of camera resolution. Camera video is upscaled to fit.
+    const camLong = Math.max(camW || 1280, camH || 720);
+    const upscale = camLong < 3840 ? 3840 / camLong : 1;
+    const vw = Math.round((camW || 1280) * upscale);
+    const vh = Math.round((camH || 720) * upscale);
+
+    // 20 Mbps for 4K H.264 → broadcast quality
+    const videoBitsPerSecond = 20_000_000;
+    const audioBitsPerSecond = 192_000;
+    const mrOptions = (mimeType
+      ? { mimeType, videoBitsPerSecond, audioBitsPerSecond }
+      : { videoBitsPerSecond, audioBitsPerSecond }) as MediaRecorderOptions;
+
+    const creatorDisplayName = req.profileDisplayName ?? req.profileUsername ?? "Creador";
+    const serviceLabel = req.type === "consejo" ? "Consejo" : req.type === "mensaje" ? "Mensaje" : "Saludo";
+    const initials = getInitials(creatorDisplayName);
+
+    // Canvas-based recording with overlay (try-catch → fallback to direct if unsupported)
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = vw;
+      canvas.height = vh;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("no-ctx");
+
+      canvasRecRef.current = canvas;
+      recStartTimeRef.current = Date.now();
+
+      // Seed with black BEFORE captureStream so the stream starts clean (no cross-origin taint)
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, vw, vh);
+
+      // captureStream MUST be called on a clean canvas — any drawImage AFTER this is safe
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const canvasStream: MediaStream = (canvas as any).captureStream(60);
+      const combinedStream = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...cameraStream.getAudioTracks(),
+      ]);
+
+      const mr = new MediaRecorder(combinedStream, mrOptions);
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = () => {
+        if (rafRecRef.current) { cancelAnimationFrame(rafRecRef.current); rafRecRef.current = null; }
+        canvasRecRef.current = null;
+        cameraStream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || "video/webm" });
+        uploadBlobRef.current = blob;
+        const url = URL.createObjectURL(blob);
+        blobUrlRef.current = url;
+        setRecordedBlobUrl(url);
+        setFileDuration(null);
+        setRecordPhase("done");
+      };
+      mr.start();
+      recorderRef.current = mr;
+
+      const drawLoop = () => {
+        if (!canvasRecRef.current) return;
+        const vel = videoRef.current;
+        if (vel) drawRecordingFrame(ctx, vel, vw, vh, (Date.now() - recStartTimeRef.current) / 1000, overlayAvatarRef.current, creatorDisplayName, serviceLabel, initials);
+        rafRecRef.current = requestAnimationFrame(drawLoop);
+      };
+      drawLoop();
+      setRecordPhase("recording");
+      return;
+    } catch {
+      canvasRecRef.current = null;
+    }
+
+    // Fallback: direct stream (no overlay — browser does not support captureStream)
+    const mr = new MediaRecorder(cameraStream, mrOptions);
+    mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    mr.onstop = () => onStop(cameraStream);
     mr.start();
     recorderRef.current = mr;
     setRecordPhase("recording");
@@ -386,6 +651,8 @@ export default function GreetingReviewOverlay({
   const handleStopRecording = () => { recorderRef.current?.stop(); };
 
   const handleRepeat = async () => {
+    if (rafRecRef.current) { cancelAnimationFrame(rafRecRef.current); rafRecRef.current = null; }
+    canvasRecRef.current = null;
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
     uploadBlobRef.current = null;
     setRecordedBlobUrl(null);
@@ -621,6 +888,8 @@ export default function GreetingReviewOverlay({
   };
 
   const stopCamera = () => {
+    if (rafRecRef.current) { cancelAnimationFrame(rafRecRef.current); rafRecRef.current = null; }
+    canvasRecRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     recorderRef.current = null;
