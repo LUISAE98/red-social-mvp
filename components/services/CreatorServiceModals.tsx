@@ -307,7 +307,7 @@ export default function CreatorServiceModals({
                     onChange={(e) => onChangeInstructions(e.target.value)}
                     placeholder={greetingUi.instructionsPlaceholder}
                     disabled={greetSubmitting}
-                    maxLength={greetType === "saludo" ? 250 : 500}
+                    maxLength={greetType === "saludo" ? 500 : 900}
                     rows={5}
                     style={{
                       ...inputStyle,
@@ -316,7 +316,7 @@ export default function CreatorServiceModals({
                     }}
                   />
                   <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "right" }}>
-                    {instructions.length} / {greetType === "saludo" ? 250 : 500}
+                    {instructions.length} / {greetType === "saludo" ? 500 : 900}
                   </span>
                 </label>
 

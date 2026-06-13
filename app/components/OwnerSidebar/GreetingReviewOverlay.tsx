@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { doc, getDoc } from "firebase/firestore";
@@ -102,6 +102,14 @@ export default function GreetingReviewOverlay({
   const [existingStory, setExistingStory] = useState<StoryDoc | null>(null);
   const [removingStory, setRemovingStory] = useState(false);
 
+  // TTS state
+  const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
+  const [speechHighlight, setSpeechHighlight] = useState<{ start: number; length: number } | null>(null);
+  const speechOffsetRef = useRef(0);
+  const speechGenRef = useRef(0);
+  const speechTextRef = useRef<HTMLParagraphElement>(null);
+  const speechCursorRef = useRef<HTMLSpanElement>(null);
+
   // Review panel bottom sheet (mobile only)
   const [reviewSheetTransform, setReviewSheetTransform] = useState("translateY(100%)");
   const [reviewSheetDragging, setReviewSheetDragging] = useState(false);
@@ -201,11 +209,13 @@ export default function GreetingReviewOverlay({
     }
   }, [viewState]);
 
-  // Cleanup stream and blob URL on unmount
+  // Cleanup stream, blob URL and TTS on unmount
   useEffect(() => {
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+      speechGenRef.current++;
+      window.speechSynthesis?.cancel();
     };
   }, []);
 
@@ -467,6 +477,10 @@ export default function GreetingReviewOverlay({
     setStoryError(null);
     setExistingStory(null);
     setRemovingStory(false);
+    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    speechGenRef.current++;
+    setSpeechState("idle");
+    setSpeechHighlight(null);
   }, [currentIndex]);
 
   // Subscribe to existing story for this greeting when in viewMode or buyerViewMode
@@ -618,6 +632,88 @@ export default function GreetingReviewOverlay({
   };
 
   const handleClose = () => { stopCamera(); onClose(); };
+
+  // Auto-scroll the instructions <p> to follow the speech cursor
+  useEffect(() => {
+    const cursor = speechCursorRef.current;
+    const container = speechTextRef.current;
+    if (!cursor || !container || !speechHighlight) return;
+    const containerRect = container.getBoundingClientRect();
+    const cursorRect = cursor.getBoundingClientRect();
+    const cursorBottom = cursorRect.bottom - containerRect.top + container.scrollTop;
+    const cursorTop = cursorRect.top - containerRect.top + container.scrollTop;
+    if (cursorBottom > container.scrollTop + container.clientHeight) {
+      container.scrollTop = cursorBottom - container.clientHeight + 8;
+    } else if (cursorTop < container.scrollTop) {
+      container.scrollTop = cursorTop - 8;
+    }
+  }, [speechHighlight]);
+
+  // ─── TTS functions — must be before any early return ────────────────────────
+  const startSpeechFrom = useCallback((charIndex: number) => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    const text = (items[currentIndex] ?? items[0])?.data.instructions ?? "";
+    if (!text) return;
+    window.speechSynthesis.cancel();
+    speechOffsetRef.current = charIndex;
+    const gen = ++speechGenRef.current;
+    setSpeechHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
+    const utterance = new SpeechSynthesisUtterance(text.slice(charIndex));
+    utterance.lang = "es-MX";
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.onboundary = (e) => {
+      if (speechGenRef.current !== gen || e.name !== "word") return;
+      const absIndex = charIndex + e.charIndex;
+      const fromIndex = text.slice(absIndex);
+      const spaceAt = fromIndex.search(/[\s\n]/);
+      const length = e.charLength ?? (spaceAt === -1 ? fromIndex.length : spaceAt);
+      setSpeechHighlight({ start: absIndex, length });
+    };
+    utterance.onend = () => {
+      if (speechGenRef.current !== gen) return;
+      setSpeechState("idle");
+      setSpeechHighlight(null);
+    };
+    utterance.onerror = () => {
+      if (speechGenRef.current !== gen) return;
+      setSpeechState("idle");
+      setSpeechHighlight(null);
+    };
+    window.speechSynthesis.speak(utterance);
+    setSpeechState("playing");
+  }, [items, currentIndex]);
+
+  const handleToggleSpeech = useCallback(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return;
+    if (speechState === "playing") { window.speechSynthesis.pause(); setSpeechState("paused"); return; }
+    if (speechState === "paused") { window.speechSynthesis.resume(); setSpeechState("playing"); return; }
+    startSpeechFrom(0);
+  }, [speechState, startSpeechFrom]);
+
+  const handleTextSeek = useCallback((e: React.MouseEvent<HTMLParagraphElement>) => {
+    e.stopPropagation();
+    let charIndex = 0;
+    const el = speechTextRef.current;
+    if (el) {
+      try {
+        let range: Range | null = null;
+        if ("caretRangeFromPoint" in document) {
+          range = (document as Document & { caretRangeFromPoint(x: number, y: number): Range | null }).caretRangeFromPoint(e.clientX, e.clientY);
+        } else if ("caretPositionFromPoint" in document) {
+          const pos = (document as Document & { caretPositionFromPoint(x: number, y: number): { offsetNode: Node; offset: number } | null }).caretPositionFromPoint(e.clientX, e.clientY);
+          if (pos) { range = document.createRange(); range.setStart(pos.offsetNode, pos.offset); }
+        }
+        if (range) {
+          const pre = document.createRange();
+          pre.selectNodeContents(el);
+          pre.setEnd(range.startContainer, range.startOffset);
+          charIndex = pre.toString().length;
+        }
+      } catch { /* unsupported */ }
+    }
+    startSpeechFrom(charIndex);
+  }, [startSpeechFrom]);
 
   if (!mounted) return null;
 
@@ -885,12 +981,46 @@ export default function GreetingReviewOverlay({
       </div>
       {req.instructions ? (
         <div style={{ display: "grid", gap: 4 }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>
-            {req.type === "consejo" ? "¿Cuál es el contexto del consejo?" : "¿Cuál es el contexto del saludo?"}
-          </span>
-          <span style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.82)" }}>
-            {req.instructions}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, flex: 1 }}>
+              {req.type === "consejo" ? "¿Cuál es el contexto del consejo?" : "¿Cuál es el contexto del saludo?"}
+            </span>
+            <button
+              type="button"
+              aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer contexto"}
+              onClick={handleToggleSpeech}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
+            >
+              {speechState === "playing" ? (
+                <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="5" y="4" width="4" height="16" rx="1"/>
+                  <rect x="15" y="4" width="4" height="16" rx="1"/>
+                </svg>
+              ) : (
+                <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
+                  <polygon points="5,3 19,12 5,21"/>
+                </svg>
+              )}
+            </button>
+          </div>
+          <p
+            ref={speechTextRef}
+            onClick={handleTextSeek}
+            style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.82)", margin: 0, cursor: "text", userSelect: "none", maxHeight: 160, overflowY: "auto", paddingRight: 4 }}
+          >
+            {(() => {
+              const text = req.instructions;
+              if (speechState === "idle" || !speechHighlight) return text;
+              const { start, length } = speechHighlight;
+              return (
+                <>
+                  <strong style={{ color: "#fff", fontWeight: 700 }}>{text.slice(0, start + length)}</strong>
+                  <span ref={speechCursorRef} />
+                  {text.slice(start + length)}
+                </>
+              );
+            })()}
+          </p>
         </div>
       ) : null}
       {viewMode && req.createdAt && (

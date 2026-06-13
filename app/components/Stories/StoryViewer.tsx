@@ -82,6 +82,7 @@ export default function StoryViewer({
   const speechOffsetRef = useRef(0);
   const speechGenRef = useRef(0);
   const speechTextRef = useRef<HTMLParagraphElement>(null);
+  const speechCursorRef = useRef<HTMLSpanElement>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progressRafRef = useRef<number | null>(null);
@@ -279,6 +280,22 @@ export default function StoryViewer({
     }
   }, [contextOpen]);
   useEffect(() => () => { speechGenRef.current++; window.speechSynthesis?.cancel(); }, []);
+
+  useEffect(() => {
+    const cursor = speechCursorRef.current;
+    // The <p> itself isn't scrollable — its parent div has overflowY: auto
+    const container = speechTextRef.current?.parentElement ?? null;
+    if (!cursor || !container || !speechHighlight) return;
+    const containerRect = container.getBoundingClientRect();
+    const cursorRect = cursor.getBoundingClientRect();
+    const cursorBottom = cursorRect.bottom - containerRect.top + container.scrollTop;
+    const cursorTop = cursorRect.top - containerRect.top + container.scrollTop;
+    if (cursorBottom > container.scrollTop + container.clientHeight) {
+      container.scrollTop = cursorBottom - container.clientHeight + 8;
+    } else if (cursorTop < container.scrollTop) {
+      container.scrollTop = cursorTop - 8;
+    }
+  }, [speechHighlight]);
 
   useEffect(() => () => clearViewTimer(), [clearViewTimer]);
 
@@ -655,12 +672,12 @@ export default function StoryViewer({
                   background: "rgba(37,99,235,0.62)",
                   border: "1px solid rgba(255,255,255,0.18)",
                   borderRadius: 16,
-                  maxHeight: "50vh",
-                  overflowY: "auto",
+                  display: "flex",
+                  flexDirection: "column",
                 }}
               >
-                {/* Header row: play/stop + close */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "8px 10px 4px" }}>
+                {/* Header row: play/stop + close — always visible */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "8px 10px 4px", flexShrink: 0 }}>
                   <button
                     type="button"
                     aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer contexto"}
@@ -691,33 +708,37 @@ export default function StoryViewer({
                     </svg>
                   </button>
                 </div>
-                <p
-                  ref={speechTextRef}
-                  onClick={handleTextSeek}
-                  style={{
-                    margin: "4px 18px 14px",
-                    color: "rgba(255,255,255,0.88)",
-                    fontSize: isDesktop ? 13 : 15,
-                    fontFamily: FONT,
-                    lineHeight: 1.55,
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                    cursor: "text",
-                    userSelect: "none",
-                  }}
-                >
-                  {(() => {
-                    const text = instructions ?? "Sin contexto disponible.";
-                    if (speechState === "idle" || !speechHighlight) return text;
-                    const { start, length } = speechHighlight;
-                    return (
-                      <>
-                        <strong style={{ color: "#fff", fontWeight: 700 }}>{text.slice(0, start + length)}</strong>
-                        {text.slice(start + length)}
-                      </>
-                    );
-                  })()}
-                </p>
+                {/* Scrollable text area */}
+                <div style={{ overflowY: "auto", maxHeight: "calc(50vh - 44px)" }}>
+                  <p
+                    ref={speechTextRef}
+                    onClick={handleTextSeek}
+                    style={{
+                      margin: "4px 18px 14px",
+                      color: "rgba(255,255,255,0.88)",
+                      fontSize: isDesktop ? 13 : 15,
+                      fontFamily: FONT,
+                      lineHeight: 1.55,
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      cursor: "text",
+                      userSelect: "none",
+                    }}
+                  >
+                    {(() => {
+                      const text = instructions ?? "Sin contexto disponible.";
+                      if (speechState === "idle" || !speechHighlight) return text;
+                      const { start, length } = speechHighlight;
+                      return (
+                        <>
+                          <strong style={{ color: "#fff", fontWeight: 700 }}>{text.slice(0, start + length)}</strong>
+                          <span ref={speechCursorRef} />
+                          {text.slice(start + length)}
+                        </>
+                      );
+                    })()}
+                  </p>
+                </div>
               </div>
             </div>
 
