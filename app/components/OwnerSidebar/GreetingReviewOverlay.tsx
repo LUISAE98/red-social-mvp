@@ -275,6 +275,7 @@ export default function GreetingReviewOverlay({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRecRef = useRef<HTMLCanvasElement | null>(null);
   const rafRecRef = useRef<number | null>(null);
+  const cancelDrawLoopRef = useRef<(() => void) | null>(null);
   const recStartTimeRef = useRef<number>(0);
   const overlayAvatarRef = useRef<HTMLImageElement | null>(null);
 
@@ -551,7 +552,7 @@ export default function GreetingReviewOverlay({
     mimeTypeRef.current = mimeType;
 
     const onStop = (stream: MediaStream) => {
-      if (rafRecRef.current) { cancelAnimationFrame(rafRecRef.current); rafRecRef.current = null; }
+      cancelDrawLoopRef.current?.(); cancelDrawLoopRef.current = null; rafRecRef.current = null;
       stream.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || "video/webm" });
@@ -611,7 +612,7 @@ export default function GreetingReviewOverlay({
       const mr = new MediaRecorder(combinedStream, mrOptions);
       mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
       mr.onstop = () => {
-        if (rafRecRef.current) { cancelAnimationFrame(rafRecRef.current); rafRecRef.current = null; }
+        cancelDrawLoopRef.current?.(); cancelDrawLoopRef.current = null; rafRecRef.current = null;
         canvasRecRef.current = null;
         cameraStream.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
@@ -626,11 +627,33 @@ export default function GreetingReviewOverlay({
       mr.start();
       recorderRef.current = mr;
 
+      const scheduleDrawFrame = (vel: HTMLVideoElement) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        if ("requestVideoFrameCallback" in vel) {
+          // Fires exactly once per new camera frame — no jitter, no duplicate frames
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const id = (vel as any).requestVideoFrameCallback(drawLoop);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          cancelDrawLoopRef.current = () => (vel as any).cancelVideoFrameCallback(id);
+        } else {
+          // Fallback for Firefox and older browsers
+          const id = requestAnimationFrame(drawLoop);
+          rafRecRef.current = id;
+          cancelDrawLoopRef.current = () => cancelAnimationFrame(id);
+        }
+      };
       const drawLoop = () => {
         if (!canvasRecRef.current) return;
         const vel = videoRef.current;
-        if (vel) drawRecordingFrame(ctx, vel, vw, vh, (Date.now() - recStartTimeRef.current) / 1000, overlayAvatarRef.current, creatorDisplayName, serviceLabel, initials);
-        rafRecRef.current = requestAnimationFrame(drawLoop);
+        if (vel) {
+          drawRecordingFrame(ctx, vel, vw, vh, (Date.now() - recStartTimeRef.current) / 1000, overlayAvatarRef.current, creatorDisplayName, serviceLabel, initials);
+          scheduleDrawFrame(vel);
+        } else {
+          // Video element gone — keep looping via RAF until canvas is cleared
+          const id = requestAnimationFrame(drawLoop);
+          rafRecRef.current = id;
+          cancelDrawLoopRef.current = () => cancelAnimationFrame(id);
+        }
       };
       drawLoop();
       setRecordPhase("recording");
@@ -651,7 +674,7 @@ export default function GreetingReviewOverlay({
   const handleStopRecording = () => { recorderRef.current?.stop(); };
 
   const handleRepeat = async () => {
-    if (rafRecRef.current) { cancelAnimationFrame(rafRecRef.current); rafRecRef.current = null; }
+    cancelDrawLoopRef.current?.(); cancelDrawLoopRef.current = null; rafRecRef.current = null;
     canvasRecRef.current = null;
     if (blobUrlRef.current) { URL.revokeObjectURL(blobUrlRef.current); blobUrlRef.current = null; }
     uploadBlobRef.current = null;
@@ -888,7 +911,7 @@ export default function GreetingReviewOverlay({
   };
 
   const stopCamera = () => {
-    if (rafRecRef.current) { cancelAnimationFrame(rafRecRef.current); rafRecRef.current = null; }
+    cancelDrawLoopRef.current?.(); cancelDrawLoopRef.current = null; rafRecRef.current = null;
     canvasRecRef.current = null;
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
