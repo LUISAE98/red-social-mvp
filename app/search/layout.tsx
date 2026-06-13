@@ -10,6 +10,7 @@ import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
+import { useMobileHeaderFade } from "@/app/hooks/useMobileHeaderFade";
 import {
   VibraNavigationIcon,
   VibraNavigationIconsStyles,
@@ -768,6 +769,7 @@ function AuthenticatedSearchShell({
 
 const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
+const { headerRef, safeAreaRef } = useMobileHeaderFade();
 
   const fontStack =
     '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -809,6 +811,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   z-index: 70;
   pointer-events: none;
   background: transparent;
+  transition: opacity 220ms ease;
 }
 
 .header {
@@ -819,6 +822,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   border-bottom: none;
   background: transparent;
   pointer-events: none;
+  transition: opacity 220ms ease;
 }
 
 .headerInner,
@@ -1204,9 +1208,10 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
       `}</style>
 
 <div className="layout">
-<div className="safeAreaHeaderBackdrop" />
+<div ref={safeAreaRef} className="safeAreaHeaderBackdrop" />
 
 <header
+  ref={headerRef}
   className={`header ${
     mobileSearchOpen ? "headerMobileSearchOpen" : ""
   }`}

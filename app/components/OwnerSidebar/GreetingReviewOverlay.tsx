@@ -102,6 +102,9 @@ export default function GreetingReviewOverlay({
   const [existingStory, setExistingStory] = useState<StoryDoc | null>(null);
   const [removingStory, setRemovingStory] = useState(false);
 
+  // Download state
+  const [downloading, setDownloading] = useState(false);
+
   // TTS state
   const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
   const [speechHighlight, setSpeechHighlight] = useState<{ start: number; length: number } | null>(null);
@@ -648,6 +651,33 @@ export default function GreetingReviewOverlay({
       container.scrollTop = cursorTop - 8;
     }
   }, [speechHighlight]);
+
+  // ─── Download — must be before any early return ─────────────────────────────
+  const handleDownload = useCallback(async () => {
+    const mp4Url = (viewMode || buyerViewMode) && items[currentIndex]?.data.muxPlaybackId
+      ? `https://stream.mux.com/${items[currentIndex].data.muxPlaybackId}/high.mp4`
+      : null;
+    if (!mp4Url || downloading) return;
+    setDownloading(true);
+    try {
+      const res = await fetch(mp4Url);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const itemData = items[currentIndex]?.data;
+      a.href = objectUrl;
+      a.download = `vibra-${itemData?.type ?? "video"}-${(itemData?.toName ?? "").replace(/\s+/g, "-")}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      // Fallback: abrir en nueva pestaña
+      window.open(mp4Url, "_blank");
+    } finally {
+      setDownloading(false);
+    }
+  }, [viewMode, buyerViewMode, items, currentIndex, downloading]);
 
   // ─── TTS functions — must be before any early return ────────────────────────
   const startSpeechFrom = useCallback((charIndex: number) => {
@@ -1299,15 +1329,22 @@ export default function GreetingReviewOverlay({
                   </>
                 )}
                 {buyerViewMode && viewMp4Url && (
-                  <a href={viewMp4Url} download target="_blank" rel="noopener noreferrer" style={{
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    width: "100%", height: 42, borderRadius: 12,
-                    border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
-                    color: "rgba(255,255,255,0.75)", fontWeight: 600, fontSize: 13,
-                    textDecoration: "none", fontFamily: fontStack, boxSizing: "border-box",
-                  }}>
-                    ↓ Descargar video
-                  </a>
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    disabled={downloading}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      width: "100%", height: 42, borderRadius: 12,
+                      border: "1px solid rgba(255,255,255,0.10)",
+                      background: downloading ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)",
+                      color: downloading ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.75)",
+                      fontWeight: 600, fontSize: 13, cursor: downloading ? "default" : "pointer",
+                      fontFamily: fontStack, boxSizing: "border-box",
+                    }}
+                  >
+                    {downloading ? "Descargando..." : "↓ Descargar video"}
+                  </button>
                 )}
                 {viewMode && !buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
                   req.allowCreatorStory !== false ? (
@@ -1489,15 +1526,22 @@ export default function GreetingReviewOverlay({
                     </>
                   )}
                   {buyerViewMode && viewMp4Url && (
-                    <a href={viewMp4Url} download target="_blank" rel="noopener noreferrer" style={{
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      width: "100%", height: 38, borderRadius: 10,
-                      border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
-                      color: "rgba(255,255,255,0.75)", fontWeight: 600, fontSize: 13,
-                      textDecoration: "none", fontFamily: fontStack, boxSizing: "border-box",
-                    }}>
-                      ↓ Descargar video
-                    </a>
+                    <button
+                      type="button"
+                      onClick={handleDownload}
+                      disabled={downloading}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        width: "100%", height: 38, borderRadius: 10,
+                        border: "1px solid rgba(255,255,255,0.10)",
+                        background: downloading ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)",
+                        color: downloading ? "rgba(255,255,255,0.4)" : "rgba(255,255,255,0.75)",
+                        fontWeight: 600, fontSize: 13, cursor: downloading ? "default" : "pointer",
+                        fontFamily: fontStack, boxSizing: "border-box",
+                      }}
+                    >
+                      {downloading ? "Descargando..." : "↓ Descargar video"}
+                    </button>
                   )}
                   {viewMode && !buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
                     req.allowCreatorStory !== false ? (
