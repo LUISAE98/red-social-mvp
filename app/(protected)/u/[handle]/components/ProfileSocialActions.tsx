@@ -114,9 +114,6 @@ export default function ProfileSocialActions({
             disabled={loading}
             style={{
               ...styles.followButton,
-              ...(relationship.isFollowing
-                ? styles.followingButton
-                : styles.primaryFollowButton),
               opacity: loading ? 0.65 : 1,
               cursor: loading ? "not-allowed" : "pointer",
             }}
@@ -194,27 +191,16 @@ const styles = {
   } as const,
 
   followButton: {
-    minHeight: 34,
-    borderRadius: 999,
-    padding: "8px 16px",
-    fontSize: 13,
-    fontWeight: 800,
-    border: "1px solid rgba(255,255,255,0.12)",
-    transition: "opacity 160ms ease, transform 160ms ease",
-  } as const,
-
-  primaryFollowButton: {
-    color: "#fff",
-    background:
-      "linear-gradient(135deg, rgba(168,85,247,0.98), rgba(126,34,206,0.94))",
-    boxShadow:
-      "0 10px 22px rgba(126,34,206,0.24), inset 0 1px 0 rgba(255,255,255,0.18)",
-  } as const,
-
-  followingButton: {
-    color: "rgba(255,255,255,0.9)",
-    background: "rgba(255,255,255,0.07)",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05)",
+    height: 28,
+    padding: "0 12px",
+    borderRadius: 8,
+    border: "none",
+    background: "rgba(168,85,255,0.18)",
+    color: "#d8b4fe",
+    fontWeight: 600,
+    fontSize: 11,
+    whiteSpace: "nowrap",
+    transition: "opacity 160ms ease",
   } as const,
 
   menuWrap: {

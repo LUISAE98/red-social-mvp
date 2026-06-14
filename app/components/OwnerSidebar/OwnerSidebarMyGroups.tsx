@@ -96,6 +96,7 @@ type Props = {
 
   joinBusyKey: string | null;
   greetingBusyId: string | null;
+  newPostsCounts?: Record<string, number>;
 };
 
 type BusyMap = Record<string, boolean>;
@@ -421,6 +422,7 @@ export default function OwnerSidebarMyGroups({
   onCreateCommunity,
   joinBusyKey,
   greetingBusyId,
+  newPostsCounts = {},
 }: Props) {
   const pathname = usePathname();
   const [inviteGroupId, setInviteGroupId] = useState<string | null>(null);
@@ -1414,6 +1416,20 @@ boxShadow:
 </span>
 
                         </div>
+                        {(newPostsCounts[g.id] ?? 0) > 0 && (
+                          <div
+                            style={{
+                              fontSize: 10.5,
+                              color: "#a855f7",
+                              fontWeight: 700,
+                              lineHeight: 1.3,
+                              marginTop: 1,
+                            }}
+                          >
+                            {newPostsCounts[g.id]}{" "}
+                            {newPostsCounts[g.id] === 1 ? "nuevo" : "nuevos"}
+                          </div>
+                        )}
                       </div>
                     </Link>
 {hasOwnerSidebarAlerts ? (

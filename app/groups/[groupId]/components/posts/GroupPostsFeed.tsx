@@ -4,7 +4,7 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, Timestamp } from "firebase/firestore";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { auth, db, functions } from "@/lib/firebase";
 import type {
@@ -33,6 +33,7 @@ import {
 } from "@/lib/posts/post-service";
 import GroupPostCard from "./GroupPostCard";
 import GroupPostComposer from "./GroupPostComposer";
+import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { uploadPostImages } from "@/lib/posts/image-upload";
 import { httpsCallable } from "firebase/functions";
@@ -198,6 +199,44 @@ function normalizeFeedPost(post: PostWithAuthorState): PostWithAuthorState {
     profilePinnedAt: post.profilePinnedAt ?? null,
     profilePinnedBy: post.profilePinnedBy ?? null,
   };
+}
+
+function buildOptimisticTextPost(params: {
+  postId: string;
+  groupId: string;
+  text: string;
+}): PostWithAuthorState {
+  const currentUser = auth.currentUser;
+  return normalizeFeedPost({
+    id: params.postId,
+    text: params.text,
+    authorId: currentUser?.uid ?? "",
+    authorName: currentUser?.displayName ?? undefined,
+    authorAvatarUrl: currentUser?.photoURL ?? null,
+    authorUsername: null,
+    groupId: params.groupId,
+    contextType: "group",
+    isDeleted: false,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+    deletedAt: null,
+    postType: "text",
+    access: "free",
+    accessModel: "free",
+    accessScope: "group",
+    requiresPayment: false,
+    requiresSubscription: false,
+    oneTimePrice: null,
+    currency: null,
+    media: [],
+    counts: { comments: 0, likes: 0, saves: 0 },
+    viewerHasFlamed: false,
+    viewerHasSaved: false,
+    isPinnedInGroup: false,
+    authorMemberStatus: "active",
+    authorMutedUntil: null,
+    forcedGroupId: params.groupId,
+  });
 }
 
 function isVideoPostStillProcessing(post: PostWithAuthorState): boolean {
@@ -388,6 +427,7 @@ export default function GroupPostsFeed({
   const [posts, setPosts] = useState<PostWithAuthorState[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [composerError, setComposerError] = useState<string | null>(null);
+  const [isLiveModalOpen, setIsLiveModalOpen] = useState(false);
   const [videoUploadProgress, setVideoUploadProgress] = useState<number | null>(
     null,
   );
@@ -1056,10 +1096,31 @@ const uploadedVideoCovers =
           premium: null,
         });
       } else {
-        await createTextPost({ groupId, text: cleanText });
+        // Insertar post optimista inmediatamente — el usuario lo ve al instante
+        const tempId = `__opt_${Date.now()}`;
+        setPosts((prev) => [
+          buildOptimisticTextPost({ postId: tempId, groupId, text: cleanText }),
+          ...prev,
+        ]);
+        let realPostId: string;
+        try {
+          realPostId = await createTextPost({ groupId, text: cleanText });
+        } catch (e) {
+          // Rollback: quitar el post optimista si la creación falla
+          setPosts((prev) => prev.filter((p) => p.id !== tempId));
+          throw e;
+        }
+        // Reemplazar ID temporal con el ID real de Firestore
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === tempId
+              ? buildOptimisticTextPost({ postId: realPostId, groupId, text: cleanText })
+              : p,
+          ),
+        );
       }
 
-      await loadPosts();
+      void loadPosts();
 
       window.setTimeout(() => {
         setVideoUploadProgress(null);
@@ -1407,8 +1468,17 @@ const shellStyle: CSSProperties = {
         <div style={cardShellStyle}>
           <GroupPostComposer
             onSubmit={handleCreatePost}
+            onLiveClick={() => setIsLiveModalOpen(true)}
             groupVisibility={groupVisibility}
             isOwner={isOwner}
+          />
+
+          <LiveComposerModal
+            open={isLiveModalOpen}
+            onClose={() => setIsLiveModalOpen(false)}
+            onSuccess={() => void loadPosts()}
+            contextType="group"
+            groupId={groupId}
           />
 
           {videoUploadStatus ? (

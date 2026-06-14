@@ -51,6 +51,7 @@ export type { GroupPostComposerSubmitPayload };
 
 type GroupPostComposerProps = {
   onSubmit: (payload: GroupPostComposerSubmitPayload) => Promise<void>;
+  onLiveClick?: () => void;
   contextType?: ComposerContextType;
   groupVisibility?: GroupVisibility | null;
   isOwner?: boolean;
@@ -252,6 +253,7 @@ function Avatar({
 
 export default function GroupPostComposer({
   onSubmit,
+  onLiveClick,
   contextType = "group",
   groupVisibility = null,
   isOwner = false,
@@ -1186,6 +1188,36 @@ const launcherButtonStyle: CSSProperties = {
                   strokeWidth={2.1}
                 />
               </button>
+
+              {onLiveClick && !isEditMode && (
+                <button
+                  type="button"
+                  onClick={onLiveClick}
+                  disabled={creating}
+                  style={
+                    creating
+                      ? { ...secondaryButtonStyle, opacity: 0.5, cursor: "not-allowed" }
+                      : secondaryButtonStyle
+                  }
+                  aria-label="Programar live"
+                  title="Programar live"
+                >
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.1}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="2" />
+                    <path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 7.76a6 6 0 0 0 0 8.49" />
+                    <path d="M20.66 4.34a12 12 0 0 1 0 15.32M3.34 4.34a12 12 0 0 0 0 15.32" />
+                  </svg>
+                </button>
+              )}
             </div>
 
             {localError && <div style={localErrorStyle}>{localError}</div>}

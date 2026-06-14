@@ -75,6 +75,7 @@ import {
 } from "@/lib/groups/groupAdapters";
 
 import { useGroupRealtime } from "@/lib/groups/useGroupRealtime";
+import { setLastVisitTimestamp } from "@/lib/utils/visitTimestamps";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
@@ -229,6 +230,11 @@ export default function GroupPage() {
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  // Track last visit so the sidebar can show new-post counts
+  useEffect(() => {
+    if (groupId) setLastVisitTimestamp(groupId);
+  }, [groupId]);
   const searchParams = useSearchParams();
 
   const {

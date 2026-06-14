@@ -108,8 +108,8 @@ export default function GroupsSearchToolbar({
   min-width: 0;
   width: ${isExpanded ? "min(100%, 920px)" : "360px"};
   max-width: 920px;
-  padding: 1px;
-  border-radius: 18px;
+  padding: 2px;
+  border-radius: 20px;
   background: linear-gradient(
     100deg,
     #ff2fb3 0%,
@@ -122,12 +122,12 @@ export default function GroupsSearchToolbar({
     width 0.32s cubic-bezier(0.22, 1, 0.36, 1),
     transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
   transform-origin: center;
-  box-shadow: 0 8px 20px rgba(168, 85, 255, 0.10);
+  box-shadow: 0 8px 28px rgba(168, 85, 255, 0.16);
 }
 
 .search-input-wrap:focus-within {
   transform: translateY(-1px);
-  box-shadow: 0 10px 26px rgba(168, 85, 255, 0.16);
+  box-shadow: 0 12px 32px rgba(168, 85, 255, 0.24);
 }
 
 .search-input {
@@ -136,7 +136,7 @@ export default function GroupsSearchToolbar({
   width: 100%;
   height: 40px;
   padding: 0 42px 0 15px;
-  border-radius: 17px;
+  border-radius: 18px;
   border: none;
   background: rgba(8, 5, 24, 0.94);
   color: #fff;

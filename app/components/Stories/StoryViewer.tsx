@@ -178,7 +178,7 @@ export default function StoryViewer({
     setSpeechHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
     const utterance = new SpeechSynthesisUtterance(text.slice(charIndex));
     utterance.lang = "es-MX";
-    utterance.rate = 1;
+    utterance.rate = 1.5;
     utterance.pitch = 1;
     utterance.onboundary = (e) => {
       if (speechGenRef.current !== gen) return;
@@ -485,6 +485,14 @@ export default function StoryViewer({
   // ── Shared panel content ──────────────────────────────────────────────────
   const renderPanelContent = (safeTop: string | number = 12, showClose = false, safeBottom: string | number = 0) => (
     <>
+      {/* Prevent long-press text selection and iOS callout on the story viewer */}
+      <style>{`
+        .story-viewer-root, .story-viewer-root * {
+          -webkit-touch-callout: none;
+          -webkit-user-select: none;
+          user-select: none;
+        }
+      `}</style>
       {isLandscape && thumbUrl && (
         <div style={{
           position: "absolute", inset: 0,
@@ -850,10 +858,12 @@ export default function StoryViewer({
     return (
       <>
         <div
-          style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#000" }}
+          className="story-viewer-root"
+          style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden", background: "#000", userSelect: "none", WebkitUserSelect: "none" } as React.CSSProperties}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          onContextMenu={(e) => e.preventDefault()}
         >
           {renderPanelContent(12, false)}
         </div>
@@ -885,10 +895,12 @@ export default function StoryViewer({
     <>
       {createPortal(
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 99999, background: "#000", display: "flex", flexDirection: "column", touchAction: "none", transform: `translateY(${dragY}px)`, transition: !isClosing && dragY > 0 ? "none" : "transform 0.28s ease, opacity 0.28s ease", opacity: 1 - Math.min(1, dragY / 300) }}
+          className="story-viewer-root"
+          style={{ position: "fixed", inset: 0, zIndex: 99999, background: "#000", display: "flex", flexDirection: "column", touchAction: "none", userSelect: "none", WebkitUserSelect: "none", transform: `translateY(${dragY}px)`, transition: !isClosing && dragY > 0 ? "none" : "transform 0.28s ease, opacity 0.28s ease", opacity: 1 - Math.min(1, dragY / 300) } as React.CSSProperties}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
+          onContextMenu={(e) => e.preventDefault()}
         >
           {renderPanelContent("env(safe-area-inset-top, 0px)", true, "env(safe-area-inset-bottom, 0px)")}
         </div>,

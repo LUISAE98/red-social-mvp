@@ -180,6 +180,48 @@ function formatRelativeDate(value?: { toDate?: () => Date } | null) {
   return `hace ${diffYears} años`;
 }
 
+function formatScheduledLiveDate(
+  value?: { toDate?: () => Date } | null,
+): string {
+  const date = getDateFromTimestamp(value);
+  if (!date) return "Fecha por confirmar";
+
+  try {
+    const now = new Date();
+    const isToday =
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate();
+
+    const timePart = new Intl.DateTimeFormat("es-MX", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(date);
+
+    if (isToday) return `Hoy a las ${timePart}`;
+
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    const isTomorrow =
+      date.getFullYear() === tomorrow.getFullYear() &&
+      date.getMonth() === tomorrow.getMonth() &&
+      date.getDate() === tomorrow.getDate();
+
+    if (isTomorrow) return `Mañana a las ${timePart}`;
+
+    const datePart = new Intl.DateTimeFormat("es-MX", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }).format(date);
+
+    return `${datePart.charAt(0).toUpperCase()}${datePart.slice(1)} a las ${timePart}`;
+  } catch {
+    return "Fecha por confirmar";
+  }
+}
+
 function formatMediaDuration(seconds?: number | null): string | null {
   if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds <= 0) {
     return null;
@@ -2647,6 +2689,216 @@ style={{
         )}
       </span>
     )}
+  </div>
+)}
+
+{post.postType === "live" && (
+  <div
+    style={{
+      marginTop: 10,
+      borderRadius: 14,
+      overflow: "hidden",
+      border: "1px solid rgba(168,85,255,0.22)",
+      background: "rgba(15,10,28,0.72)",
+    }}
+  >
+    {/* Cover image or placeholder */}
+    <div
+      style={{
+        position: "relative",
+        width: "100%",
+        aspectRatio: "16/7",
+        background:
+          "linear-gradient(135deg, rgba(79,30,120,0.55) 0%, rgba(30,10,60,0.85) 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+      }}
+    >
+      {post.liveData?.coverUrl ? (
+        <img
+          src={post.liveData.coverUrl}
+          alt={post.liveData.title ?? "Live programado"}
+          draggable={false}
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            opacity: 0.72,
+          }}
+        />
+      ) : (
+        <svg
+          width="52"
+          height="52"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="rgba(168,85,255,0.55)"
+          strokeWidth="1.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ flexShrink: 0 }}
+        >
+          <circle cx="12" cy="12" r="2" />
+          <path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 7.76a6 6 0 0 0 0 8.49" />
+          <path d="M20.66 4.34a12 12 0 0 1 0 15.32M3.34 4.34a12 12 0 0 0 0 15.32" />
+        </svg>
+      )}
+
+      {/* "Live programado" badge */}
+      <div
+        style={{
+          position: "absolute",
+          top: 10,
+          left: 10,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          background: "rgba(10,5,20,0.82)",
+          border: "1px solid rgba(168,85,255,0.35)",
+          borderRadius: 999,
+          padding: "4px 10px 4px 8px",
+          fontFamily: fontStack,
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          color: "#d8b4fe",
+          textTransform: "uppercase",
+          backdropFilter: "blur(4px)",
+        }}
+      >
+        <span
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: "50%",
+            background: "#a855f7",
+            flexShrink: 0,
+            boxShadow: "0 0 0 2px rgba(168,85,255,0.3)",
+            animation: "livePulse 2s ease-in-out infinite",
+          }}
+        />
+        Live programado
+      </div>
+    </div>
+
+    {/* Content area */}
+    <div style={{ padding: "12px 14px 14px" }}>
+      {/* Title */}
+      {post.liveData?.title && (
+        <p
+          style={{
+            margin: 0,
+            fontSize: 15,
+            fontWeight: 600,
+            letterSpacing: "-0.02em",
+            color: "#fff",
+            fontFamily: fontStack,
+            lineHeight: 1.3,
+            marginBottom: 4,
+          }}
+        >
+          {post.liveData.title}
+        </p>
+      )}
+
+      {/* Description */}
+      {post.liveData?.description && (
+        <p
+          style={{
+            margin: 0,
+            marginTop: 4,
+            fontSize: 13,
+            color: "rgba(255,255,255,0.58)",
+            fontFamily: fontStack,
+            lineHeight: 1.45,
+          }}
+        >
+          {post.liveData.description}
+        </p>
+      )}
+
+      {/* Scheduled date row */}
+      <div
+        style={{
+          marginTop: 10,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="rgba(168,85,255,0.8)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ flexShrink: 0 }}
+        >
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+        <span
+          style={{
+            fontSize: 12,
+            fontFamily: fontStack,
+            color: "rgba(255,255,255,0.55)",
+          }}
+        >
+          {formatScheduledLiveDate(post.liveData?.scheduledStartAt)}
+        </span>
+      </div>
+
+      {/* CTA */}
+      <div
+        style={{
+          marginTop: 12,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          borderRadius: 999,
+          border: "1px solid rgba(168,85,255,0.28)",
+          background: "rgba(168,85,255,0.08)",
+          padding: "7px 14px",
+          fontFamily: fontStack,
+          fontSize: 12,
+          fontWeight: 600,
+          color: "rgba(168,85,255,0.85)",
+          letterSpacing: "0.01em",
+          userSelect: "none",
+        }}
+      >
+        <svg
+          width="11"
+          height="11"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+        Esperando inicio
+      </div>
+    </div>
+
+    <style>{`
+      @keyframes livePulse {
+        0%, 100% { opacity: 1; box-shadow: 0 0 0 2px rgba(168,85,255,0.3); }
+        50% { opacity: 0.55; box-shadow: 0 0 0 4px rgba(168,85,255,0.12); }
+      }
+    `}</style>
   </div>
 )}
 

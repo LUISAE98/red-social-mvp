@@ -42,20 +42,12 @@ const fontStack =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
 
 const cardStyles = {
-  background: "rgba(28, 28, 31, 0.96)",
-  border: "1px solid rgba(255, 255, 255, 0.08)",
-  borderRadius: 18,
-  minWidth: 216,
-  maxWidth: 216,
-  padding: 10,
-  color: "#fff",
-  display: "flex",
-  flexDirection: "column" as const,
-  gap: 10,
-  scrollSnapAlign: "start" as const,
-  boxShadow:
-    "0 0 0 1px rgba(255,255,255,0.025) inset, 0 10px 24px rgba(0,0,0,0.18)",
+  position: "relative" as const,
+  minWidth: 200,
+  maxWidth: 200,
   flexShrink: 0,
+  scrollSnapAlign: "start" as const,
+  color: "#fff",
 };
 
 function getDefaultTitle() {
@@ -212,32 +204,32 @@ function JoinButton({
             : "Solicitar"
           : "Unirme";
 
+  const isInactive = loading || state === "joined" || state === "pending";
+
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={loading || state === "joined" || state === "pending"}
+      disabled={isInactive}
       style={{
         width: "100%",
         borderRadius: 12,
         padding: "10px 12px",
-        border: "none",
+        border: isInactive
+          ? "1px solid rgba(255,255,255,0.18)"
+          : "none",
         fontWeight: 700,
         fontSize: 12,
         letterSpacing: "-0.01em",
-        cursor:
-          loading || state === "joined" || state === "pending"
-            ? "default"
-            : "pointer",
-        background:
-          state === "joined" || state === "pending"
-            ? "rgba(255,255,255,0.12)"
-            : "#ffffff",
-        color:
-          state === "joined" || state === "pending"
-            ? "rgba(255,255,255,0.72)"
-            : "#08111d",
+        cursor: isInactive ? "default" : "pointer",
+        background: isInactive
+          ? "rgba(255,255,255,0.14)"
+          : "#ffffff",
+        color: isInactive ? "rgba(255,255,255,0.70)" : "#08111d",
         fontFamily: fontStack,
+        backdropFilter: isInactive ? "blur(12px)" : "none",
+        WebkitBackdropFilter: isInactive ? "blur(12px)" : "none",
+        transition: "background 0.18s ease, color 0.18s ease",
       }}
     >
       {loading ? "Procesando..." : label}
@@ -276,169 +268,191 @@ function GroupCard({
 
   return (
     <div style={cardStyles}>
-      <Link
-        href={`/groups/${group.id}`}
+      {/* Cover card — the card IS the image, no gray wrapper */}
+      <div
         style={{
-          color: "inherit",
-          textDecoration: "none",
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
+          position: "relative",
+          width: "100%",
+          aspectRatio: "9 / 11",
+          borderRadius: 20,
+          overflow: "hidden",
+          background: "#0d0d0f",
+          boxShadow:
+            "0 24px 52px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.28)",
         }}
       >
+        {/* Cover image / gradient background */}
         <div
           style={{
-            position: "relative",
-            width: "100%",
-            aspectRatio: "1 / 1.04",
-            borderRadius: 14,
-            overflow: "hidden",
-            border: "1px solid rgba(255,255,255,0.08)",
-            background: "#0d0d0f",
-            boxShadow: "0 12px 28px rgba(0,0,0,0.22)",
+            position: "absolute",
+            inset: 0,
+            background: group.coverUrl
+              ? `url(${group.coverUrl}) center / cover no-repeat`
+              : "linear-gradient(135deg, #1a1a20 0%, #26262e 55%, #111116 100%)",
+            transform: "scale(1.01)",
+          }}
+        />
+
+        {/* Gradient overlay — stronger at the bottom for text + button legibility */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.18) 28%, rgba(0,0,0,0.62) 58%, rgba(0,0,0,0.90) 80%, rgba(0,0,0,0.97) 100%)",
+          }}
+        />
+
+        {/* Navigable area — full card minus button zone */}
+        <Link
+          href={`/groups/${group.id}`}
+          style={{
+            position: "absolute",
+            inset: 0,
+            bottom: 60,
+            zIndex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            padding: "14px 12px 0",
+            textDecoration: "none",
+            color: "inherit",
           }}
         >
+          {/* Avatar */}
           <div
             style={{
-              position: "absolute",
-              inset: 0,
-              background: group.coverUrl
-                ? `url(${group.coverUrl}) center / cover no-repeat`
-                : "linear-gradient(135deg, #161616 0%, #212125 55%, #121214 100%)",
-              transform: "scale(1.01)",
+              width: 68,
+              height: 68,
+              borderRadius: "50%",
+              overflow: "hidden",
+              background: "#111",
+              border: "3px solid rgba(255,255,255,0.14)",
+              boxShadow: "0 8px 22px rgba(0,0,0,0.50)",
+              display: "grid",
+              placeItems: "center",
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 20,
+              flexShrink: 0,
+              fontFamily: fontStack,
             }}
-          />
+          >
+            {group.avatarUrl ? (
+              <img
+                src={group.avatarUrl}
+                alt={`Avatar de ${group.name}`}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              group.name.slice(0, 1).toUpperCase()
+            )}
+          </div>
 
+          {/* Name + meta — tight gap below avatar */}
           <div
             style={{
-              position: "absolute",
-              inset: 0,
-              background:
-                "linear-gradient(180deg, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.30) 36%, rgba(0,0,0,0.72) 68%, rgba(0,0,0,0.92) 100%)",
-            }}
-          />
-
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              padding: 12,
+              marginTop: 10,
+              width: "100%",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              textAlign: "center",
+              paddingBottom: 6,
             }}
           >
-            <div
+            {/* Name — max 2 lines, natural height */}
+            <strong
               style={{
-                width: 72,
-                height: 72,
-                borderRadius: "50%",
-                overflow: "hidden",
-                background: "#111",
-                border: "3px solid rgba(0,0,0,0.92)",
-                boxShadow: "0 8px 18px rgba(0,0,0,0.36)",
-                display: "grid",
-                placeItems: "center",
+                fontSize: 14,
+                lineHeight: 1.18,
                 color: "#fff",
+                maxWidth: "100%",
+                wordBreak: "break-word",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                textAlign: "center",
+                fontFamily: fontStack,
                 fontWeight: 700,
-                fontSize: 20,
+                letterSpacing: "-0.01em",
                 flexShrink: 0,
-                marginTop: 10,
-                marginBottom: 18,
               }}
             >
-              {group.avatarUrl ? (
-                <img
-                  src={group.avatarUrl}
-                  alt={`Avatar de ${group.name}`}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
-              ) : (
-                group.name.slice(0, 1).toUpperCase()
-              )}
+              {group.name}
+            </strong>
+
+            {/* Visibility — always 1 line tall */}
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 11,
+                lineHeight: "14px",
+                height: 14,
+                overflow: "hidden",
+                color: "rgba(255,255,255,0.72)",
+                fontFamily: fontStack,
+                fontWeight: 500,
+                flexShrink: 0,
+              }}
+            >
+              {visibilityLabel}
             </div>
 
+            {/* Category — always 1 line tall */}
             <div
               style={{
-                marginTop: "auto",
-                width: "100%",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
+                marginTop: 3,
+                fontSize: 11,
+                lineHeight: "14px",
+                height: 14,
+                overflow: "hidden",
+                color: "rgba(255,255,255,0.52)",
+                fontFamily: fontStack,
+                fontWeight: 400,
+                flexShrink: 0,
               }}
             >
-              <strong
-                style={{
-                  fontSize: 14,
-                  lineHeight: 1.18,
-                  color: "#fff",
-                  maxWidth: "100%",
-                  wordBreak: "break-word",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                  minHeight: 34,
-                  fontFamily: fontStack,
-                  fontWeight: 700,
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {group.name}
-              </strong>
+              {categoryLabel}
+            </div>
 
-              <div
-                style={{
-                  marginTop: 10,
-                  fontSize: 11,
-                  lineHeight: 1.2,
-                  color: "rgba(255,255,255,0.76)",
-                  fontFamily: fontStack,
-                  fontWeight: 500,
-                }}
-              >
-                {visibilityLabel}
-              </div>
-
-              <div
-                style={{
-                  marginTop: 5,
-                  fontSize: 11,
-                  lineHeight: 1.2,
-                  color: "rgba(255,255,255,0.60)",
-                  fontFamily: fontStack,
-                  fontWeight: 400,
-                }}
-              >
-                {categoryLabel}
-              </div>
-
-              {subscriptionPriceLabel ? (
-                <div
-                  style={{
-                    marginTop: 6,
-                    fontSize: 11,
-                    lineHeight: 1.2,
-                    color: "rgba(255,255,255,0.88)",
-                    fontFamily: fontStack,
-                    fontWeight: 700,
-                  }}
-                >
-                  {subscriptionPriceLabel} / mes
-                </div>
-              ) : null}
+            {/* Price — always 1 line tall, empty when free */}
+            <div
+              style={{
+                marginTop: 4,
+                fontSize: 11,
+                lineHeight: "14px",
+                height: 14,
+                overflow: "hidden",
+                color: "rgba(255,255,255,0.88)",
+                fontFamily: fontStack,
+                fontWeight: 700,
+                flexShrink: 0,
+              }}
+            >
+              {subscriptionPriceLabel ? `${subscriptionPriceLabel} / mes` : ""}
             </div>
           </div>
-        </div>
-      </Link>
+        </Link>
 
-      <JoinButton
-        state={joinState}
-        onClick={onJoin}
-        loading={loading}
-        isPaidSubscriptionPrivate={isPaidSubscriptionPrivate}
-      />
+        {/* Join button — floats at the bottom of the card, above the Link */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 10,
+            left: 10,
+            right: 10,
+            zIndex: 2,
+          }}
+        >
+          <JoinButton
+            state={joinState}
+            onClick={onJoin}
+            loading={loading}
+            isPaidSubscriptionPrivate={isPaidSubscriptionPrivate}
+          />
+        </div>
+      </div>
     </div>
   );
 }
@@ -617,78 +631,8 @@ export default function GroupRecommendationsRail({
   return (
     <section
       className={className}
-      style={{
-        width: "100%",
-        borderRadius: 22,
-        border: "1px solid rgba(255, 255, 255, 0.09)",
-        background:
-          "linear-gradient(180deg, rgba(34,34,37,0.97) 0%, rgba(24,24,27,0.97) 100%)",
-        padding: 16,
-        color: "#fff",
-        boxShadow:
-          "0 0 0 1px rgba(255,255,255,0.025) inset, 0 12px 28px rgba(0,0,0,0.18)",
-      }}
+      style={{ width: "100%", color: "#fff" }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "space-between",
-          gap: 12,
-          marginBottom: 14,
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <h3
-            style={{
-              margin: 0,
-              fontSize: 16,
-              fontWeight: 700,
-              fontFamily: fontStack,
-              letterSpacing: "-0.01em",
-            }}
-          >
-            {heading}
-          </h3>
-
-          <div
-            style={{
-              fontSize: 13,
-              color: "rgba(255,255,255,0.68)",
-              fontFamily: fontStack,
-            }}
-          >
-            {railSubtitle}
-          </div>
-        </div>
-
-        {context === "search_empty" && (
-          <button
-            type="button"
-            onClick={() => {
-              if (onCreateGroup) {
-                onCreateGroup();
-                return;
-              }
-              router.push("/groups/new");
-            }}
-            style={{
-              border: "none",
-              borderRadius: 12,
-              background: "#ffffff",
-              color: "#08111d",
-              padding: "10px 14px",
-              fontWeight: 700,
-              cursor: "pointer",
-              fontFamily: fontStack,
-            }}
-          >
-            Crear comunidad
-          </button>
-        )}
-      </div>
-
       {error ? (
         <div
           style={{

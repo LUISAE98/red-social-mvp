@@ -36,6 +36,7 @@ import type {
   GroupVisibility,
   Post,
   PostContextType,
+  PostLiveData,
   PostMedia,
   PostPremium,
 } from "./types";
@@ -968,11 +969,47 @@ async function resolvePostCreationContext(params: {
     throw new Error("Falta groupId.");
   }
 
-  await ensureUserCanCreatePostInGroup(groupId, params.author.uid);
+  // Una sola lectura paralela — antes eran 3 lecturas seriales (grupo → miembro → grupo de nuevo)
+  const [groupSnap, memberSnap] = await Promise.all([
+    getDoc(doc(db, "groups", groupId)),
+    getDoc(doc(db, "groups", groupId, "members", params.author.uid)),
+  ]);
 
-  const groupMap = await fetchGroupsByIds([groupId]);
-  const group = groupMap[groupId];
-  const groupVisibility = group?.visibility ?? null;
+  if (!groupSnap.exists()) {
+    throw new Error("La comunidad no existe.");
+  }
+
+  const groupData = groupSnap.data() as Record<string, unknown>;
+  const ownerId = pickString(groupData.ownerId);
+  const isActive = groupData.isActive !== false;
+  const permissions =
+    groupData.permissions && typeof groupData.permissions === "object"
+      ? (groupData.permissions as Record<string, unknown>)
+      : null;
+  const postingMode = normalizePostingMode(
+    permissions?.postingMode ?? groupData.postingMode,
+  );
+  const groupVisibility = normalizeGroupVisibility(groupData.visibility);
+
+  if (!isActive) {
+    throw new Error("Esta comunidad está inactiva.");
+  }
+
+  if (ownerId !== params.author.uid) {
+    if (!memberSnap.exists()) {
+      throw new Error("Debes pertenecer a la comunidad para realizar esta acción.");
+    }
+    const memberData = memberSnap.data() as Record<string, unknown>;
+    const membershipStatus = resolveEffectiveMembershipStatus(
+      memberData.status,
+      memberData.mutedUntil,
+    );
+    assertMembershipCanInteract(membershipStatus);
+
+    if (postingMode === "owner_only") {
+      throw new Error("Solo el owner puede publicar en esta comunidad.");
+    }
+  }
 
   if (!groupVisibility) {
     throw new Error("No se pudo resolver la visibilidad del grupo.");
@@ -982,8 +1019,8 @@ async function resolvePostCreationContext(params: {
     contextType: "group",
     groupId,
     groupVisibility,
-    groupName: group?.name ?? null,
-    groupAvatarUrl: group?.avatarUrl ?? null,
+    groupName: readGroupName(groupData),
+    groupAvatarUrl: readGroupAvatarUrl(groupData),
     profileId: null,
     profileName: null,
     profileAvatarUrl: null,
@@ -1389,8 +1426,16 @@ async function attachViewerPostState(
     withGroupMemberBlockState
   );
 
-  const withFlameState = await attachViewerFlameState(visiblePosts, viewerUid);
-  return attachViewerSavedState(withFlameState, viewerUid);
+  // Flame y saved son independientes — se resuelven en paralelo
+  const [withFlameState, withSavedState] = await Promise.all([
+    attachViewerFlameState(visiblePosts, viewerUid),
+    attachViewerSavedState(visiblePosts, viewerUid),
+  ]);
+
+  return withFlameState.map((post, i) => ({
+    ...post,
+    viewerHasSaved: withSavedState[i]?.viewerHasSaved ?? false,
+  }));
 }
 
 function hydrateComment(
@@ -2426,31 +2471,35 @@ async function enforceCommentRateLimit(): Promise<void> {
 export async function createTextPost(params: {
   groupId: string;
   text: string;
-}): Promise<void>;
+}): Promise<string>;
 export async function createTextPost(params: {
   contextType: "profile";
   profileId: string;
   text: string;
-}): Promise<void>;
+}): Promise<string>;
 export async function createTextPost(params: {
   contextType?: PostContextType;
   groupId?: string | null;
   profileId?: string | null;
   text: string;
-}): Promise<void> {
+}): Promise<string> {
   const cleanText = params.text.trim();
   if (!cleanText) {
     throw new Error("Escribe un texto antes de publicar.");
   }
 
+  // Arrancar el rate limit inmediatamente — no necesita datos del autor
+  const rateLimitPromise = enforcePostRateLimit();
   const author = await getCurrentAuthorSnapshot();
-  await enforcePostRateLimit();
-  const context = await resolvePostCreationContext({
-    contextType: params.contextType,
-    groupId: params.groupId,
-    profileId: params.profileId,
-    author,
-  });
+  const [context] = await Promise.all([
+    resolvePostCreationContext({
+      contextType: params.contextType,
+      groupId: params.groupId,
+      profileId: params.profileId,
+      author,
+    }),
+    rateLimitPromise,
+  ]);
 
   const shareMetadata = buildShareMetadata({
     text: cleanText,
@@ -2470,7 +2519,7 @@ export async function createTextPost(params: {
   const updatedAt = serverTimestamp();
   const searchTimestamp = Timestamp.now();
 
-  await addDoc(collection(db, "posts"), {
+  const ref = await addDoc(collection(db, "posts"), {
     ...buildPostContextPayload(context),
     authorId: author.uid,
     authorName: author.authorName,
@@ -2532,6 +2581,133 @@ export async function createTextPost(params: {
       updatedAt: null,
     },
   });
+  return ref.id;
+}
+
+export async function createLivePost(params: {
+  groupId: string;
+  title: string;
+  description?: string | null;
+  scheduledStartAt?: Date | null;
+}): Promise<string>;
+export async function createLivePost(params: {
+  contextType: "profile";
+  profileId: string;
+  title: string;
+  description?: string | null;
+  scheduledStartAt?: Date | null;
+}): Promise<string>;
+export async function createLivePost(params: {
+  contextType?: PostContextType;
+  groupId?: string | null;
+  profileId?: string | null;
+  title: string;
+  description?: string | null;
+  scheduledStartAt?: Date | null;
+}): Promise<string> {
+  const cleanTitle = params.title.trim();
+  if (!cleanTitle) {
+    throw new Error("El título del live es obligatorio.");
+  }
+
+  const rateLimitPromise = enforcePostRateLimit();
+  const author = await getCurrentAuthorSnapshot();
+  const [context] = await Promise.all([
+    resolvePostCreationContext({
+      contextType: params.contextType,
+      groupId: params.groupId,
+      profileId: params.profileId,
+      author,
+    }),
+    rateLimitPromise,
+  ]);
+
+  const createdFrom: "profile" | "group" =
+    context.contextType === "profile" ? "profile" : "group";
+
+  const scheduledStartAt = params.scheduledStartAt
+    ? Timestamp.fromDate(params.scheduledStartAt)
+    : null;
+
+  const liveData: PostLiveData = {
+    status: "upcoming",
+    title: cleanTitle,
+    description: params.description?.trim() || null,
+    scheduledStartAt,
+    startedAt: null,
+    endedAt: null,
+    streamProvider: null,
+    liveStreamId: null,
+    playbackId: null,
+    streamKey: null,
+    ingestUrl: null,
+    createdFrom,
+  };
+
+  const createdAt = serverTimestamp();
+  const updatedAt = serverTimestamp();
+  const searchTimestamp = Timestamp.now();
+
+  const ref = await addDoc(collection(db, "posts"), {
+    ...buildPostContextPayload(context),
+    authorId: author.uid,
+    authorName: author.authorName,
+    authorAvatarUrl: author.authorAvatarUrl,
+    authorUsername: author.authorUsername,
+    text: cleanTitle,
+    createdAt,
+    updatedAt,
+    deletedAt: null,
+    isDeleted: false,
+    isPinnedInGroup: false,
+    groupPinnedAt: null,
+    groupPinnedBy: null,
+    isPinnedOnProfile: false,
+    profilePinnedAt: null,
+    profilePinnedBy: null,
+    isShareable: false,
+    publicSlug: null,
+    shareTitle: cleanTitle,
+    shareDescription: params.description?.trim() || null,
+    shareImageUrl: null,
+    access: "free",
+    premium: null,
+    media: [],
+    counts: {
+      comments: 0,
+      likes: 0,
+      saves: 0,
+    },
+    search: buildPostSearchIndexForContext({
+      text: cleanTitle,
+      authorId: author.uid,
+      context,
+      isDeleted: false,
+      createdAt: searchTimestamp,
+      updatedAt: searchTimestamp,
+    }),
+    postType: "live",
+    accessModel: "free",
+    accessScope: context.contextType,
+    requiresPayment: false,
+    requiresSubscription: false,
+    oneTimePrice: null,
+    currency: null,
+    purchaseType: null,
+    liveData,
+    videoData: null,
+    scheduledData: null,
+    playback: null,
+    processing: {
+      status: "none",
+      provider: null,
+      errorCode: null,
+      errorMessage: null,
+      updatedAt: null,
+    },
+  });
+
+  return ref.id;
 }
 
 export async function createImagePost(params: {
@@ -2571,13 +2747,15 @@ export async function createImagePost(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
-  await enforcePostRateLimit();
-  const context = await resolvePostCreationContext({
-    contextType: params.contextType,
-    groupId: params.groupId,
-    profileId: params.profileId,
-    author,
-  });
+  const [context] = await Promise.all([
+    resolvePostCreationContext({
+      contextType: params.contextType,
+      groupId: params.groupId,
+      profileId: params.profileId,
+      author,
+    }),
+    enforcePostRateLimit(),
+  ]);
 
   const shareMetadata = buildShareMetadata({
     text: cleanText,
@@ -2747,13 +2925,15 @@ export async function createMediaPost(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
-  await enforcePostRateLimit();
-  const context = await resolvePostCreationContext({
-    contextType: params.contextType,
-    groupId: params.groupId,
-    profileId: params.profileId,
-    author,
-  });
+  const [context] = await Promise.all([
+    resolvePostCreationContext({
+      contextType: params.contextType,
+      groupId: params.groupId,
+      profileId: params.profileId,
+      author,
+    }),
+    enforcePostRateLimit(),
+  ]);
 
   const videoMedia: PostMedia[] = cleanVideoUploads.map((item) => ({
     type: "video",
@@ -2959,13 +3139,15 @@ export async function createVideoPost(params: {
       : null;
 
   const author = await getCurrentAuthorSnapshot();
-  await enforcePostRateLimit();
-  const context = await resolvePostCreationContext({
-    contextType: params.contextType,
-    groupId: params.groupId,
-    profileId: params.profileId,
-    author,
-  });
+  const [context] = await Promise.all([
+    resolvePostCreationContext({
+      contextType: params.contextType,
+      groupId: params.groupId,
+      profileId: params.profileId,
+      author,
+    }),
+    enforcePostRateLimit(),
+  ]);
 
   const premiumAccessFields = buildPremiumAccessFields({
     premium: params.premium,

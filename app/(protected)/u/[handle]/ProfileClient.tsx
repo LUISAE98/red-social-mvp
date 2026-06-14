@@ -58,6 +58,7 @@ import ProfileSocialActions from "./components/ProfileSocialActions";
 import SharedCommunitiesBadge from "./components/SharedCommunitiesBadge";
 import ProfileFollowersOverlay from "./components/ProfileFollowersOverlay";
 import GroupPostComposer from "@/app/groups/[groupId]/components/posts/GroupPostComposer";
+import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
 import { createMediaPost, createTextPost } from "@/lib/posts/post-service";
 import { uploadPostImages } from "@/lib/posts/image-upload";
 import { clearAllPostFeedCaches } from "@/lib/posts/post-feed-cache";
@@ -67,6 +68,7 @@ import StoryCircles from "@/app/components/Stories/StoryCircles";
 import { useStoryRingState } from "@/lib/stories/useStoryRingState";
 import { recordStoryView } from "@/lib/stories/storyService";
 import StoryViewer from "@/app/components/Stories/StoryViewer";
+import { setLastVisitTimestamp } from "@/lib/utils/visitTimestamps";
 
 type SafeCropperProps = {
   image: string;
@@ -341,6 +343,7 @@ const [exclusiveSessionError, setExclusiveSessionError] = useState<string | null
 
 const [serviceToast, setServiceToast] = useState<string | null>(null);
 const [profileComposerError, setProfileComposerError] = useState<string | null>(null);
+const [isProfileLiveModalOpen, setIsProfileLiveModalOpen] = useState(false);
 const [profilePostsRefreshKey, setProfilePostsRefreshKey] = useState(0);
 const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
 const avatarSz = mobileRefreshEnabled ? "clamp(146px, 31.2vw, 286px)" : "clamp(112px, 24vw, 220px)";
@@ -391,6 +394,11 @@ useEffect(() => {
 
   const isOwner = !!viewer && !!userDoc && viewer.uid === userDoc.uid;
   const profileUid = userDoc?.uid ?? null;
+
+  // Track last visit so the sidebar can show new-post counts
+  useEffect(() => {
+    if (profileUid) setLastVisitTimestamp(profileUid);
+  }, [profileUid]);
 
   const { ring: profileRing, stories: profileRingStories, startIndex: profileRingStart } =
     useStoryRingState(profileUid, "profile", viewer?.uid ?? null);
@@ -2159,6 +2167,18 @@ await createExclusiveSessionRequest({
     <GroupPostComposer
       contextType="profile"
       onSubmit={handleCreateProfilePost}
+      onLiveClick={() => setIsProfileLiveModalOpen(true)}
+    />
+
+    <LiveComposerModal
+      open={isProfileLiveModalOpen}
+      onClose={() => setIsProfileLiveModalOpen(false)}
+      onSuccess={() => {
+        clearAllPostFeedCaches();
+        setProfilePostsRefreshKey((v) => v + 1);
+      }}
+      contextType="profile"
+      profileId={userDoc.uid}
     />
 
     {profileVideoUploadStatus ? (

@@ -45,6 +45,7 @@ import OwnerSidebarGreetings from "./OwnerSidebarGreetings";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { useSidebarVisitCounts } from "@/lib/hooks/useSidebarVisitCounts";
+import { useNewPostsCounts } from "@/lib/hooks/useNewPostsCounts";
 
 export type Currency = "MXN" | "USD";
 export type SidebarMemberStatus =
@@ -719,6 +720,7 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
   const { counts: visitCounts, increment: incrementVisit } = useSidebarVisitCounts(
     viewer?.uid ?? null
   );
+
   const [authReady, setAuthReady] = useState(
     () => ownerSidebarCache?.authReady ?? false
   );
@@ -749,6 +751,16 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
   const [followedProfiles, setFollowedProfiles] = useState<
     FollowedProfileLite[]
   >(() => ownerSidebarCache?.followedProfiles ?? []);
+
+  const newPostsEntities = useMemo(
+    () => [
+      ...followedProfiles.map((p) => ({ id: p.uid, kind: "profile" as const })),
+      ...joinedGroups.map((g) => ({ id: g.id, kind: "group" as const })),
+      ...myGroups.map((g) => ({ id: g.id, kind: "group" as const })),
+    ],
+    [followedProfiles, joinedGroups, myGroups]
+  );
+  const newPostsCounts = useNewPostsCounts(newPostsEntities, viewer?.uid ?? null);
 
   const [loadingGroups, setLoadingGroups] = useState(
     () => ownerSidebarCache?.loadingGroups ?? false
@@ -1225,7 +1237,7 @@ miniItem: {
       viewer.uid,
       (sidebarGroups) => {
         const allMemberships: GroupDocLite[] = sidebarGroups
-          .filter((g) => g.ownerId !== viewer.uid)
+          .filter((g) => g.ownerId !== viewer.uid && g.memberRole !== "owner")
           .map((g) => ({
             id: g.id,
             name: g.name ?? undefined,
@@ -2533,6 +2545,19 @@ color: "rgba(255,255,255,0.94)",
               <div style={styles.subtle}>{opts.subtitle}</div>
             ) : autoSubscriptionSubtitle ? (
               <div style={styles.subtle}>{autoSubscriptionSubtitle}</div>
+            ) : (newPostsCounts[g.id] ?? 0) > 0 ? (
+              <div
+                style={{
+                  fontSize: 10.5,
+                  color: "#a855f7",
+                  fontWeight: 700,
+                  lineHeight: 1.3,
+                  marginTop: 1,
+                }}
+              >
+                {newPostsCounts[g.id]}{" "}
+                {newPostsCounts[g.id] === 1 ? "nuevo" : "nuevos"}
+              </div>
             ) : null}
           </div>
         </button>
@@ -2574,11 +2599,14 @@ color: "rgba(255,255,255,0.94)",
   }, [myGroups]);
 
   const joinedGrouped = useMemo(() => {
+    const myGroupIds = new Set(myGroups.map((g) => g.id));
     const mergedMap = new Map<string, GroupDocLite>();
 
-    [...joinedGroups, ...hiddenSidebarMembershipGroups].forEach((g) => {
-      mergedMap.set(g.id, g);
-    });
+    [...joinedGroups, ...hiddenSidebarMembershipGroups]
+      .filter((g) => !myGroupIds.has(g.id))
+      .forEach((g) => {
+        mergedMap.set(g.id, g);
+      });
 
     const allJoined = Array.from(mergedMap.values());
 
@@ -2610,7 +2638,7 @@ color: "rgba(255,255,255,0.94)",
       { key: "hidden", title: visibilitySectionTitle("hidden"), items: hiddens },
       { key: "other", title: visibilitySectionTitle("other"), items: others },
     ].filter((section) => section.items.length > 0);
-  }, [joinedGroups, hiddenSidebarMembershipGroups]);
+  }, [joinedGroups, hiddenSidebarMembershipGroups, myGroups]);
 
   const sortedFollowedProfiles = useMemo(
     () => [...followedProfiles].sort((a, b) => (visitCounts[b.uid] ?? 0) - (visitCounts[a.uid] ?? 0)),
@@ -2959,6 +2987,7 @@ handleGreetingAction={handleGreetingAction}
 onCreateCommunity={() => router.push("/groups/new")}
 joinBusyKey={joinBusyKey}
 greetingBusyId={greetingBusyId}
+newPostsCounts={newPostsCounts}
        />
   </div>
 )}
@@ -3003,6 +3032,7 @@ handleGreetingAction={handleGreetingAction}
 onCreateCommunity={() => router.push("/groups/new")}
 joinBusyKey={joinBusyKey}
 greetingBusyId={greetingBusyId}
+newPostsCounts={newPostsCounts}
      />
   </div>
 )}
@@ -3033,6 +3063,7 @@ userMiniMap={userMiniMap}
 getInitials={getInitials}
 renderUserLink={renderUserLink}
 onCreateCommunity={() => router.push("/groups/new")}
+newPostsCounts={newPostsCounts}
     />
    </>
   </div>
@@ -3048,6 +3079,7 @@ onCreateCommunity={() => router.push("/groups/new")}
       onProfileVisit={(uid) => incrementVisit(uid)}
       isMobile={isMobile}
       currentUserId={viewer?.uid ?? null}
+      newPostsCounts={newPostsCounts}
     />
   </div>
 )}

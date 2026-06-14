@@ -41,6 +41,7 @@ type Props = {
   getInitials: (name?: string | null) => string;
   renderUserLink: (uid: string) => React.ReactNode;
   onCreateCommunity: () => void;
+  newPostsCounts?: Record<string, number>;
 };
 
 type SidebarMemberStatus =
@@ -216,7 +217,8 @@ function getPriceIncreaseMeta(group: GroupDocLite) {
 
 function buildJoinedSubtitle(
   group: GroupDocLite,
-  isMobile: boolean
+  isMobile: boolean,
+  newCount?: number
 ): React.ReactNode {
   const status = normalizeMemberStatus(group);
   const role = normalizeMemberRole(group);
@@ -284,6 +286,20 @@ function buildJoinedSubtitle(
             •
           </span>
           <span style={{ color: "#fbbf24" }}>Debes suscribirte</span>
+        </>
+      )}
+
+      {(newCount ?? 0) > 0 && (
+        <>
+          <span
+            aria-hidden="true"
+            style={{ color: "rgba(255,255,255,0.34)", flexShrink: 0 }}
+          >
+            •
+          </span>
+          <span style={{ color: "#a855f7", fontWeight: 700 }}>
+            {newCount} {newCount === 1 ? "nuevo" : "nuevos"}
+          </span>
         </>
       )}
     </span>
@@ -414,6 +430,7 @@ function noticeStyles(
 function renderJoinedCardWithAccessNotice(params: {
   group: GroupDocLite;
   isMobile: boolean;
+  newCount?: number;
   renderCommunityCard: (
     g: GroupDocLite,
     opts?: { compact?: boolean; subtitle?: React.ReactNode }
@@ -425,6 +442,7 @@ function renderJoinedCardWithAccessNotice(params: {
   const {
     group,
     isMobile,
+    newCount,
     renderCommunityCard,
     onSubscribe,
     onDismiss,
@@ -442,7 +460,7 @@ function renderJoinedCardWithAccessNotice(params: {
       }}
     >
 {renderCommunityCard(group, {
-  subtitle: buildJoinedSubtitle(group, isMobile),
+  subtitle: buildJoinedSubtitle(group, isMobile, newCount),
 })}
 
       {notice && (
@@ -664,6 +682,7 @@ export default function OwnerSidebarOtherGroups({
   getInitials,
   renderUserLink,
   onCreateCommunity,
+  newPostsCounts = {},
 }: Props) {
   const router = useRouter();
   const [dismissedGroupIds, setDismissedGroupIds] = useState<Set<string>>(
@@ -824,7 +843,7 @@ return (
   group={g}
   isMobile={isMobile}
   renderCommunityCard={renderCommunityCard}
-  subtitle={buildJoinedSubtitle(g, isMobile)}
+  subtitle={buildJoinedSubtitle(g, isMobile, newPostsCounts[g.id])}
   onLeave={openLeaveConfirm}
 />
 
@@ -885,7 +904,7 @@ return (
                       group={g}
                       isMobile={isMobile}
                       renderCommunityCard={renderCommunityCard}
-                      subtitle={buildJoinedSubtitle(g, isMobile)}
+                      subtitle={buildJoinedSubtitle(g, isMobile, newPostsCounts[g.id])}
                       onLeave={openLeaveConfirm}
                     />
 

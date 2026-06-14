@@ -227,6 +227,7 @@ export type PostLiveData = {
   status?: LiveStatus;
   title?: string | null;
   description?: string | null;
+  coverUrl?: string | null;
   scheduledStartAt?: Timestamp | null;
   startedAt?: Timestamp | null;
   endedAt?: Timestamp | null;
@@ -235,6 +236,7 @@ export type PostLiveData = {
   playbackId?: string | null;
   streamKey?: string | null;
   ingestUrl?: string | null;
+  createdFrom?: "profile" | "group" | null;
 };
 
 export type PostVideoData = {

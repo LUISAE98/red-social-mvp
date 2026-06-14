@@ -160,3 +160,6 @@ export { softDeleteGroup } from "./groupDeletion";
 
 // Rate limiting
 export { checkRateLimitPost, checkRateLimitComment } from "./rateLimiter";
+
+// Video overlay download
+export { videoOverlayDownload } from "./videoOverlay";

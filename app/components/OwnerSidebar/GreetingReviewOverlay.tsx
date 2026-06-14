@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { createGreetingMuxUpload } from "@/lib/greetings/greetingRequests";
 import { addStoryFromGreeting, deleteStory, subscribeToStoryByGreeting } from "@/lib/stories/storyService";
 import type { StoryDoc } from "@/lib/stories/types";
@@ -196,6 +196,104 @@ function drawRecordingFrame(
   }
 }
 
+// Draws only the overlay elements on a transparent canvas (no video background).
+// Used for server-side compositing: the PNG is sent to the Cloud Function
+// which overlays it on the original Mux video via FFmpeg (no re-encoding quality loss).
+function drawOverlayOnly(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  avatarImg: HTMLImageElement | null,
+  creatorName: string,
+  serviceType: string,
+  initials: string,
+): void {
+  ctx.clearRect(0, 0, w, h);
+
+  const base   = Math.min(w, h);
+  const pad    = Math.round(base * 0.032);
+  const aSize  = Math.round(base * 0.099);
+  const gap    = Math.round(base * 0.018);
+  const nameFs = Math.round(base * 0.034);
+  const typeFs = Math.round(base * 0.025);
+  const ringW  = Math.round(base * 0.007);
+  const ax = pad + aSize / 2;
+  const ay = pad + aSize / 2;
+
+  const ringR = aSize / 2 + ringW;
+  const d135  = ringR * Math.SQRT1_2;
+  const ringGrad = ctx.createLinearGradient(ax - d135, ay - d135, ax + d135, ay + d135);
+  ringGrad.addColorStop(0,    "#ec4899");
+  ringGrad.addColorStop(0.52, "#9333ea");
+  ringGrad.addColorStop(1,    "#3b82f6");
+  ctx.save();
+  ctx.strokeStyle = ringGrad;
+  ctx.lineWidth = ringW;
+  ctx.beginPath();
+  ctx.arc(ax, ay, ringR, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(ax, ay, aSize / 2, 0, Math.PI * 2);
+  ctx.clip();
+  if (avatarImg) {
+    ctx.drawImage(avatarImg, ax - aSize / 2, ay - aSize / 2, aSize, aSize);
+  } else {
+    const g = ctx.createLinearGradient(ax - aSize / 2, ay - aSize / 2, ax + aSize / 2, ay + aSize / 2);
+    g.addColorStop(0, "#3b82f6");
+    g.addColorStop(1, "#8b5cf6");
+    ctx.fillStyle = g;
+    ctx.fillRect(ax - aSize / 2, ay - aSize / 2, aSize, aSize);
+    ctx.fillStyle = "#fff";
+    ctx.font = `700 ${Math.round(aSize * 0.38)}px -apple-system, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(initials.slice(0, 2), ax, ay);
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+  }
+  ctx.restore();
+
+  const textX = ax + aSize / 2 + gap + ringW;
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `700 ${nameFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText(creatorName, textX, ay - Math.round(typeFs * 0.3));
+  ctx.fillStyle = "rgba(255,255,255,0.80)";
+  ctx.font = `500 ${typeFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.fillText(serviceType, textX, ay + typeFs + Math.round(typeFs * 0.1));
+  ctx.restore();
+
+  // Pill — static, always fully visible
+  const urlFs   = Math.round(base * 0.025);
+  const pillPad = Math.round(base * 0.016);
+  const pillH   = Math.round(base * 0.050);
+  const dotR    = Math.round(base * 0.006);
+  ctx.font = `700 ${nameFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  const nameW = ctx.measureText(creatorName).width;
+  ctx.font = `700 ${urlFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  const urlW  = ctx.measureText("vibra.com").width;
+  const pillW = pillPad + dotR * 2 + Math.round(base * 0.011) + urlW + pillPad;
+  const pillX = textX + nameW + Math.round(base * 0.011);
+  const pillY = ay - aSize / 2;
+  ctx.save();
+  ctx.fillStyle = "rgba(37,99,235,0.90)";
+  rrect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.beginPath();
+  ctx.arc(pillX + pillPad + dotR, pillY + pillH / 2, dotR, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `700 ${urlFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.textBaseline = "middle";
+  ctx.fillText("vibra.com", pillX + pillPad + dotR * 2 + Math.round(base * 0.011), pillY + pillH / 2);
+  ctx.restore();
+}
+
 export default function GreetingReviewOverlay({
   items,
   buyers,
@@ -245,6 +343,7 @@ export default function GreetingReviewOverlay({
 
   // Download state
   const [downloading, setDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
   // TTS state
   const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
@@ -503,28 +602,29 @@ export default function GreetingReviewOverlay({
     } catch { /* avatar won't show — initials fallback */ }
   };
 
+  // Load avatar on mount — needed for the download overlay (not for recording)
+  useEffect(() => {
+    preloadOverlayAvatar();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleGrabar = async () => {
     setCameraError(null);
     try {
-      // Load avatar and request camera in parallel — both complete before preview shows
-      const [stream] = await Promise.all([
-        navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "user",
-            width: { ideal: 3840 },
-            height: { ideal: 2160 },
-            frameRate: { ideal: 60 },
-          },
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            sampleRate: { ideal: 48000 },
-            channelCount: { ideal: 2 },
-          },
-        }),
-        preloadOverlayAvatar(),
-      ]);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: "user",
+          width: { ideal: 3840 },
+          height: { ideal: 2160 },
+          frameRate: { ideal: 60 },
+        },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: { ideal: 48000 },
+          channelCount: { ideal: 2 },
+        },
+      });
       streamRef.current = stream;
       setMobilePanelHeight(280);
       setViewState("camera");
@@ -539,8 +639,6 @@ export default function GreetingReviewOverlay({
     if (!streamRef.current) return;
     chunksRef.current = [];
 
-    // H.264 first: hardware-accelerated in all modern browsers — no dropped frames.
-    // VP9 is software-only and can't keep up at high resolutions, causing quality loss.
     const preferredTypes = [
       "video/mp4;codecs=avc1,mp4a.40.2",
       "video/mp4",
@@ -551,9 +649,19 @@ export default function GreetingReviewOverlay({
     const mimeType = preferredTypes.find((t) => MediaRecorder.isTypeSupported(t)) ?? "";
     mimeTypeRef.current = mimeType;
 
-    const onStop = (stream: MediaStream) => {
-      cancelDrawLoopRef.current?.(); cancelDrawLoopRef.current = null; rafRecRef.current = null;
-      stream.getTracks().forEach((t) => t.stop());
+    const cameraStream = streamRef.current;
+    const videoTrack = cameraStream.getVideoTracks()[0];
+    const { width: vw = 1280, height: vh = 720 } = videoTrack?.getSettings() ?? {};
+    const pixelCount = (vw || 1280) * (vh || 720);
+    const videoBitsPerSecond = Math.min(Math.round(pixelCount * 0.004), 20_000_000);
+    const mrOptions = (mimeType
+      ? { mimeType, videoBitsPerSecond, audioBitsPerSecond: 192_000 }
+      : { videoBitsPerSecond, audioBitsPerSecond: 192_000 }) as MediaRecorderOptions;
+
+    const mr = new MediaRecorder(cameraStream, mrOptions);
+    mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    mr.onstop = () => {
+      cameraStream.getTracks().forEach((t) => t.stop());
       streamRef.current = null;
       const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || "video/webm" });
       uploadBlobRef.current = blob;
@@ -563,109 +671,6 @@ export default function GreetingReviewOverlay({
       setFileDuration(null);
       setRecordPhase("done");
     };
-
-    const cameraStream = streamRef.current;
-    const videoTrack = cameraStream.getVideoTracks()[0];
-    const { width: camW = 1280, height: camH = 720 } = videoTrack?.getSettings() ?? {};
-
-    // Canvas always at 4K on the long side — overlay is rendered natively at 4K
-    // regardless of camera resolution. Camera video is upscaled to fit.
-    const camLong = Math.max(camW || 1280, camH || 720);
-    const upscale = camLong < 3840 ? 3840 / camLong : 1;
-    const vw = Math.round((camW || 1280) * upscale);
-    const vh = Math.round((camH || 720) * upscale);
-
-    // 20 Mbps for 4K H.264 → broadcast quality
-    const videoBitsPerSecond = 20_000_000;
-    const audioBitsPerSecond = 192_000;
-    const mrOptions = (mimeType
-      ? { mimeType, videoBitsPerSecond, audioBitsPerSecond }
-      : { videoBitsPerSecond, audioBitsPerSecond }) as MediaRecorderOptions;
-
-    const creatorDisplayName = req.profileDisplayName ?? req.profileUsername ?? "Creador";
-    const serviceLabel = req.type === "consejo" ? "Consejo" : req.type === "mensaje" ? "Mensaje" : "Saludo";
-    const initials = getInitials(creatorDisplayName);
-
-    // Canvas-based recording with overlay (try-catch → fallback to direct if unsupported)
-    try {
-      const canvas = document.createElement("canvas");
-      canvas.width = vw;
-      canvas.height = vh;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("no-ctx");
-
-      canvasRecRef.current = canvas;
-      recStartTimeRef.current = Date.now();
-
-      // Seed with black BEFORE captureStream so the stream starts clean (no cross-origin taint)
-      ctx.fillStyle = "#000";
-      ctx.fillRect(0, 0, vw, vh);
-
-      // captureStream MUST be called on a clean canvas — any drawImage AFTER this is safe
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const canvasStream: MediaStream = (canvas as any).captureStream(60);
-      const combinedStream = new MediaStream([
-        ...canvasStream.getVideoTracks(),
-        ...cameraStream.getAudioTracks(),
-      ]);
-
-      const mr = new MediaRecorder(combinedStream, mrOptions);
-      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-      mr.onstop = () => {
-        cancelDrawLoopRef.current?.(); cancelDrawLoopRef.current = null; rafRecRef.current = null;
-        canvasRecRef.current = null;
-        cameraStream.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-        const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || "video/webm" });
-        uploadBlobRef.current = blob;
-        const url = URL.createObjectURL(blob);
-        blobUrlRef.current = url;
-        setRecordedBlobUrl(url);
-        setFileDuration(null);
-        setRecordPhase("done");
-      };
-      mr.start();
-      recorderRef.current = mr;
-
-      const scheduleDrawFrame = (vel: HTMLVideoElement) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        if ("requestVideoFrameCallback" in vel) {
-          // Fires exactly once per new camera frame — no jitter, no duplicate frames
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const id = (vel as any).requestVideoFrameCallback(drawLoop);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          cancelDrawLoopRef.current = () => (vel as any).cancelVideoFrameCallback(id);
-        } else {
-          // Fallback for Firefox and older browsers
-          const id = requestAnimationFrame(drawLoop);
-          rafRecRef.current = id;
-          cancelDrawLoopRef.current = () => cancelAnimationFrame(id);
-        }
-      };
-      const drawLoop = () => {
-        if (!canvasRecRef.current) return;
-        const vel = videoRef.current;
-        if (vel) {
-          drawRecordingFrame(ctx, vel, vw, vh, (Date.now() - recStartTimeRef.current) / 1000, overlayAvatarRef.current, creatorDisplayName, serviceLabel, initials);
-          scheduleDrawFrame(vel);
-        } else {
-          // Video element gone — keep looping via RAF until canvas is cleared
-          const id = requestAnimationFrame(drawLoop);
-          rafRecRef.current = id;
-          cancelDrawLoopRef.current = () => cancelAnimationFrame(id);
-        }
-      };
-      drawLoop();
-      setRecordPhase("recording");
-      return;
-    } catch {
-      canvasRecRef.current = null;
-    }
-
-    // Fallback: direct stream (no overlay — browser does not support captureStream)
-    const mr = new MediaRecorder(cameraStream, mrOptions);
-    mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
-    mr.onstop = () => onStop(cameraStream);
     mr.start();
     recorderRef.current = mr;
     setRecordPhase("recording");
@@ -946,30 +951,100 @@ export default function GreetingReviewOverlay({
 
   // ─── Download — must be before any early return ─────────────────────────────
   const handleDownload = useCallback(async () => {
-    const mp4Url = (viewMode || buyerViewMode) && items[currentIndex]?.data.muxPlaybackId
-      ? `https://stream.mux.com/${items[currentIndex].data.muxPlaybackId}/high.mp4`
-      : null;
-    if (!mp4Url || downloading) return;
+    const playbackId = items[currentIndex]?.data.muxPlaybackId;
+    if (!playbackId || downloading) return;
+    const mp4Url = `https://stream.mux.com/${playbackId}/high.mp4`;
+    const itemData = items[currentIndex]?.data;
+    const fileName = `vibra-${itemData?.type ?? "video"}-${(itemData?.toName ?? "").replace(/\s+/g, "-")}.mp4`;
+
     setDownloading(true);
+    setDownloadProgress(0);
+
     try {
-      const res = await fetch(mp4Url);
-      const blob = await res.blob();
-      const objectUrl = URL.createObjectURL(blob);
+      // 1. Load only metadata to get video dimensions (no full download)
+      setDownloadProgress(5);
+      const metaEl = document.createElement("video");
+      metaEl.preload = "metadata";
+      metaEl.src = mp4Url;
+      await new Promise<void>((resolve) => {
+        metaEl.onloadedmetadata = () => resolve();
+        setTimeout(resolve, 10_000);
+      });
+      const srcW = metaEl.videoWidth || 1920;
+      const srcH = metaEl.videoHeight || 1080;
+      metaEl.src = "";
+
+      // 2. Render overlay-only PNG at video dimensions on a transparent canvas
+      setDownloadProgress(10);
+      const overlayCanvas = document.createElement("canvas");
+      overlayCanvas.width = srcW;
+      overlayCanvas.height = srcH;
+      const overlayCtx = overlayCanvas.getContext("2d")!;
+      const creatorDisplayName = req.profileDisplayName ?? req.profileUsername ?? "Creador";
+      const serviceLabel = req.type === "consejo" ? "Consejo" : req.type === "mensaje" ? "Mensaje" : "Saludo";
+      const initials = getInitials(creatorDisplayName);
+      drawOverlayOnly(overlayCtx, srcW, srcH, overlayAvatarRef.current, creatorDisplayName, serviceLabel, initials);
+      // toDataURL avoids Blob/FileReader async chain and works without canvas taint issues
+      const overlayBase64 = overlayCanvas.toDataURL("image/png").split(",")[1];
+
+      // 3. Auth token — forceRefresh:false uses cached token if still valid
+      setDownloadProgress(15);
+      const user = auth.currentUser;
+      if (!user) throw new Error("Not authenticated — no currentUser");
+      const idToken = await user.getIdToken(false);
+
+      // 4. Send to Cloud Function as JSON — server downloads from Mux, composites with FFmpeg (CRF 18)
+      setDownloadProgress(20);
+      const cfUrl = "https://videooverlaydownload-zivezlakcq-uc.a.run.app";
+
+      // Fake progress while CF processes (can take 1-3 min for long videos)
+      let fakeProgress = 20;
+      const fakeInterval = setInterval(() => {
+        fakeProgress = Math.min(75, fakeProgress + Math.random() * 2);
+        setDownloadProgress(Math.round(fakeProgress));
+      }, 3_000);
+
+      let cfRes: Response;
+      try {
+        cfRes = await fetch(cfUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken}`,
+          },
+          body: JSON.stringify({ playbackId, overlayBase64 }),
+        });
+      } finally {
+        clearInterval(fakeInterval);
+      }
+      if (!cfRes.ok) {
+        const errText = await cfRes.text().catch(() => "");
+        throw new Error(`CF ${cfRes.status}: ${errText}`);
+      }
+
+      // 5. Download the result
+      setDownloadProgress(85);
+      const resultBlob = await cfRes.blob();
+      setDownloadProgress(99);
+
+      const objUrl = URL.createObjectURL(resultBlob);
       const a = document.createElement("a");
-      const itemData = items[currentIndex]?.data;
-      a.href = objectUrl;
-      a.download = `vibra-${itemData?.type ?? "video"}-${(itemData?.toName ?? "").replace(/\s+/g, "-")}.mp4`;
+      a.href = objUrl;
+      a.download = fileName;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(objectUrl);
-    } catch {
-      // Fallback: abrir en nueva pestaña
+      URL.revokeObjectURL(objUrl);
+      setDownloadProgress(100);
+
+    } catch (err) {
+      console.error("[handleDownload] error:", err);
       window.open(mp4Url, "_blank");
     } finally {
       setDownloading(false);
+      setDownloadProgress(0);
     }
-  }, [viewMode, buyerViewMode, items, currentIndex, downloading]);
+  }, [items, currentIndex, downloading, req, getInitials]);
 
   // ─── TTS functions — must be before any early return ────────────────────────
   const startSpeechFrom = useCallback((charIndex: number) => {
@@ -982,7 +1057,7 @@ export default function GreetingReviewOverlay({
     setSpeechHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
     const utterance = new SpeechSynthesisUtterance(text.slice(charIndex));
     utterance.lang = "es-MX";
-    utterance.rate = 1;
+    utterance.rate = 1.5;
     utterance.pitch = 1;
     utterance.onboundary = (e) => {
       if (speechGenRef.current !== gen || e.name !== "word") return;
@@ -1635,7 +1710,7 @@ export default function GreetingReviewOverlay({
                       fontFamily: fontStack, boxSizing: "border-box",
                     }}
                   >
-                    {downloading ? "Descargando..." : "↓ Descargar video"}
+                    {downloading ? `Procesando ${downloadProgress}%...` : "↓ Descargar video"}
                   </button>
                 )}
                 {viewMode && !buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (
@@ -1832,7 +1907,7 @@ export default function GreetingReviewOverlay({
                         fontFamily: fontStack, boxSizing: "border-box",
                       }}
                     >
-                      {downloading ? "Descargando..." : "↓ Descargar video"}
+                      {downloading ? `Procesando ${downloadProgress}%...` : "↓ Descargar video"}
                     </button>
                   )}
                   {viewMode && !buyerViewMode && (req.type === "saludo" || req.type === "consejo") && (

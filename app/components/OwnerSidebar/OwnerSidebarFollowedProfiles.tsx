@@ -14,6 +14,7 @@ type Props = {
   onProfileVisit?: (uid: string) => void;
   isMobile?: boolean;
   currentUserId?: string | null;
+  newPostsCounts?: Record<string, number>;
 };
 
 export default function OwnerSidebarFollowedProfiles({
@@ -24,6 +25,7 @@ export default function OwnerSidebarFollowedProfiles({
   onProfileVisit,
   isMobile = false,
   currentUserId,
+  newPostsCounts,
 }: Props) {
   const pathname = usePathname();
 
@@ -122,15 +124,39 @@ export default function OwnerSidebarFollowedProfiles({
 
                   <div
                     style={{
-                      fontSize: 11,
-                      color: "rgba(255,255,255,0.48)",
-                      lineHeight: 1.25,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 5,
+                      flexWrap: "wrap",
                     }}
                   >
-                    @{handle}
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "rgba(255,255,255,0.48)",
+                        lineHeight: 1.25,
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      @{handle}
+                    </span>
+                    {(newPostsCounts?.[profile.uid] ?? 0) > 0 && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: "#a855f7",
+                          fontWeight: 700,
+                          lineHeight: 1.25,
+                          whiteSpace: "nowrap",
+                          flexShrink: 0,
+                        }}
+                      >
+                        {newPostsCounts![profile.uid]}{" "}
+                        {newPostsCounts![profile.uid] === 1 ? "nuevo" : "nuevos"}
+                      </span>
+                    )}
                   </div>
                 </div>
               </button>
