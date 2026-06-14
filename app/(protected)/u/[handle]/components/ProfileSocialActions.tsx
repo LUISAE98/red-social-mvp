@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 
 type ProfileSocialActionsProps = {
@@ -15,55 +13,19 @@ export default function ProfileSocialActions({
   profileUid,
   profileRestricted,
 }: ProfileSocialActionsProps) {
-  const menuRef = useRef<HTMLDivElement | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-
   const isOwnProfile = !!viewerUid && viewerUid === profileUid;
 
-  const {
-    relationship,
-    loading,
-    error,
-    follow,
-    unfollow,
-    block,
-    unblock,
-  } = useSocialRelationship(viewerUid, profileUid);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    function handleClickOutside(event: MouseEvent) {
-      if (!menuRef.current) return;
-
-      if (!menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [menuOpen]);
-
-  useEffect(() => {
-    if (relationship.isBlockedBy) {
-      setMenuOpen(false);
-    }
-  }, [relationship.isBlockedBy]);
+  const { relationship, loading, error, follow, unfollow } =
+    useSocialRelationship(viewerUid, profileUid);
 
   if (!viewerUid || isOwnProfile) return null;
 
   if (relationship.isBlockedBy) return null;
 
   const showFollowButton =
-    !profileRestricted &&
-    !relationship.hasBlocked &&
-    relationship.canFollow;
+    !profileRestricted && !relationship.hasBlocked && relationship.canFollow;
 
-      const followButtonLabel = loading
+  const followButtonLabel = loading
     ? "Procesando..."
     : relationship.isFollowing && relationship.isFollowedBy
       ? "Ambos se siguen"
@@ -75,97 +37,29 @@ export default function ProfileSocialActions({
 
   async function handleFollowClick() {
     if (loading) return;
-
     if (relationship.isFollowing) {
       await unfollow();
       return;
     }
-
     await follow();
-  }
-
-  async function handleBlockClick() {
-    if (loading) return;
-
-    const confirmed = window.confirm(
-      "¿Seguro que quieres bloquear a este usuario?"
-    );
-
-    if (!confirmed) return;
-
-    setMenuOpen(false);
-    await block();
-  }
-
-  async function handleUnblockClick() {
-    if (loading) return;
-
-    setMenuOpen(false);
-    await unblock();
   }
 
   return (
     <div style={styles.root}>
-      <div style={styles.actionsRow}>
-        {showFollowButton && (
-          <button
-            type="button"
-            onClick={handleFollowClick}
-            disabled={loading}
-            style={{
-              ...styles.followButton,
-              opacity: loading ? 0.65 : 1,
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {followButtonLabel}
-          </button>
-        )}
-
-        <div ref={menuRef} style={styles.menuWrap}>
-          <button
-            type="button"
-            aria-label="Opciones del perfil"
-            title="Opciones"
-            onClick={() => setMenuOpen((current) => !current)}
-            disabled={loading}
-            style={{
-              ...styles.moreButton,
-              opacity: loading ? 0.65 : 1,
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            ⋯
-          </button>
-
-          {menuOpen && (
-            <div style={styles.menu}>
-              {relationship.hasBlocked ? (
-                <button
-                  type="button"
-                  onClick={handleUnblockClick}
-                  disabled={loading}
-                  style={styles.menuItem}
-                >
-                  Desbloquear usuario
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleBlockClick}
-                  disabled={loading}
-                  style={{
-                    ...styles.menuItem,
-                    ...styles.dangerMenuItem,
-                  }}
-                >
-                  Bloquear usuario
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      {showFollowButton && (
+        <button
+          type="button"
+          onClick={handleFollowClick}
+          disabled={loading}
+          style={{
+            ...styles.followButton,
+            opacity: loading ? 0.65 : 1,
+            cursor: loading ? "not-allowed" : "pointer",
+          }}
+        >
+          {followButtonLabel}
+        </button>
+      )}
 
       {error && <div style={styles.error}>{error}</div>}
     </div>
@@ -182,79 +76,17 @@ const styles = {
     marginTop: 10,
   } as const,
 
-  actionsRow: {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    flexWrap: "nowrap",
-  } as const,
-
   followButton: {
-    height: 28,
-    padding: "0 12px",
+    height: 36,
+    padding: "0 20px",
     borderRadius: 8,
     border: "none",
-    background: "rgba(168,85,255,0.18)",
-    color: "#d8b4fe",
+    background: "rgba(168,85,255,0.55)",
+    color: "#fff",
     fontWeight: 600,
-    fontSize: 11,
+    fontSize: 13,
     whiteSpace: "nowrap",
     transition: "opacity 160ms ease",
-  } as const,
-
-  menuWrap: {
-    position: "relative",
-    display: "inline-flex",
-  } as const,
-
-  moreButton: {
-    width: 34,
-    height: 34,
-    borderRadius: "50%",
-    border: "1px solid rgba(255,255,255,0.12)",
-    color: "rgba(255,255,255,0.9)",
-    background:
-      "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
-    boxShadow:
-      "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 0 14px rgba(168,85,255,0.1), 0 10px 20px rgba(0,0,0,0.35)",
-    fontSize: 22,
-    fontWeight: 900,
-    lineHeight: "20px",
-    padding: "0 0 6px",
-  } as const,
-
-  menu: {
-    position: "absolute",
-    top: 40,
-    right: 0,
-    zIndex: 80,
-    minWidth: 190,
-    padding: 6,
-    borderRadius: 16,
-    border: "1px solid rgba(255,255,255,0.1)",
-    background: "rgba(10,10,14,0.96)",
-    backdropFilter: "blur(14px)",
-    WebkitBackdropFilter: "blur(14px)",
-    boxShadow: "0 18px 38px rgba(0,0,0,0.45)",
-  } as const,
-
-  menuItem: {
-    width: "100%",
-    minHeight: 38,
-    border: "none",
-    borderRadius: 12,
-    padding: "9px 11px",
-    color: "rgba(255,255,255,0.9)",
-    background: "transparent",
-    fontSize: 13,
-    fontWeight: 700,
-    textAlign: "left",
-    cursor: "pointer",
-  } as const,
-
-  dangerMenuItem: {
-    color: "rgba(255,165,165,0.98)",
   } as const,
 
   error: {

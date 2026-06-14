@@ -295,20 +295,7 @@ export async function followUser(input: FollowUserInput): Promise<void> {
     throw new Error("Users cannot follow themselves.");
   }
 
-  const relationship = await getSocialRelationship({
-    currentUserId,
-    targetUserId,
-  });
-
-  if (!relationship.canFollow) {
-    throw new Error("Follow is not allowed.");
-  }
-
   const batch = writeBatch(db);
-
-  const followingRef = getFollowingDocRef(currentUserId, targetUserId);
-
-  const followerRef = getFollowerDocRef(targetUserId, currentUserId);
 
   const followingData: UserFollowingDoc = {
     userId: currentUserId,
@@ -322,9 +309,8 @@ export async function followUser(input: FollowUserInput): Promise<void> {
     createdAt: serverTimestamp() as never,
   };
 
-  batch.set(followingRef, followingData);
-  batch.set(followerRef, followerData);
-
+  batch.set(getFollowingDocRef(currentUserId, targetUserId), followingData);
+  batch.set(getFollowerDocRef(targetUserId, currentUserId), followerData);
   batch.update(getUserDocRef(targetUserId), {
     followersCount: increment(1),
     updatedAt: serverTimestamp(),
@@ -342,27 +328,14 @@ export async function unfollowUser(
     throw new Error("Missing required user ids.");
   }
 
-  const [followingDoc, targetUserDoc] = await Promise.all([
-    getDoc(getFollowingDocRef(currentUserId, targetUserId)),
-    getDoc(getUserDocRef(targetUserId)),
-  ]);
-
-  const currentFollowersCount =
-    typeof targetUserDoc.data()?.followersCount === "number"
-      ? targetUserDoc.data()?.followersCount
-      : 0;
-
   const batch = writeBatch(db);
 
   batch.delete(getFollowingDocRef(currentUserId, targetUserId));
   batch.delete(getFollowerDocRef(targetUserId, currentUserId));
-
-  if (followingDoc.exists() && currentFollowersCount > 0) {
-    batch.update(getUserDocRef(targetUserId), {
-      followersCount: increment(-1),
-      updatedAt: serverTimestamp(),
-    });
-  }
+  batch.update(getUserDocRef(targetUserId), {
+    followersCount: increment(-1),
+    updatedAt: serverTimestamp(),
+  });
 
   await batch.commit();
 }

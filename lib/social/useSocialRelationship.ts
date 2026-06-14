@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   blockUser,
@@ -25,6 +25,7 @@ const EMPTY_RELATIONSHIP: SocialRelationshipStatus = {
 type UseSocialRelationshipResult = {
   relationship: SocialRelationshipStatus;
   loading: boolean;
+  actionLoading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
   follow: () => Promise<void>;
@@ -43,6 +44,9 @@ export function useSocialRelationship(
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const relationshipRef = useRef(relationship);
+  const followInFlightRef = useRef(false);
+  useEffect(() => { relationshipRef.current = relationship; }, [relationship]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -93,33 +97,43 @@ export function useSocialRelationship(
 
   const follow = useCallback(async () => {
     if (!currentUserId || !targetUserId) return;
+    if (followInFlightRef.current) return;
 
-    setActionLoading(true);
+    followInFlightRef.current = true;
     setError(null);
+
+    const prev = relationshipRef.current;
+    setRelationship((r) => ({ ...r, isFollowing: true }));
 
     try {
       await followUser({ currentUserId, targetUserId });
     } catch (err) {
       console.error("Error following user:", err);
+      setRelationship(prev);
       setError("No se pudo seguir este perfil.");
     } finally {
-      setActionLoading(false);
+      followInFlightRef.current = false;
     }
   }, [currentUserId, targetUserId]);
 
   const unfollow = useCallback(async () => {
     if (!currentUserId || !targetUserId) return;
+    if (followInFlightRef.current) return;
 
-    setActionLoading(true);
+    followInFlightRef.current = true;
     setError(null);
+
+    const prev = relationshipRef.current;
+    setRelationship((r) => ({ ...r, isFollowing: false }));
 
     try {
       await unfollowUser({ currentUserId, targetUserId });
     } catch (err) {
       console.error("Error unfollowing user:", err);
+      setRelationship(prev);
       setError("No se pudo dejar de seguir este perfil.");
     } finally {
-      setActionLoading(false);
+      followInFlightRef.current = false;
     }
   }, [currentUserId, targetUserId]);
 
@@ -164,5 +178,6 @@ export function useSocialRelationship(
     unfollow,
     block,
     unblock,
+    actionLoading,
   };
 }

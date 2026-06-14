@@ -78,6 +78,8 @@ export default function StoryViewer({
   const [instructions, setInstructions] = useState<string | null>(null);
   const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
   const [speechHighlight, setSpeechHighlight] = useState<{ start: number; length: number } | null>(null);
+  const [speechRate, setSpeechRate] = useState<1 | 1.4 | 1.8>(1);
+  const speechRateRef = useRef<number>(1);
   const contextDragStartY = useRef<number | null>(null);
   const speechOffsetRef = useRef(0);
   const speechGenRef = useRef(0);
@@ -91,6 +93,8 @@ export default function StoryViewer({
   const viewedInSessionRef = useRef<Set<string>>(new Set());
   const viewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const holdingRef = useRef(false);
+  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressNextClickRef = useRef(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -178,7 +182,7 @@ export default function StoryViewer({
     setSpeechHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
     const utterance = new SpeechSynthesisUtterance(text.slice(charIndex));
     utterance.lang = "es-MX";
-    utterance.rate = 1.5;
+    utterance.rate = speechRateRef.current;
     utterance.pitch = 1;
     utterance.onboundary = (e) => {
       if (speechGenRef.current !== gen) return;
@@ -218,6 +222,15 @@ export default function StoryViewer({
     }
     startSpeechFrom(0);
   }, [speechState, startSpeechFrom]);
+
+  const handleCycleRate = useCallback(() => {
+    const next: 1 | 1.4 | 1.8 = speechRate === 1 ? 1.4 : speechRate === 1.4 ? 1.8 : 1;
+    speechRateRef.current = next;
+    setSpeechRate(next);
+    if (speechState !== "idle") {
+      startSpeechFrom(speechHighlight?.start ?? speechOffsetRef.current);
+    }
+  }, [speechRate, speechState, startSpeechFrom, speechHighlight]);
 
   const handleTextSeek = useCallback((e: React.MouseEvent<HTMLParagraphElement>) => {
     e.stopPropagation();
@@ -357,9 +370,12 @@ export default function StoryViewer({
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0]?.clientX ?? null;
     touchStartYRef.current = e.touches[0]?.clientY ?? null;
-    if (!greetOpen && videoRef.current) {
-      holdingRef.current = true;
-      videoRef.current.pause();
+    if (!greetOpen) {
+      holdTimerRef.current = setTimeout(() => {
+        holdTimerRef.current = null;
+        holdingRef.current = true;
+        videoRef.current?.pause();
+      }, 250);
     }
   }, [greetOpen]);
 
@@ -371,6 +387,12 @@ export default function StoryViewer({
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
+      // Cancel hold timer if the finger lifted before the 250ms threshold
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+
       const startX = touchStartXRef.current;
       const startY = touchStartYRef.current;
       touchStartXRef.current = null;
@@ -398,9 +420,10 @@ export default function StoryViewer({
         }
         return;
       }
-      // Tap or lift with no swipe → resume video
+      // Real hold release → resume video and suppress the onClick that follows
       if (holdingRef.current) {
         holdingRef.current = false;
+        suppressNextClickRef.current = true;
         if (!greetOpen && videoRef.current) {
           videoRef.current.play().catch(() => {});
         }
@@ -572,8 +595,8 @@ export default function StoryViewer({
       })()}
 
       {/* Tap zones */}
-      <button type="button" aria-label="Historia anterior" onClick={() => goTo(index - 1)} style={{ position: "absolute", top: 0, left: 0, width: "35%", height: "100%", background: "none", border: "none", cursor: index > 0 ? "w-resize" : "default", zIndex: 5 }} />
-      <button type="button" aria-label="Historia siguiente" onClick={() => goTo(index + 1)} style={{ position: "absolute", top: 0, right: 0, width: "65%", height: "100%", background: "none", border: "none", cursor: "e-resize", zIndex: 5 }} />
+      <button type="button" aria-label="Historia anterior" onClick={() => { if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; } goTo(index - 1); }} style={{ position: "absolute", top: 0, left: 0, width: "35%", height: "100%", background: "none", border: "none", cursor: index > 0 ? "w-resize" : "default", zIndex: 5 }} />
+      <button type="button" aria-label="Historia siguiente" onClick={() => { if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; } goTo(index + 1); }} style={{ position: "absolute", top: 0, right: 0, width: "65%", height: "100%", background: "none", border: "none", cursor: "e-resize", zIndex: 5 }} />
 
       {(showClose || onCloseCarousel) && (
         <div
@@ -687,6 +710,17 @@ export default function StoryViewer({
               >
                 {/* Header row: play/stop + close — always visible */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "8px 10px 4px", flexShrink: 0 }}>
+                  {speechState !== "idle" && (
+                    <button
+                      type="button"
+                      aria-label="Cambiar velocidad de lectura"
+                      onTouchStart={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); handleCycleRate(); }}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.75)", padding: "4px 6px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginRight: 6, fontSize: 12, fontWeight: 700, letterSpacing: "-0.3px" }}
+                    >
+                      {speechRate}×
+                    </button>
+                  )}
                   <button
                     type="button"
                     aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer contexto"}

@@ -348,6 +348,8 @@ export default function GreetingReviewOverlay({
   // TTS state
   const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
   const [speechHighlight, setSpeechHighlight] = useState<{ start: number; length: number } | null>(null);
+  const [speechRate, setSpeechRate] = useState<1 | 1.4 | 1.8>(1);
+  const speechRateRef = useRef<number>(1);
   const speechOffsetRef = useRef(0);
   const speechGenRef = useRef(0);
   const speechTextRef = useRef<HTMLParagraphElement>(null);
@@ -1057,7 +1059,7 @@ export default function GreetingReviewOverlay({
     setSpeechHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
     const utterance = new SpeechSynthesisUtterance(text.slice(charIndex));
     utterance.lang = "es-MX";
-    utterance.rate = 1.5;
+    utterance.rate = speechRateRef.current;
     utterance.pitch = 1;
     utterance.onboundary = (e) => {
       if (speechGenRef.current !== gen || e.name !== "word") return;
@@ -1087,6 +1089,15 @@ export default function GreetingReviewOverlay({
     if (speechState === "paused") { window.speechSynthesis.resume(); setSpeechState("playing"); return; }
     startSpeechFrom(0);
   }, [speechState, startSpeechFrom]);
+
+  const handleCycleRate = useCallback(() => {
+    const next: 1 | 1.4 | 1.8 = speechRate === 1 ? 1.4 : speechRate === 1.4 ? 1.8 : 1;
+    speechRateRef.current = next;
+    setSpeechRate(next);
+    if (speechState !== "idle") {
+      startSpeechFrom(speechHighlight?.start ?? speechOffsetRef.current);
+    }
+  }, [speechRate, speechState, startSpeechFrom, speechHighlight]);
 
   const handleTextSeek = useCallback((e: React.MouseEvent<HTMLParagraphElement>) => {
     e.stopPropagation();
@@ -1383,6 +1394,16 @@ export default function GreetingReviewOverlay({
             <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, flex: 1 }}>
               {req.type === "consejo" ? "¿Cuál es el contexto del consejo?" : "¿Cuál es el contexto del saludo?"}
             </span>
+            {speechState !== "idle" && (
+              <button
+                type="button"
+                aria-label="Cambiar velocidad de lectura"
+                onClick={handleCycleRate}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.55)", padding: "2px 4px", display: "flex", alignItems: "center", flexShrink: 0, fontSize: 11, fontWeight: 700, letterSpacing: "-0.3px" }}
+              >
+                {speechRate}×
+              </button>
+            )}
             <button
               type="button"
               aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer contexto"}

@@ -55,6 +55,7 @@ import ProfileGroupsTab from "./components/ProfileSubnav/ProfileGroupsTab";
 import ProfileSettingsTab from "./components/ProfileSubnav/ProfileSettingsTab";
 import ProfileServicesTab from "./components/ProfileSubnav/ProfileServicesTab";
 import ProfileSocialActions from "./components/ProfileSocialActions";
+import ProfileMoreMenu from "./components/ProfileMoreMenu";
 import SharedCommunitiesBadge from "./components/SharedCommunitiesBadge";
 import ProfileFollowersOverlay from "./components/ProfileFollowersOverlay";
 import GroupPostComposer from "@/app/groups/[groupId]/components/posts/GroupPostComposer";
@@ -1771,6 +1772,10 @@ await createExclusiveSessionRequest({
       right: 18,
       top: 18,
       zIndex: 40,
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
     }}
   >
     <CopyLinkButton
@@ -1789,6 +1794,10 @@ await createExclusiveSessionRequest({
         backdropFilter: "blur(10px)",
         WebkitBackdropFilter: "blur(10px)",
       }}
+    />
+    <ProfileMoreMenu
+      viewerUid={viewer?.uid}
+      profileUid={userDoc.uid}
     />
   </div>
   )}
