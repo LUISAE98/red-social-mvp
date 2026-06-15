@@ -49,6 +49,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [muted, setMuted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [isPortrait, setIsPortrait] = useState(initialPortrait);
+  const [controlsVisible, setControlsVisible] = useState(true);
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
@@ -151,6 +152,11 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     if (!isEnded && !isBanned) return;
     videoRef.current?.pause();
   }, [isEnded, isBanned]);
+
+  // Al terminar el live, mostrar controles para que el usuario vea "Finalizado" y pueda cerrar
+  useEffect(() => {
+    if (isEnded) setControlsVisible(true);
+  }, [isEnded]);
 
   if (!mounted || !shouldRender) return null;
 
@@ -526,19 +532,33 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // MOBILE — portrait: fullscreen + overlay chat
   // ══════════════════════════════════════════════════════════════════════════
   if (isPortrait) {
+    const ctrlStyle: CSSProperties = {
+      opacity: controlsVisible ? 1 : 0,
+      pointerEvents: controlsVisible ? "auto" : "none",
+      transition: "opacity 0.25s ease",
+    };
     return createPortal(
       <>
         <style>{keyframes}</style>
         <div
           style={{ position: "fixed", inset: 0, zIndex: 10000, background: "#000", display: "flex", flexDirection: "column" }}
         >
-          <div style={{ position: "relative", flex: 1, minHeight: 0, height: "100%" }}>
+          <div
+            style={{ position: "relative", flex: 1, minHeight: 0, height: "100%" }}
+            onClick={() => { if (!isEnded) setControlsVisible(v => !v); }}
+          >
             {renderVideo("cover")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
-            {renderHeader(true, false)}
+
+            {/* Badge siempre visible — cambia de EN VIVO a Finalizado al terminar */}
             {renderLiveBadge("top-center")}
-            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="overlay" />
+
+            {/* Header y chat se ocultan con tap */}
+            <div style={ctrlStyle}>{renderHeader(true, false)}</div>
+            <div style={ctrlStyle}>
+              <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="overlay" />
+            </div>
           </div>
         </div>
       </>,
