@@ -198,8 +198,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         display: "flex", alignItems: "center", justifyContent: "space-between",
         paddingTop: safeTop ? "max(12px, env(safe-area-inset-top))" : 12,
         paddingBottom: 12,
-        paddingLeft: 14,
-        paddingRight: 14,
+        paddingLeft: "max(14px, env(safe-area-inset-left))",
+        paddingRight: "max(14px, env(safe-area-inset-right))",
       }}>
         {showTitle && liveData?.title ? (
           <span style={{
@@ -341,7 +341,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           zIndex: 10,
         }
       : {
-          position: "absolute", bottom: 14, right: 14, zIndex: 10,
+          position: "absolute",
+          bottom: "max(14px, env(safe-area-inset-bottom))",
+          right: "max(14px, env(safe-area-inset-right))",
+          zIndex: 10,
         };
 
     const sharedStyle: CSSProperties = {
@@ -642,16 +645,19 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     const needsRotation = screenIsPortrait;
     return createPortal(
       <>
-        {/* vh/dvh fallback: dvh soportado en iOS 16+ y Android moderno */}
-        <style>{`${keyframes}.lvm-hz-rot{width:100vh;width:100dvh;height:100vw;height:100dvw}`}</style>
+        {/*
+          lvm-hz-rot: truco CSS para mostrar contenido landscape en pantalla portrait.
+          Matemática: element (dvh×dvw) → translateY(-100%) sube el elemento dvw px
+          → rotate(90deg) desde top-left lo mapea exactamente a la pantalla portrait.
+          Fallback vh/vw para iOS ≤ 15; dvh/dvw para iOS 16+.
+        */}
+        <style>{`${keyframes}.lvm-hz-rot{width:100vh;width:100dvh;height:100vw;height:100dvw;transform:rotate(90deg) translateY(-100%)}`}</style>
         <div
           className={needsRotation ? "lvm-hz-rot" : undefined}
           style={needsRotation ? {
-            // Rotamos el container 90deg CW desde top-left:
-            // ancho=dvh, alto=dvw → después de rotar ocupa exactamente la pantalla portrait
+            // width/height/transform vienen de .lvm-hz-rot (necesita fallback vh/vw)
             position: "fixed", top: 0, left: 0,
             transformOrigin: "top left",
-            transform: "rotate(90deg)",
             zIndex: 10001, background: "#000", overflow: "hidden",
           } : {
             // Pantalla ya en landscape: llenar normalmente
@@ -729,7 +735,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           {renderVideo("cover")}
           {renderEndedOverlay()}
           {renderBannedOverlay()}
-          {renderHeader(false, false)}
+          {renderHeader(true, false)}
           {renderLiveBadge()}
         </div>
 
