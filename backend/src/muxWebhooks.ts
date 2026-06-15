@@ -201,6 +201,34 @@ async function markGreetingAssetReady(params: {
   });
 }
 
+async function markDonationVideoAssetReady(params: {
+  profileId: string;
+  assetId: string;
+  playbackId: string;
+  duration: number | null;
+  uploadRef: DocumentReference<DocumentData> | null;
+}) {
+  const { profileId, assetId, playbackId, duration, uploadRef } = params;
+  const now = FieldValue.serverTimestamp();
+  const hlsUrl = `https://stream.mux.com/${playbackId}.m3u8`;
+
+  await db.collection("users").doc(profileId).update({
+    "donation.playbackId": playbackId,
+    "donation.videoUrl": hlsUrl,
+    "donation.videoStatus": "ready",
+    updatedAt: now,
+  });
+
+  if (uploadRef) {
+    await uploadRef.set(
+      { status: "ready", assetId, playbackId, duration, hlsUrl, updatedAt: now },
+      { merge: true }
+    );
+  }
+
+  logger.info("muxWebhook donation video asset.ready processed", { profileId, assetId, playbackId });
+}
+
 async function markAssetReady(event: MuxWebhookEvent) {
   const assetId = event.data?.id ?? null;
   const uploadId = event.data?.upload_id ?? null;
@@ -286,6 +314,39 @@ async function markAssetReady(event: MuxWebhookEvent) {
       (typeof uploadData.greetingRequestId === "string"
         ? uploadData.greetingRequestId
         : null);
+  }
+
+  // Handle donation video uploads — update profile donation settings, no post document
+  const isDonationVideo =
+    passthrough.source === "vibra-donation-video" ||
+    (uploadRef &&
+      (await uploadRef.get().then((s) => s.data()?.source === "donation")));
+
+  if (isDonationVideo) {
+    const resolvedProfileId =
+      profileId ??
+      (uploadRef
+        ? await uploadRef.get().then((s) => s.data()?.profileId ?? null)
+        : null);
+
+    if (!resolvedProfileId || !assetId || !playbackId) {
+      logger.warn("muxWebhook donation video asset.ready missing data", {
+        profileId: resolvedProfileId,
+        assetId,
+        playbackId,
+        uploadId,
+      });
+      return;
+    }
+
+    await markDonationVideoAssetReady({
+      profileId: resolvedProfileId,
+      assetId,
+      playbackId,
+      duration,
+      uploadRef,
+    });
+    return;
   }
 
   // Handle greeting uploads separately — no post document to update

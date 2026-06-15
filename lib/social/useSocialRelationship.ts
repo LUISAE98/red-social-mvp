@@ -28,8 +28,8 @@ type UseSocialRelationshipResult = {
   actionLoading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
-  follow: () => Promise<void>;
-  unfollow: () => Promise<void>;
+  follow: () => void;
+  unfollow: () => void;
   block: () => Promise<void>;
   unblock: () => Promise<void>;
 };
@@ -45,8 +45,11 @@ export function useSocialRelationship(
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const relationshipRef = useRef(relationship);
-  const followInFlightRef = useRef(false);
+  const followServerStateRef = useRef(false);
+  const followPendingRef = useRef<boolean | null>(null);
+  const followDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => { relationshipRef.current = relationship; }, [relationship]);
+  useEffect(() => { followServerStateRef.current = relationship.isFollowing; }, [relationship.isFollowing]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -92,50 +95,53 @@ export function useSocialRelationship(
 
     return () => {
       unsubscribe();
+      if (followDebounceRef.current !== null) {
+        clearTimeout(followDebounceRef.current);
+        followDebounceRef.current = null;
+      }
+      followPendingRef.current = null;
     };
   }, [currentUserId, targetUserId]);
 
-  const follow = useCallback(async () => {
+  const scheduleFollowRequest = useCallback((desired: boolean) => {
+    if (followDebounceRef.current !== null) clearTimeout(followDebounceRef.current);
+
+    followDebounceRef.current = setTimeout(async () => {
+      followDebounceRef.current = null;
+      followPendingRef.current = null;
+
+      if (desired === followServerStateRef.current) return;
+
+      const serverState = followServerStateRef.current;
+      try {
+        if (desired) {
+          await followUser({ currentUserId: currentUserId!, targetUserId: targetUserId! });
+        } else {
+          await unfollowUser({ currentUserId: currentUserId!, targetUserId: targetUserId! });
+        }
+      } catch (err) {
+        console.error("Error follow/unfollow:", err);
+        setRelationship((r) => ({ ...r, isFollowing: serverState }));
+        setError("No se pudo actualizar el seguimiento.");
+      }
+    }, 400);
+  }, [currentUserId, targetUserId]);
+
+  const follow = useCallback(() => {
     if (!currentUserId || !targetUserId) return;
-    if (followInFlightRef.current) return;
-
-    followInFlightRef.current = true;
     setError(null);
-
-    const prev = relationshipRef.current;
+    followPendingRef.current = true;
     setRelationship((r) => ({ ...r, isFollowing: true }));
+    scheduleFollowRequest(true);
+  }, [currentUserId, targetUserId, scheduleFollowRequest]);
 
-    try {
-      await followUser({ currentUserId, targetUserId });
-    } catch (err) {
-      console.error("Error following user:", err);
-      setRelationship(prev);
-      setError("No se pudo seguir este perfil.");
-    } finally {
-      followInFlightRef.current = false;
-    }
-  }, [currentUserId, targetUserId]);
-
-  const unfollow = useCallback(async () => {
+  const unfollow = useCallback(() => {
     if (!currentUserId || !targetUserId) return;
-    if (followInFlightRef.current) return;
-
-    followInFlightRef.current = true;
     setError(null);
-
-    const prev = relationshipRef.current;
+    followPendingRef.current = false;
     setRelationship((r) => ({ ...r, isFollowing: false }));
-
-    try {
-      await unfollowUser({ currentUserId, targetUserId });
-    } catch (err) {
-      console.error("Error unfollowing user:", err);
-      setRelationship(prev);
-      setError("No se pudo dejar de seguir este perfil.");
-    } finally {
-      followInFlightRef.current = false;
-    }
-  }, [currentUserId, targetUserId]);
+    scheduleFollowRequest(false);
+  }, [currentUserId, targetUserId, scheduleFollowRequest]);
 
   const block = useCallback(async () => {
     if (!currentUserId || !targetUserId) return;

@@ -147,7 +147,7 @@ export {
 export { onGroupMembershipMetaUpdated } from "./groupMembershipsSync";
 
 // Mux uploads
-export { createMuxDirectUpload } from "./muxUploads";
+export { createMuxDirectUpload, createMuxDonationUpload } from "./muxUploads";
 
 // Mux webhooks
 export { muxWebhook } from "./muxWebhooks";

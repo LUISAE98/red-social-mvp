@@ -64,6 +64,7 @@ type PostComposerDesktopOverlayProps = {
 
   onSubmit: () => void | Promise<void>;
   onOpenMediaPicker: () => void;
+  onLiveClick?: () => void;
   onRemoveMedia: (index: number) => void;
   onChooseVideoCover: (videoId: string) => void;
 
@@ -176,6 +177,7 @@ export default function PostComposerDesktopOverlay({
   isEditMode = false,
   onSubmit,
   onOpenMediaPicker,
+  onLiveClick,
   onRemoveMedia,
   onChooseVideoCover,
   onPreviewPointerDown,
@@ -576,32 +578,62 @@ style={{
     gap: 12,
   }}
 >
-  <button
-    type="button"
-    onClick={onOpenMediaPicker}
-    disabled={creating || isPreparingImages}
-    title="Agregar fotos o videos"
-    aria-label="Agregar fotos o videos"
-    style={{
-      width: 42,
-      height: 42,
-      borderRadius: 0,
-      border: "none",
-      background: "transparent",
-      color: "#a855ff",
-      display: "grid",
-      placeItems: "center",
-      cursor: creating || isPreparingImages ? "not-allowed" : "pointer",
-      opacity: creating || isPreparingImages ? 0.45 : 1,
-      padding: 0,
-    }}
-  >
-    <VibraNavigationIcon
-      type="attachMedia"
-      size={30}
-      strokeWidth={2.1}
-    />
-  </button>
+  <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+    <button
+      type="button"
+      onClick={onOpenMediaPicker}
+      disabled={creating || isPreparingImages}
+      title="Agregar fotos o videos"
+      aria-label="Agregar fotos o videos"
+      style={{
+        width: 42,
+        height: 42,
+        borderRadius: 0,
+        border: "none",
+        background: "transparent",
+        color: "#a855ff",
+        display: "grid",
+        placeItems: "center",
+        cursor: creating || isPreparingImages ? "not-allowed" : "pointer",
+        opacity: creating || isPreparingImages ? 0.45 : 1,
+        padding: 0,
+      }}
+    >
+      <VibraNavigationIcon
+        type="attachMedia"
+        size={30}
+        strokeWidth={2.1}
+      />
+    </button>
+
+    {onLiveClick && !isEditMode && (
+      <button
+        type="button"
+        onClick={onLiveClick}
+        disabled={creating}
+        title="Programar live"
+        aria-label="Programar live"
+        style={{
+          width: 32,
+          height: 42,
+          borderRadius: 0,
+          border: "none",
+          background: "transparent",
+          color: "#a855ff",
+          display: "grid",
+          placeItems: "center",
+          cursor: creating ? "not-allowed" : "pointer",
+          opacity: creating ? 0.45 : 1,
+          padding: 0,
+        }}
+      >
+        <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+          <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
+          <circle cx="11" cy="11" r="6" fill="#ef4444" />
+        </svg>
+      </button>
+    )}
+  </div>
 
   <div>
     {premiumComposer.canEnablePremium && !isEditMode ? (

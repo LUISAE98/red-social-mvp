@@ -750,6 +750,8 @@ export default function GroupRecommendationsRail({
             overflowX: "auto",
             scrollSnapType: "x mandatory",
             paddingBottom: 4,
+            paddingLeft: 12,
+            paddingRight: 12,
           }}
         >
           {result.groups.map((group) => (

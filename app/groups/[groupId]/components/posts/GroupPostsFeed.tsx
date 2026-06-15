@@ -1468,7 +1468,7 @@ const shellStyle: CSSProperties = {
         <div style={cardShellStyle}>
           <GroupPostComposer
             onSubmit={handleCreatePost}
-            onLiveClick={() => setIsLiveModalOpen(true)}
+            onLiveClick={isOwner ? () => setIsLiveModalOpen(true) : undefined}
             groupVisibility={groupVisibility}
             isOwner={isOwner}
           />

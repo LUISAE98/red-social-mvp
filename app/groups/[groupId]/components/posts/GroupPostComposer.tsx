@@ -923,6 +923,11 @@ export default function GroupPostComposer({
     }
   }
 
+  function handleLiveClickFromOverlay() {
+    setIsComposerOverlayOpen(false);
+    onLiveClick?.();
+  }
+
   async function handleSubmit() {
     if (creating || !hasContent) return;
 
@@ -1205,16 +1210,13 @@ const launcherButtonStyle: CSSProperties = {
                   <svg
                     width="22"
                     height="22"
-                    viewBox="0 0 24 24"
+                    viewBox="0 0 22 22"
                     fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2.1}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
                   >
-                    <circle cx="12" cy="12" r="2" />
-                    <path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 7.76a6 6 0 0 0 0 8.49" />
-                    <path d="M20.66 4.34a12 12 0 0 1 0 15.32M3.34 4.34a12 12 0 0 0 0 15.32" />
+                    {/* Círculo exterior delgado */}
+                    <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
+                    {/* Círculo relleno interior */}
+                    <circle cx="11" cy="11" r="6" fill="#ef4444" />
                   </svg>
                 </button>
               )}
@@ -1255,6 +1257,7 @@ const launcherButtonStyle: CSSProperties = {
           isReorderingPreview={isReorderingPreview}
           onSubmit={handleSubmit}
           onOpenMediaPicker={handleOpenMediaPicker}
+          onLiveClick={onLiveClick ? handleLiveClickFromOverlay : undefined}
           onRemoveMedia={handleRemoveMedia}
           onChooseVideoCover={handleChooseVideoCover}
           onPreviewPointerDown={handlePreviewPointerDown}
@@ -1291,6 +1294,7 @@ const launcherButtonStyle: CSSProperties = {
           isReorderingPreview={isReorderingPreview}
           onSubmit={handleSubmit}
           onOpenMediaPicker={handleOpenMediaPicker}
+          onLiveClick={onLiveClick ? handleLiveClickFromOverlay : undefined}
           onRemoveMedia={handleRemoveMedia}
           onChooseVideoCover={handleChooseVideoCover}
           onPreviewPointerDown={handlePreviewPointerDown}

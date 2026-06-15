@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   collection,
   documentId,
@@ -221,7 +222,9 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     const groups = storyGroupsRef.current;
     const currentKey = activeGroupRef.current?.key;
     const currentIdx = currentKey ? groups.findIndex((g) => g.key === currentKey) : -1;
-    if (currentIdx > 0) setActiveGroup(groups[currentIdx - 1]);
+    if (currentIdx > 0) {
+      setActiveGroup(groups[currentIdx - 1]);
+    }
   }, []);
 
   if (storyGroups.length === 0) return null;
@@ -249,7 +252,8 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
             <button
               key={group.key}
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 if (isDesktop) {
                   const idx = storyGroups.findIndex((g) => g.key === group.key);
                   setDesktopOpen({ groups: storyGroups, initialIdx: idx >= 0 ? idx : 0 });
@@ -271,8 +275,9 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                 position: "relative",
               }}
             >
-              {/* Ring */}
-              <div
+              {/* Ring — layoutId enables hero transition to StoryViewer on mobile */}
+              <motion.div
+                layoutId={`story-${group.key}`}
                 style={{
                   width: 80,
                   height: 80,
@@ -309,7 +314,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                     <span style={{ fontSize: 22, lineHeight: 1 }}>{emoji}</span>
                   )}
                 </div>
-              </div>
+              </motion.div>
               {/* Name */}
               <span
                 style={{
@@ -343,17 +348,20 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
       )}
 
       {/* Mobile: tap navigates within group; swipe or exhaustion changes group; swipe-down closes */}
-      {activeGroup && (
-        <StoryViewer
-          key={activeGroup.key}
-          stories={activeGroup.stories}
-          initialIndex={activeGroup.startIndex}
-          onClose={() => setActiveGroup(null)}
-          onGroupFinished={handleMobileGroupFinished}
-          onPrevGroup={handleMobileGroupBack}
-          onStoryViewed={handleStoryViewed}
-        />
-      )}
+      <AnimatePresence>
+        {activeGroup && (
+          <StoryViewer
+            key={activeGroup.key}
+            stories={activeGroup.stories}
+            initialIndex={activeGroup.startIndex}
+            onClose={() => setActiveGroup(null)}
+            onGroupFinished={handleMobileGroupFinished}
+            onPrevGroup={handleMobileGroupBack}
+            onStoryViewed={handleStoryViewed}
+            layoutId={`story-${activeGroup.key}`}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 }

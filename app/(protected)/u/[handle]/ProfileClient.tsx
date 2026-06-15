@@ -31,7 +31,6 @@ import { httpsCallable } from "firebase/functions";
 import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
 import CreatorServicesMenu from "@/components/services/CreatorServicesMenu";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
-import DonationAccessButton from "@/components/services/DonationAccessButton";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import {
@@ -56,6 +55,7 @@ import ProfileSettingsTab from "./components/ProfileSubnav/ProfileSettingsTab";
 import ProfileServicesTab from "./components/ProfileSubnav/ProfileServicesTab";
 import ProfileSocialActions from "./components/ProfileSocialActions";
 import ProfileMoreMenu from "./components/ProfileMoreMenu";
+import DonationViewer from "./components/DonationViewer";
 import SharedCommunitiesBadge from "./components/SharedCommunitiesBadge";
 import ProfileFollowersOverlay from "./components/ProfileFollowersOverlay";
 import GroupPostComposer from "@/app/groups/[groupId]/components/posts/GroupPostComposer";
@@ -323,6 +323,7 @@ export default function ProfileClient() {
   const [coverRenderUrl, setCoverRenderUrl] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<ProfileTabKey>("posts");
+  const [donationViewerOpen, setDonationViewerOpen] = useState(false);
   const [greetOpen, setGreetOpen] = useState(false);
 const [greetSubmitting, setGreetSubmitting] = useState(false);
 const [greetType, setGreetType] = useState<GreetingType>("saludo");
@@ -1738,31 +1739,6 @@ await createExclusiveSessionRequest({
   />
 </div>
 
-              {!shouldHideProfileSocialContent && (
-                <DonationAccessButton
-  donation={userDoc.donation ?? null}
-  disabled={!viewer}
-  onClick={() => {
-    if (!viewer) {
-      redirectToLogin();
-      return;
-    }
-
-    if (isOwner) {
-      setServiceToast("No puedes donar a tu propio perfil.");
-      return;
-    }
-
-    router.push(`/u/${userDoc.handle}?service=donacion`);
-  }}
-  style={{
-    position: "absolute",
-    left: 18,
-    top: 62,
-    zIndex: 30,
-  }}
-/>
-              )}
 
 <>
   {!shouldHideProfileSocialContent && (
@@ -2053,6 +2029,11 @@ await createExclusiveSessionRequest({
                     viewerUid={viewer?.uid ?? null}
                     profileUid={userDoc.uid}
                     profileRestricted={profileRestricted}
+                    donation={userDoc.donation ?? null}
+                    onDonate={() => {
+                      if (!viewer) { redirectToLogin(); return; }
+                      setDonationViewerOpen(true);
+                    }}
                   />
 
                   {shouldHideProfileSocialContent ? (
@@ -2485,6 +2466,17 @@ await createExclusiveSessionRequest({
   }}
   formatMoney={formatMoney}
 />
+
+      <DonationViewer
+        open={donationViewerOpen}
+        donation={userDoc.donation ?? null}
+        profileName={userDoc.displayName ?? userDoc.handle ?? null}
+        onClose={() => setDonationViewerOpen(false)}
+        onDonate={() => {
+          // Payment integration — coming soon
+          setDonationViewerOpen(false);
+        }}
+      />
 
       {profileStoriesOpen && profileRingStories.length > 0 && (
         <StoryViewer

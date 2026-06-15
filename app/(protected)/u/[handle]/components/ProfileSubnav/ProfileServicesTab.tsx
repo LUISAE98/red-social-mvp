@@ -7,7 +7,7 @@ import Greetings from "@/app/groups/[groupId]/components/owner-admin-panel/servi
 import Advice from "@/app/groups/[groupId]/components/owner-admin-panel/services/Advice";
 import MeetGreet from "@/app/groups/[groupId]/components/owner-admin-panel/services/MeetGreet";
 import CustomClass from "@/app/groups/[groupId]/components/owner-admin-panel/services/CustomClass";
-import Donation from "@/app/groups/[groupId]/components/owner-admin-panel/services/Donation";
+import ProfileDonation from "./ProfileDonation";
 
 import { updateProfileOfferings } from "@/lib/profile/updateProfileOfferings";
 
@@ -107,6 +107,8 @@ type ServiceDraft = {
   donationCurrency: Currency;
   donationMinimumAmount: string;
   donationGoalLabel: string;
+  donationVideoUrl: string;
+  donationPlaybackId: string;
   freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
   subscriptionToFreePolicy: SubscriptionToFreePolicy;
   subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;
@@ -174,6 +176,8 @@ function createEmptyDraft(): ServiceDraft {
     donationCurrency: "MXN",
     donationMinimumAmount: "",
     donationGoalLabel: "",
+    donationVideoUrl: "",
+    donationPlaybackId: "",
     freeToSubscriptionPolicy: "",
     subscriptionToFreePolicy: "",
     subscriptionPriceIncreasePolicy: "",
@@ -226,6 +230,8 @@ function pickDonation(donation: DonationInput) {
     currency: (donation?.currency ?? "MXN") as Currency,
     minimumAmount,
     goalLabel: typeof donation?.goalLabel === "string" ? donation.goalLabel : "",
+    videoUrl: typeof donation?.videoUrl === "string" ? donation.videoUrl : "",
+    playbackId: typeof donation?.playbackId === "string" ? donation.playbackId : "",
   };
 }
 
@@ -672,6 +678,8 @@ export default function ProfileServicesTab({
       donationCurrency: donation.currency ?? "MXN",
       donationMinimumAmount: donation.minimumAmount,
       donationGoalLabel: donation.goalLabel ?? "",
+      donationVideoUrl: donation.videoUrl ?? "",
+      donationPlaybackId: donation.playbackId ?? "",
       freeToSubscriptionPolicy: "",
       subscriptionToFreePolicy: "",
       subscriptionPriceIncreasePolicy: "",
@@ -948,6 +956,8 @@ export default function ProfileServicesTab({
           workingDraft.donationMode === "wedding"
             ? workingDraft.donationGoalLabel.trim() || null
             : null,
+        videoUrl: workingDraft.donationVideoUrl || null,
+        playbackId: workingDraft.donationPlaybackId || null,
       };
 
       skipHydrationWhileSavingRef.current = true;
@@ -1017,6 +1027,8 @@ export default function ProfileServicesTab({
           workingDraft.donationMode === "wedding"
             ? workingDraft.donationGoalLabel
             : "",
+        donationVideoUrl: workingDraft.donationVideoUrl,
+        donationPlaybackId: workingDraft.donationPlaybackId,
       };
 
             setDraft(nextSaved);
@@ -1051,7 +1063,7 @@ export default function ProfileServicesTab({
         formatMoney={formatMoney}
         SwitchComponent={Switch}
         OverlayModalComponent={OverlayModal}
-        onSaveDraft={saveServicesFromDraft}
+        onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
 
       <Advice
@@ -1067,7 +1079,7 @@ export default function ProfileServicesTab({
         formatMoney={formatMoney}
         SwitchComponent={Switch}
         OverlayModalComponent={OverlayModal}
-        onSaveDraft={saveServicesFromDraft}
+        onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
 
       <MeetGreet
@@ -1083,7 +1095,7 @@ export default function ProfileServicesTab({
         formatMoney={formatMoney}
         SwitchComponent={Switch}
         OverlayModalComponent={OverlayModal}
-        onSaveDraft={saveServicesFromDraft}
+        onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
 
       <CustomClass
@@ -1099,25 +1111,22 @@ export default function ProfileServicesTab({
         formatMoney={formatMoney}
         SwitchComponent={Switch}
         OverlayModalComponent={OverlayModal}
-        onSaveDraft={saveServicesFromDraft}
+        onSaveDraft={(d) => saveServicesFromDraft(d as unknown as ServiceDraft)}
       />
 
-      <Donation
+      <ProfileDonation
         draft={draft}
-        savedDraft={savedDraft}
         saving={saving}
-        removingLegacyMembers={false}
-        donationEmoji={SERVICE_EMOJIS.donation}
+        profileUserId={profileUserId}
         panelStyle={panelStyle}
         titleStyle={titleStyle}
         subtleStyle={subtleStyle}
         inputStyle={inputStyle}
         buttonSecondaryStyle={buttonSecondaryStyle}
-        calcNetAmount={calcNetAmount}
-        formatMoney={formatMoney}
-        OverlayModalComponent={OverlayModal}
+        SwitchComponent={Switch}
         DonationModeButtonComponent={DonationModeButton}
-        onSaveDraft={saveServicesFromDraft}
+        OverlayModalComponent={OverlayModal}
+        onSaveDraft={(d) => saveServicesFromDraft(d as ServiceDraft)}
       />
 
       {err && <div style={noticeStyle}>{err}</div>}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
@@ -33,6 +34,8 @@ type Props = {
   onPrevGroup?: () => void;
   /** When provided, renders a close button inside the panel calling this handler (used by carousel so the button animates with the panel). */
   onCloseCarousel?: () => void;
+  /** Shared layoutId matching the source avatar — enables Instagram-style hero transition via Framer Motion. */
+  layoutId?: string;
 };
 
 export function desktopPanelSize(): { width: number; height: number } {
@@ -51,6 +54,7 @@ export default function StoryViewer({
   contained = false,
   onPrevGroup,
   onCloseCarousel,
+  layoutId,
 }: Props) {
   const [index, setIndex] = useState(initialIndex);
   const [progress, setProgress] = useState(0);
@@ -404,9 +408,8 @@ export default function StoryViewer({
 
       if (!contained && dy > 80 && dy > Math.abs(dx)) {
         holdingRef.current = false;
-        setIsClosing(true);
-        setDragY(window.innerHeight);
-        setTimeout(onClose, 280);
+        setDragY(0);
+        onClose();
         return;
       }
       setDragY(0);
@@ -909,14 +912,29 @@ export default function StoryViewer({
   // ── Desktop: centered modal ───────────────────────────────────────────────
   if (isDesktop) {
     const { width: panelW, height: panelH } = desktopPanelSize();
+    const heroTransition = { type: "spring" as const, stiffness: 380, damping: 36, mass: 1 };
     return (
       <>
         {createPortal(
-          <div style={{ position: "fixed", inset: 0, zIndex: 99999, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center" }} onClick={onClose}>
-            <div style={{ position: "relative", width: panelW, height: panelH, borderRadius: 18, overflow: "hidden", background: "#000", flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
-              {renderPanelContent(12, true)}
-            </div>
-          </div>,
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{ position: "fixed", inset: 0, zIndex: 99999, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center" }}
+              onClick={onClose}
+            >
+              <motion.div
+                layoutId={layoutId}
+                transition={heroTransition}
+                style={{ position: "relative", width: panelW, height: panelH, borderRadius: 18, overflow: "hidden", background: "#000", flexShrink: 0 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {renderPanelContent(12, true)}
+              </motion.div>
+            </motion.div>
+          </>,
           document.body,
         )}
         {greetModal}
@@ -925,19 +943,40 @@ export default function StoryViewer({
   }
 
   // ── Mobile: fullscreen, swipe down to close ───────────────────────────────
+  const heroTransition = { type: "spring" as const, stiffness: 380, damping: 36, mass: 1 };
+
   return (
     <>
       {createPortal(
-        <div
-          className="story-viewer-root"
-          style={{ position: "fixed", inset: 0, zIndex: 99999, background: "#000", display: "flex", flexDirection: "column", touchAction: "none", userSelect: "none", WebkitUserSelect: "none", transform: `translateY(${dragY}px)`, transition: !isClosing && dragY > 0 ? "none" : "transform 0.28s ease, opacity 0.28s ease", opacity: 1 - Math.min(1, dragY / 300) } as React.CSSProperties}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          {renderPanelContent("env(safe-area-inset-top, 0px)", true, "env(safe-area-inset-bottom, 0px)")}
-        </div>,
+        <>
+          {/* Background overlay — fades independently */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            style={{ position: "fixed", inset: 0, background: "#000", zIndex: 99998, pointerEvents: "none" }}
+          />
+
+          {/* Story card — shared layout hero transition */}
+          <motion.div
+            layoutId={layoutId}
+            transition={heroTransition}
+            style={{ position: "fixed", inset: 0, zIndex: 99999, overflow: "hidden", borderRadius: 0 }}
+          >
+            {/* Inner div handles swipe drag offset */}
+            <div
+              className="story-viewer-root"
+              style={{ position: "absolute", inset: 0, background: "#000", display: "flex", flexDirection: "column", touchAction: "none", userSelect: "none", WebkitUserSelect: "none", transform: `translateY(${dragY}px)`, transition: dragY > 0 ? "none" : "transform 0.3s ease", opacity: 1 - Math.min(1, dragY / 300) } as React.CSSProperties}
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              {renderPanelContent("env(safe-area-inset-top, 0px)", true, "env(safe-area-inset-bottom, 0px)")}
+            </div>
+          </motion.div>
+        </>,
         document.body,
       )}
       {greetModal}

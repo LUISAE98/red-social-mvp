@@ -611,6 +611,8 @@ export function normalizeDonationSettings(
       description: null,
       suggestedAmounts: [],
       goalLabel: null,
+      videoUrl: null,
+      playbackId: null,
     };
   }
 
@@ -634,6 +636,14 @@ export function normalizeDonationSettings(
       typeof donation?.goalLabel === "string" &&
       donation.goalLabel.trim()
         ? donation.goalLabel.trim()
+        : null,
+    videoUrl:
+      typeof donation?.videoUrl === "string" && donation.videoUrl.trim()
+        ? donation.videoUrl.trim()
+        : null,
+    playbackId:
+      typeof donation?.playbackId === "string" && donation.playbackId.trim()
+        ? donation.playbackId.trim()
         : null,
   };
 }

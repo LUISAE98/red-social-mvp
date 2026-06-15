@@ -2588,6 +2588,7 @@ export async function createLivePost(params: {
   groupId: string;
   title: string;
   description?: string | null;
+  coverUrl?: string | null;
   scheduledStartAt?: Date | null;
 }): Promise<string>;
 export async function createLivePost(params: {
@@ -2595,6 +2596,7 @@ export async function createLivePost(params: {
   profileId: string;
   title: string;
   description?: string | null;
+  coverUrl?: string | null;
   scheduledStartAt?: Date | null;
 }): Promise<string>;
 export async function createLivePost(params: {
@@ -2603,6 +2605,7 @@ export async function createLivePost(params: {
   profileId?: string | null;
   title: string;
   description?: string | null;
+  coverUrl?: string | null;
   scheduledStartAt?: Date | null;
 }): Promise<string> {
   const cleanTitle = params.title.trim();
@@ -2633,6 +2636,7 @@ export async function createLivePost(params: {
     status: "upcoming",
     title: cleanTitle,
     description: params.description?.trim() || null,
+    coverUrl: params.coverUrl ?? null,
     scheduledStartAt,
     startedAt: null,
     endedAt: null,

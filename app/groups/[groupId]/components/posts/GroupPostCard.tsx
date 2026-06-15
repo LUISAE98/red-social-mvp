@@ -722,11 +722,13 @@ const [optimisticSavesCount, setOptimisticSavesCount] = useState(
 );
 
 useEffect(() => {
+  flameServerStateRef.current = post.viewerHasFlamed === true;
   setOptimisticViewerHasFlamed(post.viewerHasFlamed === true);
   setOptimisticLikesCount(post.counts?.likes ?? 0);
 }, [post.viewerHasFlamed, post.counts?.likes]);
 
 useEffect(() => {
+  saveServerStateRef.current = post.viewerHasSaved === true;
   setOptimisticViewerHasSaved(post.viewerHasSaved === true);
   setOptimisticSavesCount(post.counts?.saves ?? 0);
 }, [post.viewerHasSaved, post.counts?.saves]);
@@ -734,8 +736,12 @@ useEffect(() => {
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const flameUsersCacheRef = useRef<Record<string, PostFlameUser[]>>({});
-  const flameRequestInFlightRef = useRef(false);
-  const saveRequestInFlightRef = useRef(false);
+  const flameServerStateRef = useRef(post.viewerHasFlamed === true);
+  const flamePendingRef = useRef<boolean | null>(null);
+  const flameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveServerStateRef = useRef(post.viewerHasSaved === true);
+  const savePendingRef = useRef<boolean | null>(null);
+  const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const feedVideoShellRef = useRef<HTMLDivElement | null>(null);
 
@@ -1072,71 +1078,75 @@ useEffect(() => {
   }
 }
 
-async function handleToggleFlame() {
+function handleToggleFlame() {
   if (!currentUserId) {
     setInlineActionError("Inicia sesión para dar flamita.");
     return;
   }
+  if (!onToggleFlame) return;
 
-  if (!onToggleFlame || flameBusy || flameRequestInFlightRef.current) return;
-
-  flameRequestInFlightRef.current = true;
-
-  const previousViewerHasFlamed = optimisticViewerHasFlamed;
-  const previousLikesCount = optimisticLikesCount;
-  const nextViewerHasFlamed = !previousViewerHasFlamed;
-
-  setFlameBusy(true);
+  const nextState = !optimisticViewerHasFlamed;
+  flamePendingRef.current = nextState;
+  setOptimisticViewerHasFlamed(nextState);
+  setOptimisticLikesCount((c) => Math.max(0, c + (nextState ? 1 : -1)));
   setInlineActionError(null);
-  setOptimisticViewerHasFlamed(nextViewerHasFlamed);
-  setOptimisticLikesCount((current) =>
-    Math.max(0, current + (nextViewerHasFlamed ? 1 : -1))
-  );
 
-  try {
-    await onToggleFlame(post.id);
-    delete flameUsersCacheRef.current[post.id];
-  } catch (e: any) {
-    setOptimisticViewerHasFlamed(previousViewerHasFlamed);
-    setOptimisticLikesCount(previousLikesCount);
-    setInlineActionError(e?.message ?? "No se pudo actualizar la flamita.");
-  } finally {
-    flameRequestInFlightRef.current = false;
-    setFlameBusy(false);
-  }
+  if (flameDebounceRef.current !== null) clearTimeout(flameDebounceRef.current);
+
+  flameDebounceRef.current = setTimeout(async () => {
+    flameDebounceRef.current = null;
+    const desired = flamePendingRef.current;
+    flamePendingRef.current = null;
+    if (desired === flameServerStateRef.current) return;
+
+    setFlameBusy(true);
+    try {
+      await onToggleFlame(post.id);
+      delete flameUsersCacheRef.current[post.id];
+      flameServerStateRef.current = desired!;
+    } catch (e: any) {
+      setOptimisticViewerHasFlamed(flameServerStateRef.current);
+      setOptimisticLikesCount(post.counts?.likes ?? 0);
+      setInlineActionError(e?.message ?? "No se pudo actualizar la flamita.");
+    } finally {
+      setFlameBusy(false);
+    }
+  }, 400);
 }
 
-async function handleToggleSave() {
+function handleToggleSave() {
   if (!currentUserId) {
     setInlineActionError("Inicia sesión para guardar publicaciones.");
     return;
   }
+  if (!onToggleSave) return;
 
-  if (!onToggleSave || saveBusy || saveRequestInFlightRef.current) return;
-
-  saveRequestInFlightRef.current = true;
-
-  const previousViewerHasSaved = optimisticViewerHasSaved;
-  const previousSavesCount = optimisticSavesCount;
-  const nextViewerHasSaved = !previousViewerHasSaved;
-
-  setSaveBusy(true);
+  const nextState = !optimisticViewerHasSaved;
+  savePendingRef.current = nextState;
+  setOptimisticViewerHasSaved(nextState);
+  setOptimisticSavesCount((c) => Math.max(0, c + (nextState ? 1 : -1)));
   setInlineActionError(null);
-  setOptimisticViewerHasSaved(nextViewerHasSaved);
-  setOptimisticSavesCount((current) =>
-    Math.max(0, current + (nextViewerHasSaved ? 1 : -1))
-  );
 
-  try {
-    await onToggleSave(post.id);
-  } catch (e: any) {
-    setOptimisticViewerHasSaved(previousViewerHasSaved);
-    setOptimisticSavesCount(previousSavesCount);
-    setInlineActionError(e?.message ?? "No se pudo actualizar el guardado.");
-  } finally {
-    saveRequestInFlightRef.current = false;
-    setSaveBusy(false);
-  }
+  if (saveDebounceRef.current !== null) clearTimeout(saveDebounceRef.current);
+
+  saveDebounceRef.current = setTimeout(async () => {
+    saveDebounceRef.current = null;
+    const desired = savePendingRef.current;
+    savePendingRef.current = null;
+    if (desired === saveServerStateRef.current) return;
+
+    setSaveBusy(true);
+    try {
+      await onToggleSave(post.id);
+      saveServerStateRef.current = desired!;
+    } catch (e: any) {
+      setOptimisticViewerHasSaved(saveServerStateRef.current);
+      setOptimisticSavesCount(post.counts?.saves ?? 0);
+      setInlineActionError(e?.message ?? "No se pudo actualizar el guardado.");
+    } finally {
+      setSaveBusy(false);
+    }
+  }, 400);
 }
 
  async function handleOpenCommentsPanel() {
@@ -2602,7 +2612,7 @@ style={{
       ? {
           position: "relative",
           marginTop: 10,
-          border: "1.5px solid #a855f7",
+          border: "2.6px solid #a855f7",
           borderRadius: 8,
           background:
             "linear-gradient(160deg, rgba(79,70,255,0.06), rgba(168,85,255,0.04) 55%, rgba(255,47,179,0.03))",
@@ -2661,7 +2671,7 @@ style={{
       </span>
     )}
 
-    {cleanPostText.length > 0 && (
+    {cleanPostText.length > 0 && post.postType !== "live" && (
       <span>
 {postTextExpanded || !shouldClampFeedPostText
   ? cleanPostText
@@ -2698,8 +2708,9 @@ style={{
       marginTop: 10,
       borderRadius: 14,
       overflow: "hidden",
-      border: "1px solid rgba(168,85,255,0.22)",
-      background: "rgba(15,10,28,0.72)",
+      border: "2.6px solid #a855f7",
+      boxShadow: "0 0 0 1px rgba(168,85,255,0.06), 0 4px 28px rgba(168,85,255,0.1)",
+      background: "transparent",
     }}
   >
     {/* Cover image or placeholder */}
@@ -2709,14 +2720,14 @@ style={{
         width: "100%",
         aspectRatio: "16/7",
         background:
-          "linear-gradient(135deg, rgba(79,30,120,0.55) 0%, rgba(30,10,60,0.85) 100%)",
+          "radial-gradient(ellipse at center, rgba(180,180,195,0.18) 0%, rgba(110,110,130,0.10) 60%, rgba(70,70,90,0.06) 100%), linear-gradient(135deg, rgba(60,60,75,0.55) 0%, rgba(30,30,45,0.85) 100%)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
       }}
     >
-      {post.liveData?.coverUrl ? (
+      {post.liveData?.coverUrl && (
         <img
           src={post.liveData.coverUrl}
           alt={post.liveData.title ?? "Live programado"}
@@ -2727,26 +2738,21 @@ style={{
             width: "100%",
             height: "100%",
             objectFit: "cover",
-            opacity: 0.72,
+            opacity: 0.45,
+            filter: "grayscale(20%)",
           }}
         />
-      ) : (
-        <svg
-          width="52"
-          height="52"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="rgba(168,85,255,0.55)"
-          strokeWidth="1.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ flexShrink: 0 }}
-        >
-          <circle cx="12" cy="12" r="2" />
-          <path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 7.76a6 6 0 0 0 0 8.49" />
-          <path d="M20.66 4.34a12 12 0 0 1 0 15.32M3.34 4.34a12 12 0 0 0 0 15.32" />
-        </svg>
       )}
+      <svg
+        width="52"
+        height="52"
+        viewBox="0 0 22 22"
+        fill="none"
+        style={{ flexShrink: 0, position: "relative", zIndex: 1, animation: "livePulseIcon 2s ease-in-out infinite" }}
+      >
+        <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
+        <circle cx="11" cy="11" r="6" fill="#ef4444" />
+      </svg>
 
       {/* "Live programado" badge */}
       <div
@@ -2897,6 +2903,10 @@ style={{
       @keyframes livePulse {
         0%, 100% { opacity: 1; box-shadow: 0 0 0 2px rgba(168,85,255,0.3); }
         50% { opacity: 0.55; box-shadow: 0 0 0 4px rgba(168,85,255,0.12); }
+      }
+      @keyframes livePulseIcon {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.45; }
       }
     `}</style>
   </div>

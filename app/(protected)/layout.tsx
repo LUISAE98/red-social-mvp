@@ -354,7 +354,6 @@ const sidebarScrollRef = usePersistentSidebarScroll(
 .logoutSection {
   width: 100%;
   margin-top: 14px;
-  flex: 0 0 auto;
 }
 
 .logoutSection :global(button) {
@@ -709,11 +708,11 @@ opacity: 0.85;
               </nav>
             </section>
           ) : null}
-        </div>
 
-        <section className="logoutSection" aria-label="Cerrar sesión">
-          <LogoutButton variant="settings" />
-        </section>
+          <section className="logoutSection" aria-label="Cerrar sesión">
+            <LogoutButton variant="settings" />
+          </section>
+        </div>
       </aside>
     </>
   );

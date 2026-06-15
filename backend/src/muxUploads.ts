@@ -198,6 +198,72 @@ async function assertCanCreateProfileMuxUpload(uid: string, profileId: string) {
   }
 }
 
+export const createMuxDonationUpload = onCall<{ profileId: string }>(
+  {
+    region: "us-central1",
+    secrets: [muxTokenId, muxTokenSecret],
+  },
+  async (request) => {
+    const uid = request.auth?.uid;
+
+    if (!uid) {
+      throw new HttpsError("unauthenticated", "Debes iniciar sesión para subir video.");
+    }
+
+    const profileId = normalizeRequiredString(request.data?.profileId, "profileId");
+
+    await assertCanCreateProfileMuxUpload(uid, profileId);
+
+    const originHeader = request.rawRequest.headers.origin;
+    const corsOrigin =
+      typeof originHeader === "string" && originHeader.trim()
+        ? originHeader.trim()
+        : "*";
+
+    const mux = createMuxClient();
+
+    let upload: Awaited<ReturnType<typeof mux.video.uploads.create>>;
+
+    try {
+      upload = await mux.video.uploads.create({
+        cors_origin: corsOrigin,
+        new_asset_settings: {
+          playback_policy: ["public"],
+          video_quality: "basic",
+          passthrough: JSON.stringify({
+            authorId: uid,
+            profileId,
+            source: "vibra-donation-video",
+          }),
+        },
+      });
+    } catch (error) {
+      console.error("createMuxDonationUpload Mux upload creation failed", error);
+      throw new HttpsError("internal", "No se pudo crear la subida de video en Mux.");
+    }
+
+    const now = FieldValue.serverTimestamp();
+
+    await db.collection("muxUploads").doc(upload.id).set({
+      provider: "mux",
+      uploadId: upload.id,
+      authorId: uid,
+      profileId,
+      source: "donation",
+      status: "waiting_for_upload",
+      assetId: null,
+      playbackId: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return {
+      uploadId: upload.id,
+      uploadUrl: upload.url,
+    };
+  }
+);
+
 export const createMuxDirectUpload = onCall<CreateMuxDirectUploadRequest>(
   {
     region: "us-central1",

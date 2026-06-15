@@ -2,16 +2,27 @@
 
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 
+type DonationInput = {
+  mode: "none" | "general" | "wedding";
+  enabled?: boolean;
+  visible?: boolean;
+  suggestedAmounts?: number[] | null;
+} | null;
+
 type ProfileSocialActionsProps = {
   viewerUid: string | null | undefined;
   profileUid: string;
   profileRestricted: boolean;
+  donation?: DonationInput;
+  onDonate?: () => void;
 };
 
 export default function ProfileSocialActions({
   viewerUid,
   profileUid,
   profileRestricted,
+  donation,
+  onDonate,
 }: ProfileSocialActionsProps) {
   const isOwnProfile = !!viewerUid && viewerUid === profileUid;
 
@@ -25,6 +36,13 @@ export default function ProfileSocialActions({
   const showFollowButton =
     !profileRestricted && !relationship.hasBlocked && relationship.canFollow;
 
+  const showDonateButton =
+    donation?.enabled === true &&
+    donation?.visible !== false &&
+    (donation?.mode === "general" || donation?.mode === "wedding") &&
+    Array.isArray(donation?.suggestedAmounts) &&
+    (donation.suggestedAmounts?.length ?? 0) > 0;
+
   const followButtonLabel = loading
     ? "Procesando..."
     : relationship.isFollowing && relationship.isFollowedBy
@@ -35,13 +53,13 @@ export default function ProfileSocialActions({
           ? "Seguir también"
           : "Seguir";
 
-  async function handleFollowClick() {
+  function handleFollowClick() {
     if (loading) return;
     if (relationship.isFollowing) {
-      await unfollow();
+      unfollow();
       return;
     }
-    await follow();
+    follow();
   }
 
   return (
@@ -61,6 +79,18 @@ export default function ProfileSocialActions({
         </button>
       )}
 
+      {showDonateButton && (
+        <button
+          type="button"
+          onClick={onDonate}
+          style={styles.donateButton}
+        >
+          {donation?.mode === "wedding"
+            ? <>Sumarte a nuestro gran día <span style={{ color: "#fff" }}>💍</span></>
+            : <>Enviar apoyo <span style={{ color: "#fff" }}>★</span></>}
+        </button>
+      )}
+
       {error && <div style={styles.error}>{error}</div>}
     </div>
   );
@@ -77,15 +107,31 @@ const styles = {
   } as const,
 
   followButton: {
+    width: 220,
     height: 36,
-    padding: "0 20px",
     borderRadius: 8,
     border: "none",
-    background: "rgba(168,85,255,0.55)",
+    background: "linear-gradient(135deg, #f472b6, #a855ff)",
     color: "#fff",
+    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
     fontWeight: 600,
     fontSize: 13,
     whiteSpace: "nowrap",
+    transition: "opacity 160ms ease",
+  } as const,
+
+  donateButton: {
+    width: 220,
+    height: 36,
+    borderRadius: 8,
+    border: "none",
+    background: "#5cabf9",
+    color: "#fff",
+    fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+    fontWeight: 600,
+    fontSize: 13,
+    whiteSpace: "nowrap",
+    cursor: "pointer",
     transition: "opacity 160ms ease",
   } as const,
 

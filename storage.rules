@@ -78,6 +78,17 @@ match /posts/{groupId}/{uid}/{folder}/{fileName} {
     }
 
     // ==============================
+    // LIVE COVERS (portadas de live)
+    // ==============================
+    match /live-covers/{uid}/{fileName} {
+      allow read: if true;
+      allow write: if isSignedIn()
+        && request.auth.uid == uid
+        && isImage()
+        && maxSize(10 * 1024 * 1024);
+    }
+
+    // ==============================
     // GREETINGS (videos)
     // ==============================
     match /greetings/{requestId}/{fileName} {
