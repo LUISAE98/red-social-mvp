@@ -12,13 +12,14 @@ type Props = {
   liveId: string;
   chatEnabled?: boolean;
   liveEnded?: boolean;
+  isMuted?: boolean;
   /** panel = full chat section; overlay = translucent overlay on top of video */
   mode?: "panel" | "overlay";
 };
 
 type SenderInfo = { username: string; avatarUrl: string | null };
 
-export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded = false, mode = "panel" }: Props) {
+export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded = false, isMuted = false, mode = "panel" }: Props) {
   const { user } = useAuth();
   const { messages, send } = useLiveChat(liveId);
   const [text, setText] = useState("");
@@ -82,48 +83,79 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
-  // ── Overlay mode (mobile portrait) ───────────────────────────────────────
+  // ── Overlay mode (mobile portrait) — TikTok style, 1/3 de pantalla ─────────
   if (mode === "overlay") {
-    const visibleMessages = messages.slice(-6);
     return (
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 5,
-          padding: "0 12px 12px",
-          background: "linear-gradient(to top, rgba(0,0,0,0.72) 60%, transparent 100%)",
-          display: "flex", flexDirection: "column", gap: 4,
+          height: "33%",
+          display: "flex", flexDirection: "column",
+          background: "linear-gradient(to top, rgba(0,0,0,0.68) 50%, transparent 100%)",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 4 }}>
-          {visibleMessages.map((msg) => (
-            <div key={msg.id} style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
-              <Avatar url={msg.avatarUrl} name={msg.username} size={18} />
-              <span style={{ fontSize: 11.5, fontFamily: FONT, lineHeight: 1.35, color: "rgba(255,255,255,0.88)" }}>
-                <strong style={{ fontWeight: 700, color: "#fff", marginRight: 4 }}>{msg.username}</strong>
+        <style>{`.lvc-msgs::-webkit-scrollbar{display:none}`}</style>
+
+        {/* Mensajes — flotan desde abajo, scrollable */}
+        <div
+          className="lvc-msgs"
+          onScroll={handleScroll}
+          style={{
+            flex: 1, overflowY: "auto",
+            padding: "0 14px",
+            display: "flex", flexDirection: "column",
+            scrollbarWidth: "none",
+          }}
+        >
+          <div style={{ flex: 1 }} />
+          {messages.map((msg) => (
+            <div key={msg.id} style={{
+              display: "flex", alignItems: "flex-start", gap: 7,
+              marginBottom: 5,
+            }}>
+              <Avatar url={msg.avatarUrl} name={msg.username} size={20} />
+              <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "rgba(255,255,255,0.92)" }}>
+                <strong style={{ fontWeight: 700, color: "#fff", marginRight: 5 }}>{msg.username}</strong>
                 {msg.text}
               </span>
             </div>
           ))}
+          <div ref={messagesEndRef} />
         </div>
 
-        {chatEnabled && !liveEnded && user && (
-          <div style={{ display: "flex", gap: 6, paddingRight: 44 }}>
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={handleKeyDown}
-              maxLength={500}
-              placeholder="Escribe un mensaje..."
-              style={{
-                flex: 1, background: "rgba(255,255,255,0.12)",
-                border: "1px solid rgba(255,255,255,0.15)", borderRadius: 20,
-                padding: "7px 12px", color: "#fff", fontSize: 12,
-                fontFamily: FONT, outline: "none",
-              }}
-            />
-            <SendButton onClick={handleSend} active={!!text.trim()} />
+        {/* Input o estado */}
+        {chatEnabled && !liveEnded && user ? (
+          <div style={{
+            padding: "7px 14px",
+            paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
+            paddingRight: 84,
+          }}>
+            {isMuted ? (
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
+                Fuiste silenciado en este live
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  maxLength={500}
+                  placeholder="Escribe un mensaje..."
+                  style={{
+                    flex: 1, background: "rgba(255,255,255,0.13)",
+                    border: "1px solid rgba(255,255,255,0.18)", borderRadius: 20,
+                    padding: "8px 13px", color: "#fff", fontSize: 12.5,
+                    fontFamily: FONT, outline: "none",
+                  }}
+                />
+                <SendButton onClick={handleSend} active={!!text.trim()} />
+              </div>
+            )}
           </div>
+        ) : (
+          <div style={{ height: "calc(8px + env(safe-area-inset-bottom))" }} />
         )}
       </div>
     );
@@ -185,6 +217,10 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
         ) : !user ? (
           <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
             Inicia sesión para participar
+          </div>
+        ) : isMuted ? (
+          <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
+            Fuiste silenciado en este live
           </div>
         ) : (
           <>

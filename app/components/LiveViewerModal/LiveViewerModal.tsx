@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Hls from "hls.js";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/app/providers";
 import type { Post, PostLiveData } from "@/lib/posts/types";
 import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 
@@ -37,6 +38,7 @@ function desktopHorizontalSize(): { width: number; height: number } {
 const CHAT_FLOAT_W = 300;
 
 export default function LiveViewerModal({ open, onClose, post, onManage }: Props) {
+  const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -68,7 +70,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage }: Props
   const hlsUrl = playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null;
   const isLive = liveData?.status === "live";
   const isEnded = liveData?.status === "ended";
-  const chatEnabled = !isEnded && liveData?.chatEnabled !== false;
+  const isMuted = !!(user?.uid && liveData?.mutedUsers?.includes(user.uid));
+  const isBanned = !!(user?.uid && liveData?.bannedUsers?.includes(user.uid));
+  const chatEnabled = !isEnded && !isBanned && liveData?.chatEnabled !== false;
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -131,23 +135,24 @@ export default function LiveViewerModal({ open, onClose, post, onManage }: Props
     }
   }, [open, shouldRender, hlsUrl, isLive]);
 
-  // Congelar video en último frame cuando el live termina
+  // Congelar video en último frame cuando el live termina o el usuario es baneado
   useEffect(() => {
-    if (!isEnded) return;
+    if (!isEnded && !isBanned) return;
     videoRef.current?.pause();
-  }, [isEnded]);
+  }, [isEnded, isBanned]);
 
   if (!mounted || !shouldRender) return null;
 
   // ── Header — siempre visible: título izquierda, mute + gestionar + cerrar derecha ──
-  function renderHeader() {
+  function renderHeader(safeTop = false) {
     const iconSz = isDesktop ? 20 : 24;
+    const pt = safeTop ? "max(12px, env(safe-area-inset-top))" : "12px";
     return (
       <div style={{
         position: "absolute",
         top: 0, left: 0, right: 0, zIndex: 10,
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "12px 14px",
+        padding: `${pt} 14px 12px`,
       }}>
         {liveData?.title ? (
           <span style={{
@@ -303,6 +308,40 @@ export default function LiveViewerModal({ open, onClose, post, onManage }: Props
     );
   }
 
+  // ── Overlay "Fuiste baneado" — cubre el video, el usuario no puede interactuar ─
+  function renderBannedOverlay() {
+    if (!isBanned) return null;
+    return (
+      <div style={{
+        position: "absolute", inset: 0, zIndex: 9,
+        background: "rgba(0,0,0,0.72)",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center", gap: 12,
+        fontFamily: FONT,
+      }}>
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+          stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"
+          strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+        </svg>
+        <span style={{
+          fontSize: 15, fontWeight: 700,
+          color: "rgba(255,255,255,0.85)",
+          letterSpacing: "0.01em", textAlign: "center", padding: "0 24px",
+        }}>
+          Fuiste baneado de este live
+        </span>
+        <span style={{
+          fontSize: 12, color: "rgba(255,255,255,0.4)",
+          fontFamily: FONT, textAlign: "center", padding: "0 32px",
+        }}>
+          Ya no puedes participar en esta transmisión
+        </span>
+      </div>
+    );
+  }
+
   // ── Video element ──────────────────────────────────────────────────────────
   function renderVideo(fit: "cover" | "contain" = "contain") {
     return (
@@ -383,6 +422,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage }: Props
           >
             {renderVideo("cover")}
             {renderEndedOverlay()}
+            {renderBannedOverlay()}
             {renderHeader()}
             {renderLiveBadge()}
           </div>
@@ -397,7 +437,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage }: Props
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} mode="panel" />
+            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" />
           </div>
         </div>
       </>,
@@ -433,6 +473,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage }: Props
           >
             {renderVideo("contain")}
             {renderEndedOverlay()}
+            {renderBannedOverlay()}
             {renderHeader()}
             {renderLiveBadge()}
           </div>
@@ -447,7 +488,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage }: Props
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} mode="panel" />
+            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" />
           </div>
         </div>
       </>,
@@ -468,9 +509,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage }: Props
           <div style={{ position: "relative", flex: 1 }}>
             {renderVideo("cover")}
             {renderEndedOverlay()}
-            {renderHeader()}
+            {renderBannedOverlay()}
+            {renderHeader(true)}
             {renderLiveBadge()}
-            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} mode="overlay" />
+            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="overlay" />
           </div>
         </div>
       </>,
@@ -484,20 +526,30 @@ export default function LiveViewerModal({ open, onClose, post, onManage }: Props
   return createPortal(
     <>
       <style>{keyframes}</style>
-      <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "#0a0a0a", display: "flex", flexDirection: "column" }}>
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 10000, background: "#0a0a0a",
+        display: "flex", flexDirection: "column",
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
+      }}>
         {/* Video */}
         <div
           style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", background: "#000", flexShrink: 0 }}
         >
           {renderVideo("cover")}
           {renderEndedOverlay()}
+          {renderBannedOverlay()}
           {renderHeader()}
           {renderLiveBadge()}
         </div>
 
         {/* Chat panel */}
-        <div style={{ flex: 1, overflow: "hidden", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-          <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} mode="panel" />
+        <div style={{
+          flex: 1, overflow: "hidden",
+          borderTop: "1px solid rgba(255,255,255,0.06)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}>
+          <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" />
         </div>
       </div>
     </>,
