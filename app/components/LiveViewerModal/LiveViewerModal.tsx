@@ -18,6 +18,7 @@ type Props = {
   onClose: () => void;
   post: Post;
   onManage?: () => void;
+  initialPortrait?: boolean;
 };
 
 // Igual que StoryViewer.desktopPanelSize()
@@ -37,7 +38,7 @@ function desktopHorizontalSize(): { width: number; height: number } {
 
 const CHAT_FLOAT_W = 300;
 
-export default function LiveViewerModal({ open, onClose, post, onManage }: Props) {
+export default function LiveViewerModal({ open, onClose, post, onManage, initialPortrait = false }: Props) {
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
@@ -47,7 +48,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage }: Props
   const [error, setError] = useState(false);
   const [muted, setMuted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [isPortrait, setIsPortrait] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(initialPortrait);
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
@@ -106,11 +107,21 @@ export default function LiveViewerModal({ open, onClose, post, onManage }: Props
     setReady(false);
     setError(false);
 
+    // iOS Safari: videoWidth/Height pueden ser 0 en loadedmetadata — fallback a loadeddata/canplay
+    const trySetOrientation = () => {
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        setIsPortrait(video.videoHeight > video.videoWidth);
+        return true;
+      }
+      return false;
+    };
+
     const onMeta = () => {
       setReady(true);
       video.play().catch(() => {});
-      if (video.videoWidth > 0 && video.videoHeight > 0) {
-        setIsPortrait(video.videoHeight > video.videoWidth);
+      if (!trySetOrientation()) {
+        video.addEventListener("loadeddata", trySetOrientation, { once: true });
+        video.addEventListener("canplay", trySetOrientation, { once: true });
       }
     };
 

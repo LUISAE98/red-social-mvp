@@ -4168,6 +4168,7 @@ padding: "0 0 2px 0",
     onClose={() => setLiveViewerOpen(false)}
     post={{ ...post, liveData: activeLiveData ?? post.liveData }}
     onManage={currentUserId === post.authorId ? () => { setLiveViewerOpen(false); setLiveCreatorOpen(true); } : undefined}
+    initialPortrait={isLivePortrait}
   />
 )}
 {liveCreatorOpen && (

@@ -44,10 +44,20 @@ export default function LiveInlinePlayer({
     setReady(false);
     setError(false);
 
-    const onMeta = () => {
-      setReady(true);
+    // iOS Safari: videoWidth/Height can be 0 at loadedmetadata — try multiple events
+    const tryDetectOrientation = () => {
       if (video.videoWidth > 0 && video.videoHeight > 0) {
         onOrientationDetected?.(video.videoHeight > video.videoWidth);
+        return true;
+      }
+      return false;
+    };
+
+    const onMeta = () => {
+      setReady(true);
+      if (!tryDetectOrientation()) {
+        video.addEventListener("loadeddata", tryDetectOrientation, { once: true });
+        video.addEventListener("canplay", tryDetectOrientation, { once: true });
       }
     };
 
