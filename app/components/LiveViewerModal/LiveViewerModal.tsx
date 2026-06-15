@@ -51,6 +51,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [isPortrait, setIsPortrait] = useState(initialPortrait);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mobileFsHorizontal, setMobileFsHorizontal] = useState(false);
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
@@ -90,6 +91,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   useEffect(() => {
     if (open) { setShouldRender(true); return; }
     setIsFullscreen(false);
+    setMobileFsHorizontal(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    try { (screen.orientation as any)?.unlock?.(); } catch {}
     const t = window.setTimeout(() => setShouldRender(false), 220);
     return () => window.clearTimeout(t);
   }, [open]);
@@ -159,6 +163,18 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   useEffect(() => {
     if (isEnded) setControlsVisible(true);
   }, [isEnded]);
+
+  // Bloquear orientación landscape al entrar en fullscreen horizontal mobile (Android Chrome)
+  // iOS Safari no soporta orientation.lock — el usuario puede girar el dispositivo manualmente
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ori = screen.orientation as any;
+    if (!mobileFsHorizontal) {
+      try { ori?.unlock?.(); } catch {}
+      return;
+    }
+    try { ori?.lock?.("landscape")?.catch?.(() => {}); } catch {}
+  }, [mobileFsHorizontal]);
 
   if (!mounted || !shouldRender) return null;
 
@@ -236,6 +252,28 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
             >
               {isFullscreen ? (
+                <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
+                  <line x1="10" y1="14" x2="3" y2="21" /><line x1="21" y1="3" x2="14" y2="10" />
+                </svg>
+              ) : (
+                <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+              )}
+            </button>
+          )}
+
+          {/* Expand/compress — solo celular horizontal (no portrait, no desktop) */}
+          {!isDesktop && !isPortrait && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setMobileFsHorizontal(f => !f); }}
+              aria-label={mobileFsHorizontal ? "Reducir pantalla" : "Pantalla completa"}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              {mobileFsHorizontal ? (
                 <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
                   <line x1="10" y1="14" x2="3" y2="21" /><line x1="21" y1="3" x2="14" y2="10" />
@@ -575,6 +613,32 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             onClick={(e) => e.stopPropagation()}
           >
             <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" />
+          </div>
+        </div>
+      </>,
+      document.body
+    );
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // MOBILE — horizontal fullscreen: invade safe areas, sin chat
+  // En Android Chrome se bloquea la orientación landscape via orientation.lock.
+  // En iOS Safari el usuario puede girar el dispositivo manualmente.
+  // ══════════════════════════════════════════════════════════════════════════
+  if (!isDesktop && mobileFsHorizontal) {
+    return createPortal(
+      <>
+        <style>{keyframes}</style>
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 10001, background: "#000",
+          // Sin padding de safe area — el video invade notch y home indicator
+        }}>
+          <div style={{ position: "relative", width: "100%", height: "100%" }}>
+            {renderVideo("cover")}
+            {renderEndedOverlay()}
+            {renderBannedOverlay()}
+            {renderHeader(false, false)}
+            {renderLiveBadge()}
           </div>
         </div>
       </>,
