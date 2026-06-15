@@ -22,7 +22,7 @@ import {
   deletePostCommentReply,
   fetchCommentReplies,
   fetchGroupPostsPage,
-  fetchGroupPublicPremiumPostsPage,
+  fetchGroupPublicPostsPage,
   fetchPostComments,
   softDeletePost,
   toggleGroupPostPin,
@@ -569,7 +569,7 @@ export default function GroupPostsFeed({
         const result = await loadFeedWithRetry(
           async () => {
             const pageResult = await (publicPremiumOnly
-              ? fetchGroupPublicPremiumPostsPage
+              ? fetchGroupPublicPostsPage
               : fetchGroupPostsPage)({
               groupId,
               viewerUid: currentUid,

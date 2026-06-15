@@ -214,11 +214,28 @@ Solicitar confirmación antes de modificar:
 * Wallet
 * Mercado Pago
 * SumSub
+* Autenticación principal
+
+No se requiere confirmación para modificar:
+
 * Firestore Rules
 * Storage Rules
 * Índices Firestore
-* Cloud Functions críticas
-* Autenticación principal
+
+Estos archivos se pueden y deben modificar directamente cuando el cambio es necesario para la feature en curso.
+
+---
+
+# Deploy Automático
+
+Cuando un cambio requiera deploy (Firestore Rules, Storage Rules, Índices Firestore, Cloud Functions), ejecutarlo en el mismo proceso sin esperar confirmación adicional.
+
+Comandos habituales:
+
+* `firebase deploy --only firestore:rules`
+* `firebase deploy --only storage`
+* `firebase deploy --only firestore:indexes`
+* `firebase deploy --only functions`
 
 ---
 

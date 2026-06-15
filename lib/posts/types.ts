@@ -223,7 +223,7 @@ export type ProcessingStatus =
   | "ready"
   | "error";
 
-export type LiveVisibilityMode = "everyone" | "members_only";
+export type LiveVisibilityMode = "everyone" | "logged_in_only" | "members_only";
 
 export type PostLiveData = {
   status?: LiveStatus;

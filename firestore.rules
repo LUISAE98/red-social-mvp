@@ -1821,6 +1821,38 @@ function canListPublicPremiumGroupPost() {
     && resource.data.premium.accessMode == "public";
 }
 
+function canReadPublicShareableGroupPost() {
+  return resource.data.isDeleted == false
+    && resource.data.groupId is string
+    && resource.data.isShareable == true
+    && (
+      !("accessModel" in resource.data)
+      || resource.data.accessModel == "free"
+    )
+    && (
+      !("requiresPayment" in resource.data)
+      || resource.data.requiresPayment == false
+    )
+    && (
+      !("requiresSubscription" in resource.data)
+      || resource.data.requiresSubscription == false
+    );
+}
+
+function canListPublicShareableGroupPost() {
+  return resource.data.isDeleted == false
+    && resource.data.groupId is string
+    && resource.data.isShareable == true
+    && (
+      !("accessModel" in resource.data)
+      || resource.data.accessModel == "free"
+    )
+    && (
+      !("requiresPayment" in resource.data)
+      || resource.data.requiresPayment == false
+    );
+}
+
 function canReadPost() {
   return resource.data.isDeleted == false
     && (
@@ -1829,6 +1861,7 @@ function canReadPost() {
         && (
           canReadPublicSharedPost()
           || canReadPublicPremiumGroupPost()
+          || canReadPublicShareableGroupPost()
           || canReadGroupContent(resource.data.groupId)
           || (
             signedIn()
@@ -2215,7 +2248,8 @@ allow list: if canReadPost()
   || canReadPostFromOwnHomeFeed()
   || canListPublicSearchablePost()
   || canListReadableGroupSearchablePost()
-  || canListPublicPremiumGroupPost();
+  || canListPublicPremiumGroupPost()
+  || canListPublicShareableGroupPost();
 
       allow create: if validCreatePost();
 
@@ -2231,10 +2265,25 @@ allow list: if canReadPost()
           && request.resource.data.updatedAt is timestamp;
       }
 
+      function canEditLivePost() {
+        return signedIn()
+          && resource.data.authorId == request.auth.uid
+          && resource.data.get('isDeleted', false) != true
+          && resource.data.postType == "live"
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            "text", "liveData", "shareTitle", "shareDescription", "shareImageUrl",
+            "isShareable", "editedAt", "updatedAt"
+          ])
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.editedAt is timestamp
+          && request.resource.data.updatedAt is timestamp;
+      }
+
       allow update: if canSoftDeletePost()
         || canUpdateCommentCount(1)
         || canUpdateCommentCount(-1)
-        || canEditPost();
+        || canEditPost()
+        || canEditLivePost();
 
       allow delete: if false;
 

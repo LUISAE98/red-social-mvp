@@ -13,6 +13,7 @@ type ProfileSocialActionsProps = {
   viewerUid: string | null | undefined;
   profileUid: string;
   profileRestricted: boolean;
+  profileName?: string | null;
   donation?: DonationInput;
   onDonate?: () => void;
 };
@@ -21,6 +22,7 @@ export default function ProfileSocialActions({
   viewerUid,
   profileUid,
   profileRestricted,
+  profileName,
   donation,
   onDonate,
 }: ProfileSocialActionsProps) {
@@ -29,12 +31,12 @@ export default function ProfileSocialActions({
   const { relationship, loading, error, follow, unfollow } =
     useSocialRelationship(viewerUid, profileUid);
 
-  if (!viewerUid || isOwnProfile) return null;
+  if (!viewerUid) return null;
 
-  if (relationship.isBlockedBy) return null;
+  if (!isOwnProfile && relationship.isBlockedBy) return null;
 
   const showFollowButton =
-    !profileRestricted && !relationship.hasBlocked && relationship.canFollow;
+    !isOwnProfile && !profileRestricted && !relationship.hasBlocked && relationship.canFollow;
 
   const showDonateButton =
     donation?.enabled === true &&
@@ -86,8 +88,8 @@ export default function ProfileSocialActions({
           style={styles.donateButton}
         >
           {donation?.mode === "wedding"
-            ? <>Sumarte a nuestro gran día <span style={{ color: "#fff" }}>💍</span></>
-            : <>Enviar apoyo <span style={{ color: "#fff" }}>★</span></>}
+            ? `Apoya en su boda a ${profileName ?? ""}`
+            : `Apoya a ${profileName ?? ""}`}
         </button>
       )}
 

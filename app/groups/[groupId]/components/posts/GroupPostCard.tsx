@@ -13,8 +13,9 @@ import {
   type TextareaHTMLAttributes,
 } from "react";
 import { createPortal } from "react-dom";
-import type { Comment, CommentReply, Post } from "@/lib/posts/types";
+import type { Comment, CommentReply, Post, PostLiveData } from "@/lib/posts/types";
 import PostFlamesPanel, { type PostFlameUser } from "./PostFlamesPanel";
+import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
 import PostCommentsPanel from "./PostCommentsPanel";
 import GroupPostComposer, { type GroupPostComposerSubmitPayload } from "./GroupPostComposer";
 import PostImageViewer from "./PostImageViewer";
@@ -694,6 +695,8 @@ onToggleProfilePin,
   const [showExactPostDate, setShowExactPostDate] = useState(false);
   const [paymentPanelOpen, setPaymentPanelOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [liveEditOpen, setLiveEditOpen] = useState(false);
+  const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
   const [localText, setLocalText] = useState<string | null>(null);
   const [localMedia, setLocalMedia] = useState<import("@/lib/posts/types").PostMedia[] | null>(null);
   const { isTempUnlocked, unlock: applyTempUnlock } = usePostTempUnlock(post.id, currentUserId);
@@ -1417,7 +1420,11 @@ function handleToggleSave() {
 
     if (action === "edit_post") {
       setMenuOpen(false);
-      setEditModalOpen(true);
+      if (post.postType === "live") {
+        setLiveEditOpen(true);
+      } else {
+        setEditModalOpen(true);
+      }
       return;
     }
 
@@ -1955,28 +1962,30 @@ function renderBlurredMediaBackdrop(
   const isPinned =
     post.isPinnedInGroup === true || post.isPinnedOnProfile === true;
 
-  const isLiveActive = post.postType === "live" && post.liveData?.status === "live";
+  const activeLiveData = localLiveData ?? post.liveData;
+
+  const isLiveActive = post.postType === "live" && activeLiveData?.status === "live";
   const liveName =
-    post.liveData?.createdFrom === "group"
+    activeLiveData?.createdFrom === "group"
       ? (groupInfo.groupName ?? postAuthor.authorName)
       : postAuthor.authorName;
 
-  const liveVisibilityMode = post.liveData?.visibilityMode ?? null;
-  const liveAllowLoggedOut = post.liveData?.allowLoggedOutViewers ?? true;
+  const liveVisibilityMode = activeLiveData?.visibilityMode ?? null;
+  const liveAllowLoggedOut = activeLiveData?.allowLoggedOutViewers ?? true;
 
   const liveVisibilityBadge: { label: string; icon: "lock" | "globe" | "user" } | null =
     liveVisibilityMode === "members_only"
       ? { label: "Solo miembros", icon: "lock" }
-      : liveVisibilityMode === "everyone" && !liveAllowLoggedOut
+      : liveVisibilityMode === "logged_in_only"
         ? { label: "Solo con cuenta", icon: "user" }
-        : liveVisibilityMode === "everyone" && liveAllowLoggedOut
+        : liveVisibilityMode === "everyone"
           ? { label: "Visible sin cuenta", icon: "globe" }
           : null;
 
   const liveAccessBlocked =
     post.postType === "live" && (
       (liveVisibilityMode === "members_only" && !isOwner && !viewerIsMember) ||
-      (liveVisibilityMode === "everyone" && !liveAllowLoggedOut && !currentUserId)
+      (liveVisibilityMode === "logged_in_only" && !currentUserId)
     );
 
   const liveAccessCtaText =
@@ -2550,30 +2559,6 @@ const shouldClampFeedPostText =
                 </div>
               )}
             </div>
-            {isPinned && (
-              <div
-                style={{
-                  marginTop: 6,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  minHeight: 22,
-                  padding: "3px 8px",
-                  borderRadius: 999,
-                  border: "1px solid rgba(255,255,255,0.10)",
-                  background: "rgba(255,255,255,0.055)",
-                  color: "rgba(255,255,255,0.82)",
-                  fontSize: 10.5,
-                  fontWeight: 650,
-                  lineHeight: 1,
-                  letterSpacing: "-0.01em",
-                  width: "fit-content",
-                }}
-              >
-                <span aria-hidden="true">📌</span>
-                <span>Fijado</span>
-              </div>
-            )}
             <button
   type="button"
   onClick={() => setShowExactPostDate((prev) => !prev)}
@@ -2611,25 +2596,51 @@ style={{
           </div>
         </div>
 
-        {shouldShowActionsMenu && (
+        {(isPinned || shouldShowActionsMenu) && (
           <div
             style={{
-              position: "relative",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
               flexShrink: 0,
             }}
           >
-            <button
-              ref={menuButtonRef}
-              type="button"
-              onClick={() => setMenuOpen((prev) => !prev)}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              aria-label="Abrir acciones de la publicación"
-              style={menuButtonStyle}
-              disabled={deleting || moderationBusy || pinBusy}
-            >
-              ⋮
-            </button>
+            {isPinned && (
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 3,
+                  color: "rgba(239,68,68,0.82)",
+                  fontSize: 11,
+                  fontStyle: "italic",
+                  fontWeight: 400,
+                  lineHeight: 1,
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="12" x2="12" y1="17" y2="22" />
+                  <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
+                </svg>
+                <span>Fijado</span>
+              </span>
+            )}
+            {shouldShowActionsMenu && (
+              <div style={{ position: "relative" }}>
+                <button
+                  ref={menuButtonRef}
+                  type="button"
+                  onClick={() => setMenuOpen((prev) => !prev)}
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
+                  aria-label="Abrir acciones de la publicación"
+                  style={menuButtonStyle}
+                  disabled={deleting || moderationBusy || pinBusy}
+                >
+                  ⋮
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -2791,10 +2802,10 @@ style={{
         borderRadius: 12,
       }}
     >
-      {post.liveData?.coverUrl && (
+      {activeLiveData?.coverUrl && (
         <img
-          src={post.liveData.coverUrl}
-          alt={post.liveData.title ?? "Live programado"}
+          src={activeLiveData.coverUrl}
+          alt={activeLiveData.title ?? "Live programado"}
           draggable={false}
           style={{
             position: "absolute",
@@ -2863,7 +2874,7 @@ style={{
     {/* Content area */}
     <div style={{ padding: "12px 14px 14px" }}>
       {/* Title */}
-      {post.liveData?.title && (
+      {activeLiveData?.title && (
         <p
           style={{
             margin: 0,
@@ -2876,12 +2887,12 @@ style={{
             marginBottom: 4,
           }}
         >
-          {post.liveData.title}
+          {activeLiveData.title}
         </p>
       )}
 
       {/* Description */}
-      {post.liveData?.description && (
+      {activeLiveData?.description && (
         <p
           style={{
             margin: 0,
@@ -2892,7 +2903,7 @@ style={{
             lineHeight: 1.45,
           }}
         >
-          {post.liveData.description}
+          {activeLiveData.description}
         </p>
       )}
 
@@ -2928,7 +2939,7 @@ style={{
             color: "rgba(255,255,255,0.55)",
           }}
         >
-          {formatScheduledLiveDate(post.liveData?.scheduledStartAt)}
+          {formatScheduledLiveDate(activeLiveData?.scheduledStartAt)}
         </span>
       </div>
 
@@ -4024,6 +4035,18 @@ padding: "0 0 2px 0",
     contextType={post.contextType as "group" | "profile"}
     groupVisibility={post.groupVisibility}
     isOwner={isOwner}
+  />
+)}
+{liveEditOpen && (
+  <LiveComposerModal
+    open={liveEditOpen}
+    onClose={() => setLiveEditOpen(false)}
+    editPost={post}
+    onEdited={(newLiveData) => setLocalLiveData(newLiveData)}
+    contextType={post.contextType as "group" | "profile"}
+    groupId={post.groupId}
+    profileId={post.profileId}
+    groupVisibility={post.groupVisibility}
   />
 )}
 <div style={interactionRowStyle}>

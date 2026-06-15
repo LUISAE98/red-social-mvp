@@ -19,6 +19,7 @@ import {
   Timestamp,
   updateDoc,
   where,
+  writeBatch,
   type DocumentData,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
@@ -34,6 +35,7 @@ import type {
   CommentReply,
   GroupMemberBlockRelationship,
   GroupVisibility,
+  LiveVisibilityMode,
   Post,
   PostContextType,
   PostLiveData,
@@ -1933,6 +1935,59 @@ export async function fetchGroupPublicPremiumPostsPage(params: {
   };
 }
 
+export async function fetchGroupPublicPostsPage(params: {
+  groupId: string;
+  viewerUid?: string | null;
+  pageSize?: number;
+  cursor?: GroupPostsPageCursor | null;
+}): Promise<GroupPostsPageResult> {
+  assertValidId(params.groupId, "groupId");
+
+  const safePageSize = Math.max(1, Math.min(params.pageSize ?? 10, 20));
+  const previousLastDoc = params.cursor?.lastDoc ?? null;
+
+  const postsSnap = await getDocs(
+    query(
+      collection(db, "posts"),
+      where("groupId", "==", params.groupId),
+      where("isDeleted", "==", false),
+      where("isShareable", "==", true),
+      orderBy("createdAt", "desc"),
+      ...(previousLastDoc ? [startAfter(previousLastDoc)] : []),
+      limit(safePageSize + 1)
+    )
+  );
+
+  const rawPosts: Post[] = postsSnap.docs.slice(0, safePageSize).map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<Post, "id">),
+  }));
+
+  const [userMap, groupMap] = await Promise.all([
+    fetchUsersByIds(rawPosts.map((post) => post.authorId)),
+    fetchGroupsByIds(getPostGroupIds(rawPosts)),
+  ]);
+
+  const hydratedPosts = rawPosts.map((post) => {
+    const hydrated = hydratePost(post, userMap, groupMap);
+    return { ...hydrated, isLocked: isPostLocked(hydrated) };
+  });
+
+  const postsWithViewerState = await attachViewerPostState(
+    hydratedPosts,
+    params.viewerUid
+  );
+
+  const hasMore = postsSnap.docs.length > safePageSize;
+  const lastDoc = postsSnap.docs[safePageSize - 1] ?? null;
+
+  return {
+    posts: postsWithViewerState,
+    cursor: hasMore && lastDoc ? { lastDoc } : null,
+    hasMore,
+  };
+}
+
 export async function fetchGroupPosts(
   groupId: string,
   viewerUid?: string | null
@@ -2590,7 +2645,7 @@ export async function createLivePost(params: {
   description?: string | null;
   coverUrl?: string | null;
   scheduledStartAt?: Date | null;
-  visibilityMode?: "everyone" | "members_only" | null;
+  visibilityMode?: LiveVisibilityMode | null;
   allowLoggedOutViewers?: boolean | null;
 }): Promise<string>;
 export async function createLivePost(params: {
@@ -2600,7 +2655,7 @@ export async function createLivePost(params: {
   description?: string | null;
   coverUrl?: string | null;
   scheduledStartAt?: Date | null;
-  visibilityMode?: "everyone" | "members_only" | null;
+  visibilityMode?: LiveVisibilityMode | null;
   allowLoggedOutViewers?: boolean | null;
 }): Promise<string>;
 export async function createLivePost(params: {
@@ -2611,7 +2666,7 @@ export async function createLivePost(params: {
   description?: string | null;
   coverUrl?: string | null;
   scheduledStartAt?: Date | null;
-  visibilityMode?: "everyone" | "members_only" | null;
+  visibilityMode?: LiveVisibilityMode | null;
   allowLoggedOutViewers?: boolean | null;
 }): Promise<string> {
   const cleanTitle = params.title.trim();
@@ -2638,6 +2693,8 @@ export async function createLivePost(params: {
     ? Timestamp.fromDate(params.scheduledStartAt)
     : null;
 
+  const effectiveMode: LiveVisibilityMode = params.visibilityMode ?? "everyone";
+
   const liveData: PostLiveData = {
     status: "upcoming",
     title: cleanTitle,
@@ -2652,9 +2709,13 @@ export async function createLivePost(params: {
     streamKey: null,
     ingestUrl: null,
     createdFrom,
-    visibilityMode: params.visibilityMode ?? "everyone",
-    allowLoggedOutViewers: params.allowLoggedOutViewers ?? true,
+    visibilityMode: effectiveMode,
+    allowLoggedOutViewers: effectiveMode === "everyone",
   };
+
+  const isGroupLive = context.contextType !== "profile";
+  const isProfileLive = context.contextType === "profile";
+  const pinnedAt = serverTimestamp();
 
   const createdAt = serverTimestamp();
   const updatedAt = serverTimestamp();
@@ -2671,17 +2732,17 @@ export async function createLivePost(params: {
     updatedAt,
     deletedAt: null,
     isDeleted: false,
-    isPinnedInGroup: false,
-    groupPinnedAt: null,
-    groupPinnedBy: null,
-    isPinnedOnProfile: false,
-    profilePinnedAt: null,
-    profilePinnedBy: null,
-    isShareable: false,
+    isPinnedInGroup: isGroupLive,
+    groupPinnedAt: isGroupLive ? pinnedAt : null,
+    groupPinnedBy: isGroupLive ? author.uid : null,
+    isPinnedOnProfile: isProfileLive,
+    profilePinnedAt: isProfileLive ? pinnedAt : null,
+    profilePinnedBy: isProfileLive ? author.uid : null,
+    isShareable: effectiveMode !== "members_only",
     publicSlug: null,
     shareTitle: cleanTitle,
     shareDescription: params.description?.trim() || null,
-    shareImageUrl: null,
+    shareImageUrl: params.coverUrl ?? null,
     access: "free",
     premium: null,
     media: [],
@@ -2719,7 +2780,50 @@ export async function createLivePost(params: {
     },
   });
 
-  return ref.id;
+  const postId = ref.id;
+
+  // Auto-pin: desfijar cualquier post previamente fijado en el mismo contexto
+  if (isGroupLive && params.groupId) {
+    const prevPinnedSnap = await getDocs(
+      query(
+        collection(db, "posts"),
+        where("groupId", "==", params.groupId),
+        where("isDeleted", "==", false),
+        where("isPinnedInGroup", "==", true),
+        limit(5),
+      ),
+    );
+    const toUnpin = prevPinnedSnap.docs.filter((d) => d.id !== postId);
+    if (toUnpin.length > 0) {
+      const batch = writeBatch(db);
+      for (const d of toUnpin) {
+        batch.update(d.ref, {
+          isPinnedInGroup: false,
+          groupPinnedAt: null,
+          groupPinnedBy: null,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    }
+  } else if (isProfileLive) {
+    const profileId = params.profileId ?? author.uid;
+    await setDoc(
+      doc(db, "users", profileId, "profileFeed", postId),
+      {
+        postId,
+        authorId: author.uid,
+        isPinnedOnProfile: true,
+        profilePinnedAt: Timestamp.now(),
+        profilePinnedBy: author.uid,
+        updatedAt: Timestamp.now(),
+        syncedAt: Timestamp.now(),
+      },
+      { merge: true },
+    );
+  }
+
+  return postId;
 }
 
 export async function createImagePost(params: {
@@ -4218,6 +4322,50 @@ export async function updatePost(params: {
   }
 
   await updateDoc(postRef, updatePayload);
+}
+
+export async function updateLivePost(params: {
+  postId: string;
+  title: string;
+  description?: string | null;
+  coverUrl?: string | null;
+  scheduledStartAt?: Date | null;
+  visibilityMode?: LiveVisibilityMode | null;
+}): Promise<void> {
+  const author = auth.currentUser;
+  if (!author) throw new Error("Debes iniciar sesión para editar el live.");
+
+  const postRef = doc(db, "posts", params.postId);
+  const postSnap = await getDoc(postRef);
+  if (!postSnap.exists()) throw new Error("El live no existe.");
+  const postData = postSnap.data() as Post;
+
+  if (postData.authorId !== author.uid) throw new Error("Solo el autor puede editar este live.");
+  if (postData.isDeleted) throw new Error("No se puede editar un live eliminado.");
+
+  const cleanTitle = params.title.trim();
+  if (!cleanTitle) throw new Error("El título del live es obligatorio.");
+
+  const effectiveMode: LiveVisibilityMode = params.visibilityMode ?? "everyone";
+  const scheduledStartAt = params.scheduledStartAt
+    ? Timestamp.fromDate(params.scheduledStartAt)
+    : null;
+
+  await updateDoc(postRef, {
+    text: cleanTitle,
+    shareTitle: cleanTitle,
+    shareDescription: params.description?.trim() || null,
+    shareImageUrl: params.coverUrl ?? null,
+    isShareable: effectiveMode !== "members_only",
+    "liveData.title": cleanTitle,
+    "liveData.description": params.description?.trim() || null,
+    "liveData.coverUrl": params.coverUrl ?? null,
+    "liveData.scheduledStartAt": scheduledStartAt,
+    "liveData.visibilityMode": effectiveMode,
+    "liveData.allowLoggedOutViewers": effectiveMode === "everyone",
+    editedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
 }
 
 // ─── Edición de comentarios y respuestas ───────────────────────────────────────

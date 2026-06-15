@@ -16,6 +16,8 @@ type Props = {
   open: boolean;
   donation: DonationInfo;
   profileName?: string | null;
+  profilePhoto?: string | null;
+  profileHandle?: string | null;
   onClose: () => void;
   onDonate: () => void;
 };
@@ -28,7 +30,9 @@ function desktopPanelSize(): { width: number; height: number } {
   return { width: Math.round((h * 9) / 16), height: h };
 }
 
-export default function DonationViewer({ open, donation, profileName, onClose, onDonate }: Props) {
+const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
+
+export default function DonationViewer({ open, donation, profileName, profilePhoto, profileHandle, onClose, onDonate }: Props) {
   const [mounted, setMounted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [muted, setMuted] = useState(() =>
@@ -125,9 +129,8 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
 
   if (!mounted || !open) return null;
 
-  // Use high.mp4 like StoryViewer — better browser cache, loops from cache without re-fetching
   const videoSrc = donation?.playbackId
-    ? `https://stream.mux.com/${donation.playbackId}/high.mp4`
+    ? `https://stream.mux.com/${donation.playbackId}.m3u8`
     : (typeof donation?.videoUrl === "string" && donation.videoUrl.startsWith("https://")
       ? donation.videoUrl
       : null);
@@ -243,6 +246,52 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
           </div>
         </div>
 
+        {/* Creator header — avatar ring + name + "Donación" label */}
+        {(() => {
+          const avatarSz = sz === 20 ? 40 : 54;
+          const avatarInset = sz === 20 ? 5 : 6;
+          const headerTop = typeof safeTop === "number" ? safeTop + 36 : `calc(${safeTop} + 36px)`;
+          const avatarRing = (
+            <div style={{ position: "relative", width: avatarSz, height: avatarSz, flexShrink: 0 }}>
+              <div style={{ position: "absolute", inset: avatarInset, borderRadius: "50%", overflow: "hidden", background: "rgba(255,255,255,0.1)" }}>
+                {profilePhoto
+                  ? <img src={profilePhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  : <div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />
+                }
+              </div>
+              <div style={{
+                position: "absolute", inset: 0, borderRadius: "50%",
+                background: VIBRA_RING,
+                WebkitMaskImage: "radial-gradient(farthest-side, transparent calc(100% - 2.5px), white calc(100% - 2.5px))",
+                maskImage: "radial-gradient(farthest-side, transparent calc(100% - 2.5px), white calc(100% - 2.5px))",
+              }} />
+            </div>
+          );
+          const inner = (
+            <>
+              {avatarRing}
+              <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <span style={{ color: "#fff", fontSize: sz === 20 ? 13 : 17, fontWeight: 600, lineHeight: "1.2", fontFamily: FONT }}>{profileName ?? ""}</span>
+                <span style={{ color: "rgba(255,255,255,0.75)", fontSize: sz === 20 ? 11 : 13, fontWeight: 500, lineHeight: "1.2", fontFamily: FONT }}>Donación</span>
+              </div>
+            </>
+          );
+          const headerStyle: React.CSSProperties = {
+            position: "absolute",
+            top: headerTop,
+            left: 12,
+            zIndex: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: sz === 20 ? 6 : 8,
+            textDecoration: "none",
+            WebkitTapHighlightColor: "transparent",
+          };
+          return profileHandle
+            ? <a href={`/u/${profileHandle}`} onClick={(e) => e.stopPropagation()} style={{ ...headerStyle, cursor: "pointer" }}>{inner}</a>
+            : <div style={headerStyle}>{inner}</div>;
+        })()}
+
         {/* Top-right controls: mute + close */}
         {showClose && (
           <div style={{
@@ -274,12 +323,6 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
           display: "flex", flexDirection: "column", gap: 10,
           zIndex: 10,
         }}>
-          {profileName && (
-            <div style={{ color: "rgba(255,255,255,0.75)", fontSize: sz === 20 ? 12 : 14, fontWeight: 600, fontFamily: FONT }}>
-              {donation?.mode === "wedding" ? "💍" : "🎁"} {profileName}
-              {minAmount ? ` · ${minAmount} ${currency}` : ""}
-            </div>
-          )}
           <button
             type="button"
             onTouchStart={(e) => e.stopPropagation()}

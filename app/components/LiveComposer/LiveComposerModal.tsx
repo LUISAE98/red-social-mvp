@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { Timestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, storage } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
-import { createLivePost } from "@/lib/posts/post-service";
-import type { LiveVisibilityMode } from "@/lib/posts/types";
+import { createLivePost, updateLivePost } from "@/lib/posts/post-service";
+import type { LiveVisibilityMode, Post, PostLiveData } from "@/lib/posts/types";
 
 type GroupVisibility = "public" | "private" | "hidden" | null;
 
@@ -14,6 +15,8 @@ type LiveComposerModalProps = {
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  editPost?: Post | null;
+  onEdited?: (newLiveData: PostLiveData) => void;
   contextType: "group" | "profile";
   groupId?: string | null;
   profileId?: string | null;
@@ -95,33 +98,106 @@ function SelectWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
+function parseScheduledTimestamp(ts: Timestamp | null | undefined): {
+  day: string; month: string; year: string;
+  hour: string; minute: string; period: "AM" | "PM";
+} {
+  if (!ts) return { day: "", month: "", year: "", hour: "", minute: "", period: "AM" };
+  const d = ts.toDate();
+  const h24 = d.getHours();
+  const period: "AM" | "PM" = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 % 12 || 12;
+  return {
+    day: String(d.getDate()),
+    month: String(d.getMonth() + 1),
+    year: String(d.getFullYear()),
+    hour: String(h12),
+    minute: String(d.getMinutes()).padStart(2, "0"),
+    period,
+  };
+}
+
 function deriveDefaultVisibility(
   contextType: "group" | "profile",
   groupVisibility: GroupVisibility,
-): { visibilityMode: LiveVisibilityMode; allowLoggedOutViewers: boolean } {
-  if (contextType === "group" && groupVisibility === "hidden") {
-    return { visibilityMode: "members_only", allowLoggedOutViewers: false };
+): LiveVisibilityMode {
+  if (contextType === "group" && (groupVisibility === "hidden" || groupVisibility === "private")) {
+    return "members_only";
   }
-  if (contextType === "group" && groupVisibility === "private") {
-    return { visibilityMode: "members_only", allowLoggedOutViewers: false };
+  return "everyone";
+}
+
+type VisibilityOption = {
+  mode: LiveVisibilityMode;
+  title: string;
+  description: string;
+  icon: "globe" | "user" | "lock";
+};
+
+function getVisibilityOptions(
+  contextType: "group" | "profile",
+  groupVisibility: GroupVisibility,
+): VisibilityOption[] {
+  if (contextType === "profile" || groupVisibility === "public") {
+    return [
+      {
+        mode: "everyone",
+        icon: "globe",
+        title: "Todos, incluyendo visitantes",
+        description: "Cualquiera puede verlo aunque no tenga cuenta en Vibra",
+      },
+      {
+        mode: "logged_in_only",
+        icon: "user",
+        title: "Solo usuarios con cuenta",
+        description: "Solo personas con cuenta en Vibra pueden verlo",
+      },
+    ];
   }
-  return { visibilityMode: "everyone", allowLoggedOutViewers: true };
+  if (groupVisibility === "private") {
+    return [
+      {
+        mode: "members_only",
+        icon: "lock",
+        title: "Solo miembros de la comunidad",
+        description: "Solo quienes ya forman parte de esta comunidad pueden verlo",
+      },
+      {
+        mode: "logged_in_only",
+        icon: "user",
+        title: "Cualquier usuario de Vibra",
+        description: "Cualquier persona con cuenta puede verlo, aunque no sea miembro",
+      },
+      {
+        mode: "everyone",
+        icon: "globe",
+        title: "Todos, incluyendo visitantes",
+        description: "Cualquiera puede verlo aunque no tenga cuenta en Vibra",
+      },
+    ];
+  }
+  return [];
 }
 
 export default function LiveComposerModal({
   open,
   onClose,
   onSuccess,
+  editPost,
+  onEdited,
   contextType,
   groupId,
   profileId,
   groupVisibility,
 }: LiveComposerModalProps) {
+  const isEditMode = !!editPost;
+
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
 
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
+  const [existingCoverUrl, setExistingCoverUrl] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [day, setDay] = useState("");
@@ -130,18 +206,14 @@ export default function LiveComposerModal({
   const [hour, setHour] = useState("");
   const [minute, setMinute] = useState("");
   const [period, setPeriod] = useState<"AM" | "PM">("AM");
-  const [creating, setCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const defaults = deriveDefaultVisibility(contextType, groupVisibility ?? null);
-  const [visibilityMode, setVisibilityMode] = useState<LiveVisibilityMode>(defaults.visibilityMode);
-  const [allowLoggedOutViewers, setAllowLoggedOutViewers] = useState(defaults.allowLoggedOutViewers);
-
   const isHiddenGroup = contextType === "group" && groupVisibility === "hidden";
-  const isPrivateGroup = contextType === "group" && groupVisibility === "private";
-  const showLoggedOutToggle =
-    !isHiddenGroup &&
-    (contextType === "profile" || groupVisibility === "public" || (isPrivateGroup && visibilityMode === "everyone"));
+  const visibilityOptions = getVisibilityOptions(contextType, groupVisibility ?? null);
+  const [visibilityMode, setVisibilityMode] = useState<LiveVisibilityMode>(
+    deriveDefaultVisibility(contextType, groupVisibility ?? null)
+  );
 
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const onCloseRef = useRef(onClose);
@@ -171,34 +243,53 @@ export default function LiveComposerModal({
 
   useEffect(() => {
     return () => {
-      if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
+      if (coverPreviewUrl && coverFile) URL.revokeObjectURL(coverPreviewUrl);
     };
-  }, [coverPreviewUrl]);
+  }, [coverPreviewUrl, coverFile]);
+
+  // Pre-populate form when opening in edit mode
+  useEffect(() => {
+    if (!open || !editPost?.liveData) return;
+    const ld = editPost.liveData;
+    setTitle(ld.title ?? "");
+    setDescription(ld.description ?? "");
+    setExistingCoverUrl(ld.coverUrl ?? null);
+    setCoverPreviewUrl(ld.coverUrl ?? null);
+    setCoverFile(null);
+    setVisibilityMode(ld.visibilityMode ?? deriveDefaultVisibility(contextType, groupVisibility ?? null));
+    const parsed = parseScheduledTimestamp(ld.scheduledStartAt);
+    setDay(parsed.day);
+    setMonth(parsed.month);
+    setYear(parsed.year);
+    setHour(parsed.hour);
+    setMinute(parsed.minute);
+    setPeriod(parsed.period);
+    setError(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, editPost?.id]);
 
   const daysInMonth = getDaysInMonth(month, year);
   const years = buildCurrentYears();
 
   function resetForm() {
-    if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
     setCoverFile(null);
     setCoverPreviewUrl(null);
+    setExistingCoverUrl(null);
     setTitle(""); setDescription("");
     setDay(""); setMonth(""); setYear("");
     setHour(""); setMinute(""); setPeriod("AM");
-    const d = deriveDefaultVisibility(contextType, groupVisibility ?? null);
-    setVisibilityMode(d.visibilityMode);
-    setAllowLoggedOutViewers(d.allowLoggedOutViewers);
+    setVisibilityMode(deriveDefaultVisibility(contextType, groupVisibility ?? null));
     setError(null);
   }
 
   function handleClose() {
-    if (creating) return;
+    if (saving) return;
     resetForm();
     onClose();
   }
 
   function handleCoverClick() {
-    if (creating) return;
+    if (saving) return;
     coverInputRef.current?.click();
   }
 
@@ -206,18 +297,14 @@ export default function LiveComposerModal({
     const file = e.currentTarget.files?.[0] ?? null;
     e.currentTarget.value = "";
     if (!file) return;
-    if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
+    if (coverFile && coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
     setCoverFile(file);
+    setExistingCoverUrl(null);
     setCoverPreviewUrl(URL.createObjectURL(file));
   }
 
-  function handleVisibilityModeChange(mode: LiveVisibilityMode) {
-    setVisibilityMode(mode);
-    if (mode === "members_only") setAllowLoggedOutViewers(false);
-  }
-
   async function handleSubmit() {
-    if (creating) return;
+    if (saving) return;
     if (!title.trim()) { setError("El título es obligatorio."); return; }
 
     let scheduledDate: Date | null = null;
@@ -229,35 +316,58 @@ export default function LiveComposerModal({
     }
 
     setError(null);
-    setCreating(true);
+    setSaving(true);
 
     try {
-      let coverUrl: string | null = null;
-      if (coverFile) coverUrl = await uploadLiveCover(coverFile);
+      let finalCoverUrl: string | null = existingCoverUrl;
+      if (coverFile) finalCoverUrl = await uploadLiveCover(coverFile);
 
-      const effectiveAllowLoggedOut =
-        isHiddenGroup || visibilityMode === "members_only" ? false : allowLoggedOutViewers;
+      const effectiveMode: LiveVisibilityMode = isHiddenGroup ? "members_only" : visibilityMode;
+      const cleanTitle = title.trim();
+      const cleanDescription = description.trim() || null;
+
+      if (isEditMode && editPost) {
+        await updateLivePost({
+          postId: editPost.id,
+          title: cleanTitle,
+          description: cleanDescription,
+          coverUrl: finalCoverUrl,
+          scheduledStartAt: scheduledDate,
+          visibilityMode: effectiveMode,
+        });
+        const newLiveData: PostLiveData = {
+          ...editPost.liveData,
+          title: cleanTitle,
+          description: cleanDescription,
+          coverUrl: finalCoverUrl,
+          scheduledStartAt: scheduledDate ? Timestamp.fromDate(scheduledDate) : null,
+          visibilityMode: effectiveMode,
+          allowLoggedOutViewers: effectiveMode === "everyone",
+        };
+        onEdited?.(newLiveData);
+        resetForm();
+        onClose();
+        return;
+      }
 
       if (contextType === "profile" && profileId) {
         await createLivePost({
           contextType: "profile",
           profileId,
-          title: title.trim(),
-          description: description.trim() || null,
-          coverUrl,
+          title: cleanTitle,
+          description: cleanDescription,
+          coverUrl: finalCoverUrl,
           scheduledStartAt: scheduledDate,
-          visibilityMode,
-          allowLoggedOutViewers: effectiveAllowLoggedOut,
+          visibilityMode: effectiveMode,
         });
       } else if (groupId) {
         await createLivePost({
           groupId,
-          title: title.trim(),
-          description: description.trim() || null,
-          coverUrl,
+          title: cleanTitle,
+          description: cleanDescription,
+          coverUrl: finalCoverUrl,
           scheduledStartAt: scheduledDate,
-          visibilityMode,
-          allowLoggedOutViewers: effectiveAllowLoggedOut,
+          visibilityMode: effectiveMode,
         });
       } else {
         throw new Error("Contexto inválido para crear el live.");
@@ -267,9 +377,9 @@ export default function LiveComposerModal({
       onSuccess?.();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo crear el live.");
+      setError(e instanceof Error ? e.message : isEditMode ? "No se pudo guardar el live." : "No se pudo crear el live.");
     } finally {
-      setCreating(false);
+      setSaving(false);
     }
   }
 
@@ -288,7 +398,7 @@ export default function LiveComposerModal({
     boxSizing: "border-box",
     appearance: "none",
     WebkitAppearance: "none",
-    cursor: creating ? "not-allowed" : "pointer",
+    cursor: saving ? "not-allowed" : "pointer",
     colorScheme: "dark",
   };
 
@@ -314,26 +424,6 @@ export default function LiveComposerModal({
     textTransform: "uppercase",
     marginBottom: 3,
     display: "block",
-  };
-
-  const radioRowStyle: CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    padding: "8px 10px",
-    borderRadius: 8,
-    cursor: creating ? "not-allowed" : "pointer",
-    userSelect: "none",
-  };
-
-  const toggleRowStyle: CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "8px 10px",
-    borderRadius: 8,
-    background: "rgba(255,255,255,0.04)",
-    marginBottom: 8,
   };
 
   return createPortal(
@@ -386,7 +476,7 @@ export default function LiveComposerModal({
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
-          aria-label="Programar live"
+          aria-label={isEditMode ? "Editar live" : "Programar live"}
           style={{
             width: "100%",
             maxWidth: 460,
@@ -412,17 +502,17 @@ export default function LiveComposerModal({
                 <circle cx="9" cy="9" r="8" stroke="#ef4444" strokeWidth="1.2" fill="none" />
                 <circle cx="9" cy="9" r="4.5" fill="#ef4444" />
               </svg>
-              Live programado
+              {isEditMode ? "Editar live" : "Live programado"}
             </span>
             <button
               type="button"
               onClick={handleClose}
-              disabled={creating}
+              disabled={saving}
               aria-label="Cerrar"
               style={{
                 width: 32, height: 32, borderRadius: 999, border: "none",
                 background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)",
-                cursor: creating ? "not-allowed" : "pointer",
+                cursor: saving ? "not-allowed" : "pointer",
                 fontSize: 18, display: "grid", placeItems: "center", flexShrink: 0,
               }}
             >
@@ -454,7 +544,7 @@ export default function LiveComposerModal({
           <button
             type="button"
             onClick={handleCoverClick}
-            disabled={creating}
+            disabled={saving}
             aria-label={coverPreviewUrl ? "Cambiar portada" : "Agregar portada"}
             style={{
               width: "100%",
@@ -466,7 +556,7 @@ export default function LiveComposerModal({
               background: coverPreviewUrl
                 ? "transparent"
                 : "radial-gradient(ellipse at center, rgba(180,180,200,0.22) 0%, rgba(120,120,150,0.10) 60%, rgba(80,80,110,0.06) 100%)",
-              cursor: creating ? "not-allowed" : "pointer",
+              cursor: saving ? "not-allowed" : "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -511,7 +601,7 @@ export default function LiveComposerModal({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="¿De qué va a tratar tu live?"
-            disabled={creating}
+            disabled={saving}
             maxLength={120}
             style={inputStyle}
             autoFocus
@@ -523,100 +613,96 @@ export default function LiveComposerModal({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Cuéntale a tu audiencia más detalles..."
-            disabled={creating}
+            disabled={saving}
             maxLength={500}
             rows={3}
             style={{ ...inputStyle, resize: "none", minHeight: 44 }}
           />
 
           {/* ── VISIBILIDAD ── */}
-          <label style={{ ...labelStyle, marginTop: 2 }}>Visibilidad</label>
+          <label style={{ ...labelStyle, marginTop: 2 }}>¿Quién puede ver este live?</label>
 
           {isHiddenGroup ? (
-            /* Comunidad oculta: bloqueado en "Solo miembros" */
             <div style={{
-              display: "flex", alignItems: "center", gap: 8,
-              padding: "8px 10px", borderRadius: 8,
-              background: "rgba(255,255,255,0.04)", marginBottom: 8,
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 12px", borderRadius: 10,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              marginBottom: 8,
             }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                 stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: fontStack }}>
-                Solo miembros <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>(comunidad oculta)</span>
-              </span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.6)", fontFamily: fontStack }}>
+                  Solo miembros de la comunidad
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: fontStack, marginTop: 1 }}>
+                  Las comunidades ocultas no pueden tener lives públicos
+                </div>
+              </div>
             </div>
-          ) : isPrivateGroup ? (
-            /* Comunidad privada: elegir entre Solo miembros / Todos */
-            <div style={{ marginBottom: 8, borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
-              {(["members_only", "everyone"] as LiveVisibilityMode[]).map((mode) => {
-                const active = visibilityMode === mode;
-                const label = mode === "members_only" ? "Solo miembros" : "Todos pueden verlo";
-                const desc = mode === "members_only"
-                  ? "Solo quienes pertenecen a la comunidad"
-                  : "Cualquier persona puede ver el live";
+          ) : (
+            <div style={{ marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+              {visibilityOptions.map((opt, idx) => {
+                const active = visibilityMode === opt.mode;
+                const isLast = idx === visibilityOptions.length - 1;
                 return (
                   <div
-                    key={mode}
+                    key={opt.mode}
                     className="vibra-live-radio"
-                    onClick={() => !creating && handleVisibilityModeChange(mode)}
+                    onClick={() => !saving && setVisibilityMode(opt.mode)}
                     style={{
-                      ...radioRowStyle,
-                      borderBottom: mode === "members_only" ? "1px solid rgba(255,255,255,0.06)" : "none",
-                      background: active ? "rgba(168,85,255,0.10)" : undefined,
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "10px 12px",
+                      cursor: saving ? "not-allowed" : "pointer",
+                      borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)",
+                      background: active ? "rgba(168,85,255,0.10)" : "transparent",
+                      userSelect: "none",
                     }}
                   >
+                    {/* Radio circle */}
                     <div style={{
                       width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
-                      border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.3)",
+                      border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.25)",
                       boxSizing: "border-box", transition: "border 120ms ease",
                     }} />
+                    {/* Icon */}
+                    <div style={{ flexShrink: 0, color: active ? "#c084fc" : "rgba(255,255,255,0.35)" }}>
+                      {opt.icon === "globe" && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="2" y1="12" x2="22" y2="12" />
+                          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                        </svg>
+                      )}
+                      {opt.icon === "user" && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                      )}
+                      {opt.icon === "lock" && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                      )}
+                    </div>
+                    {/* Text */}
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#d8b4fe" : "#fff", fontFamily: fontStack }}>
-                        {label}
+                      <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#e9d5ff" : "#fff", fontFamily: fontStack }}>
+                        {opt.title}
                       </div>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 1 }}>
-                        {desc}
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2, lineHeight: 1.4 }}>
+                        {opt.description}
                       </div>
                     </div>
                   </div>
                 );
               })}
-            </div>
-          ) : null}
-
-          {/* Toggle "Permitir visitantes sin cuenta" */}
-          {showLoggedOutToggle && (
-            <div style={toggleRowStyle}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: "#fff", fontFamily: fontStack }}>
-                  Permitir visitantes sin cuenta
-                </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 1 }}>
-                  {allowLoggedOutViewers ? "Visible sin iniciar sesión" : "Requiere cuenta en Vibra"}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => !creating && setAllowLoggedOutViewers((v) => !v)}
-                disabled={creating}
-                aria-label="Alternar visibilidad para no logueados"
-                style={{
-                  width: 40, height: 22, borderRadius: 999, border: "none",
-                  background: allowLoggedOutViewers ? "#a855f7" : "rgba(255,255,255,0.15)",
-                  cursor: creating ? "not-allowed" : "pointer",
-                  position: "relative", flexShrink: 0, transition: "background 150ms ease",
-                }}
-              >
-                <span style={{
-                  position: "absolute", top: 3,
-                  left: allowLoggedOutViewers ? 21 : 3,
-                  width: 16, height: 16, borderRadius: "50%",
-                  background: "#fff", transition: "left 150ms ease",
-                }} />
-              </button>
             </div>
           )}
 
@@ -624,7 +710,7 @@ export default function LiveComposerModal({
           <label style={labelStyle}>Fecha de inicio (opcional)</label>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <SelectWrapper>
-              <select value={day} onChange={(e) => setDay(e.target.value)} disabled={creating} style={selectStyle} className="vibra-live-select">
+              <select value={day} onChange={(e) => setDay(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
                 <option value="">Día</option>
                 {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => (
                   <option key={d} value={String(d)}>{d}</option>
@@ -638,7 +724,7 @@ export default function LiveComposerModal({
                   setMonth(e.target.value);
                   if (day && parseInt(day) > getDaysInMonth(e.target.value, year)) setDay("");
                 }}
-                disabled={creating}
+                disabled={saving}
                 style={selectStyle}
                 className="vibra-live-select"
               >
@@ -649,7 +735,7 @@ export default function LiveComposerModal({
               </select>
             </SelectWrapper>
             <SelectWrapper>
-              <select value={year} onChange={(e) => setYear(e.target.value)} disabled={creating} style={selectStyle} className="vibra-live-select">
+              <select value={year} onChange={(e) => setYear(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
                 <option value="">Año</option>
                 {years.map((y) => (
                   <option key={y} value={String(y)}>{y}</option>
@@ -662,7 +748,7 @@ export default function LiveComposerModal({
           <label style={labelStyle}>Hora de inicio (opcional)</label>
           <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
             <SelectWrapper>
-              <select value={hour} onChange={(e) => setHour(e.target.value)} disabled={creating} style={selectStyle} className="vibra-live-select">
+              <select value={hour} onChange={(e) => setHour(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
                 <option value="">Hora</option>
                 {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
                   <option key={h} value={String(h)}>{h}</option>
@@ -670,7 +756,7 @@ export default function LiveComposerModal({
               </select>
             </SelectWrapper>
             <SelectWrapper>
-              <select value={minute} onChange={(e) => setMinute(e.target.value)} disabled={creating} style={selectStyle} className="vibra-live-select">
+              <select value={minute} onChange={(e) => setMinute(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
                 <option value="">Min</option>
                 {["00","05","10","15","20","25","30","35","40","45","50","55"].map((m) => (
                   <option key={m} value={m}>{m}</option>
@@ -678,7 +764,7 @@ export default function LiveComposerModal({
               </select>
             </SelectWrapper>
             <SelectWrapper>
-              <select value={period} onChange={(e) => setPeriod(e.target.value as "AM" | "PM")} disabled={creating} style={selectStyle} className="vibra-live-select">
+              <select value={period} onChange={(e) => setPeriod(e.target.value as "AM" | "PM")} disabled={saving} style={selectStyle} className="vibra-live-select">
                 <option value="AM">AM</option>
                 <option value="PM">PM</option>
               </select>
@@ -689,16 +775,19 @@ export default function LiveComposerModal({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={creating}
+            disabled={saving}
             style={{
               width: "100%", borderRadius: 12, border: "none",
-              background: creating ? "rgba(168,85,255,0.4)" : "linear-gradient(135deg,#a855ff,#7c3aed)",
+              background: saving ? "rgba(168,85,255,0.4)" : "linear-gradient(135deg,#a855ff,#7c3aed)",
               color: "#fff", padding: "12px 0", fontSize: 15, fontWeight: 600,
-              fontFamily: fontStack, cursor: creating ? "not-allowed" : "pointer",
+              fontFamily: fontStack, cursor: saving ? "not-allowed" : "pointer",
               letterSpacing: "-0.01em",
             }}
           >
-            {creating ? "Creando live..." : "Programar live"}
+            {saving
+              ? (isEditMode ? "Guardando..." : "Creando live...")
+              : (isEditMode ? "Guardar cambios" : "Programar live")
+            }
           </button>
         </div>
       </div>

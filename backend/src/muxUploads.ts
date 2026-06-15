@@ -230,6 +230,7 @@ export const createMuxDonationUpload = onCall<{ profileId: string }>(
         new_asset_settings: {
           playback_policy: ["public"],
           video_quality: "plus",
+          mp4_support: "standard",
           passthrough: JSON.stringify({
             authorId: uid,
             profileId,
