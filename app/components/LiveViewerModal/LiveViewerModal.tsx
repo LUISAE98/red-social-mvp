@@ -52,6 +52,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mobileFsHorizontal, setMobileFsHorizontal] = useState(false);
+  const [screenIsPortrait, setScreenIsPortrait] = useState(
+    typeof window !== "undefined" ? window.innerHeight > window.innerWidth : true
+  );
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
@@ -79,6 +82,13 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const chatEnabled = !isEnded && !isBanned && liveData?.chatEnabled !== false;
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Detecta cambio de orientación física para saber si aplicar rotación CSS o no
+  useEffect(() => {
+    const handler = () => setScreenIsPortrait(window.innerHeight > window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
 
   useEffect(() => {
     const mql = window.matchMedia("(pointer: fine)");
@@ -621,18 +631,34 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // MOBILE — horizontal fullscreen: invade safe areas, sin chat
-  // En Android Chrome se bloquea la orientación landscape via orientation.lock.
-  // En iOS Safari el usuario puede girar el dispositivo manualmente.
+  // MOBILE — horizontal fullscreen
+  // Si el teléfono está en portrait: rotamos 90deg el contenido para que el
+  // video landscape llene toda la pantalla (igual que iOS fullscreen nativo).
+  // Si ya está en landscape (orientation.lock en Android o giro manual):
+  // llenamos normal con inset: 0 sin rotación.
+  // En ambos casos: sin padding de safe area — el video invade todo.
   // ══════════════════════════════════════════════════════════════════════════
   if (!isDesktop && mobileFsHorizontal) {
+    const needsRotation = screenIsPortrait;
     return createPortal(
       <>
-        <style>{keyframes}</style>
-        <div style={{
-          position: "fixed", inset: 0, zIndex: 10001, background: "#000",
-          // Sin padding de safe area — el video invade notch y home indicator
-        }}>
+        {/* vh/dvh fallback: dvh soportado en iOS 16+ y Android moderno */}
+        <style>{`${keyframes}.lvm-hz-rot{width:100vh;width:100dvh;height:100vw;height:100dvw}`}</style>
+        <div
+          className={needsRotation ? "lvm-hz-rot" : undefined}
+          style={needsRotation ? {
+            // Rotamos el container 90deg CW desde top-left:
+            // ancho=dvh, alto=dvw → después de rotar ocupa exactamente la pantalla portrait
+            position: "fixed", top: 0, left: 0,
+            transformOrigin: "top left",
+            transform: "rotate(90deg)",
+            zIndex: 10001, background: "#000", overflow: "hidden",
+          } : {
+            // Pantalla ya en landscape: llenar normalmente
+            position: "fixed", inset: 0,
+            zIndex: 10001, background: "#000", overflow: "hidden",
+          }}
+        >
           <div style={{ position: "relative", width: "100%", height: "100%" }}>
             {renderVideo("cover")}
             {renderEndedOverlay()}
