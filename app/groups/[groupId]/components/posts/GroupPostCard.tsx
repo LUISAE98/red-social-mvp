@@ -1955,6 +1955,12 @@ function renderBlurredMediaBackdrop(
   const isPinned =
     post.isPinnedInGroup === true || post.isPinnedOnProfile === true;
 
+  const isLiveActive = post.postType === "live" && post.liveData?.status === "live";
+  const liveName =
+    post.liveData?.createdFrom === "group"
+      ? (groupInfo.groupName ?? postAuthor.authorName)
+      : postAuthor.authorName;
+
   const premiumState = resolvePostPremiumState({
     post,
     currentUserId,
@@ -2707,12 +2713,46 @@ style={{
     style={{
       marginTop: 10,
       borderRadius: 14,
-      overflow: "hidden",
-      border: "2.6px solid #a855f7",
-      boxShadow: "0 0 0 1px rgba(168,85,255,0.06), 0 4px 28px rgba(168,85,255,0.1)",
+      position: "relative",
+      border: isLiveActive ? "2.6px solid #ef4444" : "2.6px solid #a855f7",
+      boxShadow: isLiveActive
+        ? "0 0 0 1px rgba(239,68,68,0.06), 0 4px 28px rgba(239,68,68,0.18)"
+        : "0 0 0 1px rgba(168,85,255,0.06), 0 4px 28px rgba(168,85,255,0.1)",
       background: "transparent",
     }}
   >
+    {/* Pestaña LIVE */}
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        right: 10,
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        background: isLiveActive
+          ? "linear-gradient(180deg, #ef4444 0%, #d946b8 100%)"
+          : "linear-gradient(180deg, #a855f7 0%, #d946b8 100%)",
+        borderBottomLeftRadius: 6,
+        borderBottomRightRadius: 6,
+        padding: "3px 8px 3px 6px",
+        fontSize: 8.5,
+        fontWeight: 700,
+        letterSpacing: "0.06em",
+        color: "#fff",
+        whiteSpace: "nowrap",
+        fontFamily: fontStack,
+        textTransform: "uppercase",
+        zIndex: 2,
+      }}
+    >
+      <svg width="11" height="11" viewBox="0 0 22 22" fill="none">
+        <circle cx="11" cy="11" r="10" stroke="#fff" strokeWidth="1.4" fill="none" />
+        <circle cx="11" cy="11" r="6" fill="#fff" />
+      </svg>
+      {isLiveActive ? "En vivo" : "Live Programado"}
+    </div>
+
     {/* Cover image or placeholder */}
     <div
       style={{
@@ -2725,6 +2765,7 @@ style={{
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
+        borderRadius: 12,
       }}
     >
       {post.liveData?.coverUrl && (
@@ -2754,7 +2795,7 @@ style={{
         <circle cx="11" cy="11" r="6" fill="#ef4444" />
       </svg>
 
-      {/* "Live programado" badge */}
+      {/* Badge de estado dentro de la portada */}
       <div
         style={{
           position: "absolute",
@@ -2764,16 +2805,17 @@ style={{
           alignItems: "center",
           gap: 6,
           background: "rgba(10,5,20,0.82)",
-          border: "1px solid rgba(168,85,255,0.35)",
+          border: isLiveActive ? "1px solid rgba(239,68,68,0.45)" : "1px solid rgba(168,85,255,0.35)",
           borderRadius: 999,
           padding: "4px 10px 4px 8px",
           fontFamily: fontStack,
           fontSize: 11,
           fontWeight: 700,
           letterSpacing: "0.04em",
-          color: "#d8b4fe",
+          color: isLiveActive ? "#fca5a5" : "#d8b4fe",
           textTransform: "uppercase",
           backdropFilter: "blur(4px)",
+          maxWidth: "calc(100% - 20px)",
         }}
       >
         <span
@@ -2781,13 +2823,17 @@ style={{
             width: 7,
             height: 7,
             borderRadius: "50%",
-            background: "#a855f7",
+            background: isLiveActive ? "#ef4444" : "#a855f7",
             flexShrink: 0,
-            boxShadow: "0 0 0 2px rgba(168,85,255,0.3)",
+            boxShadow: isLiveActive
+              ? "0 0 0 2px rgba(239,68,68,0.3)"
+              : "0 0 0 2px rgba(168,85,255,0.3)",
             animation: "livePulse 2s ease-in-out infinite",
           }}
         />
-        Live programado
+        {isLiveActive
+          ? `${liveName} ya está en vivo`
+          : "Esperando inicio"}
       </div>
     </div>
 
@@ -2863,40 +2909,6 @@ style={{
         </span>
       </div>
 
-      {/* CTA */}
-      <div
-        style={{
-          marginTop: 12,
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 6,
-          borderRadius: 999,
-          border: "1px solid rgba(168,85,255,0.28)",
-          background: "rgba(168,85,255,0.08)",
-          padding: "7px 14px",
-          fontFamily: fontStack,
-          fontSize: 12,
-          fontWeight: 600,
-          color: "rgba(168,85,255,0.85)",
-          letterSpacing: "0.01em",
-          userSelect: "none",
-        }}
-      >
-        <svg
-          width="11"
-          height="11"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
-        </svg>
-        Esperando inicio
-      </div>
     </div>
 
     <style>{`

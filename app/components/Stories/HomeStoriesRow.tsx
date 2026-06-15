@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   collection,
   documentId,
@@ -275,9 +274,8 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                 position: "relative",
               }}
             >
-              {/* Ring — layoutId enables hero transition to StoryViewer on mobile */}
-              <motion.div
-                layoutId={`story-${group.key}`}
+              {/* Ring */}
+              <div
                 style={{
                   width: 80,
                   height: 80,
@@ -314,7 +312,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                     <span style={{ fontSize: 22, lineHeight: 1 }}>{emoji}</span>
                   )}
                 </div>
-              </motion.div>
+              </div>
               {/* Name */}
               <span
                 style={{
@@ -348,20 +346,17 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
       )}
 
       {/* Mobile: tap navigates within group; swipe or exhaustion changes group; swipe-down closes */}
-      <AnimatePresence>
-        {activeGroup && (
-          <StoryViewer
-            key={activeGroup.key}
-            stories={activeGroup.stories}
-            initialIndex={activeGroup.startIndex}
-            onClose={() => setActiveGroup(null)}
-            onGroupFinished={handleMobileGroupFinished}
-            onPrevGroup={handleMobileGroupBack}
-            onStoryViewed={handleStoryViewed}
-            layoutId={`story-${activeGroup.key}`}
-          />
-        )}
-      </AnimatePresence>
+      {activeGroup && (
+        <StoryViewer
+          key={activeGroup.key}
+          stories={activeGroup.stories}
+          initialIndex={activeGroup.startIndex}
+          onClose={() => setActiveGroup(null)}
+          onGroupFinished={handleMobileGroupFinished}
+          onPrevGroup={handleMobileGroupBack}
+          onStoryViewed={handleStoryViewed}
+        />
+      )}
     </>
   );
 }

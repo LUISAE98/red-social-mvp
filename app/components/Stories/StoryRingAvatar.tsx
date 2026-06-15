@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useRef, useState } from "react";
 import { recordStoryView } from "@/lib/stories/storyService";
 import { useStoryRingState } from "@/lib/stories/useStoryRingState";
 import StoryViewer from "./StoryViewer";
@@ -40,6 +39,7 @@ export default function StoryRingAvatar({
     currentUserId,
   );
   const [viewerOpen, setViewerOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
@@ -70,11 +70,10 @@ export default function StoryRingAvatar({
     return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
   })();
 
-  const layoutId = `story-${entityId}`;
-
   return (
     <>
       <button
+        ref={buttonRef}
         type="button"
         onClick={handleClick}
         style={{
@@ -94,8 +93,7 @@ export default function StoryRingAvatar({
         }}
         aria-label={hasStories ? `Ver historias de ${displayName}` : displayName}
       >
-        <motion.div
-          layoutId={layoutId}
+        <div
           style={{
             width: "100%",
             height: "100%",
@@ -142,20 +140,17 @@ export default function StoryRingAvatar({
               </span>
             )}
           </div>
-        </motion.div>
+        </div>
       </button>
 
-      <AnimatePresence>
-        {viewerOpen && (
-          <StoryViewer
-            stories={stories}
-            initialIndex={startIndex}
-            onClose={() => setViewerOpen(false)}
-            onStoryViewed={handleStoryViewed}
-            layoutId={layoutId}
-          />
-        )}
-      </AnimatePresence>
+      {viewerOpen && (
+        <StoryViewer
+          stories={stories}
+          initialIndex={startIndex}
+          onClose={() => setViewerOpen(false)}
+          onStoryViewed={handleStoryViewed}
+        />
+      )}
     </>
   );
 }

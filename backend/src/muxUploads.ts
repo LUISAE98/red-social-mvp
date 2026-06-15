@@ -229,7 +229,7 @@ export const createMuxDonationUpload = onCall<{ profileId: string }>(
         cors_origin: corsOrigin,
         new_asset_settings: {
           playback_policy: ["public"],
-          video_quality: "basic",
+          video_quality: "plus",
           passthrough: JSON.stringify({
             authorId: uid,
             profileId,
