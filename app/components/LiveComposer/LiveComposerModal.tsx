@@ -6,6 +6,9 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, storage } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import { createLivePost } from "@/lib/posts/post-service";
+import type { LiveVisibilityMode } from "@/lib/posts/types";
+
+type GroupVisibility = "public" | "private" | "hidden" | null;
 
 type LiveComposerModalProps = {
   open: boolean;
@@ -14,6 +17,7 @@ type LiveComposerModalProps = {
   contextType: "group" | "profile";
   groupId?: string | null;
   profileId?: string | null;
+  groupVisibility?: GroupVisibility;
 };
 
 const fontStack =
@@ -91,6 +95,19 @@ function SelectWrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
+function deriveDefaultVisibility(
+  contextType: "group" | "profile",
+  groupVisibility: GroupVisibility,
+): { visibilityMode: LiveVisibilityMode; allowLoggedOutViewers: boolean } {
+  if (contextType === "group" && groupVisibility === "hidden") {
+    return { visibilityMode: "members_only", allowLoggedOutViewers: false };
+  }
+  if (contextType === "group" && groupVisibility === "private") {
+    return { visibilityMode: "members_only", allowLoggedOutViewers: false };
+  }
+  return { visibilityMode: "everyone", allowLoggedOutViewers: true };
+}
+
 export default function LiveComposerModal({
   open,
   onClose,
@@ -98,6 +115,7 @@ export default function LiveComposerModal({
   contextType,
   groupId,
   profileId,
+  groupVisibility,
 }: LiveComposerModalProps) {
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
@@ -114,6 +132,16 @@ export default function LiveComposerModal({
   const [period, setPeriod] = useState<"AM" | "PM">("AM");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const defaults = deriveDefaultVisibility(contextType, groupVisibility ?? null);
+  const [visibilityMode, setVisibilityMode] = useState<LiveVisibilityMode>(defaults.visibilityMode);
+  const [allowLoggedOutViewers, setAllowLoggedOutViewers] = useState(defaults.allowLoggedOutViewers);
+
+  const isHiddenGroup = contextType === "group" && groupVisibility === "hidden";
+  const isPrivateGroup = contextType === "group" && groupVisibility === "private";
+  const showLoggedOutToggle =
+    !isHiddenGroup &&
+    (contextType === "profile" || groupVisibility === "public" || (isPrivateGroup && visibilityMode === "everyone"));
 
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const onCloseRef = useRef(onClose);
@@ -141,7 +169,6 @@ export default function LiveComposerModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
-  // Revocar URL de preview al desmontar
   useEffect(() => {
     return () => {
       if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
@@ -158,6 +185,9 @@ export default function LiveComposerModal({
     setTitle(""); setDescription("");
     setDay(""); setMonth(""); setYear("");
     setHour(""); setMinute(""); setPeriod("AM");
+    const d = deriveDefaultVisibility(contextType, groupVisibility ?? null);
+    setVisibilityMode(d.visibilityMode);
+    setAllowLoggedOutViewers(d.allowLoggedOutViewers);
     setError(null);
   }
 
@@ -176,10 +206,14 @@ export default function LiveComposerModal({
     const file = e.currentTarget.files?.[0] ?? null;
     e.currentTarget.value = "";
     if (!file) return;
-
     if (coverPreviewUrl) URL.revokeObjectURL(coverPreviewUrl);
     setCoverFile(file);
     setCoverPreviewUrl(URL.createObjectURL(file));
+  }
+
+  function handleVisibilityModeChange(mode: LiveVisibilityMode) {
+    setVisibilityMode(mode);
+    if (mode === "members_only") setAllowLoggedOutViewers(false);
   }
 
   async function handleSubmit() {
@@ -199,9 +233,10 @@ export default function LiveComposerModal({
 
     try {
       let coverUrl: string | null = null;
-      if (coverFile) {
-        coverUrl = await uploadLiveCover(coverFile);
-      }
+      if (coverFile) coverUrl = await uploadLiveCover(coverFile);
+
+      const effectiveAllowLoggedOut =
+        isHiddenGroup || visibilityMode === "members_only" ? false : allowLoggedOutViewers;
 
       if (contextType === "profile" && profileId) {
         await createLivePost({
@@ -211,6 +246,8 @@ export default function LiveComposerModal({
           description: description.trim() || null,
           coverUrl,
           scheduledStartAt: scheduledDate,
+          visibilityMode,
+          allowLoggedOutViewers: effectiveAllowLoggedOut,
         });
       } else if (groupId) {
         await createLivePost({
@@ -219,6 +256,8 @@ export default function LiveComposerModal({
           description: description.trim() || null,
           coverUrl,
           scheduledStartAt: scheduledDate,
+          visibilityMode,
+          allowLoggedOutViewers: effectiveAllowLoggedOut,
         });
       } else {
         throw new Error("Contexto inválido para crear el live.");
@@ -277,6 +316,26 @@ export default function LiveComposerModal({
     display: "block",
   };
 
+  const radioRowStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "8px 10px",
+    borderRadius: 8,
+    cursor: creating ? "not-allowed" : "pointer",
+    userSelect: "none",
+  };
+
+  const toggleRowStyle: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "8px 10px",
+    borderRadius: 8,
+    background: "rgba(255,255,255,0.04)",
+    marginBottom: 8,
+  };
+
   return createPortal(
     <>
       <style>{`
@@ -300,6 +359,7 @@ export default function LiveComposerModal({
           background: #1a0f2e;
           color: #fff;
         }
+        .vibra-live-radio:hover { background: rgba(255,255,255,0.06); }
       `}</style>
 
       {/* Backdrop */}
@@ -375,7 +435,7 @@ export default function LiveComposerModal({
             <div style={{
               borderRadius: 10, border: "1px solid rgba(255,90,90,0.24)",
               background: "rgba(120,18,18,0.28)", color: "#ffdada",
-              padding: "9px 12px", fontSize: 12, lineHeight: 1.4, marginBottom: 14,
+              padding: "9px 12px", fontSize: 12, lineHeight: 1.4, marginBottom: 10,
             }}>
               {error}
             </div>
@@ -421,31 +481,17 @@ export default function LiveComposerModal({
                 <img
                   src={coverPreviewUrl}
                   alt="Portada del live"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    display: "block",
-                  }}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                 />
-                {/* Overlay "Cambiar" */}
                 <div style={{
-                  position: "absolute",
-                  inset: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "rgba(0,0,0,0.45)",
-                  opacity: 0,
-                  transition: "opacity 150ms ease",
+                  position: "absolute", inset: 0, display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                  background: "rgba(0,0,0,0.45)", opacity: 0, transition: "opacity 150ms ease",
                 }}
                   onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "1"; }}
                   onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "0"; }}
                 >
-                  <span style={{
-                    fontSize: 13, fontWeight: 600, color: "#fff",
-                    fontFamily: fontStack, letterSpacing: "-0.01em",
-                  }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>
                     Cambiar portada
                   </span>
                 </div>
@@ -482,6 +528,97 @@ export default function LiveComposerModal({
             rows={3}
             style={{ ...inputStyle, resize: "none", minHeight: 44 }}
           />
+
+          {/* ── VISIBILIDAD ── */}
+          <label style={{ ...labelStyle, marginTop: 2 }}>Visibilidad</label>
+
+          {isHiddenGroup ? (
+            /* Comunidad oculta: bloqueado en "Solo miembros" */
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "8px 10px", borderRadius: 8,
+              background: "rgba(255,255,255,0.04)", marginBottom: 8,
+            }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: fontStack }}>
+                Solo miembros <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 11 }}>(comunidad oculta)</span>
+              </span>
+            </div>
+          ) : isPrivateGroup ? (
+            /* Comunidad privada: elegir entre Solo miembros / Todos */
+            <div style={{ marginBottom: 8, borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+              {(["members_only", "everyone"] as LiveVisibilityMode[]).map((mode) => {
+                const active = visibilityMode === mode;
+                const label = mode === "members_only" ? "Solo miembros" : "Todos pueden verlo";
+                const desc = mode === "members_only"
+                  ? "Solo quienes pertenecen a la comunidad"
+                  : "Cualquier persona puede ver el live";
+                return (
+                  <div
+                    key={mode}
+                    className="vibra-live-radio"
+                    onClick={() => !creating && handleVisibilityModeChange(mode)}
+                    style={{
+                      ...radioRowStyle,
+                      borderBottom: mode === "members_only" ? "1px solid rgba(255,255,255,0.06)" : "none",
+                      background: active ? "rgba(168,85,255,0.10)" : undefined,
+                    }}
+                  >
+                    <div style={{
+                      width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                      border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.3)",
+                      boxSizing: "border-box", transition: "border 120ms ease",
+                    }} />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#d8b4fe" : "#fff", fontFamily: fontStack }}>
+                        {label}
+                      </div>
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 1 }}>
+                        {desc}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : null}
+
+          {/* Toggle "Permitir visitantes sin cuenta" */}
+          {showLoggedOutToggle && (
+            <div style={toggleRowStyle}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: "#fff", fontFamily: fontStack }}>
+                  Permitir visitantes sin cuenta
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 1 }}>
+                  {allowLoggedOutViewers ? "Visible sin iniciar sesión" : "Requiere cuenta en Vibra"}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !creating && setAllowLoggedOutViewers((v) => !v)}
+                disabled={creating}
+                aria-label="Alternar visibilidad para no logueados"
+                style={{
+                  width: 40, height: 22, borderRadius: 999, border: "none",
+                  background: allowLoggedOutViewers ? "#a855f7" : "rgba(255,255,255,0.15)",
+                  cursor: creating ? "not-allowed" : "pointer",
+                  position: "relative", flexShrink: 0, transition: "background 150ms ease",
+                }}
+              >
+                <span style={{
+                  position: "absolute", top: 3,
+                  left: allowLoggedOutViewers ? 21 : 3,
+                  width: 16, height: 16, borderRadius: "50%",
+                  background: "#fff", transition: "left 150ms ease",
+                }} />
+              </button>
+            </div>
+          )}
 
           {/* Fecha */}
           <label style={labelStyle}>Fecha de inicio (opcional)</label>

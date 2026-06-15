@@ -2590,6 +2590,8 @@ export async function createLivePost(params: {
   description?: string | null;
   coverUrl?: string | null;
   scheduledStartAt?: Date | null;
+  visibilityMode?: "everyone" | "members_only" | null;
+  allowLoggedOutViewers?: boolean | null;
 }): Promise<string>;
 export async function createLivePost(params: {
   contextType: "profile";
@@ -2598,6 +2600,8 @@ export async function createLivePost(params: {
   description?: string | null;
   coverUrl?: string | null;
   scheduledStartAt?: Date | null;
+  visibilityMode?: "everyone" | "members_only" | null;
+  allowLoggedOutViewers?: boolean | null;
 }): Promise<string>;
 export async function createLivePost(params: {
   contextType?: PostContextType;
@@ -2607,6 +2611,8 @@ export async function createLivePost(params: {
   description?: string | null;
   coverUrl?: string | null;
   scheduledStartAt?: Date | null;
+  visibilityMode?: "everyone" | "members_only" | null;
+  allowLoggedOutViewers?: boolean | null;
 }): Promise<string> {
   const cleanTitle = params.title.trim();
   if (!cleanTitle) {
@@ -2646,6 +2652,8 @@ export async function createLivePost(params: {
     streamKey: null,
     ingestUrl: null,
     createdFrom,
+    visibilityMode: params.visibilityMode ?? "everyone",
+    allowLoggedOutViewers: params.allowLoggedOutViewers ?? true,
   };
 
   const createdAt = serverTimestamp();

@@ -1407,7 +1407,15 @@ to {
     showCreateGroup ? () => router.push(createGroupHref) : undefined
   }
   onCloseSearch={showCloseSearch ? handleCloseSearch : undefined}
-  onFocusChange={setIsFocused}
+  onFocusChange={(focused) => {
+    if (focused) {
+      setIsFocused(true);
+    } else {
+      // On touch devices, blur fires at touchstart — before the synthesized click.
+      // Delay so history-item taps have time to fire before the dropdown unmounts.
+      window.setTimeout(() => setIsFocused(false), 200);
+    }
+  }}
   onEnterKey={handleOpenFullResults}
   fontStack={fontStack}
   showCreateGroup={showCreateGroup}

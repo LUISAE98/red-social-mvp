@@ -223,6 +223,8 @@ export type ProcessingStatus =
   | "ready"
   | "error";
 
+export type LiveVisibilityMode = "everyone" | "members_only";
+
 export type PostLiveData = {
   status?: LiveStatus;
   title?: string | null;
@@ -237,6 +239,8 @@ export type PostLiveData = {
   streamKey?: string | null;
   ingestUrl?: string | null;
   createdFrom?: "profile" | "group" | null;
+  visibilityMode?: LiveVisibilityMode | null;
+  allowLoggedOutViewers?: boolean | null;
 };
 
 export type PostVideoData = {

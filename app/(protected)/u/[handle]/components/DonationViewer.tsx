@@ -22,6 +22,12 @@ type Props = {
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
 
+function desktopPanelSize(): { width: number; height: number } {
+  if (typeof window === "undefined") return { width: 380, height: 675 };
+  const h = Math.min(Math.round(window.innerHeight * 0.86), 720);
+  return { width: Math.round((h * 9) / 16), height: h };
+}
+
 export default function DonationViewer({ open, donation, profileName, onClose, onDonate }: Props) {
   const [mounted, setMounted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -33,17 +39,21 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const rafRef = useRef<number | null>(null);
+  const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
+  // Desktop detection via pointer media query — same as StoryViewer
   useEffect(() => {
-    function check() { setIsDesktop(window.innerWidth >= 768); }
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    const mql = window.matchMedia("(pointer: fine)");
+    setIsDesktop(mql.matches);
+    const h = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mql.addEventListener("change", h);
+    return () => mql.removeEventListener("change", h);
   }, []);
 
+  // Body scroll lock
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -51,10 +61,12 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
+  // Autoplay + mute sync
   useEffect(() => {
     if (!open) {
       setDragY(0);
       setProgress(0);
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       return;
     }
     const el = videoRef.current;
@@ -84,6 +96,7 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
   }, [open]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartXRef.current = e.touches[0]?.clientX ?? null;
     touchStartYRef.current = e.touches[0]?.clientY ?? null;
   }, []);
 
@@ -94,11 +107,15 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
   }, []);
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const startX = touchStartXRef.current;
     const startY = touchStartYRef.current;
+    touchStartXRef.current = null;
     touchStartYRef.current = null;
+    const endX = e.changedTouches[0]?.clientX ?? startX ?? 0;
     const endY = e.changedTouches[0]?.clientY ?? startY ?? 0;
+    const dx = endX - (startX ?? endX);
     const dy = endY - (startY ?? endY);
-    if (dy > 80) {
+    if (dy > 80 && dy > Math.abs(dx)) {
       setDragY(0);
       onClose();
       return;
@@ -108,8 +125,9 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
 
   if (!mounted || !open) return null;
 
-  const hlsUrl = donation?.playbackId
-    ? `https://stream.mux.com/${donation.playbackId}.m3u8`
+  // Use high.mp4 like StoryViewer — better browser cache, loops from cache without re-fetching
+  const videoSrc = donation?.playbackId
+    ? `https://stream.mux.com/${donation.playbackId}/high.mp4`
     : (typeof donation?.videoUrl === "string" && donation.videoUrl.startsWith("https://")
       ? donation.videoUrl
       : null);
@@ -119,9 +137,10 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
     typeof donation?.videoUrl === "string" &&
     donation.videoUrl.startsWith("mux://");
 
-  const minAmount = Array.isArray(donation?.suggestedAmounts) && donation.suggestedAmounts.length > 0
-    ? donation.suggestedAmounts[0]
-    : null;
+  const minAmount =
+    Array.isArray(donation?.suggestedAmounts) && donation.suggestedAmounts.length > 0
+      ? donation.suggestedAmounts[0]
+      : null;
 
   const currency = donation?.currency ?? "MXN";
 
@@ -130,8 +149,8 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
       ? (donation?.goalLabel?.trim() || "Sumarte a nuestro gran día 💍")
       : "Donar";
 
-  // ── Mute SVG (same as StoryViewer) ───────────────────────────────────────────
-  const muteBtn = (
+  // ── Shared: mute button (SVG, identical to StoryViewer) ──────────────────────
+  const muteBtn = (sz: number) => (
     <button
       type="button"
       aria-label={muted ? "Activar sonido" : "Silenciar"}
@@ -150,13 +169,13 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
       }}
     >
       {muted ? (
-        <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
           <line x1="23" y1="9" x2="17" y2="15"/>
           <line x1="17" y1="9" x2="23" y2="15"/>
         </svg>
       ) : (
-        <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
           <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
           <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
@@ -165,8 +184,8 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
     </button>
   );
 
-  // ── Close SVG ─────────────────────────────────────────────────────────────────
-  const closeBtn = (
+  // ── Shared: close button (SVG, identical to StoryViewer) ─────────────────────
+  const closeBtn = (sz: number) => (
     <button
       type="button"
       aria-label="Cerrar"
@@ -177,136 +196,150 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
         display: "flex", alignItems: "center", justifyContent: "center",
       }}
     >
-      <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
         <line x1="18" y1="6" x2="6" y2="18"/>
         <line x1="6" y1="6" x2="18" y2="18"/>
       </svg>
     </button>
   );
 
-  // ── Desktop layout ────────────────────────────────────────────────────────────
+  // ── Shared panel content ──────────────────────────────────────────────────────
+  const renderPanel = (safeTop: string | number, showClose: boolean, safeBottom: string | number, sz: number) => {
+    const btnPadBottom = typeof safeBottom === "string" ? `max(8px, ${safeBottom})` : "8px";
+    return (
+      <>
+        {/* Video */}
+        {videoSrc ? (
+          <video
+            ref={videoRef}
+            src={videoSrc}
+            autoPlay
+            loop
+            playsInline
+            controls={false}
+            muted={muted}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", zIndex: 1 }}
+          />
+        ) : (
+          <div style={{
+            position: "absolute", inset: 0, zIndex: 1,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "rgba(255,255,255,0.3)", fontSize: 14, textAlign: "center", padding: 24,
+          }}>
+            {isVideoProcessing ? "⏳ Video procesando…" : "Sin video de presentación"}
+          </div>
+        )}
+
+        {/* Progress bar — respects safeTop */}
+        <div style={{
+          position: "absolute",
+          top: safeTop,
+          left: 0, right: 0,
+          paddingTop: 12, paddingLeft: 10, paddingRight: 10,
+          zIndex: 10,
+        }}>
+          <div style={{ height: 3, borderRadius: 2, background: "rgba(255,255,255,0.3)", overflow: "hidden" }}>
+            <div style={{ height: "100%", borderRadius: 2, background: "#fff", width: `${Math.round(progress * 100)}%`, transition: "none" }} />
+          </div>
+        </div>
+
+        {/* Top-right controls: mute + close */}
+        {showClose && (
+          <div style={{
+            position: "absolute",
+            top: typeof safeTop === "number" ? safeTop + 28 : `calc(${safeTop} + 28px)`,
+            right: 10,
+            display: "flex", alignItems: "center", gap: 4,
+            zIndex: 11,
+          }}>
+            {muteBtn(sz)}
+            {closeBtn(sz)}
+          </div>
+        )}
+
+        {/* Bottom gradient */}
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          height: "40%",
+          background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)",
+          pointerEvents: "none",
+          zIndex: 8,
+        }} />
+
+        {/* Bottom: creator + Donar button */}
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          padding: "0 14px",
+          paddingBottom: btnPadBottom,
+          display: "flex", flexDirection: "column", gap: 10,
+          zIndex: 10,
+        }}>
+          {profileName && (
+            <div style={{ color: "rgba(255,255,255,0.75)", fontSize: sz === 20 ? 12 : 14, fontWeight: 600, fontFamily: FONT }}>
+              {donation?.mode === "wedding" ? "💍" : "🎁"} {profileName}
+              {minAmount ? ` · ${minAmount} ${currency}` : ""}
+            </div>
+          )}
+          <button
+            type="button"
+            onTouchStart={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onDonate(); }}
+            style={{
+              width: "100%",
+              padding: sz === 20 ? "8px 10px" : "11px 10px",
+              borderRadius: 10,
+              border: "none",
+              background: "#60a5fa",
+              color: "#fff",
+              fontSize: sz === 20 ? 12 : 14,
+              fontWeight: 600,
+              cursor: "pointer",
+              fontFamily: FONT,
+              letterSpacing: "-0.01em",
+              transition: "background 0.15s",
+            }}
+          >
+            {donateLabel}
+          </button>
+        </div>
+      </>
+    );
+  };
+
+  // ── Desktop: 9:16 panel centered, same as StoryViewer ────────────────────────
   if (isDesktop) {
+    const { width: panelW, height: panelH } = desktopPanelSize();
     return createPortal(
       <div
         style={{
-          position: "fixed", inset: 0, zIndex: 9999,
+          position: "fixed", inset: 0, zIndex: 99999,
+          background: "rgba(0,0,0,0.85)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          background: "rgba(0,0,0,0.80)", padding: 16, fontFamily: FONT,
         }}
         onClick={onClose}
       >
         <div
-          onClick={(e) => e.stopPropagation()}
           style={{
-            display: "flex",
-            width: "min(900px, 95vw)",
-            maxHeight: "90vh",
-            borderRadius: 20,
-            overflow: "hidden",
-            background: "#111",
-            border: "1px solid rgba(255,255,255,0.10)",
-            boxShadow: "0 32px 80px rgba(0,0,0,0.6)",
+            position: "relative",
+            width: panelW, height: panelH,
+            borderRadius: 18, overflow: "hidden",
+            background: "#000", flexShrink: 0,
           }}
+          onClick={(e) => e.stopPropagation()}
         >
-          {/* Video panel */}
-          <div style={{ flex: "0 0 55%", background: "#000", position: "relative", minHeight: 400 }}>
-            {hlsUrl ? (
-              <video
-                ref={videoRef}
-                src={hlsUrl}
-                autoPlay
-                playsInline
-                controls
-                muted={muted}
-                style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
-              />
-            ) : (
-              <div style={{
-                width: "100%", height: "100%", display: "flex",
-                alignItems: "center", justifyContent: "center",
-                color: "rgba(255,255,255,0.3)", fontSize: 14, textAlign: "center", padding: 24,
-              }}>
-                {isVideoProcessing ? "⏳ Video procesando…" : "Sin video de presentación"}
-              </div>
-            )}
-          </div>
-
-          {/* Payment panel */}
-          <div style={{
-            flex: 1, display: "flex", flexDirection: "column",
-            padding: "28px 24px", gap: 20, overflowY: "auto",
-          }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                alignSelf: "flex-end", background: "none", border: "none",
-                color: "rgba(255,255,255,0.5)", fontSize: 24, cursor: "pointer",
-                padding: 0, lineHeight: 1,
-              }}
-            >×</button>
-
-            <div>
-              <h2 style={{ margin: 0, color: "#fff", fontSize: 22, fontWeight: 800 }}>
-                {donation?.mode === "wedding" ? "💍 Apoyo para boda" : "🎁 Enviar apoyo"}
-              </h2>
-              {profileName && (
-                <p style={{ margin: "6px 0 0", color: "rgba(255,255,255,0.5)", fontSize: 14 }}>
-                  a {profileName}
-                </p>
-              )}
-            </div>
-
-            {minAmount && (
-              <div style={{
-                padding: "14px 16px", borderRadius: 14,
-                background: "rgba(255,255,255,0.05)",
-                border: "1px solid rgba(255,255,255,0.08)",
-              }}>
-                <div style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, marginBottom: 4 }}>
-                  Apoyo mínimo
-                </div>
-                <div style={{ color: "#fff", fontSize: 24, fontWeight: 800 }}>
-                  {minAmount} {currency}
-                </div>
-              </div>
-            )}
-
-            <div style={{
-              flex: 1, display: "flex", flexDirection: "column",
-              alignItems: "center", justifyContent: "center",
-              gap: 16, padding: "20px 0",
-            }}>
-              <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, textAlign: "center", lineHeight: 1.5 }}>
-                Panel de pago disponible próximamente
-              </div>
-              <button
-                type="button"
-                onClick={onDonate}
-                style={{
-                  width: "100%", padding: "11px 10px", borderRadius: 10,
-                  border: "none", background: "#60a5fa", color: "#fff",
-                  fontSize: 14, fontWeight: 600, cursor: "pointer",
-                  fontFamily: FONT, letterSpacing: "-0.01em",
-                  transition: "background 0.15s",
-                }}
-              >
-                {donateLabel}
-              </button>
-            </div>
-          </div>
+          {renderPanel(12, true, 0, 20)}
         </div>
       </div>,
       document.body,
     );
   }
 
-  // ── Mobile layout ─────────────────────────────────────────────────────────────
+  // ── Mobile: fullscreen, swipe-down to close ───────────────────────────────────
   return createPortal(
     <div
       style={{
-        position: "fixed", inset: 0, zIndex: 9999,
-        background: "#000", fontFamily: FONT,
+        position: "fixed", inset: 0, zIndex: 99999,
+        background: "#000",
         touchAction: "none", userSelect: "none",
         transform: `translateY(${dragY}px)`,
         transition: dragY > 0 ? "none" : "transform 0.3s ease",
@@ -316,101 +349,7 @@ export default function DonationViewer({ open, donation, profileName, onClose, o
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Video — fills entire screen including safe areas */}
-      {hlsUrl ? (
-        <video
-          ref={videoRef}
-          src={hlsUrl}
-          autoPlay
-          loop
-          playsInline
-          controls={false}
-          muted={muted}
-          style={{
-            position: "absolute", inset: 0,
-            width: "100%", height: "100%",
-            objectFit: "contain",
-          }}
-        />
-      ) : (
-        <div style={{
-          position: "absolute", inset: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: "rgba(255,255,255,0.3)", fontSize: 14,
-        }}>
-          {isVideoProcessing ? "⏳ Video procesando…" : "Sin video de presentación"}
-        </div>
-      )}
-
-      {/* Progress bar — respects safe-area-inset-top */}
-      <div style={{
-        position: "absolute",
-        top: "max(12px, env(safe-area-inset-top))",
-        left: 10, right: 10,
-        zIndex: 10,
-        height: 3, borderRadius: 2,
-        background: "rgba(255,255,255,0.3)",
-        overflow: "hidden",
-      }}>
-        <div style={{
-          height: "100%", borderRadius: 2,
-          background: "#fff",
-          width: `${Math.round(progress * 100)}%`,
-          transition: "none",
-        }} />
-      </div>
-
-      {/* Top-right controls: mute + close */}
-      <div style={{
-        position: "absolute",
-        top: "max(28px, calc(env(safe-area-inset-top) + 16px))",
-        right: 10,
-        display: "flex", alignItems: "center", gap: 4,
-        zIndex: 11,
-      }}>
-        {muteBtn}
-        {closeBtn}
-      </div>
-
-      {/* Bottom gradient */}
-      <div style={{
-        position: "absolute", bottom: 0, left: 0, right: 0,
-        height: "40%",
-        background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)",
-        pointerEvents: "none",
-      }} />
-
-      {/* Bottom: Donar button */}
-      <div style={{
-        position: "absolute",
-        bottom: 0, left: 0, right: 0,
-        padding: `0 14px`,
-        paddingBottom: "max(8px, env(safe-area-inset-bottom))",
-        display: "flex", flexDirection: "column",
-        zIndex: 10,
-      }}>
-        <button
-          type="button"
-          onTouchStart={(e) => e.stopPropagation()}
-          onClick={(e) => { e.stopPropagation(); onDonate(); }}
-          style={{
-            width: "100%",
-            padding: "11px 10px",
-            borderRadius: 10,
-            border: "none",
-            background: "#60a5fa",
-            color: "#fff",
-            fontSize: 14,
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: FONT,
-            letterSpacing: "-0.01em",
-            transition: "background 0.15s",
-          }}
-        >
-          {donateLabel}
-        </button>
-      </div>
+      {renderPanel("env(safe-area-inset-top, 0px)", true, "env(safe-area-inset-bottom, 0px)", 24)}
     </div>,
     document.body,
   );

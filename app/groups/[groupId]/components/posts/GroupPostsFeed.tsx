@@ -1479,6 +1479,7 @@ const shellStyle: CSSProperties = {
             onSuccess={() => void loadPosts()}
             contextType="group"
             groupId={groupId}
+            groupVisibility={groupVisibility}
           />
 
           {videoUploadStatus ? (

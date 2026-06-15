@@ -1961,6 +1961,29 @@ function renderBlurredMediaBackdrop(
       ? (groupInfo.groupName ?? postAuthor.authorName)
       : postAuthor.authorName;
 
+  const liveVisibilityMode = post.liveData?.visibilityMode ?? null;
+  const liveAllowLoggedOut = post.liveData?.allowLoggedOutViewers ?? true;
+
+  const liveVisibilityBadge: { label: string; icon: "lock" | "globe" | "user" } | null =
+    liveVisibilityMode === "members_only"
+      ? { label: "Solo miembros", icon: "lock" }
+      : liveVisibilityMode === "everyone" && !liveAllowLoggedOut
+        ? { label: "Solo con cuenta", icon: "user" }
+        : liveVisibilityMode === "everyone" && liveAllowLoggedOut
+          ? { label: "Visible sin cuenta", icon: "globe" }
+          : null;
+
+  const liveAccessBlocked =
+    post.postType === "live" && (
+      (liveVisibilityMode === "members_only" && !isOwner && !viewerIsMember) ||
+      (liveVisibilityMode === "everyone" && !liveAllowLoggedOut && !currentUserId)
+    );
+
+  const liveAccessCtaText =
+    liveVisibilityMode === "members_only"
+      ? (currentUserId ? "Únete a la comunidad para ver este live" : "Inicia sesión y únete para ver este live")
+      : "Inicia sesión para ver este live";
+
   const premiumState = resolvePostPremiumState({
     post,
     currentUserId,
@@ -2907,6 +2930,66 @@ style={{
         >
           {formatScheduledLiveDate(post.liveData?.scheduledStartAt)}
         </span>
+      </div>
+
+      {/* Fila inferior: badge visibilidad + CTA acceso */}
+      <div style={{ marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+        {liveVisibilityBadge && (
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            borderRadius: 999,
+            border: "1px solid rgba(255,255,255,0.1)",
+            background: "rgba(255,255,255,0.05)",
+            padding: "3px 8px",
+            fontSize: 10,
+            fontWeight: 600,
+            letterSpacing: "0.04em",
+            color: "rgba(255,255,255,0.45)",
+            fontFamily: fontStack,
+            textTransform: "uppercase",
+          }}>
+            {liveVisibilityBadge.icon === "lock" && (
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+            )}
+            {liveVisibilityBadge.icon === "user" && (
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+            )}
+            {liveVisibilityBadge.icon === "globe" && (
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="2" y1="12" x2="22" y2="12" />
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+              </svg>
+            )}
+            {liveVisibilityBadge.label}
+          </div>
+        )}
+
+        {liveAccessBlocked && (
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 5,
+            borderRadius: 999,
+            border: "1px solid rgba(239,68,68,0.25)",
+            background: "rgba(239,68,68,0.08)",
+            padding: "4px 10px",
+            fontSize: 11,
+            fontWeight: 600,
+            color: "rgba(239,68,68,0.8)",
+            fontFamily: fontStack,
+          }}>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+            </svg>
+            {liveAccessCtaText}
+          </div>
+        )}
       </div>
 
     </div>
