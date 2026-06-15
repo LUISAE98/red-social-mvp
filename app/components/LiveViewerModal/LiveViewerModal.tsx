@@ -50,6 +50,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [isDesktop, setIsDesktop] = useState(false);
   const [isPortrait, setIsPortrait] = useState(initialPortrait);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
@@ -88,6 +89,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   useEffect(() => {
     if (open) { setShouldRender(true); return; }
+    setIsFullscreen(false);
     const t = window.setTimeout(() => setShouldRender(false), 220);
     return () => window.clearTimeout(t);
   }, [open]);
@@ -222,6 +224,28 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
               </svg>
               Gestionar
+            </button>
+          )}
+
+          {/* Fullscreen toggle — solo desktop */}
+          {isDesktop && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setIsFullscreen(f => !f); }}
+              aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              {isFullscreen ? (
+                <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
+                  <line x1="10" y1="14" x2="3" y2="21" /><line x1="21" y1="3" x2="14" y2="10" />
+                </svg>
+              ) : (
+                <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+              )}
             </button>
           )}
 
@@ -425,6 +449,36 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   `;
 
   const floatCardShadow = "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)";
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DESKTOP — pantalla completa (portrait o horizontal)
+  // ══════════════════════════════════════════════════════════════════════════
+  if (isDesktop && isFullscreen) {
+    return createPortal(
+      <>
+        <style>{keyframes}</style>
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 10000, background: "#000",
+            animation: open ? "lvFadeIn 0.2s ease" : "lvFadeOut 0.2s ease forwards",
+          }}
+          onClick={onClose}
+        >
+          <div
+            style={{ position: "relative", width: "100%", height: "100%" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {renderVideo("contain")}
+            {renderEndedOverlay()}
+            {renderBannedOverlay()}
+            {renderHeader(false, false)}
+            {renderLiveBadge()}
+          </div>
+        </div>
+      </>,
+      document.body
+    );
+  }
 
   // ══════════════════════════════════════════════════════════════════════════
   // DESKTOP — portrait: dos cards flotantes separadas (video + chat)
