@@ -132,7 +132,7 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
           <div style={{
             paddingTop: 7,
             paddingLeft: 14,
-            paddingRight: 84,
+            paddingRight: 14,
             paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
           }}>
             {isMuted ? (
@@ -140,7 +140,7 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
                 Fuiste silenciado en este live
               </div>
             ) : (
-              <div style={{ display: "flex", gap: 6 }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <input
                   value={text}
                   onChange={(e) => setText(e.target.value)}
@@ -228,7 +228,7 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
           </div>
         ) : (
           <>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
               <input
                 value={text}
                 onChange={(e) => { setText(e.target.value); setSendError(null); }}
