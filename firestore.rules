@@ -2180,6 +2180,10 @@ function canReadPostCommentsData(data) {
             && data.premium.enabled == true
             && data.premium.accessMode == "public"
           )
+          || (
+            data.get('postType', '') == "live"
+            && data.get('isShareable', false) == true
+          )
         )
       )
       ||
@@ -2464,6 +2468,10 @@ function canUpdateReplyCount(delta) {
             && (
               parentPost().data.authorId == request.auth.uid
               || canReadGroupContent(parentPost().data.groupId)
+              || (
+                parentPost().data.get('postType', '') == "live"
+                && parentPost().data.get('isShareable', false) == true
+              )
             );
         }
 

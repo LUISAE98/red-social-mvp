@@ -464,7 +464,10 @@ export default function LiveComposerModal({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "16px",
+          paddingTop: "max(16px, env(safe-area-inset-top, 0px))",
+          paddingBottom: 16,
+          paddingLeft: 16,
+          paddingRight: 16,
           animation: open
             ? "vibraLiveBackdropIn 180ms ease-out"
             : "vibraLiveBackdropOut 200ms ease-in forwards",

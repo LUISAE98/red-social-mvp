@@ -2406,7 +2406,10 @@ await createExclusiveSessionRequest({
     background: "rgba(0,0,0,0.72)",
     display: "grid",
     placeItems: "center",
-    padding: 14,
+    paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
+    paddingBottom: 14,
+    paddingLeft: 14,
+    paddingRight: 14,
     fontFamily: fontStack,
   }}
   serviceModalCardStyle={{
@@ -2476,7 +2479,10 @@ await createExclusiveSessionRequest({
             background: "rgba(0,0,0,0.72)",
             display: "grid",
             placeItems: "center",
-            padding: 14,
+            paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
+            paddingBottom: 14,
+            paddingLeft: 14,
+            paddingRight: 14,
             fontFamily: fontStack,
           }}
           onClick={() => {

@@ -112,7 +112,10 @@ export default function LiveCreatorPanel({ open, onClose, post }: Props) {
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "14px 16px",
+        paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
+        paddingBottom: 14,
+        paddingLeft: 16,
+        paddingRight: 16,
         borderBottom: "1px solid rgba(255,255,255,0.08)",
         flexShrink: 0,
       }}>

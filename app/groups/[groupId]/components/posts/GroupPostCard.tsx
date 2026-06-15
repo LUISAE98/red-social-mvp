@@ -1195,7 +1195,16 @@ function handleToggleSave() {
     const nextComments = await onLoadComments(post.id);
     setComments(nextComments);
   } catch (e: any) {
-    setInlineActionError(e?.message ?? "No se pudieron cargar los comentarios.");
+    const rawMsg: string = e?.message ?? "";
+    if (rawMsg.toLowerCase().includes("permission")) {
+      setInlineActionError(
+        !currentUserId
+          ? "Inicia sesión para ver los comentarios."
+          : "Solo los miembros pueden ver los comentarios de esta publicación."
+      );
+    } else {
+      setInlineActionError(rawMsg || "No se pudieron cargar los comentarios.");
+    }
   } finally {
     setLoadingComments(false);
   }
