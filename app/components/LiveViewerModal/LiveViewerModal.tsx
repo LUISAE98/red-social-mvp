@@ -154,8 +154,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   if (!mounted || !shouldRender) return null;
 
-  // ── Header — siempre visible: título izquierda, mute + gestionar + cerrar derecha ──
-  function renderHeader(safeTop = false) {
+  // ── Header — siempre visible: título izquierda (solo desktop), controles derecha ──
+  function renderHeader(safeTop = false, showTitle = true) {
     const iconSz = isDesktop ? 20 : 24;
     return (
       <div style={{
@@ -167,7 +167,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         paddingLeft: 14,
         paddingRight: 14,
       }}>
-        {liveData?.title ? (
+        {showTitle && liveData?.title ? (
           <span style={{
             fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.9)", fontFamily: FONT,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
@@ -236,9 +236,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     );
   }
 
-  // ── Badge EN VIVO / Finalizado — siempre visible, esquina inferior derecha ──
-  // Cuando el live está activo, al hacer clic salta al extremo más actual del stream.
-  function renderLiveBadge() {
+  // ── Badge EN VIVO / Finalizado ──────────────────────────────────────────────
+  // position="bottom-right" → esquina inferior derecha (desktop + mobile horizontal)
+  // position="top-center"   → centrado arriba junto al header (mobile portrait)
+  function renderLiveBadge(position: "bottom-right" | "top-center" = "bottom-right") {
     if (!isLive && !isEnded) return null;
 
     function jumpToLive(e: React.MouseEvent) {
@@ -253,8 +254,20 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       }
     }
 
+    const posStyle: CSSProperties = position === "top-center"
+      ? {
+          position: "absolute",
+          top: "max(12px, env(safe-area-inset-top))",
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 10,
+        }
+      : {
+          position: "absolute", bottom: 14, right: 14, zIndex: 10,
+        };
+
     const sharedStyle: CSSProperties = {
-      position: "absolute", bottom: 14, right: 14, zIndex: 10,
+      ...posStyle,
       display: "inline-flex", alignItems: "center", gap: 6,
       background: isLive ? "rgba(239,68,68,0.88)" : "rgba(0,0,0,0.55)",
       borderRadius: 7,
@@ -523,8 +536,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderVideo("cover")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
-            {renderHeader(true)}
-            {renderLiveBadge()}
+            {renderHeader(true, false)}
+            {renderLiveBadge("top-center")}
             <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="overlay" />
           </div>
         </div>
@@ -552,7 +565,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           {renderVideo("cover")}
           {renderEndedOverlay()}
           {renderBannedOverlay()}
-          {renderHeader()}
+          {renderHeader(false, false)}
           {renderLiveBadge()}
         </div>
 
