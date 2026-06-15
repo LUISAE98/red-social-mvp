@@ -1286,7 +1286,7 @@ const shellStyle: CSSProperties = {
               onToggleSave={handleToggleSave}
               onToggleProfilePin={isOwner ? handleToggleProfilePin : undefined}
               currentUserId={viewerUid}
-              isOwner={false}
+              isOwner={isOwner && viewerUid === post.authorId}
               isModerator={post.canModerateGroupAuthor === true}
               showGroupContext={true}
               canModerateGroupAuthor={post.canModerateGroupAuthor === true}

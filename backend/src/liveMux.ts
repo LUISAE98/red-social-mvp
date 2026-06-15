@@ -49,6 +49,7 @@ export const createMuxLiveStream = onCall(
       liveStream = await mux.video.liveStreams.create({
         playback_policy: ["public"],
         new_asset_settings: { playback_policy: ["public"] },
+        passthrough: JSON.stringify({ postId }),
       });
     } catch (err) {
       logger.error("Error creating Mux live stream", { postId, uid, err });

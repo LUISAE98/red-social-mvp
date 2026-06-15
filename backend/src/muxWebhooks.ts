@@ -48,6 +48,10 @@ type MuxWebhookEvent = {
       type?: string;
       messages?: string[];
     };
+    // live stream fields
+    stream_key?: string;
+    status?: string;
+    active_asset_id?: string | null;
   };
 };
 
@@ -770,6 +774,68 @@ async function markAssetError(event: MuxWebhookEvent) {
   });
 }
 
+async function resolvePostRefByLiveStreamId(
+  event: MuxWebhookEvent
+): Promise<{ ref: FirebaseFirestore.DocumentReference; data: Record<string, unknown> } | null> {
+  const liveStreamId = event.data?.id;
+  if (!liveStreamId) return null;
+
+  const passthrough = parsePassthrough(event.data?.passthrough);
+  const postId = passthrough.postId;
+
+  if (postId) {
+    const ref = db.collection("posts").doc(postId);
+    const snap = await ref.get();
+    if (!snap.exists) return null;
+    return { ref, data: snap.data() ?? {} };
+  }
+
+  const q = await db
+    .collection("posts")
+    .where("liveData.liveStreamId", "==", liveStreamId)
+    .limit(1)
+    .get();
+  if (q.empty) return null;
+  return { ref: q.docs[0].ref, data: q.docs[0].data() };
+}
+
+async function handleLiveStreamActive(event: MuxWebhookEvent) {
+  const result = await resolvePostRefByLiveStreamId(event);
+  if (!result) {
+    logger.warn("muxWebhook live_stream.active: post not found", { liveStreamId: event.data?.id });
+    return;
+  }
+
+  const now = FieldValue.serverTimestamp();
+  await result.ref.update({
+    "liveData.status": "live",
+    "liveData.startedAt": now,
+    updatedAt: now,
+  });
+
+  logger.info("muxWebhook live_stream.active processed", { liveStreamId: event.data?.id });
+}
+
+async function handleLiveStreamIdle(event: MuxWebhookEvent) {
+  const result = await resolvePostRefByLiveStreamId(event);
+  if (!result) {
+    logger.warn("muxWebhook live_stream.idle: post not found", { liveStreamId: event.data?.id });
+    return;
+  }
+
+  const currentStatus = (result.data.liveData as Record<string, unknown> | undefined)?.status;
+  if (currentStatus !== "live") return;
+
+  const now = FieldValue.serverTimestamp();
+  await result.ref.update({
+    "liveData.status": "ended",
+    "liveData.endedAt": now,
+    updatedAt: now,
+  });
+
+  logger.info("muxWebhook live_stream.idle → ended", { liveStreamId: event.data?.id });
+}
+
 export const muxWebhook = onRequest(
   {
     region: "us-central1",
@@ -820,6 +886,14 @@ export const muxWebhook = onRequest(
 
         case "video.asset.errored":
           await markAssetError(event);
+          break;
+
+        case "video.live_stream.active":
+          await handleLiveStreamActive(event);
+          break;
+
+        case "video.live_stream.idle":
+          await handleLiveStreamIdle(event);
           break;
 
         default:

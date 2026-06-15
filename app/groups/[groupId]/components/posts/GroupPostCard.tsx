@@ -14,6 +14,10 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { Comment, CommentReply, Post, PostLiveData } from "@/lib/posts/types";
+import { db } from "@/lib/firebase";
+import { doc, onSnapshot } from "firebase/firestore";
+import LiveInlinePlayer from "@/app/components/LiveInlinePlayer/LiveInlinePlayer";
+import LiveViewerModal from "@/app/components/LiveViewerModal/LiveViewerModal";
 import PostFlamesPanel, { type PostFlameUser } from "./PostFlamesPanel";
 import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
 import LiveStreamSetup from "@/app/components/LiveStreamSetup/LiveStreamSetup";
@@ -698,6 +702,8 @@ onToggleProfilePin,
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [liveEditOpen, setLiveEditOpen] = useState(false);
   const [liveSetupOpen, setLiveSetupOpen] = useState(false);
+  const [liveViewerOpen, setLiveViewerOpen] = useState(false);
+  const [isLivePortrait, setIsLivePortrait] = useState(false);
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
   const [localText, setLocalText] = useState<string | null>(null);
   const [localMedia, setLocalMedia] = useState<import("@/lib/posts/types").PostMedia[] | null>(null);
@@ -725,6 +731,25 @@ const [optimisticViewerHasSaved, setOptimisticViewerHasSaved] = useState(
 const [optimisticSavesCount, setOptimisticSavesCount] = useState(
   post.counts?.saves ?? 0
 );
+
+// Real-time listener for live status changes (driven by Mux webhooks)
+useEffect(() => {
+  if (post.postType !== "live" || !post.id) return;
+  const currentStatus = localLiveData?.status ?? post.liveData?.status;
+  if (currentStatus === "ended" || currentStatus === "cancelled") return;
+
+  const unsubscribe = onSnapshot(
+    doc(db, "posts", post.id),
+    (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      const newLiveData = data?.liveData as PostLiveData | undefined;
+      if (newLiveData) setLocalLiveData(newLiveData);
+    },
+    (err) => console.warn("[LiveCard] snapshot error", err)
+  );
+  return () => unsubscribe();
+}, [post.id, post.postType]); // eslint-disable-line react-hooks/exhaustive-deps
 
 useEffect(() => {
   flameServerStateRef.current = post.viewerHasFlamed === true;
@@ -2760,18 +2785,17 @@ style={{
     <div
       style={{
         position: "absolute",
-        top: 0,
-        right: 10,
+        ...(isLiveActive
+          ? { bottom: 0, left: "50%", transform: "translateX(-50%)", borderTopLeftRadius: 8, borderTopRightRadius: 8 }
+          : { top: 0, right: 10, borderBottomLeftRadius: 6, borderBottomRightRadius: 6 }),
         display: "inline-flex",
         alignItems: "center",
         gap: 5,
         background: isLiveActive
-          ? "linear-gradient(180deg, #ef4444 0%, #d946b8 100%)"
+          ? "#ef4444"
           : "linear-gradient(180deg, #a855f7 0%, #d946b8 100%)",
-        borderBottomLeftRadius: 6,
-        borderBottomRightRadius: 6,
-        padding: "3px 8px 3px 6px",
-        fontSize: 8.5,
+        padding: isLiveActive ? "5px 12px 5px 9px" : "3px 8px 3px 6px",
+        fontSize: isLiveActive ? 11 : 8.5,
         fontWeight: 700,
         letterSpacing: "0.06em",
         color: "#fff",
@@ -2781,99 +2805,117 @@ style={{
         zIndex: 2,
       }}
     >
-      <svg width="11" height="11" viewBox="0 0 22 22" fill="none">
+      <svg
+        width={isLiveActive ? 13 : 11} height={isLiveActive ? 13 : 11} viewBox="0 0 22 22" fill="none"
+        style={{ animation: isLiveActive ? "livePulseIcon 1.4s ease-in-out infinite" : undefined }}
+      >
         <circle cx="11" cy="11" r="10" stroke="#fff" strokeWidth="1.4" fill="none" />
         <circle cx="11" cy="11" r="6" fill="#fff" />
       </svg>
-      {isLiveActive ? "En vivo" : "Live Programado"}
+      {isLiveActive ? "En vivo" : activeLiveData?.status === "ended" ? "Finalizado" : "Live Programado"}
     </div>
 
-    {/* Cover image or placeholder */}
-    <div
-      style={{
-        position: "relative",
-        width: "100%",
-        aspectRatio: "16/7",
-        background:
-          "radial-gradient(ellipse at center, rgba(180,180,195,0.18) 0%, rgba(110,110,130,0.10) 60%, rgba(70,70,90,0.06) 100%), linear-gradient(135deg, rgba(60,60,75,0.55) 0%, rgba(30,30,45,0.85) 100%)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        overflow: "hidden",
-        borderRadius: 12,
-      }}
-    >
-      {activeLiveData?.coverUrl && (
-        <img
-          src={activeLiveData.coverUrl}
-          alt={activeLiveData.title ?? "Live programado"}
-          draggable={false}
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            opacity: 0.45,
-            filter: "grayscale(20%)",
-          }}
-        />
-      )}
-      <svg
-        width="52"
-        height="52"
-        viewBox="0 0 22 22"
-        fill="none"
-        style={{ flexShrink: 0, position: "relative", zIndex: 1, animation: "livePulseIcon 2s ease-in-out infinite" }}
-      >
-        <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
-        <circle cx="11" cy="11" r="6" fill="#ef4444" />
-      </svg>
-
-      {/* Badge de estado dentro de la portada */}
+    {/* Live media area — switches between player, cover, ended */}
+    {isLiveActive && activeLiveData?.playbackId ? (
+      <LiveInlinePlayer
+        playbackId={activeLiveData.playbackId}
+        title={activeLiveData.title}
+        coverUrl={activeLiveData.coverUrl}
+        portrait={isLivePortrait}
+        onClick={() => setLiveViewerOpen(true)}
+        onOrientationDetected={(p) => setIsLivePortrait(p)}
+      />
+    ) : activeLiveData?.status === "ended" ? (
       <div
         style={{
-          position: "absolute",
-          top: 10,
-          left: 10,
-          display: "inline-flex",
+          position: "relative",
+          width: "100%",
+          aspectRatio: isLivePortrait ? "9 / 16" : "16 / 9",
+          background: "rgba(0,0,0,0.7)",
+          borderRadius: 12,
+          overflow: "hidden",
+          display: "flex",
           alignItems: "center",
-          gap: 6,
-          background: "rgba(10,5,20,0.82)",
-          border: isLiveActive ? "1px solid rgba(239,68,68,0.45)" : "1px solid rgba(168,85,255,0.35)",
-          borderRadius: 999,
-          padding: "4px 10px 4px 8px",
-          fontFamily: fontStack,
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: "0.04em",
-          color: isLiveActive ? "#fca5a5" : "#d8b4fe",
-          textTransform: "uppercase",
-          backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
-          maxWidth: "calc(100% - 20px)",
+          justifyContent: "center",
         }}
       >
-        <span
-          style={{
-            width: 7,
-            height: 7,
-            borderRadius: "50%",
-            background: isLiveActive ? "#ef4444" : "#a855f7",
-            flexShrink: 0,
-            boxShadow: isLiveActive
-              ? "0 0 0 2px rgba(239,68,68,0.3)"
-              : "0 0 0 2px rgba(168,85,255,0.3)",
-            animation: "livePulse 2s ease-in-out infinite",
-          }}
-        />
-        {isLiveActive
-          ? `${liveName} ya está en vivo`
-          : "Esperando inicio"}
+        {activeLiveData.coverUrl && (
+          <img
+            src={activeLiveData.coverUrl}
+            alt={activeLiveData.title ?? "Live finalizado"}
+            draggable={false}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.2, filter: "grayscale(40%)" }}
+          />
+        )}
+        <div style={{
+          position: "relative", zIndex: 1, display: "flex", flexDirection: "column",
+          alignItems: "center", gap: 8, color: "rgba(255,255,255,0.55)",
+          fontFamily: fontStack, textAlign: "center",
+        }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+          </svg>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>Transmisión finalizada</span>
+        </div>
       </div>
-    </div>
+    ) : (
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          aspectRatio: isLivePortrait ? "9 / 16" : "16 / 7",
+          background:
+            "radial-gradient(ellipse at center, rgba(180,180,195,0.18) 0%, rgba(110,110,130,0.10) 60%, rgba(70,70,90,0.06) 100%), linear-gradient(135deg, rgba(60,60,75,0.55) 0%, rgba(30,30,45,0.85) 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+          borderRadius: 12,
+        }}
+      >
+        {activeLiveData?.coverUrl && (
+          <img
+            src={activeLiveData.coverUrl}
+            alt={activeLiveData.title ?? "Live programado"}
+            draggable={false}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                setIsLivePortrait(img.naturalHeight > img.naturalWidth);
+              }
+            }}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.45, filter: "grayscale(20%)" }}
+          />
+        )}
+        <svg
+          width="52" height="52" viewBox="0 0 22 22" fill="none"
+          style={{ flexShrink: 0, position: "relative", zIndex: 1, animation: "livePulseIcon 2s ease-in-out infinite" }}
+        >
+          <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
+          <circle cx="11" cy="11" r="6" fill="#ef4444" />
+        </svg>
+        <div style={{
+          position: "absolute", top: 10, left: 10,
+          display: "inline-flex", alignItems: "center", gap: 6,
+          background: "rgba(10,5,20,0.82)", border: "1px solid rgba(168,85,255,0.35)",
+          borderRadius: 999, padding: "4px 10px 4px 8px",
+          fontFamily: fontStack, fontSize: 11, fontWeight: 700,
+          letterSpacing: "0.04em", color: "#d8b4fe", textTransform: "uppercase",
+          backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+          maxWidth: "calc(100% - 20px)",
+        }}>
+          <span style={{
+            width: 7, height: 7, borderRadius: "50%", background: "#a855f7",
+            flexShrink: 0, boxShadow: "0 0 0 2px rgba(168,85,255,0.3)",
+            animation: "livePulse 2s ease-in-out infinite",
+          }} />
+          Esperando inicio
+        </div>
+      </div>
+    )}
 
-    {/* Content area */}
-    <div style={{ padding: "12px 14px 14px" }}>
+    {/* Content area — hidden when live is active */}
+    {!isLiveActive && (<div style={{ padding: "12px 14px 14px" }}>
       {/* Title */}
       {activeLiveData?.title && (
         <p
@@ -3035,7 +3077,7 @@ style={{
         )}
       </div>
 
-    </div>
+    </div>)}
 
     <style>{`
       @keyframes livePulse {
@@ -4096,6 +4138,13 @@ padding: "0 0 2px 0",
         streamProvider: "mux",
       }));
     }}
+  />
+)}
+{liveViewerOpen && (
+  <LiveViewerModal
+    open={liveViewerOpen}
+    onClose={() => setLiveViewerOpen(false)}
+    post={{ ...post, liveData: activeLiveData ?? post.liveData }}
   />
 )}
 <div style={interactionRowStyle}>
