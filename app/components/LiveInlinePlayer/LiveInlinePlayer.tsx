@@ -11,6 +11,7 @@ type Props = {
   title?: string | null;
   coverUrl?: string | null;
   portrait?: boolean;
+  paused?: boolean;
   onClick?: () => void;
   onOrientationDetected?: (portrait: boolean) => void;
 };
@@ -20,12 +21,15 @@ export default function LiveInlinePlayer({
   title,
   coverUrl,
   portrait = false,
+  paused = false,
   onClick,
   onOrientationDetected,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
   const [muted, setMuted] = useState(true);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
@@ -70,6 +74,14 @@ export default function LiveInlinePlayer({
     }
   }, [hlsUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Pause/resume cuando el modal del live está abierto
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (paused) video.pause();
+    else video.play().catch(() => {});
+  }, [paused]);
+
   // Autoplay / pause on scroll via IntersectionObserver
   useEffect(() => {
     const container = containerRef.current;
@@ -78,7 +90,7 @@ export default function LiveInlinePlayer({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) {
+        if (entry.isIntersecting && !pausedRef.current) {
           video.play().catch(() => {});
         } else {
           video.pause();

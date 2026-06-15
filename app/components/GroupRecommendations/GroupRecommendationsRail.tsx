@@ -7,6 +7,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { joinGroup } from "@/lib/groups/membership";
 import { requestToJoin } from "@/lib/groups/joinRequests";
+import { followUser } from "@/lib/social/social-service";
 import {
   GROUP_CATEGORY_LABELS,
   GROUP_CATEGORY_OPTIONS,
@@ -16,15 +17,18 @@ import {
 import {
   completeRecommendationsOnboarding,
   fetchRecommendedGroupsForUser,
+  fetchRecommendedProfilesForUser,
   invalidateRecommendationCache,
   onRecommendationCacheInvalidated,
   recommendationEngineConstants,
   trackGroupRecommendationSignalFromGroup,
 } from "./recommendation-engine";
 import type {
+  RailItem,
   RecommendationFetchResult,
   RecommendationGroupCard,
   RecommendationJoinState,
+  RecommendationProfileCard,
   RecommendationRailContext,
 } from "./types";
 
@@ -234,6 +238,234 @@ function JoinButton({
     >
       {loading ? "Procesando..." : label}
     </button>
+  );
+}
+
+function FollowButton({
+  isFollowing,
+  onClick,
+  loading,
+}: {
+  isFollowing: boolean;
+  onClick: () => void;
+  loading: boolean;
+}) {
+  const isInactive = loading || isFollowing;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={isInactive}
+      style={{
+        width: "100%",
+        borderRadius: 12,
+        padding: "10px 12px",
+        border: isInactive ? "1px solid rgba(255,255,255,0.18)" : "none",
+        fontWeight: 700,
+        fontSize: 12,
+        letterSpacing: "-0.01em",
+        cursor: isInactive ? "default" : "pointer",
+        background: isInactive ? "rgba(255,255,255,0.14)" : "#ffffff",
+        color: isInactive ? "rgba(255,255,255,0.70)" : "#08111d",
+        fontFamily: fontStack,
+        backdropFilter: isInactive ? "blur(12px)" : "none",
+        WebkitBackdropFilter: isInactive ? "blur(12px)" : "none",
+        transition: "background 0.18s ease, color 0.18s ease",
+      }}
+    >
+      {loading ? "Procesando..." : isFollowing ? "Siguiendo" : "Seguir"}
+    </button>
+  );
+}
+
+function ProfileCard({
+  profile,
+  isFollowing,
+  loading,
+  onFollow,
+}: {
+  profile: RecommendationProfileCard;
+  isFollowing: boolean;
+  loading: boolean;
+  onFollow: () => void;
+}) {
+  const followersLabel =
+    profile.followersCount > 0
+      ? `${profile.followersCount.toLocaleString("es-MX")} ${
+          profile.followersCount === 1 ? "seguidor" : "seguidores"
+        }`
+      : "";
+
+  return (
+    <div style={cardStyles}>
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          aspectRatio: "9 / 11",
+          borderRadius: 20,
+          overflow: "hidden",
+          background: "#0d0d0f",
+          boxShadow:
+            "0 24px 52px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.28)",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: profile.coverUrl
+              ? `url(${profile.coverUrl}) center / cover no-repeat`
+              : "linear-gradient(135deg, #1a1a20 0%, #26262e 55%, #111116 100%)",
+            transform: "scale(1.01)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.18) 28%, rgba(0,0,0,0.62) 58%, rgba(0,0,0,0.90) 80%, rgba(0,0,0,0.97) 100%)",
+          }}
+        />
+        <Link
+          href={`/u/${profile.handle}`}
+          style={{
+            position: "absolute",
+            inset: 0,
+            bottom: 60,
+            zIndex: 1,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            padding: "14px 12px 0",
+            textDecoration: "none",
+            color: "inherit",
+          }}
+        >
+          <div
+            style={{
+              width: 68,
+              height: 68,
+              borderRadius: "50%",
+              overflow: "hidden",
+              background: "#111",
+              border: "3px solid rgba(255,255,255,0.14)",
+              boxShadow: "0 8px 22px rgba(0,0,0,0.50)",
+              display: "grid",
+              placeItems: "center",
+              color: "#fff",
+              fontWeight: 700,
+              fontSize: 20,
+              flexShrink: 0,
+              fontFamily: fontStack,
+            }}
+          >
+            {profile.avatarUrl ? (
+              <img
+                src={profile.avatarUrl}
+                alt={`Avatar de ${profile.displayName}`}
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : (
+              profile.displayName.slice(0, 1).toUpperCase()
+            )}
+          </div>
+          <div
+            style={{
+              marginTop: 10,
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              paddingBottom: 6,
+            }}
+          >
+            <strong
+              style={{
+                fontSize: 14,
+                lineHeight: 1.18,
+                color: "#fff",
+                maxWidth: "100%",
+                wordBreak: "break-word",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                textAlign: "center",
+                fontFamily: fontStack,
+                fontWeight: 700,
+                letterSpacing: "-0.01em",
+                flexShrink: 0,
+              }}
+            >
+              {profile.displayName}
+            </strong>
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 11,
+                lineHeight: "14px",
+                height: 14,
+                overflow: "hidden",
+                color: "rgba(255,255,255,0.72)",
+                fontFamily: fontStack,
+                fontWeight: 500,
+                flexShrink: 0,
+              }}
+            >
+              {`@${profile.handle}`}
+            </div>
+            <div
+              style={{
+                marginTop: 3,
+                fontSize: 11,
+                lineHeight: "14px",
+                height: 14,
+                overflow: "hidden",
+                color: "rgba(255,255,255,0.52)",
+                fontFamily: fontStack,
+                fontWeight: 400,
+                flexShrink: 0,
+              }}
+            >
+              {followersLabel}
+            </div>
+            <div
+              style={{
+                marginTop: 4,
+                fontSize: 11,
+                lineHeight: "14px",
+                height: 14,
+                overflow: "hidden",
+                color: "rgba(255,255,255,0.88)",
+                fontFamily: fontStack,
+                fontWeight: 700,
+                flexShrink: 0,
+              }}
+            >
+              {profile.hasActiveServices ? "Ofrece servicios" : ""}
+            </div>
+          </div>
+        </Link>
+        <div
+          style={{
+            position: "absolute",
+            bottom: 10,
+            left: 10,
+            right: 10,
+            zIndex: 2,
+          }}
+        >
+          <FollowButton
+            isFollowing={isFollowing}
+            onClick={onFollow}
+            loading={loading}
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -480,6 +712,11 @@ export default function GroupRecommendationsRail({
   const [joinLoadingByGroup, setJoinLoadingByGroup] = useState<
     Record<string, boolean>
   >({});
+  const [profileCards, setProfileCards] = useState<RecommendationProfileCard[]>([]);
+  const [followStates, setFollowStates] = useState<Record<string, boolean>>({});
+  const [followLoadingByProfile, setFollowLoadingByProfile] = useState<
+    Record<string, boolean>
+  >({});
 
   const heading = title ?? getDefaultTitle();
   const railSubtitle = subtitle ?? getDefaultSubtitle(context);
@@ -490,6 +727,8 @@ export default function GroupRecommendationsRail({
       setResult(null);
       setJoinStates({});
       setSelectedCategories([]);
+      setProfileCards([]);
+      setFollowStates({});
       setLoading(false);
       setError(null);
       return;
@@ -499,9 +738,14 @@ export default function GroupRecommendationsRail({
     setError(null);
 
     try {
-      const next = await fetchRecommendedGroupsForUser(currentUserId);
+      const [next, profiles] = await Promise.all([
+        fetchRecommendedGroupsForUser(currentUserId),
+        fetchRecommendedProfilesForUser(currentUserId).catch(() => [] as RecommendationProfileCard[]),
+      ]);
       setResult(next);
       setSelectedCategories(next.selectedCategories);
+      setProfileCards(profiles);
+      setFollowStates(Object.fromEntries(profiles.map((p) => [p.uid, false])));
 
       if (next.groups.length > 0) {
         const entries = await Promise.all(
@@ -619,6 +863,38 @@ export default function GroupRecommendationsRail({
       setJoinLoadingByGroup((prev) => ({ ...prev, [group.id]: false }));
     }
   };
+
+  const handleFollow = async (profile: RecommendationProfileCard) => {
+    if (!currentUserId) return;
+    setFollowLoadingByProfile((prev) => ({ ...prev, [profile.uid]: true }));
+    setError(null);
+    try {
+      await followUser({ currentUserId, targetUserId: profile.uid });
+      setFollowStates((prev) => ({ ...prev, [profile.uid]: true }));
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "No se pudo seguir al perfil."
+      );
+    } finally {
+      setFollowLoadingByProfile((prev) => ({ ...prev, [profile.uid]: false }));
+    }
+  };
+
+  const mergedRailItems = useMemo((): RailItem[] => {
+    if (!result?.onboardingCompleted || result.groups.length === 0) return [];
+    const items: RailItem[] = [];
+    let profileIdx = 0;
+    result.groups.forEach((group, i) => {
+      items.push({ type: "group", data: group });
+      if ((i + 1) % 3 === 0 && profileIdx < profileCards.length) {
+        items.push({ type: "profile", data: profileCards[profileIdx++] });
+      }
+    });
+    while (profileIdx < profileCards.length) {
+      items.push({ type: "profile", data: profileCards[profileIdx++] });
+    }
+    return items;
+  }, [result, profileCards]);
 
   const showOnboarding = useMemo(() => {
     return !loading && result && !result.onboardingCompleted;
@@ -754,15 +1030,25 @@ export default function GroupRecommendationsRail({
             paddingRight: 12,
           }}
         >
-          {result.groups.map((group) => (
-            <GroupCard
-              key={group.id}
-              group={group}
-              joinState={joinStates[group.id] ?? "join"}
-              loading={Boolean(joinLoadingByGroup[group.id])}
-              onJoin={() => handleJoin(group)}
-            />
-          ))}
+          {mergedRailItems.map((item) =>
+            item.type === "group" ? (
+              <GroupCard
+                key={`group-${item.data.id}`}
+                group={item.data}
+                joinState={joinStates[item.data.id] ?? "join"}
+                loading={Boolean(joinLoadingByGroup[item.data.id])}
+                onJoin={() => handleJoin(item.data)}
+              />
+            ) : (
+              <ProfileCard
+                key={`profile-${item.data.uid}`}
+                profile={item.data}
+                isFollowing={followStates[item.data.uid] ?? false}
+                loading={Boolean(followLoadingByProfile[item.data.uid])}
+                onFollow={() => handleFollow(item.data)}
+              />
+            )
+          )}
         </div>
       ) : null}
 

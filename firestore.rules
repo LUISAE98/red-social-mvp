@@ -2495,6 +2495,81 @@ function canUpdateReplyCount(delta) {
       allow update, delete: if false;
     }
 
+    // ==========================
+    // LIVE CHAT
+    // ==========================
+    match /liveChats/{liveId}/messages/{messageId} {
+
+      function livePostDoc() {
+        return get(/databases/$(database)/documents/posts/$(liveId));
+      }
+
+      function liveChatEnabled() {
+        return !("liveData" in livePostDoc().data)
+          || livePostDoc().data.liveData == null
+          || !("chatEnabled" in livePostDoc().data.liveData)
+          || livePostDoc().data.liveData.chatEnabled != false;
+      }
+
+      function userNotMuted() {
+        return !("liveData" in livePostDoc().data)
+          || livePostDoc().data.liveData == null
+          || !("mutedUsers" in livePostDoc().data.liveData)
+          || livePostDoc().data.liveData.mutedUsers == null
+          || !(request.auth.uid in livePostDoc().data.liveData.mutedUsers);
+      }
+
+      function userNotBanned() {
+        return !("liveData" in livePostDoc().data)
+          || livePostDoc().data.liveData == null
+          || !("bannedUsers" in livePostDoc().data.liveData)
+          || livePostDoc().data.liveData.bannedUsers == null
+          || !(request.auth.uid in livePostDoc().data.liveData.bannedUsers);
+      }
+
+      function isLivePostAuthor() {
+        return signedIn()
+          && livePostDoc().data.authorId == request.auth.uid;
+      }
+
+      function canDeleteLiveChatMsg() {
+        return signedIn()
+          && (
+            resource.data.userId == request.auth.uid
+            || isLivePostAuthor()
+            || (
+              livePostDoc().data.groupId is string
+              && canModerateGroup(livePostDoc().data.groupId)
+            )
+          );
+      }
+
+      allow get, list: if signedIn();
+
+      allow create: if signedIn()
+        && liveChatEnabled()
+        && userNotMuted()
+        && userNotBanned()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.liveId == liveId
+        && request.resource.data.text is string
+        && request.resource.data.text.size() >= 1
+        && request.resource.data.text.size() <= 500
+        && request.resource.data.type == "message"
+        && request.resource.data.isDeleted == false
+        && request.resource.data.createdAt is timestamp;
+
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          "isDeleted", "deletedAt", "deletedBy"
+        ])
+        && request.resource.data.isDeleted == true
+        && resource.data.isDeleted == false
+        && canDeleteLiveChatMsg();
+
+      allow delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

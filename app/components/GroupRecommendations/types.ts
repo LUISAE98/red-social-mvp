@@ -44,3 +44,17 @@ export type RecommendationFetchResult = {
 export type RecommendationRailContext = "home" | "profile" | "group" | "search_empty";
 
 export type RecommendationJoinState = "join" | "request" | "joined" | "pending";
+
+export type RecommendationProfileCard = {
+  uid: string;
+  displayName: string;
+  handle: string;
+  avatarUrl: string | null;
+  coverUrl: string | null;
+  followersCount: number;
+  hasActiveServices: boolean;
+};
+
+export type RailItem =
+  | { type: "group"; data: RecommendationGroupCard }
+  | { type: "profile"; data: RecommendationProfileCard };

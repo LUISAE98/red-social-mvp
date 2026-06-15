@@ -18,6 +18,7 @@ import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import LiveInlinePlayer from "@/app/components/LiveInlinePlayer/LiveInlinePlayer";
 import LiveViewerModal from "@/app/components/LiveViewerModal/LiveViewerModal";
+import LiveCreatorPanel from "@/app/components/LiveChat/LiveCreatorPanel";
 import PostFlamesPanel, { type PostFlameUser } from "./PostFlamesPanel";
 import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
 import LiveStreamSetup from "@/app/components/LiveStreamSetup/LiveStreamSetup";
@@ -703,6 +704,7 @@ onToggleProfilePin,
   const [liveEditOpen, setLiveEditOpen] = useState(false);
   const [liveSetupOpen, setLiveSetupOpen] = useState(false);
   const [liveViewerOpen, setLiveViewerOpen] = useState(false);
+  const [liveCreatorOpen, setLiveCreatorOpen] = useState(false);
   const [isLivePortrait, setIsLivePortrait] = useState(false);
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
   const [localText, setLocalText] = useState<string | null>(null);
@@ -2769,150 +2771,169 @@ style={{
 )}
 
 {post.postType === "live" && (
-  <div
-    style={{
-      marginTop: 10,
-      borderRadius: 14,
-      position: "relative",
-      border: isLiveActive ? "2.6px solid #ef4444" : "2.6px solid #a855f7",
-      boxShadow: isLiveActive
-        ? "0 0 0 1px rgba(239,68,68,0.06), 0 4px 28px rgba(239,68,68,0.18)"
-        : "0 0 0 1px rgba(168,85,255,0.06), 0 4px 28px rgba(168,85,255,0.1)",
-      background: "transparent",
-    }}
-  >
-    {/* Pestaña LIVE */}
+  // Portrait solo aplica cuando el live está activo/reproduciéndose
+  <div style={(isLiveActive && isLivePortrait) ? { display: "flex", justifyContent: "center", marginTop: 10 } : { marginTop: 10 }}>
     <div
       style={{
-        position: "absolute",
-        ...(isLiveActive
-          ? { bottom: 0, left: "50%", transform: "translateX(-50%)", borderTopLeftRadius: 8, borderTopRightRadius: 8 }
-          : { top: 0, right: 10, borderBottomLeftRadius: 6, borderBottomRightRadius: 6 }),
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 5,
-        background: isLiveActive
-          ? "#ef4444"
-          : "linear-gradient(180deg, #a855f7 0%, #d946b8 100%)",
-        padding: isLiveActive ? "5px 12px 5px 9px" : "3px 8px 3px 6px",
-        fontSize: isLiveActive ? 11 : 8.5,
-        fontWeight: 700,
-        letterSpacing: "0.06em",
-        color: "#fff",
-        whiteSpace: "nowrap",
-        fontFamily: fontStack,
-        textTransform: "uppercase",
-        zIndex: 2,
+        width: (isLiveActive && isLivePortrait) ? "min(280px, 100%)" : "100%",
+        borderRadius: 14,
+        position: "relative",
+        overflow: "hidden",
+        border: isLiveActive ? "2.6px solid #ef4444" : "2.6px solid #a855f7",
+        boxShadow: isLiveActive
+          ? "0 0 0 1px rgba(239,68,68,0.06), 0 4px 28px rgba(239,68,68,0.18)"
+          : "0 0 0 1px rgba(168,85,255,0.06), 0 4px 28px rgba(168,85,255,0.1)",
+        background: "transparent",
       }}
     >
-      <svg
-        width={isLiveActive ? 13 : 11} height={isLiveActive ? 13 : 11} viewBox="0 0 22 22" fill="none"
-        style={{ animation: isLiveActive ? "livePulseIcon 1.4s ease-in-out infinite" : undefined }}
-      >
-        <circle cx="11" cy="11" r="10" stroke="#fff" strokeWidth="1.4" fill="none" />
-        <circle cx="11" cy="11" r="6" fill="#fff" />
-      </svg>
-      {isLiveActive ? "En vivo" : activeLiveData?.status === "ended" ? "Finalizado" : "Live Programado"}
-    </div>
-
-    {/* Live media area — switches between player, cover, ended */}
-    {isLiveActive && activeLiveData?.playbackId ? (
-      <LiveInlinePlayer
-        playbackId={activeLiveData.playbackId}
-        title={activeLiveData.title}
-        coverUrl={activeLiveData.coverUrl}
-        portrait={isLivePortrait}
-        onClick={() => setLiveViewerOpen(true)}
-        onOrientationDetected={(p) => setIsLivePortrait(p)}
-      />
-    ) : activeLiveData?.status === "ended" ? (
+      {/* Badge EN VIVO / Finalizado / Programado */}
       <div
         style={{
-          position: "relative",
-          width: "100%",
-          aspectRatio: isLivePortrait ? "9 / 16" : "16 / 9",
-          background: "rgba(0,0,0,0.7)",
-          borderRadius: 12,
-          overflow: "hidden",
-          display: "flex",
+          position: "absolute",
+          ...(isLiveActive
+            ? { bottom: 0, left: "50%", transform: "translateX(-50%)", borderTopLeftRadius: 8, borderTopRightRadius: 8 }
+            : { top: 0, right: 10, borderBottomLeftRadius: 6, borderBottomRightRadius: 6 }),
+          display: "inline-flex",
           alignItems: "center",
-          justifyContent: "center",
+          gap: 5,
+          background: isLiveActive
+            ? "#ef4444"
+            : "linear-gradient(180deg, #a855f7 0%, #d946b8 100%)",
+          padding: isLiveActive ? "5px 12px 5px 9px" : "3px 8px 3px 6px",
+          fontSize: isLiveActive ? 11 : 8.5,
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+          color: "#fff",
+          whiteSpace: "nowrap",
+          fontFamily: fontStack,
+          textTransform: "uppercase",
+          zIndex: 3,
         }}
       >
-        {activeLiveData.coverUrl && (
-          <img
-            src={activeLiveData.coverUrl}
-            alt={activeLiveData.title ?? "Live finalizado"}
-            draggable={false}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.2, filter: "grayscale(40%)" }}
-          />
-        )}
-        <div style={{
-          position: "relative", zIndex: 1, display: "flex", flexDirection: "column",
-          alignItems: "center", gap: 8, color: "rgba(255,255,255,0.55)",
-          fontFamily: fontStack, textAlign: "center",
-        }}>
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-          </svg>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>Transmisión finalizada</span>
-        </div>
-      </div>
-    ) : (
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          aspectRatio: isLivePortrait ? "9 / 16" : "16 / 7",
-          background:
-            "radial-gradient(ellipse at center, rgba(180,180,195,0.18) 0%, rgba(110,110,130,0.10) 60%, rgba(70,70,90,0.06) 100%), linear-gradient(135deg, rgba(60,60,75,0.55) 0%, rgba(30,30,45,0.85) 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-          borderRadius: 12,
-        }}
-      >
-        {activeLiveData?.coverUrl && (
-          <img
-            src={activeLiveData.coverUrl}
-            alt={activeLiveData.title ?? "Live programado"}
-            draggable={false}
-            onLoad={(e) => {
-              const img = e.currentTarget;
-              if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                setIsLivePortrait(img.naturalHeight > img.naturalWidth);
-              }
-            }}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.45, filter: "grayscale(20%)" }}
-          />
-        )}
         <svg
-          width="52" height="52" viewBox="0 0 22 22" fill="none"
-          style={{ flexShrink: 0, position: "relative", zIndex: 1, animation: "livePulseIcon 2s ease-in-out infinite" }}
+          width={isLiveActive ? 13 : 11} height={isLiveActive ? 13 : 11} viewBox="0 0 22 22" fill="none"
+          style={{ animation: isLiveActive ? "livePulseIcon 1.4s ease-in-out infinite" : undefined }}
         >
-          <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
-          <circle cx="11" cy="11" r="6" fill="#ef4444" />
+          <circle cx="11" cy="11" r="10" stroke="#fff" strokeWidth="1.4" fill="none" />
+          <circle cx="11" cy="11" r="6" fill="#fff" />
         </svg>
-        <div style={{
-          position: "absolute", top: 10, left: 10,
-          display: "inline-flex", alignItems: "center", gap: 6,
-          background: "rgba(10,5,20,0.82)", border: "1px solid rgba(168,85,255,0.35)",
-          borderRadius: 999, padding: "4px 10px 4px 8px",
-          fontFamily: fontStack, fontSize: 11, fontWeight: 700,
-          letterSpacing: "0.04em", color: "#d8b4fe", textTransform: "uppercase",
-          backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
-          maxWidth: "calc(100% - 20px)",
-        }}>
-          <span style={{
-            width: 7, height: 7, borderRadius: "50%", background: "#a855f7",
-            flexShrink: 0, boxShadow: "0 0 0 2px rgba(168,85,255,0.3)",
-            animation: "livePulse 2s ease-in-out infinite",
-          }} />
-          Esperando inicio
-        </div>
+        {isLiveActive ? "En vivo" : activeLiveData?.status === "ended" ? "Finalizado" : "Live Programado"}
       </div>
-    )}
+
+      {/* Botón "Abrir gestor" — overlay top-right, solo para el creador del live activo */}
+      {currentUserId === post.authorId && isLiveActive && (
+        <button
+          type="button"
+          onClick={() => setLiveCreatorOpen(true)}
+          style={{
+            position: "absolute", top: 10, right: 10, zIndex: 4,
+            display: "inline-flex", alignItems: "center", gap: 5,
+            padding: "5px 10px", borderRadius: 999,
+            border: "1px solid rgba(255,255,255,0.22)",
+            background: "rgba(0,0,0,0.55)",
+            color: "#fff", fontSize: 11, fontWeight: 600, fontFamily: fontStack,
+            cursor: "pointer",
+            backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+          </svg>
+          Abrir gestor
+        </button>
+      )}
+
+      {/* Área de media — player activo, finalizado, o programado */}
+      {isLiveActive && activeLiveData?.playbackId ? (
+        <LiveInlinePlayer
+          playbackId={activeLiveData.playbackId}
+          title={activeLiveData.title}
+          coverUrl={activeLiveData.coverUrl}
+          portrait={isLivePortrait}
+          paused={liveViewerOpen}
+          onClick={() => setLiveViewerOpen(true)}
+          onOrientationDetected={(p) => setIsLivePortrait(p)}
+        />
+      ) : activeLiveData?.status === "ended" ? (
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            aspectRatio: "16 / 9",
+            background: "rgba(0,0,0,0.7)",
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {activeLiveData.coverUrl && (
+            <img
+              src={activeLiveData.coverUrl}
+              alt={activeLiveData.title ?? "Live finalizado"}
+              draggable={false}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.2, filter: "grayscale(40%)" }}
+            />
+          )}
+          <div style={{
+            position: "relative", zIndex: 1, display: "flex", flexDirection: "column",
+            alignItems: "center", gap: 8, color: "rgba(255,255,255,0.55)",
+            fontFamily: fontStack, textAlign: "center",
+          }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+            </svg>
+            <span style={{ fontSize: 13, fontWeight: 600 }}>Transmisión finalizada</span>
+          </div>
+        </div>
+      ) : (
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            aspectRatio: "16 / 7",
+            background:
+              "radial-gradient(ellipse at center, rgba(180,180,195,0.18) 0%, rgba(110,110,130,0.10) 60%, rgba(70,70,90,0.06) 100%), linear-gradient(135deg, rgba(60,60,75,0.55) 0%, rgba(30,30,45,0.85) 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+          }}
+        >
+          {activeLiveData?.coverUrl && (
+            <img
+              src={activeLiveData.coverUrl}
+              alt={activeLiveData.title ?? "Live programado"}
+              draggable={false}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.45, filter: "grayscale(20%)" }}
+            />
+          )}
+          <svg
+            width="52" height="52" viewBox="0 0 22 22" fill="none"
+            style={{ flexShrink: 0, position: "relative", zIndex: 1, animation: "livePulseIcon 2s ease-in-out infinite" }}
+          >
+            <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
+            <circle cx="11" cy="11" r="6" fill="#ef4444" />
+          </svg>
+          <div style={{
+            position: "absolute", top: 10, left: 10,
+            display: "inline-flex", alignItems: "center", gap: 6,
+            background: "rgba(10,5,20,0.82)", border: "1px solid rgba(168,85,255,0.35)",
+            borderRadius: 999, padding: "4px 10px 4px 8px",
+            fontFamily: fontStack, fontSize: 11, fontWeight: 700,
+            letterSpacing: "0.04em", color: "#d8b4fe", textTransform: "uppercase",
+            backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+            maxWidth: "calc(100% - 20px)",
+          }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: "50%", background: "#a855f7",
+              flexShrink: 0, boxShadow: "0 0 0 2px rgba(168,85,255,0.3)",
+              animation: "livePulse 2s ease-in-out infinite",
+            }} />
+            Esperando inicio
+          </div>
+        </div>
+      )}
 
     {/* Content area — hidden when live is active */}
     {!isLiveActive && (<div style={{ padding: "12px 14px 14px" }}>
@@ -3089,6 +3110,7 @@ style={{
         50% { opacity: 0.45; }
       }
     `}</style>
+    </div>
   </div>
 )}
 
@@ -4145,6 +4167,14 @@ padding: "0 0 2px 0",
     open={liveViewerOpen}
     onClose={() => setLiveViewerOpen(false)}
     post={{ ...post, liveData: activeLiveData ?? post.liveData }}
+    onManage={currentUserId === post.authorId ? () => { setLiveViewerOpen(false); setLiveCreatorOpen(true); } : undefined}
+  />
+)}
+{liveCreatorOpen && (
+  <LiveCreatorPanel
+    open={liveCreatorOpen}
+    onClose={() => setLiveCreatorOpen(false)}
+    post={{ ...post, liveData: activeLiveData ?? post.liveData }}
   />
 )}
 <div style={interactionRowStyle}>
@@ -4235,6 +4265,7 @@ padding: "0 0 2px 0",
         text={post.shareDescription || post.text || "Mira esta publicación."}
       />
     )}
+
   </div>
 </div>
 </div>

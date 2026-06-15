@@ -241,6 +241,9 @@ export type PostLiveData = {
   createdFrom?: "profile" | "group" | null;
   visibilityMode?: LiveVisibilityMode | null;
   allowLoggedOutViewers?: boolean | null;
+  chatEnabled?: boolean | null;
+  mutedUsers?: string[] | null;
+  bannedUsers?: string[] | null;
 };
 
 export type PostVideoData = {

@@ -3,33 +3,40 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import Hls from "hls.js";
-import type { Post } from "@/lib/posts/types";
+import { doc, onSnapshot } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import type { Post, PostLiveData } from "@/lib/posts/types";
+import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+
 
 type Props = {
   open: boolean;
   onClose: () => void;
   post: Post;
+  onManage?: () => void;
 };
 
-// Same helper as StoryViewer for the 9:16 vertical panel
-function desktopVerticalSize(): { width: number; height: number } {
-  if (typeof window === "undefined") return { width: 380, height: 675 };
-  const h = Math.min(Math.round(window.innerHeight * 0.88), 720);
+// Igual que StoryViewer.desktopPanelSize()
+function desktopStorySize(): { width: number; height: number } {
+  if (typeof window === "undefined") return { width: 405, height: 720 };
+  const h = Math.min(Math.round(window.innerHeight * 0.86), 720);
   return { width: Math.round((h * 9) / 16), height: h };
 }
 
-// 16:9 panel for desktop horizontal
+// Video horizontal: deja espacio para el chat flotante separado
 function desktopHorizontalSize(): { width: number; height: number } {
-  if (typeof window === "undefined") return { width: 854, height: 480 };
-  const w = Math.min(Math.round(window.innerWidth * 0.78), 1000);
+  if (typeof window === "undefined") return { width: 800, height: 450 };
+  const w = Math.min(Math.round(window.innerWidth * 0.62), 800);
   const h = Math.round((w * 9) / 16);
-  return { width: w, height: Math.min(h, Math.round(window.innerHeight * 0.82)) };
+  return { width: w, height: Math.min(h, Math.round(window.innerHeight * 0.80)) };
 }
 
-export default function LiveViewerModal({ open, onClose, post }: Props) {
+const CHAT_FLOAT_W = 300;
+
+export default function LiveViewerModal({ open, onClose, post, onManage }: Props) {
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -38,17 +45,33 @@ export default function LiveViewerModal({ open, onClose, post }: Props) {
   const [error, setError] = useState(false);
   const [muted, setMuted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [isPortrait, setIsPortrait] = useState(false); // video orientation, default landscape
+  const [isPortrait, setIsPortrait] = useState(false);
+  const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
 
-  const liveData = post.liveData;
+  // Subscripción propia: no depende de que el padre pase el prop a tiempo
+  useEffect(() => {
+    if (!post.id) return;
+    const unsub = onSnapshot(
+      doc(db, "posts", post.id),
+      (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data();
+        if (data?.liveData) setLocalLiveData(data.liveData as PostLiveData);
+      },
+      (err) => console.warn("[LiveViewerModal] snapshot error", err)
+    );
+    return () => unsub();
+  }, [post.id]);
+
+  const liveData = localLiveData;
   const playbackId = liveData?.playbackId;
   const hlsUrl = playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null;
   const isLive = liveData?.status === "live";
   const isEnded = liveData?.status === "ended";
+  const chatEnabled = !isEnded && liveData?.chatEnabled !== false;
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Desktop detection — same as StoryViewer
   useEffect(() => {
     const mql = window.matchMedia("(pointer: fine)");
     setIsDesktop(mql.matches);
@@ -63,7 +86,6 @@ export default function LiveViewerModal({ open, onClose, post }: Props) {
     return () => window.clearTimeout(t);
   }, [open]);
 
-  // Lock body scroll
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -71,7 +93,7 @@ export default function LiveViewerModal({ open, onClose, post }: Props) {
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
-  // Initialize HLS — wait for shouldRender so videoRef is in DOM
+  // Initialize HLS
   useEffect(() => {
     if (!open || !shouldRender || !hlsUrl) return;
     const video = videoRef.current;
@@ -83,7 +105,6 @@ export default function LiveViewerModal({ open, onClose, post }: Props) {
     const onMeta = () => {
       setReady(true);
       video.play().catch(() => {});
-      // Detect portrait/landscape from actual video dimensions
       if (video.videoWidth > 0 && video.videoHeight > 0) {
         setIsPortrait(video.videoHeight > video.videoWidth);
       }
@@ -95,7 +116,6 @@ export default function LiveViewerModal({ open, onClose, post }: Props) {
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.addEventListener("loadedmetadata", onMeta, { once: true });
-        // Trigger play attempt even before metadata if already loaded
         video.play().catch(() => {});
       });
       hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal) setError(true); });
@@ -109,106 +129,181 @@ export default function LiveViewerModal({ open, onClose, post }: Props) {
     } else {
       setError(true);
     }
-  }, [open, shouldRender, hlsUrl]);
+  }, [open, shouldRender, hlsUrl, isLive]);
+
+  // Congelar video en último frame cuando el live termina
+  useEffect(() => {
+    if (!isEnded) return;
+    videoRef.current?.pause();
+  }, [isEnded]);
 
   if (!mounted || !shouldRender) return null;
 
-  // ── Shared header ──────────────────────────────────────────────────────────
-  function renderHeader(inset: string | number = 0) {
+  // ── Header — siempre visible: título izquierda, mute + gestionar + cerrar derecha ──
+  function renderHeader() {
+    const iconSz = isDesktop ? 20 : 24;
     return (
       <div style={{
         position: "absolute",
-        top: 0,
-        left: 0,
-        right: 0,
-        paddingTop: typeof inset === "number" ? inset : inset,
-        zIndex: 10,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: `calc(${typeof inset === "string" ? inset : `${inset}px`} + 12px) 14px 12px`,
-        background: "linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)",
+        top: 0, left: 0, right: 0, zIndex: 10,
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "12px 14px",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          {isLive && (
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
-              background: "rgba(239,68,68,0.9)", borderRadius: 999,
-              padding: "4px 9px", fontFamily: FONT,
-              fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "#fff",
-            }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", animation: "lvPulse 1.4s ease-in-out infinite" }} />
-              EN VIVO
-            </div>
+        {liveData?.title ? (
+          <span style={{
+            fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.9)", fontFamily: FONT,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            minWidth: 0, flex: 1, paddingRight: 8,
+          }}>
+            {liveData.title}
+          </span>
+        ) : <span style={{ flex: 1 }} />}
+
+        <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
+          {/* Mute — igual que historias */}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
+            aria-label={muted ? "Activar sonido" : "Silenciar"}
+          >
+            {muted ? (
+              <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            ) : (
+              <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+            )}
+          </button>
+
+          {onManage && (
+            <button
+              type="button"
+              onClick={onManage}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "5px 10px", borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.22)",
+                background: "rgba(0,0,0,0.45)",
+                color: "#fff", fontSize: 11, fontWeight: 600, fontFamily: FONT,
+                cursor: "pointer",
+                backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+              }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+              </svg>
+              Gestionar
+            </button>
           )}
-          {isEnded && (
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: 5, flexShrink: 0,
-              background: "rgba(0,0,0,0.5)", borderRadius: 999, border: "1px solid rgba(255,255,255,0.15)",
-              padding: "4px 9px", fontFamily: FONT,
-              fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.55)",
-            }}>
-              Finalizado
-            </div>
-          )}
-          {liveData?.title && (
-            <span style={{
-              fontSize: 13, fontWeight: 600, color: "#fff",
-              fontFamily: FONT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
-              {liveData.title}
-            </span>
-          )}
+
+          {/* Cerrar — igual que historias */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Cerrar"
+            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
+          >
+            <svg width={iconSz} height={iconSz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            flexShrink: 0, width: 32, height: 32, borderRadius: "50%",
-            border: "none", background: "rgba(0,0,0,0.45)",
-            color: "#fff", cursor: "pointer", fontSize: 18,
-            display: "grid", placeItems: "center", fontFamily: FONT,
-            backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
-          }}
-          aria-label="Cerrar"
-        >×</button>
       </div>
     );
   }
 
-  // ── Shared mute button ─────────────────────────────────────────────────────
-  function renderMuteBtn() {
-    if (!ready) return null;
-    return (
+  // ── Badge EN VIVO / Finalizado — siempre visible, esquina inferior derecha ──
+  // Cuando el live está activo, al hacer clic salta al extremo más actual del stream.
+  function renderLiveBadge() {
+    if (!isLive && !isEnded) return null;
+
+    function jumpToLive(e: React.MouseEvent) {
+      e.stopPropagation();
+      const video = videoRef.current;
+      if (!video || !isLive) return;
+      try {
+        const end = video.seekable.end(video.seekable.length - 1);
+        if (Number.isFinite(end)) video.currentTime = end;
+      } catch {
+        // seekable puede estar vacío si el stream no ha cargado aún
+      }
+    }
+
+    const sharedStyle: CSSProperties = {
+      position: "absolute", bottom: 14, right: 14, zIndex: 10,
+      display: "inline-flex", alignItems: "center", gap: 6,
+      background: isLive ? "rgba(239,68,68,0.88)" : "rgba(0,0,0,0.55)",
+      borderRadius: 7,
+      border: isEnded ? "1px solid rgba(255,255,255,0.18)" : "none",
+      padding: "5px 11px 5px 8px",
+      fontFamily: FONT, fontSize: 11, fontWeight: 700,
+      letterSpacing: "0.06em",
+      color: isLive ? "#fff" : "rgba(255,255,255,0.55)",
+      backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+    };
+
+    const inner = (
+      <>
+        {isLive && (
+          <span style={{
+            width: 7, height: 7, borderRadius: "50%",
+            background: "#fff", flexShrink: 0,
+            animation: "lvPulse 1.4s ease-in-out infinite",
+          }} />
+        )}
+        {isLive ? "EN VIVO" : "Finalizado"}
+      </>
+    );
+
+    return isLive ? (
       <button
         type="button"
-        onClick={() => setMuted((m) => !m)}
-        style={{
-          position: "absolute", bottom: 14, right: 14, zIndex: 10,
-          width: 38, height: 38, borderRadius: "50%",
-          border: "none", background: "rgba(0,0,0,0.55)",
-          color: "#fff", cursor: "pointer", display: "grid",
-          placeItems: "center",
-          backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
-        }}
-        aria-label={muted ? "Activar sonido" : "Silenciar"}
+        onClick={jumpToLive}
+        aria-label="Ir al momento actual del live"
+        style={{ ...sharedStyle, cursor: "pointer" }}
       >
-        {muted ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-            <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
-          </svg>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-          </svg>
-        )}
+        {inner}
       </button>
+    ) : (
+      <div style={{ ...sharedStyle, pointerEvents: "none" }}>{inner}</div>
     );
   }
 
-  // ── Shared video element ───────────────────────────────────────────────────
+  // ── Overlay "Transmisión finalizada" — se muestra sobre el último frame ───
+  function renderEndedOverlay() {
+    if (!isEnded) return null;
+    return (
+      <div style={{
+        position: "absolute", inset: 0, zIndex: 8,
+        background: "rgba(0,0,0,0.55)",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center", gap: 12,
+        fontFamily: FONT,
+      }}>
+        <svg width="38" height="38" viewBox="0 0 24 24" fill="none"
+          stroke="rgba(255,255,255,0.75)" strokeWidth="1.5"
+          strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+        <span style={{
+          fontSize: 15, fontWeight: 700,
+          color: "rgba(255,255,255,0.85)",
+          letterSpacing: "0.01em",
+        }}>
+          Transmisión finalizada
+        </span>
+      </div>
+    );
+  }
+
+  // ── Video element ──────────────────────────────────────────────────────────
   function renderVideo(fit: "cover" | "contain" = "contain") {
     return (
       <>
@@ -244,33 +339,11 @@ export default function LiveViewerModal({ open, onClose, post }: Props) {
           muted={muted}
           playsInline
           style={{
-            position: "absolute", inset: 0,
-            width: "100%", height: "100%",
-            objectFit: fit,
-            opacity: ready ? 1 : 0,
-            transition: "opacity 0.3s ease",
+            position: "absolute", inset: 0, width: "100%", height: "100%",
+            objectFit: fit, opacity: ready ? 1 : 0, transition: "opacity 0.3s ease",
           }}
         />
       </>
-    );
-  }
-
-  // ── Chat placeholder ───────────────────────────────────────────────────────
-  function renderChatPanel() {
-    return (
-      <div style={{
-        flex: 1, display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center",
-        gap: 8, padding: "20px 16px",
-        borderTop: "1px solid rgba(255,255,255,0.06)",
-      }}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>
-          Chat próximamente
-        </span>
-      </div>
     );
   }
 
@@ -280,44 +353,62 @@ export default function LiveViewerModal({ open, onClose, post }: Props) {
     @keyframes lvFadeOut { from{opacity:1}to{opacity:0} }
   `;
 
+  const floatCardShadow = "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)";
+
   // ══════════════════════════════════════════════════════════════════════════
-  // DESKTOP
+  // DESKTOP — portrait: dos cards flotantes separadas (video + chat)
   // ══════════════════════════════════════════════════════════════════════════
-  if (isDesktop) {
-    // Vertical (portrait 9:16) — story-like panel
-    if (isPortrait) {
-      const { width: pw, height: ph } = desktopVerticalSize();
-      return createPortal(
-        <>
-          <style>{keyframes}</style>
+  if (isDesktop && isPortrait) {
+    const { width: pw, height: ph } = desktopStorySize();
+    return createPortal(
+      <>
+        <style>{keyframes}</style>
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 10000,
+            background: "rgba(0,0,0,0.88)",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 20,
+            animation: open ? "lvFadeIn 0.2s ease" : "lvFadeOut 0.2s ease forwards",
+          }}
+          onClick={onClose}
+        >
+          {/* Card de video */}
           <div
             style={{
-              position: "fixed", inset: 0, zIndex: 10000,
-              background: "rgba(0,0,0,0.88)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              animation: open ? "lvFadeIn 0.2s ease" : "lvFadeOut 0.2s ease forwards",
+              position: "relative", width: pw, height: ph, background: "#000",
+              borderRadius: 18, overflow: "hidden", flexShrink: 0,
+              boxShadow: floatCardShadow,
             }}
-            onClick={onClose}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              style={{
-                position: "relative", width: pw, height: ph,
-                borderRadius: 18, overflow: "hidden",
-                background: "#000", flexShrink: 0,
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {renderVideo("cover")}
-              {renderHeader()}
-              {renderMuteBtn()}
-            </div>
+            {renderVideo("cover")}
+            {renderEndedOverlay()}
+            {renderHeader()}
+            {renderLiveBadge()}
           </div>
-        </>,
-        document.body
-      );
-    }
+          {/* Card de chat */}
+          <div
+            style={{
+              width: CHAT_FLOAT_W, height: ph,
+              background: "rgba(10,10,10,0.97)",
+              borderRadius: 18, overflow: "hidden", flexShrink: 0,
+              boxShadow: floatCardShadow,
+              display: "flex", flexDirection: "column",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} mode="panel" />
+          </div>
+        </div>
+      </>,
+      document.body
+    );
+  }
 
-    // Horizontal (landscape 16:9) — wider panel
+  // ══════════════════════════════════════════════════════════════════════════
+  // DESKTOP — horizontal: dos cards flotantes separadas (video grande + chat)
+  // ══════════════════════════════════════════════════════════════════════════
+  if (isDesktop) {
     const { width: hw, height: hh } = desktopHorizontalSize();
     return createPortal(
       <>
@@ -326,22 +417,37 @@ export default function LiveViewerModal({ open, onClose, post }: Props) {
           style={{
             position: "fixed", inset: 0, zIndex: 10000,
             background: "rgba(0,0,0,0.88)",
-            display: "flex", alignItems: "center", justifyContent: "center",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 24,
             animation: open ? "lvFadeIn 0.2s ease" : "lvFadeOut 0.2s ease forwards",
           }}
           onClick={onClose}
         >
+          {/* Card de video */}
           <div
             style={{
-              position: "relative", width: hw, height: hh,
-              borderRadius: 18, overflow: "hidden",
-              background: "#000", flexShrink: 0,
+              position: "relative", width: hw, height: hh, background: "#000",
+              borderRadius: 18, overflow: "hidden", flexShrink: 0,
+              boxShadow: floatCardShadow,
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {renderVideo("contain")}
+            {renderEndedOverlay()}
             {renderHeader()}
-            {renderMuteBtn()}
+            {renderLiveBadge()}
+          </div>
+          {/* Card de chat */}
+          <div
+            style={{
+              width: CHAT_FLOAT_W, height: hh,
+              background: "rgba(10,10,10,0.97)",
+              borderRadius: 18, overflow: "hidden", flexShrink: 0,
+              boxShadow: floatCardShadow,
+              display: "flex", flexDirection: "column",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} mode="panel" />
           </div>
         </div>
       </>,
@@ -350,24 +456,21 @@ export default function LiveViewerModal({ open, onClose, post }: Props) {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // MOBILE
+  // MOBILE — portrait: fullscreen + overlay chat
   // ══════════════════════════════════════════════════════════════════════════
-
-  // Vertical (portrait) — full screen, no safe area
   if (isPortrait) {
     return createPortal(
       <>
         <style>{keyframes}</style>
         <div
-          style={{
-            position: "fixed", inset: 0, zIndex: 10000,
-            background: "#000", display: "flex", flexDirection: "column",
-          }}
+          style={{ position: "fixed", inset: 0, zIndex: 10000, background: "#000", display: "flex", flexDirection: "column" }}
         >
           <div style={{ position: "relative", flex: 1 }}>
             {renderVideo("cover")}
-            {renderHeader(0)}
-            {renderMuteBtn()}
+            {renderEndedOverlay()}
+            {renderHeader()}
+            {renderLiveBadge()}
+            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} mode="overlay" />
           </div>
         </div>
       </>,
@@ -375,35 +478,27 @@ export default function LiveViewerModal({ open, onClose, post }: Props) {
     );
   }
 
-  // Horizontal (landscape) — video top + safe area, chat panel below
+  // ══════════════════════════════════════════════════════════════════════════
+  // MOBILE — horizontal: video top + chat panel below
+  // ══════════════════════════════════════════════════════════════════════════
   return createPortal(
     <>
       <style>{keyframes}</style>
-      <div
-        style={{
-          position: "fixed", inset: 0, zIndex: 10000,
-          background: "#0a0a0a",
-          display: "flex", flexDirection: "column",
-        }}
-      >
-        {/* Video section — respects safe area top */}
-        <div style={{
-          position: "relative",
-          width: "100%",
-          aspectRatio: "16/9",
-          background: "#000",
-          paddingTop: "env(safe-area-inset-top, 0px)",
-          flexShrink: 0,
-        }}>
-          <div style={{ position: "relative", width: "100%", height: "100%" }}>
-            {renderVideo("cover")}
-            {renderHeader("env(safe-area-inset-top, 0px)")}
-            {renderMuteBtn()}
-          </div>
+      <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "#0a0a0a", display: "flex", flexDirection: "column" }}>
+        {/* Video */}
+        <div
+          style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", background: "#000", flexShrink: 0 }}
+        >
+          {renderVideo("cover")}
+          {renderEndedOverlay()}
+          {renderHeader()}
+          {renderLiveBadge()}
         </div>
 
         {/* Chat panel */}
-        {renderChatPanel()}
+        <div style={{ flex: 1, overflow: "hidden", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} mode="panel" />
+        </div>
       </div>
     </>,
     document.body
