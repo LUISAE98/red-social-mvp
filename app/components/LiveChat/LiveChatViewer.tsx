@@ -87,15 +87,18 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
   if (mode === "overlay") {
     return (
       <div
+        className="lvc-overlay"
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 5,
-          height: "33%",
           display: "flex", flexDirection: "column",
           background: "linear-gradient(to top, rgba(0,0,0,0.68) 50%, transparent 100%)",
         }}
       >
-        <style>{`.lvc-msgs::-webkit-scrollbar{display:none}`}</style>
+        <style>{`
+          .lvc-msgs::-webkit-scrollbar{display:none}
+          .lvc-overlay{height:33vh;height:33dvh}
+        `}</style>
 
         {/* Mensajes — flotan desde abajo, scrollable */}
         <div
@@ -127,9 +130,10 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
         {/* Input o estado */}
         {chatEnabled && !liveEnded && user ? (
           <div style={{
-            padding: "7px 14px",
-            paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
+            paddingTop: 7,
+            paddingLeft: 14,
             paddingRight: 84,
+            paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
           }}>
             {isMuted ? (
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>

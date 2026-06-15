@@ -146,13 +146,15 @@ export default function LiveViewerModal({ open, onClose, post, onManage }: Props
   // ── Header — siempre visible: título izquierda, mute + gestionar + cerrar derecha ──
   function renderHeader(safeTop = false) {
     const iconSz = isDesktop ? 20 : 24;
-    const pt = safeTop ? "max(12px, env(safe-area-inset-top))" : "12px";
     return (
       <div style={{
         position: "absolute",
         top: 0, left: 0, right: 0, zIndex: 10,
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: `${pt} 14px 12px`,
+        paddingTop: safeTop ? "max(12px, env(safe-area-inset-top))" : 12,
+        paddingBottom: 12,
+        paddingLeft: 14,
+        paddingRight: 14,
       }}>
         {liveData?.title ? (
           <span style={{
@@ -506,7 +508,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage }: Props
         <div
           style={{ position: "fixed", inset: 0, zIndex: 10000, background: "#000", display: "flex", flexDirection: "column" }}
         >
-          <div style={{ position: "relative", flex: 1 }}>
+          <div style={{ position: "relative", flex: 1, minHeight: 0, height: "100%" }}>
             {renderVideo("cover")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
