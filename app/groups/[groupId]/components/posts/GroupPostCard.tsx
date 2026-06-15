@@ -16,6 +16,7 @@ import { createPortal } from "react-dom";
 import type { Comment, CommentReply, Post, PostLiveData } from "@/lib/posts/types";
 import PostFlamesPanel, { type PostFlameUser } from "./PostFlamesPanel";
 import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
+import LiveStreamSetup from "@/app/components/LiveStreamSetup/LiveStreamSetup";
 import PostCommentsPanel from "./PostCommentsPanel";
 import GroupPostComposer, { type GroupPostComposerSubmitPayload } from "./GroupPostComposer";
 import PostImageViewer from "./PostImageViewer";
@@ -117,7 +118,7 @@ type DisplayMediaItem = {
 };
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
 function getDateFromTimestamp(value?: { toDate?: () => Date } | null) {
   if (!value?.toDate) return null;
@@ -696,6 +697,7 @@ onToggleProfilePin,
   const [paymentPanelOpen, setPaymentPanelOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [liveEditOpen, setLiveEditOpen] = useState(false);
+  const [liveSetupOpen, setLiveSetupOpen] = useState(false);
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
   const [localText, setLocalText] = useState<string | null>(null);
   const [localMedia, setLocalMedia] = useState<import("@/lib/posts/types").PostMedia[] | null>(null);
@@ -1469,7 +1471,6 @@ const cardStyle: CSSProperties = {
   boxSizing: "border-box",
 
   backdropFilter: "none",
-  WebkitBackdropFilter: "none",
 
   boxShadow: "0 14px 42px rgba(0, 0, 0, 0.74)",
 
@@ -1616,7 +1617,7 @@ const menuButtonStyle: CSSProperties = {
     border: "1px solid rgba(255,255,255,0.10)",
     background: "rgba(12,12,12,0.96)",
     boxShadow: "0 14px 34px rgba(0,0,0,0.34)",
-    backdropFilter: "blur(12px)",
+    backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
     padding: 6,
     zIndex: 99999,
     display: "grid",
@@ -2848,7 +2849,7 @@ style={{
           letterSpacing: "0.04em",
           color: isLiveActive ? "#fca5a5" : "#d8b4fe",
           textTransform: "uppercase",
-          backdropFilter: "blur(4px)",
+          backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
           maxWidth: "calc(100% - 20px)",
         }}
       >
@@ -2980,6 +2981,37 @@ style={{
             )}
             {liveVisibilityBadge.label}
           </div>
+        )}
+
+        {/* Botón Configurar transmisión — solo visible para el dueño del live */}
+        {isOwner && post.postType === "live" && (
+          <button
+            type="button"
+            onClick={() => setLiveSetupOpen(true)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "5px 12px",
+              borderRadius: 999,
+              border: "1px solid rgba(239,68,68,0.35)",
+              background: activeLiveData?.liveStreamId
+                ? "rgba(239,68,68,0.08)"
+                : "rgba(239,68,68,0.14)",
+              color: "#fca5a5",
+              fontSize: 11,
+              fontWeight: 600,
+              fontFamily: fontStack,
+              cursor: "pointer",
+              letterSpacing: "0.02em",
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 22 22" fill="none">
+              <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
+              <circle cx="11" cy="11" r="5" fill="#ef4444" />
+            </svg>
+            {activeLiveData?.liveStreamId ? "Ver configuración" : "Configurar transmisión"}
+          </button>
         )}
 
         {liveAccessBlocked && (
@@ -4049,6 +4081,23 @@ padding: "0 0 2px 0",
     groupVisibility={post.groupVisibility}
   />
 )}
+{liveSetupOpen && (
+  <LiveStreamSetup
+    open={liveSetupOpen}
+    onClose={() => setLiveSetupOpen(false)}
+    postId={post.id}
+    liveStreamId={activeLiveData?.liveStreamId}
+    onStreamCreated={(liveStreamId, playbackId) => {
+      setLocalLiveData((prev) => ({
+        ...(prev ?? post.liveData ?? {}),
+        liveStreamId,
+        playbackId: playbackId ?? null,
+        ingestUrl: "rtmps://global-live.mux.com:443/app",
+        streamProvider: "mux",
+      }));
+    }}
+  />
+)}
 <div style={interactionRowStyle}>
   <div style={leftInteractionGroupStyle}>
     <div
@@ -4268,8 +4317,7 @@ padding: "0 0 2px 0",
                     gap: 0,
                     overflow: "hidden",
                     boxShadow: "0 24px 64px rgba(0,0,0,0.55)",
-                    backdropFilter: "blur(20px)",
-                    WebkitBackdropFilter: "blur(20px)",
+                    backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
                     animation: "vbActionsMenuScaleIn 0.18s ease",
                   }}
                 >

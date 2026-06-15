@@ -89,7 +89,7 @@ export default function GroupImageCropModal({
           overflow: "hidden",
           boxShadow: groupPageUi.shadow,
           color: "#fff",
-          backdropFilter: "blur(10px)",
+          backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
         }}
         onClick={(e) => e.stopPropagation()}
       >

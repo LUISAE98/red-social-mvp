@@ -20,7 +20,7 @@ type PostFlamesPanelProps = {
 };
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
@@ -139,7 +139,7 @@ export default function PostFlamesPanel({
     boxShadow: isMobile
       ? "0 -18px 50px rgba(0,0,0,0.46)"
       : "0 24px 80px rgba(0,0,0,0.56)",
-    backdropFilter: "blur(16px)",
+    backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
     color: "#fff",
     display: "grid",
     gridTemplateRows: "auto minmax(0, 1fr)",

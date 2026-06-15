@@ -445,7 +445,7 @@ const shellStyle: CSSProperties = {
     display: "grid",
     gap: 12,
     zIndex: 20,
-    backdropFilter: "blur(12px)",
+    backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
   };
 
   const filterBlockStyle: CSSProperties = {

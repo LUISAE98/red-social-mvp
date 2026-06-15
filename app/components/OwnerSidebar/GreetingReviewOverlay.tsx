@@ -11,7 +11,7 @@ import type { StoryDoc } from "@/lib/stories/types";
 import type { GreetingRequestDoc, UserMini } from "./OwnerSidebar";
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
 function getRelativeTime(createdAt?: { toDate: () => Date } | null): string {
   if (!createdAt) return "Hace un momento";
@@ -1272,7 +1272,7 @@ export default function GreetingReviewOverlay({
     return (
       <div style={{
         position: "absolute", top: topValue, left: "50%", transform: "translateX(-50%)",
-        background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)",
+        background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
         borderRadius: 20, padding: "5px 10px 5px 13px",
         display: "flex", alignItems: "center", gap: 7,
         pointerEvents: "none", zIndex: 2,
@@ -1638,7 +1638,7 @@ export default function GreetingReviewOverlay({
                   position: "absolute", bottom: 110, left: "50%", transform: "translateX(-50%)",
                   background: "rgba(0,0,0,0.62)", borderRadius: 20, padding: "5px 14px",
                   color: "#fff", fontWeight: 500, fontSize: 12, fontFamily: fontStack,
-                  whiteSpace: "nowrap", backdropFilter: "blur(4px)",
+                  whiteSpace: "nowrap", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
                 }}>
                   {getRecordingMessage(recordingSeconds, req.type)}
                 </div>
@@ -2062,7 +2062,7 @@ export default function GreetingReviewOverlay({
                       background: "rgba(0,0,0,0.55)", borderRadius: 20, padding: "4px 14px",
                       display: "flex", alignItems: "center", gap: 7,
                       color: "#fff", fontWeight: 600, fontSize: 14, fontFamily: fontStack,
-                      backdropFilter: "blur(4px)",
+                      backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
                     }}>
                       <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block", flexShrink: 0 }} />
                       {formatTime(recordingSeconds)}
@@ -2074,7 +2074,7 @@ export default function GreetingReviewOverlay({
                       position: "absolute", bottom: 110, left: "50%", transform: "translateX(-50%)",
                       background: "rgba(0,0,0,0.62)", borderRadius: 20, padding: "5px 14px",
                       color: "#fff", fontWeight: 500, fontSize: 12, fontFamily: fontStack,
-                      whiteSpace: "nowrap", backdropFilter: "blur(4px)", textAlign: "center",
+                      whiteSpace: "nowrap", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)", textAlign: "center",
                     }}>
                       {getRecordingMessage(recordingSeconds, req.type)}
                     </div>

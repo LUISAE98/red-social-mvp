@@ -239,7 +239,7 @@ const searchParams = useSearchParams();
 const { user, loading: authLoading } = useAuth();
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
   const ui = {
     cardRadius: 14,
@@ -258,7 +258,7 @@ const { user, loading: authLoading } = useAuth();
       border: ui.borderSoft,
       background: "rgba(12,12,12,0.92)",
       boxShadow: ui.shadow,
-      backdropFilter: "blur(10px)",
+      backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
     } as React.CSSProperties,
     buttonPrimary: {
       padding: ui.buttonPadding,
@@ -944,7 +944,7 @@ const onCropComplete = useCallback(
                       fontSize: 12,
                       fontWeight: 600,
                       cursor: "pointer",
-                      backdropFilter: "blur(8px)",
+                      backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
                     }}
                   >
                     Elegir portada

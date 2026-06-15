@@ -86,7 +86,7 @@ padding: "8px 14px",
             fontWeight: 600,
             letterSpacing: "-0.01em",
             fontFamily:
-              '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+              '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
             cursor: loading ? "not-allowed" : "pointer",
             boxShadow: "0 10px 28px rgba(168,85,255,0.22)",
             overflow: "hidden",
@@ -127,7 +127,7 @@ boxSizing: "border-box",
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          backdropFilter: "blur(8px)",
+          backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
           transition: "all 0.15s ease",
           opacity: loading ? 0.7 : 1,
         }}
@@ -140,7 +140,7 @@ boxSizing: "border-box",
     lineHeight: 1,
     fontWeight: 700,
     fontFamily:
-      '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+      '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
   }}
 >
   Salir

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useHlsPlayer } from "@/lib/hooks/useHlsPlayer";
+import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
 
 type DonationInfo = {
   mode?: "general" | "wedding" | "none" | null;
@@ -22,7 +24,7 @@ type Props = {
   onDonate: () => void;
 };
 
-const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
 function desktopPanelSize(): { width: number; height: number } {
   if (typeof window === "undefined") return { width: 380, height: 675 };
@@ -36,7 +38,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
   const [mounted, setMounted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const [muted, setMuted] = useState(() =>
-    typeof window !== "undefined" && localStorage.getItem("vibra_stories_muted") === "1"
+    typeof window !== "undefined" && getMutePreference()
   );
   const [dragY, setDragY] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -45,6 +47,15 @@ export default function DonationViewer({ open, donation, profileName, profilePho
   const rafRef = useRef<number | null>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
+
+  // Computed before hooks so useHlsPlayer can be called unconditionally
+  const videoSrc = open && donation?.playbackId
+    ? `https://stream.mux.com/${donation.playbackId}.m3u8`
+    : open && typeof donation?.videoUrl === "string" && donation.videoUrl.startsWith("https://")
+      ? donation.videoUrl
+      : null;
+
+  useHlsPlayer(videoRef, videoSrc);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -129,12 +140,6 @@ export default function DonationViewer({ open, donation, profileName, profilePho
 
   if (!mounted || !open) return null;
 
-  const videoSrc = donation?.playbackId
-    ? `https://stream.mux.com/${donation.playbackId}.m3u8`
-    : (typeof donation?.videoUrl === "string" && donation.videoUrl.startsWith("https://")
-      ? donation.videoUrl
-      : null);
-
   const isVideoProcessing =
     !donation?.playbackId &&
     typeof donation?.videoUrl === "string" &&
@@ -161,7 +166,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
         e.stopPropagation();
         setMuted((m) => {
           const next = !m;
-          localStorage.setItem("vibra_stories_muted", next ? "1" : "0");
+          setMutePreference(next);
           return next;
         });
       }}
@@ -211,11 +216,10 @@ export default function DonationViewer({ open, donation, profileName, profilePho
     const btnPadBottom = typeof safeBottom === "string" ? `max(8px, ${safeBottom})` : "8px";
     return (
       <>
-        {/* Video */}
+        {/* Video — src is managed imperatively by useHlsPlayer */}
         {videoSrc ? (
           <video
             ref={videoRef}
-            src={videoSrc}
             autoPlay
             loop
             playsInline

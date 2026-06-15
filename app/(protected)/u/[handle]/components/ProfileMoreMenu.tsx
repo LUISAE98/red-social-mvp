@@ -81,8 +81,7 @@ export default function ProfileMoreMenu({ viewerUid, profileUid }: Props) {
             borderRadius: 16,
             border: "1px solid rgba(255,255,255,0.1)",
             background: "rgba(10,10,14,0.96)",
-            backdropFilter: "blur(14px)",
-            WebkitBackdropFilter: "blur(14px)",
+            backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
             boxShadow: "0 18px 38px rgba(0,0,0,0.45)",
           }}
         >

@@ -2199,7 +2199,7 @@ async function fetchProfileFeedDocs(params: {
   profileUid: string;
   pageSize: number;
   cursor?: UserProfilePostsPageCursor | null;
-  mode: "owner" | "public" | "groupIds";
+  mode: "owner" | "public" | "groupIds" | "shareable_group_posts";
   groupIds?: string[];
 }): Promise<QueryDocumentSnapshot<DocumentData>[]> {
   const postsRef = collection(db, "posts");
@@ -2242,6 +2242,23 @@ async function fetchProfileFeedDocs(params: {
       )
     );
 
+    return snap.docs;
+  }
+
+  if (params.mode === "shareable_group_posts") {
+    const snap = await getDocs(
+      query(
+        postsRef,
+        where("authorId", "==", params.profileUid),
+        where("contextType", "==", "group"),
+        where("isDeleted", "==", false),
+        where("isShareable", "==", true),
+        orderBy("createdAt", "desc"),
+        orderBy(documentId(), "desc"),
+        ...cursorParts,
+        limit(params.pageSize)
+      )
+    );
     return snap.docs;
   }
 
@@ -2399,12 +2416,23 @@ const privateDocsPromise = viewerUid
 })
   : Promise.resolve([]);
 
-    const [publicDocs, privateDocs] = await Promise.all([
+    const shareableGroupDocsPromise = fetchProfileFeedDocs({
+      profileUid: params.profileUid,
+      pageSize: safePageSize + 1,
+      cursor: params.cursor,
+      mode: "shareable_group_posts",
+    }).catch((error) => {
+      console.warn("[ProfileFeed] shareable group lane failed", error);
+      return [];
+    });
+
+    const [publicDocs, privateDocs, shareableGroupDocs] = await Promise.all([
       publicDocsPromise,
       privateDocsPromise,
+      shareableGroupDocsPromise,
     ]);
 
-    feedDocs = [...publicDocs, ...privateDocs];
+    feedDocs = [...publicDocs, ...privateDocs, ...shareableGroupDocs];
   }
 
   const uniqueDocs = Array.from(
@@ -4467,4 +4495,32 @@ export async function updatePostCommentReply(params: {
   });
 
   clearCommentRepliesCache(params.postId, params.commentId);
+}
+// ─── Live streams (Mux) ───────────────────────────────────────────────────────
+
+export async function callCreateMuxLiveStream(postId: string): Promise<{
+  liveStreamId: string;
+  playbackId: string | null;
+}> {
+  const callable = httpsCallable<
+    { postId: string },
+    { liveStreamId: string; playbackId: string | null }
+  >(functions, "createMuxLiveStream");
+  const result = await callable({ postId });
+  return result.data;
+}
+
+export async function fetchLiveStreamCredentials(postId: string): Promise<{
+  streamKey: string;
+  ingestUrl: string;
+  liveStreamId: string;
+} | null> {
+  const snap = await getDoc(doc(db, "posts", postId, "liveStream", "credentials"));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  return {
+    streamKey: data.streamKey ?? "",
+    ingestUrl: data.ingestUrl ?? "rtmps://global-live.mux.com:443/app",
+    liveStreamId: data.liveStreamId ?? "",
+  };
 }

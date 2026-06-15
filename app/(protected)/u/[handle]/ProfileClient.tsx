@@ -392,7 +392,7 @@ useEffect(() => {
   const cropAspect = cropMode === "avatar" ? 1 / 1 : 16 / 9;
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
   const isOwner = !!viewer && !!userDoc && viewer.uid === userDoc.uid;
   const profileUid = userDoc?.uid ?? null;
@@ -571,7 +571,7 @@ const ui = {
       fontSize: ui.body,
       fontFamily: fontStack,
       lineHeight: 1.2,
-      backdropFilter: "blur(8px)",
+      backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
     } as CSSProperties,
     tinyGhostButton: {
       padding: "7px 10px",
@@ -584,7 +584,7 @@ const ui = {
       lineHeight: 1.2,
       cursor: "pointer",
       fontFamily: fontStack,
-      backdropFilter: "blur(10px)",
+      backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
       boxShadow: ui.shadow,
     } as CSSProperties,
     label: {
@@ -635,7 +635,7 @@ const ui = {
       border: ui.borderSoft,
       background: ui.cardBg,
       boxShadow: ui.shadow,
-      backdropFilter: "blur(10px)",
+      backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
       padding: 18,
       width: "100%",
       minWidth: 0,
@@ -1743,8 +1743,7 @@ await createExclusiveSessionRequest({
           "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
         boxShadow:
           "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
+        backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
       }}
     />
     <ProfileMoreMenu
@@ -1781,8 +1780,7 @@ await createExclusiveSessionRequest({
         cursor: uploading ? "not-allowed" : "pointer",
         boxShadow:
           "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
+        backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
       }}
     >
       <span
@@ -1918,8 +1916,7 @@ await createExclusiveSessionRequest({
                         placeItems: "center",
                         boxShadow:
                           "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
-                        backdropFilter: "blur(10px)",
-                        WebkitBackdropFilter: "blur(10px)",
+                        backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
                         zIndex: 200,
                         pointerEvents: "auto",
                         fontFamily: fontStack,
@@ -2383,7 +2380,7 @@ await createExclusiveSessionRequest({
   background:
     "linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.025))",
   boxShadow: "0 18px 48px rgba(0,0,0,0.48)",
-  backdropFilter: "blur(12px)",
+  backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
   padding: 18,
   width: "100%",
   minWidth: 0,
@@ -2422,7 +2419,7 @@ await createExclusiveSessionRequest({
   overflow: "hidden",
   boxShadow: "0 24px 80px rgba(0,0,0,0.72)",
   color: "#fff",
-  backdropFilter: "blur(14px)",
+  backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
 }}
   serviceToastStyle={{
     position: "fixed",
@@ -2439,7 +2436,7 @@ await createExclusiveSessionRequest({
     fontSize: 13,
     fontWeight: 600,
     boxShadow: ui.shadow,
-    backdropFilter: "blur(10px)",
+    backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
   }}
   formatMoney={formatMoney}
 />
@@ -2495,7 +2492,7 @@ await createExclusiveSessionRequest({
               overflow: "hidden",
               boxShadow: ui.shadow,
               color: "#fff",
-              backdropFilter: "blur(10px)",
+              backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
             }}
             onClick={(e) => e.stopPropagation()}
           >

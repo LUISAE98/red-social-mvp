@@ -56,7 +56,7 @@ const { user } = useAuth();
   const [consuming, setConsuming] = useState(false);
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
   const ui = {
     pageMaxWidth: 1080,
@@ -103,7 +103,7 @@ const { user } = useAuth();
     background: ui.cardBg,
     boxShadow: ui.shadow,
     color: "#fff",
-    backdropFilter: "blur(10px)",
+    backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
   };
 
   const panelStyle: React.CSSProperties = {
@@ -173,7 +173,7 @@ const { user } = useAuth();
     lineHeight: 1.2,
     cursor: "pointer",
     fontFamily: fontStack,
-    backdropFilter: "blur(8px)",
+    backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
     boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
     minHeight: 42,
     display: "inline-flex",

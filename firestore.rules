@@ -2287,6 +2287,13 @@ allow list: if canReadPost()
 
       allow delete: if false;
 
+      // Credenciales privadas del live stream (streamKey) — solo el autor puede leer
+      match /liveStream/{doc} {
+        allow read: if signedIn()
+          && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid;
+        allow write: if false;
+      }
+
       match /editHistory/{historyId} {
         allow create: if signedIn()
           && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid

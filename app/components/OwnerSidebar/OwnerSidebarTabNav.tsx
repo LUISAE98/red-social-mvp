@@ -35,7 +35,7 @@ export default function OwnerSidebarTabNav({
   loadingGroups = false,
 }: Props) {
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
   const hasRequests = requestedCount > 0 || deliveredCount > 0;
   const showFollowing = loadingFollowing || followedCount > 0;

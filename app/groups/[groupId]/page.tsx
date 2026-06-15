@@ -1344,8 +1344,7 @@ const groupRoundIconButtonStyle = {
   padding: 0,
   boxShadow:
     "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
-  backdropFilter: "blur(10px)",
-  WebkitBackdropFilter: "blur(10px)",
+  backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
 };
 
 const groupCoverAuraStyle = {

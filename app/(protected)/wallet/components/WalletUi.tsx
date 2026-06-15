@@ -173,7 +173,7 @@ function getRelativeTime(date: Date | null): string {
   return "Hace un momento";
 }
 
-const walletFontStack = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+const walletFontStack = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
 export function WalletCard({
   title,

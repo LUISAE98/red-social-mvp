@@ -122,7 +122,7 @@ export default function ProfileGroupsTab({
   const [msg, setMsg] = useState<string | null>(null);
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
   const wrapStyle: CSSProperties = {
     marginTop: 12,
@@ -130,7 +130,7 @@ export default function ProfileGroupsTab({
     border: "1px solid rgba(255,255,255,0.16)",
     background: "rgba(12,12,12,0.92)",
     boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
-    backdropFilter: "blur(10px)",
+    backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
     padding: 16,
     color: "#fff",
     fontFamily: fontStack,

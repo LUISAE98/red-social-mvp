@@ -54,7 +54,7 @@ type PostCommentThreadProps = {
 };
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
 const ACTIONS_MENU_STYLES = `
   @keyframes vbCmtMenuFadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -391,8 +391,7 @@ function ActionsPortal({
               gap: 0,
               overflow: "hidden",
               boxShadow: "0 24px 64px rgba(0,0,0,0.55)",
-              backdropFilter: "blur(20px)",
-              WebkitBackdropFilter: "blur(20px)",
+              backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
               animation: "vbCmtMenuScaleIn 0.18s ease",
             }}
           >

@@ -73,7 +73,7 @@ type SelectedMediaItem = ComposerMediaItem & {
 const MAX_POST_VIDEOS = 3;
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
@@ -983,7 +983,7 @@ export default function GroupPostComposer({
     color: "#fff",
     padding: 12,
     boxSizing: "border-box",
-    backdropFilter: "blur(10px)",
+    backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
   };
 
 const launcherButtonStyle: CSSProperties = {

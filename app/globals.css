@@ -62,7 +62,6 @@ body {
 main,
 [data-scroll-container="true"] {
   overscroll-behavior-y: none;
-  -webkit-overflow-scrolling: touch;
 }
 
 /* Pull to refresh Vibra */

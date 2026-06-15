@@ -12,7 +12,7 @@ type Props = {
 type Unit = "minutes" | "hours" | "days";
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
 function friendlyUnitLabel(unit: Unit, value: number) {
   if (unit === "days") return value === 1 ? "día" : "días";
@@ -194,7 +194,7 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
     boxSizing: "border-box",
     fontFamily: fontStack,
     minHeight: "100dvh",
-    backdropFilter: "blur(6px)",
+    backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
   };
 
   const cardStyle: React.CSSProperties = {

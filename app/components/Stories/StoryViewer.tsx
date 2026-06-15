@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import { createGreetingRequest } from "@/lib/greetings/greetingRequests";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
+import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
 
 const LABELS: Record<StoryType, string> = {
   saludo: "Saludo",
@@ -17,7 +18,7 @@ const LABELS: Record<StoryType, string> = {
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const VIEW_THRESHOLD_MS = 15_000;
 const FONT =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
 
 type Props = {
   stories: StoryDoc[];
@@ -70,7 +71,12 @@ export default function StoryViewer({
   const [greetError, setGreetError] = useState<string | null>(null);
   const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
   const [muted, setMuted] = useState(() =>
-    typeof window !== "undefined" && localStorage.getItem("vibra_stories_muted") === "1"
+    typeof window !== "undefined" && getMutePreference()
+  );
+  const [hasSpeechSupport] = useState(() =>
+    typeof window !== "undefined" &&
+    "speechSynthesis" in window &&
+    "SpeechSynthesisUtterance" in window
   );
   const [dragY, setDragY] = useState(0);
   const [isClosing, setIsClosing] = useState(false);
@@ -99,6 +105,7 @@ export default function StoryViewer({
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
     const mql = window.matchMedia("(pointer: fine)");
     setIsDesktop(mql.matches);
     const h = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
@@ -620,7 +627,7 @@ export default function StoryViewer({
               e.stopPropagation();
               setMuted((m) => {
                 const next = !m;
-                localStorage.setItem("vibra_stories_muted", next ? "1" : "0");
+                setMutePreference(next);
                 return next;
               });
             }}
@@ -681,8 +688,7 @@ export default function StoryViewer({
                 maxHeight: contextOpen ? "50vh" : "0px",
                 transition: "max-height 0.28s cubic-bezier(0.4,0,0.2,1), margin-bottom 0.28s",
                 boxShadow: contextOpen ? "0 8px 32px rgba(0,0,0,0.5)" : "none",
-                backdropFilter: "blur(14px) saturate(1.2)",
-                WebkitBackdropFilter: "blur(14px) saturate(1.2)",
+                backdropFilter: "blur(14px) saturate(1.2)", WebkitBackdropFilter: "blur(14px) saturate(1.2)",
               }}
               onTouchStart={(e) => {
                 e.stopPropagation();
@@ -709,7 +715,7 @@ export default function StoryViewer({
               >
                 {/* Header row: play/stop + close — always visible */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "8px 10px 4px", flexShrink: 0 }}>
-                  {speechState !== "idle" && (
+                  {hasSpeechSupport && speechState !== "idle" && (
                     <button
                       type="button"
                       aria-label="Cambiar velocidad de lectura"
@@ -720,6 +726,7 @@ export default function StoryViewer({
                       {speechRate}×
                     </button>
                   )}
+                  {hasSpeechSupport && (
                   <button
                     type="button"
                     aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer contexto"}
@@ -738,6 +745,7 @@ export default function StoryViewer({
                       </svg>
                     )}
                   </button>
+                  )}
                   <button
                     type="button"
                     aria-label="Cerrar contexto"

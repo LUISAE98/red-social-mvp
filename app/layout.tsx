@@ -85,7 +85,7 @@ export default function RootLayout({
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   font-size: clamp(34px, 3.2vw, 50px);
   font-weight: 630;
   letter-spacing: -0.045em;
