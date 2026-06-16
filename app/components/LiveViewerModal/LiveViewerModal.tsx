@@ -532,14 +532,14 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 </span>
             }
           </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{
+          <div style={{ minWidth: 0, flex: 1, display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{
               fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: FONT,
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               lineHeight: "1.2",
             }}>
               {name}
-            </div>
+            </span>
             <span style={{
               fontSize: 12, fontWeight: 500,
               color: "rgba(255,255,255,0.55)", fontFamily: FONT,
