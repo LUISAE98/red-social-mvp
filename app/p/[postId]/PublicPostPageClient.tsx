@@ -450,24 +450,10 @@ export default function PublicPostPageClient({
   async function syncPostCommentsCount() {
     const nextComments = await fetchPostComments(post.id);
 
-    const repliesCounts = await Promise.all(
-      nextComments.map(async (comment) => {
-        try {
-          const replies = await fetchCommentReplies({
-            postId: post.id,
-            commentId: comment.id,
-          });
-
-          return replies.length;
-        } catch {
-          return comment.counts?.replies ?? 0;
-        }
-      })
+    const total = nextComments.reduce(
+      (sum, c) => sum + 1 + (c.counts?.replies ?? 0),
+      0
     );
-
-    const total =
-      nextComments.length +
-      repliesCounts.reduce((sum, count) => sum + count, 0);
 
     setComments(nextComments);
     setCommentsCount(total);

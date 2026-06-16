@@ -1242,34 +1242,15 @@ const uploadedVideoCovers =
   async function syncPostCommentsCount(postId: string) {
     const comments = await fetchPostComments(postId);
 
-    const repliesCounts = await Promise.all(
-      comments.map(async (comment) => {
-        try {
-          const replies = await fetchCommentReplies({
-            postId,
-            commentId: comment.id,
-          });
-
-          return replies.length;
-        } catch {
-          return comment.counts?.replies ?? 0;
-        }
-      }),
+    const total = comments.reduce(
+      (sum, c) => sum + 1 + (c.counts?.replies ?? 0),
+      0,
     );
-
-    const total =
-      comments.length + repliesCounts.reduce((sum, count) => sum + count, 0);
 
     syncPostsState((prev) =>
       prev.map((post) =>
         post.id === postId
-          ? {
-              ...post,
-              counts: {
-                ...post.counts,
-                comments: total,
-              },
-            }
+          ? { ...post, counts: { ...post.counts, comments: total } }
           : post,
       ),
     );

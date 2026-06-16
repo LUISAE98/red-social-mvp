@@ -246,6 +246,12 @@ async function groupMemberBlockExists(params: {
   }
 }
 
+const blockRelationshipCache = new Map<
+  string,
+  { hasBlocked: boolean; isBlockedBy: boolean; expiresAt: number }
+>();
+const BLOCK_CACHE_TTL_MS = 2 * 60 * 1000;
+
 async function fetchGroupMemberBlockRelationship(params: {
   groupId: string;
   viewerUid: string;
@@ -262,6 +268,12 @@ async function fetchGroupMemberBlockRelationship(params: {
     };
   }
 
+  const cacheKey = `${groupId}:${viewerUid}:${targetUid}`;
+  const cached = blockRelationshipCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return { hasBlocked: cached.hasBlocked, isBlockedBy: cached.isBlockedBy };
+  }
+
   const [hasBlocked, isBlockedBy] = await Promise.all([
     groupMemberBlockExists({
       groupId,
@@ -274,6 +286,12 @@ async function fetchGroupMemberBlockRelationship(params: {
       blockedUid: viewerUid,
     }),
   ]);
+
+  blockRelationshipCache.set(cacheKey, {
+    hasBlocked,
+    isBlockedBy,
+    expiresAt: Date.now() + BLOCK_CACHE_TTL_MS,
+  });
 
   return {
     hasBlocked,
@@ -1328,7 +1346,7 @@ async function attachViewerFlameState(
   }
 
   const likedPostIds = new Set<string>();
-  const chunks = chunkArray(uniquePostIds, 10);
+  const chunks = chunkArray(uniquePostIds, 30);
 
   await Promise.all(
     chunks.map(async (chunk) => {
@@ -1388,7 +1406,7 @@ async function attachViewerSavedState(
   }
 
   const savedPostIds = new Set<string>();
-  const chunks = chunkArray(uniquePostIds, 10);
+  const chunks = chunkArray(uniquePostIds, 30);
 
   await Promise.all(
     chunks.map(async (chunk) => {
@@ -1495,7 +1513,7 @@ async function attachViewerCommentFlameState(
   }
 
   const likedCommentIds = new Set<string>();
-  const chunks = chunkArray(commentIds, 10);
+  const chunks = chunkArray(commentIds, 30);
 
   await Promise.all(
     chunks.map(async (chunk) => {
@@ -2274,7 +2292,7 @@ async function fetchProfileFeedDocs(params: {
     return [];
   }
 
-  const chunks = chunkArray(groupIds, 10);
+  const chunks = chunkArray(groupIds, 30);
 
   const snaps = await Promise.all(
     chunks.map((chunk) =>
@@ -4134,20 +4152,24 @@ export async function fetchSavedPostsPage(params: {
 
   const postsByIdMap = new Map<string, Post>();
 
+  const savedChunks = chunkArray(savedPostIds, 30);
   await Promise.all(
-    savedPostIds.map(async (postId) => {
+    savedChunks.map(async (chunk) => {
       try {
-        const postDoc = await getDoc(doc(db, "posts", postId));
-        if (!postDoc.exists()) return;
-        const post = {
-          id: postDoc.id,
-          ...(postDoc.data() as Omit<Post, "id">),
-        } as Post;
-        if (post.isDeleted !== true) {
-          postsByIdMap.set(postDoc.id, post);
-        }
+        const snap = await getDocs(
+          query(collection(db, "posts"), where(documentId(), "in", chunk))
+        );
+        snap.docs.forEach((postDoc) => {
+          const post = {
+            id: postDoc.id,
+            ...(postDoc.data() as Omit<Post, "id">),
+          } as Post;
+          if (post.isDeleted !== true) {
+            postsByIdMap.set(postDoc.id, post);
+          }
+        });
       } catch {
-        // Si un post individual no es accesible, se omite silenciosamente
+        // Si un chunk falla, se omite silenciosamente
       }
     })
   );

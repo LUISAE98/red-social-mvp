@@ -1579,6 +1579,7 @@ export default function GreetingReviewOverlay({
           bottom: mobilePanelHeight,
           background: "#000", overflow: "hidden",
           borderRadius: "16px 16px 24px 24px",
+          paddingTop: "env(safe-area-inset-top, 0px)",
         }}>
           {(viewMode || buyerViewMode) ? (
             viewMp4Url ? (
@@ -1618,7 +1619,7 @@ export default function GreetingReviewOverlay({
               {/* Timer */}
               {recordPhase === "recording" && (
                 <div style={{
-                  position: "absolute", top: "calc(16px + env(safe-area-inset-top))",
+                  position: "absolute", top: 16,
                   left: "50%", transform: "translateX(-50%)",
                   background: "rgba(0,0,0,0.55)", borderRadius: 20, padding: "4px 14px",
                   display: "flex", alignItems: "center", gap: 7,
@@ -1629,9 +1630,7 @@ export default function GreetingReviewOverlay({
                 </div>
               )}
               {recordPhase !== "done" && renderSourceChip(
-                recordPhase === "recording"
-                  ? "calc(54px + env(safe-area-inset-top))"
-                  : "calc(16px + env(safe-area-inset-top))"
+                recordPhase === "recording" ? 54 : 16
               )}
               {recordPhase === "recording" && getRecordingMessage(recordingSeconds, req.type) && (
                 <div style={{
