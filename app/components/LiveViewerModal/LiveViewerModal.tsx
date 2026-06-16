@@ -501,6 +501,92 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   const floatCardShadow = "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)";
 
+  // ── Info del creador + título + descripción — aparece en el panel del chat ──
+  function renderCreatorInfo() {
+    const name = post.authorName ?? post.authorUsername ?? "Creador";
+    const avatar = post.authorAvatarUrl;
+    const title = liveData?.title;
+    const description = liveData?.description;
+
+    return (
+      <div style={{
+        padding: "14px 16px 12px",
+        borderBottom: "1px solid rgba(255,255,255,0.07)",
+        display: "flex", flexDirection: "column", gap: 10,
+        flexShrink: 0,
+      }}>
+        {/* Avatar + nombre + badge "En vivo" */}
+        <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+          <div style={{
+            width: 42, height: 42, borderRadius: "50%", flexShrink: 0,
+            overflow: "hidden",
+            background: "linear-gradient(135deg, #ec4899 0%, #9333ea 100%)",
+            display: "grid", placeItems: "center",
+          }}>
+            {avatar
+              ? <img src={avatar} alt={name} draggable={false}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              : <span style={{ fontSize: 17, fontWeight: 700, color: "#fff", fontFamily: FONT }}>
+                  {name.charAt(0).toUpperCase()}
+                </span>
+            }
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{
+              fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: FONT,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {name}
+            </div>
+            <div style={{
+              marginTop: 4,
+              display: "inline-flex", alignItems: "center", gap: 5,
+              background: "rgba(239,68,68,0.14)",
+              border: "1px solid rgba(239,68,68,0.25)",
+              borderRadius: 5, padding: "2px 7px",
+            }}>
+              <span style={{
+                width: 5, height: 5, borderRadius: "50%",
+                background: isLive ? "#ef4444" : "rgba(255,255,255,0.25)",
+                flexShrink: 0,
+                animation: isLive ? "lvPulse 1.4s ease-in-out infinite" : "none",
+              }} />
+              <span style={{
+                fontSize: 10.5, fontWeight: 700,
+                color: isLive ? "#ef4444" : "rgba(255,255,255,0.3)",
+                fontFamily: FONT, letterSpacing: "0.05em",
+              }}>
+                En vivo
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Título del live */}
+        {title && (
+          <div style={{
+            fontSize: 13.5, fontWeight: 700,
+            color: "rgba(255,255,255,0.92)", fontFamily: FONT,
+            lineHeight: 1.45,
+          }}>
+            {title}
+          </div>
+        )}
+
+        {/* Descripción */}
+        {description && (
+          <div style={{
+            fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: FONT,
+            lineHeight: 1.55,
+          }}>
+            {description}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // DESKTOP — pantalla completa (portrait o horizontal)
   // ══════════════════════════════════════════════════════════════════════════
@@ -574,7 +660,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" />
+            {renderCreatorInfo()}
+            <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+              <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" />
+            </div>
           </div>
         </div>
       </>,
@@ -625,7 +714,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" />
+            {renderCreatorInfo()}
+            <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+              <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" />
+            </div>
           </div>
         </div>
       </>,
@@ -740,13 +832,17 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           {renderLiveBadge()}
         </div>
 
-        {/* Chat panel */}
+        {/* Panel: creator info + chat */}
         <div style={{
-          flex: 1, overflow: "hidden",
+          flex: 1, minHeight: 0, display: "flex", flexDirection: "column",
           borderTop: "1px solid rgba(255,255,255,0.06)",
+          overflow: "hidden",
           paddingBottom: "env(safe-area-inset-bottom)",
         }}>
-          <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" />
+          {renderCreatorInfo()}
+          <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
+            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" />
+          </div>
         </div>
       </div>
     </>,
