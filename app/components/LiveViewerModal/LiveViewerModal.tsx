@@ -52,6 +52,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mobileFsHorizontal, setMobileFsHorizontal] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const [screenIsPortrait, setScreenIsPortrait] = useState(
     typeof window !== "undefined" ? window.innerHeight > window.innerWidth : true
   );
@@ -552,23 +553,46 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
         {/* Título del live */}
         {title && (
-          <div style={{
+          <span style={{
             fontSize: 13.5, fontWeight: 700,
             color: "rgba(255,255,255,0.92)", fontFamily: FONT,
-            lineHeight: 1.45,
+            lineHeight: 1.45, display: "block",
           }}>
             {title}
-          </div>
+          </span>
         )}
 
-        {/* Descripción */}
+        {/* Descripción — 1 línea colapsada con "...más", clic para expandir */}
         {description && (
-          <div style={{
-            fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: FONT,
-            lineHeight: 1.55,
-          }}>
-            {description}
-          </div>
+          descExpanded ? (
+            <span
+              onClick={() => setDescExpanded(false)}
+              style={{
+                fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: FONT,
+                lineHeight: 1.55, display: "block", cursor: "pointer",
+              }}
+            >
+              {description}
+            </span>
+          ) : (
+            <div style={{ position: "relative", overflow: "hidden", lineHeight: "1.55", maxHeight: "1.55em" }}>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: FONT, lineHeight: 1.55 }}>
+                {description}
+              </span>
+              <span
+                onClick={() => setDescExpanded(true)}
+                style={{
+                  position: "absolute", right: 0, bottom: 0,
+                  paddingLeft: 28,
+                  background: "linear-gradient(to right, transparent, rgba(10,10,10,0.97) 40%)",
+                  fontSize: 12, fontWeight: 500,
+                  color: "rgba(255,255,255,0.65)", cursor: "pointer", fontFamily: FONT,
+                }}
+              >
+                ...más
+              </span>
+            </div>
+          )
         )}
       </div>
     );
@@ -633,7 +657,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderVideo("cover")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
-            {renderHeader()}
+            {renderHeader(false, false)}
             {renderLiveBadge()}
           </div>
           {/* Card de chat */}
@@ -687,7 +711,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderVideo("contain")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
-            {renderHeader()}
+            {renderHeader(false, false)}
             {renderLiveBadge()}
           </div>
           {/* Card de chat */}
