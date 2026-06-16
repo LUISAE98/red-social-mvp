@@ -725,6 +725,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       <div style={{
         position: "fixed", inset: 0, zIndex: 10000, background: "#0a0a0a",
         display: "flex", flexDirection: "column",
+        paddingTop: "env(safe-area-inset-top)",
         paddingLeft: "env(safe-area-inset-left)",
         paddingRight: "env(safe-area-inset-right)",
       }}>
@@ -735,7 +736,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           {renderVideo("cover")}
           {renderEndedOverlay()}
           {renderBannedOverlay()}
-          {renderHeader(true, false)}
+          {renderHeader(false, false)}
           {renderLiveBadge()}
         </div>
 
