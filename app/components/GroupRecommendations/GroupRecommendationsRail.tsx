@@ -309,6 +309,7 @@ function ProfileCard({
           background: "#0d0d0f",
           boxShadow:
             "0 24px 52px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.28)",
+          transform: "translateZ(0)",
         }}
       >
         <div
@@ -511,6 +512,7 @@ function GroupCard({
           background: "#0d0d0f",
           boxShadow:
             "0 24px 52px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.28)",
+          transform: "translateZ(0)",
         }}
       >
         {/* Cover image / gradient background */}
@@ -1028,6 +1030,7 @@ export default function GroupRecommendationsRail({
             paddingBottom: 4,
             paddingLeft: 12,
             paddingRight: 12,
+            willChange: "transform",
           }}
         >
           {mergedRailItems.map((item) =>

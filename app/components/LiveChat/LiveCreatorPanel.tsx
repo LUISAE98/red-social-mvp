@@ -39,6 +39,17 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const { user } = useAuth();
   const { messages, deleteMessage } = useLiveChat(open ? post.id : null, 50);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [mobileTab, setMobileTab] = useState<"supercomentarios" | "estadisticas">("supercomentarios");
+  const [panelRatio, setPanelRatio] = useState(0.52);
+  const bodyContainerRef = useRef<HTMLDivElement>(null);
+  const videoAreaRef = useRef<HTMLDivElement>(null);
+  const panelDragRef = useRef<HTMLDivElement>(null);
+  const isDraggingPanel = useRef(false);
+  const panelDragStartY = useRef(0);
+  const panelDragStartRatio = useRef(0.52);
+  const panelRatioRef = useRef(0.52);
+  panelRatioRef.current = panelRatio;
+  const PANEL_SNAPS = [0.28, 0.52, 0.72] as const;
   const [togglingChat, setTogglingChat] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [optimisticChatEnabled, setOptimisticChatEnabled] = useState<boolean | null>(null);
@@ -103,6 +114,34 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     if (!user) return;
     await deleteMessage(msgId, user.uid);
   }, [user, deleteMessage]);
+
+  // ── Drag handlers para panel portrait mobile ─────────────────────────────
+  const onPanelTouchStart = (e: React.TouchEvent) => {
+    isDraggingPanel.current = true;
+    panelDragStartY.current = e.touches[0].clientY;
+    panelDragStartRatio.current = panelRatioRef.current;
+  };
+
+  const onPanelTouchMove = (e: React.TouchEvent) => {
+    if (!isDraggingPanel.current) return;
+    const totalH = bodyContainerRef.current?.offsetHeight ?? window.innerHeight;
+    const deltaY = panelDragStartY.current - e.touches[0].clientY; // positivo = arriba
+    const newRatio = Math.max(0.15, Math.min(0.85, panelDragStartRatio.current + deltaY / totalH));
+    if (panelDragRef.current) panelDragRef.current.style.height = `${newRatio * 100}%`;
+    if (videoAreaRef.current) videoAreaRef.current.style.height = `${(1 - newRatio) * 100}%`;
+  };
+
+  const onPanelTouchEnd = () => {
+    if (!isDraggingPanel.current) return;
+    isDraggingPanel.current = false;
+    const totalH = bodyContainerRef.current?.offsetHeight ?? window.innerHeight;
+    const cur = (panelDragRef.current?.offsetHeight ?? totalH * 0.52) / totalH;
+    const snapped = [...PANEL_SNAPS].reduce((a, b) => Math.abs(b - cur) < Math.abs(a - cur) ? b : a);
+    // Fijar en valor snap antes de que React re-renderice (sin flash)
+    if (panelDragRef.current) panelDragRef.current.style.height = `${snapped * 100}%`;
+    if (videoAreaRef.current) videoAreaRef.current.style.height = `${(1 - snapped) * 100}%`;
+    setPanelRatio(snapped);
+  };
 
   if (!open || typeof document === "undefined") return null;
 
@@ -331,8 +370,141 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           </div>
         </div>
 
+      ) : !isDesktop && !portrait ? (
+        /* ── Mobile + Horizontal live ─────────────────────────────────────── */
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+
+          {/* Video 16:9 — debajo del header que ya respeta safe-area-top */}
+          {showVideo && (
+            <div style={{
+              flexShrink: 0, width: "100%", aspectRatio: "16/9",
+              position: "relative", background: "#000",
+            }}>
+              <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
+            </div>
+          )}
+
+          {/* Chat en vivo — ocupa la mitad superior del espacio restante */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderBottom: DIV }}>
+            {renderChatSection()}
+          </div>
+
+          {/* Tabs: Supercomentarios | Estadísticas — mitad inferior */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+
+            {/* Tab bar */}
+            <div style={{
+              flexShrink: 0, display: "flex",
+              borderBottom: DIV,
+              padding: "0 4px",
+            }}>
+              {(["supercomentarios", "estadisticas"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setMobileTab(tab)}
+                  style={{
+                    flex: 1, padding: "10px 4px",
+                    border: "none", background: "transparent",
+                    color: mobileTab === tab ? "#fff" : "rgba(255,255,255,0.3)",
+                    fontSize: 11, fontWeight: 700, fontFamily: FONT,
+                    cursor: "pointer", letterSpacing: "0.04em", textTransform: "uppercase",
+                    borderBottom: mobileTab === tab ? "2px solid #fff" : "2px solid transparent",
+                    marginBottom: -1,
+                    transition: "color 0.15s",
+                  }}
+                >
+                  {tab === "supercomentarios" ? "Supercomentarios" : "Estadísticas"}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab content */}
+            <div style={{ flex: 1, overflow: "hidden" }}>
+              {comingSoon()}
+            </div>
+          </div>
+        </div>
+
+      ) : !isDesktop && portrait ? (
+        /* ── Mobile + Portrait live: panel deslizable ────────────────────── */
+        <div ref={bodyContainerRef} style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+
+          {/* Área de video — crece/encoge según posición del panel */}
+          <div
+            ref={videoAreaRef}
+            style={{
+              height: `${(1 - panelRatio) * 100}%`,
+              flexShrink: 0, overflow: "hidden",
+              background: "#000",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >
+            {showVideo ? (
+              <div style={{ width: "100%", height: "100%", position: "relative" }}>
+                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
+              </div>
+            ) : (
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>Sin transmisión activa</span>
+            )}
+          </div>
+
+          {/* Panel deslizable */}
+          <div
+            ref={panelDragRef}
+            style={{ height: `${panelRatio * 100}%`, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}
+          >
+            {/* Handle de arrastre */}
+            <div
+              onTouchStart={onPanelTouchStart}
+              onTouchMove={onPanelTouchMove}
+              onTouchEnd={onPanelTouchEnd}
+              style={{
+                flexShrink: 0, paddingTop: 10, paddingBottom: 8,
+                display: "flex", justifyContent: "center", alignItems: "center",
+                touchAction: "none", cursor: "grab",
+                borderBottom: DIV, background: "#0a0a0a",
+              }}
+            >
+              <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.25)" }} />
+            </div>
+
+            {/* Chat en vivo */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderBottom: DIV }}>
+              {renderChatSection()}
+            </div>
+
+            {/* Tabs: Supercomentarios | Estadísticas */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+              <div style={{ flexShrink: 0, display: "flex", padding: "0 4px", borderBottom: DIV }}>
+                {(["supercomentarios", "estadisticas"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setMobileTab(tab)}
+                    style={{
+                      flex: 1, padding: "10px 4px",
+                      border: "none", background: "transparent",
+                      color: mobileTab === tab ? "#fff" : "rgba(255,255,255,0.3)",
+                      fontSize: 11, fontWeight: 700, fontFamily: FONT,
+                      cursor: "pointer", letterSpacing: "0.04em", textTransform: "uppercase",
+                      borderBottom: mobileTab === tab ? "2px solid #fff" : "2px solid transparent",
+                      marginBottom: -1, transition: "color 0.15s",
+                    }}
+                  >
+                    {tab === "supercomentarios" ? "Supercomentarios" : "Estadísticas"}
+                  </button>
+                ))}
+              </div>
+              <div style={{ flex: 1, overflow: "hidden" }}>
+                {comingSoon()}
+              </div>
+            </div>
+          </div>
+        </div>
+
       ) : (
-        /* ── Fallback: mobile ─────────────────────────────────────────────── */
+        /* ── Fallback: mobile portrait (próximamente) ─────────────────────── */
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           {showVideo && (
             <div style={{ flexShrink: 0, background: "#000" }}>
@@ -340,10 +512,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             </div>
           )}
           <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
-            <div style={{
-              flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
-              borderRight: DIV,
-            }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
               {renderChatSection()}
             </div>
             <div style={{ width: "clamp(150px, 38%, 240px)", flexShrink: 0, display: "flex", flexDirection: "column" }}>
