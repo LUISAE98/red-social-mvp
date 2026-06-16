@@ -144,7 +144,21 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     };
 
     if (Hls.isSupported()) {
-      const hls = new Hls({ lowLatencyMode: true, enableWorker: false });
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: false,
+        startLevel: -1,
+        autoStartLoad: true,
+        liveSyncDurationCount: 3,
+        liveMaxLatencyDurationCount: 10,
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        liveDurationInfinity: true,
+        fragLoadingMaxRetry: 6,
+        manifestLoadingMaxRetry: 4,
+        levelLoadingMaxRetry: 4,
+        backBufferLength: 30,
+      });
       hls.loadSource(hlsUrl);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {

@@ -50,6 +50,9 @@ export const createMuxLiveStream = onCall(
         playback_policy: ["public"],
         new_asset_settings: { playback_policy: ["public"] },
         passthrough: JSON.stringify({ postId }),
+        latency_mode: "reduced",
+        reconnect_window: 60,
+        max_continuous_duration: 28800,
       });
     } catch (err) {
       logger.error("Error creating Mux live stream", { postId, uid, err });
