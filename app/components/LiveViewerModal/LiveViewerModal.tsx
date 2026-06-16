@@ -551,7 +551,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           </div>
         </div>
 
-        {/* Título del live */}
+        {/* Título + descripción — agrupados para reducir separación entre ellos */}
+        {(title || description) && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+
         {title && (
           <span style={{
             fontSize: 13.5, fontWeight: 700,
@@ -593,6 +596,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               </span>
             </div>
           )
+        )}
+
+        </div>/* fin grupo título+descripción */
         )}
       </div>
     );

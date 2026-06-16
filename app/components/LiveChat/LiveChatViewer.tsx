@@ -49,9 +49,7 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
   }, [user?.uid]);
 
   useEffect(() => {
-    if (isAtBottomRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -167,22 +165,15 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
 
   // ── Panel mode (mobile horizontal, desktop sidebar) ───────────────────────
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      {/* Header */}
-      <div style={{
-        padding: "8px 12px 6px",
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
-        flexShrink: 0,
-      }}>
-        <span style={{ fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.35)", fontFamily: FONT, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-          Chat en vivo
-        </span>
-      </div>
+    <>
+      <style>{`.lvc-panel::-webkit-scrollbar{display:none}`}</style>
+      <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
 
-      {/* Messages */}
+      {/* Messages — sin título, scrollbar oculto, auto-scroll al fondo */}
       <div
+        className="lvc-panel"
         onScroll={handleScroll}
-        style={{ flex: 1, overflowY: "auto", padding: "6px 10px", display: "flex", flexDirection: "column", gap: 1 }}
+        style={{ flex: 1, overflowY: "auto", padding: "6px 10px", display: "flex", flexDirection: "column", gap: 1, scrollbarWidth: "none" }}
       >
         {messages.length === 0 && (
           <div style={{
@@ -251,6 +242,7 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
         )}
       </div>
     </div>
+    </>
   );
 }
 
