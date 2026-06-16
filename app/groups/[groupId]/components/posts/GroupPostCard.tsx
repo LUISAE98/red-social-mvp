@@ -2829,26 +2829,26 @@ style={{
         {isLiveActive ? "En vivo" : activeLiveData?.status === "ended" ? "Finalizado" : "Live Programado"}
       </div>
 
-      {/* Botón "Abrir gestor" — overlay top-right, solo para el creador del live activo */}
+      {/* Botón "Abrir centro de control" — overlay top-center, solo para el creador del live activo */}
       {currentUserId === post.authorId && isLiveActive && (
         <button
           type="button"
           onClick={() => setLiveCreatorOpen(true)}
           style={{
-            position: "absolute", top: 10, right: 10, zIndex: 4,
+            position: "absolute", top: 10, left: "50%", transform: "translateX(-50%)", zIndex: 4,
             display: "inline-flex", alignItems: "center", gap: 5,
-            padding: "5px 10px", borderRadius: 999,
+            padding: "5px 12px", borderRadius: 999,
             border: "1px solid rgba(255,255,255,0.22)",
             background: "rgba(0,0,0,0.55)",
             color: "#fff", fontSize: 11, fontWeight: 600, fontFamily: fontStack,
-            cursor: "pointer",
+            cursor: "pointer", whiteSpace: "nowrap",
             backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
           }}
         >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
           </svg>
-          Abrir gestor
+          Abrir centro de control
         </button>
       )}
 
@@ -2859,8 +2859,8 @@ style={{
           title={activeLiveData.title}
           coverUrl={activeLiveData.coverUrl}
           portrait={isLivePortrait}
-          paused={liveViewerOpen}
-          onClick={() => setLiveViewerOpen(true)}
+          paused={liveViewerOpen || liveCreatorOpen}
+          onClick={() => currentUserId === post.authorId ? setLiveCreatorOpen(true) : setLiveViewerOpen(true)}
           onOrientationDetected={(p) => setIsLivePortrait(p)}
         />
       ) : activeLiveData?.status === "ended" ? (
