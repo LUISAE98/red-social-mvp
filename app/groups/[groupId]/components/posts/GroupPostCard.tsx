@@ -4185,6 +4185,7 @@ padding: "0 0 2px 0",
     open={liveCreatorOpen}
     onClose={() => setLiveCreatorOpen(false)}
     post={{ ...post, liveData: activeLiveData ?? post.liveData }}
+    portrait={isLivePortrait}
   />
 )}
 <div style={interactionRowStyle}>

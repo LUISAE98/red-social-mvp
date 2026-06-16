@@ -16,6 +16,7 @@ import {
 import { useAuth } from "@/app/providers";
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+const DIV = "1px solid rgba(255,255,255,0.12)";
 
 const STATUS_LABELS: Record<string, string> = {
   draft: "Borrador",
@@ -31,14 +32,17 @@ type Props = {
   open: boolean;
   onClose: () => void;
   post: Post;
+  portrait?: boolean;
 };
 
-export default function LiveCreatorPanel({ open, onClose, post }: Props) {
+export default function LiveCreatorPanel({ open, onClose, post, portrait = false }: Props) {
   const { user } = useAuth();
-  const { messages, deleteMessage } = useLiveChat(open ? post.id : null);
+  const { messages, deleteMessage } = useLiveChat(open ? post.id : null, 50);
+  const [isDesktop, setIsDesktop] = useState(false);
   const [togglingChat, setTogglingChat] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [optimisticChatEnabled, setOptimisticChatEnabled] = useState<boolean | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const liveData = post.liveData;
   const liveStatus = liveData?.status;
@@ -51,10 +55,18 @@ export default function LiveCreatorPanel({ open, onClose, post }: Props) {
   const showVideo = liveStatus === "live" && !!hlsUrl;
 
   useEffect(() => {
-    setOptimisticChatEnabled(null);
-  }, [liveData?.chatEnabled]);
+    const update = () => setIsDesktop(window.innerWidth >= 768);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
-  // ── Toggle chat ───────────────────────────────────────────────────────────
+  useEffect(() => { setOptimisticChatEnabled(null); }, [liveData?.chatEnabled]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
   const handleToggleChat = useCallback(async () => {
     if (togglingChat || !user) return;
     const newValue = !chatEnabled;
@@ -63,8 +75,7 @@ export default function LiveCreatorPanel({ open, onClose, post }: Props) {
     setOptimisticChatEnabled(newValue);
     try {
       await updateLiveChatEnabled(post.id, newValue);
-    } catch (err) {
-      console.error("[LiveCreatorPanel] toggle chat error", err);
+    } catch {
       setOptimisticChatEnabled(null);
       setToggleError("Error al cambiar estado del chat.");
     } finally {
@@ -72,15 +83,12 @@ export default function LiveCreatorPanel({ open, onClose, post }: Props) {
     }
   }, [togglingChat, user, post.id, chatEnabled]);
 
-  // ── Mute/ban/delete ───────────────────────────────────────────────────────
   const handleMuteToggle = useCallback(async (userId: string) => {
     const isMuted = liveData?.mutedUsers?.includes(userId) ?? false;
     try {
       if (isMuted) await unmuteLiveChatUser(post.id, userId);
       else await muteLiveChatUser(post.id, userId);
-    } catch (err) {
-      console.error("[LiveCreatorPanel] mute error", err);
-    }
+    } catch { /* noop */ }
   }, [post.id, liveData]);
 
   const handleBanToggle = useCallback(async (userId: string) => {
@@ -88,9 +96,7 @@ export default function LiveCreatorPanel({ open, onClose, post }: Props) {
     try {
       if (isBanned) await unbanLiveChatUser(post.id, userId);
       else await banLiveChatUser(post.id, userId);
-    } catch (err) {
-      console.error("[LiveCreatorPanel] ban error", err);
-    }
+    } catch { /* noop */ }
   }, [post.id, liveData]);
 
   const handleDeleteMessage = useCallback(async (msgId: string) => {
@@ -100,23 +106,104 @@ export default function LiveCreatorPanel({ open, onClose, post }: Props) {
 
   if (!open || typeof document === "undefined") return null;
 
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function sectionHeader(label: string, extra?: React.ReactNode) {
+    return (
+      <div style={{
+        flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "9px 12px", borderBottom: DIV,
+      }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
+          {label}
+        </span>
+        {extra}
+      </div>
+    );
+  }
+
+  function comingSoon() {
+    return (
+      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.12)", fontFamily: FONT }}>Próximamente</span>
+      </div>
+    );
+  }
+
+  function renderChatSection() {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", flex: 1, minHeight: 0 }}>
+        {sectionHeader(
+          `Chat · ${messages.length}`,
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
+            <button
+              type="button"
+              onClick={handleToggleChat}
+              disabled={togglingChat}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 4,
+                padding: "4px 10px", borderRadius: 999,
+                border: chatEnabled ? "1px solid rgba(34,197,94,0.35)" : "1px solid rgba(255,255,255,0.1)",
+                background: chatEnabled ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.04)",
+                color: chatEnabled ? "#4ade80" : "rgba(255,255,255,0.3)",
+                cursor: togglingChat ? "not-allowed" : "pointer",
+                fontSize: 10, fontWeight: 600, opacity: togglingChat ? 0.6 : 1, transition: "all 0.15s",
+              }}
+            >
+              Chat {chatEnabled ? "activo" : "cerrado"}
+            </button>
+            {toggleError && <span style={{ fontSize: 9, color: "#f87171" }}>{toggleError}</span>}
+          </div>
+        )}
+        <div className="lcp-chat" style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
+          {messages.length === 0 ? (
+            <div style={{
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+              height: "100%", gap: 8, color: "rgba(255,255,255,0.15)", textAlign: "center", padding: 20,
+            }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              <span style={{ fontSize: 12 }}>
+                {liveStatus === "live" ? "Esperando mensajes..." : "Sin mensajes aún"}
+              </span>
+            </div>
+          ) : (
+            messages.map((msg) => (
+              <ChatMessageRow
+                key={msg.id}
+                msg={msg}
+                isMuted={liveData?.mutedUsers?.includes(msg.userId) ?? false}
+                isBanned={liveData?.bannedUsers?.includes(msg.userId) ?? false}
+                onMute={() => handleMuteToggle(msg.userId)}
+                onBan={() => handleBanToggle(msg.userId)}
+                onDelete={() => handleDeleteMessage(msg.id)}
+              />
+            ))
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+    );
+  }
+
   return createPortal(
-    <div
-      style={{
-        position: "fixed", inset: 0, zIndex: 10001,
-        background: "#0a0a0a",
-        display: "flex", flexDirection: "column",
-        fontFamily: FONT,
-      }}
-    >
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 10001,
+      background: "#0a0a0a", display: "flex", flexDirection: "column", fontFamily: FONT,
+    }}>
+      <style>{`
+        @keyframes lcPulse { 0%,100%{opacity:1}50%{opacity:0.35} }
+        .lcp-chat::-webkit-scrollbar{display:none}
+      `}</style>
+
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
         paddingBottom: 14,
-        paddingLeft: 16,
-        paddingRight: 16,
-        borderBottom: "1px solid rgba(255,255,255,0.08)",
+        paddingLeft: "max(16px, env(safe-area-inset-left))",
+        paddingRight: "max(16px, env(safe-area-inset-right))",
+        borderBottom: DIV,
         flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -134,13 +221,12 @@ export default function LiveCreatorPanel({ open, onClose, post }: Props) {
               <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
             </svg>
           </button>
-          <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>Gestionar Live</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>Centro de control</span>
         </div>
 
         <div style={{
           display: "inline-flex", alignItems: "center", gap: 5,
-          padding: "4px 10px", borderRadius: 999,
-          fontSize: 11, fontWeight: 700,
+          padding: "4px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
           background: liveStatus === "live" ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.06)",
           color: liveStatus === "live" ? "#ef4444" : "rgba(255,255,255,0.45)",
           border: `1px solid ${liveStatus === "live" ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.1)"}`,
@@ -152,112 +238,127 @@ export default function LiveCreatorPanel({ open, onClose, post }: Props) {
         </div>
       </div>
 
-      {/* ── Video ──────────────────────────────────────────────────────────── */}
-      {showVideo && (
-        <div style={{ flexShrink: 0, background: "#000" }}>
-          <VideoPreview hlsUrl={hlsUrl!} />
-        </div>
-      )}
+      {/* ── Body ───────────────────────────────────────────────────────────── */}
+      {isDesktop && portrait ? (
+        /* ── Desktop + Portrait live ──────────────────────────────────────── */
+        <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
 
-      {/* ── Bottom: chat (izquierda) + panel reservado (derecha) ───────────── */}
-      <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
+          {/* Left area */}
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        {/* LEFT — Chat en vivo */}
-        <div style={{
-          flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
-          borderRight: "1px solid rgba(255,255,255,0.06)",
-        }}>
-          {/* Chat section header */}
-          <div style={{
-            flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between",
-            padding: "9px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)",
-          }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.28)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-              Chat · {messages.length}
-            </span>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
-              <button
-                type="button"
-                onClick={handleToggleChat}
-                disabled={togglingChat}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 4,
-                  padding: "4px 10px", borderRadius: 999,
-                  border: chatEnabled ? "1px solid rgba(34,197,94,0.35)" : "1px solid rgba(255,255,255,0.1)",
-                  background: chatEnabled ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.04)",
-                  color: chatEnabled ? "#4ade80" : "rgba(255,255,255,0.3)",
-                  cursor: togglingChat ? "not-allowed" : "pointer",
-                  fontSize: 10, fontWeight: 600,
-                  opacity: togglingChat ? 0.6 : 1,
-                  transition: "all 0.15s",
-                }}
-              >
-                Chat {chatEnabled ? "activo" : "cerrado"}
-              </button>
-              {toggleError && (
-                <span style={{ fontSize: 9, color: "#f87171" }}>{toggleError}</span>
-              )}
+            {/* Top half: Supercomentarios | Chat */}
+            <div style={{ flex: 1, display: "flex", overflow: "hidden", borderBottom: DIV }}>
+
+              {/* Supercomentarios */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: DIV, overflow: "hidden" }}>
+                {sectionHeader("Supercomentarios")}
+                {comingSoon()}
+              </div>
+
+              {/* Chat en vivo */}
+              {renderChatSection()}
+            </div>
+
+            {/* Bottom half: Estadísticas */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              {sectionHeader("Estadísticas")}
+              {comingSoon()}
             </div>
           </div>
 
-          {/* Messages */}
-          <div style={{ flex: 1, overflowY: "auto" }}>
-            {messages.length === 0 ? (
+          {/* Right column: Live video portrait (story shape) */}
+          {showVideo && (
+            <div style={{
+              flexShrink: 0, display: "flex",
+              alignItems: "center", justifyContent: "center",
+              padding: "16px", borderLeft: DIV,
+            }}>
               <div style={{
-                display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                height: "100%", gap: 8, color: "rgba(255,255,255,0.15)", textAlign: "center", padding: 20,
+                position: "relative",
+                height: "clamp(220px, calc(100dvh - 100px), 540px)",
+                aspectRatio: "9 / 16",
+                borderRadius: 18,
+                overflow: "hidden",
+                background: "#000",
               }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-                <span style={{ fontSize: 12 }}>
-                  {liveStatus === "live" ? "Esperando mensajes..." : "Sin mensajes aún"}
-                </span>
+                <VideoPreview hlsUrl={hlsUrl!} fill />
               </div>
-            ) : (
-              messages.map((msg) => (
-                <ChatMessageRow
-                  key={msg.id}
-                  msg={msg}
-                  isMuted={liveData?.mutedUsers?.includes(msg.userId) ?? false}
-                  isBanned={liveData?.bannedUsers?.includes(msg.userId) ?? false}
-                  onMute={() => handleMuteToggle(msg.userId)}
-                  onBan={() => handleBanToggle(msg.userId)}
-                  onDelete={() => handleDeleteMessage(msg.id)}
-                />
-              ))
+            </div>
+          )}
+        </div>
+
+      ) : isDesktop && !portrait ? (
+        /* ── Desktop + Horizontal live ────────────────────────────────────── */
+        <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
+
+          {/* Left column: Chat | Supercomentarios */}
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+            {/* Chat en vivo */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderBottom: DIV }}>
+              {renderChatSection()}
+            </div>
+
+            {/* Supercomentarios */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              {sectionHeader("Supercomentarios")}
+              {comingSoon()}
+            </div>
+          </div>
+
+          {/* Right column: Video + Estadísticas */}
+          <div style={{
+            flexShrink: 0, width: "clamp(300px, 42%, 520px)",
+            display: "flex", flexDirection: "column", overflow: "hidden",
+            borderLeft: DIV,
+          }}>
+
+            {/* Video horizontal redondeado */}
+            {showVideo && (
+              <div style={{ padding: "16px 16px 12px", flexShrink: 0 }}>
+                <div style={{
+                  position: "relative",
+                  width: "100%",
+                  aspectRatio: "16 / 9",
+                  borderRadius: 14,
+                  overflow: "hidden",
+                  background: "#000",
+                }}>
+                  <VideoPreview hlsUrl={hlsUrl!} fill />
+                </div>
+              </div>
             )}
+
+            {/* Estadísticas */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderTop: showVideo ? DIV : undefined }}>
+              {sectionHeader("Estadísticas")}
+              {comingSoon()}
+            </div>
           </div>
         </div>
 
-        {/* RIGHT — Panel reservado */}
-        <div style={{
-          width: "clamp(150px, 38%, 240px)", flexShrink: 0,
-          display: "flex", flexDirection: "column",
-        }}>
-          <div style={{
-            padding: "9px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)", flexShrink: 0,
-          }}>
-            <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.18)", letterSpacing: "0.06em", textTransform: "uppercase" }}>
-              Control
-            </span>
-          </div>
-          <div style={{
-            flex: 1, display: "flex", flexDirection: "column",
-            alignItems: "center", justifyContent: "center",
-            gap: 6, padding: 16,
-          }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
-            </svg>
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.12)", textAlign: "center", lineHeight: 1.4 }}>
-              Próximas funciones
-            </span>
+      ) : (
+        /* ── Fallback: mobile ─────────────────────────────────────────────── */
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          {showVideo && (
+            <div style={{ flexShrink: 0, background: "#000" }}>
+              <VideoPreview hlsUrl={hlsUrl!} compact />
+            </div>
+          )}
+          <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
+            <div style={{
+              flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
+              borderRight: DIV,
+            }}>
+              {renderChatSection()}
+            </div>
+            <div style={{ width: "clamp(150px, 38%, 240px)", flexShrink: 0, display: "flex", flexDirection: "column" }}>
+              {sectionHeader("Control")}
+              {comingSoon()}
+            </div>
           </div>
         </div>
-      </div>
-
-      <style>{`@keyframes lcPulse { 0%,100%{opacity:1}50%{opacity:0.35} }`}</style>
+      )}
     </div>,
     document.body
   );
@@ -278,10 +379,9 @@ function ChatMessageRow({ msg, isMuted, isBanned, onMute, onBan, onDelete }: Mes
   return (
     <div style={{
       display: "flex", alignItems: "flex-start", gap: 8,
-      padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.03)",
+      padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.04)",
       opacity: isBanned ? 0.38 : 1,
     }}>
-      {/* Avatar */}
       {msg.avatarUrl ? (
         <img src={msg.avatarUrl} alt="" style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", flexShrink: 0, marginTop: 1 }} />
       ) : (
@@ -293,7 +393,6 @@ function ChatMessageRow({ msg, isMuted, isBanned, onMute, onBan, onDelete }: Mes
         </div>
       )}
 
-      {/* Text */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 1, flexWrap: "wrap" }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.75)" }}>{msg.username}</span>
@@ -313,15 +412,8 @@ function ChatMessageRow({ msg, isMuted, isBanned, onMute, onBan, onDelete }: Mes
         </span>
       </div>
 
-      {/* Action buttons */}
       <div style={{ display: "flex", gap: 2, flexShrink: 0, alignItems: "flex-start", marginTop: 1 }}>
-        {/* Mute toggle */}
-        <ModActionBtn
-          onClick={onMute}
-          active={isMuted}
-          activeColor="#f59e0b"
-          title={isMuted ? "Desmutear" : "Mutear"}
-        >
+        <ModActionBtn onClick={onMute} active={isMuted} activeColor="#f59e0b" title={isMuted ? "Desmutear" : "Mutear"}>
           {isMuted ? (
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
@@ -335,20 +427,13 @@ function ChatMessageRow({ msg, isMuted, isBanned, onMute, onBan, onDelete }: Mes
           )}
         </ModActionBtn>
 
-        {/* Ban toggle */}
-        <ModActionBtn
-          onClick={onBan}
-          active={isBanned}
-          activeColor="#ef4444"
-          title={isBanned ? "Desbanear" : "Banear del live"}
-        >
+        <ModActionBtn onClick={onBan} active={isBanned} activeColor="#ef4444" title={isBanned ? "Desbanear" : "Banear del live"}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
             <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
           </svg>
         </ModActionBtn>
 
-        {/* Delete message */}
         <ModActionBtn onClick={onDelete} active={false} activeColor="#ef4444" title="Eliminar mensaje">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="3 6 5 6 21 6" />
@@ -381,9 +466,7 @@ function ModActionBtn({
       onMouseLeave={() => setHovered(false)}
       style={{
         width: 24, height: 24, borderRadius: 5, border: "none",
-        background: active
-          ? `${activeColor}22`
-          : hovered ? "rgba(255,255,255,0.08)" : "transparent",
+        background: active ? `${activeColor}22` : hovered ? "rgba(255,255,255,0.08)" : "transparent",
         color: active ? activeColor : hovered ? "#fff" : "rgba(255,255,255,0.22)",
         cursor: "pointer", display: "grid", placeItems: "center",
         transition: "background 0.12s, color 0.12s",
@@ -396,7 +479,7 @@ function ModActionBtn({
 
 // ── VideoPreview ───────────────────────────────────────────────────────────
 
-function VideoPreview({ hlsUrl }: { hlsUrl: string }) {
+function VideoPreview({ hlsUrl, fill, compact }: { hlsUrl: string; fill?: boolean; compact?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
 
@@ -415,46 +498,64 @@ function VideoPreview({ hlsUrl }: { hlsUrl: string }) {
     const hls = new Hls({ autoStartLoad: true, startLevel: -1 });
     hls.loadSource(hlsUrl);
     hls.attachMedia(video);
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      video.play().catch(() => {});
-    });
+    hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(() => {}); });
 
     return () => { hls.destroy(); };
   }, [hlsUrl]);
 
+  const muteBtn = (size: number, bottom: number, right: number, bordered: boolean) => (
+    <button
+      type="button"
+      onClick={() => setMuted((m) => !m)}
+      title={muted ? "Activar audio" : "Silenciar"}
+      style={{
+        position: "absolute", bottom, right,
+        width: bordered ? 32 : 28, height: bordered ? 32 : 28, borderRadius: "50%",
+        border: bordered ? "1px solid rgba(255,255,255,0.18)" : "none",
+        background: "rgba(0,0,0,0.55)",
+        color: "#fff", cursor: "pointer", display: "grid", placeItems: "center",
+        backdropFilter: bordered ? "blur(4px)" : undefined,
+        WebkitBackdropFilter: bordered ? "blur(4px)" : undefined,
+      }}
+    >
+      {muted ? (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+          <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
+        </svg>
+      ) : (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+          <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+        </svg>
+      )}
+    </button>
+  );
+
+  // fill mode: parent provides container size (portrait story card or landscape rounded card)
+  if (fill) {
+    return (
+      <>
+        <video
+          ref={videoRef}
+          autoPlay muted={muted} playsInline
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        />
+        {muteBtn(13, 12, 12, true)}
+      </>
+    );
+  }
+
+  // compact mode: self-contained with maxHeight 220 (mobile fallback)
   return (
     <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", maxHeight: 220, background: "#000", overflow: "hidden" }}>
       <video
         ref={videoRef}
-        autoPlay
-        muted={muted}
-        playsInline
+        autoPlay muted={muted} playsInline
         style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
       />
-      <button
-        type="button"
-        onClick={() => setMuted((m) => !m)}
-        style={{
-          position: "absolute", bottom: 8, right: 8,
-          width: 28, height: 28, borderRadius: "50%",
-          border: "none", background: "rgba(0,0,0,0.55)",
-          color: "#fff", cursor: "pointer", display: "grid", placeItems: "center",
-        }}
-        title={muted ? "Activar audio" : "Silenciar"}
-      >
-        {muted ? (
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-            <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
-          </svg>
-        ) : (
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-            <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
-            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
-          </svg>
-        )}
-      </button>
+      {muteBtn(13, 8, 8, false)}
     </div>
   );
 }

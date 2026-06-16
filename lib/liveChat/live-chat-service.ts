@@ -15,18 +15,17 @@ import {
 import { db } from "@/lib/firebase";
 import type { LiveChatMessage } from "./types";
 
-const CHAT_LIMIT = 25;
-
 export function subscribeToLiveChat(
   liveId: string,
   onMessages: (messages: LiveChatMessage[]) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
+  limit = 25
 ): Unsubscribe {
   // Sin where("isDeleted") para no requerir índice compuesto; filtramos client-side.
   const q = query(
     collection(db, "liveChats", liveId, "messages"),
     orderBy("createdAt", "asc"),
-    limitToLast(CHAT_LIMIT)
+    limitToLast(limit)
   );
   return onSnapshot(
     q,

@@ -8,9 +8,10 @@ import {
 } from "@/lib/liveChat/live-chat-service";
 import type { LiveChatMessage } from "@/lib/liveChat/types";
 
-export function useLiveChat(liveId: string | null) {
+export function useLiveChat(liveId: string | null, limit = 25) {
   const [messages, setMessages] = useState<LiveChatMessage[]>([]);
   const unsubRef = useRef<(() => void) | null>(null);
+  const limitRef = useRef(limit);
 
   useEffect(() => {
     if (!liveId) {
@@ -20,7 +21,8 @@ export function useLiveChat(liveId: string | null) {
     const unsub = subscribeToLiveChat(
       liveId,
       setMessages,
-      (err) => console.warn("[useLiveChat]", err)
+      (err) => console.warn("[useLiveChat]", err),
+      limitRef.current
     );
     unsubRef.current = unsub;
     return () => { unsub(); unsubRef.current = null; };
