@@ -534,32 +534,19 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{
-              fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: FONT,
+              fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: FONT,
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              lineHeight: "1.2",
             }}>
               {name}
             </div>
-            <div style={{
-              marginTop: 4,
-              display: "inline-flex", alignItems: "center", gap: 5,
-              background: "rgba(239,68,68,0.14)",
-              border: "1px solid rgba(239,68,68,0.25)",
-              borderRadius: 5, padding: "2px 7px",
+            <span style={{
+              fontSize: 12, fontWeight: 500,
+              color: "rgba(255,255,255,0.55)", fontFamily: FONT,
+              lineHeight: "1.2",
             }}>
-              <span style={{
-                width: 5, height: 5, borderRadius: "50%",
-                background: isLive ? "#ef4444" : "rgba(255,255,255,0.25)",
-                flexShrink: 0,
-                animation: isLive ? "lvPulse 1.4s ease-in-out infinite" : "none",
-              }} />
-              <span style={{
-                fontSize: 10.5, fontWeight: 700,
-                color: isLive ? "#ef4444" : "rgba(255,255,255,0.3)",
-                fontFamily: FONT, letterSpacing: "0.05em",
-              }}>
-                En vivo
-              </span>
-            </div>
+              En vivo
+            </span>
           </div>
         </div>
 
