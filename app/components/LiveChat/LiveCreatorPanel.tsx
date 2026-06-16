@@ -288,49 +288,41 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         </div>
 
       ) : isDesktop && !portrait ? (
-        /* ── Desktop + Horizontal live ────────────────────────────────────── */
-        <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
+        /* ── Desktop + Horizontal live: grid 2×2 ─────────────────────────── */
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
-          {/* Left column: Chat | Supercomentarios */}
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {/* Top row */}
+          <div style={{ flex: 1, display: "flex", overflow: "hidden", borderBottom: DIV }}>
 
-            {/* Chat en vivo */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderBottom: DIV }}>
+            {/* Top-left: Chat en vivo */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
               {renderChatSection()}
             </div>
 
-            {/* Supercomentarios */}
+            {/* Top-right: Video en vivo */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              {sectionHeader("Supercomentarios")}
-              {comingSoon()}
+              {sectionHeader("En vivo")}
+              {showVideo ? (
+                <div style={{ flex: 1, padding: "12px 16px 16px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                  <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: 14, overflow: "hidden", background: "#000" }}>
+                    <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
+                  </div>
+                </div>
+              ) : comingSoon()}
             </div>
           </div>
 
-          {/* Right column: Video + Estadísticas */}
-          <div style={{
-            flexShrink: 0, width: "clamp(300px, 42%, 520px)",
-            display: "flex", flexDirection: "column", overflow: "hidden",
-            borderLeft: DIV,
-          }}>
+          {/* Bottom row */}
+          <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-            {/* Video horizontal redondeado */}
-            {showVideo && (
-              <div style={{ padding: "16px 16px 12px", flexShrink: 0 }}>
-                <div style={{
-                  position: "relative",
-                  width: "100%",
-                  aspectRatio: "16 / 9",
-                  borderRadius: 14,
-                  overflow: "hidden",
-                  background: "#000",
-                }}>
-                  <VideoPreview hlsUrl={hlsUrl!} fill />
-                </div>
-              </div>
-            )}
+            {/* Bottom-left: Supercomentarios */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
+              {sectionHeader("Supercomentarios")}
+              {comingSoon()}
+            </div>
 
-            {/* Estadísticas */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderTop: showVideo ? DIV : undefined }}>
+            {/* Bottom-right: Estadísticas */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               {sectionHeader("Estadísticas")}
               {comingSoon()}
             </div>
@@ -479,7 +471,7 @@ function ModActionBtn({
 
 // ── VideoPreview ───────────────────────────────────────────────────────────
 
-function VideoPreview({ hlsUrl, fill, compact }: { hlsUrl: string; fill?: boolean; compact?: boolean }) {
+function VideoPreview({ hlsUrl, fill, compact, objectFit = "cover" }: { hlsUrl: string; fill?: boolean; compact?: boolean; objectFit?: "cover" | "contain" }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
 
@@ -540,7 +532,7 @@ function VideoPreview({ hlsUrl, fill, compact }: { hlsUrl: string; fill?: boolea
         <video
           ref={videoRef}
           autoPlay muted={muted} playsInline
-          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          style={{ width: "100%", height: "100%", objectFit: objectFit, display: "block" }}
         />
         {muteBtn(13, 12, 12, true)}
       </>
