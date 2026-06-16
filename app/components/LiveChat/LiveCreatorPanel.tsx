@@ -294,19 +294,21 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           {/* Top row */}
           <div style={{ flex: 1, display: "flex", overflow: "hidden", borderBottom: DIV }}>
 
-            {/* Top-left: Chat en vivo */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
+            {/* Top-left: Chat en vivo — panel secundario */}
+            <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
               {renderChatSection()}
             </div>
 
-            {/* Top-right: Video en vivo */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {/* Top-right: Video en vivo — panel principal */}
+            <div style={{ flex: 3, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               {sectionHeader("En vivo")}
               {showVideo ? (
-                <div style={{ flex: 1, padding: "12px 16px 16px", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                  <div style={{ position: "relative", width: "100%", height: "100%", borderRadius: 14, overflow: "hidden", background: "#000" }}>
-                    <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
-                  </div>
+                <div style={{
+                  flex: 1, margin: "12px 16px 16px",
+                  position: "relative", borderRadius: 14,
+                  overflow: "hidden", background: "#000",
+                }}>
+                  <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
                 </div>
               ) : comingSoon()}
             </div>
@@ -315,14 +317,14 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           {/* Bottom row */}
           <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-            {/* Bottom-left: Supercomentarios */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
+            {/* Bottom-left: Supercomentarios — panel secundario */}
+            <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
               {sectionHeader("Supercomentarios")}
               {comingSoon()}
             </div>
 
             {/* Bottom-right: Estadísticas */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ flex: 3, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               {sectionHeader("Estadísticas")}
               {comingSoon()}
             </div>
