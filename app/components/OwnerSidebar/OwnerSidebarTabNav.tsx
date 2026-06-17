@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { CSSProperties } from "react";
 import type { TopView } from "./OwnerSidebar";
 import {
@@ -192,10 +193,11 @@ export default function OwnerSidebarTabNav({
         }}
       />
 
-      <img
+      <Image
         src="/suscomunidades.png"
         alt=""
         aria-hidden
+        width={120} height={28}
         style={{
           position: "absolute",
           right: 10,

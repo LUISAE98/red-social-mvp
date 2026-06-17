@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Timestamp } from "firebase/firestore";
@@ -208,6 +209,10 @@ export default function LiveComposerModal({
   const [period, setPeriod] = useState<"AM" | "PM">("AM");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessType, setAccessType] = useState<"free" | "paid">("free");
+  const [ticketPrice, setTicketPrice] = useState("");
+  const [currency, setCurrency] = useState<"MXN" | "USD">("MXN");
+  const [paidAccessMode, setPaidAccessMode] = useState<"everyone_pays" | "members_free_non_members_pay">("everyone_pays");
 
   const isHiddenGroup = contextType === "group" && groupVisibility === "hidden";
   const visibilityOptions = getVisibilityOptions(contextType, groupVisibility ?? null);
@@ -257,6 +262,10 @@ export default function LiveComposerModal({
     setCoverPreviewUrl(ld.coverUrl ?? null);
     setCoverFile(null);
     setVisibilityMode(ld.visibilityMode ?? deriveDefaultVisibility(contextType, groupVisibility ?? null));
+    setAccessType(ld.accessType ?? "free");
+    setTicketPrice(ld.ticketPrice != null ? String(ld.ticketPrice) : "");
+    setCurrency(ld.currency ?? "MXN");
+    setPaidAccessMode(ld.paidAccessMode ?? "everyone_pays");
     const parsed = parseScheduledTimestamp(ld.scheduledStartAt);
     setDay(parsed.day);
     setMonth(parsed.month);
@@ -279,6 +288,10 @@ export default function LiveComposerModal({
     setDay(""); setMonth(""); setYear("");
     setHour(""); setMinute(""); setPeriod("AM");
     setVisibilityMode(deriveDefaultVisibility(contextType, groupVisibility ?? null));
+    setAccessType("free");
+    setTicketPrice("");
+    setCurrency("MXN");
+    setPaidAccessMode("everyone_pays");
     setError(null);
   }
 
@@ -315,6 +328,13 @@ export default function LiveComposerModal({
       return;
     }
 
+    // Validar ticket
+    const priceNum = parseFloat(ticketPrice.replace(",", "."));
+    if (accessType === "paid" && (isNaN(priceNum) || priceNum <= 0)) {
+      setError("El precio del ticket debe ser mayor a 0.");
+      return;
+    }
+
     setError(null);
     setSaving(true);
 
@@ -326,6 +346,16 @@ export default function LiveComposerModal({
       const cleanTitle = title.trim();
       const cleanDescription = description.trim() || null;
 
+      // paidAccessMode solo aplica en comunidad privada con live público/logged_in
+      const canHaveMemberExemption =
+        contextType === "group" &&
+        groupVisibility === "private" &&
+        effectiveMode !== "members_only";
+      const effectivePaidAccessMode = canHaveMemberExemption ? paidAccessMode : "everyone_pays";
+      const finalTicketPrice = accessType === "paid" ? priceNum : null;
+      const finalCurrency = accessType === "paid" ? currency : null;
+      const finalPaidAccessMode = accessType === "paid" ? effectivePaidAccessMode : null;
+
       if (isEditMode && editPost) {
         await updateLivePost({
           postId: editPost.id,
@@ -334,6 +364,10 @@ export default function LiveComposerModal({
           coverUrl: finalCoverUrl,
           scheduledStartAt: scheduledDate,
           visibilityMode: effectiveMode,
+          accessType,
+          ticketPrice: finalTicketPrice,
+          currency: finalCurrency,
+          paidAccessMode: finalPaidAccessMode,
         });
         const newLiveData: PostLiveData = {
           ...editPost.liveData,
@@ -343,6 +377,10 @@ export default function LiveComposerModal({
           scheduledStartAt: scheduledDate ? Timestamp.fromDate(scheduledDate) : null,
           visibilityMode: effectiveMode,
           allowLoggedOutViewers: effectiveMode === "everyone",
+          accessType,
+          ticketPrice: finalTicketPrice,
+          currency: finalCurrency,
+          paidAccessMode: finalPaidAccessMode,
         };
         onEdited?.(newLiveData);
         resetForm();
@@ -359,6 +397,10 @@ export default function LiveComposerModal({
           coverUrl: finalCoverUrl,
           scheduledStartAt: scheduledDate,
           visibilityMode: effectiveMode,
+          accessType,
+          ticketPrice: finalTicketPrice,
+          currency: finalCurrency,
+          paidAccessMode: finalPaidAccessMode,
         });
       } else if (groupId) {
         await createLivePost({
@@ -368,6 +410,10 @@ export default function LiveComposerModal({
           coverUrl: finalCoverUrl,
           scheduledStartAt: scheduledDate,
           visibilityMode: effectiveMode,
+          accessType,
+          ticketPrice: finalTicketPrice,
+          currency: finalCurrency,
+          paidAccessMode: finalPaidAccessMode,
         });
       } else {
         throw new Error("Contexto inválido para crear el live.");
@@ -570,10 +616,11 @@ export default function LiveComposerModal({
           >
             {coverPreviewUrl ? (
               <>
-                <img
+                <Image
                   src={coverPreviewUrl}
                   alt="Portada del live"
-                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  fill
+                  style={{ objectFit: "cover", display: "block" }}
                 />
                 <div style={{
                   position: "absolute", inset: 0, display: "flex",
@@ -706,6 +753,116 @@ export default function LiveComposerModal({
                 );
               })}
             </div>
+          )}
+
+          {/* ── TICKET DE ENTRADA ── */}
+          <label style={{ ...labelStyle, marginTop: 2 }}>Ticket de entrada</label>
+          <div style={{ marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+            {(["free", "paid"] as const).map((type, idx) => {
+              const active = accessType === type;
+              return (
+                <div
+                  key={type}
+                  onClick={() => !saving && setAccessType(type)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10,
+                    padding: "10px 12px", cursor: saving ? "not-allowed" : "pointer",
+                    borderBottom: idx === 0 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                    background: active ? "rgba(168,85,255,0.10)" : "transparent",
+                    userSelect: "none",
+                  }}
+                >
+                  <div style={{
+                    width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                    border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.25)",
+                    boxSizing: "border-box" as const, transition: "border 120ms ease",
+                  }} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#e9d5ff" : "#fff", fontFamily: fontStack }}>
+                      {type === "free" ? "Gratuito" : "Con ticket de entrada"}
+                    </div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2 }}>
+                      {type === "free" ? "Cualquier persona con acceso puede verlo sin costo" : "Los espectadores deben pagar para acceder al live"}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Configuración de precio */}
+          {accessType === "paid" && (
+            <>
+              <label style={labelStyle}>Precio del ticket *</label>
+              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                <div style={{ flex: 1, position: "relative" as const }}>
+                  <input
+                    type="number"
+                    min="1"
+                    step="any"
+                    value={ticketPrice}
+                    onChange={(e) => setTicketPrice(e.target.value)}
+                    placeholder="0.00"
+                    disabled={saving}
+                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" as const }}
+                  />
+                </div>
+                <div style={{ width: 90, flexShrink: 0, position: "relative" as const, display: "flex", alignItems: "center", background: "rgba(255,255,255,0.06)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", overflow: "hidden" }}>
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value as "MXN" | "USD")}
+                    disabled={saving}
+                    style={{ width: "100%", background: "transparent", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: fontStack, padding: "0 10px", cursor: "pointer", appearance: "none" as const }}
+                    className="vibra-live-select"
+                  >
+                    <option value="MXN">MXN</option>
+                    <option value="USD">USD</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Modo de pago — solo comunidad privada con live público/no-solo-miembros */}
+              {contextType === "group" && groupVisibility === "private" && visibilityMode !== "members_only" && (
+                <>
+                  <label style={labelStyle}>¿Quién paga?</label>
+                  <div style={{ marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                    {([
+                      { value: "everyone_pays", label: "Todos pagan", desc: "Tanto miembros como no miembros deben comprar el ticket" },
+                      { value: "members_free_non_members_pay", label: "Miembros gratis / No miembros pagan", desc: "Los miembros actuales de la comunidad entran sin costo" },
+                    ] as const).map(({ value, label, desc }, idx) => {
+                      const active = paidAccessMode === value;
+                      return (
+                        <div
+                          key={value}
+                          onClick={() => !saving && setPaidAccessMode(value)}
+                          style={{
+                            display: "flex", alignItems: "center", gap: 10,
+                            padding: "10px 12px", cursor: saving ? "not-allowed" : "pointer",
+                            borderBottom: idx === 0 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                            background: active ? "rgba(168,85,255,0.10)" : "transparent",
+                            userSelect: "none",
+                          }}
+                        >
+                          <div style={{
+                            width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                            border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.25)",
+                            boxSizing: "border-box" as const, transition: "border 120ms ease",
+                          }} />
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#e9d5ff" : "#fff", fontFamily: fontStack }}>
+                              {label}
+                            </div>
+                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2, lineHeight: 1.4 }}>
+                              {desc}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </>
           )}
 
           {/* Fecha */}

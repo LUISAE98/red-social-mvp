@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Timestamp, doc, getDoc } from "firebase/firestore";
 import {
@@ -213,12 +214,11 @@ function Avatar({
 }) {
   if (avatarUrl) {
     return (
-      <img
+      <Image
         src={avatarUrl}
         alt={name}
+        width={size} height={size}
         style={{
-          width: size,
-          height: size,
           borderRadius: "50%",
           objectFit: "cover",
           display: "block",
@@ -1021,8 +1021,8 @@ export default function PostCommentThread({
       setInlineError(null);
       const nextReplies = await onLoadReplies(postId, comment.id);
       setReplies(nextReplies);
-    } catch (e: any) {
-      setInlineError(e?.message ?? "No se pudieron cargar las respuestas.");
+    } catch (e: unknown) {
+      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las respuestas.");
     } finally {
       setLoadingReplies(false);
     }
@@ -1039,8 +1039,8 @@ export default function PostCommentThread({
       setLocalReplyCount(nextReplies.length);
       setReplyText("");
       setReplyBoxOpen(false);
-    } catch (e: any) {
-      setInlineError(e?.message ?? "No se pudo responder.");
+    } catch (e: unknown) {
+      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudo responder.");
     } finally {
       setCreatingReply(false);
     }
@@ -1055,8 +1055,8 @@ export default function PostCommentThread({
       const nextReplies = await onDeleteReply(postId, comment.id, replyId);
       setReplies(nextReplies);
       setLocalReplyCount(nextReplies.length);
-    } catch (e: any) {
-      setInlineError(e?.message ?? "No se pudo eliminar la respuesta.");
+    } catch (e: unknown) {
+      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la respuesta.");
     } finally {
       setDeletingReplyId(null);
     }
@@ -1083,8 +1083,8 @@ export default function PostCommentThread({
       setLocalCommentText(trimmed);
       setLocalCommentEditedAt(Timestamp.now());
       setEditingComment(false);
-    } catch (e: any) {
-      setInlineError(e?.message ?? "No se pudo guardar el comentario.");
+    } catch (e: unknown) {
+      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudo guardar el comentario.");
     } finally {
       setSavingEditComment(false);
     }
@@ -1112,8 +1112,8 @@ export default function PostCommentThread({
           prev?.map((r) => r.id === replyId ? { ...r, text, editedAt: Timestamp.now() } : r) ?? null,
       );
       setEditingReplyId(null);
-    } catch (e: any) {
-      setInlineError(e?.message ?? "No se pudo guardar la respuesta.");
+    } catch (e: unknown) {
+      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudo guardar la respuesta.");
     } finally {
       setSavingEditReplyId(null);
     }
@@ -1140,10 +1140,10 @@ export default function PostCommentThread({
       const result = await toggleCommentFlame({ postId, commentId: comment.id });
       setCommentLiked(result.liked);
       setCommentLikes(result.likes);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setCommentLiked(previousLiked);
       setCommentLikes(previousLikes);
-      setInlineError(e?.message ?? "No se pudo actualizar la flamita.");
+      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
     } finally {
       setCommentFlameBusy(false);
     }

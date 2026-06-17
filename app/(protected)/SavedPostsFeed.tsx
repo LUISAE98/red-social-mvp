@@ -35,12 +35,11 @@ const VIDEO_PROCESSING_POLL_MS = 15_000;
 const VIDEO_PROCESSING_MAX_POLLS = 20;
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
-type GroupRole = "owner" | "mod" | "member" | null;
 
 type PostWithFlags = Post & {
   canModerateGroupAuthor?: boolean;
   authorMemberStatus?: MemberStatus;
-  authorMutedUntil?: any;
+  authorMutedUntil?: unknown;
 };
 
 type SavedPostsCacheEntry = {
@@ -69,25 +68,6 @@ function mergeUniquePosts(currentPosts: PostWithFlags[], nextPosts: PostWithFlag
 
   return Array.from(map.values());
 }
-
-function normalizeRole(raw: unknown): GroupRole {
-  if (raw === "owner") return "owner";
-  if (raw === "mod") return "mod";
-  if (raw === "moderator") return "mod";
-  if (raw === "member") return "member";
-  return null;
-}
-
-function normalizeStatus(raw: unknown): MemberStatus {
-  if (raw === "banned") return "banned";
-  if (raw === "muted") return "muted";
-  if (raw === "removed" || raw === "kicked" || raw === "expelled") {
-    return "removed";
-  }
-  if (raw === "active") return "active";
-  return "active";
-}
-
 
 function normalizeSavedFeedPost(post: PostWithFlags): PostWithFlags {
   return {
@@ -316,13 +296,13 @@ const syncPostsState = useCallback(
 
         setPageCursor(page.cursor);
         setHasMore(page.hasMore);
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (feedRequestIdRef.current !== requestId) {
           return;
         }
 
         setError(
-          e?.message ??
+          (e instanceof Error ? e.message : null) ??
             "No se pudieron cargar tus publicaciones guardadas. Intenta de nuevo."
         );
       } finally {
@@ -533,8 +513,8 @@ if (!trigger.isConnected) return;
           likes: result.likes,
         } as Post["counts"],
       });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo actualizar la flamita.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
       throw e;
     }
   }
@@ -574,8 +554,8 @@ if (!trigger.isConnected) return;
           saves: nextSaves,
         } as Post["counts"],
       });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo actualizar el guardado.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el guardado.");
       throw e;
     }
   }
@@ -586,8 +566,8 @@ if (!trigger.isConnected) return;
       await softDeletePost(postId);
 
       removePostFromAllFeedCaches(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo eliminar la publicación.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la publicación.");
       throw e;
     }
   }
@@ -596,8 +576,8 @@ if (!trigger.isConnected) return;
     try {
       setError(null);
       return await fetchPostComments(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudieron cargar los comentarios.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar los comentarios.");
       throw e;
     }
   }
@@ -629,8 +609,8 @@ if (!trigger.isConnected) return;
       setError(null);
       await createPostComment({ postId, text });
       return await syncPostCommentsCount(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo crear el comentario.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo crear el comentario.");
       throw e;
     }
   }
@@ -643,8 +623,8 @@ if (!trigger.isConnected) return;
       setError(null);
       await deletePostComment({ postId, commentId });
       return await syncPostCommentsCount(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo eliminar el comentario.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar el comentario.");
       throw e;
     }
   }
@@ -656,8 +636,8 @@ if (!trigger.isConnected) return;
     try {
       setError(null);
       return await fetchCommentReplies({ postId, commentId });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudieron cargar las respuestas.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las respuestas.");
       throw e;
     }
   }
@@ -672,8 +652,8 @@ if (!trigger.isConnected) return;
       await createPostCommentReply({ postId, commentId, text });
       await syncPostCommentsCount(postId);
       return await fetchCommentReplies({ postId, commentId });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo crear la respuesta.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo crear la respuesta.");
       throw e;
     }
   }
@@ -688,8 +668,8 @@ if (!trigger.isConnected) return;
       await deletePostCommentReply({ postId, commentId, replyId });
       await syncPostCommentsCount(postId);
       return await fetchCommentReplies({ postId, commentId });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo eliminar la respuesta.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la respuesta.");
       throw e;
     }
   }

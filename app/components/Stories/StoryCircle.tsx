@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { StoryType } from "@/lib/stories/types";
 
 const VIBRA_GRADIENT = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
@@ -67,13 +68,15 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, su
             alignItems: "center",
             justifyContent: "center",
             boxSizing: "border-box",
+            position: "relative",
           }}
         >
           {thumbnailUrl ? (
-            <img
+            <Image
               src={thumbnailUrl}
               alt={label}
-              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              fill
+              style={{ objectFit: "cover" }}
             />
           ) : (
             <span style={{ fontSize: Math.round(size * 0.35), lineHeight: 1 }}>

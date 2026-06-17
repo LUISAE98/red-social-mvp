@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -421,10 +422,11 @@ export default function StoryCoverPicker({
                     }}
                   >
                     {currentCustomPhotoUrl ? (
-                      <img
+                      <Image
                         src={currentCustomPhotoUrl}
                         alt=""
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        fill
+                        style={{ objectFit: "cover" }}
                       />
                     ) : (
                       <CameraIcon />
@@ -511,10 +513,12 @@ export default function StoryCoverPicker({
                         style={innerBtn}
                       >
                         {thumb ? (
-                          <img
+                          <Image
                             src={thumb}
                             alt=""
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            width={60}
+                            height={60}
+                            style={{ objectFit: "cover", width: "100%", height: "100%" }}
                           />
                         ) : (
                           <span style={{ fontSize: 22 }}>{emoji}</span>
@@ -604,10 +608,12 @@ export default function StoryCoverPicker({
                       }}
                     >
                       {thumb ? (
-                        <img
+                        <Image
                           src={thumb}
                           alt=""
-                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          width={44}
+                          height={44}
+                          style={{ objectFit: "cover", width: "100%", height: "100%" }}
                         />
                       ) : (
                         <div

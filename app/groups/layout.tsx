@@ -2,6 +2,7 @@
 
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -71,90 +72,6 @@ useLayoutEffect(() => {
   return scrollRef;
 }
 
-function HeaderIconButton({
-  onClick,
-  href,
-  title,
-  ariaLabel,
-  children,
-  size = 40,
-  borderRadius = 12,
-  background = "rgba(0,0,0,0.45)",
-  color = "#fff",
-  border = "1px solid rgba(255,255,255,0.18)",
-}: {
-  onClick?: () => void;
-  href?: string;
-  title: string;
-  ariaLabel: string;
-  children: React.ReactNode;
-  size?: number;
-  borderRadius?: number;
-  background?: string;
-  color?: string;
-  border?: string;
-}) {
-  const commonStyle: React.CSSProperties = {
-    width: size,
-    height: size,
-    minWidth: size,
-    padding: 0,
-    borderRadius,
-    border,
-    background,
-    color,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
-    cursor: "pointer",
-    textDecoration: "none",
-    flexShrink: 0,
-  };
-
-  if (href) {
-    return (
-      <Link href={href} title={title} aria-label={ariaLabel} style={commonStyle}>
-        {children}
-      </Link>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={title}
-      aria-label={ariaLabel}
-      style={commonStyle}
-    >
-      {children}
-    </button>
-  );
-}
-
-function WalletHeaderButton({
-  href = "/wallet/finanzas",
-  size = 42,
-}: {
-  href?: string;
-  size?: number;
-}) {
-  return (
-    <HeaderIconButton
-      href={href}
-      title="Wallet"
-      ariaLabel="Ir a wallet"
-      size={size}
-      borderRadius={999}
-      background="#ffffff"
-      color="#000000"
-      border="1px solid rgba(255,255,255,0.95)"
-    >
-      <VibraNavigationIcon type="finance" size={20} />
-    </HeaderIconButton>
-  );
-}
 type WalletRailTab = "finances" | "calendar" | "pending" | "history";
 type MainRailTab = "home" | "saved";
 
@@ -659,9 +576,10 @@ opacity: 0.85;
           </section>
 
           <section className="railSection createCommunitySection" aria-label="Crear comunidad">
-            <img
+            <Image
               src="/Crear-comunidad.png"
               alt=""
+              width={108} height={72}
               className="createCommunityImage"
               aria-hidden="true"
             />
@@ -1231,7 +1149,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
             <div className="desktopHeader">
               <div className="brandCol">
 <Link href="/" className="brand" aria-label="Ir al inicio">
-  <img src="/logotipo.png" alt="Vibra" className="brandLogo" />
+  <Image src="/logotipo.png" alt="Vibra" width={112} height={32} className="brandLogo" />
 </Link>
               </div>
 
@@ -1270,7 +1188,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   className={`mobileBrand ${mobileSearchOpen ? "mobileBrandHidden" : "mobileBrandVisible"}`}
   aria-label="Ir al inicio"
 >
-  <img src="/logotipo.png" alt="Vibra" className="mobileBrandLogo" />
+  <Image src="/logotipo.png" alt="Vibra" width={86} height={25} className="mobileBrandLogo" />
 </Link>
 
     <div className="mobileActions">

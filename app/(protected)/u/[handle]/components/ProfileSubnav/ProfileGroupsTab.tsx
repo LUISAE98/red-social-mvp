@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
@@ -8,6 +9,7 @@ import {
   getDocs,
   limit,
   query,
+  type QueryConstraint,
   updateDoc,
   where,
 } from "firebase/firestore";
@@ -169,7 +171,7 @@ export default function ProfileGroupsTab({
       setMsg(null);
 
       try {
-        const constraints: any[] = [
+        const constraints: QueryConstraint[] = [
           where("ownerId", "==", profileUid),
           where("isActive", "==", true),
           limit(60),
@@ -190,7 +192,7 @@ export default function ProfileGroupsTab({
 
         const next: GroupListItem[] = snap.docs
           .map((d) => {
-            const data = d.data() as any;
+            const data = d.data() as { name?: unknown; description?: unknown; avatarUrl?: unknown; coverUrl?: unknown; visibility?: unknown; isActive?: unknown; memberCount?: unknown };
             return {
               id: d.id,
               name: String(data?.name ?? ""),
@@ -220,9 +222,9 @@ export default function ProfileGroupsTab({
               : "Este perfil todavía no tiene comunidades visibles."
           );
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (cancelled) return;
-        setMsg(e?.message ?? "No se pudieron cargar las comunidades.");
+        setMsg((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las comunidades.");
         setGroups([]);
       } finally {
         if (!cancelled) setLoading(false);
@@ -253,9 +255,9 @@ export default function ProfileGroupsTab({
           ? "✅ Ahora los visitantes pueden ver tus comunidades."
           : "✅ Tus comunidades ya no se muestran a visitantes."
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       setMsg(
-        e?.message ?? "❌ No se pudo actualizar la visibilidad de tus comunidades."
+        (e instanceof Error ? e.message : null) ?? "❌ No se pudo actualizar la visibilidad de tus comunidades."
       );
     } finally {
       setSavingVisibility(false);
@@ -533,15 +535,12 @@ export default function ProfileGroupsTab({
                         }}
                       >
                         {group.avatarUrl ? (
-                          <img
+                          <Image
                             src={group.avatarUrl}
                             alt={group.name}
+                            width={84} height={84}
                             style={{
                               display: "block",
-                              width: "100%",
-                              height: "100%",
-                              minWidth: "100%",
-                              minHeight: "100%",
                               borderRadius: "50%",
                               objectFit: "cover",
                               objectPosition: "center",

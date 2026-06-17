@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import GroupServiceModals from "./components/GroupServiceModals";
 import GroupImageCropModal from "./components/GroupImageCropModal";
 import OwnerAdminServices from "./components/owner-admin-panel/OwnerAdminServices";
@@ -93,7 +94,6 @@ import {
   labelStyle,
   primaryButton,
   secondaryButton,
-  tinyGhostButton,
   coverDonationButton,
   inputStyle,
   messageBox,
@@ -102,18 +102,6 @@ import {
   serviceToastStyle,
 } from "@/lib/groups/groupPageStyles";
 
-type JoinRequestStatus = "pending" | "approved" | "rejected" | string;
-type MemberStatus =
-  | "active"
-  | "subscribed"
-  | "muted"
-  | "banned"
-  | "removed"
-  | "kicked"
-  | "expelled"
-  | null;
-
-type MemberRole = "owner" | "mod" | "member" | null;
 type PostingMode = "members" | "owner_only";
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 type DonationMode = "none" | "general" | "wedding";
@@ -121,12 +109,6 @@ type DonationSourceScope = "group" | "profile";
 type Visibility = "public" | "private" | "hidden";
 type LegacyServiceVisibility = "hidden" | "members" | "public";
 type LegacyServiceSourceScope = "group" | "profile" | "both";
-type MembershipAccessType =
-  | "standard"
-  | "subscription"
-  | "legacy_free"
-  | "unknown";
-
 type LocalCreatorServiceType = CreatorServiceType;
 type LocalServiceMeta = CreatorServiceMeta | null;
 
@@ -246,7 +228,6 @@ export default function GroupPage() {
     memberRole,
     membershipAccessType,
     membershipRequiresSubscription,
-    membershipSubscriptionActive,
     membershipLegacyComplimentary,
     membershipTransitionPendingAction,
     membershipTransitionReason,
@@ -482,7 +463,7 @@ const canRequestMeetGreet =
   }, [meetGreetOffering, subscriptionCurrency]);
 
   const meetGreetDurationMinutes = useMemo(() => {
-  const meta = meetGreetOffering?.meta as Record<string, any> | null;
+  const meta = meetGreetOffering?.meta as Record<string, Record<string, unknown>> | null;
   const meetGreetMeta = meta?.meetGreet ?? null;
 
   if (
@@ -527,7 +508,7 @@ const canRequestMeetGreet =
   }, [exclusiveSessionOffering, subscriptionCurrency]);
 
   const exclusiveSessionDurationMinutes = useMemo(() => {
-    const meta = exclusiveSessionOffering?.meta as Record<string, any> | null;
+    const meta = exclusiveSessionOffering?.meta as Record<string, Record<string, unknown>> | null;
     const customClassMeta = meta?.customClass ?? null;
 
     if (
@@ -548,13 +529,6 @@ const canRequestMeetGreet =
         membershipTransitionReason === "subscription_transition")
     );
   }, [membershipTransitionPendingAction, membershipTransitionReason]);
-
-  const requiresSubscriptionFromMembership = useMemo(() => {
-    return (
-      membershipRequiresSubscription ||
-      membershipAccessType === "subscription"
-    );
-  }, [membershipRequiresSubscription, membershipAccessType]);
 
   const shouldShowSubscriptionRecovery =
     !groupIsPausedForAccess &&
@@ -694,9 +668,9 @@ function redirectToLogin() {
           current === successMessage ? null : current
         );
       }, 4000);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setSubscriptionError(
-        e?.message ??
+        (e instanceof Error ? e.message : null) ??
           "No se pudo completar la suscripción. El flujo backend se conecta en el siguiente bloque."
       );
     } finally {
@@ -720,8 +694,8 @@ function redirectToLogin() {
 
     try {
       await joinGroup(groupId, user.uid);
-    } catch (e: any) {
-      setActionError(e?.message ?? "No se pudo unir");
+    } catch (e: unknown) {
+      setActionError((e instanceof Error ? e.message : null) ?? "No se pudo unir");
     } finally {
       setJoining(false);
     }
@@ -745,13 +719,14 @@ function redirectToLogin() {
 
     try {
       await requestToJoin(groupId, user.uid);
-    } catch (e: any) {
-      if (e?.message === "GROUP_REQUIRES_SUBSCRIPTION") {
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : null;
+      if (errMsg === "GROUP_REQUIRES_SUBSCRIPTION") {
         openSubscriptionModal();
         return;
       }
 
-      setActionError(e?.message ?? "No se pudo enviar la solicitud");
+      setActionError(errMsg ?? "No se pudo enviar la solicitud");
     } finally {
       setJoining(false);
     }
@@ -768,8 +743,8 @@ function redirectToLogin() {
 
     try {
       await cancelJoinRequest(groupId, user.uid);
-    } catch (e: any) {
-      setActionError(e?.message ?? "No se pudo cancelar la solicitud");
+    } catch (e: unknown) {
+      setActionError((e instanceof Error ? e.message : null) ?? "No se pudo cancelar la solicitud");
     } finally {
       setJoining(false);
     }
@@ -851,8 +826,8 @@ function redirectToLogin() {
           current === successMessage ? null : current
         );
       }, 4000);
-    } catch (e: any) {
-      setGreetError(e?.message ?? "No se pudo enviar la solicitud.");
+    } catch (e: unknown) {
+      setGreetError((e instanceof Error ? e.message : null) ?? "No se pudo enviar la solicitud.");
     } finally {
       setGreetSubmitting(false);
     }
@@ -917,9 +892,9 @@ function redirectToLogin() {
           current === successMessage ? null : current
         );
       }, 4000);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setMeetGreetError(
-        e?.message ?? "No se pudo crear la solicitud de meet & greet."
+        (e instanceof Error ? e.message : null) ?? "No se pudo crear la solicitud de meet & greet."
       );
     } finally {
       setMeetGreetSubmitting(false);
@@ -992,9 +967,9 @@ function redirectToLogin() {
           current === successMessage ? null : current
         );
       }, 4000);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setExclusiveSessionError(
-        e?.message ?? "No se pudo crear la solicitud de sesión exclusiva."
+        (e instanceof Error ? e.message : null) ?? "No se pudo crear la solicitud de sesión exclusiva."
       );
     } finally {
       setExclusiveSessionSubmitting(false);
@@ -1135,8 +1110,8 @@ const openCropWithFile = useCallback(
       setZoom(1);
       setCroppedAreaPixels(null);
       setCropOpen(true);
-    } catch (e: any) {
-      setActionError(e?.message ?? "❌ No se pudo leer la imagen.");
+    } catch (e: unknown) {
+      setActionError((e instanceof Error ? e.message : null) ?? "❌ No se pudo leer la imagen.");
     }
   },
   [isOwner]
@@ -1200,11 +1175,12 @@ const openCropWithFile = useCallback(
       setCroppedAreaPixels(null);
       setCrop({ x: 0, y: 0 });
       setZoom(1);
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const err = e as { code?: string; message?: string } | null;
       setActionError(
-        e?.code === "permission-denied"
+        err?.code === "permission-denied"
           ? "❌ Permiso denegado. Revisa reglas de Storage/Firestore."
-          : `❌ No se pudo subir la imagen: ${e?.message ?? "error"}`
+          : `❌ No se pudo subir la imagen: ${err?.message ?? "error"}`
       );
     } finally {
       setUploading(false);
@@ -1404,19 +1380,17 @@ const avatarNode = (
           margin: 0,
           cursor: !isOwner || uploading ? "default" : "pointer",
           pointerEvents: isOwner ? "auto" : "none",
+          position: "relative",
         }}
         aria-label="Avatar de la comunidad"
         title={isOwner ? "Cambiar avatar de la comunidad" : undefined}
       >
         {group.avatarUrl ? (
-          <img
+          <Image
             src={group.avatarUrl}
             alt="avatar"
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-            }}
+            fill
+            style={{ objectFit: "cover" }}
           />
         ) : (
           <span
@@ -1607,15 +1581,11 @@ const avatarNode = (
     background: "#0b0b0b",
   }}
 >
-                <img
+                <Image
                   src={coverBg}
                   alt="Cover"
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    opacity: 0.96,
-                  }}
+                  fill
+                  style={{ objectFit: "cover", opacity: 0.96 }}
                 />
 
                 <div style={groupCoverGradientStyle} />
@@ -2197,15 +2167,11 @@ const avatarNode = (
     background: "#0b0b0b",
   }}
 >
-              <img
+              <Image
                 src={coverBg}
                 alt="cover"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  opacity: 0.96,
-                }}
+                fill
+                style={{ objectFit: "cover", opacity: 0.96 }}
               />
 
 <div style={groupCoverAuraStyle} />

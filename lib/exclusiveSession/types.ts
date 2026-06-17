@@ -1,3 +1,5 @@
+import type { LiveKitSessionFields } from "@/types/livekit";
+
 export const EXCLUSIVE_SESSION_MAX_RESCHEDULE_REQUESTS = 2;
 export const EXCLUSIVE_SESSION_PREPARE_WINDOW_MINUTES = 10;
 
@@ -33,7 +35,7 @@ export type ExclusiveSessionRescheduleHistoryItem = {
   countAfterRequest: number;
 };
 
-export type ExclusiveSessionRequestRecord = {
+export type ExclusiveSessionRequestRecord = LiveKitSessionFields & {
   id: string;
   type: "digital_exclusive_session";
   flowVersion: number;

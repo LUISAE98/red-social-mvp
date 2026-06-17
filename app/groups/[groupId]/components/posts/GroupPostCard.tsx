@@ -2,15 +2,14 @@
 
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
   type CSSProperties,
-  type TextareaHTMLAttributes,
 } from "react";
 import { createPortal } from "react-dom";
 import type { Comment, CommentReply, Post, PostLiveData } from "@/lib/posts/types";
@@ -27,6 +26,7 @@ import GroupPostComposer, { type GroupPostComposerSubmitPayload } from "./GroupP
 import PostImageViewer from "./PostImageViewer";
 import PostPaymentPanel from "./PostPaymentPanel";
 import { usePostTempUnlock } from "@/lib/posts/usePostTempUnlock";
+import { checkLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { fetchPostFlameUsers, updatePost } from "@/lib/posts/post-service";
 import { uploadPostImage } from "@/lib/posts/image-upload";
 import PostShareButton from "@/components/ui/PostShareButton";
@@ -55,7 +55,7 @@ type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 type GroupPostCardProps = {
   post: Post & {
     authorMemberStatus?: "active" | "muted" | "banned" | "removed" | null;
-    authorMutedUntil?: any;
+    authorMutedUntil?: unknown;
     forcedGroupId?: string | null;
   };
   groupId?: string | null;
@@ -241,35 +241,6 @@ function formatMediaDuration(seconds?: number | null): string | null {
   return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
 }
 
-function getPostTypeLabel(post: Post): string | null {
-  if (post.postType === "video") return "Video";
-  if (post.postType === "live") return "Live";
-  if (post.postType === "scheduled_event") return "Evento";
-  return null;
-}
-
-function getPostStatusLabel(post: Post): string | null {
-  if (post.processing?.status === "uploading") return "Subiendo";
-  if (post.processing?.status === "processing") return "Procesando";
-  if (post.processing?.status === "ready") return "Listo";
-  if (post.processing?.status === "error") return "Error";
-
-  if (post.liveData?.status === "scheduled") return "Programado";
-  if (post.liveData?.status === "upcoming") return "Próximo";
-  if (post.liveData?.status === "live") return "En vivo";
-  if (post.liveData?.status === "ended") return "Finalizado";
-
-  if (post.videoData?.status === "processing") return "Procesando";
-  if (post.videoData?.status === "ready") return "Disponible";
-  if (post.videoData?.status === "error") return "Error";
-
-  if (post.scheduledData?.status === "scheduled") return "Programado";
-  if (post.scheduledData?.status === "completed") return "Completado";
-  if (post.scheduledData?.status === "cancelled") return "Cancelado";
-
-  return null;
-}
-
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   if (parts.length === 0) return "U";
@@ -379,7 +350,7 @@ function getCommunityVisibilityLabel(visibility: string | null) {
   }
 }
 
-function resolveEffectiveMemberStatus(rawStatus: unknown, mutedUntil: any) {
+function resolveEffectiveMemberStatus(rawStatus: unknown, mutedUntil: unknown) {
   const status =
     typeof rawStatus === "string" ? rawStatus.trim().toLowerCase() : "";
 
@@ -389,8 +360,8 @@ function resolveEffectiveMemberStatus(rawStatus: unknown, mutedUntil: any) {
   }
 
   if (status === "muted") {
-    if (mutedUntil?.toDate instanceof Function) {
-      const until = mutedUntil.toDate();
+    if (mutedUntil !== null && mutedUntil !== undefined && typeof (mutedUntil as { toDate?: unknown }).toDate === "function") {
+      const until = (mutedUntil as { toDate: () => unknown }).toDate();
       if (until instanceof Date && until.getTime() <= Date.now()) {
         return "active";
       }
@@ -515,54 +486,135 @@ function PremiumPostPanel({
   );
 }
 
-function AutoGrowTextarea({
-  value,
-  maxRows = 3,
-  style,
-  ...props
-}: Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "style"> & {
-  maxRows?: number;
-  style?: CSSProperties;
+function LiveTicketPanel({
+  ticketPrice,
+  currency,
+  isAuthor,
+  onBuyTicket,
+  overlay = false,
+  highlighted = false,
+  paid = false,
+  memberFree = false,
+}: {
+  ticketPrice: number | null;
+  currency: string | null;
+  isAuthor: boolean;
+  onBuyTicket: () => void;
+  overlay?: boolean;
+  highlighted?: boolean;
+  paid?: boolean;
+  memberFree?: boolean;
 }) {
-  const ref = useRef<HTMLTextAreaElement | null>(null);
+  const priceLabel = ticketPrice
+    ? `$${ticketPrice} ${currency ?? "MXN"}`
+    : "Precio por definir";
 
-  const resize = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    el.style.height = "0px";
-
-    const computed = window.getComputedStyle(el);
-    const lineHeight = Number.parseFloat(computed.lineHeight || "20") || 20;
-    const borderTop = Number.parseFloat(computed.borderTopWidth || "0") || 0;
-    const borderBottom = Number.parseFloat(computed.borderBottomWidth || "0") || 0;
-    const paddingTop = Number.parseFloat(computed.paddingTop || "0") || 0;
-    const paddingBottom = Number.parseFloat(computed.paddingBottom || "0") || 0;
-
-    const maxHeight =
-      lineHeight * maxRows + paddingTop + paddingBottom + borderTop + borderBottom;
-
-    const nextHeight = Math.min(el.scrollHeight, maxHeight);
-    el.style.height = `${nextHeight}px`;
-    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
-  }, [maxRows]);
-
-  useEffect(() => {
-    resize();
-  }, [value, resize]);
+  const isPaid = paid && !isAuthor;
+  const isMemberFree = memberFree && !isAuthor;
+  const borderColor = isPaid
+    ? "rgba(239,68,68,0.45)"
+    : "rgba(168,85,255,0.32)";
+  const bgColor = isPaid
+    ? "rgba(20,5,5,0.88)"
+    : "rgba(10,5,25,0.82)";
+  const iconStroke = isPaid ? "#fca5a5" : "#a855ff";
+  const titleColor = isPaid ? "#fca5a5" : "#d8b4fe";
 
   return (
-    <textarea
-      {...props}
-      ref={ref}
-      value={value}
-      rows={1}
-      onInput={(event) => {
-        resize();
-        props.onInput?.(event);
+    <div
+      style={overlay ? {
+        position: "absolute",
+        bottom: 10,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 4,
+        width: "calc(100% - 24px)",
+        border: `1px solid ${borderColor}`,
+        borderRadius: 12,
+        background: bgColor,
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        padding: "10px 12px",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        fontFamily: fontStack,
+        animation: highlighted ? "liveTicketPop 0.6s ease" : undefined,
+        transformOrigin: "bottom center",
+      } : {
+        marginTop: 10,
+        border: `1px solid ${borderColor}`,
+        borderRadius: 12,
+        background:
+          "linear-gradient(160deg, rgba(79,70,255,0.26), rgba(168,85,255,0.22) 55%, rgba(139,92,246,0.18))",
+        padding: "10px 12px",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        fontFamily: fontStack,
       }}
-      style={style}
-    />
+    >
+      <span style={{ flexShrink: 0, marginLeft: overlay ? 0 : 4 }}>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke={iconStroke} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M15 5v2" />
+          <path d="M15 11v2" />
+          <path d="M15 17v2" />
+          <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z" />
+        </svg>
+      </span>
+
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: titleColor, lineHeight: 1.3, fontFamily: fontStack }}>
+          {isAuthor
+            ? "Live con ticket de entrada"
+            : isPaid ? "Ticket pagado"
+            : isMemberFree ? "Acceso incluido por membresía"
+            : "Ticket requerido"}
+        </div>
+        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", lineHeight: 1.4, marginTop: 2, fontFamily: fontStack }}>
+          {isAuthor
+            ? `Precio del ticket: ${priceLabel}`
+            : isPaid
+              ? "Ya tienes acceso a este live"
+              : isMemberFree
+                ? "Este live es gratuito para ti como miembro"
+                : `Compra tu ticket para acceder — ${priceLabel}`}
+        </div>
+      </div>
+
+      {!isAuthor && !isPaid && !isMemberFree && (
+        <button
+          type="button"
+          onClick={onBuyTicket}
+          style={{
+            height: 30,
+            padding: "0 10px",
+            border: "none",
+            borderRadius: 6,
+            background: "linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3)",
+            color: "#fff",
+            fontSize: 11,
+            fontWeight: 600,
+            fontFamily: fontStack,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+            marginRight: 4,
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 5v2" />
+            <path d="M15 11v2" />
+            <path d="M15 17v2" />
+            <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z" />
+          </svg>
+          Comprar ticket
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -577,12 +629,11 @@ function Avatar({
 }) {
   if (avatarUrl) {
     return (
-      <img
+      <Image
         src={avatarUrl}
         alt={name}
+        width={size} height={size}
         style={{
-          width: size,
-          height: size,
           borderRadius: "50%",
           objectFit: "cover",
           display: "block",
@@ -693,7 +744,7 @@ onToggleProfilePin,
   const [loadingFlameUsers, setLoadingFlameUsers] = useState(false);
   const [flameUsersError, setFlameUsersError] = useState<string | null>(null);
   const [failedMediaUrls, setFailedMediaUrls] = useState<Record<string, boolean>>({});
-  const [loadedMediaUrls, setLoadedMediaUrls] = useState<Record<string, boolean>>({});
+  const [, setLoadedMediaUrls] = useState<Record<string, boolean>>({});
   const [mediaAspectRatios, setMediaAspectRatios] = useState<Record<string, number>>({});
   const [videoAspectRatio, setVideoAspectRatio] = useState<number | null>(null);
   const [videoMetadataLoaded, setVideoMetadataLoaded] = useState(false);
@@ -705,8 +756,32 @@ onToggleProfilePin,
   const [liveSetupOpen, setLiveSetupOpen] = useState(false);
   const [liveViewerOpen, setLiveViewerOpen] = useState(false);
   const [liveCreatorOpen, setLiveCreatorOpen] = useState(false);
+  const [liveTicketShake, setLiveTicketShake] = useState(false);
+  const [hasLiveTicketAccess, setHasLiveTicketAccess] = useState(false);
+
+  useEffect(() => {
+    if (!post.requiresPayment || !currentUserId) return;
+    checkLiveAccess(post.id, currentUserId)
+      .then(setHasLiveTicketAccess)
+      .catch(() => {});
+  }, [post.id, post.requiresPayment, currentUserId, liveViewerOpen]);
+
   const [isLivePortrait, setIsLivePortrait] = useState(false);
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
+
+  // Auto-abrir el live cuando inicia si el viewer ya tiene acceso (ticket pagado o miembro con acceso gratis)
+  const prevIsLiveActiveRef = useRef(false);
+  useEffect(() => {
+    const nowActive = post.postType === "live" && (localLiveData ?? post.liveData)?.status === "live";
+    const wasActive = prevIsLiveActiveRef.current;
+    prevIsLiveActiveRef.current = nowActive;
+    if (!nowActive || wasActive || !post.requiresPayment || isOwnPost || isOwner) return;
+    const mode = (localLiveData ?? post.liveData)?.paidAccessMode ?? "everyone_pays";
+    const isMemberFree = mode === "members_free_non_members_pay" && viewerIsMember;
+    if (hasLiveTicketAccess || isMemberFree) {
+      setLiveViewerOpen(true);
+    }
+  }, [localLiveData?.status, hasLiveTicketAccess]);
   const [localText, setLocalText] = useState<string | null>(null);
   const [localMedia, setLocalMedia] = useState<import("@/lib/posts/types").PostMedia[] | null>(null);
   const { isTempUnlocked, unlock: applyTempUnlock } = usePostTempUnlock(post.id, currentUserId);
@@ -901,8 +976,8 @@ useEffect(() => {
 
   const effectiveAuthorStatus = useMemo(() => {
     return resolveEffectiveMemberStatus(
-      (post as any)?.authorMemberStatus ?? (post as any)?.memberStatus ?? null,
-      (post as any)?.authorMutedUntil ?? null
+      post.authorMemberStatus ?? null,
+      post.authorMutedUntil ?? null
     );
   }, [post]);
 
@@ -1103,8 +1178,8 @@ useEffect(() => {
 
     flameUsersCacheRef.current[post.id] = users;
     setFlameUsers(users);
-  } catch (e: any) {
-    setFlameUsersError(e?.message ?? "No se pudieron cargar las flamitas.");
+  } catch (e: unknown) {
+    setFlameUsersError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las flamitas.");
   } finally {
     setLoadingFlameUsers(false);
   }
@@ -1136,10 +1211,10 @@ function handleToggleFlame() {
       await onToggleFlame(post.id);
       delete flameUsersCacheRef.current[post.id];
       flameServerStateRef.current = desired!;
-    } catch (e: any) {
+    } catch (e: unknown) {
       setOptimisticViewerHasFlamed(flameServerStateRef.current);
       setOptimisticLikesCount(post.counts?.likes ?? 0);
-      setInlineActionError(e?.message ?? "No se pudo actualizar la flamita.");
+      setInlineActionError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
     } finally {
       setFlameBusy(false);
     }
@@ -1171,10 +1246,10 @@ function handleToggleSave() {
     try {
       await onToggleSave(post.id);
       saveServerStateRef.current = desired!;
-    } catch (e: any) {
+    } catch (e: unknown) {
       setOptimisticViewerHasSaved(saveServerStateRef.current);
       setOptimisticSavesCount(post.counts?.saves ?? 0);
-      setInlineActionError(e?.message ?? "No se pudo actualizar el guardado.");
+      setInlineActionError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el guardado.");
     } finally {
       setSaveBusy(false);
     }
@@ -1194,8 +1269,8 @@ function handleToggleSave() {
 
     const nextComments = await onLoadComments(post.id);
     setComments(nextComments);
-  } catch (e: any) {
-    const rawMsg: string = e?.message ?? "";
+  } catch (e: unknown) {
+    const rawMsg: string = (e instanceof Error ? e.message : null) ?? "";
     if (rawMsg.toLowerCase().includes("permission")) {
       setInlineActionError(
         !currentUserId
@@ -1241,8 +1316,8 @@ function handleToggleSave() {
       const nextComments = await onCreateComment(post.id, commentText.trim());
       setComments(nextComments);
       setCommentText("");
-    } catch (e: any) {
-      const message = e?.message ?? "No se pudo comentar.";
+    } catch (e: unknown) {
+      const message = (e instanceof Error ? e.message : null) ?? "No se pudo comentar.";
       setInlineActionError(message);
     } finally {
       setCreatingComment(false);
@@ -1263,9 +1338,9 @@ function handleToggleSave() {
       setInlineActionError(null);
       await handler(post.id);
       setMenuOpen(false);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setInlineActionError(
-        e?.message ??
+        (e instanceof Error ? e.message : null) ??
           (scope === "group"
             ? "No se pudo actualizar el fijado del grupo."
             : "No se pudo actualizar el fijado del perfil.")
@@ -1344,8 +1419,8 @@ function handleToggleSave() {
       setInlineActionError(null);
       setMenuOpen(false);
       await blockPostAuthor();
-    } catch (e: any) {
-      setInlineActionError(e?.message ?? "No se pudo bloquear este usuario.");
+    } catch (e: unknown) {
+      setInlineActionError((e instanceof Error ? e.message : null) ?? "No se pudo bloquear este usuario.");
     }
   }
 
@@ -1356,8 +1431,8 @@ function handleToggleSave() {
       setInlineActionError(null);
       setMenuOpen(false);
       await unblockPostAuthor();
-    } catch (e: any) {
-      setInlineActionError(e?.message ?? "No se pudo desbloquear este usuario.");
+    } catch (e: unknown) {
+      setInlineActionError((e instanceof Error ? e.message : null) ?? "No se pudo desbloquear este usuario.");
     }
   }
 
@@ -1376,9 +1451,9 @@ function handleToggleSave() {
       setComments(null);
       await blockPostAuthorInGroup();
       await onGroupMemberBlockComplete?.();
-    } catch (e: any) {
+    } catch (e: unknown) {
       setInlineActionError(
-        e?.message ?? "No se pudo bloquear este usuario en este grupo."
+        (e instanceof Error ? e.message : null) ?? "No se pudo bloquear este usuario en este grupo."
       );
     }
   }
@@ -1392,9 +1467,9 @@ function handleToggleSave() {
       setComments(null);
       await unblockPostAuthorInGroup();
       await onGroupMemberBlockComplete?.();
-    } catch (e: any) {
+    } catch (e: unknown) {
       setInlineActionError(
-        e?.message ?? "No se pudo desbloquear este usuario en este grupo."
+        (e instanceof Error ? e.message : null) ?? "No se pudo desbloquear este usuario en este grupo."
       );
     }
   }
@@ -1646,20 +1721,6 @@ const menuButtonStyle: CSSProperties = {
   WebkitTapHighlightColor: "transparent",
 };
 
-  const menuPanelStyle: CSSProperties = {
-    position: "fixed",
-    minWidth: isMobile ? 180 : 200,
-    borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(12,12,12,0.96)",
-    boxShadow: "0 14px 34px rgba(0,0,0,0.34)",
-    backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
-    padding: 6,
-    zIndex: 99999,
-    display: "grid",
-    gap: 4,
-  };
-
   const menuItemStyle: CSSProperties = {
     width: "100%",
     minHeight: 34,
@@ -1674,44 +1735,6 @@ const menuButtonStyle: CSSProperties = {
     fontFamily: fontStack,
     textAlign: "center",
     cursor: "pointer",
-  };
-
-  const dangerMenuItemStyle: CSSProperties = {
-    ...menuItemStyle,
-    color: "#ff8a8a",
-  };
-
-  const inputStyle: CSSProperties = {
-    width: "100%",
-    minHeight: 38,
-    maxHeight: 90,
-    padding: "0",
-    border: "none",
-    borderBottom: "1px solid rgba(255,255,255,0.07)",
-    background: "transparent",
-    color: "#fff",
-    outline: "none",
-    resize: "none",
-    overflowY: "hidden",
-    fontSize: 13,
-    fontWeight: 300,
-    lineHeight: "20px",
-    fontFamily: fontStack,
-    boxSizing: "border-box",
-    WebkitAppearance: "none",
-  };
-
-  const disabledTextareaStyle: CSSProperties = {
-    ...inputStyle,
-    color: "rgba(255,255,255,0.46)",
-    cursor: "not-allowed",
-  };
-
-  const blockedHintStyle: CSSProperties = {
-    marginTop: 2,
-    fontSize: 11.5,
-    lineHeight: 1.45,
-    color: "rgba(255,255,255,0.58)",
   };
 
   const modalBackdropStyle: CSSProperties = {
@@ -1762,17 +1785,6 @@ const menuButtonStyle: CSSProperties = {
     fontSize: 13,
     fontFamily: fontStack,
     boxSizing: "border-box",
-  };
-
-  const inlineErrorStyle: CSSProperties = {
-    marginTop: 8,
-    borderRadius: 10,
-    border: "1px solid rgba(255,90,90,0.24)",
-    background: "rgba(120,18,18,0.28)",
-    color: "#ffdada",
-    padding: "10px 12px",
-    fontSize: 12,
-    lineHeight: 1.4,
   };
 
 const flameButtonStyle: CSSProperties = {
@@ -1827,29 +1839,6 @@ const flameIconStyle: CSSProperties = {
     WebkitTapHighlightColor: "transparent",
   };
 
-  const mediaStatusStyle: CSSProperties = {
-    marginTop: 10,
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    flexWrap: "wrap",
-  };
-
-  const mediaBadgeStyle: CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    minHeight: 22,
-    padding: "3px 8px",
-    borderRadius: 999,
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.045)",
-    color: "rgba(255,255,255,0.82)",
-    fontSize: 10.5,
-    fontWeight: 600,
-    lineHeight: 1,
-    letterSpacing: "-0.01em",
-  };
-
 const imageGridStyle: CSSProperties = {
   marginTop: 12,
   display: "grid",
@@ -1860,31 +1849,6 @@ const imageGridStyle: CSSProperties = {
   marginRight: 0,
 };
 
-function getImageWrapStyle(mediaUrl: string): CSSProperties {
-  const ratio = mediaAspectRatios[mediaUrl];
-
-  return {
-    position: "relative",
-    width: "100%",
-    maxWidth: "100%",
-    aspectRatio: getResponsiveMediaAspectRatio(ratio),
-    borderRadius: isMobile ? 0 : 12,
-    overflow: "hidden",
-    border: "none",
-    background: "#000",
-  };
-}
-
-const postImageStyle: CSSProperties = {
-  position: "absolute",
-  inset: 0,
-  zIndex: 1,
-  display: "block",
-  width: "100%",
-  height: "100%",
-  objectFit: "cover",
-  transition: "opacity 180ms ease",
-};
 const videoSkeletonAspectRatio =
   typeof videoAspectRatio === "number"
     ? videoAspectRatio >= 1
@@ -1937,7 +1901,7 @@ function shouldUseNarrowVerticalFrame(ratio?: number | null): boolean {
   return typeof ratio === "number" && Number.isFinite(ratio) && ratio <= 0.82;
 }
 
-function getContainedMediaScale(ratio?: number | null): number {
+function getContainedMediaScale(): number {
   return 1;
 }
 
@@ -1986,12 +1950,13 @@ function renderBlurredMediaBackdrop(
   }
 
   return (
-    <img
+    <Image
       src={sourceUrl}
       alt=""
       aria-hidden="true"
       draggable={false}
-      style={commonStyle}
+      fill
+      style={{ objectFit: "cover", filter: "blur(28px) saturate(1.08)", transform: "scale(1.14)", opacity: 0.34, pointerEvents: "none", zIndex: 0 }}
     />
   );
 }
@@ -2002,13 +1967,21 @@ function renderBlurredMediaBackdrop(
   const activeLiveData = localLiveData ?? post.liveData;
 
   const isLiveActive = post.postType === "live" && activeLiveData?.status === "live";
-  const liveName =
-    activeLiveData?.createdFrom === "group"
-      ? (groupInfo.groupName ?? postAuthor.authorName)
-      : postAuthor.authorName;
-
+  const livePaidAccessMode = activeLiveData?.paidAccessMode ?? "everyone_pays";
+  // Miembros con acceso gratis: mode members_free_non_members_pay y el viewer es miembro (o dueño)
+  const memberHasFreeAccess =
+    post.requiresPayment === true &&
+    livePaidAccessMode === "members_free_non_members_pay" &&
+    (viewerIsMember || isOwner) &&
+    !isOwnPost;
+  const isLiveBlockedByTicket =
+    isLiveActive &&
+    post.requiresPayment === true &&
+    !(isOwnPost || isOwner) &&
+    !hasLiveTicketAccess &&
+    !memberHasFreeAccess;
+  const isLivePlayer = isLiveActive && !isLiveBlockedByTicket;
   const liveVisibilityMode = activeLiveData?.visibilityMode ?? null;
-  const liveAllowLoggedOut = activeLiveData?.allowLoggedOutViewers ?? true;
 
   const liveVisibilityBadge: { label: string; icon: "lock" | "globe" | "user" } | null =
     liveVisibilityMode === "members_only"
@@ -2051,9 +2024,6 @@ function renderBlurredMediaBackdrop(
       ? buildCommentBlockedMessage(commentBlockedReason)
       : null;
 
-  const postTypeLabel = getPostTypeLabel(post);
-  const postStatusLabel = getPostStatusLabel(post);
-  const shouldShowMediaStatus = !!postTypeLabel || !!postStatusLabel;
   const mediaFromPost = Array.isArray(localMedia ?? post.media)
     ? (localMedia ?? post.media ?? [])
     : [];
@@ -2360,14 +2330,11 @@ const rootVideoShellAspectRatio =
       ? "9 / 16"
       : getResponsiveMediaAspectRatio(videoOrientationRatio);
   const isVideoPost =
-    post.postType === "video" || post.videoData != null || mediaVideoItems.length > 0;
+    post.postType !== "live" &&
+    (post.postType === "video" || post.videoData != null || mediaVideoItems.length > 0);
 
   const hasReadyMediaVideos = mediaVideoItems.some(
     (item) => item.status === "ready" || Boolean(item.hlsUrl)
-  );
-
-  const hasProcessingMediaVideos = mediaVideoItems.some(
-    (item) => item.status === "uploading" || item.status === "processing"
   );
 
   const hasErrorMediaVideos = mediaVideoItems.some((item) => item.status === "error");
@@ -2381,13 +2348,6 @@ const rootVideoShellAspectRatio =
       post.videoData?.status === "ready" ||
       post.playback?.isReady === true
     );
-
-  const isVideoProcessing =
-    isVideoPost &&
-    !isVideoReady &&
-    !hasErrorMediaVideos &&
-    (hasProcessingMediaVideos ||
-      (post.processing?.status !== "error" && post.videoData?.status !== "error"));
 
   const isVideoError =
     isVideoPost &&
@@ -2781,10 +2741,10 @@ style={{
 
 {post.postType === "live" && (
   // Portrait solo aplica cuando el live está activo/reproduciéndose
-  <div style={(isLiveActive && isLivePortrait) ? { display: "flex", justifyContent: "center", marginTop: 10 } : { marginTop: 10 }}>
+  <div style={(isLivePlayer && isLivePortrait) ? { display: "flex", justifyContent: "center", marginTop: 10 } : { marginTop: 10 }}>
     <div
       style={{
-        width: (isLiveActive && isLivePortrait) ? "min(280px, 100%)" : "100%",
+        width: (isLivePlayer && isLivePortrait) ? "min(280px, 100%)" : "100%",
         borderRadius: 14,
         position: "relative",
         overflow: "hidden",
@@ -2799,7 +2759,7 @@ style={{
       <div
         style={{
           position: "absolute",
-          ...(isLiveActive
+          ...(isLivePlayer
             ? { bottom: 0, left: "50%", transform: "translateX(-50%)", borderTopLeftRadius: 8, borderTopRightRadius: 8 }
             : { top: 0, right: 10, borderBottomLeftRadius: 6, borderBottomRightRadius: 6 }),
           display: "inline-flex",
@@ -2808,8 +2768,8 @@ style={{
           background: isLiveActive
             ? "#ef4444"
             : "linear-gradient(180deg, #a855f7 0%, #d946b8 100%)",
-          padding: isLiveActive ? "5px 12px 5px 9px" : "3px 8px 3px 6px",
-          fontSize: isLiveActive ? 11 : 8.5,
+          padding: isLivePlayer ? "5px 12px 5px 9px" : "3px 8px 3px 6px",
+          fontSize: isLivePlayer ? 11 : 8.5,
           fontWeight: 700,
           letterSpacing: "0.06em",
           color: "#fff",
@@ -2820,7 +2780,7 @@ style={{
         }}
       >
         <svg
-          width={isLiveActive ? 13 : 11} height={isLiveActive ? 13 : 11} viewBox="0 0 22 22" fill="none"
+          width={isLivePlayer ? 13 : 11} height={isLivePlayer ? 13 : 11} viewBox="0 0 22 22" fill="none"
           style={{ animation: isLiveActive ? "livePulseIcon 1.4s ease-in-out infinite" : undefined }}
         >
           <circle cx="11" cy="11" r="10" stroke="#fff" strokeWidth="1.4" fill="none" />
@@ -2830,7 +2790,7 @@ style={{
       </div>
 
       {/* Botón "Abrir centro de control" — overlay top-center, solo para el creador del live activo */}
-      {currentUserId === post.authorId && isLiveActive && (
+      {currentUserId === post.authorId && isLivePlayer && (
         <button
           type="button"
           onClick={() => setLiveCreatorOpen(true)}
@@ -2853,7 +2813,7 @@ style={{
       )}
 
       {/* Área de media — player activo, finalizado, o programado */}
-      {isLiveActive && activeLiveData?.playbackId ? (
+      {isLivePlayer && activeLiveData?.playbackId ? (
         <LiveInlinePlayer
           playbackId={activeLiveData.playbackId}
           title={activeLiveData.title}
@@ -2868,7 +2828,7 @@ style={{
           style={{
             position: "relative",
             width: "100%",
-            aspectRatio: "16 / 9",
+            aspectRatio: "16 / 7",
             background: "rgba(0,0,0,0.7)",
             overflow: "hidden",
             display: "flex",
@@ -2877,11 +2837,11 @@ style={{
           }}
         >
           {activeLiveData.coverUrl && (
-            <img
+            <Image
               src={activeLiveData.coverUrl}
               alt={activeLiveData.title ?? "Live finalizado"}
-              draggable={false}
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.2, filter: "grayscale(40%)" }}
+              fill
+              style={{ objectFit: "cover", opacity: 0.2, filter: "grayscale(40%)" }}
             />
           )}
           <div style={{
@@ -2910,42 +2870,81 @@ style={{
           }}
         >
           {activeLiveData?.coverUrl && (
-            <img
+            <Image
               src={activeLiveData.coverUrl}
               alt={activeLiveData.title ?? "Live programado"}
-              draggable={false}
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.45, filter: "grayscale(20%)" }}
+              fill
+              style={{ objectFit: "cover", opacity: 0.45, filter: "grayscale(20%)" }}
             />
           )}
-          <svg
-            width="52" height="52" viewBox="0 0 22 22" fill="none"
-            style={{ flexShrink: 0, position: "relative", zIndex: 1, animation: "livePulseIcon 2s ease-in-out infinite" }}
-          >
-            <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
-            <circle cx="11" cy="11" r="6" fill="#ef4444" />
-          </svg>
+          {post.requiresPayment === true && !(isOwnPost || isOwner) && !hasLiveTicketAccess && !memberHasFreeAccess ? (
+            <svg
+              width="82" height="82" viewBox="0 0 24 24" aria-hidden="true"
+              onClick={() => {
+                if (liveTicketShake) return;
+                setLiveTicketShake(true);
+                setTimeout(() => setLiveTicketShake(false), 600);
+              }}
+              style={{
+                flexShrink: 0, position: "relative", zIndex: 1, cursor: "pointer",
+                animation: liveTicketShake
+                  ? "liveTicketShake 0.6s ease"
+                  : "livePulseIcon 2s ease-in-out infinite",
+              }}
+            >
+              <path d="M7.8 10.8V7.6Q7.8 3.4 12 3.4Q16.2 3.4 16.2 7.6V10.8H14.4V7.6Q14.4 5.4 12 5.4Q9.6 5.4 9.6 7.6V10.8H7.8Z" fill="rgba(255,255,255,0.65)" />
+              <path fillRule="evenodd" clipRule="evenodd" d="M6.6 10.2H17.4Q18.8 10.2 18.8 11.6V19Q18.8 20.4 17.4 20.4H6.6Q5.2 20.4 5.2 19V11.6Q5.2 10.2 6.6 10.2ZM12 14.1Q11.1 14.1 11.1 15Q11.1 15.9 12 15.9Q12.9 15.9 12.9 15Q12.9 14.1 12 14.1Z" fill="rgba(255,255,255,0.65)" />
+            </svg>
+          ) : (
+            <svg
+              width="52" height="52" viewBox="0 0 22 22" fill="none"
+              style={{ flexShrink: 0, position: "relative", zIndex: 1, animation: "livePulseIcon 2s ease-in-out infinite" }}
+            >
+              <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
+              <circle cx="11" cy="11" r="6" fill="#ef4444" />
+            </svg>
+          )}
           <div style={{
             position: "absolute", top: 10, left: 10,
             display: "inline-flex", alignItems: "center", gap: 6,
-            background: "rgba(10,5,20,0.82)", border: "1px solid rgba(168,85,255,0.35)",
+            background: isLiveBlockedByTicket ? "rgba(20,5,5,0.88)" : "rgba(10,5,20,0.82)",
+            border: isLiveBlockedByTicket ? "1px solid rgba(239,68,68,0.45)" : "1px solid rgba(168,85,255,0.35)",
             borderRadius: 999, padding: "4px 10px 4px 8px",
             fontFamily: fontStack, fontSize: 11, fontWeight: 700,
-            letterSpacing: "0.04em", color: "#d8b4fe", textTransform: "uppercase",
+            letterSpacing: "0.04em",
+            color: isLiveBlockedByTicket ? "#fca5a5" : "#d8b4fe",
+            textTransform: "uppercase",
             backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
             maxWidth: "calc(100% - 20px)",
           }}>
             <span style={{
-              width: 7, height: 7, borderRadius: "50%", background: "#a855f7",
-              flexShrink: 0, boxShadow: "0 0 0 2px rgba(168,85,255,0.3)",
+              width: 7, height: 7, borderRadius: "50%",
+              background: isLiveBlockedByTicket ? "#ef4444" : "#a855f7",
+              flexShrink: 0,
+              boxShadow: isLiveBlockedByTicket ? "0 0 0 2px rgba(239,68,68,0.3)" : "0 0 0 2px rgba(168,85,255,0.3)",
               animation: "livePulse 2s ease-in-out infinite",
             }} />
-            Esperando inicio
+            {isLiveBlockedByTicket ? "La transmisión ya inició" : "Esperando inicio"}
           </div>
+
+          {/* Ticket overlay — parte inferior de la portada */}
+          {post.requiresPayment === true && !liveAccessBlocked && (
+            <LiveTicketPanel
+              ticketPrice={post.oneTimePrice ?? activeLiveData?.ticketPrice ?? null}
+              currency={post.currency ?? activeLiveData?.currency ?? null}
+              isAuthor={isOwnPost || isOwner}
+              onBuyTicket={() => setLiveViewerOpen(true)}
+              overlay
+              highlighted={liveTicketShake}
+              paid={hasLiveTicketAccess}
+              memberFree={memberHasFreeAccess}
+            />
+          )}
         </div>
       )}
 
-    {/* Content area — hidden when live is active */}
-    {!isLiveActive && (<div style={{ padding: "12px 14px 14px" }}>
+    {/* Content area — hidden when live player is visible */}
+    {(!isLiveActive || isLiveBlockedByTicket) && (<div style={{ padding: "12px 14px 14px" }}>
       {/* Title */}
       {activeLiveData?.title && (
         <p
@@ -3086,6 +3085,34 @@ style={{
           </button>
         )}
 
+        {/* Botón Abrir panel de control — visible para el autor cuando el live está por iniciar */}
+        {isOwnPost && post.postType === "live" && activeLiveData?.status === "upcoming" && (
+          <button
+            type="button"
+            onClick={() => setLiveCreatorOpen(true)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "5px 12px",
+              borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.18)",
+              background: "rgba(255,255,255,0.06)",
+              color: "#fff",
+              fontSize: 11,
+              fontWeight: 600,
+              fontFamily: fontStack,
+              cursor: "pointer",
+              letterSpacing: "0.02em",
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
+            </svg>
+            Abrir panel de control
+          </button>
+        )}
+
         {liveAccessBlocked && (
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 5,
@@ -3118,8 +3145,60 @@ style={{
         0%, 100% { opacity: 1; }
         50% { opacity: 0.45; }
       }
+      @keyframes liveTicketShake {
+        0%   { transform: translateX(0); }
+        15%  { transform: translateX(-7px) rotate(-3deg); }
+        30%  { transform: translateX(7px) rotate(3deg); }
+        45%  { transform: translateX(-5px) rotate(-2deg); }
+        60%  { transform: translateX(5px) rotate(2deg); }
+        75%  { transform: translateX(-3px); }
+        90%  { transform: translateX(3px); }
+        100% { transform: translateX(0); }
+      }
+      @keyframes liveTicketPop {
+        0%   { transform: translateX(-50%) scale(1); }
+        30%  { transform: translateX(-50%) scale(1.04); }
+        60%  { transform: translateX(-50%) scale(1.02); }
+        100% { transform: translateX(-50%) scale(1); }
+      }
     `}</style>
     </div>
+
+    {/* Badge "Ticket pagado" — debajo del player cuando el live está activo y el viewer ya pagó */}
+    {isLivePlayer && post.requiresPayment === true && !(isOwnPost || isOwner) && hasLiveTicketAccess && (
+      <div style={{
+        marginTop: 8,
+        display: "flex",
+        alignItems: "center",
+        gap: 7,
+        padding: "7px 12px",
+        borderRadius: 10,
+        border: "1px solid rgba(239,68,68,0.35)",
+        background: "rgba(20,5,5,0.7)",
+        backdropFilter: "blur(8px)",
+        WebkitBackdropFilter: "blur(8px)",
+        fontFamily: fontStack,
+      }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fca5a5" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <path d="M15 5v2" /><path d="M15 11v2" /><path d="M15 17v2" />
+          <path d="M5 5h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7a2 2 0 0 1 2-2z" />
+        </svg>
+        <div>
+          <div style={{ fontSize: 11.5, fontWeight: 700, color: "#fca5a5", fontFamily: fontStack }}>
+            Ticket pagado
+          </div>
+          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.55)", fontFamily: fontStack, marginTop: 1 }}>
+            Ya puedes ver este live
+          </div>
+        </div>
+        <span style={{
+          marginLeft: "auto", width: 7, height: 7, borderRadius: "50%",
+          background: "#ef4444", flexShrink: 0,
+          boxShadow: "0 0 0 2px rgba(239,68,68,0.3)",
+          animation: "livePulse 2s ease-in-out infinite",
+        }} />
+      </div>
+    )}
   </div>
 )}
 
@@ -3156,17 +3235,13 @@ style={{
           )}
 
 {!shouldLoadFeedVideo && videoThumbnailUrl && (
-  <img
+  <Image
     src={videoThumbnailUrl}
     alt="Vista previa del video"
-    loading="lazy"
     draggable={false}
+    fill
     style={{
-      position: "relative",
       zIndex: 1,
-      display: "block",
-      width: "100%",
-      height: "100%",
       objectFit: isMobile ? "contain" : shouldContainRootVideo ? "contain" : "cover",
       background: shouldContainRootVideo ? "transparent" : "#050505",
     }}
@@ -3231,7 +3306,7 @@ style={{
       height: "100%",
       background: "transparent",
 objectFit: isMobile ? "contain" : shouldContainRootVideo ? "contain" : "cover",
-transform: `scale(${getContainedMediaScale(videoOrientationRatio)})`,
+transform: `scale(${getContainedMediaScale()})`,
 transformOrigin: "center center",
 cursor: isMobile ? "pointer" : "default",
     }}
@@ -3398,9 +3473,6 @@ const totalMedia = displayMedia.length;
 const activeMedia =
   displayMedia[Math.min(activeMediaIndex, totalMedia - 1)] ?? displayMedia[0];
 
-const activeMediaRatio = mediaAspectRatios[activeMedia.url];
-const useNarrowActiveFrame = shouldUseNarrowVerticalFrame(activeMediaRatio);
-
 const carouselShellAspectRatio = "16 / 10";
 
 function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
@@ -3508,19 +3580,11 @@ function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
             }}
           >
             {coverUrl && (
-              <img
+              <Image
                 src={coverUrl}
                 alt=""
-                draggable={false}
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  opacity: 0.78,
-                  filter: "saturate(0.92)",
-                }}
+                fill
+                style={{ objectFit: "cover", opacity: 0.78, filter: "saturate(0.92)" }}
               />
             )}
 
@@ -3604,8 +3668,7 @@ const tileImageStyle: CSSProperties = {
 function renderMediaContent(
   media: DisplayMediaItem,
   index: number,
-  loading: "eager" | "lazy" = "lazy",
-  forceMobileCover = false
+  loading: "eager" | "lazy" = "lazy"
 ) {
         if (media.isPlaceholder) {
           return renderVideoProcessingPlaceholder(media);
@@ -3670,7 +3733,7 @@ transformOrigin: "center center",
           <>
             {shouldContainTile && renderBlurredMediaBackdrop(feedMediaUrl, "image")}
 
-            <img
+            <Image
               src={feedMediaUrl}
               alt={
                 media.altText ||
@@ -3678,14 +3741,15 @@ transformOrigin: "center center",
                   ? `Video ${index + 1} de la publicación`
                   : `Imagen ${index + 1} de la publicación`)
               }
-              loading={loading}
               draggable={false}
+              fill
               style={{
-                ...tileImageStyle,
-objectFit: mediaObjectFit,
-background: shouldContainTile ? "transparent" : "#050505",
-transform: `scale(${mediaScale})`,
-transformOrigin: "center center",
+                zIndex: 1,
+                objectFit: mediaObjectFit,
+                background: shouldContainTile ? "transparent" : "#050505",
+                transform: `scale(${mediaScale})`,
+                transformOrigin: "center center",
+                touchAction: "pan-y",
               }}
               onLoad={(event) => {
                 const img = event.currentTarget;
@@ -3775,7 +3839,7 @@ style={{
             ...(premiumState.isBlocked ? { filter: "blur(10px)", opacity: 0.72 } : {}),
           }}
         >
-          {renderMediaContent(first, 0, "eager", true)}
+          {renderMediaContent(first, 0, "eager")}
         </button>
 
         {premiumState.isBlocked && first.type === "video" && (() => {
@@ -4160,6 +4224,7 @@ padding: "0 0 2px 0",
     onClose={() => setLiveSetupOpen(false)}
     postId={post.id}
     liveStreamId={activeLiveData?.liveStreamId}
+    broadcastMode={activeLiveData?.broadcastMode ?? null}
     onStreamCreated={(liveStreamId, playbackId) => {
       setLocalLiveData((prev) => ({
         ...(prev ?? post.liveData ?? {}),

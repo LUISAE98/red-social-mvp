@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   acceptMeetGreetRequest,
@@ -17,6 +18,7 @@ import {
   requestExclusiveSessionReschedule,
   setExclusiveSessionPreparing,
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
+import { type Timestamp } from "firebase/firestore";
 import type {
   GroupDocLite,
   GreetingRequestDoc,
@@ -66,9 +68,9 @@ type Props = {
   userMiniMap: Record<string, UserMini>;
   styles: Record<string, React.CSSProperties>;
   typeLabel: (t: string) => string;
-  fmtDate: (ts?: any) => string;
+  fmtDate: (ts?: Timestamp | null) => string;
   renderUserLink: (uid: string) => React.ReactNode;
-  router: any;
+  router: { push: (href: string) => void };
 };
 
 type BusyMap = Record<string, boolean>;
@@ -111,18 +113,6 @@ function getServiceEmoji(type: string): string {
   return "👑";
 }
 
-function getServiceName(type: string, typeLabel: (t: string) => string): string {
-  if (type === "meet_greet_digital") return "Meet & Greet";
-  if (
-    type === "digital_exclusive_session" ||
-    type === "exclusive_session" ||
-    type === "clase_personalizada"
-  ) {
-    return "Sesión exclusiva";
-  }
-  return typeLabel(type);
-}
-
 function isProfileRequest(req: {
   source?: string | null;
   requestSource?: string | null;
@@ -135,14 +125,6 @@ function isProfileRequest(req: {
     !!req.profileUserId ||
     !req.groupId
   );
-}
-
-function getTypeChipStyle(_type: string): React.CSSProperties {
-  return {
-    border: "1px solid rgba(255,255,255,0.10)",
-    background: "rgba(255,255,255,0.035)",
-    color: "rgba(255,255,255,0.92)",
-  };
 }
 
 function getMeetGreetStatusLabel(status: string): string {
@@ -351,7 +333,7 @@ function getRequestCurrency(req: MeetGreetRequestDoc | ExclusiveSessionRequestDo
 function getCreatorScheduleNote(
   req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc
 ): string | null {
-  const note = (req as any).creatorScheduleNote;
+  const note = req.creatorScheduleNote;
   return typeof note === "string" && note.trim() ? note.trim() : null;
 }
 
@@ -690,12 +672,6 @@ function SectionBlock({
   );
 }
 
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return `${m}:${String(s).padStart(2, "0")}`;
-}
-
 export default function OwnerSidebarGreetings({
   buyerPending,
   buyerDelivered,
@@ -706,7 +682,6 @@ export default function OwnerSidebarGreetings({
   groupMetaMap,
   userMiniMap,
   styles,
-  typeLabel,
   fmtDate,
   renderUserLink,
   router,
@@ -720,7 +695,6 @@ export default function OwnerSidebarGreetings({
   const [deliveredSectionOpen, setDeliveredSectionOpen] = useState(false);
   const [pendingVisibleCount, setPendingVisibleCount] = useState(6);
   const [deliveredVisibleCount, setDeliveredVisibleCount] = useState(6);
-  const [deliveredItemOpen, setDeliveredItemOpen] = useState<string | null>(null);
   const [openItemKey, setOpenItemKey] = useState<string | null>(null);
   const [rejectOpenMap, setRejectOpenMap] = useState<ToggleMap>({});
   const [scheduleOpenMap, setScheduleOpenMap] = useState<ToggleMap>({});
@@ -871,8 +845,8 @@ export default function OwnerSidebarGreetings({
       closeInlinePanels(requestId, "schedule");
       setScheduleOpenMap((prev) => ({ ...prev, [requestId]: true }));
       setOpenItemKey(`incoming-${kind}-${requestId}`);
-    } catch (e: any) {
-      setError(requestId, e?.message ?? "No se pudo aceptar la solicitud.");
+    } catch (e: unknown) {
+      setError(requestId, (e instanceof Error ? e.message : null) ?? "No se pudo aceptar la solicitud.");
     } finally {
       setBusy(requestId, false);
     }
@@ -897,8 +871,8 @@ export default function OwnerSidebarGreetings({
 
       setSuccess(requestId, "✅ Solicitud rechazada.");
       setRejectOpenMap((prev) => ({ ...prev, [requestId]: false }));
-    } catch (e: any) {
-      setError(requestId, e?.message ?? "No se pudo rechazar la solicitud.");
+    } catch (e: unknown) {
+      setError(requestId, (e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.");
     } finally {
       setBusy(requestId, false);
     }
@@ -957,8 +931,8 @@ async function handleCreatorSchedule(
     setSuccess(requestId, "✅ Fecha propuesta/agendada correctamente.");
     setScheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
     setCalendarOpenMap((prev) => ({ ...prev, [requestId]: false }));
-  } catch (e: any) {
-    setError(requestId, e?.message ?? "No se pudo guardar la fecha.");
+  } catch (e: unknown) {
+    setError(requestId, (e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.");
   } finally {
     setBusy(requestId, false);
   }
@@ -983,8 +957,8 @@ async function handleCreatorSchedule(
 
       setSuccess(requestId, "✅ Devolución solicitada.");
       setRefundOpenMap((prev) => ({ ...prev, [requestId]: false }));
-    } catch (e: any) {
-      setError(requestId, e?.message ?? "No se pudo solicitar la devolución.");
+    } catch (e: unknown) {
+      setError(requestId, (e instanceof Error ? e.message : null) ?? "No se pudo solicitar la devolución.");
     } finally {
       setBusy(requestId, false);
     }
@@ -1009,8 +983,8 @@ async function handleCreatorSchedule(
 
       setSuccess(requestId, "✅ Cambio de fecha solicitado.");
       setRescheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
-    } catch (e: any) {
-      setError(requestId, e?.message ?? "No se pudo solicitar el cambio de fecha.");
+    } catch (e: unknown) {
+      setError(requestId, (e instanceof Error ? e.message : null) ?? "No se pudo solicitar el cambio de fecha.");
     } finally {
       setBusy(requestId, false);
     }
@@ -1031,8 +1005,8 @@ async function handleCreatorSchedule(
       setPreparationRoleMap((prev) => ({ ...prev, [requestId]: role }));
       setPreparationOpenMap((prev) => ({ ...prev, [requestId]: true }));
       setSuccess(requestId, "✅ Panel de preparación abierto.");
-    } catch (e: any) {
-      setError(requestId, e?.message ?? "No se pudo abrir la preparación.");
+    } catch (e: unknown) {
+      setError(requestId, (e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparación.");
     } finally {
       setBusy(requestId, false);
     }
@@ -1091,6 +1065,8 @@ async function handleCreatorSchedule(
           setPreparationOpenMap((prev) => ({ ...prev, [requestId]: false }))
         }
         role={role}
+        sessionId={requestId}
+        sessionType={req.type === "digital_meet_greet" ? "meet_greet" : "exclusive_session"}
         scheduledAtLabel={req.scheduledAt ? fmtDate(req.scheduledAt) : null}
         durationMinutes={req.durationMinutes ?? null}
       />
@@ -1246,10 +1222,11 @@ async function handleCreatorSchedule(
         }}
       >
         {sourceAvatar ? (
-          <img
+          <Image
             src={sourceAvatar}
             alt={sourceName}
-            style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
+            width={36} height={36}
+            style={{ borderRadius: 10, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
           />
         ) : (
           <div style={{
@@ -1358,13 +1335,13 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
           : null}
 
 {req.rejectionReason ? renderTextBox(`Motivo de rechazo: ${req.rejectionReason}`, "danger") : null}
-        {(req as any).autoRejectReason === "creator_no_show_after_15_minutes" ? (
+        {req.autoRejectReason === "creator_no_show_after_15_minutes" ? (
           renderTextBox(
             "El creador no se conectó dentro de los 15 minutos posteriores a la hora agendada. Puedes volver a intentarlo o solicitar devolución.",
             "danger"
           )
         ) : null}
-        {(req as any).autoRejectReason === "buyer_no_show_after_15_minutes" ? (
+        {req.autoRejectReason === "buyer_no_show_after_15_minutes" ? (
           renderTextBox(
             "No te conectaste dentro de los 15 minutos posteriores a la hora agendada. Revisa el estado antes de solicitar una devolución.",
             "danger"
@@ -1513,7 +1490,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         ? "exclusive_session"
         : "meet_greet";
 
-      const rawNoShowRole = (item.data as any).noShowRole;
+      const rawNoShowRole = item.data.noShowRole;
       const noShowRole: WalletServiceItem["noShowRole"] =
         rawNoShowRole === "buyer" ||
         rawNoShowRole === "creator" ||
@@ -1528,20 +1505,18 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         groupId: resolvedGroupId,
         groupName: group?.name ?? null,
         buyerId: item.data.buyerId ?? "",
-        buyerDisplayName: (item.data as any).buyerDisplayName ?? null,
-        buyerUsername: (item.data as any).buyerUsername ?? null,
-        buyerAvatarUrl: (item.data as any).buyerAvatarUrl ?? null,
+        buyerDisplayName: item.data.buyerDisplayName ?? null,
+        buyerUsername: item.data.buyerUsername ?? null,
+        buyerAvatarUrl: item.data.buyerAvatarUrl ?? null,
         sourceAvatarUrl: null,
         muxPlaybackId: null,
         videoDuration: null,
         deliveredAt: null,
-        profileUserId: (item.data as any).profileUserId ?? null,
-        profileDisplayName: (item.data as any).profileDisplayName ?? null,
-        profileUsername: (item.data as any).profileUsername ?? null,
+        profileUserId: item.data.profileUserId ?? null,
+        profileDisplayName: item.data.profileDisplayName ?? null,
+        profileUsername: item.data.profileUsername ?? null,
         requestSource:
-         (item.data as any).requestSource ??
-         (item.data as any).source ??
-        null,
+         (item.data.requestSource ?? item.data.source ?? null) as "group" | "profile" | null,
         noShowRole,
 
         targetName: null,
@@ -1551,7 +1526,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         description: item.data.buyerMessage ?? null,
         creatorScheduleNote: getCreatorScheduleNote(item.data),
         creatorScheduleNoteUpdatedAt: toDateSafe(
-          (item.data as any).creatorScheduleNoteUpdatedAt
+          item.data.creatorScheduleNoteUpdatedAt
         ),
         rejectionReason: item.data.rejectionReason ?? null,
         refundReason: item.data.refundReason ?? null,
@@ -1559,21 +1534,21 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           typeof item.data.priceSnapshot === "number"
             ? item.data.priceSnapshot
             : null,
-        currency: (item.data as any).currency === "USD" ? "USD" : "MXN",
+        currency: item.data.currency === "USD" ? "USD" : "MXN",
         durationMinutes:
           typeof item.data.durationMinutes === "number"
             ? item.data.durationMinutes
             : null,
         source,
         scheduledAt,
-        acceptedAt: toDateSafe((item.data as any).acceptedAt),
-        rejectedAt: toDateSafe((item.data as any).rejectedAt),
-        preparingBuyerAt: toDateSafe((item.data as any).preparingBuyerAt),
-        preparingCreatorAt: toDateSafe((item.data as any).preparingCreatorAt),
-        preparationOpenedAt: toDateSafe((item.data as any).preparationOpenedAt),
-        noShowRejectAt: toDateSafe((item.data as any).noShowRejectAt),
-        autoRejectedAt: toDateSafe((item.data as any).autoRejectedAt),
-        autoRejectReason: (item.data as any).autoRejectReason ?? null,
+        acceptedAt: toDateSafe(item.data.acceptedAt),
+        rejectedAt: toDateSafe(item.data.rejectedAt),
+        preparingBuyerAt: toDateSafe(item.data.preparingBuyerAt),
+        preparingCreatorAt: toDateSafe(item.data.preparingCreatorAt),
+        preparationOpenedAt: toDateSafe(item.data.preparationOpenedAt),
+        noShowRejectAt: toDateSafe(item.data.noShowRejectAt),
+        autoRejectedAt: toDateSafe(item.data.autoRejectedAt),
+        autoRejectReason: item.data.autoRejectReason ?? null,
         createdAt,
         updatedAt,
       };
@@ -1674,13 +1649,13 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
          ? renderTextBox(`Mensaje del creador: ${creatorScheduleNote}`, "info")
          : null}
         {req.rejectionReason ? renderTextBox(`Motivo de rechazo: ${req.rejectionReason}`, "danger") : null}
-        {(req as any).autoRejectReason === "buyer_no_show_after_15_minutes" ? (
+        {req.autoRejectReason === "buyer_no_show_after_15_minutes" ? (
           renderTextBox(
             "El comprador no se conectó dentro de los 15 minutos posteriores a la hora agendada.",
             "danger"
           )
         ) : null}
-        {(req as any).autoRejectReason === "creator_no_show_after_15_minutes" ? (
+        {req.autoRejectReason === "creator_no_show_after_15_minutes" ? (
           renderTextBox(
             "No te conectaste dentro de los 15 minutos posteriores a la hora agendada.",
             "danger"
@@ -2038,10 +2013,11 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                     }}
                   >
                     {sourceAvatar ? (
-                      <img
+                      <Image
                         src={sourceAvatar}
                         alt={sourceName}
-                        style={{ width: 36, height: 36, borderRadius: 999, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
+                        width={36} height={36}
+                        style={{ borderRadius: 999, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
                       />
                     ) : (
                       <div style={{

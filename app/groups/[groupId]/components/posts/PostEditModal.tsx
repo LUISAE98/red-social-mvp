@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { createPortal } from "react-dom";
 import {
   useRef,
@@ -302,15 +303,11 @@ export default function PostEditModal({
                       }}
                     >
                       {item.thumbnailUrl ? (
-                        <img
+                        <Image
                           src={item.thumbnailUrl}
                           alt="Video"
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            opacity: isPremium ? 0.5 : 0.85,
-                          }}
+                          fill
+                          style={{ objectFit: "cover", opacity: isPremium ? 0.5 : 0.85 }}
                         />
                       ) : (
                         <div
@@ -407,14 +404,11 @@ export default function PostEditModal({
                             flexShrink: 0,
                           }}
                         >
-                          <img
+                          <Image
                             src={item.thumbnailUrl ?? item.url}
                             alt="Imagen"
-                            style={{
-                              width: "100%",
-                              height: "100%",
-                              objectFit: "cover",
-                            }}
+                            fill
+                            style={{ objectFit: "cover" }}
                           />
                           <button
                             type="button"

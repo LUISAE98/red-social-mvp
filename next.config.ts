@@ -5,6 +5,16 @@ const nextConfig: NextConfig = {
   // Desactiva el indicador visual de Next en desarrollo
   devIndicators: false,
 
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "firebasestorage.googleapis.com" },
+      { protocol: "https", hostname: "storage.googleapis.com" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      { protocol: "https", hostname: "*.googleusercontent.com" },
+    ],
+    unoptimized: true,
+  },
+
   // Evita que Next observe la carpeta functions durante el build del frontend
   webpack: (config) => {
     config.watchOptions = {

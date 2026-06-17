@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -29,7 +30,7 @@ import type {
   UserMini,
 } from "./OwnerSidebar";
 
-import { Chevron, CountBadge, typeLabel } from "./OwnerSidebar";
+import { CountBadge, typeLabel } from "./OwnerSidebar";
 import GreetingReviewOverlay from "./GreetingReviewOverlay";
 
 import {
@@ -266,7 +267,7 @@ function getRequestCurrency(
 function getCreatorScheduleNote(
   req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc
 ): string | null {
-  const note = (req as any).creatorScheduleNote;
+  const note = req.creatorScheduleNote;
   return typeof note === "string" && note.trim() ? note.trim() : null;
 }
 
@@ -331,16 +332,6 @@ function isNoShowExpired(value: unknown): boolean {
   return Date.now() >= rejectAt;
 }
 
-function isStartingSoon(value: unknown): boolean {
-  const date = toDateSafe(value);
-  if (!date) return false;
-
-  const now = Date.now();
-  const diff = date.getTime() - now;
-
-  return diff > 0 && diff <= 15 * 60 * 1000;
-}
-
 function isPreparationVisibleWindow(value: unknown): boolean {
   const date = toDateSafe(value);
   if (!date) return false;
@@ -380,20 +371,6 @@ function shouldHideExpiredPreparationAlert(
       status === "in_preparation") &&
     isNoShowExpired(scheduledAt)
   );
-}
-
-function getServiceEmoji(type: string): string {
-  if (type === "saludo") return "👋";
-  if (type === "consejo") return "💡";
-  if (type === "mensaje") return "💬";
-  if (type === "meet_greet_digital") return "🤝";
-  if (
-    type === "digital_exclusive_session" ||
-    type === "exclusive_session" ||
-    type === "clase_personalizada"
-  )
-    return "👑";
-  return "👑";
 }
 
 export default function OwnerSidebarMyGroups({
@@ -619,10 +596,10 @@ useEffect(() => {
         ...prev,
         [requestId]: true,
       }));
-    } catch (e: any) {
+    } catch (e: unknown) {
       setMeetGreetError(
         requestId,
-        e?.message ?? "No se pudo aceptar la solicitud."
+        (e instanceof Error ? e.message : null) ?? "No se pudo aceptar la solicitud."
       );
     } finally {
       setMeetGreetBusy(requestId, false);
@@ -655,10 +632,10 @@ useEffect(() => {
         ...prev,
         [requestId]: false,
       }));
-    } catch (e: any) {
+    } catch (e: unknown) {
       setMeetGreetError(
         requestId,
-        e?.message ?? "No se pudo rechazar la solicitud."
+        (e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud."
       );
     } finally {
       setMeetGreetBusy(requestId, false);
@@ -722,10 +699,10 @@ if (scheduleConflict.hasConflict) {
         ...prev,
         [requestId]: false,
       }));
-    } catch (e: any) {
+    } catch (e: unknown) {
       setMeetGreetError(
         requestId,
-        e?.message ?? "No se pudo guardar la fecha."
+        (e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha."
       );
     } finally {
       setMeetGreetBusy(requestId, false);
@@ -759,10 +736,10 @@ if (scheduleConflict.hasConflict) {
       }));
 
       setMeetGreetSuccess(requestId, "✅ Panel de preparación abierto.");
-    } catch (e: any) {
+    } catch (e: unknown) {
       setMeetGreetError(
         requestId,
-        e?.message ?? "No se pudo abrir la preparación."
+        (e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparación."
       );
     } finally {
       setMeetGreetBusy(requestId, false);
@@ -824,6 +801,8 @@ if (scheduleConflict.hasConflict) {
           }))
         }
         role={role}
+        sessionId={requestId}
+        sessionType={req.type === "digital_meet_greet" ? "meet_greet" : "exclusive_session"}
         scheduledAtLabel={req.scheduledAt ? formatUnknownDate(req.scheduledAt) : null}
         durationMinutes={req.durationMinutes ?? null}
       />
@@ -849,9 +828,9 @@ if (scheduleConflict.hasConflict) {
         profileUsername: null,
         requestSource: "group" as const,
         buyerId: row.data.buyerId ?? "",
-        buyerDisplayName: (row.data as any).buyerDisplayName ?? null,
-        buyerUsername: (row.data as any).buyerUsername ?? null,
-        buyerAvatarUrl: (row.data as any).buyerAvatarUrl ?? null,
+        buyerDisplayName: row.data.buyerDisplayName ?? null,
+        buyerUsername: row.data.buyerUsername ?? null,
+        buyerAvatarUrl: row.data.buyerAvatarUrl ?? null,
         sourceAvatarUrl: null,
         muxPlaybackId: null,
         videoDuration: null,
@@ -863,7 +842,7 @@ if (scheduleConflict.hasConflict) {
         description: row.data.buyerMessage ?? null,
         creatorScheduleNote: getCreatorScheduleNote(row.data),
         creatorScheduleNoteUpdatedAt: toDateSafe(
-          (row.data as any).creatorScheduleNoteUpdatedAt
+          row.data.creatorScheduleNoteUpdatedAt
         ),
         rejectionReason: row.data.rejectionReason ?? null,
         refundReason: row.data.refundReason ?? null,
@@ -878,15 +857,15 @@ if (scheduleConflict.hasConflict) {
             : null,
         source: "meet_greet" as const,
         scheduledAt: toDateSafe(row.data.scheduledAt),
-        acceptedAt: toDateSafe((row.data as any).acceptedAt),
-        rejectedAt: toDateSafe((row.data as any).rejectedAt),
-        preparingBuyerAt: toDateSafe((row.data as any).preparingBuyerAt),
-        preparingCreatorAt: toDateSafe((row.data as any).preparingCreatorAt),
-        preparationOpenedAt: toDateSafe((row.data as any).preparationOpenedAt),
-        noShowRejectAt: toDateSafe((row.data as any).noShowRejectAt),
-        autoRejectedAt: toDateSafe((row.data as any).autoRejectedAt),
-        autoRejectReason: (row.data as any).autoRejectReason ?? null,
-        noShowRole: (row.data as any).noShowRole ?? null,
+        acceptedAt: toDateSafe(row.data.acceptedAt),
+        rejectedAt: toDateSafe(row.data.rejectedAt),
+        preparingBuyerAt: toDateSafe(row.data.preparingBuyerAt),
+        preparingCreatorAt: toDateSafe(row.data.preparingCreatorAt),
+        preparationOpenedAt: toDateSafe(row.data.preparationOpenedAt),
+        noShowRejectAt: toDateSafe(row.data.noShowRejectAt),
+        autoRejectedAt: toDateSafe(row.data.autoRejectedAt),
+        autoRejectReason: row.data.autoRejectReason ?? null,
+        noShowRole: row.data.noShowRole ?? null,
         createdAt: toDateSafe(row.data.createdAt),
         updatedAt: toDateSafe(row.data.updatedAt),
       }))
@@ -906,9 +885,9 @@ if (scheduleConflict.hasConflict) {
         profileUsername: null,
         requestSource: "group" as const,
         buyerId: row.data.buyerId ?? "",
-        buyerDisplayName: (row.data as any).buyerDisplayName ?? null,
-        buyerUsername: (row.data as any).buyerUsername ?? null,
-        buyerAvatarUrl: (row.data as any).buyerAvatarUrl ?? null,
+        buyerDisplayName: row.data.buyerDisplayName ?? null,
+        buyerUsername: row.data.buyerUsername ?? null,
+        buyerAvatarUrl: row.data.buyerAvatarUrl ?? null,
         sourceAvatarUrl: null,
         muxPlaybackId: null,
         videoDuration: null,
@@ -920,7 +899,7 @@ if (scheduleConflict.hasConflict) {
         description: row.data.buyerMessage ?? null,
         creatorScheduleNote: getCreatorScheduleNote(row.data),
         creatorScheduleNoteUpdatedAt: toDateSafe(
-          (row.data as any).creatorScheduleNoteUpdatedAt
+          row.data.creatorScheduleNoteUpdatedAt
         ),
         rejectionReason: row.data.rejectionReason ?? null,
         refundReason: row.data.refundReason ?? null,
@@ -935,15 +914,15 @@ if (scheduleConflict.hasConflict) {
             : null,
         source: "exclusive_session" as const,
         scheduledAt: toDateSafe(row.data.scheduledAt),
-        acceptedAt: toDateSafe((row.data as any).acceptedAt),
-        rejectedAt: toDateSafe((row.data as any).rejectedAt),
-        preparingBuyerAt: toDateSafe((row.data as any).preparingBuyerAt),
-        preparingCreatorAt: toDateSafe((row.data as any).preparingCreatorAt),
-        preparationOpenedAt: toDateSafe((row.data as any).preparationOpenedAt),
-        noShowRejectAt: toDateSafe((row.data as any).noShowRejectAt),
-        autoRejectedAt: toDateSafe((row.data as any).autoRejectedAt),
-        autoRejectReason: (row.data as any).autoRejectReason ?? null,
-        noShowRole: (row.data as any).noShowRole ?? null,
+        acceptedAt: toDateSafe(row.data.acceptedAt),
+        rejectedAt: toDateSafe(row.data.rejectedAt),
+        preparingBuyerAt: toDateSafe(row.data.preparingBuyerAt),
+        preparingCreatorAt: toDateSafe(row.data.preparingCreatorAt),
+        preparationOpenedAt: toDateSafe(row.data.preparationOpenedAt),
+        noShowRejectAt: toDateSafe(row.data.noShowRejectAt),
+        autoRejectedAt: toDateSafe(row.data.autoRejectedAt),
+        autoRejectReason: row.data.autoRejectReason ?? null,
+        noShowRole: row.data.noShowRole ?? null,
         createdAt: toDateSafe(row.data.createdAt),
         updatedAt: toDateSafe(row.data.updatedAt),
       }))
@@ -1246,24 +1225,6 @@ const copyTitle = isProfileCard
             const greetingListOpen = greetingSectionOpen[g.id] === true;
             const joinListOpen = joinSectionOpen[g.id] === true;
 
-            const hasSaludoAlert = greetings.some(
-              (row) => row.data.type === "saludo"
-            );
-
-            const hasConsejoAlert = greetings.some(
-              (row) => row.data.type === "consejo"
-            );
-
-            const hasMeetGreetServiceRequestAlert =
-              scheduledServiceRequests.some(
-                (row) => row.serviceKind === "meet_greet"
-              );
-
-            const hasExclusiveSessionServiceRequestAlert =
-              scheduledServiceRequests.some(
-                (row) => row.serviceKind === "exclusive_session"
-              );
-
             const hasPreparingAlert = upcomingServiceCount > 0;
 
             const currentJoinCount = showJoinSection ? joinRequests.length : 0;
@@ -1349,12 +1310,12 @@ boxShadow:
                       }}
                     >
                       {g.avatarUrl ? (
-                        <img
+                        <Image
                           src={g.avatarUrl}
                           alt={communityName}
+                          width={isMobile ? 43 : 36}
+                          height={isMobile ? 43 : 36}
                           style={{
-                            width: isMobile ? 43 : 36,
-                            height: isMobile ? 43 : 36,
                             borderRadius: "50%",
                             objectFit: "cover",
                             border: "1px solid rgba(255,255,255,0.10)",
@@ -1648,16 +1609,14 @@ boxShadow:
                                         }}
                                       >
                                         {requester?.photoURL ? (
-                                          <img
+                                          <Image
                                             src={requester.photoURL}
                                             alt={requester.displayName}
+                                            width={28} height={28}
                                             style={{
-                                              width: 28,
-                                              height: 28,
                                               borderRadius: 10,
                                               objectFit: "cover",
-                                              border:
-                                                "1px solid rgba(255,255,255,0.12)",
+                                              border: "1px solid rgba(255,255,255,0.12)",
                                               flexShrink: 0,
                                             }}
                                           />
@@ -1817,12 +1776,11 @@ boxShadow:
                                     <div key={r.id} style={styles.miniItem}>
                                       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                                         {buyer?.photoURL ? (
-                                          <img
+                                          <Image
                                             src={buyer.photoURL}
                                             alt={buyer.displayName}
+                                            width={28} height={28}
                                             style={{
-                                              width: 28,
-                                              height: 28,
                                               borderRadius: "50%",
                                               objectFit: "cover",
                                               border: "1px solid rgba(255,255,255,0.12)",

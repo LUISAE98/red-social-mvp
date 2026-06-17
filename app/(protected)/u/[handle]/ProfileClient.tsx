@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   CSSProperties,
   useCallback,
@@ -26,7 +27,7 @@ import {
   onSnapshot,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { onAuthStateChanged, sendPasswordResetEmail } from "firebase/auth";
+import { onAuthStateChanged, sendPasswordResetEmail, type User } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
 import CreatorServicesMenu from "@/components/services/CreatorServicesMenu";
@@ -39,11 +40,9 @@ import {
 } from "@/lib/greetings/greetingRequests";
 import { createMeetGreetRequest } from "@/lib/meetGreet/meetGreetRequests";
 import { createExclusiveSessionRequest } from "@/lib/exclusiveSession/exclusiveSessionRequests";
-import { getServiceByType } from "@/lib/services/normalizeServices";
+import { getServiceByType, type NormalizedService } from "@/lib/services/normalizeServices";
 import type { CreatorServiceType, Currency } from "@/types/group";
 import SafeCropper from "@/components/media/SafeCropper";
-import type { ComponentType } from "react";
-
 import { auth, db, storage, functions } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import ProfilePostsFeed from "./components/ProfilePostsFeed";
@@ -70,23 +69,6 @@ import { useStoryRingState } from "@/lib/stories/useStoryRingState";
 import { recordStoryView } from "@/lib/stories/storyService";
 import StoryViewer from "@/app/components/Stories/StoryViewer";
 import { setLastVisitTimestamp } from "@/lib/utils/visitTimestamps";
-
-type SafeCropperProps = {
-  image: string;
-  crop: { x: number; y: number };
-  zoom: number;
-  aspect: number;
-  cropShape?: "rect" | "round";
-  showGrid?: boolean;
-  rotation?: number;
-  minZoom?: number;
-  maxZoom?: number;
-  zoomSpeed?: number;
-  onCropChange: (crop: { x: number; y: number }) => void;
-  onZoomChange: (zoom: number) => void;
-  onCropComplete: (croppedArea: unknown, croppedAreaPixels: unknown) => void;
-};
-
 
 type ProfileComposerMediaItem = {
   type: "image" | "video";
@@ -135,9 +117,9 @@ type UserDoc = {
     price: number | null;
     currency: "MXN" | "USD" | null;
   };
-  offerings?: any[] | null;
-  donation?: any | null;
-  monetization?: any | null;
+  offerings?: Record<string, unknown>[] | null;
+  donation?: Record<string, unknown> | null;
+  monetization?: Record<string, unknown> | null;
   followersCount?: number;
 };
 
@@ -166,7 +148,7 @@ function dataUrlFromFile(file: File): Promise<string> {
 
 function createImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    const img = new window.Image();
     img.addEventListener("load", () => resolve(img));
     img.addEventListener("error", (e) => reject(e));
     img.setAttribute("crossOrigin", "anonymous");
@@ -301,7 +283,7 @@ export default function ProfileClient() {
     [params]
   );
 
-  const [viewer, setViewer] = useState<any>(null);
+  const [viewer, setViewer] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
   const [userDoc, setUserDoc] = useState<UserDoc | null>(null);
@@ -676,7 +658,7 @@ function getServicePriceLabel(type: CreatorServiceType) {
 }
 
 function getServiceDurationLabel(type: CreatorServiceType) {
-  const raw = getProfileService(type) as any;
+  const raw = getProfileService(type) as (NormalizedService & { durationMinutes?: number; duration?: number }) | null;
   const minutes = raw?.durationMinutes ?? raw?.duration ?? null;
 
   if (typeof minutes !== "number") return "Duración por confirmar";
@@ -743,8 +725,8 @@ function resetExclusiveSessionModal() {
         return;
       }
 
-      const hdata = hs.docs[0].data() as any;
-      const uid = hdata?.uid as string;
+      const hdata = hs.docs[0].data() as { uid?: string };
+      const uid = hdata?.uid;
 
       if (!uid) {
         setUserDoc(null);
@@ -779,10 +761,10 @@ function resetExclusiveSessionModal() {
           setLoading(false);
         }
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       if (cancelled) return;
 
-      setMsg(e?.message ?? "Error cargando perfil");
+      setMsg((e instanceof Error ? e.message : null) ?? "Error cargando perfil");
       setUserDoc(null);
       setLoading(false);
     }
@@ -931,8 +913,8 @@ useEffect(() => {
         setZoom(1);
         setCroppedAreaPixels(null);
         setCropOpen(true);
-      } catch (e: any) {
-        setMsg(e?.message ?? "❌ No se pudo leer la imagen.");
+      } catch (e: unknown) {
+        setMsg((e instanceof Error ? e.message : null) ?? "❌ No se pudo leer la imagen.");
       }
     },
     [isOwner]
@@ -949,8 +931,8 @@ useEffect(() => {
   }
 
   const onCropComplete = useCallback(
-    (_croppedArea: any, croppedAreaPixelsArg: any) => {
-      setCroppedAreaPixels(croppedAreaPixelsArg as Area);
+    (_croppedArea: unknown, croppedAreaPixelsArg: Area) => {
+      setCroppedAreaPixels(croppedAreaPixelsArg);
     },
     []
   );
@@ -1165,8 +1147,8 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
       setProfileVideoUploadProgress(null);
       setProfileVideoUploadStatus(null);
     }, 2500);
-  } catch (e: any) {
-    setProfileComposerError(e?.message ?? "No se pudo publicar en tu perfil.");
+  } catch (e: unknown) {
+    setProfileComposerError((e instanceof Error ? e.message : null) ?? "No se pudo publicar en tu perfil.");
     setProfileVideoUploadProgress(null);
     setProfileVideoUploadStatus(null);
     throw e;
@@ -1199,11 +1181,12 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
           ? "✅ Perfil reservado activado."
           : "✅ Perfil público activado."
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const err = e as { code?: string; message?: string } | null;
       setMsg(
-        e?.code === "permission-denied"
+        err?.code === "permission-denied"
           ? "❌ Permiso denegado. Revisa reglas de Firestore."
-          : `❌ No se pudo actualizar la privacidad del perfil: ${e?.message ?? "error"}`
+          : `❌ No se pudo actualizar la privacidad del perfil: ${err?.message ?? "error"}`
       );
       throw e;
     } finally {
@@ -1226,7 +1209,7 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
       setUserDoc((prev) =>
         prev ? { ...prev, profileCommentsEnabled: nextValue } : prev
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       throw e;
     } finally {
       setSavingProfileComments(false);
@@ -1317,11 +1300,12 @@ async function handleSendPasswordReset() {
       setCrop({ x: 0, y: 0 });
       setZoom(1);
 
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const err = e as { code?: string; message?: string } | null;
       setMsg(
-        e?.code === "permission-denied"
+        err?.code === "permission-denied"
           ? "❌ Permiso denegado. Revisa reglas de Storage/Firestore."
-          : `❌ No se pudo subir la imagen: ${e?.message ?? "error"}`
+          : `❌ No se pudo subir la imagen: ${err?.message ?? "error"}`
       );
     } finally {
       setUploading(false);
@@ -1353,8 +1337,8 @@ await createGreetingRequest({
     setInstructions("");
     setGreetSuccess(null);
     setServiceToast("Solicitud enviada al creador.");
-  } catch (e: any) {
-    setGreetError(e?.message ?? "No se pudo enviar la solicitud.");
+  } catch (e: unknown) {
+    setGreetError((e instanceof Error ? e.message : null) ?? "No se pudo enviar la solicitud.");
   } finally {
     setGreetSubmitting(false);
   }
@@ -1376,14 +1360,14 @@ await createMeetGreetRequest({
   groupId: null,
   buyerMessage: meetGreetMessage,
   priceSnapshot: service?.publicPrice ?? service?.memberPrice ?? null,
-  durationMinutes: (service as any)?.durationMinutes ?? null,
+  durationMinutes: (service as (NormalizedService & { durationMinutes?: number }) | null)?.durationMinutes ?? null,
 });
 
     setMeetGreetOpen(false);
     setMeetGreetMessage("");
     setServiceToast("Solicitud de meet & greet enviada.");
-  } catch (e: any) {
-    setMeetGreetError(e?.message ?? "No se pudo enviar la solicitud.");
+  } catch (e: unknown) {
+    setMeetGreetError((e instanceof Error ? e.message : null) ?? "No se pudo enviar la solicitud.");
   } finally {
     setMeetGreetSubmitting(false);
   }
@@ -1406,14 +1390,14 @@ await createExclusiveSessionRequest({
   groupId: null,
   buyerMessage: exclusiveSessionMessage,
   priceSnapshot: service?.publicPrice ?? service?.memberPrice ?? null,
-  durationMinutes: (service as any)?.durationMinutes ?? null,
+  durationMinutes: (service as (NormalizedService & { durationMinutes?: number }) | null)?.durationMinutes ?? null,
 });
 
     setExclusiveSessionOpen(false);
     setExclusiveSessionMessage("");
     setServiceToast("Solicitud de sesión exclusiva enviada.");
-  } catch (e: any) {
-    setExclusiveSessionError(e?.message ?? "No se pudo enviar la solicitud.");
+  } catch (e: unknown) {
+    setExclusiveSessionError((e instanceof Error ? e.message : null) ?? "No se pudo enviar la solicitud.");
   } finally {
     setExclusiveSessionSubmitting(false);
   }
@@ -1678,16 +1662,12 @@ await createExclusiveSessionRequest({
                 background: "#0b0b0b",
               }}
             >
-              <img
+              <Image
                 key={coverSrc}
                 src={coverSrc}
                 alt="cover"
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  opacity: 0.96,
-                }}
+                fill
+                style={{ objectFit: "cover", opacity: 0.96 }}
               />
 
 
@@ -1865,15 +1845,12 @@ await createExclusiveSessionRequest({
                     title={isOwner && profileRing === "none" ? "Cambiar foto de perfil" : undefined}
                   >
                     {avatarSrc ? (
-                      <img
+                      <Image
                         key={avatarSrc}
                         src={avatarSrc}
                         alt="avatar"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
+                        fill
+                        style={{ objectFit: "cover" }}
                       />
                     ) : (
                       <span

@@ -2,36 +2,10 @@
 
 "use client";
 
+import Image from "next/image";
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import SafeCropper from "@/components/media/SafeCropper";
-import type { ComponentType } from "react";
-
-type CropArea = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-
-type SafeCropperProps = {
-  image: string;
-  crop: { x: number; y: number };
-  zoom: number;
-  aspect: number;
-  cropShape?: "rect" | "round";
-  showGrid?: boolean;
-  rotation?: number;
-  minZoom?: number;
-  maxZoom?: number;
-  zoomSpeed?: number;
-  onCropChange: (crop: { x: number; y: number }) => void;
-  onZoomChange: (zoom: number) => void;
-  onCropComplete: (croppedArea: CropArea, croppedAreaPixels: CropArea) => void;
-};
-
-
 import { useAuth } from "@/app/providers";
 import { createGroup } from "@/lib/groups/createGroup";
 import type {
@@ -78,7 +52,7 @@ function clamp(n: number, min: number, max: number) {
 
 function createImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
+    const img = new window.Image();
     img.addEventListener("load", () => resolve(img));
     img.addEventListener("error", (e) => reject(e));
     img.setAttribute("crossOrigin", "anonymous");
@@ -396,8 +370,8 @@ async function onPickAvatar(file: File | null) {
     setZoom(1);
     setCroppedAreaPixels(null);
     setCropOpen(true);
-  } catch (e: any) {
-    setError(e?.message ?? "Avatar: no se pudo leer la imagen.");
+  } catch (e: unknown) {
+    setError((e instanceof Error ? e.message : null) ?? "Avatar: no se pudo leer la imagen.");
   }
 }
 
@@ -420,8 +394,8 @@ async function onPickCover(file: File | null) {
     setZoom(1);
     setCroppedAreaPixels(null);
     setCropOpen(true);
-  } catch (e: any) {
-    setError(e?.message ?? "Portada: no se pudo leer la imagen.");
+  } catch (e: unknown) {
+    setError((e instanceof Error ? e.message : null) ?? "Portada: no se pudo leer la imagen.");
   }
 }
 
@@ -482,8 +456,8 @@ const onCropComplete = useCallback(
       setZoom(1);
       setCroppedAreaPixels(null);
       setCropImageSrc("");
-    } catch (err: any) {
-      setError(err?.message ?? "No se pudo recortar la imagen.");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : null) ?? "No se pudo recortar la imagen.");
     } finally {
       setCroppingBusy(false);
     }
@@ -601,10 +575,10 @@ const onCropComplete = useCallback(
             path,
             onProgress: (p) => setAvatarUploadPct(Math.round(p)),
           });
-        } catch (uploadErr: any) {
+        } catch (uploadErr: unknown) {
           throw new Error(
             `El grupo sí se creó, pero falló la subida del avatar: ${
-              uploadErr?.message ?? "permiso insuficiente en Storage"
+              (uploadErr instanceof Error ? uploadErr.message : null) ?? "permiso insuficiente en Storage"
             }`
           );
         }
@@ -620,10 +594,10 @@ const onCropComplete = useCallback(
             path,
             onProgress: (p) => setCoverUploadPct(Math.round(p)),
           });
-        } catch (uploadErr: any) {
+        } catch (uploadErr: unknown) {
           throw new Error(
             `El grupo sí se creó, pero falló la subida de portada: ${
-              uploadErr?.message ?? "permiso insuficiente en Storage"
+              (uploadErr instanceof Error ? uploadErr.message : null) ?? "permiso insuficiente en Storage"
             }`
           );
         }
@@ -638,19 +612,19 @@ const onCropComplete = useCallback(
             ...(coverUrl ? { coverUrl } : {}),
             updatedAt: serverTimestamp(),
           });
-        } catch (updateErr: any) {
+        } catch (updateErr: unknown) {
           throw new Error(
             `El grupo sí se creó y la imagen sí subió, pero falló actualizar avatar/portada en Firestore: ${
-              updateErr?.message ?? "permiso insuficiente en Firestore"
+              (updateErr instanceof Error ? updateErr.message : null) ?? "permiso insuficiente en Firestore"
             }`
           );
         }
       }
 
       router.push(`/groups/${groupId}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("CREATE_GROUP_ERROR", err);
-      setError(err?.message ?? "Error creando comunidad.");
+      setError((err instanceof Error ? err.message : null) ?? "Error creando comunidad.");
     } finally {
       setLoading(false);
     }
@@ -902,15 +876,12 @@ const onCropComplete = useCallback(
                   }}
                 >
                   {coverPreview ? (
-                    <img
+                    <Image
                       src={coverPreview}
                       alt="Portada"
-                      style={{
-                        width: "100%",
-                        height: 210,
-                        objectFit: "cover",
-                        display: "block",
-                      }}
+                      width={1280}
+                      height={210}
+                      style={{ width: "100%", height: 210, objectFit: "cover", display: "block" }}
                     />
                   ) : (
                     <div
@@ -966,15 +937,11 @@ const onCropComplete = useCallback(
                     }}
                   >
                     {avatarPreview ? (
-                      <img
+                      <Image
                         src={avatarPreview}
                         alt="Avatar"
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                          display: "block",
-                        }}
+                        fill
+                        style={{ objectFit: "cover", display: "block" }}
                       />
                     ) : (
                       <div

@@ -10,10 +10,12 @@ import {
   signOut,
   GoogleAuthProvider,
   signInWithPopup,
+  type User,
 } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import {
   appendSafeNextParam,
@@ -28,8 +30,8 @@ const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
 const vibraBlue = "#4f46ff";
 
-function friendlyAuthError(err: any) {
-  const code = err?.code as string | undefined;
+function friendlyAuthError(err: unknown) {
+  const code = (err as { code?: string } | null)?.code;
 
   if (code === "auth/invalid-credential") return "Correo o contraseña incorrectos.";
   if (code === "auth/user-not-found") return "Usuario no encontrado.";
@@ -85,7 +87,7 @@ useEffect(() => {
   const nextPath = getNextFromSearchParams(searchParams, "/");
   const registerHref = appendSafeNextParam("/register", nextPath);
 
-async function createSessionFromUser(user: any) {
+async function createSessionFromUser(user: User) {
   const idToken = await user.getIdToken(true);
 
   const response = await fetch("/api/auth/session", {
@@ -351,12 +353,6 @@ letterSpacing: "-0.01em",
   boxShadow: "0 10px 28px rgba(168,85,255,0.22)",
   overflow: "hidden",
 };
-
-  const secondaryButtonStyle: React.CSSProperties = {
-    ...primaryButtonStyle,
-    background: "rgba(255,255,255,0.08)",
-    color: "#fff",
-  };
 
  const registerLinkStyle: React.CSSProperties = {
   color: vibraPurple,
@@ -629,10 +625,12 @@ body.loginNoScroll {
 >
         <div className="loginLeftPane" style={heroContentStyle}>
   <div style={heroInnerStyle}>
-<img
+<Image
   src="/logotipo.png"
   alt="Vibra"
   className="heroVibraLogoGlow"
+  width={260}
+  height={74}
   style={heroLogoStyle}
 />
 
@@ -710,9 +708,11 @@ minWidth: 520,
         <div className="loginRightPane" style={rightPaneStyle}>
           <div style={shellStyle}>
 <div>
-  <img
+  <Image
     src="/logotipo.png"
     alt="Vibra"
+    width={142}
+    height={40}
     style={logoStyle}
   />
 

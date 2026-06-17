@@ -17,8 +17,8 @@ function normalizeGroupVisibility(value: unknown): GroupVisibility | null {
 }
 
 function getPostContextType(post: Post): PostContextType {
-  const contextType = (post as any).contextType;
-  const accessScope = (post as any).accessScope;
+  const contextType = post.contextType;
+  const accessScope = post.accessScope;
 
   if (
     contextType === "profile" ||
@@ -34,7 +34,7 @@ function getPostContextType(post: Post): PostContextType {
 
 function isFreePost(post: Post): boolean {
   const accessModel = post.accessModel ?? "free";
-  const searchData = (post as any).search;
+  const searchData = post.search;
 
   return (
     post.isDeleted !== true &&

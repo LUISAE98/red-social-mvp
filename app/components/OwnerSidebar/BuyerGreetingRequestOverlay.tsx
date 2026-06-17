@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { GreetingRequestDoc } from "./OwnerSidebar";
@@ -129,10 +130,11 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
   const sourceRow = (
     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
       {sourceAvatar ? (
-        <img
+        <Image
           src={sourceAvatar}
           alt={sourceName}
-          style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}
+          width={38} height={38}
+          style={{ borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}
         />
       ) : (
         <div style={{

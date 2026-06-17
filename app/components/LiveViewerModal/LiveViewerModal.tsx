@@ -1,13 +1,15 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import Hls from "hls.js";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import type { Post, PostLiveData } from "@/lib/posts/types";
 import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
+import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -57,6 +59,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     typeof window !== "undefined" ? window.innerHeight > window.innerWidth : true
   );
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
+  const [accessChecked, setAccessChecked] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
+  const [payingAccess, setPayingAccess] = useState(false);
+  const [accessError, setAccessError] = useState<string | null>(null);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
   useEffect(() => {
@@ -72,6 +78,67 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     );
     return () => unsub();
   }, [post.id]);
+
+  // ── Verificación de acceso ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!open) {
+      setAccessChecked(false);
+      setHasAccess(false);
+      setPayingAccess(false);
+      setAccessError(null);
+      return;
+    }
+
+    const liveAccessType = localLiveData?.accessType ?? "free";
+
+    // Creador siempre tiene acceso
+    if (user?.uid === post.authorId) {
+      setHasAccess(true);
+      setAccessChecked(true);
+      return;
+    }
+
+    // Live gratuito — acceso directo
+    if (liveAccessType === "free") {
+      setHasAccess(true);
+      setAccessChecked(true);
+      return;
+    }
+
+    // Live de pago — verificar
+    setAccessChecked(false);
+    const check = async () => {
+      try {
+        if (!user?.uid) {
+          setHasAccess(false);
+          setAccessChecked(true);
+          return;
+        }
+
+        const mode = localLiveData?.paidAccessMode ?? "everyone_pays";
+        if (mode === "members_free_non_members_pay" && post.groupId) {
+          const memberSnap = await getDoc(doc(db, "groups", post.groupId, "members", user.uid));
+          if (memberSnap.exists()) {
+            const status = memberSnap.data()?.status as string | undefined;
+            if (["active", "subscribed", "muted"].includes(status ?? "")) {
+              setHasAccess(true);
+              setAccessChecked(true);
+              return;
+            }
+          }
+        }
+
+        const paid = await checkLiveAccess(post.id, user.uid);
+        setHasAccess(paid);
+        setAccessChecked(true);
+      } catch {
+        setHasAccess(false);
+        setAccessChecked(true);
+      }
+    };
+    check();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, localLiveData?.accessType, localLiveData?.paidAccessMode, user?.uid, post.authorId, post.id, post.groupId]);
 
   const liveData = localLiveData;
   const playbackId = liveData?.playbackId;
@@ -118,7 +185,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   // Initialize HLS
   useEffect(() => {
-    if (!open || !shouldRender || !hlsUrl) return;
+    if (!open || !shouldRender || !hlsUrl || !hasAccess) return;
     const video = videoRef.current;
     if (!video) return;
 
@@ -176,7 +243,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     } else {
       setError(true);
     }
-  }, [open, shouldRender, hlsUrl, isLive]);
+  }, [open, shouldRender, hlsUrl, isLive, hasAccess]);
 
   // Congelar video en último frame cuando el live termina o el usuario es baneado
   useEffect(() => {
@@ -202,6 +269,185 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   }, [mobileFsHorizontal]);
 
   if (!mounted || !shouldRender) return null;
+
+  // ── Paywall ────────────────────────────────────────────────────────────────
+  const isPaidLive = (liveData?.accessType ?? "free") === "paid";
+
+  async function handlePayAccess() {
+    if (!user?.uid || payingAccess) return;
+    setPayingAccess(true);
+    setAccessError(null);
+    try {
+      await grantSimulatedLiveAccess({
+        liveId: post.id,
+        userId: user.uid,
+        postId: post.id,
+        authorId: post.authorId,
+        groupId: post.groupId ?? null,
+        amount: liveData?.ticketPrice ?? 0,
+        currency: liveData?.currency ?? "MXN",
+      });
+      setHasAccess(true);
+      // Si el live aún no ha iniciado, cerrar el modal — la tarjeta lo abrirá automáticamente cuando inicie
+      if (localLiveData?.status !== "live") {
+        onClose();
+      }
+    } catch {
+      setAccessError("No se pudo procesar el pago. Intenta de nuevo.");
+    } finally {
+      setPayingAccess(false);
+    }
+  }
+
+  if (isPaidLive && accessChecked && !hasAccess) {
+    const ticketPrice = liveData?.ticketPrice ?? 0;
+    const currency = liveData?.currency ?? "MXN";
+    const isLoggedIn = !!user?.uid;
+
+    return createPortal(
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 9000,
+        background: "linear-gradient(160deg, #0a0010 0%, #0f0020 100%)",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center",
+        padding: "32px 24px", fontFamily: FONT,
+      }}>
+        {/* Botón cerrar */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar"
+          style={{
+            position: "absolute", top: "max(20px, env(safe-area-inset-top))",
+            right: "max(20px, env(safe-area-inset-right))",
+            background: "rgba(255,255,255,0.08)", border: "none",
+            borderRadius: "50%", width: 36, height: 36,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", color: "#fff",
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+
+        {/* Portada */}
+        {liveData?.coverUrl && (
+          <div style={{
+            width: 100, height: 100, borderRadius: 16, overflow: "hidden",
+            marginBottom: 20, flexShrink: 0,
+            boxShadow: "0 8px 32px rgba(168,85,255,0.3)",
+          }}>
+            <Image
+              src={liveData.coverUrl}
+              alt=""
+              fill
+              style={{ objectFit: "cover" }}
+            />
+          </div>
+        )}
+
+        {/* Ícono live si no hay portada */}
+        {!liveData?.coverUrl && (
+          <div style={{
+            width: 72, height: 72, borderRadius: "50%", marginBottom: 20,
+            background: "rgba(168,85,255,0.15)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 0 0 1px rgba(168,85,255,0.25)",
+          }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polygon points="10 8 16 12 10 16 10 8" />
+            </svg>
+          </div>
+        )}
+
+        {/* Título */}
+        {liveData?.title && (
+          <span style={{
+            fontSize: 18, fontWeight: 700, color: "#fff",
+            textAlign: "center", marginBottom: 6,
+            maxWidth: 320, lineHeight: 1.3,
+          }}>
+            {liveData.title}
+          </span>
+        )}
+
+        <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginBottom: 24, textAlign: "center" }}>
+          Este live tiene ticket de entrada
+        </span>
+
+        {/* Precio */}
+        <div style={{
+          display: "flex", alignItems: "baseline", gap: 6,
+          marginBottom: 28,
+        }}>
+          <span style={{ fontSize: 36, fontWeight: 800, color: "#a855f7", letterSpacing: "-0.02em" }}>
+            ${ticketPrice.toLocaleString("es-MX")}
+          </span>
+          <span style={{ fontSize: 16, fontWeight: 600, color: "rgba(168,85,255,0.7)" }}>
+            {currency}
+          </span>
+        </div>
+
+        {/* CTA */}
+        {!isLoggedIn ? (
+          <div style={{
+            textAlign: "center", padding: "14px 20px", borderRadius: 12,
+            background: "rgba(255,255,255,0.05)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            maxWidth: 280,
+          }}>
+            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+              Inicia sesión o crea una cuenta para comprar el acceso al live
+            </span>
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={handlePayAccess}
+              disabled={payingAccess}
+              style={{
+                padding: "13px 36px", borderRadius: 12, border: "none",
+                background: payingAccess
+                  ? "rgba(168,85,255,0.4)"
+                  : "linear-gradient(135deg, #a855f7, #7c3aed)",
+                color: "#fff", fontSize: 15, fontWeight: 700,
+                fontFamily: FONT, cursor: payingAccess ? "not-allowed" : "pointer",
+                letterSpacing: "-0.01em",
+                boxShadow: payingAccess ? "none" : "0 4px 20px rgba(168,85,255,0.35)",
+                transition: "all 0.15s",
+                minWidth: 200,
+              }}
+            >
+              {payingAccess ? "Procesando..." : `Pagar $${ticketPrice.toLocaleString("es-MX")} ${currency}`}
+            </button>
+
+            {accessError && (
+              <span style={{
+                fontSize: 12, color: "#f87171",
+                marginTop: 12, textAlign: "center",
+              }}>
+                {accessError}
+              </span>
+            )}
+
+            <span style={{
+              fontSize: 11, color: "rgba(255,255,255,0.2)",
+              marginTop: 16, textAlign: "center", maxWidth: 260, lineHeight: 1.5,
+            }}>
+              Acceso de un solo pago. Sin suscripción.
+            </span>
+          </>
+        )}
+      </div>,
+      document.body
+    );
+  }
+
+  // Mientras se verifica el acceso a live de pago, no mostrar el player
+  if (isPaidLive && !accessChecked) return null;
 
   // ── Header — siempre visible: título izquierda (solo desktop), controles derecha ──
   function renderHeader(safeTop = false, showTitle = true) {
@@ -469,9 +715,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return (
       <>
         {!ready && liveData?.coverUrl && (
-          <img
-            src={liveData.coverUrl} alt={liveData.title ?? "Live"} draggable={false}
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.3 }}
+          <Image
+            src={liveData.coverUrl} alt={liveData.title ?? "Live"}
+            fill
+            style={{ objectFit: "cover", opacity: 0.3 }}
           />
         )}
         {error && (
@@ -539,9 +786,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             display: "grid", placeItems: "center",
           }}>
             {avatar
-              ? <img src={avatar} alt={name} draggable={false}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                />
+              ? <Image src={avatar} alt={name} fill style={{ objectFit: "cover" }} />
               : <span style={{ fontSize: 17, fontWeight: 700, color: "#fff", fontFamily: FONT }}>
                   {name.charAt(0).toUpperCase()}
                 </span>

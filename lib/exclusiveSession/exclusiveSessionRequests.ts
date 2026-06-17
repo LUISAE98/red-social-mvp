@@ -7,11 +7,12 @@ type CallablePayload = Record<string, unknown>;
 export type ExclusiveSessionSource = "group" | "profile";
 
 
-function normalizeCallableError(error: any): Error {
+function normalizeCallableError(error: unknown): Error {
+  const err = error as { details?: { message?: string } | string; message?: string } | null;
   const rawMessage =
-    error?.details?.message ||
-    error?.details ||
-    error?.message ||
+    (err?.details && typeof err.details === "object" ? err.details.message : undefined) ||
+    (typeof err?.details === "string" ? err.details : undefined) ||
+    err?.message ||
     "Ocurrió un error al ejecutar la operación.";
 
   const message = String(rawMessage).replace(/^FirebaseError:\s*/i, "");
@@ -85,7 +86,7 @@ async function callExclusiveSessionFunction<T = unknown>(
     const callable = httpsCallable<CallablePayload, T>(functions, name);
     const result = await callable(payload);
     return result.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw normalizeCallableError(error);
   }
 }

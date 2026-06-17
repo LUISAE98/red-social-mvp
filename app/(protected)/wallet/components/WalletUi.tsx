@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import {
   formatWalletMoney,
@@ -589,8 +590,8 @@ export function WalletServiceRow({
           ? "✅ Solicitud aceptada."
           : "✅ Solicitud rechazada."
       );
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo actualizar la solicitud.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la solicitud.");
     } finally {
       setBusy(false);
     }
@@ -611,8 +612,8 @@ export function WalletServiceRow({
       }
 
       setScheduleOpen(true);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo aceptar la solicitud.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo aceptar la solicitud.");
     } finally {
       setBusy(false);
     }
@@ -639,8 +640,8 @@ export function WalletServiceRow({
       }
 
       setRejectOpen(false);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo rechazar la solicitud.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.");
     } finally {
       setBusy(false);
     }
@@ -682,8 +683,8 @@ export function WalletServiceRow({
       setSuccess("✅ Fecha guardada correctamente.");
       setScheduleOpen(false);
       setCalendarOpen(false);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo guardar la fecha.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.");
     } finally {
       setBusy(false);
     }
@@ -709,8 +710,8 @@ export function WalletServiceRow({
 
       setPreparationOpen(true);
       setSuccess(null);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo abrir la preparación.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparación.");
     } finally {
       setBusy(false);
     }
@@ -747,10 +748,12 @@ export function WalletServiceRow({
       `}</style>
       <div className="greetingCardRow">
         {row.buyerAvatarUrl ? (
-          <img
+          <Image
             src={row.buyerAvatarUrl}
             alt={row.buyerDisplayName ?? ""}
-            style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.12)" }}
+            width={36}
+            height={36}
+            style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.12)" }}
           />
         ) : (
           <div style={{
@@ -771,10 +774,12 @@ export function WalletServiceRow({
               <>
                 <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 12, lineHeight: 1, flexShrink: 0 }}>|</span>
                 {sourceAvatarUrl ? (
-                  <img
+                  <Image
                     src={sourceAvatarUrl}
                     alt={sourceName}
-                    style={{ width: 16, height: 16, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.1)" }}
+                    width={16}
+                    height={16}
+                    style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.1)" }}
                   />
                 ) : (
                   <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, background: "rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: "#fff" }}>
@@ -1487,6 +1492,8 @@ export function WalletServiceRow({
           open={preparationOpen}
           onClose={() => setPreparationOpen(false)}
           role="creator"
+          sessionId={row.id}
+          sessionType={isMeetGreet ? "meet_greet" : "exclusive_session"}
           scheduledAtLabel={row.scheduledAt ? getWalletServiceRowMeta(row) : null}
           durationMinutes={row.durationMinutes ?? null}
         />

@@ -47,7 +47,7 @@ type GroupRole = "owner" | "mod" | "member" | null;
 type PostWithFlags = Post & {
   canModerateGroupAuthor?: boolean;
   authorMemberStatus?: MemberStatus;
-  authorMutedUntil?: any;
+  authorMutedUntil?: unknown;
 };
 
 function normalizeRole(raw: unknown): GroupRole {
@@ -73,7 +73,7 @@ async function getMembershipMetaForGroup(
   userId: string
 ): Promise<{
   status: MemberStatus;
-  mutedUntil: any | null;
+  mutedUntil: unknown;
   role: GroupRole;
 }> {
   const cacheKey = `${groupId}:${userId}`;
@@ -93,7 +93,7 @@ async function getMembershipMetaForGroup(
       return emptyMeta;
     }
 
-    const data = memberSnap.data() as any;
+    const data = memberSnap.data() as { status?: string; mutedUntil?: unknown; roleInGroup?: string; role?: string };
 
     const meta = {
       status: normalizeStatus(data?.status),
@@ -127,7 +127,7 @@ async function getViewerCanModerateGroup(
       return false;
     }
 
-    const groupData = groupSnap.data() as any;
+    const groupData = groupSnap.data() as { ownerId?: string; ownersIds?: string[] };
 
     if (groupData?.ownerId === viewerUid) {
       viewerModerationMemoryCache.set(cacheKey, true);
@@ -250,7 +250,7 @@ async function attachModerationFlags(
 
   const authorMap = new Map<
     string,
-    { status: MemberStatus; mutedUntil: any | null; role: GroupRole }
+    { status: MemberStatus; mutedUntil: unknown; role: GroupRole }
   >(authorEntries);
 
   return posts.map((post) => {
@@ -336,7 +336,7 @@ function isVideoPostStillProcessing(post: PostWithFlags): boolean {
 
 function buildStableFeedSeed(
   baseId: string,
-  posts: Array<{ id?: string; createdAt?: any }>
+  posts: Array<{ id?: string; createdAt?: { toMillis: () => number } | null }>
 ): number {
   const raw = [
     baseId,
@@ -379,7 +379,7 @@ const membershipMetaMemoryCache = new Map<
   string,
   {
     status: MemberStatus;
-    mutedUntil: any | null;
+    mutedUntil: unknown;
     role: GroupRole;
   }
 >();
@@ -657,13 +657,13 @@ const cacheKey = useMemo(
 
           return nextPosts;
         });
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (feedRequestIdRef.current !== requestId) {
           return;
         }
 
         setError(
-          e?.message ??
+          (e instanceof Error ? e.message : null) ??
             "No se pudieron cargar las publicaciones. Intenta de nuevo."
         );
       } finally {
@@ -906,8 +906,8 @@ const cacheKey = useMemo(
           likes: result.likes,
         } as Post["counts"],
       });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo actualizar la flamita.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
       throw e;
     }
   }
@@ -929,9 +929,9 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       profilePinnedAt,
       profilePinnedBy,
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     setError(
-      e?.message ?? "No se pudo fijar o desfijar la publicación en tu perfil."
+      (e instanceof Error ? e.message : null) ?? "No se pudo fijar o desfijar la publicación en tu perfil."
     );
     throw e;
   }
@@ -957,8 +957,8 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
           saves: nextSaves,
         } as Post["counts"],
       });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo actualizar el guardado.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el guardado.");
       throw e;
     }
   }
@@ -969,8 +969,8 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       await softDeletePost(postId);
 
       removePostFromAllFeedCaches(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
       throw e;
     }
   }
@@ -979,8 +979,8 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
     try {
       setError(null);
       return await fetchPostComments(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
       throw e;
     }
   }
@@ -1012,8 +1012,8 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       setError(null);
       await createPostComment({ postId, text });
       return await syncPostCommentsCount(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
       throw e;
     }
   }
@@ -1026,8 +1026,8 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       setError(null);
       await deletePostComment({ postId, commentId });
       return await syncPostCommentsCount(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
       throw e;
     }
   }
@@ -1039,8 +1039,8 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
     try {
       setError(null);
       return await fetchCommentReplies({ postId, commentId });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudieron cargar las respuestas.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las respuestas.");
       throw e;
     }
   }
@@ -1057,8 +1057,8 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       await syncPostCommentsCount(postId);
 
       return await fetchCommentReplies({ postId, commentId });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo crear la respuesta.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo crear la respuesta.");
       throw e;
     }
   }
@@ -1075,8 +1075,8 @@ async function handleToggleProfilePin(postId: string): Promise<void> {
       await syncPostCommentsCount(postId);
 
       return await fetchCommentReplies({ postId, commentId });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo eliminar la respuesta.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la respuesta.");
       throw e;
     }
   }

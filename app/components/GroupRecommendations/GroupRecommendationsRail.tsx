@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -53,24 +54,6 @@ const cardStyles = {
   scrollSnapAlign: "start" as const,
   color: "#fff",
 };
-
-function getDefaultTitle() {
-  return "Comunidades recomendadas para ti";
-}
-
-function getDefaultSubtitle(context: RecommendationRailContext) {
-  switch (context) {
-    case "search_empty":
-      return "Explora comunidades afines o crea la tuya.";
-    case "profile":
-      return "Basado en tus intereses y comunidades relacionadas.";
-    case "group":
-      return "Descubre otras comunidades similares.";
-    case "home":
-    default:
-      return "Te mostramos comunidades en función de tus categorías e historial.";
-  }
-}
 
 async function resolveJoinState(
   groupId: string,
@@ -364,10 +347,11 @@ function ProfileCard({
             }}
           >
             {profile.avatarUrl ? (
-              <img
+              <Image
                 src={profile.avatarUrl}
                 alt={`Avatar de ${profile.displayName}`}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                width={68} height={68}
+                style={{ objectFit: "cover" }}
               />
             ) : (
               profile.displayName.slice(0, 1).toUpperCase()
@@ -573,10 +557,11 @@ function GroupCard({
             }}
           >
             {group.avatarUrl ? (
-              <img
+              <Image
                 src={group.avatarUrl}
                 alt={`Avatar de ${group.name}`}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                width={68} height={68}
+                style={{ objectFit: "cover" }}
               />
             ) : (
               group.name.slice(0, 1).toUpperCase()
@@ -693,10 +678,6 @@ function GroupCard({
 
 export default function GroupRecommendationsRail({
   currentUserId,
-  context,
-  title,
-  subtitle,
-  emptySearchTerm,
   onCreateGroup,
   className,
 }: Props) {
@@ -720,8 +701,6 @@ export default function GroupRecommendationsRail({
     Record<string, boolean>
   >({});
 
-  const heading = title ?? getDefaultTitle();
-  const railSubtitle = subtitle ?? getDefaultSubtitle(context);
   const minCategories = recommendationEngineConstants.MIN_ONBOARDING_CATEGORIES;
 
   const loadRecommendations = useCallback(async () => {

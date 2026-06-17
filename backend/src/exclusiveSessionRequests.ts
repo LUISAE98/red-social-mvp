@@ -697,6 +697,19 @@ if (source === "profile") {
       paymentMode: "simulated_no_real_payment",
       paymentStatus: "simulated_paid",
 
+      // Campos LiveKit — se populan cuando se crea/gestiona la sala de videollamada
+      roomName: null,
+      livekitRoomId: null,
+      livekitEgressId: null,
+      roomStatus: "scheduled",
+      creatorJoinedAt: null,
+      buyerJoinedAt: null,
+      startedAt: null,
+      endedAt: null,
+      recordingStatus: "not_started",
+      recordingUrl: null,
+      recordingDurationSeconds: null,
+
       createdAt: nowTs(),
       updatedAt: nowTs(),
     };

@@ -148,14 +148,6 @@ function getDayCountLabel(count: number): string {
   return count > 9 ? "9+" : String(count);
 }
 
-function isNoShowExpired(value: Date | null): boolean {
-  if (!value) return false;
-
-  const rejectAt = value.getTime() + 15 * 60 * 1000;
-
-  return Date.now() >= rejectAt;
-}
-
 function ViewModeIconButton({
   mode,
   onClick,

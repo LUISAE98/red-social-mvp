@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useMemo, useRef, useState } from "react";
 import { leaveGroup } from "@/lib/groups/membership";
+import type { Timestamp } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 
 import type {
@@ -24,7 +26,7 @@ type Props = {
   browseGrouped: Array<{ key: string; title: string; items: GroupDocLite[] }>;
   groupMetaMap: Record<string, GroupDocLite>;
   styles: Record<string, React.CSSProperties>;
-  fmtDate: (ts?: any) => string;
+  fmtDate: (ts?: Timestamp | null) => string;
   renderCommunityCard: (
     g: GroupDocLite,
     opts?: { compact?: boolean; subtitle?: React.ReactNode }
@@ -427,109 +429,6 @@ function noticeStyles(
   };
 }
 
-function renderJoinedCardWithAccessNotice(params: {
-  group: GroupDocLite;
-  isMobile: boolean;
-  newCount?: number;
-  renderCommunityCard: (
-    g: GroupDocLite,
-    opts?: { compact?: boolean; subtitle?: React.ReactNode }
-  ) => React.ReactNode;
-  onSubscribe: (groupId: string) => void;
-  onDismiss: (groupId: string) => void | Promise<void>;
-  isDismissing?: boolean;
-}) {
-  const {
-    group,
-    isMobile,
-    newCount,
-    renderCommunityCard,
-    onSubscribe,
-    onDismiss,
-    isDismissing = false,
-  } = params;
-
-  const notice = buildAccessNotice(group);
-
-  return (
-    <div
-      key={group.id}
-      style={{
-        display: "grid",
-        gap: notice ? 6 : 0,
-      }}
-    >
-{renderCommunityCard(group, {
-  subtitle: buildJoinedSubtitle(group, isMobile, newCount),
-})}
-
-      {notice && (
-        <div style={noticeStyles(notice.tone, isMobile)}>
-          {notice.title ? (
-            <div style={{ fontWeight: 700 }}>{notice.title}</div>
-          ) : null}
-          <div>{notice.text}</div>
-
-          {(notice.showSubscribeCta || notice.showDismissCta) && (
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                flexWrap: "wrap",
-                marginTop: 2,
-              }}
-            >
-              {notice.showSubscribeCta && (
-                <button
-                  type="button"
-                  onClick={() => onSubscribe(group.id)}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,0.16)",
-                    background: "#fff",
-                    color: "#000",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    lineHeight: 1.1,
-                    cursor: "pointer",
-                  }}
-                >
-                  Suscribirme
-                </button>
-              )}
-
-              {notice.showDismissCta && (
-                <button
-                  type="button"
-                  disabled={isDismissing}
-                  onClick={() => {
-                    void onDismiss(group.id);
-                  }}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(255,255,255,0.10)",
-                    background: "rgba(255,255,255,0.05)",
-                    color: "#fff",
-                    fontSize: 12,
-                    fontWeight: 600,
-                    lineHeight: 1.1,
-                    cursor: isDismissing ? "not-allowed" : "pointer",
-                    opacity: isDismissing ? 0.7 : 1,
-                  }}
-                >
-                  {isDismissing ? "Olvidando..." : "Olvidar"}
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function LeaveGroupActionCard(params: {
   group: GroupDocLite;
   isMobile: boolean;
@@ -667,7 +566,6 @@ export default function OwnerSidebarOtherGroups({
   loadingCommunities,
   pendingJoinRequestsSent,
   joinedGrouped,
-  subscriptionPendingGroups,
   groupMetaMap,
   styles,
   fmtDate,
@@ -820,8 +718,6 @@ async function handleConfirmLeaveGroup() {
               const isMod = role === "mod";
               const joinRequests = joinRequestsByGroup[g.id] ?? [];
               const joinListOpen = joinSectionOpen[g.id] === true;
-              const communityName = g.name ?? "(Sin nombre)";
-              const avatarFallback = getInitials(communityName);
               const accessNotice = buildAccessNotice(g);
               const accessState = resolveAccessState(g);
               const memberStatus = normalizeMemberStatus(g);
@@ -1055,16 +951,14 @@ return (
                                   }}
                                 >
                                   {requester?.photoURL ? (
-                                    <img
+                                    <Image
                                       src={requester.photoURL}
                                       alt={requester.displayName}
+                                      width={28} height={28}
                                       style={{
-                                        width: 28,
-                                        height: 28,
                                         borderRadius: 10,
                                         objectFit: "cover",
-                                        border:
-                                          "1px solid rgba(255,255,255,0.12)",
+                                        border: "1px solid rgba(255,255,255,0.12)",
                                         flexShrink: 0,
                                       }}
                                     />

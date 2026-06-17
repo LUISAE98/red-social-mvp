@@ -176,7 +176,7 @@ async function getGroupSummaryFromMembershipOrGroup(params: {
   groupId: string;
   membershipData?: Record<string, unknown>;
 }): Promise<BlockedAccountGroupSummary> {
-  const { currentUserId, groupId, membershipData } = params;
+  const { groupId, membershipData } = params;
 
   if (membershipData) {
     const name = getGroupName(membershipData, groupId);

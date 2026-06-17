@@ -44,11 +44,7 @@ import type {
 } from "./types";
 import { httpsCallable } from "firebase/functions";
 import { buildPostSearchIndex } from "./postSearchIndex";
-import {
-  buildFreeAccessFields,
-  buildPremiumAccessFields,
-  type PremiumAccessFields,
-} from "./premium";
+import { buildPremiumAccessFields } from "./premium";
 
 type AuthorSnapshot = {
   uid: string;
@@ -61,12 +57,6 @@ type UserProfileLookup = {
   displayName: string | null;
   avatarUrl: string | null;
   username: string | null;
-};
-
-type GroupDoc = {
-  id: string;
-  ownerId?: string;
-  visibility?: GroupVisibility | string;
 };
 
 type GroupLookup = {
@@ -740,10 +730,10 @@ function readGroupAvatarUrl(data: Record<string, unknown>): string | null {
   );
 }
 
-function getTimestampDate(value: any): Date | null {
+function getTimestampDate(value: unknown): Date | null {
   if (!value) return null;
-  if (value?.toDate instanceof Function) {
-    const d = value.toDate();
+  if (typeof (value as { toDate?: unknown }).toDate === "function") {
+    const d = (value as { toDate: () => unknown }).toDate();
     return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
   }
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
@@ -758,7 +748,7 @@ function getTimestampDate(value: any): Date | null {
 
 function resolveEffectiveMembershipStatus(
   rawStatus: unknown,
-  mutedUntil: any
+  mutedUntil: unknown
 ): GroupMemberStatus {
   const status =
     typeof rawStatus === "string" ? rawStatus.trim().toLowerCase() : "";
@@ -1571,12 +1561,6 @@ async function fetchOwnedGroupIds(userUid: string): Promise<string[]> {
   return snap.docs.map((d) => d.id);
 }
 
-async function fetchPublicGroupIds(): Promise<string[]> {
-  const q = query(collection(db, "groups"), where("visibility", "==", "public"));
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => d.id);
-}
-
 async function fetchMemberGroupIds(userUid: string): Promise<string[]> {
   if (!userUid.trim()) return [];
 
@@ -1629,22 +1613,6 @@ async function fetchAccessibleGroupIds(userUid: string): Promise<string[]> {
   ]);
 
   return Array.from(new Set([...ownedIds, ...memberIds, ...hiddenMemberIds]));
-}
-
-async function fetchProfileVisibleGroupIds(
-  viewerUid?: string | null
-): Promise<string[]> {
-  const publicGroupIds = await fetchPublicGroupIds();
-
-  if (!viewerUid) {
-    return Array.from(new Set(publicGroupIds));
-  }
-
-  const viewerAccessibleGroupIds = await fetchAccessibleGroupIds(viewerUid);
-
-  return Array.from(
-    new Set([...publicGroupIds, ...viewerAccessibleGroupIds])
-  );
 }
 
 async function getGroupWriteAccess(
@@ -1728,24 +1696,6 @@ function assertMembershipCanInteract(status: GroupMemberStatus) {
 if (status !== "active" && status !== "subscribed") {
   throw new Error("No puedes realizar esta acción en esta comunidad.");
 }
-}
-
-async function ensureUserCanCreatePostInGroup(groupId: string, userUid: string) {
-  const access = await getGroupWriteAccess(groupId, userUid);
-
-  if (!access.isActive) {
-    throw new Error("Esta comunidad está inactiva.");
-  }
-
-  if (access.ownerId === userUid) {
-    return;
-  }
-
-  assertMembershipCanInteract(access.membershipStatus);
-
-  if (access.postingMode === "owner_only") {
-    throw new Error("Solo el owner puede publicar en esta comunidad.");
-  }
 }
 
 async function ensureUserCanCommentInGroup(groupId: string, userUid: string) {
@@ -2693,6 +2643,10 @@ export async function createLivePost(params: {
   scheduledStartAt?: Date | null;
   visibilityMode?: LiveVisibilityMode | null;
   allowLoggedOutViewers?: boolean | null;
+  accessType?: "free" | "paid" | null;
+  ticketPrice?: number | null;
+  currency?: "MXN" | "USD" | null;
+  paidAccessMode?: "everyone_pays" | "members_free_non_members_pay" | null;
 }): Promise<string>;
 export async function createLivePost(params: {
   contextType: "profile";
@@ -2703,6 +2657,10 @@ export async function createLivePost(params: {
   scheduledStartAt?: Date | null;
   visibilityMode?: LiveVisibilityMode | null;
   allowLoggedOutViewers?: boolean | null;
+  accessType?: "free" | "paid" | null;
+  ticketPrice?: number | null;
+  currency?: "MXN" | "USD" | null;
+  paidAccessMode?: "everyone_pays" | "members_free_non_members_pay" | null;
 }): Promise<string>;
 export async function createLivePost(params: {
   contextType?: PostContextType;
@@ -2714,6 +2672,10 @@ export async function createLivePost(params: {
   scheduledStartAt?: Date | null;
   visibilityMode?: LiveVisibilityMode | null;
   allowLoggedOutViewers?: boolean | null;
+  accessType?: "free" | "paid" | null;
+  ticketPrice?: number | null;
+  currency?: "MXN" | "USD" | null;
+  paidAccessMode?: "everyone_pays" | "members_free_non_members_pay" | null;
 }): Promise<string> {
   const cleanTitle = params.title.trim();
   if (!cleanTitle) {
@@ -2740,6 +2702,8 @@ export async function createLivePost(params: {
     : null;
 
   const effectiveMode: LiveVisibilityMode = params.visibilityMode ?? "everyone";
+  const effectiveAccessType = params.accessType ?? "free";
+  const isPaidLive = effectiveAccessType === "paid";
 
   const liveData: PostLiveData = {
     status: "upcoming",
@@ -2757,6 +2721,10 @@ export async function createLivePost(params: {
     createdFrom,
     visibilityMode: effectiveMode,
     allowLoggedOutViewers: effectiveMode === "everyone",
+    accessType: effectiveAccessType,
+    ticketPrice: isPaidLive ? (params.ticketPrice ?? null) : null,
+    currency: isPaidLive ? (params.currency ?? "MXN") : null,
+    paidAccessMode: isPaidLive ? (params.paidAccessMode ?? "everyone_pays") : null,
   };
 
   const isGroupLive = context.contextType !== "profile";
@@ -2806,13 +2774,13 @@ export async function createLivePost(params: {
       updatedAt: searchTimestamp,
     }),
     postType: "live",
-    accessModel: "free",
+    accessModel: isPaidLive ? "paid" : "free",
     accessScope: context.contextType,
-    requiresPayment: false,
+    requiresPayment: isPaidLive,
     requiresSubscription: false,
-    oneTimePrice: null,
-    currency: null,
-    purchaseType: null,
+    oneTimePrice: isPaidLive ? (params.ticketPrice ?? null) : null,
+    currency: isPaidLive ? (params.currency ?? "MXN") : null,
+    purchaseType: isPaidLive ? "one_time" : null,
     liveData,
     videoData: null,
     scheduledData: null,
@@ -2854,19 +2822,23 @@ export async function createLivePost(params: {
     }
   } else if (isProfileLive) {
     const profileId = params.profileId ?? author.uid;
-    await setDoc(
-      doc(db, "users", profileId, "profileFeed", postId),
-      {
-        postId,
-        authorId: author.uid,
-        isPinnedOnProfile: true,
-        profilePinnedAt: Timestamp.now(),
-        profilePinnedBy: author.uid,
-        updatedAt: Timestamp.now(),
-        syncedAt: Timestamp.now(),
-      },
-      { merge: true },
-    );
+    try {
+      await setDoc(
+        doc(db, "users", profileId, "profileFeed", postId),
+        {
+          postId,
+          authorId: author.uid,
+          isPinnedOnProfile: true,
+          profilePinnedAt: Timestamp.now(),
+          profilePinnedBy: author.uid,
+          updatedAt: Timestamp.now(),
+          syncedAt: Timestamp.now(),
+        },
+        { merge: true },
+      );
+    } catch {
+      // profileFeed is managed by Cloud Functions; client write may be denied
+    }
   }
 
   return postId;
@@ -4381,6 +4353,10 @@ export async function updateLivePost(params: {
   coverUrl?: string | null;
   scheduledStartAt?: Date | null;
   visibilityMode?: LiveVisibilityMode | null;
+  accessType?: "free" | "paid" | null;
+  ticketPrice?: number | null;
+  currency?: "MXN" | "USD" | null;
+  paidAccessMode?: "everyone_pays" | "members_free_non_members_pay" | null;
 }): Promise<void> {
   const author = auth.currentUser;
   if (!author) throw new Error("Debes iniciar sesión para editar el live.");
@@ -4397,6 +4373,8 @@ export async function updateLivePost(params: {
   if (!cleanTitle) throw new Error("El título del live es obligatorio.");
 
   const effectiveMode: LiveVisibilityMode = params.visibilityMode ?? "everyone";
+  const effectiveAccessType = params.accessType ?? "free";
+  const isPaidLive = effectiveAccessType === "paid";
   const scheduledStartAt = params.scheduledStartAt
     ? Timestamp.fromDate(params.scheduledStartAt)
     : null;
@@ -4407,12 +4385,21 @@ export async function updateLivePost(params: {
     shareDescription: params.description?.trim() || null,
     shareImageUrl: params.coverUrl ?? null,
     isShareable: effectiveMode !== "members_only",
+    requiresPayment: isPaidLive,
+    accessModel: isPaidLive ? "paid" : "free",
+    oneTimePrice: isPaidLive ? (params.ticketPrice ?? null) : null,
+    currency: isPaidLive ? (params.currency ?? "MXN") : null,
+    purchaseType: isPaidLive ? "one_time" : null,
     "liveData.title": cleanTitle,
     "liveData.description": params.description?.trim() || null,
     "liveData.coverUrl": params.coverUrl ?? null,
     "liveData.scheduledStartAt": scheduledStartAt,
     "liveData.visibilityMode": effectiveMode,
     "liveData.allowLoggedOutViewers": effectiveMode === "everyone",
+    "liveData.accessType": effectiveAccessType,
+    "liveData.ticketPrice": isPaidLive ? (params.ticketPrice ?? null) : null,
+    "liveData.currency": isPaidLive ? (params.currency ?? "MXN") : null,
+    "liveData.paidAccessMode": isPaidLive ? (params.paidAccessMode ?? "everyone_pays") : null,
     editedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
@@ -4545,4 +4532,15 @@ export async function fetchLiveStreamCredentials(postId: string): Promise<{
     ingestUrl: data.ingestUrl ?? "rtmps://global-live.mux.com:443/app",
     liveStreamId: data.liveStreamId ?? "",
   };
+}
+
+export async function saveLiveBroadcastMode(
+  postId: string,
+  mode: "direct" | "rtmp",
+): Promise<void> {
+  await updateDoc(doc(db, "posts", postId), {
+    "liveData.broadcastMode": mode,
+    editedAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
 }

@@ -1952,7 +1952,20 @@ function validPostCommonCreateShape() {
 && (
   !("search" in request.resource.data)
   || request.resource.data.search is map
-);
+)
+&& (!("requiresPayment" in request.resource.data) || request.resource.data.requiresPayment is bool)
+&& (!("accessModel" in request.resource.data) || request.resource.data.accessModel in ["free", "paid"])
+&& (
+  !("oneTimePrice" in request.resource.data)
+  || request.resource.data.oneTimePrice == null
+  || (request.resource.data.oneTimePrice is number && request.resource.data.oneTimePrice > 0)
+)
+&& (
+  !("currency" in request.resource.data)
+  || request.resource.data.currency == null
+  || request.resource.data.currency in ["MXN", "USD"]
+)
+&& (!("purchaseType" in request.resource.data) || request.resource.data.purchaseType == null || request.resource.data.purchaseType is string);
 }
 
 function validCreateGroupPost() {
@@ -2269,6 +2282,23 @@ allow list: if canReadPost()
           && request.resource.data.updatedAt is timestamp;
       }
 
+      function canUnpinGroupPost() {
+        return signedIn()
+          && resource.data.isDeleted == false
+          && isGroupPostData(resource.data)
+          && (
+            isOwner(resource.data.groupId)
+            || resource.data.authorId == request.auth.uid
+          )
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            "isPinnedInGroup", "groupPinnedAt", "groupPinnedBy", "updatedAt"
+          ])
+          && request.resource.data.isPinnedInGroup == false
+          && request.resource.data.groupPinnedAt == null
+          && request.resource.data.groupPinnedBy == null
+          && request.resource.data.updatedAt is timestamp;
+      }
+
       function canEditLivePost() {
         return signedIn()
           && resource.data.authorId == request.auth.uid
@@ -2276,7 +2306,8 @@ allow list: if canReadPost()
           && resource.data.postType == "live"
           && request.resource.data.diff(resource.data).changedKeys().hasOnly([
             "text", "liveData", "shareTitle", "shareDescription", "shareImageUrl",
-            "isShareable", "editedAt", "updatedAt"
+            "isShareable", "requiresPayment", "accessModel", "oneTimePrice",
+            "currency", "purchaseType", "editedAt", "updatedAt"
           ])
           && request.resource.data.authorId == resource.data.authorId
           && request.resource.data.editedAt is timestamp
@@ -2287,7 +2318,8 @@ allow list: if canReadPost()
         || canUpdateCommentCount(1)
         || canUpdateCommentCount(-1)
         || canEditPost()
-        || canEditLivePost();
+        || canEditLivePost()
+        || canUnpinGroupPost();
 
       allow delete: if false;
 
@@ -2576,6 +2608,30 @@ function canUpdateReplyCount(delta) {
         && canDeleteLiveChatMsg();
 
       allow delete: if false;
+    }
+
+    // ==========================
+    // LIVE ACCESS (tickets)
+    // ==========================
+    match /liveAccess/{liveId}/users/{userId} {
+      // Solo el propio usuario puede leer su acceso
+      allow read: if signedIn() && request.auth.uid == userId;
+
+      // El usuario solo puede crear su propio acceso simulado
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.userId == userId
+        && request.resource.data.liveId == liveId
+        && request.resource.data.status == "paid"
+        && request.resource.data.paymentMode == "simulated"
+        && request.resource.data.accessType == "live_ticket"
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0
+        && request.resource.data.authorId is string
+        && request.resource.data.createdAt is timestamp;
+
+      // No se puede modificar ni eliminar un acceso ya otorgado
+      allow update, delete: if false;
     }
 
     match /{document=**} {

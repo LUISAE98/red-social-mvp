@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   useCallback,
   useEffect,
@@ -19,8 +20,9 @@ import {
   query,
   where,
   Timestamp,
+  type FirestoreError,
 } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, type User } from "firebase/auth";
 
 import { auth, db } from "@/lib/firebase";
 import {
@@ -29,14 +31,6 @@ import {
 } from "@/lib/groups/joinRequests.admin";
 import { subscribeToMySidebarGroups } from "@/lib/groups/sidebarGroups";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
-import {
-  acceptMeetGreetRequest,
-  proposeMeetGreetSchedule,
-  rejectMeetGreetRequest,
-  requestMeetGreetRefund,
-  requestMeetGreetReschedule,
-  setMeetGreetPreparing,
-} from "@/lib/meetGreet/meetGreetRequests";
 import OwnerSidebarTabNav from "./OwnerSidebarTabNav";
 import OwnerSidebarMyGroups from "./OwnerSidebarMyGroups";
 import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
@@ -250,6 +244,12 @@ export type MeetGreetRequestDoc = {
   paymentMode?: string | null;
   paymentStatus?: string | null;
 
+  noShowRole?: "buyer" | "creator" | "both" | null;
+  noShowRejectAt?: Timestamp | null;
+  autoRejectedAt?: Timestamp | null;
+  autoRejectReason?: string | null;
+  requestSource?: string | null;
+
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 };
@@ -321,14 +321,7 @@ function getServiceBucketKey(data: {
   return data.groupId ?? null;
 }
 
-function isMeetGreetOwnerAlert(status?: MeetGreetStatus | null) {
-  return (
-    status === "pending_creator_response" ||
-    status === "accepted_pending_schedule" ||
-    status === "reschedule_requested" ||
-    status === "ready_to_prepare"
-  );
-}
+
 
 function isMeetGreetCreatorActiveItem(status?: MeetGreetStatus | null) {
   return (
@@ -376,8 +369,9 @@ export function getInitials(name?: string | null) {
   return `${first}${second}`.toUpperCase() || "C";
 }
 
-export function friendlyJoinErrorMessage(err: any) {
-  const msg = (err?.message ?? "").toString().toLowerCase();
+export function friendlyJoinErrorMessage(err: unknown) {
+  const errMsg = err instanceof Error ? err.message : "";
+  const msg = errMsg.toLowerCase();
   if (
     msg.includes("solicitud no existe") ||
     msg.includes("not-found") ||
@@ -385,7 +379,7 @@ export function friendlyJoinErrorMessage(err: any) {
   ) {
     return null;
   }
-  return err?.message ?? "Ocurrió un error.";
+  return errMsg || "Ocurrió un error.";
 }
 
 export function buildDisplayName(user?: Partial<UserDoc> | null, uid?: string) {
@@ -458,14 +452,6 @@ function normalizeSidebarGroupRole(raw: unknown): GroupRoleLite {
   if (raw === "mod" || raw === "moderator") return "mod";
   if (raw === "member") return "member";
   return null;
-}
-
-function isJoinedSidebarStatus(status: SidebarMemberStatus) {
-  return status === "active" || status === "subscribed" || status === "muted";
-}
-
-function isExcludedSidebarStatus(status: SidebarMemberStatus) {
-  return status === "removed";
 }
 
 function sortGroupsWithModsFirst(items: GroupDocLite[]) {
@@ -642,7 +628,7 @@ export function CountBadge({
 }
 
 type OwnerSidebarCache = {
-  viewer: any;
+  viewer: User | null;
   authReady: boolean;
   userDoc: UserDoc | null;
   loadingUser: boolean;
@@ -713,7 +699,7 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
   router.refresh();
 }, [router]);
 
-  const [viewer, setViewer] = useState<any>(
+  const [viewer, setViewer] = useState<User | null>(
     () => ownerSidebarCache?.viewer ?? null
   );
 
@@ -1007,12 +993,7 @@ miniItem: {
 },
   };
 
-  const currentUserAvatar =
-    userDoc?.photoURL?.trim() || viewer?.photoURL?.trim() || null;
-
-  const currentUserDisplayName = buildDisplayName(userDoc, viewer?.uid);
-
-    useEffect(() => {
+  useEffect(() => {
     ownerSidebarCache = {
       viewer,
       authReady,
@@ -1139,8 +1120,8 @@ miniItem: {
             photoURL: u.photoURL ?? null,
           },
         }));
-      } catch (e: any) {
-        setMsg(e?.message ?? "No se pudo cargar tu perfil.");
+      } catch (e: unknown) {
+        setMsg((e instanceof Error ? e.message : null) ?? "No se pudo cargar tu perfil.");
         setUserDoc(null);
       } finally {
         setLoadingUser(false);
@@ -1175,7 +1156,7 @@ miniItem: {
             ...(d.data() as Omit<GroupDocLite, "id">),
             id: d.id,
           }))
-          .filter((g: any) => g.isDeleted !== true && !g.deletedAt);
+          .filter((g) => g.isDeleted !== true && !g.deletedAt);
 
         setMyGroups(rows);
 
@@ -1200,8 +1181,8 @@ miniItem: {
         setGroupMetaMap((prev) => ({ ...prev, ...initialGroupMeta }));
         setLoadingGroups(false);
       },
-      (e: any) => {
-        setGroupsErr(e?.message ?? "No se pudieron cargar tus comunidades.");
+      (e: FirestoreError) => {
+        setGroupsErr(e.message ?? "No se pudieron cargar tus comunidades.");
         setMyGroups([]);
         setOpenCommunities({});
         setLoadingGroups(false);
@@ -1288,9 +1269,9 @@ miniItem: {
 
         setLoadingCommunities(false);
       },
-      (e: any) => {
+      (e: Error) => {
         setGroupsErr(
-          e?.message ?? "No se pudieron cargar tus comunidades."
+          e.message ?? "No se pudieron cargar tus comunidades."
         );
         setJoinedGroups([]);
         setLoadingCommunities(false);
@@ -1332,8 +1313,8 @@ miniItem: {
           );
         setBrowseGroups(explorable);
       },
-      (e: any) => {
-        setGroupsErr(e?.message ?? "No se pudieron cargar las comunidades.");
+      (e: FirestoreError) => {
+        setGroupsErr(e.message ?? "No se pudieron cargar las comunidades.");
         setBrowseGroups([]);
       }
     );
@@ -1417,10 +1398,10 @@ miniItem: {
               (profile): profile is FollowedProfileLite => profile !== null
             )
           );
-        } catch (e: any) {
+        } catch (e: unknown) {
           if (!cancelled) {
             setGroupsErr(
-              e?.message ?? "No se pudieron cargar los perfiles que sigues."
+              (e instanceof Error ? e.message : null) ?? "No se pudieron cargar los perfiles que sigues."
             );
             setFollowedProfiles([]);
           }
@@ -1430,10 +1411,10 @@ miniItem: {
           }
         }
       },
-      (e: any) => {
+      (e: FirestoreError) => {
         if (!cancelled) {
           setGroupsErr(
-            e?.message ?? "No se pudieron cargar los perfiles que sigues."
+            e.message ?? "No se pudieron cargar los perfiles que sigues."
           );
           setFollowedProfiles([]);
           setLoadingFollowing(false);
@@ -1457,7 +1438,7 @@ miniItem: {
       (snap) => {
         const transitionGroups: GroupDocLite[] = snap.docs
           .flatMap((d) => {
-            const data = d.data() as Record<string, any>;
+            const data = d.data() as Record<string, unknown>;
             if (data.requiresSubscription !== true) return [];
             const entry: GroupDocLite = {
               id: d.id,
@@ -1582,7 +1563,7 @@ miniItem: {
         (snap) => {
           const list: JoinRequestRow[] = [];
           snap.forEach((d) => {
-            const data = d.data() as any;
+            const data = d.data() as { userId?: string };
             list.push({
               id: d.id,
               userId: data.userId ?? d.id,
@@ -1594,8 +1575,8 @@ miniItem: {
             [g.id]: list,
           }));
         },
-        (e: any) => {
-          setGroupsErr(e?.message ?? "No se pudieron cargar solicitudes.");
+        (e: FirestoreError) => {
+          setGroupsErr(e.message ?? "No se pudieron cargar solicitudes.");
           setJoinRequestsByGroup((prev) => ({
             ...prev,
             [g.id]: [],
@@ -1667,9 +1648,9 @@ miniItem: {
 
         setGreetingsByGroup(grouped);
       },
-      (e: any) => {
+      (e: FirestoreError) => {
         setGroupsErr(
-          e?.message ?? "No se pudieron cargar solicitudes de servicios."
+          e.message ?? "No se pudieron cargar solicitudes de servicios."
         );
         setGreetingsByGroup({});
       }
@@ -1801,9 +1782,9 @@ miniItem: {
 
         setMeetGreetsByGroup(grouped);
       },
-      (e: any) => {
+      (e: FirestoreError) => {
         setGroupsErr(
-          e?.message ?? "No se pudieron cargar solicitudes de meet & greet."
+          e.message ?? "No se pudieron cargar solicitudes de meet & greet."
         );
         setMeetGreetsByGroup({});
       }
@@ -1915,9 +1896,9 @@ miniItem: {
 
         setExclusiveSessionsByGroup(grouped);
       },
-      (e: any) => {
+      (e: FirestoreError) => {
         setGroupsErr(
-          e?.message ??
+          e.message ??
             "No se pudieron cargar solicitudes de sesión exclusiva."
         );
         setExclusiveSessionsByGroup({});
@@ -2127,63 +2108,6 @@ const groupsForSeen = [
     };
   }, [relevantUserIds, userMiniMap]);
 
-  const ownerSidebarServiceCounts = useMemo(() => {
-    let greetingAlerts = 0;
-    let consejoAlerts = 0;
-    let mensajeAlerts = 0;
-    let meetGreetAlerts = 0;
-    let meetGreetPreparingAlerts = 0;
-
-    for (const rows of Object.values(greetingsByGroup)) {
-      for (const row of rows) {
-        const type = row.data.type;
-        if (type === "saludo") greetingAlerts += 1;
-        else if (type === "consejo") consejoAlerts += 1;
-        else if (type === "mensaje") mensajeAlerts += 1;
-      }
-    }
-
-    for (const rows of Object.values(meetGreetsByGroup)) {
-      for (const row of rows) {
-        const status = row.data.status;
-        if (!isMeetGreetOwnerAlert(status)) continue;
-
-        if (status === "ready_to_prepare") {
-          meetGreetPreparingAlerts += 1;
-        } else {
-          meetGreetAlerts += 1;
-        }
-      }
-    }
-
-    for (const rows of Object.values(exclusiveSessionsByGroup)) {
-      for (const row of rows) {
-        const status = row.data.status;
-        if (!isMeetGreetOwnerAlert(status)) continue;
-
-        if (status === "ready_to_prepare") {
-          meetGreetPreparingAlerts += 1;
-        } else {
-          meetGreetAlerts += 1;
-        }
-      }
-    }
-
-    return {
-      saludo: greetingAlerts,
-      consejo: consejoAlerts,
-      mensaje: mensajeAlerts,
-      meetGreet: meetGreetAlerts,
-      preparing: meetGreetPreparingAlerts,
-      total:
-        greetingAlerts +
-        consejoAlerts +
-        mensajeAlerts +
-        meetGreetAlerts +
-        meetGreetPreparingAlerts,
-    };
-  }, [greetingsByGroup, meetGreetsByGroup, exclusiveSessionsByGroup]);
-
   const totalPendingJoinRequests = useMemo(() => {
     return Object.values(joinRequestsByGroup).reduce(
       (sum, rows) => sum + rows.length,
@@ -2238,7 +2162,7 @@ const groupsForSeen = [
 
       await approveJoinRequest(groupId, userId);
       setMsg("✅ Solicitud de acceso aprobada.");
-    } catch (e: any) {
+    } catch (e: unknown) {
       const friendly = friendlyJoinErrorMessage(e);
       if (friendly) setGroupsErr(friendly);
 
@@ -2268,7 +2192,7 @@ const groupsForSeen = [
 
       await rejectJoinRequest(groupId, userId);
       setMsg("✅ Solicitud de acceso rechazada.");
-    } catch (e: any) {
+    } catch (e: unknown) {
       const friendly = friendlyJoinErrorMessage(e);
       if (friendly) setGroupsErr(friendly);
 
@@ -2301,67 +2225,11 @@ const groupsForSeen = [
           ? "✅ Solicitud de servicio aceptada."
           : "✅ Solicitud de servicio rechazada."
       );
-    } catch (e: any) {
-      setGroupsErr(e?.message ?? "❌ No se pudo actualizar la solicitud.");
+    } catch (e: unknown) {
+      setGroupsErr((e instanceof Error ? e.message : null) ?? "❌ No se pudo actualizar la solicitud.");
     } finally {
       setGreetingBusyId(null);
     }
-  }
-
-  async function handleMeetGreetAccept(requestId: string) {
-    await acceptMeetGreetRequest({ requestId });
-  }
-
-  async function handleMeetGreetReject(
-    requestId: string,
-    rejectionReason?: string | null
-  ) {
-    await rejectMeetGreetRequest({
-      requestId,
-      rejectionReason: rejectionReason ?? null,
-    });
-  }
-
-  async function handleMeetGreetSchedule(
-    requestId: string,
-    scheduledAt: string,
-    note?: string | null
-  ) {
-    await proposeMeetGreetSchedule({
-      requestId,
-      scheduledAt,
-      note: note ?? null,
-    });
-  }
-
-  async function handleMeetGreetRefund(
-    requestId: string,
-    refundReason?: string | null
-  ) {
-    await requestMeetGreetRefund({
-      requestId,
-      refundReason: refundReason ?? null,
-    });
-  }
-
-  async function handleMeetGreetReschedule(
-    requestId: string,
-    reason?: string | null
-  ) {
-    await requestMeetGreetReschedule({
-      requestId,
-      reason: reason ?? null,
-    });
-  }
-
-  async function handleMeetGreetPrepare(
-    requestId: string,
-    role: "buyer" | "creator"
-  ) {
-    await setMeetGreetPreparing({
-      requestId,
-      role,
-    });
   }
 
   function renderUserLink(uid: string) {
@@ -2492,12 +2360,12 @@ WebkitBackdropFilter: "none",
           }}
         >
           {g.avatarUrl ? (
-            <img
+            <Image
               src={g.avatarUrl}
               alt={communityName}
+              width={isMobile ? 43 : 36}
+              height={isMobile ? 43 : 36}
               style={{
-                width: isMobile ? 43 : 36,
-                height: isMobile ? 43 : 36,
                 borderRadius: "50%",
                 objectFit: "cover",
                 border: "1px solid rgba(255,255,255,0.10)",

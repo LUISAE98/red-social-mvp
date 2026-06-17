@@ -218,8 +218,8 @@ export default function OwnerAdminStatus({
       });
 
       setStatusMsg(isActive ? "Comunidad reactivada." : "Comunidad pausada.");
-    } catch (e: any) {
-      setStatusErr(e?.message ?? "No se pudo actualizar el estado.");
+    } catch (e: unknown) {
+      setStatusErr((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el estado.");
     } finally {
       setStatusBusy(false);
     }
@@ -249,10 +249,10 @@ export default function OwnerAdminStatus({
           ? "Ahora solo el owner puede publicar."
           : "Ahora cualquier miembro puede publicar."
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       setPostingMode(previousMode);
       setStatusErr(
-        e?.message ?? "No se pudo actualizar el permiso de publicación."
+        (e instanceof Error ? e.message : null) ?? "No se pudo actualizar el permiso de publicación."
       );
     } finally {
       setPostingBusy(false);
@@ -283,10 +283,10 @@ export default function OwnerAdminStatus({
           ? "Ahora cualquier miembro autorizado puede comentar."
           : "Ahora solo el owner puede comentar."
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       setCommentsEnabled(previousValue);
       setStatusErr(
-        e?.message ?? "No se pudo actualizar el permiso de comentarios."
+        (e instanceof Error ? e.message : null) ?? "No se pudo actualizar el permiso de comentarios."
       );
     } finally {
       setCommentsBusy(false);

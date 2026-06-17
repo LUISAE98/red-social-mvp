@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
@@ -41,12 +42,11 @@ function FlameAvatar({
 }) {
   if (avatarUrl) {
     return (
-      <img
+      <Image
         src={avatarUrl}
         alt={name}
+        width={38} height={38}
         style={{
-          width: 38,
-          height: 38,
           borderRadius: "50%",
           objectFit: "cover",
           display: "block",

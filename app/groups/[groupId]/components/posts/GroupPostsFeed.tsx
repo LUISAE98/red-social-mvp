@@ -74,14 +74,14 @@ type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
 
 type PostWithAuthorState = Post & {
   authorMemberStatus?: MemberStatus;
-  authorMutedUntil?: any;
+  authorMutedUntil?: unknown;
   forcedGroupId?: string | null;
 };
 
 async function getGroupMemberMeta(
   groupId: string,
   userId: string,
-): Promise<{ status: MemberStatus; mutedUntil: any | null }> {
+): Promise<{ status: MemberStatus; mutedUntil: unknown }> {
   try {
     const memberRef = doc(db, "groups", groupId, "members", userId);
     const memberSnap = await getDoc(memberRef);
@@ -90,7 +90,7 @@ async function getGroupMemberMeta(
       return { status: null, mutedUntil: null };
     }
 
-    const data = memberSnap.data() as any;
+    const data = memberSnap.data() as { status?: string; mutedUntil?: unknown };
     const rawStatus = data?.status;
 
     let status: MemberStatus = "active";
@@ -142,7 +142,7 @@ async function attachAuthorMemberState(
 
   const authorStatusMap = new Map<
     string,
-    { status: MemberStatus; mutedUntil: any | null }
+    { status: MemberStatus; mutedUntil: unknown }
   >(authorStatusEntries);
 
   return posts.map((post) => {
@@ -621,13 +621,13 @@ export default function GroupPostsFeed({
 
           return nextPosts;
         });
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (feedRequestIdRef.current !== requestId) {
           return;
         }
 
         setError(
-          e?.message ??
+          (e instanceof Error ? e.message : null) ??
             "No se pudieron cargar las publicaciones. Intenta de nuevo.",
         );
       } finally {
@@ -1126,8 +1126,8 @@ const uploadedVideoCovers =
         setVideoUploadProgress(null);
         setVideoUploadStatus(null);
       }, 2500);
-    } catch (e: any) {
-      setComposerError(e?.message ?? "No se pudo publicar.");
+    } catch (e: unknown) {
+      setComposerError((e instanceof Error ? e.message : null) ?? "No se pudo publicar.");
       setVideoUploadStatus(null);
       setVideoUploadProgress(null);
     }
@@ -1145,8 +1145,8 @@ const uploadedVideoCovers =
           likes: result.likes,
         } as Post["counts"],
       });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo actualizar la flamita.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
       throw e;
     }
   }
@@ -1164,8 +1164,8 @@ const uploadedVideoCovers =
       });
 
       await loadPosts();
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo fijar o desfijar la publicación.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo fijar o desfijar la publicación.");
       throw e;
     }
   }
@@ -1182,9 +1182,9 @@ const uploadedVideoCovers =
       });
 
       await loadPosts();
-    } catch (e: any) {
+    } catch (e: unknown) {
       setError(
-        e?.message ??
+        (e instanceof Error ? e.message : null) ??
           "No se pudo fijar o desfijar la publicación en tu perfil.",
       );
       throw e;
@@ -1211,8 +1211,8 @@ const uploadedVideoCovers =
           saves: nextSaves,
         } as Post["counts"],
       });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo actualizar el guardado.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el guardado.");
       throw e;
     }
   }
@@ -1223,8 +1223,8 @@ const uploadedVideoCovers =
       await softDeletePost(postId);
 
       removePostFromAllFeedCaches(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo eliminar la publicación.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la publicación.");
       throw e;
     }
   }
@@ -1233,8 +1233,8 @@ const uploadedVideoCovers =
     try {
       setError(null);
       return await fetchPostComments(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudieron cargar los comentarios.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar los comentarios.");
       throw e;
     }
   }
@@ -1271,7 +1271,7 @@ const uploadedVideoCovers =
       await createPostComment({ postId, text });
 
       return await syncPostCommentsCount(postId);
-    } catch (e: any) {
+    } catch (e: unknown) {
       throw e;
     }
   }
@@ -1285,8 +1285,8 @@ const uploadedVideoCovers =
       await deletePostComment({ postId, commentId });
 
       return await syncPostCommentsCount(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo eliminar el comentario.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar el comentario.");
       throw e;
     }
   }
@@ -1298,8 +1298,8 @@ const uploadedVideoCovers =
     try {
       setError(null);
       return await fetchCommentReplies({ postId, commentId });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudieron cargar las respuestas.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las respuestas.");
       throw e;
     }
   }
@@ -1320,8 +1320,8 @@ const uploadedVideoCovers =
       await syncPostCommentsCount(postId);
 
       return await fetchCommentReplies({ postId, commentId });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo crear la respuesta.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo crear la respuesta.");
       throw e;
     }
   }
@@ -1338,8 +1338,8 @@ const uploadedVideoCovers =
       await syncPostCommentsCount(postId);
 
       return await fetchCommentReplies({ postId, commentId });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo eliminar la respuesta.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la respuesta.");
       throw e;
     }
   }

@@ -1,3 +1,5 @@
+import type { Timestamp } from "firebase/firestore";
+
 export type GroupVisibility = "public" | "private" | "hidden";
 export type PostingMode = "members" | "owner_only";
 export type Currency = "MXN" | "USD";
@@ -69,7 +71,7 @@ export type CanonicalGroupCategory =
    */
   version: 1;
 
-  updatedAt: any;
+  updatedAt: Timestamp | null;
 };
 /**
  * Categorías LEGACY.
@@ -362,7 +364,7 @@ export type GroupSubscriptionTransitionSettings = {
    * Marca informativa de que el grupo cambió recientemente su esquema.
    * Útil para UI/sidebar/avisos.
    */
-  lastMonetizationChangeAt?: any;
+  lastMonetizationChangeAt?: Timestamp | null;
 
   /**
    * Para soporte futuro/auditoría mínima.
@@ -374,7 +376,7 @@ export type GroupSubscriptionTransitionSettings = {
    * Sirve para evitar duplicados y para mantener estado al recargar.
    */
   lastAppliedTransitionKey?: string | null;
-  lastAppliedTransitionAt?: any;
+  lastAppliedTransitionAt?: Timestamp | null;
   lastAppliedTransitionBy?: string | null;
 };
 /**
@@ -429,8 +431,8 @@ export type ScheduledServiceCalendarItem = {
   id: string;
   kind: ScheduledServiceKind;
   title?: string | null;
-  startsAt: any;
-  endsAt: any;
+  startsAt: Timestamp | null;
+  endsAt: Timestamp | null;
   status: ScheduledServiceCalendarItemStatus;
   buyerUserId?: string | null;
   creatorUserId?: string | null;
@@ -633,8 +635,8 @@ export interface Group {
 
   isActive: boolean;
 
-  createdAt: any;
-  updatedAt: any;
+  createdAt: Timestamp | null;
+  updatedAt: Timestamp | null;
 }
 
 /**

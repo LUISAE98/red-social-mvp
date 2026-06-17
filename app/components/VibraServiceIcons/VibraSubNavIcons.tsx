@@ -10,8 +10,6 @@ export type VibraSubnavIconType =
   | "members";
 
 const vibraPurple = "#a855ff";
-const moneyGreen = "#22c55e";
-
 const SUBNAV_ICON_CONFIG: Record<
   VibraSubnavIconType,
   {
@@ -150,14 +148,12 @@ posts: {
 
 export function VibraSubnavIcon({
   type,
-  active = false,
   label,
   size = 22,
   showLabel = false,
   strokeWidth = 2,
 }: {
   type: VibraSubnavIconType;
-  active?: boolean;
   label?: string;
   size?: number;
   showLabel?: boolean;

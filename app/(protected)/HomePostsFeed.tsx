@@ -3,9 +3,7 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { doc, getDoc } from "firebase/firestore";
-import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 
 import { db } from "@/lib/firebase";
 
@@ -42,7 +40,7 @@ type HomePostsFeedProps = {
 type PostWithFlags = Post & {
   canModerateGroupAuthor?: boolean;
   authorMemberStatus?: "active" | "muted" | "banned" | "removed" | null;
-  authorMutedUntil?: any;
+  authorMutedUntil?: unknown;
 };
 
 function normalizeHomeFeedPost(post: PostWithFlags): PostWithFlags {
@@ -97,7 +95,7 @@ function isVideoPostStillProcessing(post: PostWithFlags): boolean {
 
 function buildStableFeedSeed(
   currentUserId: string,
-  posts: Array<{ id?: string; createdAt?: any }>
+  posts: Array<{ id?: string; createdAt?: { toMillis: () => number } | null }>
 ): number {
   const raw = [
     currentUserId,
@@ -168,7 +166,7 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [pageCursor, setPageCursor] = useState<HomePostsPageCursor | null>(null);
-  const [isMobile, setIsMobile] = useState(false);
+  const [, setIsMobile] = useState(false);
   const infiniteScrollTargetRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(false);
@@ -191,8 +189,6 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
 
         if (currentUserId) {
           const cacheKey = getHomeFeedCacheKey(currentUserId);
-          const previousCache = homeFeedMemoryCache.get(cacheKey);
-
           if (next.length > 0) {
             homeFeedMemoryCache.set(cacheKey, {
               posts: next,
@@ -333,13 +329,13 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
 
           return nextPosts;
         });
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (feedRequestIdRef.current !== requestId) {
           return;
         }
 
         setError(
-          e?.message ??
+          (e instanceof Error ? e.message : null) ??
             "No se pudieron cargar las publicaciones. Intenta de nuevo."
         );
       } finally {
@@ -595,8 +591,8 @@ const handleHomePullRefresh = useCallback(async () => {
           likes: result.likes,
         } as Post["counts"],
       });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo actualizar la flamita.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
       throw e;
     }
   }
@@ -617,8 +613,8 @@ const handleHomePullRefresh = useCallback(async () => {
           saves: nextSaves,
         } as Post["counts"],
       });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo actualizar el guardado.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el guardado.");
       throw e;
     }
   }
@@ -629,8 +625,8 @@ const handleHomePullRefresh = useCallback(async () => {
       await softDeletePost(postId);
 
       removePostFromAllFeedCaches(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
       throw e;
     }
   }
@@ -639,8 +635,8 @@ const handleHomePullRefresh = useCallback(async () => {
     try {
       setError(null);
       return await fetchPostComments(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
       throw e;
     }
   }
@@ -672,8 +668,8 @@ const handleHomePullRefresh = useCallback(async () => {
       setError(null);
       await createPostComment({ postId, text });
       return await syncPostCommentsCount(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
       throw e;
     }
   }
@@ -686,8 +682,8 @@ const handleHomePullRefresh = useCallback(async () => {
       setError(null);
       await deletePostComment({ postId, commentId });
       return await syncPostCommentsCount(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "Error desconocido");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "Error desconocido");
       throw e;
     }
   }
@@ -699,8 +695,8 @@ const handleHomePullRefresh = useCallback(async () => {
     try {
       setError(null);
       return await fetchCommentReplies({ postId, commentId });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudieron cargar las respuestas.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las respuestas.");
       throw e;
     }
   }
@@ -717,8 +713,8 @@ const handleHomePullRefresh = useCallback(async () => {
       await syncPostCommentsCount(postId);
 
       return await fetchCommentReplies({ postId, commentId });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo crear la respuesta.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo crear la respuesta.");
       throw e;
     }
   }
@@ -735,8 +731,8 @@ const handleHomePullRefresh = useCallback(async () => {
       await syncPostCommentsCount(postId);
 
       return await fetchCommentReplies({ postId, commentId });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo eliminar la respuesta.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la respuesta.");
       throw e;
     }
   }
@@ -752,20 +748,6 @@ const shellStyle: CSSProperties = {
   marginBottom: 18,
   overflowX: "hidden",
 };
-
-  const headerStyle: CSSProperties = useMemo(
-    () => ({
-      display: "grid",
-      gap: 4,
-      width: "100%",
-      maxWidth: "100%",
-      minWidth: 0,
-      paddingLeft: isMobile ? 14 : 0,
-      paddingRight: isMobile ? 14 : 0,
-      boxSizing: "border-box",
-    }),
-    [isMobile]
-  );
 
   const noticeStyle: CSSProperties = {
     width: "100%",

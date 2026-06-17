@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   useCallback,
@@ -138,12 +139,12 @@ function Avatar({
 }) {
   if (avatarUrl) {
     return (
-      <img
+      <Image
         src={avatarUrl}
         alt={name}
+        width={size}
+        height={size}
         style={{
-          width: size,
-          height: size,
           borderRadius: "50%",
           objectFit: "cover",
           display: "block",
@@ -192,7 +193,6 @@ export default function PostImageViewer({
   likesCount,
   commentsCount,
   viewerHasFlamed = false,
-  flameBusy = false,
   commentsContent = null,
   mobileSheetCommentsContent = null,
   onClose,
@@ -222,10 +222,10 @@ export default function PostImageViewer({
   const [mobileVideoTrueFullscreen, setMobileVideoTrueFullscreen] =
     useState(false);
   const [desktopPostTextExpanded, setDesktopPostTextExpanded] = useState(false);
-  const [mobileChromeVisible, setMobileChromeVisible] = useState(true);
+  const [, setMobileChromeVisible] = useState(true);
   const [videoDuration, setVideoDuration] = useState(0);
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
-  const [isLandscape, setIsLandscape] = useState(false);
+  const [, setIsLandscape] = useState(false);
   const [videoPlaying, setVideoPlaying] = useState(false);
   const [videoReady, setVideoReady] = useState(false);
   const [isTouchCapable, setIsTouchCapable] = useState(false);
@@ -397,7 +397,7 @@ const currentMediaKey = currentMedia
   // Load image natural dimensions to compute precise clip-path
   useEffect(() => {
     if (!currentMedia || currentMedia.type === "video" || !currentMedia.url) return;
-    const img = new Image();
+    const img = new window.Image();
     img.onload = () => {
       if (img.naturalWidth && img.naturalHeight) {
         setMediaAspectRatio(img.naturalWidth / img.naturalHeight);
@@ -885,6 +885,7 @@ const flameButtonStyle: CSSProperties = {
           }}
         >
           {poster ? (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={poster}
               alt={media.altText || label}
@@ -917,6 +918,7 @@ const flameButtonStyle: CSSProperties = {
 const previewUrl = media.url;
 
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={previewUrl}
         alt={media.altText || label}
@@ -989,6 +991,7 @@ const previewUrl = media.url;
           {currentVideoSrc ? (
             <>
               {currentVideoPoster && !videoReady ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={currentVideoPoster}
                   alt={currentMedia.altText || "Portada del video"}
@@ -1127,6 +1130,7 @@ const previewUrl = media.url;
             disableMinHeight
           />
         ) : (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={currentMedia.url}
             alt={currentMedia.altText || "Imagen de la publicación"}
@@ -2010,6 +2014,7 @@ const previewUrl = media.url;
               </div>
             )
           ) : (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={currentMedia.url}
               alt={currentMedia.altText || "Imagen de la publicación"}

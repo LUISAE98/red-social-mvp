@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
@@ -46,7 +47,7 @@ function GroupPreview({ group }: { group: CarouselGroup }) {
         <div style={{ position: "relative", width: 52, height: 52 }}>
           <div style={{ position: "absolute", inset: 5, borderRadius: "50%", overflow: "hidden" }}>
             {photoURL
-              ? <img src={photoURL} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ? <Image src={photoURL} alt="" fill style={{ objectFit: "cover" }} />
               : <div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />
             }
           </div>

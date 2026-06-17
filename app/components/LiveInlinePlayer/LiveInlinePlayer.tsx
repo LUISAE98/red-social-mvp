@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Hls from "hls.js";
 
@@ -140,11 +141,11 @@ export default function LiveInlinePlayer({
     <div ref={containerRef} style={wrapper} onClick={onClick}>
       {/* Cover placeholder until video ready */}
       {!ready && coverUrl && (
-        <img
+        <Image
           src={coverUrl}
           alt={title ?? "Live"}
-          draggable={false}
-          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.5 }}
+          fill
+          style={{ objectFit: "cover", opacity: 0.5 }}
         />
       )}
 

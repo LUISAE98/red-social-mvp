@@ -214,7 +214,7 @@ const copiedCircleStyle: CSSProperties = {
   </svg>
 </span>
 
-{!iconOnly ? <span>{copied ? "Copiado" : label}</span> : null}
+{!iconOnly ? <span>{copied ? copiedLabel : label}</span> : null}
       </button>
 
       {error && (

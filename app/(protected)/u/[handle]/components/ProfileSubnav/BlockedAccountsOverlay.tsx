@@ -175,8 +175,8 @@ export default function BlockedAccountsOverlay({
         currentUserId: uid,
         blockedUserId: account.blockedUserId,
       });
-    } catch (err: any) {
-      setError(err?.message ?? "No se pudo desbloquear este perfil.");
+    } catch (err: unknown) {
+      setError((err instanceof Error ? err.message : null) ?? "No se pudo desbloquear este perfil.");
     } finally {
       setBusyKey(null);
     }
@@ -193,9 +193,9 @@ export default function BlockedAccountsOverlay({
           groupId: account.groupId,
           blockedUserId: account.blockedUserId,
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         setError(
-          err?.message ?? "No se pudo desbloquear esta cuenta en la comunidad."
+          (err instanceof Error ? err.message : null) ?? "No se pudo desbloquear esta cuenta en la comunidad."
         );
       } finally {
         setBusyKey(null);

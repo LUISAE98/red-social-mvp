@@ -4,7 +4,7 @@ import {
   doc,
   serverTimestamp,
   setDoc,
-  writeBatch,
+  type Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { buildGroupSearchIndex } from "@/lib/groups/groupSearchIndex";
@@ -68,7 +68,7 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
         : undefined,
   });
 
-  const now = serverTimestamp() as any;
+  const now = serverTimestamp() as unknown as Timestamp;
 
   const baseGroup: Omit<Group, "id" | "createdAt" | "updatedAt" | "search"> = {
     name: input.name.trim(),

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -70,130 +71,6 @@ function rrect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h
   ctx.lineTo(x, y + cr);
   ctx.arcTo(x, y, x + cr, y, cr);
   ctx.closePath();
-}
-
-function drawRecordingFrame(
-  ctx: CanvasRenderingContext2D,
-  videoEl: HTMLVideoElement,
-  w: number,
-  h: number,
-  elapsedSeconds: number,
-  avatarImg: HTMLImageElement | null,
-  creatorName: string,
-  serviceType: string,
-  initials: string,
-): void {
-  ctx.clearRect(0, 0, w, h);
-
-  // Rounded corners clip + camera frame
-  const cornerR = Math.round(Math.min(w, h) * 0.04);
-  ctx.save();
-  rrect(ctx, 0, 0, w, h, cornerR);
-  ctx.clip();
-  ctx.drawImage(videoEl, 0, 0, w, h);
-  ctx.restore();
-
-  // Sizes proportional to shorter side, -10% vs previous version
-  const base = Math.min(w, h);
-  const pad    = Math.round(base * 0.032);
-  const aSize  = Math.round(base * 0.099);
-  const gap    = Math.round(base * 0.018);
-  const nameFs = Math.round(base * 0.034);
-  const typeFs = Math.round(base * 0.025);
-  const ringW  = Math.round(base * 0.007);
-  const ax = pad + aSize / 2;
-  const ay = pad + aSize / 2;
-
-  // Gradient story ring — exact Vibra colors: linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)
-  // 135deg in canvas: top-left → bottom-right
-  const ringR = aSize / 2 + ringW;
-  const d135 = ringR * Math.SQRT1_2; // cos/sin(45°) * ringR
-  const ringGrad = ctx.createLinearGradient(ax - d135, ay - d135, ax + d135, ay + d135);
-  ringGrad.addColorStop(0,    "#ec4899");
-  ringGrad.addColorStop(0.52, "#9333ea");
-  ringGrad.addColorStop(1,    "#3b82f6");
-  ctx.save();
-  ctx.strokeStyle = ringGrad;
-  ctx.lineWidth = ringW;
-  ctx.beginPath();
-  ctx.arc(ax, ay, ringR, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.restore();
-
-  // Avatar circle (drawn AFTER ring so it sits on top cleanly)
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(ax, ay, aSize / 2, 0, Math.PI * 2);
-  ctx.clip();
-  if (avatarImg) {
-    ctx.drawImage(avatarImg, ax - aSize / 2, ay - aSize / 2, aSize, aSize);
-  } else {
-    const g = ctx.createLinearGradient(ax - aSize / 2, ay - aSize / 2, ax + aSize / 2, ay + aSize / 2);
-    g.addColorStop(0, "#3b82f6");
-    g.addColorStop(1, "#8b5cf6");
-    ctx.fillStyle = g;
-    ctx.fillRect(ax - aSize / 2, ay - aSize / 2, aSize, aSize);
-    ctx.fillStyle = "#fff";
-    ctx.font = `700 ${Math.round(aSize * 0.38)}px -apple-system, sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(initials.slice(0, 2), ax, ay);
-    ctx.textAlign = "left";
-    ctx.textBaseline = "alphabetic";
-  }
-  ctx.restore();
-
-  // Name + service type — no shadows
-  const textX = ax + aSize / 2 + gap + ringW;
-  ctx.save();
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `700 ${nameFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText(creatorName, textX, ay - Math.round(typeFs * 0.3));
-  ctx.fillStyle = "rgba(255,255,255,0.80)";
-  ctx.font = `500 ${typeFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
-  ctx.fillText(serviceType, textX, ay + typeFs + Math.round(typeFs * 0.1));
-  ctx.restore();
-
-  // Vibra.com animated pill — period 25s (20s hidden → 0.5s in → 4s visible → 0.5s out)
-  const cycle = elapsedSeconds % 25;
-  let t = 0;
-  if (cycle >= 20 && cycle < 20.5)        t = (cycle - 20) / 0.5;
-  else if (cycle >= 20.5 && cycle < 24.5) t = 1;
-  else if (cycle >= 24.5 && cycle < 25)   t = 1 - (cycle - 24.5) / 0.5;
-  const ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
-
-  if (ease > 0.005) {
-    const urlFs   = Math.round(base * 0.025);
-    const pillPad = Math.round(base * 0.016);
-    const pillH   = Math.round(base * 0.050);
-    const dotR    = Math.round(base * 0.006);
-
-    ctx.font = `700 ${nameFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
-    const nameW = ctx.measureText(creatorName).width;
-    ctx.font = `700 ${urlFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
-    const urlW  = ctx.measureText("vibra.com").width;
-    const pillW = pillPad + dotR * 2 + Math.round(base * 0.011) + urlW + pillPad;
-
-    const pillNX = textX + nameW + Math.round(base * 0.011);
-    const pillX  = pillNX + (1 - ease) * (pillW + Math.round(base * 0.06));
-    const pillY  = ay - aSize / 2;
-
-    ctx.save();
-    ctx.globalAlpha = Math.min(1, ease * 1.5);
-    ctx.fillStyle = "rgba(37,99,235,0.90)";
-    rrect(ctx, pillX, pillY, pillW, pillH, pillH / 2);
-    ctx.fill();
-    ctx.fillStyle = "rgba(255,255,255,0.9)";
-    ctx.beginPath();
-    ctx.arc(pillX + pillPad + dotR, pillY + pillH / 2, dotR, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#ffffff";
-    ctx.font = `700 ${urlFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
-    ctx.textBaseline = "middle";
-    ctx.fillText("vibra.com", pillX + pillPad + dotR * 2 + Math.round(base * 0.011), pillY + pillH / 2);
-    ctx.restore();
-  }
 }
 
 // Draws only the overlay elements on a transparent canvas (no video background).
@@ -299,11 +176,9 @@ export default function GreetingReviewOverlay({
   buyers,
   startIndex = 0,
   greetingBusyId,
-  onAccept,
   onReject,
   onClose,
   getInitials,
-  typeLabel,
   viewMode = false,
   buyerViewMode = false,
   buyerSourceName,
@@ -315,7 +190,7 @@ export default function GreetingReviewOverlay({
   const [viewState, setViewState] = useState<ViewState>(viewMode ? "camera" : "review");
   const [recordPhase, setRecordPhase] = useState<RecordPhase>("preview");
   const [isMobile, setIsMobile] = useState(false);
-  const [sheetExpanded, setSheetExpanded] = useState(false);
+  const [, setSheetExpanded] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
   const [recordingSeconds, setRecordingSeconds] = useState(0);
@@ -377,7 +252,7 @@ export default function GreetingReviewOverlay({
   const canvasRecRef = useRef<HTMLCanvasElement | null>(null);
   const rafRecRef = useRef<number | null>(null);
   const cancelDrawLoopRef = useRef<(() => void) | null>(null);
-  const recStartTimeRef = useRef<number>(0);
+
   const overlayAvatarRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => { setMounted(true); }, []);
@@ -539,8 +414,8 @@ export default function GreetingReviewOverlay({
       setUploadProgress(0);
       setCompletedEarningsNet((prev) => [...prev, earningNet ?? 0]);
       setUploadSucceeded(true);
-    } catch (e: any) {
-      setUploadError(e?.message ?? "No se pudo subir el video. Intenta de nuevo.");
+    } catch (e: unknown) {
+      setUploadError((e instanceof Error ? e.message : null) ?? "No se pudo subir el video. Intenta de nuevo.");
       setIsUploading(false);
       setUploadProgress(0);
     }
@@ -596,7 +471,7 @@ export default function GreetingReviewOverlay({
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       await new Promise<void>((resolve) => {
-        const img = new Image();
+        const img = new window.Image();
         img.onload = () => { overlayAvatarRef.current = img; URL.revokeObjectURL(blobUrl); resolve(); };
         img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(); };
         img.src = blobUrl;
@@ -1284,10 +1159,11 @@ export default function GreetingReviewOverlay({
           {`Este ${typeWord} fue solicitado desde ${sourceName}`}
         </span>
         {sourcePhotoURL ? (
-          <img
+          <Image
             src={sourcePhotoURL}
             alt={sourceName}
-            style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.15)" }}
+            width={22} height={22}
+            style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.15)" }}
           />
         ) : (
           <div style={{
@@ -1306,10 +1182,11 @@ export default function GreetingReviewOverlay({
   const buyerRow = buyerViewMode ? (
     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
       {buyerSourceAvatar ? (
-        <img
+        <Image
           src={buyerSourceAvatar}
-          alt={buyerSourceName}
-          style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}
+          alt={buyerSourceName ?? ""}
+          width={38} height={38}
+          style={{ borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}
         />
       ) : (
         <div style={{
@@ -1332,13 +1209,11 @@ export default function GreetingReviewOverlay({
   ) : (
     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
       {buyer?.photoURL ? (
-        <img
+        <Image
           src={buyer.photoURL}
           alt={buyer.displayName}
-          style={{
-            width: 38, height: 38, borderRadius: "50%", objectFit: "cover",
-            border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0,
-          }}
+          width={38} height={38}
+          style={{ borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}
         />
       ) : (
         <div style={{

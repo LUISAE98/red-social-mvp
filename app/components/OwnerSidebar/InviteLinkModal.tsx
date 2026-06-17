@@ -148,9 +148,9 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
       });
 
       setLink(`${window.location.origin}/invite/${res.token}`);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      setError(e?.message ?? "Error creando link.");
+      setError((e instanceof Error ? e.message : null) ?? "Error creando link.");
     } finally {
       setLoading(false);
     }

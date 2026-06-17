@@ -166,3 +166,9 @@ export { videoOverlayDownload } from "./videoOverlay";
 
 // Live streams (Mux)
 export { createMuxLiveStream } from "./liveMux";
+
+// LiveKit — tokens de videollamada para sesiones exclusivas y meet & greet
+export { getLivekitToken } from "./livekitTokens";
+
+// LiveKit — ciclo de vida de sesiones (join, end)
+export { joinSession, endSession } from "./sessionLifecycle";

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { orderBy } from "firebase/firestore";
+import { orderBy, type FirestoreError } from "firebase/firestore";
 import {
   collection,
   doc,
@@ -11,6 +11,10 @@ import {
   type Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type {
+  LiveKitRoomStatus,
+  LiveKitSessionRecordingStatus,
+} from "@/types/livekit";
 import {
   getMeetGreetStatusLabel,
   type MeetGreetStatus,
@@ -72,6 +76,19 @@ type WalletScheduledDoc = {
   noShowRole?: "buyer" | "creator" | "both" | null;
   createdAt: FirestoreTimestampLike;
   updatedAt: FirestoreTimestampLike;
+
+  // Campos LiveKit — opcionales para mantener compatibilidad con docs anteriores
+  roomName?: string | null;
+  livekitRoomId?: string | null;
+  livekitEgressId?: string | null;
+  roomStatus?: LiveKitRoomStatus;
+  creatorJoinedAt?: FirestoreTimestampLike;
+  buyerJoinedAt?: FirestoreTimestampLike;
+  startedAt?: FirestoreTimestampLike;
+  endedAt?: FirestoreTimestampLike;
+  recordingStatus?: LiveKitSessionRecordingStatus;
+  recordingUrl?: string | null;
+  recordingDurationSeconds?: number | null;
 };
 
 export type WalletMeetGreetDoc = WalletScheduledDoc & {
@@ -657,9 +674,9 @@ function useScheduledRows(
         setError(null);
         setLoading(false);
       },
-      (err: any) => {
+      (err: FirestoreError) => {
         setRows([]);
-        setError(err?.message ?? `No se pudo cargar ${collectionName}.`);
+        setError(err.message ?? `No se pudo cargar ${collectionName}.`);
         setLoading(false);
       }
     );
@@ -827,10 +844,10 @@ export function useOwnerWalletData(
         setGreetingError(null);
         setLoadingGreetings(false);
       },
-      (err: any) => {
+      (err: FirestoreError) => {
         setGreetingRows([]);
         setGreetingError(
-          err?.message ??
+          err.message ??
             "No se pudieron cargar los saludos y consejos de la wallet."
         );
         setLoadingGreetings(false);

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 
 import { getProfileFollowers } from "@/lib/social/social-service";
@@ -50,10 +51,10 @@ export default function ProfileFollowersOverlay({
         if (!cancelled) {
           setFollowers(result);
         }
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!cancelled) {
           setFollowers([]);
-          setError(e?.message ?? "No se pudo cargar la lista de seguidores.");
+          setError((e instanceof Error ? e.message : null) ?? "No se pudo cargar la lista de seguidores.");
         }
       } finally {
         if (!cancelled) {
@@ -210,14 +211,11 @@ export default function ProfileFollowersOverlay({
                     }}
                   >
                     {follower.avatarUrl ? (
-                      <img
+                      <Image
                         src={follower.avatarUrl}
                         alt=""
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
+                        width={42} height={42}
+                        style={{ objectFit: "cover" }}
                       />
                     ) : (
                       <span

@@ -612,7 +612,7 @@ export default function ProfileServicesTab({
   );
 
   const [draft, setDraft] = useState<ServiceDraft>(createEmptyDraft());
-  const [savedDraft, setSavedDraft] = useState<ServiceDraft>(createEmptyDraft());
+  const [, setSavedDraft] = useState<ServiceDraft>(createEmptyDraft());
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -1040,8 +1040,8 @@ export default function ProfileServicesTab({
       });
 
       setMsg("✅ Servicios del perfil guardados.");
-    } catch (e: any) {
-      setErr(e?.message ?? "❌ No se pudieron guardar los servicios del perfil.");
+    } catch (e: unknown) {
+      setErr((e instanceof Error ? e.message : null) ?? "❌ No se pudieron guardar los servicios del perfil.");
     } finally {
       skipHydrationWhileSavingRef.current = false;
       setSaving(false);

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import {
   useParams,
@@ -203,8 +204,8 @@ const { user } = useAuth();
       try {
         const res = await getInviteLinkPreview(token);
         setData(res);
-      } catch (e: any) {
-        setError(e?.message ?? "Error cargando invitación");
+      } catch (e: unknown) {
+        setError((e instanceof Error ? e.message : null) ?? "Error cargando invitación");
       } finally {
         setLoading(false);
       }
@@ -234,8 +235,8 @@ const { user } = useAuth();
     try {
       const res = await consumeInviteLink(token);
       router.replace(`/groups/${res.groupId}`);
-    } catch (e: any) {
-      setError(e?.message ?? "Error al usar invitación");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "Error al usar invitación");
     } finally {
       setConsuming(false);
     }
@@ -403,12 +404,11 @@ const { user } = useAuth();
               background: "#0b0b0b",
             }}
           >
-            <img
+            <Image
               src={coverBg}
               alt="cover"
+              fill
               style={{
-                width: "100%",
-                height: "100%",
                 objectFit: "cover",
                 opacity: 0.96,
                 filter: showGroupInfo ? "none" : "blur(14px)",
@@ -448,17 +448,15 @@ const { user } = useAuth();
                     display: "grid",
                     placeItems: "center",
                     background: "#0c0c0c",
+                    position: "relative",
                   }}
                 >
                   {group.avatarUrl ? (
-                    <img
+                    <Image
                       src={group.avatarUrl}
                       alt="avatar"
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
+                      fill
+                      style={{ objectFit: "cover" }}
                     />
                   ) : (
                     <span

@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties, useEffect, useMemo, useState } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import LogoutButton from "@/app/LogoutButton";
 import BlockedAccountsOverlay from "./BlockedAccountsOverlay";

@@ -225,6 +225,9 @@ export type ProcessingStatus =
 
 export type LiveVisibilityMode = "everyone" | "logged_in_only" | "members_only";
 
+export type LiveAccessType = "free" | "paid";
+export type LivePaidAccessMode = "everyone_pays" | "members_free_non_members_pay";
+
 export type PostLiveData = {
   status?: LiveStatus;
   title?: string | null;
@@ -244,6 +247,11 @@ export type PostLiveData = {
   chatEnabled?: boolean | null;
   mutedUsers?: string[] | null;
   bannedUsers?: string[] | null;
+  accessType?: LiveAccessType | null;
+  ticketPrice?: number | null;
+  currency?: "MXN" | "USD" | null;
+  paidAccessMode?: LivePaidAccessMode | null;
+  broadcastMode?: "direct" | "rtmp" | null;
 };
 
 export type PostVideoData = {

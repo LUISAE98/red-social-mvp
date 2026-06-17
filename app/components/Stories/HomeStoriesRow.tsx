@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   collection,
@@ -300,13 +301,15 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
                     alignItems: "center",
                     justifyContent: "center",
                     boxSizing: "border-box",
+                    position: "relative",
                   }}
                 >
                   {group.thumbnailUrl ? (
-                    <img
+                    <Image
                       src={group.thumbnailUrl}
                       alt={name}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      fill
+                      style={{ objectFit: "cover" }}
                     />
                   ) : (
                     <span style={{ fontSize: 22, lineHeight: 1 }}>{emoji}</span>
@@ -469,5 +472,6 @@ function buildStoryGroups(
   seen.sort((a, b) => b._sort - a._sort);
 
   // Strip _sort before returning
-  return [...active, ...seen].map(({ _sort: _, ...g }) => g);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  return [...active, ...seen].map(({ _sort, ...g }) => g);
 }

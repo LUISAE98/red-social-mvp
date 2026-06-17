@@ -94,7 +94,7 @@ function getDocCreatedAtMs(docSnap: QueryDocumentSnapshot<DocumentData>): number
 }
 
 function getPostCreatedAtMs(post: Post): number {
-  const value = (post as any)?.search?.createdAt ?? (post as any)?.createdAt;
+  const value = post.search?.createdAt ?? (post as { createdAt?: { toMillis: () => number; seconds: number } }).createdAt;
 
   if (value && typeof value.toMillis === "function") {
     return value.toMillis();

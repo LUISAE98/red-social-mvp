@@ -13,7 +13,6 @@ import {
   buildDefaultServiceCatalog,
   deriveMonetizationFlagsFromCatalog,
   isValidCurrency,
-  mergeWithDefaultCatalog,
   normalizeBoolean,
   normalizeDonationSettings,
   normalizeServiceCatalog,

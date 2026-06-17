@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -103,14 +104,11 @@ export default function SharedCommunitiesOverlay({
               >
                 <span className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/8 text-sm font-bold text-white/75 ring-1 ring-white/10">
                   {imageUrl ? (
-                    <img
+                    <Image
                       src={imageUrl}
                       alt={community.name}
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        objectFit: "cover",
-                      }}
+                      fill
+                      style={{ objectFit: "cover" }}
                     />
                   ) : (
                     getInitial(community.name)

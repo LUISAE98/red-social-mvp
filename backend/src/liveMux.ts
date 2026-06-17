@@ -50,7 +50,7 @@ export const createMuxLiveStream = onCall(
         playback_policy: ["public"],
         new_asset_settings: { playback_policy: ["public"] },
         passthrough: JSON.stringify({ postId }),
-        latency_mode: "reduced",
+        latency_mode: "low",
         reconnect_window: 60,
         max_continuous_duration: 28800,
       });

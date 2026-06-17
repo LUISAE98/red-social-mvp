@@ -272,10 +272,11 @@ export async function normalizeImageFile(
       originalType,
       originalName,
     };
-  } catch (e: any) {
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : null;
     throw new Error(
-      e?.message
-        ? `No se pudo convertir la imagen del iPhone: ${e.message}`
+      msg
+        ? `No se pudo convertir la imagen del iPhone: ${msg}`
         : "No se pudo convertir la imagen del iPhone."
     );
   }

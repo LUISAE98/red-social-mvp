@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
@@ -14,6 +15,7 @@ import {
   unbanLiveChatUser,
 } from "@/lib/liveChat/live-chat-service";
 import { useAuth } from "@/app/providers";
+import LiveDirectBroadcast from "@/app/components/LiveDirectBroadcast/LiveDirectBroadcast";
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
 const DIV = "1px solid rgba(255,255,255,0.12)";
@@ -63,7 +65,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const hlsUrl =
     post.playback?.hlsUrl ??
     (liveData?.playbackId ? `https://stream.mux.com/${liveData.playbackId}.m3u8` : null);
-  const showVideo = liveStatus === "live" && !!hlsUrl;
+  const isEnded = liveStatus === "ended";
+  const broadcastMode = liveData?.broadcastMode ?? null;
+  const showDirectBroadcast = broadcastMode === "direct" && !isEnded;
+  const showVideo = (liveStatus === "live" || isEnded) && !!hlsUrl && !showDirectBroadcast;
 
   useEffect(() => {
     const update = () => setIsDesktop(window.innerWidth >= 768);
@@ -164,6 +169,30 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     return (
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <span style={{ fontSize: 12, color: "rgba(255,255,255,0.12)", fontFamily: FONT }}>Próximamente</span>
+      </div>
+    );
+  }
+
+  function renderEndedOverlay() {
+    return (
+      <div style={{
+        position: "absolute", inset: 0, zIndex: 4,
+        background: "rgba(0,0,0,0.6)",
+        backdropFilter: "blur(3px)",
+        WebkitBackdropFilter: "blur(3px)",
+        display: "flex", flexDirection: "column",
+        alignItems: "center", justifyContent: "center", gap: 10,
+        fontFamily: FONT,
+      }}>
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
+          stroke="rgba(255,255,255,0.75)" strokeWidth="1.5"
+          strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12 6 12 12 16 14" />
+        </svg>
+        <span style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.01em" }}>
+          Transmisión finalizada
+        </span>
       </div>
     );
   }
@@ -306,7 +335,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           </div>
 
           {/* Right column: Live video portrait (story shape) */}
-          {showVideo && (
+          {(showVideo || showDirectBroadcast) && (
             <div style={{
               flexShrink: 0, display: "flex",
               alignItems: "center", justifyContent: "center",
@@ -320,67 +349,91 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 overflow: "hidden",
                 background: "#000",
               }}>
-                <VideoPreview hlsUrl={hlsUrl!} fill />
+                {showDirectBroadcast ? (
+                  <LiveDirectBroadcast postId={post.id} />
+                ) : (
+                  <VideoPreview hlsUrl={hlsUrl!} fill />
+                )}
+                {isEnded && renderEndedOverlay()}
               </div>
             </div>
           )}
         </div>
 
       ) : isDesktop && !portrait ? (
-        /* ── Desktop + Horizontal live: grid 2×2 ─────────────────────────── */
-        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-
-          {/* Top row */}
-          <div style={{ flex: 1, display: "flex", overflow: "hidden", borderBottom: DIV }}>
-
-            {/* Top-left: Chat en vivo — panel secundario */}
-            <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
+        /* ── Desktop + Horizontal live ────────────────────────────────────── */
+        showDirectBroadcast ? (
+          /* Direct broadcast: cámara grande a la izquierda + chat a la derecha */
+          <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
+            <div style={{ flex: 3, position: "relative", overflow: "hidden", background: "#000", minWidth: 0 }}>
+              <LiveDirectBroadcast postId={post.id} />
+            </div>
+            <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderLeft: DIV, minWidth: 0 }}>
               {renderChatSection()}
             </div>
+          </div>
+        ) : (
+          /* Grid 2×2 para RTMP / HLS */
+          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
-            {/* Top-right: Video en vivo — panel principal */}
-            <div style={{ flex: 3, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              {sectionHeader("En vivo")}
-              {showVideo ? (
-                <div style={{
-                  flex: 1, margin: "12px 16px 16px",
-                  position: "relative", borderRadius: 14,
-                  overflow: "hidden", background: "#000",
-                }}>
-                  <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
-                </div>
-              ) : comingSoon()}
+            {/* Top row */}
+            <div style={{ flex: 1, display: "flex", overflow: "hidden", borderBottom: DIV }}>
+
+              {/* Top-left: Chat en vivo */}
+              <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
+                {renderChatSection()}
+              </div>
+
+              {/* Top-right: Video en vivo */}
+              <div style={{ flex: 3, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {sectionHeader("En vivo")}
+                {showVideo ? (
+                  <div style={{
+                    flex: 1, margin: "12px 16px 16px",
+                    position: "relative", borderRadius: 14,
+                    overflow: "hidden", background: "#000",
+                  }}>
+                    <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
+                    {isEnded && renderEndedOverlay()}
+                  </div>
+                ) : comingSoon()}
+              </div>
+            </div>
+
+            {/* Bottom row */}
+            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+
+              {/* Bottom-left: Supercomentarios */}
+              <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
+                {sectionHeader("Supercomentarios")}
+                {comingSoon()}
+              </div>
+
+              {/* Bottom-right: Estadísticas */}
+              <div style={{ flex: 3, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {sectionHeader("Estadísticas")}
+                {comingSoon()}
+              </div>
             </div>
           </div>
-
-          {/* Bottom row */}
-          <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-
-            {/* Bottom-left: Supercomentarios — panel secundario */}
-            <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
-              {sectionHeader("Supercomentarios")}
-              {comingSoon()}
-            </div>
-
-            {/* Bottom-right: Estadísticas */}
-            <div style={{ flex: 3, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              {sectionHeader("Estadísticas")}
-              {comingSoon()}
-            </div>
-          </div>
-        </div>
+        )
 
       ) : !isDesktop && !portrait ? (
         /* ── Mobile + Horizontal live ─────────────────────────────────────── */
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
           {/* Video 16:9 — debajo del header que ya respeta safe-area-top */}
-          {showVideo && (
+          {(showVideo || showDirectBroadcast) && (
             <div style={{
               flexShrink: 0, width: "100%", aspectRatio: "16/9",
               position: "relative", background: "#000",
             }}>
-              <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
+              {showDirectBroadcast ? (
+                <LiveDirectBroadcast postId={post.id} />
+              ) : (
+                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
+              )}
+              {isEnded && renderEndedOverlay()}
             </div>
           )}
 
@@ -440,9 +493,14 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               display: "flex", alignItems: "center", justifyContent: "center",
             }}
           >
-            {showVideo ? (
+            {showDirectBroadcast ? (
+              <div style={{ width: "100%", height: "100%", position: "relative" }}>
+                <LiveDirectBroadcast postId={post.id} />
+              </div>
+            ) : showVideo ? (
               <div style={{ width: "100%", height: "100%", position: "relative" }}>
                 <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
+                {isEnded && renderEndedOverlay()}
               </div>
             ) : (
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>Sin transmisión activa</span>
@@ -506,9 +564,18 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       ) : (
         /* ── Fallback: mobile portrait (próximamente) ─────────────────────── */
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          {showVideo && (
-            <div style={{ flexShrink: 0, background: "#000" }}>
-              <VideoPreview hlsUrl={hlsUrl!} compact />
+          {(showVideo || showDirectBroadcast) && (
+            <div style={{ flexShrink: 0, background: "#000", position: "relative" }}>
+              {showDirectBroadcast ? (
+                <div style={{ width: "100%", aspectRatio: "9/16", position: "relative" }}>
+                  <LiveDirectBroadcast postId={post.id} />
+                </div>
+              ) : (
+                <>
+                  <VideoPreview hlsUrl={hlsUrl!} />
+                  {isEnded && renderEndedOverlay()}
+                </>
+              )}
             </div>
           )}
           <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
@@ -546,7 +613,7 @@ function ChatMessageRow({ msg, isMuted, isBanned, onMute, onBan, onDelete }: Mes
       opacity: isBanned ? 0.38 : 1,
     }}>
       {msg.avatarUrl ? (
-        <img src={msg.avatarUrl} alt="" style={{ width: 26, height: 26, borderRadius: "50%", objectFit: "cover", flexShrink: 0, marginTop: 1 }} />
+        <Image src={msg.avatarUrl} alt="" width={26} height={26} style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, marginTop: 1 }} />
       ) : (
         <div style={{
           width: 26, height: 26, borderRadius: "50%", background: "rgba(168,85,247,0.35)",
@@ -642,7 +709,7 @@ function ModActionBtn({
 
 // ── VideoPreview ───────────────────────────────────────────────────────────
 
-function VideoPreview({ hlsUrl, fill, compact, objectFit = "cover" }: { hlsUrl: string; fill?: boolean; compact?: boolean; objectFit?: "cover" | "contain" }) {
+function VideoPreview({ hlsUrl, fill, objectFit = "cover" }: { hlsUrl: string; fill?: boolean; objectFit?: "cover" | "contain" }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
 

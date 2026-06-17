@@ -12,7 +12,7 @@ const db = getFirestore();
 const REGION = "us-central1";
 const WRITE_BATCH_LIMIT = 450;
 
-function requireAuth(request: any): string {
+function requireAuth(request: { auth?: { uid?: string } }): string {
   const uid = request.auth?.uid;
 
   if (!uid) {
@@ -42,7 +42,7 @@ function normalizeOptionalString(value: unknown): string | null {
   return cleanValue.length > 0 ? cleanValue : null;
 }
 
-function isGroupAlreadyDeleted(groupData: Record<string, any>): boolean {
+function isGroupAlreadyDeleted(groupData: Record<string, unknown>): boolean {
   return groupData.isDeleted === true || Boolean(groupData.deletedAt);
 }
 
@@ -174,7 +174,7 @@ async function commitBatches(
 
 async function patchDocuments(
   refs: FirebaseFirestore.DocumentReference[],
-  patch: Record<string, any>
+  patch: Record<string, unknown>
 ): Promise<number> {
   let affected = 0;
 
@@ -207,7 +207,7 @@ async function softDeleteGroupInternal(params: {
     throw new HttpsError("not-found", "La comunidad no existe.");
   }
 
-  const groupData = groupSnap.data() as Record<string, any>;
+  const groupData = groupSnap.data() as Record<string, unknown>;
   const ownerId =
     typeof groupData.ownerId === "string" ? groupData.ownerId.trim() : "";
 
@@ -259,17 +259,11 @@ async function softDeleteGroupInternal(params: {
 
   const requesterUserIds = joinRequestsSnap.docs
     .map((docSnap) => {
-      const data = docSnap.data() as Record<string, any>;
-
-      return (
-        data.userId ||
-        data.uid ||
-        data.requesterId ||
-        data.createdBy ||
-        docSnap.id
-      );
+      const data = docSnap.data() as Record<string, unknown>;
+      const raw = data.userId ?? data.uid ?? data.requesterId ?? data.createdBy ?? docSnap.id;
+      return typeof raw === "string" ? raw : undefined;
     })
-    .filter((uid) => typeof uid === "string" && uid.trim().length > 0);
+    .filter((uid): uid is string => typeof uid === "string" && uid.trim().length > 0);
 
   const affectedUserIds = Array.from(
     new Set([...memberUserIds, ...requesterUserIds])
@@ -298,7 +292,7 @@ async function softDeleteGroupInternal(params: {
       throw new HttpsError("not-found", "La comunidad no existe.");
     }
 
-    const freshGroupData = freshGroupSnap.data() as Record<string, any>;
+    const freshGroupData = freshGroupSnap.data() as Record<string, unknown>;
 
     if (isGroupAlreadyDeleted(freshGroupData)) {
       return;

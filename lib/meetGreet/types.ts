@@ -1,3 +1,5 @@
+import type { LiveKitSessionFields } from "@/types/livekit";
+
 export const MEET_GREET_MAX_RESCHEDULE_REQUESTS = 2;
 export const MEET_GREET_PREPARE_WINDOW_MINUTES = 10;
 export const MEET_GREET_NO_SHOW_TOLERANCE_MINUTES = 15;
@@ -34,7 +36,7 @@ export type MeetGreetRescheduleHistoryItem = {
   countAfterRequest: number;
 };
 
-export type MeetGreetRequestRecord = {
+export type MeetGreetRequestRecord = LiveKitSessionFields & {
   id: string;
   type: "digital_meet_greet";
   flowVersion: number;

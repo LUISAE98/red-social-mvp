@@ -55,8 +55,8 @@ export function useGroupMemberBlocks({
       });
 
       setRelationship(nextRelationship);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo cargar el bloqueo del grupo.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo cargar el bloqueo del grupo.");
       setRelationship(EMPTY_RELATIONSHIP);
     } finally {
       setLoading(false);
@@ -85,8 +85,8 @@ export function useGroupMemberBlocks({
         hasBlocked: true,
         isBlockedBy: relationship.isBlockedBy,
       });
-    } catch (e: any) {
-      const message = e?.message ?? "No se pudo bloquear en este grupo.";
+    } catch (e: unknown) {
+      const message = (e instanceof Error ? e.message : null) ?? "No se pudo bloquear en este grupo.";
       setError(message);
       throw new Error(message);
     } finally {
@@ -117,8 +117,8 @@ export function useGroupMemberBlocks({
         hasBlocked: false,
         isBlockedBy: relationship.isBlockedBy,
       });
-    } catch (e: any) {
-      const message = e?.message ?? "No se pudo desbloquear en este grupo.";
+    } catch (e: unknown) {
+      const message = (e instanceof Error ? e.message : null) ?? "No se pudo desbloquear en este grupo.";
       setError(message);
       throw new Error(message);
     } finally {

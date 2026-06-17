@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -88,14 +89,12 @@ function ProfileAvatarIcon({
       }}
     >
       {src ? (
-        <img
+        <Image
           src={src}
           alt=""
           width={size}
           height={size}
           style={{
-            width: "100%",
-            height: "100%",
             objectFit: "cover",
             display: "block",
           }}

@@ -170,7 +170,6 @@ export default function GroupSubnav({
               <span style={itemInner}>
                 <VibraSubnavIcon
                   type={tab.iconType}
-                  active={active}
                   size={34}
                   strokeWidth={2.25}
                 />

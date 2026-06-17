@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
@@ -291,7 +292,7 @@ export default function CompleteProfileClient() {
 
       <main style={pageStyle}>
         <div style={shellStyle}>
-          <img src="/logotipo.png" alt="Vibra" style={logoStyle} />
+          <Image src="/logotipo.png" alt="Vibra" width={142} height={40} style={logoStyle} />
 
           <h1 style={titleStyle}>Completa tu perfil</h1>
           <p style={subtitleStyle}>

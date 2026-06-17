@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -251,9 +252,10 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
 function Avatar({ url, name, size }: { url?: string | null; name: string; size: number }) {
   if (url) {
     return (
-      <img
+      <Image
         src={url} alt=""
-        style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
+        width={size} height={size}
+        style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
       />
     );
   }

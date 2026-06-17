@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useHlsPlayer } from "@/lib/hooks/useHlsPlayer";
@@ -145,13 +146,6 @@ export default function DonationViewer({ open, donation, profileName, profilePho
     typeof donation?.videoUrl === "string" &&
     donation.videoUrl.startsWith("mux://");
 
-  const minAmount =
-    Array.isArray(donation?.suggestedAmounts) && donation.suggestedAmounts.length > 0
-      ? donation.suggestedAmounts[0]
-      : null;
-
-  const currency = donation?.currency ?? "MXN";
-
   const donateLabel =
     donation?.mode === "wedding"
       ? (donation?.goalLabel?.trim() || "Sumarte a nuestro gran día 💍")
@@ -259,7 +253,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
             <div style={{ position: "relative", width: avatarSz, height: avatarSz, flexShrink: 0 }}>
               <div style={{ position: "absolute", inset: avatarInset, borderRadius: "50%", overflow: "hidden", background: "rgba(255,255,255,0.1)" }}>
                 {profilePhoto
-                  ? <img src={profilePhoto} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ? <Image src={profilePhoto} alt="" fill style={{ objectFit: "cover" }} />
                   : <div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />
                 }
               </div>

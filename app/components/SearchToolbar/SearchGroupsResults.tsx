@@ -33,13 +33,6 @@ type SearchGroupsResultsProps = {
 type GroupVisibilityFilter = "public" | "private";
 type MonetizationFilter = "free" | "paid";
 
-function initialsFromName(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const a = parts[0]?.[0] ?? "";
-  const b = parts[1]?.[0] ?? "";
-  return (a + b).toUpperCase() || "C";
-}
-
 function getDescriptionPreview(value?: string) {
   const clean = (value ?? "").trim().replace(/\s+/g, " ");
 
@@ -65,9 +58,9 @@ const SEARCH_SERVICE_COLORS = {
 };
 
 function getOfferingByType(
-  offerings: Array<Record<string, any>> | Record<string, any> | undefined,
+  offerings: Array<Record<string, unknown>> | Record<string, unknown> | undefined,
   type: string
-): Record<string, any> | null {
+): Record<string, unknown> | null {
   if (!offerings) return null;
 
   if (Array.isArray(offerings)) {
@@ -77,7 +70,7 @@ function getOfferingByType(
   const direct = offerings[type];
 
   if (typeof direct === "object" && direct !== null) {
-    return direct as Record<string, any>;
+    return direct as Record<string, unknown>;
   }
 
   if (direct === true) {
@@ -87,7 +80,7 @@ function getOfferingByType(
   return null;
 }
 
-function isVisibleEnabledService(service: Record<string, any> | null): boolean {
+function isVisibleEnabledService(service: Record<string, unknown> | null): boolean {
   if (!service) return false;
 
   const enabled = service.enabled === true;
@@ -97,9 +90,9 @@ function isVisibleEnabledService(service: Record<string, any> | null): boolean {
 }
 
 function buildSearchServiceDots(source?: {
-  offerings?: Array<Record<string, any>> | Record<string, any>;
-  donation?: Record<string, any>;
-  monetization?: Record<string, any>;
+  offerings?: Array<Record<string, unknown>> | Record<string, unknown>;
+  donation?: Record<string, unknown>;
+  monetization?: Record<string, unknown>;
   greetingsEnabled?: boolean;
   adviceEnabled?: boolean;
   digitalMeetGreetEnabled?: boolean;
@@ -244,7 +237,7 @@ function membershipStatusLabel(status: CanonicalMemberStatus) {
 }
 
 function resolveSubscriptionEnabled(group: Community) {
-  const monetization = group.monetization as Record<string, any> | undefined;
+  const monetization = group.monetization as Record<string, unknown> | undefined;
 
   return (
     monetization?.subscriptionsEnabled === true ||
@@ -253,7 +246,7 @@ function resolveSubscriptionEnabled(group: Community) {
 }
 
 function resolveSubscriptionPrice(group: Community) {
-  const monetization = group.monetization as Record<string, any> | undefined;
+  const monetization = group.monetization as Record<string, unknown> | undefined;
 
   return (
     monetization?.subscriptionPriceMonthly ??
@@ -263,7 +256,7 @@ function resolveSubscriptionPrice(group: Community) {
 }
 
 function resolveSubscriptionCurrency(group: Community) {
-  const monetization = group.monetization as Record<string, any> | undefined;
+  const monetization = group.monetization as Record<string, unknown> | undefined;
 
   return (
     monetization?.subscriptionCurrency ??
@@ -676,8 +669,6 @@ const cardStyle: CSSProperties = {
       return matchesVisibilityFilters(group) && matchesMonetizationFilters(group);
     });
   }, [communities, visibilityFilters, monetizationFilters]);
-
-  const hasResults = filteredByUi.length > 0;
 
   const displayGroups = useMemo(() => {
     return filteredByUi.slice(0, visibleCount);

@@ -84,19 +84,6 @@ type OverlayModalProps = {
   onCancel: () => void;
 };
 
-type DarkSelectProps = {
-  value: string;
-  placeholder: string;
-  options: string[];
-  onChange: (value: string) => void;
-};
-
-type TimeSelectRowProps = {
-  value: string;
-  onChange: (next: string) => void;
-  inputStyle: React.CSSProperties;
-};
-
 type Props = {
   draft: ServiceDraft;
   saving: boolean;

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
 import { recordStoryView } from "@/lib/stories/storyService";
 import { useStoryRingState } from "@/lib/stories/useStoryRingState";
@@ -118,13 +119,15 @@ export default function StoryRingAvatar({
               alignItems: "center",
               justifyContent: "center",
               boxSizing: "border-box",
+              position: "relative",
             }}
           >
             {photoURL ? (
-              <img
+              <Image
                 src={photoURL}
                 alt={displayName}
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                fill
+                style={{ objectFit: "cover" }}
               />
             ) : (
               <span

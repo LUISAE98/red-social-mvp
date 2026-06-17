@@ -147,11 +147,12 @@ function assertIsoDateString(value: string, fieldName: string): string {
   return date.toISOString();
 }
 
-function normalizeCallableError(error: any): Error {
+function normalizeCallableError(error: unknown): Error {
+  const err = error as { details?: { message?: string } | string; message?: string } | null;
   const rawMessage =
-    error?.details?.message ||
-    error?.details ||
-    error?.message ||
+    (err?.details && typeof err.details === "object" ? err.details.message : undefined) ||
+    (typeof err?.details === "string" ? err.details : undefined) ||
+    err?.message ||
     "Ocurrió un error al ejecutar la operación.";
 
   const message = String(rawMessage).replace(/^FirebaseError:\s*/i, "");
@@ -229,7 +230,7 @@ buyerMessage: normalizeOptionalString(input.buyerMessage),
 
     const result = await callable(payload);
     return result.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw normalizeCallableError(error);
   }
 }
@@ -248,7 +249,7 @@ export async function acceptMeetGreetRequest(
     });
 
     return result.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw normalizeCallableError(error);
   }
 }
@@ -268,7 +269,7 @@ export async function rejectMeetGreetRequest(
     });
 
     return result.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw normalizeCallableError(error);
   }
 }
@@ -289,7 +290,7 @@ export async function proposeMeetGreetSchedule(
     });
 
     return result.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw normalizeCallableError(error);
   }
 }
@@ -309,7 +310,7 @@ export async function requestMeetGreetReschedule(
     });
 
     return result.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw normalizeCallableError(error);
   }
 }
@@ -329,7 +330,7 @@ export async function requestMeetGreetRefund(
     });
 
     return result.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw normalizeCallableError(error);
   }
 }
@@ -353,7 +354,7 @@ export async function setMeetGreetPreparing(
     });
 
     return result.data;
-  } catch (error: any) {
+  } catch (error: unknown) {
     throw normalizeCallableError(error);
   }
 }

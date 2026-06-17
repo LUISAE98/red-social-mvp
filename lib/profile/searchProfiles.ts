@@ -29,9 +29,9 @@ export type ProfileSearchResult = {
   firstName?: string;
   lastName?: string;
   photoURL?: string | null;
-  offerings?: Array<Record<string, any>> | Record<string, any>;
-  donation?: Record<string, any>;
-  monetization?: Record<string, any>;
+  offerings?: Array<Record<string, unknown>> | Record<string, unknown>;
+  donation?: Record<string, unknown>;
+  monetization?: Record<string, unknown>;
   searchScore: number;
 };
 
@@ -248,15 +248,15 @@ function mapUserDocDataToProfileSearchResult(
     offerings:
       Array.isArray(data.offerings) ||
       (typeof data.offerings === "object" && data.offerings !== null)
-        ? (data.offerings as Array<Record<string, any>> | Record<string, any>)
+        ? (data.offerings as Array<Record<string, unknown>> | Record<string, unknown>)
         : undefined,
     donation:
       typeof data.donation === "object" && data.donation !== null
-        ? (data.donation as Record<string, any>)
+        ? (data.donation as Record<string, unknown>)
         : undefined,
     monetization:
       typeof data.monetization === "object" && data.monetization !== null
-        ? (data.monetization as Record<string, any>)
+        ? (data.monetization as Record<string, unknown>)
         : undefined,
     searchScore:
       scoreBoost +

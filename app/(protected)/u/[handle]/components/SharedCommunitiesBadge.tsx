@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import {
   getSharedCommunitiesWithProfile,
@@ -112,14 +113,11 @@ className={[
                 aria-label={community.name}
               >
                 {imageUrl ? (
-                  <img
+                  <Image
                     src={imageUrl}
                     alt={community.name}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
+                    fill
+                    style={{ objectFit: "cover" }}
                   />
                 ) : (
                   getInitial(community.name)

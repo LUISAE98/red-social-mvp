@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   CSSProperties,
@@ -14,6 +15,7 @@ import {
   doc,
   getDoc,
   onSnapshot,
+  type Timestamp,
   updateDoc,
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
@@ -41,10 +43,10 @@ type MemberDoc = {
   role?: string;
   roleInGroup?: string;
   status?: string;
-  mutedUntil?: any;
-  createdAt?: any;
-  joinedAt?: any;
-  updatedAt?: any;
+  mutedUntil?: Timestamp | null;
+  createdAt?: Timestamp | null;
+  joinedAt?: Timestamp | null;
+  updatedAt?: Timestamp | null;
 };
 
 type EnrichedMember = MemberDoc & {
@@ -95,12 +97,12 @@ function normalizeRole(role?: string): CanonicalRole {
   return "member";
 }
 
-function getMutedUntilDate(mutedUntil?: any): Date | null {
+function getMutedUntilDate(mutedUntil?: unknown): Date | null {
   if (!mutedUntil) return null;
 
-  if (mutedUntil?.toDate instanceof Function) {
-    const d = mutedUntil.toDate();
-    return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
+  if (typeof (mutedUntil as { toDate?: unknown }).toDate === "function") {
+    const d = (mutedUntil as { toDate: () => unknown }).toDate();
+    return d instanceof Date && !Number.isNaN((d as Date).getTime()) ? (d as Date) : null;
   }
 
   if (mutedUntil instanceof Date && !Number.isNaN(mutedUntil.getTime())) {
@@ -117,7 +119,7 @@ function getMutedUntilDate(mutedUntil?: any): Date | null {
 
 function resolveEffectiveStatus(
   status?: string,
-  mutedUntil?: any
+  mutedUntil?: unknown
 ): CanonicalMemberStatus {
   if (status === "banned") return "banned";
   if (status === "removed") return "removed";
@@ -137,7 +139,7 @@ function resolveEffectiveStatus(
   return "active";
 }
 
-function getRemainingMutedDaysLabel(mutedUntil?: any) {
+function getRemainingMutedDaysLabel(mutedUntil?: unknown) {
   const until = getMutedUntilDate(mutedUntil);
   if (!until) return null;
 
@@ -155,7 +157,7 @@ function friendlyRole(role?: string) {
   return "Miembro";
 }
 
-function friendlyStatus(status?: string, mutedUntil?: any) {
+function friendlyStatus(status?: string, mutedUntil?: unknown) {
   const normalized = resolveEffectiveStatus(status, mutedUntil);
 
   if (normalized === "muted") {
@@ -169,7 +171,7 @@ function friendlyStatus(status?: string, mutedUntil?: any) {
   return "Activo";
 }
 
-function statusDotColor(status?: string, mutedUntil?: any) {
+function statusDotColor(status?: string, mutedUntil?: unknown) {
   const normalized = resolveEffectiveStatus(status, mutedUntil);
   if (normalized === "banned") return "#ff4d4f";
   if (normalized === "removed") return "#b91c1c";
@@ -375,7 +377,7 @@ export default function GroupMembersTab({
       async (snap) => {
         try {
           const rawMembers = snap.docs.map((d) => {
-            const data = d.data() as any;
+            const data = d.data() as Omit<MemberDoc, "id">;
             return {
               id: d.id,
               ...data,
@@ -392,7 +394,7 @@ export default function GroupMembersTab({
               try {
                 const userSnap = await getDoc(doc(db, "users", resolvedUid));
                 if (userSnap.exists()) {
-                  const userData = userSnap.data() as any;
+                  const userData = userSnap.data() as { firstName?: string; lastName?: string; displayName?: string; handle?: string; photoURL?: string };
                   const firstName =
                     typeof userData.firstName === "string"
                       ? userData.firstName.trim()
@@ -435,9 +437,9 @@ export default function GroupMembersTab({
 
           setMembers(enriched);
           setLoading(false);
-        } catch (e: any) {
+        } catch (e: unknown) {
           console.error(e);
-          setError(e?.message ?? "No se pudo cargar la lista de integrantes.");
+          setError((e instanceof Error ? e.message : null) ?? "No se pudo cargar la lista de integrantes.");
           setLoading(false);
         }
       },
@@ -485,7 +487,7 @@ export default function GroupMembersTab({
           return normalized === "mod" ? 0 : 1;
         };
 
-        const statusWeight = (status?: string, mutedUntil?: any) => {
+        const statusWeight = (status?: string, mutedUntil?: unknown) => {
           const normalized = resolveEffectiveStatus(status, mutedUntil);
           if (normalized === "active") return 0;
           if (normalized === "muted") return 1;
@@ -521,10 +523,10 @@ export default function GroupMembersTab({
           membersListVisibility: nextValue ? "members" : "owner_only",
         },
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
       setError(
-        e?.message ?? "No se pudo actualizar la visibilidad de integrantes."
+        (e instanceof Error ? e.message : null) ?? "No se pudo actualizar la visibilidad de integrantes."
       );
     } finally {
       setSavingVisibility(false);
@@ -615,9 +617,9 @@ export default function GroupMembersTab({
       setActionMessage(`${buildActionLabel(action)} aplicado a ${displayName}.`);
       setOpenMenuForUid(null);
       setMenuPosition(null);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      setError(e?.message ?? "No se pudo completar la acción.");
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo completar la acción.");
     } finally {
       setActionLoadingForUid(null);
     }
@@ -664,9 +666,9 @@ export default function GroupMembersTab({
         `Mutear aplicado a ${memberPrimaryName(muteTarget)} durante ${durationDays} día(s).`
       );
       closeMuteModal();
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      setError(e?.message ?? "No se pudo completar la acción.");
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo completar la acción.");
     } finally {
       setActionLoadingForUid(null);
     }
@@ -1215,14 +1217,12 @@ export default function GroupMembersTab({
 
                   <div style={avatarStyle}>
                     {member.photoURL ? (
-                      <img
+                      <Image
                         src={member.photoURL}
                         alt={displayName}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
+                        width={isMobile ? 34 : 42}
+                        height={isMobile ? 34 : 42}
+                        style={{ objectFit: "cover" }}
                       />
                     ) : (
                       <span>{memberInitials(member)}</span>

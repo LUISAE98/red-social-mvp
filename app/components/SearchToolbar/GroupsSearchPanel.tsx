@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
@@ -31,8 +32,8 @@ export type Community = {
   tags?: string[];
   discoverable?: boolean;
   isActive?: boolean;
-  offerings?: Array<Record<string, any>> | Record<string, any>;
-donation?: Record<string, any>;
+  offerings?: Array<Record<string, unknown>> | Record<string, unknown>;
+donation?: Record<string, unknown>;
 greetingsEnabled?: boolean;
 adviceEnabled?: boolean;
 digitalMeetGreetEnabled?: boolean;
@@ -57,9 +58,9 @@ export type PublicUser = {
   firstName?: string;
   lastName?: string;
   photoURL?: string | null;
-  offerings?: Array<Record<string, any>> | Record<string, any>;
-  donation?: Record<string, any>;
-  monetization?: Record<string, any>;
+  offerings?: Array<Record<string, unknown>> | Record<string, unknown>;
+  donation?: Record<string, unknown>;
+  monetization?: Record<string, unknown>;
 };
 
 export type CanonicalMemberStatus =
@@ -166,9 +167,9 @@ const SEARCH_SERVICE_COLORS = {
 };
 
 function getOfferingByType(
-  offerings: Array<Record<string, any>> | Record<string, any> | undefined,
+  offerings: Array<Record<string, unknown>> | Record<string, unknown> | undefined,
   type: string
-): Record<string, any> | null {
+): Record<string, unknown> | null {
   if (!offerings) return null;
 
   if (Array.isArray(offerings)) {
@@ -178,7 +179,7 @@ function getOfferingByType(
   const direct = offerings[type];
 
   if (typeof direct === "object" && direct !== null) {
-    return direct as Record<string, any>;
+    return direct as Record<string, unknown>;
   }
 
   if (direct === true) {
@@ -188,7 +189,7 @@ function getOfferingByType(
   return null;
 }
 
-function isVisibleEnabledService(service: Record<string, any> | null): boolean {
+function isVisibleEnabledService(service: Record<string, unknown> | null): boolean {
   if (!service) return false;
 
   const enabled = service.enabled === true;
@@ -198,9 +199,9 @@ function isVisibleEnabledService(service: Record<string, any> | null): boolean {
 }
 
 function buildSearchServiceDots(source?: {
-  offerings?: Array<Record<string, any>> | Record<string, any>;
-  donation?: Record<string, any>;
-  monetization?: Record<string, any>;
+  offerings?: Array<Record<string, unknown>> | Record<string, unknown>;
+  donation?: Record<string, unknown>;
+  monetization?: Record<string, unknown>;
   greetingsEnabled?: boolean;
   adviceEnabled?: boolean;
   digitalMeetGreetEnabled?: boolean;
@@ -1489,7 +1490,7 @@ to {
               onClick={() => handleNavigateAndClose(entry.href)}
             >
               {entry.avatarUrl ? (
-                <img src={entry.avatarUrl} alt="" style={{ width: 36, height: 36, borderRadius: isProfile ? "50%" : 10, objectFit: "cover", flexShrink: 0 }} />
+                <Image src={entry.avatarUrl} alt="" width={36} height={36} style={{ borderRadius: isProfile ? "50%" : 10, objectFit: "cover", flexShrink: 0 }} />
               ) : (
                 <div style={{ width: 36, height: 36, borderRadius: isProfile ? "50%" : 10, background: "rgba(255,255,255,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.7)", flexShrink: 0 }}>
                   {initialsFromName(entry.name)}

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   useEffect,
@@ -113,12 +114,11 @@ function Avatar({
 }) {
   if (avatarUrl) {
     return (
-      <img
+      <Image
         src={avatarUrl}
         alt={name}
+        width={size} height={size}
         style={{
-          width: size,
-          height: size,
           borderRadius: "50%",
           objectFit: "cover",
           display: "block",
@@ -199,7 +199,7 @@ export default function PostComposerMobileOverlay({
     open ? 0 : typeof window === "undefined" ? 900 : window.innerHeight,
   );
   const [isPanelDragging, setIsPanelDragging] = useState(false);
-  const [textareaHeight, setTextareaHeight] = useState(58);
+  const textareaHeight = 58;
   const [publishVisualState, setPublishVisualState] =
     useState<PublishVisualState>("idle");
 
@@ -984,24 +984,22 @@ export default function PostComposerMobileOverlay({
                           }}
                         >
                           {item.type === "image" ? (
-                            <img
+                            <Image
                               src={item.previewUrl}
                               alt={`Vista previa de imagen ${index + 1}`}
-                              style={mediaPreviewStyle}
+                              fill
+                              style={{ objectFit: "cover", userSelect: "none" }}
                               draggable={false}
-                              onDragStart={(event) => event.preventDefault()}
                             />
                           ) : (
                             <>
                               {videoCoverPreviewUrl ? (
-                                <img
+                                <Image
                                   src={videoCoverPreviewUrl}
                                   alt={`Portada del video ${index + 1}`}
-                                  style={mediaPreviewStyle}
+                                  fill
+                                  style={{ objectFit: "cover", userSelect: "none" }}
                                   draggable={false}
-                                  onDragStart={(event) =>
-                                    event.preventDefault()
-                                  }
                                 />
                               ) : (
                                 <div

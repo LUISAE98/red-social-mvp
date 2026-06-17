@@ -9,12 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@livekit/components-react": "^2.9.21",
     "@sentry/nextjs": "^10.40.0",
     "firebase": "^12.7.0",
     "firebase-admin": "^13.7.0",
     "framer-motion": "^12.38.0",
     "heic2any": "^0.0.4",
     "hls.js": "^1.6.16",
+    "livekit-client": "^2.19.2",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",

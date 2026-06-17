@@ -12,11 +12,9 @@ import {
   deletePostCommentReply,
   fetchCommentReplies,
   fetchPostComments,
-  fetchPostFlameUsers,
   togglePostFlame,
   togglePostSave,
 } from "@/lib/posts/post-service";
-import PostCommentsPanel from "@/app/groups/[groupId]/components/posts/PostCommentsPanel";
 import PostFlamesPanel, {
   type PostFlameUser,
 } from "@/app/groups/[groupId]/components/posts/PostFlamesPanel";
@@ -95,15 +93,12 @@ type PublicPostPageClientProps = {
 
 export default function PublicPostPageClient({
   post,
-  postUrl,
 }: PublicPostPageClientProps) {
   const router = useRouter();
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(
     auth.currentUser?.uid ?? null
   );
-  const [isMobile, setIsMobile] = useState(false);
-
   const [likesCount, setLikesCount] = useState(post.counts.likes);
   const [commentsCount, setCommentsCount] = useState(post.counts.comments);
   const [viewerHasFlamed, setViewerHasFlamed] = useState(false);
@@ -113,19 +108,14 @@ export default function PublicPostPageClient({
   const [saveBusy, setSaveBusy] = useState(false);
 
   const [comments, setComments] = useState<Comment[] | null>(null);
-  const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
-  const [loadingComments, setLoadingComments] = useState(false);
-  const [commentText, setCommentText] = useState("");
-  const [creatingComment, setCreatingComment] = useState(false);
-  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(
-    null
-  );
+  const [, setLoadingComments] = useState(false);
+  const [, setDeletingCommentId] = useState<string | null>(null);
   const [inlineError, setInlineError] = useState<string | null>(null);
 
   const [flamesPanelOpen, setFlamesPanelOpen] = useState(false);
-  const [flameUsers, setFlameUsers] = useState<PostFlameUser[]>([]);
-  const [loadingFlameUsers, setLoadingFlameUsers] = useState(false);
-  const [flameUsersError, setFlameUsersError] = useState<string | null>(null);
+  const [flameUsers] = useState<PostFlameUser[]>([]);
+  const [loadingFlameUsers] = useState(false);
+  const [flameUsersError] = useState<string | null>(null);
 
   useEffect(() => {
     const unsub = auth.onAuthStateChanged((user) => {
@@ -133,21 +123,6 @@ export default function PublicPostPageClient({
     });
 
     return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    const media = window.matchMedia("(max-width: 640px)");
-    const update = () => setIsMobile(media.matches);
-
-    update();
-
-    if (typeof media.addEventListener === "function") {
-      media.addEventListener("change", update);
-      return () => media.removeEventListener("change", update);
-    }
-
-    media.addListener(update);
-    return () => media.removeListener(update);
   }, []);
 
   useEffect(() => {
@@ -409,44 +384,6 @@ export default function PublicPostPageClient({
     }
   }
 
-  async function handleOpenFlamesPanel() {
-    if (!currentUserId) {
-      requireLogin("Inicia sesión para ver quién dio flamita.");
-      return;
-    }
-
-    try {
-      setFlamesPanelOpen(true);
-      setLoadingFlameUsers(true);
-      setFlameUsersError(null);
-
-      const users = await fetchPostFlameUsers(post.id);
-      setFlameUsers(users);
-    } catch (e: any) {
-      setFlameUsersError(e?.message ?? "No se pudieron cargar las flamitas.");
-    } finally {
-      setLoadingFlameUsers(false);
-    }
-  }
-
-  async function handleOpenCommentsPanel() {
-    setCommentsPanelOpen(true);
-
-    if (comments !== null) return;
-
-    try {
-      setLoadingComments(true);
-      setInlineError(null);
-
-      const nextComments = await fetchPostComments(post.id);
-      setComments(nextComments);
-    } catch (e: any) {
-      setInlineError(e?.message ?? "No se pudieron cargar los comentarios.");
-    } finally {
-      setLoadingComments(false);
-    }
-  }
-
   async function syncPostCommentsCount() {
     const nextComments = await fetchPostComments(post.id);
 
@@ -459,33 +396,6 @@ export default function PublicPostPageClient({
     setCommentsCount(total);
 
     return nextComments;
-  }
-
-  async function handleCreateComment(): Promise<void> {
-    if (!currentUserId) {
-      requireLogin("Inicia sesión para comentar.");
-      return;
-    }
-
-    const cleanText = commentText.trim();
-    if (!cleanText || creatingComment) return;
-
-    try {
-      setCreatingComment(true);
-      setInlineError(null);
-
-      await createPostComment({
-        postId: post.id,
-        text: cleanText,
-      });
-
-      setCommentText("");
-      await syncPostCommentsCount();
-    } catch (e: any) {
-      setInlineError(e?.message ?? "No se pudo comentar.");
-    } finally {
-      setCreatingComment(false);
-    }
   }
 
   async function handleDeleteComment(commentId: string): Promise<void> {
@@ -600,11 +510,11 @@ export default function PublicPostPageClient({
     return comments ?? [];
   }
 
-  async function handleToggleFlameForCard(postId: string): Promise<void> {
+  async function handleToggleFlameForCard(): Promise<void> {
     await handleToggleFlame();
   }
 
-  async function handleToggleSaveForCard(postId: string): Promise<void> {
+  async function handleToggleSaveForCard(): Promise<void> {
     await handleToggleSave();
   }
 

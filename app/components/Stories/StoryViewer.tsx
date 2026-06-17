@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -79,7 +80,6 @@ export default function StoryViewer({
     "SpeechSynthesisUtterance" in window
   );
   const [dragY, setDragY] = useState(0);
-  const [isClosing, setIsClosing] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
   const [instructions, setInstructions] = useState<string | null>(null);
   const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
@@ -498,7 +498,7 @@ export default function StoryViewer({
     <div style={{ position: "relative", width: avatarSz, height: avatarSz, flexShrink: 0 }}>
       <div style={{ position: "absolute", inset: avatarInset, borderRadius: "50%", overflow: "hidden", background: "rgba(255,255,255,0.1)" }}>
         {creator?.photo
-          ? <img src={creator.photo} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          ? <Image src={creator.photo} alt="" fill style={{ objectFit: "cover" }} />
           : <div style={{ width: "100%", height: "100%", background: "rgba(255,255,255,0.15)" }} />
         }
       </div>

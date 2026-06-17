@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   MAX_POST_IMAGES,
@@ -211,12 +212,11 @@ function Avatar({
 }) {
   if (avatarUrl) {
     return (
-      <img
+      <Image
         src={avatarUrl}
         alt={name}
+        width={size} height={size}
         style={{
-          width: size,
-          height: size,
           borderRadius: "50%",
           objectFit: "cover",
           display: "block",
@@ -292,7 +292,7 @@ export default function GroupPostComposer({
       }));
   });
   const [localError, setLocalError] = useState<string | null>(null);
-  const [processingImageSlots, setProcessingImageSlots] = useState(0);
+  const processingImageSlots = 0;
   const [processingVideoSlots, setProcessingVideoSlots] = useState(0);
   const [draggingPreviewIndex, setDraggingPreviewIndex] = useState<
     number | null
@@ -471,7 +471,7 @@ export default function GroupPostComposer({
     fileInputRef.current?.click();
   }
 
-  function updatePostType(_nextItems: SelectedMediaItem[]) {
+  function updatePostType() {
     return;
   }
 
@@ -681,7 +681,7 @@ export default function GroupPostComposer({
 
     setSelectedMediaItems((current) => {
       const mergedItems = [...current, ...nextItems];
-      updatePostType(mergedItems);
+      updatePostType();
       return mergedItems;
     });
   }
@@ -729,7 +729,7 @@ export default function GroupPostComposer({
 
     setSelectedMediaItems((current) => {
       const mergedItems = [...current, ...nextItems];
-      updatePostType(mergedItems);
+      updatePostType();
       return mergedItems;
     });
 
@@ -853,7 +853,7 @@ export default function GroupPostComposer({
       }
 
       const nextItems = current.filter((_, index) => index !== indexToRemove);
-      updatePostType(nextItems);
+      updatePostType();
       return nextItems;
     });
 
@@ -969,8 +969,8 @@ export default function GroupPostComposer({
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-    } catch (error: any) {
-      setLocalError(error?.message ?? "No se pudo publicar.");
+    } catch (error: unknown) {
+      setLocalError((error instanceof Error ? error.message : null) ?? "No se pudo publicar.");
     } finally {
       setCreating(false);
     }

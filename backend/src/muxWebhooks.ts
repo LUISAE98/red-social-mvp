@@ -827,13 +827,56 @@ async function handleLiveStreamIdle(event: MuxWebhookEvent) {
   if (currentStatus !== "live") return;
 
   const now = FieldValue.serverTimestamp();
-  await result.ref.update({
+
+  const updateData: Record<string, unknown> = {
     "liveData.status": "ended",
     "liveData.endedAt": now,
     updatedAt: now,
-  });
+  };
 
-  logger.info("muxWebhook live_stream.idle → ended", { liveStreamId: event.data?.id });
+  const wasPinnedInGroup = result.data.isPinnedInGroup === true;
+  const wasPinnedOnProfile = result.data.isPinnedOnProfile === true;
+
+  if (wasPinnedInGroup) {
+    updateData.isPinnedInGroup = false;
+    updateData.groupPinnedAt = null;
+    updateData.groupPinnedBy = null;
+  }
+
+  if (wasPinnedOnProfile) {
+    updateData.isPinnedOnProfile = false;
+    updateData.profilePinnedAt = null;
+    updateData.profilePinnedBy = null;
+  }
+
+  await result.ref.update(updateData);
+
+  if (wasPinnedOnProfile) {
+    const authorId = typeof result.data.authorId === "string" ? result.data.authorId : null;
+    if (authorId) {
+      await db
+        .collection("users")
+        .doc(authorId)
+        .collection("profileFeed")
+        .doc(result.ref.id)
+        .set(
+          {
+            isPinnedOnProfile: false,
+            profilePinnedAt: null,
+            profilePinnedBy: null,
+            updatedAt: now,
+            syncedAt: now,
+          },
+          { merge: true }
+        );
+    }
+  }
+
+  logger.info("muxWebhook live_stream.idle → ended, unpinned", {
+    liveStreamId: event.data?.id,
+    wasPinnedInGroup,
+    wasPinnedOnProfile,
+  });
 }
 
 export const muxWebhook = onRequest(
