@@ -502,6 +502,7 @@ useEffect(() => {
   return () => {
     document.removeEventListener("pointerdown", handlePointerDown, true);
   };
+// eslint-disable-next-line react-hooks/exhaustive-deps
 }, [hasSearch, onCloseSearch]);
 
 useEffect(() => {

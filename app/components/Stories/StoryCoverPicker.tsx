@@ -189,7 +189,6 @@ export default function StoryCoverPicker({
   // Re-evaluate arrow visibility after panel mounts or story list changes
   useEffect(() => {
     if (mounted) updateScrollState();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, stories]);
 
   const dirLabel = role === "buyer" ? "recibidos" : "enviados";

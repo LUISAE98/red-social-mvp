@@ -71,6 +71,7 @@ function usePersistentSidebarScroll(key: string, restoreSignal?: unknown) {
 
   useEffect(() => {
     restoreScroll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, restoreSignal]);
 
   return scrollRef;

@@ -70,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearTransitionTimer();
       unsub();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startAuthTransition = (mode: "entering" | "exiting") => {
@@ -84,6 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       authTransitionMode,
       startAuthTransition,
     }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [user, loading, authTransitionMode]
   );
 

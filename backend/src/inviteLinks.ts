@@ -663,13 +663,14 @@ export const consumeInviteLink = onCall(async (request) => {
     });
 
     return result;
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errObj = err as { code?: unknown; message?: unknown; stack?: unknown } | null;
     logger.error("consumeInviteLink unexpected error", {
       callerUid,
       tokenPrefix: token.slice(0, 10),
-      code: err?.code ?? null,
-      message: err?.message ?? "Error desconocido",
-      stack: err?.stack ?? null,
+      code: errObj?.code ?? null,
+      message: errObj?.message ?? "Error desconocido",
+      stack: errObj?.stack ?? null,
     });
 
     if (isHttpsErrorLike(err)) {
@@ -678,7 +679,7 @@ export const consumeInviteLink = onCall(async (request) => {
 
     throw new HttpsError(
       "internal",
-      err?.message ?? "Ocurrió un error interno al consumir el link."
+      (err instanceof Error ? err.message : null) ?? "Ocurrió un error interno al consumir el link."
     );
   }
 });

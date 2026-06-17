@@ -639,6 +639,7 @@ export default function GroupPostsFeed({
         }
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [cacheKey, groupId, currentUid],
   );
 

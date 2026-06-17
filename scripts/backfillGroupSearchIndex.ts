@@ -211,7 +211,7 @@ async function main() {
   const groupsSnap = await db.collection("groups").get();
 
   let updated = 0;
-  let skipped = 0;
+  const skipped = 0;
 
   for (const groupDoc of groupsSnap.docs) {
     const data = groupDoc.data();

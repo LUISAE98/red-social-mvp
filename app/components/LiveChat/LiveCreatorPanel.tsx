@@ -55,6 +55,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [togglingChat, setTogglingChat] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [optimisticChatEnabled, setOptimisticChatEnabled] = useState<boolean | null>(null);
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const liveData = post.liveData;
@@ -275,21 +276,35 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         flexShrink: 0,
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              width: 32, height: 32, borderRadius: "50%",
-              border: "none", background: "rgba(255,255,255,0.08)",
-              color: "#fff", cursor: "pointer", display: "grid", placeItems: "center",
-            }}
-            aria-label="Cerrar"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
-            </svg>
-          </button>
-          <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>Centro de control</span>
+          <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+            <button
+              type="button"
+              onClick={isBroadcasting ? undefined : onClose}
+              disabled={isBroadcasting}
+              title={isBroadcasting ? "Detén la transmisión antes de salir" : "Cerrar"}
+              style={{
+                width: 32, height: 32, borderRadius: "50%",
+                border: isBroadcasting ? "1px solid rgba(239,68,68,0.4)" : "none",
+                background: isBroadcasting ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.08)",
+                color: isBroadcasting ? "rgba(239,68,68,0.5)" : "#fff",
+                cursor: isBroadcasting ? "not-allowed" : "pointer",
+                display: "grid", placeItems: "center",
+              }}
+              aria-label={isBroadcasting ? "Detén la transmisión antes de salir" : "Cerrar"}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
+              </svg>
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{ fontSize: 15, fontWeight: 700, color: "#fff", lineHeight: 1 }}>Centro de control</span>
+            {isBroadcasting && (
+              <span style={{ fontSize: 10, color: "rgba(239,68,68,0.75)", fontWeight: 500, lineHeight: 1 }}>
+                Detén la transmisión para salir
+              </span>
+            )}
+          </div>
         </div>
 
         <div style={{
@@ -350,7 +365,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 background: "#000",
               }}>
                 {showDirectBroadcast ? (
-                  <LiveDirectBroadcast postId={post.id} />
+                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} />
                 ) : (
                   <VideoPreview hlsUrl={hlsUrl!} fill />
                 )}
@@ -366,7 +381,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           /* Direct broadcast: cámara grande a la izquierda + chat a la derecha */
           <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
             <div style={{ flex: 3, position: "relative", overflow: "hidden", background: "#000", minWidth: 0 }}>
-              <LiveDirectBroadcast postId={post.id} />
+              <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} />
             </div>
             <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderLeft: DIV, minWidth: 0 }}>
               {renderChatSection()}
@@ -429,7 +444,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               position: "relative", background: "#000",
             }}>
               {showDirectBroadcast ? (
-                <LiveDirectBroadcast postId={post.id} />
+                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} />
               ) : (
                 <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
               )}
@@ -495,7 +510,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           >
             {showDirectBroadcast ? (
               <div style={{ width: "100%", height: "100%", position: "relative" }}>
-                <LiveDirectBroadcast postId={post.id} />
+                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} />
               </div>
             ) : showVideo ? (
               <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -568,7 +583,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             <div style={{ flexShrink: 0, background: "#000", position: "relative" }}>
               {showDirectBroadcast ? (
                 <div style={{ width: "100%", aspectRatio: "9/16", position: "relative" }}>
-                  <LiveDirectBroadcast postId={post.id} />
+                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} />
                 </div>
               ) : (
                 <>

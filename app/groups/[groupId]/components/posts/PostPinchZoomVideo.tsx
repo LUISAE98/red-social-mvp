@@ -143,6 +143,7 @@ export default function PostPinchZoomVideo({
 
   useEffect(() => {
     resetTransform(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey]);
 
   const frameStyle: CSSProperties = {

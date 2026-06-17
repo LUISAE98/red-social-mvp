@@ -1,3 +1,4 @@
+import type { Timestamp } from "firebase/firestore";
 import type {
   Currency,
   CreatorService,
@@ -57,8 +58,8 @@ export interface CreatorProfile {
 
   currency?: Currency | null;
 
-  createdAt?: any;
-  updatedAt?: any;
+  createdAt?: Timestamp | null;
+  updatedAt?: Timestamp | null;
 }
 
 export function profileSupportsVisibleService(

@@ -117,7 +117,7 @@ type UserDoc = {
     price: number | null;
     currency: "MXN" | "USD" | null;
   };
-  offerings?: Record<string, unknown>[] | null;
+  offerings?: import("@/types/group").CreatorService[] | null;
   donation?: Record<string, unknown> | null;
   monetization?: Record<string, unknown> | null;
   followersCount?: number;
@@ -887,6 +887,7 @@ useEffect(() => {
     setExclusiveSessionOpen(true);
     closeServiceQueryParam();
   }
+// eslint-disable-next-line react-hooks/exhaustive-deps
 }, [authReady, searchParams, userDoc, viewer]);
 
   useEffect(() => {
@@ -1980,7 +1981,7 @@ await createExclusiveSessionRequest({
                     profileUid={userDoc.uid}
                     profileRestricted={profileRestricted}
                     profileName={userDoc.displayName ?? userDoc.handle ?? null}
-                    donation={userDoc.donation ?? null}
+                    donation={userDoc.donation as { mode: "none" | "general" | "wedding"; enabled?: boolean; visible?: boolean; suggestedAmounts?: number[] | null } | null | undefined}
                     onDonate={() => {
                       if (!viewer) { redirectToLogin(); return; }
                       setDonationViewerOpen(true);
@@ -2018,7 +2019,7 @@ await createExclusiveSessionRequest({
   >
 
     <CreatorServicesMenu
-      services={userDoc.offerings ?? []}
+      services={(userDoc.offerings ?? []) as import("@/types/group").CreatorService[]}
       contextType="profile"
       profileUid={userDoc.uid}
       creatorHandle={userDoc.handle}

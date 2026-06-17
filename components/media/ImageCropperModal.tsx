@@ -69,8 +69,8 @@ const onCropComplete = useCallback((_area: CropArea, areaPixels: CropArea) => {
         outputMime
       );
       onConfirm(blob);
-    } catch (e: any) {
-      setErr(e?.message ?? "Error al recortar imagen.");
+    } catch (e: unknown) {
+      setErr((e instanceof Error ? e.message : null) ?? "Error al recortar imagen.");
       setBusy(false);
     }
   }, [imageSrc, croppedAreaPixels, outputMime, onConfirm]);

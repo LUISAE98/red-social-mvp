@@ -1551,6 +1551,10 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         autoRejectReason: item.data.autoRejectReason ?? null,
         createdAt,
         updatedAt,
+        recordingStatus: null,
+        recordingUrl: null,
+        recordingDurationSeconds: null,
+        recordingExpiresAt: null,
       };
       });
 }, [incomingScheduledServices, groupMetaMap]);

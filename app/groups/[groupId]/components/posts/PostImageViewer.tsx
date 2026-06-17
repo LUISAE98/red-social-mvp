@@ -404,6 +404,7 @@ const currentMediaKey = currentMedia
       }
     };
     img.src = currentMedia.url;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMedia?.url, currentMedia?.type]);
 
 const previousMedia =
@@ -763,6 +764,7 @@ const previousMedia =
       clearMobileSingleTapTimer();
       mobileLastVideoTapRef.current = null;
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clearChromeTimer, clearDesktopControlsTimer, open, onClose, totalMedia]);
 
   useEffect(() => {
@@ -780,6 +782,7 @@ const previousMedia =
       }
       scheduleChromeHide();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentMediaIndex,
     currentVideoSrc,

@@ -67,6 +67,7 @@ setTimeout(() => {
 
 useLayoutEffect(() => {
   restoreScroll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [key, restoreSignal]);
 
   return scrollRef;

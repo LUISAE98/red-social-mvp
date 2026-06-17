@@ -24,7 +24,7 @@ const REGION = "us-central1";
 const READABLE_MEMBER_STATUSES = ["active", "subscribed", "muted"];
 const WRITE_BATCH_LIMIT = 450;
 
-type PostData = Record<string, any>;
+type PostData = Record<string, unknown>;
 type FeedSourceType = "group" | "profile";
 
 function isReadableMemberStatus(status: unknown): boolean {
@@ -55,8 +55,8 @@ function getPostSourceType(postData: PostData): FeedSourceType {
 function isPostDeleted(postData: PostData): boolean {
   const searchData =
     postData.search && typeof postData.search === "object"
-      ? postData.search
-      : {};
+      ? (postData.search as Record<string, unknown>)
+      : {} as Record<string, unknown>;
 
   return (
     postData.isDeleted === true ||
@@ -75,7 +75,7 @@ function isProfilePostVisibleToFollowers(postData: PostData): boolean {
 
 function getMembershipUid(params: {
   memberDocId: string;
-  membershipData?: Record<string, any> | null;
+  membershipData?: Record<string, unknown> | null;
 }): string | null {
   const dataUserId = pickString(params.membershipData?.userId);
   const docUserId = pickString(params.memberDocId);

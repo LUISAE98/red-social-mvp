@@ -3,10 +3,8 @@
 import React from "react";
 import Link from "next/link";
 import type { CreatorServiceType } from "@/types/group";
-import {
-  getVisibleServices,
-  type NormalizedService,
-} from "@/lib/services/normalizeServices";
+import { getVisibleServices, type NormalizedService } from "@/lib/services/normalizeServices";
+import type { CreatorService } from "@/types/group";
 
 type ViewerMembershipStatus =
   | "active"
@@ -20,7 +18,7 @@ type ViewerMembershipStatus =
   | undefined;
 
 type Props = {
-  services: any[] | null | undefined;
+  services: CreatorService[] | null | undefined;
   contextType: "group" | "profile";
   groupId?: string | null;
   profileUid?: string | null;

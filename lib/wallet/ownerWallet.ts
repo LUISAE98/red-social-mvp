@@ -89,6 +89,7 @@ type WalletScheduledDoc = {
   recordingStatus?: LiveKitSessionRecordingStatus;
   recordingUrl?: string | null;
   recordingDurationSeconds?: number | null;
+  recordingExpiresAt?: string | null;
 };
 
 export type WalletMeetGreetDoc = WalletScheduledDoc & {
@@ -178,6 +179,10 @@ rejectionReason: string | null;
   createdAt: Date | null;
   updatedAt: Date | null;
   allowCreatorStory?: boolean;
+  recordingStatus: LiveKitSessionRecordingStatus | null;
+  recordingUrl: string | null;
+  recordingDurationSeconds: number | null;
+  recordingExpiresAt: string | null;
 };
 
 export type WalletHistoryFilter =
@@ -516,6 +521,10 @@ function normalizeScheduledRow(
     noShowRole,
     createdAt,
     updatedAt: updatedAt ?? autoRejectedAt ?? rejectedAt ?? noShowRejectAt,
+    recordingStatus: data.recordingStatus ?? null,
+    recordingUrl: data.recordingUrl ?? null,
+    recordingDurationSeconds: data.recordingDurationSeconds ?? null,
+    recordingExpiresAt: data.recordingExpiresAt ?? null,
   };
 }
 
@@ -576,6 +585,10 @@ function normalizeGreetingRow(
     createdAt: toDateSafe(data.createdAt),
     updatedAt: toDateSafe(data.updatedAt),
     allowCreatorStory: typeof data.allowCreatorStory === "boolean" ? data.allowCreatorStory : undefined,
+    recordingStatus: null,
+    recordingUrl: null,
+    recordingDurationSeconds: null,
+    recordingExpiresAt: null,
   };
 }
 

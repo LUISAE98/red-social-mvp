@@ -907,7 +907,7 @@ export const muxWebhook = onRequest(
     try {
       mux.webhooks.verifySignature(
         rawBody,
-        req.headers as any,
+        req.headers as Record<string, string | string[] | undefined>,
         muxWebhookSecret.value()
       );
 

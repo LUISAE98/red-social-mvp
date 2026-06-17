@@ -14,6 +14,17 @@ const MAX_RESCHEDULE_REQUESTS = 2;
 const PREPARE_WINDOW_MINUTES = 10;
 const CREATOR_JOIN_GRACE_MINUTES = 15;
 
+type MeetGreetOfferingShape = {
+  currency?: unknown;
+  memberPrice?: unknown;
+  publicPrice?: unknown;
+  price?: unknown;
+  durationMinutes?: unknown;
+  meta?: {
+    meetGreet?: { durationMinutes?: unknown };
+  };
+};
+
 const ACTIVE_SCHEDULED_STATUSES: MeetGreetStatus[] = [
   "scheduled",
   "ready_to_prepare",
@@ -590,7 +601,7 @@ const profileUserId =
     let creatorId: string | undefined;
 let groupData: Awaited<ReturnType<typeof getGroupOrThrow>> | null = null;
 let profileData: Awaited<ReturnType<typeof getProfileOrThrow>> | null = null;
-let meetGreetOffering: any = null;
+let meetGreetOffering: MeetGreetOfferingShape | null = null;
 
 if (source === "profile") {
   if (!profileUserId) {
@@ -598,7 +609,7 @@ if (source === "profile") {
   }
 
   profileData = await getProfileOrThrow(profileUserId);
-  meetGreetOffering = assertProfileMeetGreetEnabled(profileData.data);
+  meetGreetOffering = assertProfileMeetGreetEnabled(profileData.data) as MeetGreetOfferingShape;
   creatorId = profileUserId;
 } else {
   if (!groupId) {
@@ -607,7 +618,7 @@ if (source === "profile") {
 
   groupData = await getGroupOrThrow(groupId);
   await assertMeetGreetEligibleMembership(groupId, uid);
-  meetGreetOffering = assertMeetGreetEnabled(groupData.data);
+  meetGreetOffering = assertMeetGreetEnabled(groupData.data) as MeetGreetOfferingShape;
   creatorId = groupData.data.ownerId as string | undefined;
 
   if (!creatorId) {

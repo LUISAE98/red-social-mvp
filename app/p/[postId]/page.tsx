@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchPublicPostById } from "@/lib/posts/public-post-service";
 import { buildPublicPostUrl } from "@/lib/posts/share-url";
+import type { Post, PostMedia } from "@/lib/posts/types";
 import PublicPostPageClient, {
   type PublicPostView,
 } from "./PublicPostPageClient";
@@ -12,11 +13,11 @@ type PublicPostPageProps = {
   }>;
 };
 
-function getDateFromTimestamp(value: any): Date | null {
-  if (!value?.toDate) return null;
+function getDateFromTimestamp(value: unknown): Date | null {
+  if (!value || typeof (value as { toDate?: unknown }).toDate !== "function") return null;
 
   try {
-    const date = value.toDate();
+    const date = (value as { toDate: () => unknown }).toDate();
     return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
   } catch {
     return null;
@@ -89,12 +90,12 @@ function toAbsoluteUrl(value: string | null | undefined): string | undefined {
   return `${cleanBaseUrl}${cleanValue.startsWith("/") ? "" : "/"}${cleanValue}`;
 }
 
-function toPublicPostView(post: any): PublicPostView {
+function toPublicPostView(post: Post): PublicPostView {
   const createdAtDate = getDateFromTimestamp(post.createdAt);
 
   const media = Array.isArray(post.media)
     ? post.media
-        .filter((item: any) => {
+        .filter((item: PostMedia) => {
           if (!item || (item.type !== "image" && item.type !== "video")) {
             return false;
           }
@@ -111,7 +112,7 @@ function toPublicPostView(post: any): PublicPostView {
             (typeof item.status === "string" && item.status.trim().length > 0)
           );
         })
-        .map((item: any) => ({
+        .map((item: PostMedia) => ({
           type: item.type,
           url: typeof item.url === "string" ? item.url.trim() : "",
           thumbnailUrl:

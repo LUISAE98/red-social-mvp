@@ -1,3 +1,4 @@
+import type { Timestamp } from "firebase/firestore";
 import type {
   Currency,
   CreatorServiceMeta,
@@ -286,7 +287,7 @@ export function normalizeMonetization(
             normalizeCurrency(raw.transitions.subscriptionPriceChangeCurrency) ??
             null,
           lastMonetizationChangeAt:
-            raw.transitions.lastMonetizationChangeAt ?? null,
+            (raw.transitions.lastMonetizationChangeAt as Timestamp | null | undefined) ?? null,
           lastMonetizationChangeBy:
             typeof raw.transitions.lastMonetizationChangeBy === "string"
               ? raw.transitions.lastMonetizationChangeBy
@@ -296,7 +297,7 @@ export function normalizeMonetization(
               ? raw.transitions.lastAppliedTransitionKey
               : null,
           lastAppliedTransitionAt:
-            raw.transitions.lastAppliedTransitionAt ?? null,
+            (raw.transitions.lastAppliedTransitionAt as Timestamp | null | undefined) ?? null,
           lastAppliedTransitionBy:
             typeof raw.transitions.lastAppliedTransitionBy === "string"
               ? raw.transitions.lastAppliedTransitionBy

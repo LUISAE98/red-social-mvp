@@ -162,6 +162,34 @@ function buildSourceLabel(row: WalletServiceItem): string | null {
   return null;
 }
 
+function formatRecordingDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function getRecordingExpiry(expiresAt: string | null): {
+  expired: boolean;
+  label: string | null;
+} {
+  if (!expiresAt) return { expired: false, label: null };
+  const exp = new Date(expiresAt);
+  if (isNaN(exp.getTime())) return { expired: false, label: null };
+  const now = Date.now();
+  if (now > exp.getTime()) return { expired: true, label: null };
+  const diffDays = Math.ceil((exp.getTime() - now) / (1000 * 60 * 60 * 24));
+  const dateLabel = new Intl.DateTimeFormat("es-MX", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(exp);
+  const urgency = diffDays <= 7 ? "⚠️ " : "";
+  return {
+    expired: false,
+    label: `${urgency}Disponible hasta el ${dateLabel} (${diffDays} ${diffDays === 1 ? "día" : "días"})`,
+  };
+}
+
 function getRelativeTime(date: Date | null): string {
   if (!date) return "Hace un momento";
   const diffMs = Date.now() - date.getTime();
@@ -1162,6 +1190,54 @@ export function WalletServiceRow({
               {row.refundReason ? (
                 <div className="walletServiceWarningBox">
                   Devolución: {row.refundReason}
+                </div>
+              ) : null}
+
+              {isScheduledService &&
+              row.status === "completed" &&
+              row.recordingStatus &&
+              row.recordingStatus !== "not_started" ? (
+                <div className="walletSessionRecording" style={{ display: "grid", gap: 6 }}>
+                  {row.recordingStatus === "recording" ||
+                  row.recordingStatus === "processing" ? (
+                    <div className="walletServiceWarningBox">
+                      ⏳ Procesando grabación…
+                    </div>
+                  ) : row.recordingStatus === "ready" && row.recordingUrl ? (
+                    (() => {
+                      const { expired, label } = getRecordingExpiry(row.recordingExpiresAt ?? null);
+                      return expired ? (
+                        <div className="walletServiceErrorBox">
+                          La grabación ya no está disponible (expiró hace más de 30 días).
+                        </div>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className="walletPrimaryBtn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(row.recordingUrl!, "_blank", "noopener,noreferrer");
+                            }}
+                          >
+                            ↓ Descargar grabación
+                            {row.recordingDurationSeconds
+                              ? ` (${formatRecordingDuration(row.recordingDurationSeconds)})`
+                              : ""}
+                          </button>
+                          {label ? (
+                            <div className="walletMiniMeta" style={{ color: "rgba(253,230,138,0.85)" }}>
+                              {label}
+                            </div>
+                          ) : null}
+                        </>
+                      );
+                    })()
+                  ) : row.recordingStatus === "failed" ? (
+                    <div className="walletServiceErrorBox">
+                      La grabación no está disponible.
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 

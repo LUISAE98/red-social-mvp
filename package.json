@@ -17,6 +17,7 @@
     "heic2any": "^0.0.4",
     "hls.js": "^1.6.16",
     "livekit-client": "^2.19.2",
+    "livekit-server-sdk": "^2.15.4",
     "next": "16.1.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",

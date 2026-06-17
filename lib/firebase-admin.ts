@@ -1,5 +1,6 @@
 import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
 
 function getRequiredEnv(name: string) {
   const value = process.env[name];
@@ -34,4 +35,8 @@ function getFirebaseAdminApp() {
 
 export function getAdminAuth() {
   return getAuth(getFirebaseAdminApp());
+}
+
+export function getAdminFirestore() {
+  return getFirestore(getFirebaseAdminApp());
 }

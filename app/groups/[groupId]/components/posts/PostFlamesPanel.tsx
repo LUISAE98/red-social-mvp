@@ -91,7 +91,7 @@ export default function PostFlamesPanel({
   const isMobile = useMemo(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(max-width: 640px)").matches;
-  }, [open]);
+  }, []);
 
   useEffect(() => {
     if (!open || typeof document === "undefined") return;

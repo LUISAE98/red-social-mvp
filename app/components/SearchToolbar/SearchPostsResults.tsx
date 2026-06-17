@@ -46,7 +46,7 @@ type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
 type PostWithFlags = Post & {
   canModerateGroupAuthor?: boolean;
   authorMemberStatus?: MemberStatus;
-  authorMutedUntil?: any;
+  authorMutedUntil?: unknown;
 };
 
 function getStartOfDayMs(dateValue: string): number | null {
@@ -224,10 +224,10 @@ export default function SearchPostsResults({
             .map((post) => normalizeSearchPost(post as PostWithFlags))
             .filter((post) => post.isDeleted !== true)
         );
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!active) return;
         console.error("searchPosts error completo:", e);
-        setError(e?.message ?? "Error");
+        setError((e instanceof Error ? e.message : null) ?? "Error");
       } finally {
         if (active) setLoading(false);
       }
@@ -245,8 +245,8 @@ export default function SearchPostsResults({
       setError(null);
       await softDeletePost(postId);
       removePostFromAllFeedCaches(postId);
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo eliminar la publicación.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo eliminar la publicación.");
       throw e;
     }
   }
@@ -263,8 +263,8 @@ export default function SearchPostsResults({
           likes: result.likes,
         } as Post["counts"],
       });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo actualizar la flamita.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
       throw e;
     }
   }
@@ -289,8 +289,8 @@ export default function SearchPostsResults({
           saves: nextSaves,
         } as Post["counts"],
       });
-    } catch (e: any) {
-      setError(e?.message ?? "No se pudo actualizar el guardado.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el guardado.");
       throw e;
     }
   }

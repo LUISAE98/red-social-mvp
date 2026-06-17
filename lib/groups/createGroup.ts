@@ -203,7 +203,7 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
 
   try {
     await setDoc(groupRef, payload);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("CREATE_GROUP_STEP_GROUP_DOC_FAILED", {
       error,
       payload,
@@ -211,14 +211,14 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
 
     throw new Error(
       `Falló creando groups/${groupId}: ${
-        error?.message ?? "Missing or insufficient permissions"
+        (error instanceof Error ? error.message : null) ?? "Missing or insufficient permissions"
       }`
     );
   }
 
   try {
     await setDoc(memberRef, ownerMemberPayload);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("CREATE_GROUP_STEP_OWNER_MEMBER_FAILED", {
       error,
       ownerMemberPayload,
@@ -226,14 +226,14 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
 
     throw new Error(
       `Falló creando groups/${groupId}/members/${input.ownerId}: ${
-        error?.message ?? "Missing or insufficient permissions"
+        (error instanceof Error ? error.message : null) ?? "Missing or insufficient permissions"
       }`
     );
   }
 
   try {
     await setDoc(userMembershipRef, userMembershipPayload);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("CREATE_GROUP_STEP_USER_MEMBERSHIP_FAILED", {
       error,
       userMembershipPayload,
@@ -241,7 +241,7 @@ export async function createGroup(input: CreateGroupInput): Promise<string> {
 
     throw new Error(
       `Falló creando users/${input.ownerId}/groupMemberships/${groupId}: ${
-        error?.message ?? "Missing or insufficient permissions"
+        (error instanceof Error ? error.message : null) ?? "Missing or insufficient permissions"
       }`
     );
   }

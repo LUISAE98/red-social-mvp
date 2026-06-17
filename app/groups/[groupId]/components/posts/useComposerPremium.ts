@@ -184,7 +184,6 @@ export function useComposerPremium({
         ? current
         : getFallbackFreeFor(effectiveCapabilities),
     );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveCapabilities]);
 
   useEffect(() => {

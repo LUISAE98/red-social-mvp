@@ -1972,7 +1972,7 @@ export async function fetchGroupPosts(
 
 function normalizeHomeFeedPostSnapshot(params: {
   feedDocId: string;
-  feedData: Record<string, any>;
+  feedData: Record<string, unknown>;
 }): Post | null {
   const { feedDocId, feedData } = params;
 
@@ -2075,7 +2075,7 @@ export async function fetchHomePostsPage(params: {
     .map((feedDoc) =>
       normalizeHomeFeedPostSnapshot({
         feedDocId: feedDoc.id,
-        feedData: feedDoc.data() as Record<string, any>,
+        feedData: feedDoc.data() as Record<string, unknown>,
       })
     )
     .filter((post): post is Post => post !== null);

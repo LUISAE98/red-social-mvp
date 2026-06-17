@@ -44,6 +44,7 @@ export interface LiveKitSessionFields {
   recordingStatus: LiveKitSessionRecordingStatus;
   recordingUrl: string | null;              // URL de descarga cuando esté lista
   recordingDurationSeconds: number | null;  // duración total de la grabación
+  recordingExpiresAt: string | null;        // ISO — 30 días desde que quedó lista
 }
 
 // Valores por defecto para LiveKitSessionFields al crear una nueva sesión.
@@ -59,6 +60,7 @@ export const LIVEKIT_SESSION_FIELDS_DEFAULTS: LiveKitSessionFields = {
   recordingStatus: "not_started",
   recordingUrl: null,
   recordingDurationSeconds: null,
+  recordingExpiresAt: null,
 };
 
 // ---- Salas ----

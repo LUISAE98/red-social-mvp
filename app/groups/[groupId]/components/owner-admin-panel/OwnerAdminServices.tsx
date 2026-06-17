@@ -22,6 +22,7 @@ import type {
   GroupDonationSettings,
   DonationMode,
   CreatorServiceMeta,
+  CustomClassWeeklyAvailability,
 } from "@/types/group";
 
 import Subscription from "./services/Subscription";
@@ -1401,9 +1402,9 @@ export default function OwnerAdminServices({
           skippedMembers: response.skippedMembers,
         })
       );
-    } catch (e: any) {
+    } catch (e: unknown) {
       setErr(
-        e?.message ??
+        (e instanceof Error ? e.message : null) ??
           "❌ No se pudo retirar a los miembros gratuitos."
       );
     } finally {
@@ -1645,8 +1646,8 @@ export default function OwnerAdminServices({
               durationMinutes: workingDraft.customClass.enabled
                 ? customClassDurationNum
                 : null,
-              availability: createEmptyWeeklyAvailability(),
-            } as any,
+              availability: createEmptyWeeklyAvailability() as unknown as CustomClassWeeklyAvailability,
+            },
           },
         }),
       ];
@@ -1720,9 +1721,9 @@ export default function OwnerAdminServices({
           ? workingDraft.subscription.currency
           : currentMonetization?.transitions?.subscriptionPriceChangeCurrency ??
             null,
-lastMonetizationChangeAt: isTransitioningSubscriptionModel
-  ? serverTimestamp()
-  : currentMonetization?.transitions?.lastMonetizationChangeAt ?? null,
+        lastMonetizationChangeAt: (isTransitioningSubscriptionModel
+          ? serverTimestamp()
+          : currentMonetization?.transitions?.lastMonetizationChangeAt ?? null) as unknown as import("firebase/firestore").Timestamp | null,
         lastMonetizationChangeBy: isTransitioningSubscriptionModel
           ? currentUserId
           : currentMonetization?.transitions?.lastMonetizationChangeBy ?? null,
@@ -1760,7 +1761,7 @@ lastMonetizationChangeAt: isTransitioningSubscriptionModel
 
       const commerce = buildNormalizedGroupCommerceState({
         offerings: nextOfferings,
-        monetization: nextMonetization,
+        monetization: nextMonetization as Parameters<typeof buildNormalizedGroupCommerceState>[0]["monetization"],
         donation: nextDonation,
         legacyGreetingsEnabled: workingDraft.saludo.enabled,
         currency:
@@ -1817,9 +1818,9 @@ lastMonetizationChangeAt: isTransitioningSubscriptionModel
           });
 
           successMessage = buildTransitionSuccessMessage(transitionResponse);
-        } catch (transitionError: any) {
+        } catch (transitionError: unknown) {
           const transitionMessage =
-            transitionError?.message ??
+            (transitionError instanceof Error ? transitionError.message : null) ??
             "La transición de miembros no pudo completarse.";
 
           const nextSavedAfterPartialSuccess: ServiceDraft = {
@@ -1952,8 +1953,8 @@ lastMonetizationChangeAt: isTransitioningSubscriptionModel
       setDraft(nextSaved);
       setSavedDraft(nextSaved);
       setMsg(successMessage);
-    } catch (e: any) {
-      setErr(e?.message ?? "❌ No se pudieron guardar los servicios.");
+    } catch (e: unknown) {
+      setErr((e instanceof Error ? e.message : null) ?? "❌ No se pudieron guardar los servicios.");
     } finally {
       skipHydrationWhileSavingRef.current = false;
       setSaving(false);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/app/providers";
 import { useOwnerWalletData, type WalletServiceItem } from "@/lib/wallet/ownerWallet";
 import WalletSectionShell from "../components/WalletSectionShell";
@@ -90,7 +91,7 @@ function rowToGreetingDoc(row: WalletServiceItem, creatorId: string): GreetingRe
     source: (row.requestSource ?? "group") as "group" | "profile",
     status: row.status as "pending" | "accepted" | "rejected" | "delivered",
     createdAt: row.createdAt
-      ? ({ toDate: () => row.createdAt as Date } as any)
+      ? ({ toDate: () => row.createdAt as Date } as unknown as Timestamp)
       : undefined,
   };
 }

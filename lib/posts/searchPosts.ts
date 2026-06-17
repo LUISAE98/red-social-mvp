@@ -79,15 +79,15 @@ function withCursor(
 }
 
 function getDocCreatedAtMs(docSnap: QueryDocumentSnapshot<DocumentData>): number {
-  const data = docSnap.data() as Record<string, any>;
+  const data = docSnap.data() as { search?: { createdAt?: unknown }; createdAt?: unknown };
   const value = data?.search?.createdAt ?? data?.createdAt;
 
-  if (value && typeof value.toMillis === "function") {
-    return value.toMillis();
+  if (value && typeof (value as { toMillis?: unknown }).toMillis === "function") {
+    return (value as { toMillis: () => number }).toMillis();
   }
 
-  if (value && typeof value.seconds === "number") {
-    return value.seconds * 1000;
+  if (value && typeof (value as { seconds?: unknown }).seconds === "number") {
+    return (value as { seconds: number }).seconds * 1000;
   }
 
   return 0;
@@ -149,10 +149,10 @@ function getGroupIdChunkSize(prefixCount: number): number {
 }
 
 function mapDocToPost(docSnap: QueryDocumentSnapshot<DocumentData>): Post {
-  const data = docSnap.data() as Omit<Post, "id"> & Record<string, any>;
+  const data = docSnap.data() as Omit<Post, "id"> & Record<string, unknown>;
   const search =
     data.search && typeof data.search === "object"
-      ? (data.search as Record<string, any>)
+      ? (data.search as Record<string, unknown>)
       : {};
 
   return {

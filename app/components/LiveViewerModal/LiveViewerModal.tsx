@@ -137,7 +137,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       }
     };
     check();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, localLiveData?.accessType, localLiveData?.paidAccessMode, user?.uid, post.authorId, post.id, post.groupId]);
 
   const liveData = localLiveData;
@@ -780,6 +779,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         {/* Avatar + nombre + badge "En vivo" */}
         <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
           <div style={{
+            position: "relative",
             width: 42, height: 42, borderRadius: "50%", flexShrink: 0,
             overflow: "hidden",
             background: "linear-gradient(135deg, #ec4899 0%, #9333ea 100%)",

@@ -401,15 +401,6 @@ export default function PostComposerMobileOverlay({
     flex: "0 0 auto",
   };
 
-  const mediaPreviewStyle: CSSProperties = {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    display: "block",
-    userSelect: "none",
-    WebkitUserSelect: "none",
-  };
-
   const removeMediaButtonStyle: CSSProperties = {
     position: "absolute",
     top: 6,

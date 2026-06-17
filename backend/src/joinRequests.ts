@@ -33,7 +33,7 @@ function normalizeStatus(raw: unknown): CanonicalMemberStatus {
 function buildUserMembershipSummaryFields(params: {
   groupId: string;
   userId: string;
-  groupData: Record<string, any>;
+  groupData: Record<string, unknown>;
 }) {
   const groupName =
     typeof params.groupData?.name === "string" ? params.groupData.name : null;
@@ -120,7 +120,7 @@ async function getActorContextOrThrow(groupId: string, actorUid: string) {
     throw new HttpsError("not-found", "Comunidad no existe.");
   }
 
-  const groupData = groupSnap.data() as any;
+  const groupData = groupSnap.data() as Record<string, unknown>;
   const ownerId = typeof groupData?.ownerId === "string" ? groupData.ownerId : "";
 
   if (ownerId === actorUid) {
@@ -140,7 +140,7 @@ async function getActorContextOrThrow(groupId: string, actorUid: string) {
     throw new HttpsError("permission-denied", "No perteneces a esta comunidad.");
   }
 
-  const actorData = actorMemberSnap.data() as any;
+  const actorData = actorMemberSnap.data() as Record<string, unknown>;
   const actorRole = normalizeRole(actorData?.roleInGroup ?? actorData?.role);
   const actorStatus = normalizeStatus(actorData?.status);
 
@@ -208,7 +208,7 @@ export const approveJoinRequest = onCall(async (request) => {
       throw new HttpsError("not-found", "Solicitud no existe.");
     }
 
-    const joinData = joinSnap.data() as any;
+    const joinData = joinSnap.data() as Record<string, unknown>;
     if (joinData?.status !== "pending") {
       throw new HttpsError("failed-precondition", "Solicitud ya procesada.");
     }
@@ -281,7 +281,7 @@ export const rejectJoinRequest = onCall(async (request) => {
       throw new HttpsError("not-found", "Solicitud no existe.");
     }
 
-    const joinData = joinSnap.data() as any;
+    const joinData = joinSnap.data() as Record<string, unknown>;
     if (joinData?.status !== "pending") {
       throw new HttpsError("failed-precondition", "Solicitud ya procesada.");
     }

@@ -14,6 +14,18 @@ const MAX_RESCHEDULE_REQUESTS = 2;
 const PREPARE_WINDOW_MINUTES = 10;
 const JOIN_GRACE_MINUTES = 15;
 
+type ServiceOfferingShape = {
+  currency?: unknown;
+  memberPrice?: unknown;
+  publicPrice?: unknown;
+  price?: unknown;
+  durationMinutes?: unknown;
+  meta?: {
+    exclusiveSession?: { durationMinutes?: unknown };
+    customClass?: { durationMinutes?: unknown };
+  };
+};
+
 const ACTIVE_SCHEDULED_STATUSES: ExclusiveSessionStatus[] = [
   "scheduled",
   "ready_to_prepare",
@@ -547,7 +559,7 @@ const profileUserId =
     let creatorId: string | undefined;
 let groupData: Awaited<ReturnType<typeof getGroupOrThrow>> | null = null;
 let profileData: Awaited<ReturnType<typeof getProfileOrThrow>> | null = null;
-let exclusiveSessionOffering: any = null;
+let exclusiveSessionOffering: ServiceOfferingShape | null = null;
 
 if (source === "profile") {
   if (!profileUserId) {
@@ -555,7 +567,7 @@ if (source === "profile") {
   }
 
   profileData = await getProfileOrThrow(profileUserId);
-  exclusiveSessionOffering = assertProfileExclusiveSessionEnabled(profileData.data);
+  exclusiveSessionOffering = assertProfileExclusiveSessionEnabled(profileData.data) as ServiceOfferingShape;
   creatorId = profileUserId;
 } else {
   if (!groupId) {
@@ -564,7 +576,7 @@ if (source === "profile") {
 
   groupData = await getGroupOrThrow(groupId);
   await assertExclusiveSessionEligibleMembership(groupId, uid);
-  exclusiveSessionOffering = assertExclusiveSessionEnabled(groupData.data);
+  exclusiveSessionOffering = assertExclusiveSessionEnabled(groupData.data) as ServiceOfferingShape;
   creatorId = groupData.data.ownerId as string | undefined;
 
   if (!creatorId) {

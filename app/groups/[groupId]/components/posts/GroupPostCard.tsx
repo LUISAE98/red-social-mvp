@@ -781,6 +781,7 @@ onToggleProfilePin,
     if (hasLiveTicketAccess || isMemberFree) {
       setLiveViewerOpen(true);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localLiveData?.status, hasLiveTicketAccess]);
   const [localText, setLocalText] = useState<string | null>(null);
   const [localMedia, setLocalMedia] = useState<import("@/lib/posts/types").PostMedia[] | null>(null);
@@ -2269,6 +2270,7 @@ useEffect(() => {
 
     document.body.style.overflow = "";
   };
+// eslint-disable-next-line react-hooks/exhaustive-deps
 }, [isMobile, displayMedia.length, activeMediaIndex]);
 
 function getMediaDotsTranslateX() {
@@ -3667,8 +3669,7 @@ const tileImageStyle: CSSProperties = {
 
 function renderMediaContent(
   media: DisplayMediaItem,
-  index: number,
-  loading: "eager" | "lazy" = "lazy"
+  index: number
 ) {
         if (media.isPlaceholder) {
           return renderVideoProcessingPlaceholder(media);
@@ -3839,7 +3840,7 @@ style={{
             ...(premiumState.isBlocked ? { filter: "blur(10px)", opacity: 0.72 } : {}),
           }}
         >
-          {renderMediaContent(first, 0, "eager")}
+          {renderMediaContent(first, 0)}
         </button>
 
         {premiumState.isBlocked && first.type === "video" && (() => {
@@ -3982,8 +3983,7 @@ style={{
                   >
                     {renderMediaContent(
                       media,
-                      index,
-                      Math.abs(index - activeMediaIndex) <= 1 ? "eager" : "lazy"
+                      index
                     )}
                   </button>
                 </div>

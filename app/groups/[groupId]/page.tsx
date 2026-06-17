@@ -1070,6 +1070,7 @@ function redirectToLogin() {
       openExclusiveSessionForm();
       return;
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
   searchParams,
   user,

@@ -9,8 +9,8 @@ const vibraPink = "#ff2fb3";
 const vibraPurple = "#a855ff";
 const vibraBlue = "#4f46ff";
 
-function friendlyAuthError(err: any) {
-  const code = err?.code as string | undefined;
+function friendlyAuthError(err: unknown) {
+  const code = (err as { code?: string } | null)?.code;
 
   if (code === "auth/invalid-email") return "El correo no es válido.";
   if (code === "auth/user-not-found") return "No existe una cuenta con ese correo.";
@@ -33,7 +33,7 @@ export default function ResetPasswordClient() {
     try {
       await sendPasswordResetEmail(auth, email.trim());
       setMsg("Listo. Te enviamos un correo para restablecer tu contraseña.");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setMsg(friendlyAuthError(err));
     } finally {
       setLoading(false);

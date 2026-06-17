@@ -13,8 +13,8 @@ import {
 
 const db = getFirestore();
 
-type PostData = Record<string, any>;
-type GroupData = Record<string, any>;
+type PostData = Record<string, unknown>;
+type GroupData = Record<string, unknown>;
 
 const REGION = "us-central1";
 
@@ -54,8 +54,8 @@ function normalizeGroupVisibility(value: unknown): "public" | "private" | "hidde
 function isPostDeleted(postData: PostData): boolean {
   const searchData =
     postData.search && typeof postData.search === "object"
-      ? postData.search
-      : {};
+      ? (postData.search as Record<string, unknown>)
+      : {} as Record<string, unknown>;
 
   return (
     postData.isDeleted === true ||
@@ -131,20 +131,14 @@ function buildProfileFeedPayload(params: {
 
     counts:
       postData.counts && typeof postData.counts === "object"
-        ? {
-            comments:
-              typeof postData.counts.comments === "number"
-                ? postData.counts.comments
-                : 0,
-            likes:
-              typeof postData.counts.likes === "number"
-                ? postData.counts.likes
-                : 0,
-            saves:
-              typeof postData.counts.saves === "number"
-                ? postData.counts.saves
-                : 0,
-          }
+        ? (() => {
+            const c = postData.counts as Record<string, unknown>;
+            return {
+              comments: typeof c.comments === "number" ? c.comments : 0,
+              likes: typeof c.likes === "number" ? c.likes : 0,
+              saves: typeof c.saves === "number" ? c.saves : 0,
+            };
+          })()
         : {
             comments: 0,
             likes: 0,

@@ -172,3 +172,6 @@ export { getLivekitToken } from "./livekitTokens";
 
 // LiveKit — ciclo de vida de sesiones (join, end)
 export { joinSession, endSession } from "./sessionLifecycle";
+
+// LiveKit — webhooks de sala y grabación
+export { livekitWebhook } from "./livekitWebhook";

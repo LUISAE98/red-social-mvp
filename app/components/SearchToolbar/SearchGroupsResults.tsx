@@ -668,6 +668,7 @@ const cardStyle: CSSProperties = {
     return communities.filter((group) => {
       return matchesVisibilityFilters(group) && matchesMonetizationFilters(group);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [communities, visibilityFilters, monetizationFilters]);
 
   const displayGroups = useMemo(() => {

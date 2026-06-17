@@ -54,8 +54,8 @@ function isValidName(s: string) {
   return v.length >= 1 && v.length <= 40;
 }
 
-function friendlyAuthError(err: any) {
-  const code = err?.code as string | undefined;
+function friendlyAuthError(err: unknown) {
+  const code = (err as { code?: string } | null)?.code;
 
   if (code === "auth/email-already-in-use") return "Este correo ya está registrado.";
   if (code === "auth/invalid-email") return "El correo no es válido.";
@@ -67,9 +67,9 @@ function friendlyAuthError(err: any) {
   return "Error inesperado. Intenta nuevamente.";
 }
 
-function friendlyProfileError(err: any) {
-  const code = err?.code as string | undefined;
-  const msg = String(err?.message || "");
+function friendlyProfileError(err: unknown) {
+  const code = (err as { code?: string } | null)?.code;
+  const msg = String((err as { message?: string } | null)?.message || "");
 
   if (code === "permission-denied") return "Permiso denegado. Revisa reglas de Firestore.";
   if (msg.includes("HANDLE_TAKEN")) return "Ese nombre de usuario ya está ocupado.";
@@ -275,8 +275,9 @@ tx.set(userRef, {
 await sendEmailVerification(cred.user);
 await signOut(auth);
 router.replace(`/login?registered=1&next=${encodeURIComponent(nextPath)}`);
-    } catch (err: any) {
-      if (err?.code?.startsWith?.("auth/")) {
+    } catch (err: unknown) {
+      const errCode = (err as { code?: string } | null)?.code;
+      if (typeof errCode === "string" && errCode.startsWith("auth/")) {
         setMsg(friendlyAuthError(err));
       } else {
         setMsg(friendlyProfileError(err));

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { doc, onSnapshot, serverTimestamp, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, serverTimestamp, updateDoc, type Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { buildGroupSearchIndex } from "@/lib/groups/groupSearchIndex";
 import type { Group } from "@/types/group";
@@ -362,7 +362,7 @@ const data = snap.data() as {
   const nextTags = next.tags ?? parseTags(tagsRaw);
   const nextDiscoverable = getDiscoverableFromVisibility(nextVisibility);
   const nextIsActive = true;
-  const nextUpdatedAt = serverTimestamp() as any;
+  const nextUpdatedAt = serverTimestamp() as unknown as Timestamp;
 
   return {
     updatedAt: nextUpdatedAt,
@@ -466,8 +466,8 @@ await updateDoc(groupRef, {
 
       setEditField(null);
       setDraftValue("");
-    } catch (e: any) {
-      setGeneralErr(e?.message ?? "No se pudo guardar el cambio.");
+    } catch (e: unknown) {
+      setGeneralErr((e instanceof Error ? e.message : null) ?? "No se pudo guardar el cambio.");
     } finally {
       setSavingGeneral(false);
     }

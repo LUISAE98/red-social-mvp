@@ -202,7 +202,7 @@ export default function ProfileGroupsTab({
                 typeof data?.avatarUrl === "string" ? data.avatarUrl : null,
               coverUrl:
                 typeof data?.coverUrl === "string" ? data.coverUrl : null,
-              visibility: data?.visibility,
+              visibility: (data?.visibility === "public" || data?.visibility === "private" || data?.visibility === "hidden") ? (data.visibility as "public" | "private" | "hidden") : undefined,
               isActive: Boolean(data?.isActive),
               memberCount:
                 typeof data?.memberCount === "number"

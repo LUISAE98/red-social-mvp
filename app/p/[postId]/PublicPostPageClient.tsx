@@ -342,10 +342,10 @@ export default function PublicPostPageClient({
       const result = await togglePostFlame(post.id);
       setViewerHasFlamed(result.liked);
       setLikesCount(result.likes);
-    } catch (e: any) {
+    } catch (e: unknown) {
       setViewerHasFlamed(previousViewerHasFlamed);
       setLikesCount(previousLikesCount);
-      setInlineError(e?.message ?? "No se pudo actualizar la flamita.");
+      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la flamita.");
     } finally {
       setFlameBusy(false);
     }
@@ -375,10 +375,10 @@ export default function PublicPostPageClient({
       const result = await togglePostSave(post.id);
       setViewerHasSaved(result.saved);
       setSavesCount(Math.max(0, previousSavesCount + result.delta));
-    } catch (e: any) {
+    } catch (e: unknown) {
       setViewerHasSaved(previousViewerHasSaved);
       setSavesCount(previousSavesCount);
-      setInlineError(e?.message ?? "No se pudo actualizar el guardado.");
+      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar el guardado.");
     } finally {
       setSaveBusy(false);
     }
@@ -474,8 +474,8 @@ export default function PublicPostPageClient({
       );
 
       return nextComments;
-    } catch (e: any) {
-      setInlineError(e?.message ?? "No se pudieron cargar los comentarios.");
+    } catch (e: unknown) {
+      setInlineError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar los comentarios.");
       return comments ?? [];
     } finally {
       setLoadingComments(false);

@@ -268,7 +268,7 @@ export default function StoryViewer({
 
   const goTo = useCallback(
     (nextIndex: number) => {
-      if (nextIndex >= stories.length) { onGroupFinished ? onGroupFinished() : onClose(); return; }
+      if (nextIndex >= stories.length) { if (onGroupFinished) { onGroupFinished(); } else { onClose(); } return; }
       if (nextIndex < 0) { onPrevGroup?.(); return; }
       clearViewTimer();
       setIndex(nextIndex);

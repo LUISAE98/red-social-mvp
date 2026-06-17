@@ -339,6 +339,7 @@ export default function GreetingReviewOverlay({
     return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       speechGenRef.current++;
       window.speechSynthesis?.cancel();
     };

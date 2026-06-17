@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/app/providers";
 import { useOwnerWalletData } from "@/lib/wallet/ownerWallet";
 import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
@@ -66,12 +67,12 @@ function rowToGreetingDoc(row: WalletServiceItem, creatorId: string): GreetingRe
     source: (row.requestSource ?? "group") as "group" | "profile",
     status: row.status as "pending" | "accepted" | "rejected" | "delivered",
     createdAt: row.createdAt
-      ? ({ toDate: () => row.createdAt as Date } as any)
+      ? ({ toDate: () => row.createdAt as Date } as unknown as Timestamp)
       : undefined,
     muxPlaybackId: row.muxPlaybackId ?? undefined,
     videoDuration: row.videoDuration ?? undefined,
     deliveredAt: row.deliveredAt
-      ? ({ toDate: () => row.deliveredAt as Date } as any)
+      ? ({ toDate: () => row.deliveredAt as Date } as unknown as Timestamp)
       : undefined,
     allowCreatorStory: row.allowCreatorStory,
   };

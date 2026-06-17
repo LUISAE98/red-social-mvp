@@ -47,6 +47,7 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
         });
       })
       .catch(() => {}); // se queda con el valor de auth
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
 
   useEffect(() => {

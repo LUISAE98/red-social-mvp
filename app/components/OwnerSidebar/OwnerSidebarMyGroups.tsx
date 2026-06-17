@@ -868,6 +868,10 @@ if (scheduleConflict.hasConflict) {
         noShowRole: row.data.noShowRole ?? null,
         createdAt: toDateSafe(row.data.createdAt),
         updatedAt: toDateSafe(row.data.updatedAt),
+        recordingStatus: null,
+        recordingUrl: null,
+        recordingDurationSeconds: null,
+        recordingExpiresAt: null,
       }))
     );
 
@@ -925,6 +929,10 @@ if (scheduleConflict.hasConflict) {
         noShowRole: row.data.noShowRole ?? null,
         createdAt: toDateSafe(row.data.createdAt),
         updatedAt: toDateSafe(row.data.updatedAt),
+        recordingStatus: null,
+        recordingUrl: null,
+        recordingDurationSeconds: null,
+        recordingExpiresAt: null,
       }))
     );
 

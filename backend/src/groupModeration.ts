@@ -17,7 +17,7 @@ const db = getFirestore();
 type CanonicalGroupRole = "owner" | "mod" | "member";
 type CanonicalMemberStatus = "active" | "muted" | "banned" | "removed";
 
-function requireAuth(request: any) {
+function requireAuth(request: { auth?: { uid?: string } }) {
   const uid = request.auth?.uid;
   if (!uid) {
     throw new HttpsError("unauthenticated", "Debes iniciar sesión.");
@@ -71,7 +71,7 @@ async function getGroupOrThrow(groupId: string) {
     throw new HttpsError("not-found", "La comunidad no existe.");
   }
 
-  const data = groupSnap.data() as any;
+  const data = groupSnap.data() as Record<string, unknown>;
 
   return {
     groupRef,
@@ -93,7 +93,7 @@ async function getMemberRefOrThrow(groupId: string, targetUserId: string) {
     throw new HttpsError("not-found", "La membresía no existe.");
   }
 
-  const memberData = memberSnap.data() as any;
+  const memberData = memberSnap.data() as Record<string, unknown>;
   const role = normalizeRole(memberData?.roleInGroup ?? memberData?.role);
 
   if (role === "owner") {
@@ -138,7 +138,7 @@ async function getActorContextOrThrow(groupId: string, actorUid: string) {
     );
   }
 
-  const actorData = actorMemberSnap.data() as any;
+  const actorData = actorMemberSnap.data() as Record<string, unknown>;
   const actorRole = normalizeRole(actorData?.roleInGroup ?? actorData?.role);
   const actorStatus = normalizeStatus(actorData?.status);
 

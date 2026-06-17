@@ -262,9 +262,9 @@ export default function ProfileSettingsTab({
     try {
       await onToggleCommentsEnabled(nextValue);
       setMsg(nextValue ? "Comentarios abiertos." : "Comentarios restringidos.");
-    } catch (error: any) {
+    } catch (error: unknown) {
       setLocalCommentsEnabled(!nextValue);
-      setErr(error?.message ?? "No se pudo actualizar la configuración de comentarios.");
+      setErr((error instanceof Error ? error.message : null) ?? "No se pudo actualizar la configuración de comentarios.");
     }
   }
 
@@ -278,9 +278,9 @@ export default function ProfileSettingsTab({
     try {
       await onToggleRestricted(nextValue);
       setMsg(nextValue ? "Perfil reservado activado." : "Perfil público activado.");
-    } catch (error: any) {
+    } catch (error: unknown) {
       setLocalRestricted(!nextValue);
-      setErr(error?.message ?? "No se pudo actualizar el perfil reservado.");
+      setErr((error instanceof Error ? error.message : null) ?? "No se pudo actualizar el perfil reservado.");
     }
   }
 
@@ -310,8 +310,8 @@ export default function ProfileSettingsTab({
       await onUpdateDisplayName(nextName);
       setMsg("Nombre actualizado.");
       setEditNameOpen(false);
-    } catch (error: any) {
-      setErr(error?.message ?? "No se pudo actualizar el nombre.");
+    } catch (error: unknown) {
+      setErr((error instanceof Error ? error.message : null) ?? "No se pudo actualizar el nombre.");
     } finally {
       setSavingName(false);
     }
@@ -328,8 +328,8 @@ export default function ProfileSettingsTab({
       await onUpdateBio(draftBio);
       setMsg("Descripción actualizada.");
       setEditBioOpen(false);
-    } catch (error: any) {
-      setErr(error?.message ?? "No se pudo actualizar la descripción.");
+    } catch (error: unknown) {
+      setErr((error instanceof Error ? error.message : null) ?? "No se pudo actualizar la descripción.");
     } finally {
       setSavingBio(false);
     }
@@ -348,8 +348,8 @@ export default function ProfileSettingsTab({
     try {
       await onSendPasswordReset();
       setMsg("Te enviamos un correo para cambiar tu contraseña.");
-    } catch (error: any) {
-      setErr(error?.message ?? "No se pudo enviar el correo de cambio de contraseña.");
+    } catch (error: unknown) {
+      setErr((error instanceof Error ? error.message : null) ?? "No se pudo enviar el correo de cambio de contraseña.");
     } finally {
       setSendingPassword(false);
     }

@@ -207,8 +207,8 @@ export default function DonationEntryPoint({
           resolvedNormalized.currency
         )}. El pago real se conectará en el siguiente paso.`
       );
-    } catch (e: any) {
-      setError(e?.message ?? "❌ No se pudo preparar la donación.");
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "❌ No se pudo preparar la donación.");
     } finally {
       setSubmitting(false);
     }
