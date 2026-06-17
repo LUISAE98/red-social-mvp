@@ -27,6 +27,9 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
   const videoTrackRef = useRef<LocalVideoTrack | null>(null);
   const audioTrackRef = useRef<LocalAudioTrack | null>(null);
   const egressIdRef = useRef<string | null>(null);
+  // Ref so disconnect handler always sees the latest callback without recreating the Room listener
+  const onBroadcastingChangeRef = useRef(onBroadcastingChange);
+  useEffect(() => { onBroadcastingChangeRef.current = onBroadcastingChange; }, [onBroadcastingChange]);
 
   const [status, setStatus] = useState<BroadcastStatus>("idle");
   const [micMuted, setMicMuted] = useState(false);
@@ -107,7 +110,13 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
       roomRef.current = room;
 
       room.on(RoomEvent.Disconnected, () => {
-        if (status === "live") setStatus("idle");
+        setStatus("idle");
+        onBroadcastingChangeRef.current?.(false);
+        // Stop egress if it's still active (e.g. unexpected disconnect)
+        if (egressIdRef.current) {
+          stopEgress(egressIdRef.current);
+          egressIdRef.current = null;
+        }
       });
 
       await room.connect(livekitUrl, token, { autoSubscribe: false });
@@ -133,7 +142,7 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
         egressIdRef.current = null;
       }
     }
-  }, [postId, status]);
+  }, [postId]);
 
   const stopEgress = async (egressId: string) => {
     try {

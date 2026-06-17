@@ -77,14 +77,18 @@ export async function POST(req: NextRequest) {
   const roomName = `live-${postId}`;
   const rtmpUrl = `${MUX_RTMP_BASE}/${streamKey}`;
 
-  // Create the room first — Egress requires the room to exist
+  // Create the room first — Egress requires the room to exist.
+  // Ignore "already exists" so retries work cleanly.
   const roomService = new RoomServiceClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
   try {
     await roomService.createRoom({ name: roomName, emptyTimeout: 300 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[livekit-broadcast] Room create error:", msg);
-    return NextResponse.json({ error: `Error creando sala LiveKit: ${msg}` }, { status: 502 });
+    const isAlreadyExists = msg.toLowerCase().includes("already exist") || msg.includes("409");
+    if (!isAlreadyExists) {
+      console.error("[livekit-broadcast] Room create error:", msg);
+      return NextResponse.json({ error: `Error creando sala LiveKit: ${msg}` }, { status: 502 });
+    }
   }
 
   // Start LiveKit Egress → Mux RTMP
