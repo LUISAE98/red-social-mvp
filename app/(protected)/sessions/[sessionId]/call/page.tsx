@@ -54,9 +54,6 @@ export default function SessionCallPage() {
       {/* Barra superior */}
       <div style={topBar}>
         <span style={titleStyle}>{sessionLabel}</span>
-        <button type="button" onClick={handleLeave} style={closeBtn}>
-          ← Salir
-        </button>
       </div>
 
       {/* Área de video */}
@@ -91,7 +88,6 @@ const screen: CSSProperties = {
 const topBar: CSSProperties = {
   display: "flex",
   alignItems: "center",
-  justifyContent: "space-between",
   gap: 12,
   padding: "max(12px,1.8dvh) 16px 12px",
   borderBottom: "1px solid rgba(255,255,255,0.10)",
@@ -106,20 +102,6 @@ const titleStyle: CSSProperties = {
   fontWeight: 800,
   color: "#fff",
   lineHeight: 1.15,
-};
-
-const closeBtn: CSSProperties = {
-  minHeight: 40,
-  padding: "9px 14px",
-  borderRadius: 10,
-  border: "1px solid rgba(255,255,255,0.14)",
-  background: "rgba(255,255,255,0.06)",
-  color: "#fff",
-  cursor: "pointer",
-  fontSize: 13,
-  fontWeight: 700,
-  WebkitTapHighlightColor: "transparent",
-  flexShrink: 0,
 };
 
 const videoWrapper: CSSProperties = {

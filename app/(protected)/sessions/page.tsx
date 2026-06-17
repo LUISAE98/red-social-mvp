@@ -469,7 +469,10 @@ export default function SessionsPage() {
   }, [user?.uid]);
 
   const active = sessions.filter((s) => isActiveStatus(s.status));
-  const history = sessions.filter((s) => !isActiveStatus(s.status));
+  const delivered = sessions.filter((s) => s.status === "completed");
+  const history = sessions.filter(
+    (s) => !isActiveStatus(s.status) && s.status !== "completed"
+  );
 
   if (!user) {
     return (
@@ -493,6 +496,15 @@ export default function SessionsPage() {
             <section style={section}>
               <h2 style={sectionTitle}>Próximas y activas</h2>
               {active.map((s) => (
+                <SessionCard key={s.id} session={s} />
+              ))}
+            </section>
+          ) : null}
+
+          {delivered.length > 0 ? (
+            <section style={section}>
+              <h2 style={sectionTitle}>Entregados</h2>
+              {delivered.map((s) => (
                 <SessionCard key={s.id} session={s} />
               ))}
             </section>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AccessToken, EgressClient, RoomServiceClient, StreamOutput, StreamProtocol } from "livekit-server-sdk";
+import { AccessToken, EgressClient, EncodingOptionsPreset, RoomServiceClient, StreamOutput, StreamProtocol } from "livekit-server-sdk";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
 
 export const runtime = "nodejs";
@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Stream key de Mux no disponible" }, { status: 500 });
   }
 
+  const isPortrait = body?.isPortrait === true;
   const roomName = `live-${postId}`;
   const rtmpUrl = `${MUX_RTMP_BASE}/${streamKey}`;
 
@@ -101,7 +102,12 @@ export async function POST(req: NextRequest) {
         protocol: StreamProtocol.RTMP,
         urls: [rtmpUrl],
       }),
-      "speaker",
+      {
+        layout: "speaker",
+        encodingOptions: isPortrait
+          ? EncodingOptionsPreset.PORTRAIT_H264_720P_30
+          : EncodingOptionsPreset.H264_720P_30,
+      },
     );
     egressId = egress.egressId;
   } catch (err) {

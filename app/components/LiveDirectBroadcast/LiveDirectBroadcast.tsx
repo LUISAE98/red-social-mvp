@@ -36,6 +36,7 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
   const [camOff, setCamOff] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMedia, setHasMedia] = useState(false);
+  const isPortraitRef = useRef(false);
 
   const initCamera = useCallback(async () => {
     setError(null);
@@ -54,9 +55,14 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
       }
 
       const settings = vTrack.mediaStreamTrack.getSettings();
-      if (settings.width && settings.height && onOrientationChange) {
-        onOrientationChange(settings.height > settings.width);
-      }
+      // Detecta retrato: si el navegador devuelve dimensiones lógicas ya giradas usa eso;
+      // si no, cae en la orientación de pantalla como respaldo.
+      const portrait =
+        settings.width && settings.height
+          ? settings.height > settings.width
+          : typeof window !== "undefined" && window.innerHeight > window.innerWidth;
+      isPortraitRef.current = portrait;
+      if (onOrientationChange) onOrientationChange(portrait);
 
       setHasMedia(true);
     } catch {
@@ -91,7 +97,7 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`,
         },
-        body: JSON.stringify({ postId }),
+        body: JSON.stringify({ postId, isPortrait: isPortraitRef.current }),
       });
 
       if (!resp.ok) {

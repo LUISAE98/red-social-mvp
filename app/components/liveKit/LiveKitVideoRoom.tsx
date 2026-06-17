@@ -1,8 +1,5 @@
 "use client";
 
-// Componente de videollamada LiveKit para sesiones exclusivas y meet & greet.
-// Gestiona conexión, video, audio y controles dentro del panel fullscreen existente.
-
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react";
 import {
   LiveKitRoom,
@@ -15,6 +12,8 @@ import {
   useParticipants,
 } from "@livekit/components-react";
 import { Track, ConnectionState } from "livekit-client";
+import { doc, onSnapshot, type Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { useLivekitRoom } from "@/lib/liveKit/useLivekitRoom";
 import type { LivekitSessionType, LivekitErrorCode } from "@/lib/liveKit/getLivekitToken";
 import { callJoinSession, callEndSession } from "@/lib/liveKit/sessionLifecycle";
@@ -27,6 +26,18 @@ type Props = {
   role: "buyer" | "creator";
   onLeave: () => void;
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatTime(seconds: number): string {
+  const m = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const s = (seconds % 60).toString().padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+function collectionForType(sessionType: LivekitSessionType): string {
+  return sessionType === "meet_greet" ? "meetGreetRequests" : "exclusiveSessionRequests";
+}
 
 // ─── Componente raíz ──────────────────────────────────────────────────────────
 
@@ -93,12 +104,56 @@ function RoomContent({
   const [isEnding, setIsEnding] = useState(false);
   const joinCalledRef = useRef(false);
 
+  // Device detection — pointer:fine identifica laptop/desktop, pointer:coarse = touch/móvil
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(pointer: fine) and (min-width: 768px)");
+    setIsDesktop(mql.matches);
+    const h = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mql.addEventListener("change", h);
+    return () => mql.removeEventListener("change", h);
+  }, []);
+
   const cameraTracks = useTracks([Track.Source.Camera], { onlySubscribed: false });
 
   const localCameraTrack = cameraTracks.find((t) => t.participant.isLocal);
   const remoteCameraTrack = cameraTracks.find((t) => !t.participant.isLocal);
 
   const remoteConnected = participants.some((p) => !p.isLocal);
+
+  // ── Deadline sincronizado desde Firestore ─────────────────────────────────
+  // Lee scheduledAt + durationMinutes del doc compartido para que ambos
+  // participantes computen exactamente el mismo countdown sin depender de props.
+  const [sessionDeadline, setSessionDeadline] = useState<number | null>(null);
+
+  useEffect(() => {
+    const ref = doc(db, collectionForType(sessionType), sessionId);
+    return onSnapshot(ref, (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data() as {
+        scheduledAt?: Timestamp;
+        durationMinutes?: number;
+      };
+      const scheduledAt = data.scheduledAt;
+      const dur = data.durationMinutes;
+      if (scheduledAt && dur != null) {
+        setSessionDeadline(scheduledAt.toMillis() + dur * 60 * 1000);
+      }
+    });
+  }, [sessionId, sessionType]);
+
+  // Countdown real-time: ambos participantes leen el mismo deadline absoluto
+  const [remaining, setRemaining] = useState<number | null>(null);
+  useEffect(() => {
+    if (sessionDeadline == null) return;
+    const update = () => {
+      const r = Math.round((sessionDeadline - Date.now()) / 1000);
+      setRemaining(Math.max(0, r));
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [sessionDeadline]);
 
   // Registrar join en Firestore cuando la conexión LiveKit se establece.
   useEffect(() => {
@@ -108,11 +163,6 @@ function RoomContent({
       console.warn("joinSession error (no bloquea la llamada):", err);
     });
   }, [connectionState, sessionId, sessionType]);
-
-  const handleLeave = useCallback(async () => {
-    await room.disconnect();
-    onLeave();
-  }, [room, onLeave]);
 
   const handleEndSession = useCallback(async () => {
     if (!confirmingEnd) {
@@ -143,6 +193,21 @@ function RoomContent({
     connectionState === ConnectionState.Connecting ||
     connectionState === ConnectionState.Reconnecting;
 
+  // Color del countdown según tiempo restante
+  const countdownColor =
+    remaining == null
+      ? "transparent"
+      : remaining <= 60
+      ? "#ef4444"
+      : remaining <= 300
+      ? "#f59e0b"
+      : "rgba(255,255,255,0.82)";
+
+  // PiP: en desktop más grande, en móvil más compacto
+  const pipSize = isDesktop
+    ? "clamp(90px, 14dvw, 140px)"
+    : "clamp(72px, 22dvw, 110px)";
+
   // ── Layout ───────────────────────────────────────────────────────────────────
   return (
     <div style={styles.root}>
@@ -157,21 +222,90 @@ function RoomContent({
               : "Esperando que el creador se una…"}
           </CenteredLabel>
         ) : remoteCameraTrack ? (
-          <VideoTrack trackRef={remoteCameraTrack} style={styles.remoteVideo} />
+          <VideoTrack
+            trackRef={remoteCameraTrack}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+            }}
+          />
         ) : (
           <CenteredLabel>Participante conectado · cámara apagada</CenteredLabel>
         )}
 
+        {/* Countdown timer — visible cuando ambos están conectados y hay deadline */}
+        {remoteConnected && remaining != null && sessionDeadline != null && (
+          <div
+            style={{
+              position: "absolute",
+              top: 12,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 4,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              background: "rgba(0,0,0,0.58)",
+              backdropFilter: "blur(6px)",
+              WebkitBackdropFilter: "blur(6px)",
+              borderRadius: 8,
+              padding: "5px 12px",
+              border: `1px solid ${remaining <= 60 ? "rgba(239,68,68,0.45)" : "rgba(255,255,255,0.12)"}`,
+            }}
+          >
+            {remaining <= 60 && (
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  background: "#ef4444",
+                  flexShrink: 0,
+                  animation: "lkPulse 1s ease-in-out infinite",
+                }}
+              />
+            )}
+            <span
+              style={{
+                fontFamily: "ui-monospace, 'SF Mono', monospace",
+                fontSize: isDesktop ? 15 : 13,
+                fontWeight: 700,
+                color: countdownColor,
+                letterSpacing: "0.05em",
+                lineHeight: 1,
+              }}
+            >
+              {formatTime(remaining)}
+            </span>
+          </div>
+        )}
+
         {/* PiP local */}
         {localCameraTrack && isCameraEnabled && (
-          <div style={styles.pipWrapper}>
-            <VideoTrack trackRef={localCameraTrack} style={{ ...styles.pipVideo, transform: "scaleX(-1)" }} />
+          <div
+            style={{
+              ...styles.pipWrapper,
+              width: pipSize,
+            }}
+          >
+            <VideoTrack
+              trackRef={localCameraTrack}
+              style={{ ...styles.pipVideo, transform: "scaleX(-1)" }}
+            />
           </div>
         )}
 
         {/* Indicador de cámara local apagada */}
         {!isCameraEnabled && (
-          <div style={styles.pipWrapper}>
+          <div
+            style={{
+              ...styles.pipWrapper,
+              width: pipSize,
+            }}
+          >
             <div style={styles.pipPlaceholder}>
               <span style={{ fontSize: 22 }}>📷</span>
             </div>
@@ -192,41 +326,26 @@ function RoomContent({
           label={isCameraEnabled ? "Cám ON" : "Cám OFF"}
         />
 
-        {/* Salir sin finalizar */}
-        {!confirmingEnd && (
-          <button type="button" onClick={handleLeave} style={styles.leaveButton}>
-            Salir
-          </button>
-        )}
-
-        {/* Finalizar sesión (dos pasos) */}
         <button
           type="button"
           onClick={handleEndSession}
           disabled={isEnding}
-          style={{
-            ...styles.endButton,
-            opacity: isEnding ? 0.6 : 1,
-          }}
+          style={{ ...styles.endButton, opacity: isEnding ? 0.6 : 1 }}
         >
-          {isEnding
-            ? "Finalizando…"
-            : confirmingEnd
-            ? "¿Confirmar fin?"
-            : "Finalizar sesión"}
+          {isEnding ? "Finalizando…" : confirmingEnd ? "¿Confirmar fin?" : "Finalizar sesión"}
         </button>
 
-        {/* Cancelar confirmación */}
         {confirmingEnd && !isEnding && (
-          <button
-            type="button"
-            onClick={() => setConfirmingEnd(false)}
-            style={styles.cancelButton}
-          >
+          <button type="button" onClick={() => setConfirmingEnd(false)} style={styles.cancelButton}>
             Cancelar
           </button>
         )}
       </div>
+
+      <style>{`
+        @keyframes lkPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+        @keyframes lk-spin  { to{transform:rotate(360deg)} }
+      `}</style>
     </div>
   );
 }
@@ -296,12 +415,12 @@ function errorVariant(code: LivekitErrorCode, message: string): AccessErrorVaria
 }
 
 const ACCESS_ERROR_CONFIG: Record<AccessErrorVariant, { icon: string; title: string; color: string }> = {
-  denied:    { icon: "🔒", title: "Acceso denegado",      color: "#fca5a5" },
+  denied:      { icon: "🔒", title: "Acceso denegado",      color: "#fca5a5" },
   "not-found": { icon: "🔍", title: "Sesión no encontrada", color: "#fcd34d" },
-  schedule:  { icon: "🕐", title: "Fuera de horario",     color: "#fcd34d" },
-  cancelled: { icon: "✕",  title: "Sesión cancelada",     color: "#fca5a5" },
-  ended:     { icon: "✓",  title: "Sesión finalizada",    color: "rgba(255,255,255,0.55)" },
-  generic:   { icon: "⚠",  title: "No disponible",        color: "#fca5a5" },
+  schedule:    { icon: "🕐", title: "Fuera de horario",     color: "#fcd34d" },
+  cancelled:   { icon: "✕",  title: "Sesión cancelada",     color: "#fca5a5" },
+  ended:       { icon: "✓",  title: "Sesión finalizada",    color: "rgba(255,255,255,0.55)" },
+  generic:     { icon: "⚠",  title: "No disponible",        color: "#fca5a5" },
 };
 
 function AccessErrorScreen({
@@ -381,23 +500,16 @@ const styles: Record<string, CSSProperties> = {
     minHeight: 0,
     borderRadius: 16,
     border: "1px solid rgba(255,255,255,0.10)",
-    background: "linear-gradient(180deg,rgba(18,18,18,0.99) 0%,rgba(6,6,6,0.99) 100%)",
+    background: "#0a0a0a",
     overflow: "hidden",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
   },
-  remoteVideo: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    borderRadius: 16,
-  },
   pipWrapper: {
     position: "absolute",
     bottom: 12,
     right: 12,
-    width: "clamp(80px,18dvw,130px)",
     aspectRatio: "3/4",
     borderRadius: 10,
     overflow: "hidden",
@@ -448,19 +560,6 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: 1.1,
     WebkitTapHighlightColor: "transparent",
     transition: "background 0.15s",
-  },
-  leaveButton: {
-    minHeight: 44,
-    padding: "10px 22px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,80,80,0.45)",
-    background: "rgba(220,38,38,0.75)",
-    color: "#fff",
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 800,
-    lineHeight: 1.1,
-    WebkitTapHighlightColor: "transparent",
   },
   statusScreen: {
     flex: 1,
