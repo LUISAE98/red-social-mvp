@@ -2823,7 +2823,11 @@ style={{
           portrait={isLivePortrait}
           paused={liveViewerOpen || liveCreatorOpen}
           onClick={() => currentUserId === post.authorId ? setLiveCreatorOpen(true) : setLiveViewerOpen(true)}
-          onOrientationDetected={(p) => setIsLivePortrait(p)}
+          onOrientationDetected={(p) => {
+            // Don't change portrait while the creator panel is open — it would
+            // switch layout branches and unmount LiveDirectBroadcast mid-broadcast.
+            if (!liveCreatorOpen) setIsLivePortrait(p);
+          }}
         />
       ) : activeLiveData?.status === "ended" ? (
         <div

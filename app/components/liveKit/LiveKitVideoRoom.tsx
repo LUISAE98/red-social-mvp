@@ -62,7 +62,7 @@ export default function LiveKitVideoRoom({ sessionId, sessionType, role, onLeave
 
   const roomOptions: RoomOptions = {
     videoCaptureDefaults: {
-      resolution: VideoPresets.h720.resolution,
+      resolution: VideoPresets.h1080.resolution,
       facingMode: "user",
     },
     audioCaptureDefaults: {
@@ -73,7 +73,7 @@ export default function LiveKitVideoRoom({ sessionId, sessionType, role, onLeave
     },
     publishDefaults: {
       videoEncoding: {
-        maxBitrate: 2_500_000,
+        maxBitrate: 3_500_000,
         maxFramerate: 30,
       },
       dtx: true,

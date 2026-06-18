@@ -59,6 +59,14 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   // Ref so the resize handler always reads the latest value without stale closure
   const isBroadcastingRef = useRef(false);
   isBroadcastingRef.current = isBroadcasting;
+
+  // Freeze the effective layout orientation during a broadcast. The `portrait`
+  // prop can change mid-broadcast (e.g. LiveInlinePlayer detects stream orientation)
+  // which would switch layout branches and unmount LiveDirectBroadcast.
+  const [layoutPortrait, setLayoutPortrait] = useState(portrait);
+  useEffect(() => {
+    if (!isBroadcastingRef.current) setLayoutPortrait(portrait);
+  }, [portrait]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const liveData = post.liveData;
@@ -330,7 +338,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       </div>
 
       {/* ── Body ───────────────────────────────────────────────────────────── */}
-      {isDesktop && portrait ? (
+      {isDesktop && layoutPortrait ? (
         /* ── Desktop + Portrait live ──────────────────────────────────────── */
         <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
 
@@ -383,7 +391,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           )}
         </div>
 
-      ) : isDesktop && !portrait ? (
+      ) : isDesktop && !layoutPortrait ? (
         /* ── Desktop + Horizontal live ────────────────────────────────────── */
         showDirectBroadcast ? (
           /* Direct broadcast: cámara grande a la izquierda + chat a la derecha */
@@ -441,7 +449,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           </div>
         )
 
-      ) : !isDesktop && !portrait ? (
+      ) : !isDesktop && !layoutPortrait ? (
         /* ── Mobile + Horizontal live ─────────────────────────────────────── */
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
@@ -502,7 +510,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           </div>
         </div>
 
-      ) : !isDesktop && portrait ? (
+      ) : !isDesktop && layoutPortrait ? (
         /* ── Mobile + Portrait live: panel deslizable ────────────────────── */
         <div ref={bodyContainerRef} style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
