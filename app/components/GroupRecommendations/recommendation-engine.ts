@@ -507,6 +507,17 @@ async function fetchGroupsByTags(
   }
 }
 
+// Fetch UIDs of users who have blocked the current user (so we don't recommend them)
+async function fetchBlockedByProfileIds(uid: string): Promise<string[]> {
+  if (!uid) return [];
+  try {
+    const snap = await getDocs(collection(db, "users", uid, "blockedByUsers"));
+    return snap.docs.map((d) => d.id);
+  } catch {
+    return [];
+  }
+}
+
 // E: fetch IDs of profiles the user follows (capped to avoid excess reads)
 async function fetchFollowedProfileIds(uid: string): Promise<string[]> {
   if (!uid) return [];
@@ -889,12 +900,13 @@ export async function fetchRecommendedProfilesForUser(
     ...preferences.selectedCategories,
   ]);
 
-  const [memberGroupIds, followedProfileIds] = await Promise.all([
+  const [memberGroupIds, followedProfileIds, blockedByIds] = await Promise.all([
     fetchUserMembershipGroupIds(uid),
     fetchFollowedProfileIds(uid),
+    fetchBlockedByProfileIds(uid),
   ]);
 
-  const excludeUids = new Set<string>([uid, ...followedProfileIds]);
+  const excludeUids = new Set<string>([uid, ...followedProfileIds, ...blockedByIds]);
 
   const [categoryCreators, coMemberProfiles, generalCreators, fofProfiles] =
     await Promise.all([

@@ -167,6 +167,9 @@ export { videoOverlayDownload } from "./videoOverlay";
 // Live streams (Mux)
 export { createMuxLiveStream } from "./liveMux";
 
+// Live viewers cleanup
+export { cleanupLiveViewersOnEnd } from "./liveViewersCleanup";
+
 // LiveKit — tokens de videollamada para sesiones exclusivas y meet & greet
 export { getLivekitToken } from "./livekitTokens";
 

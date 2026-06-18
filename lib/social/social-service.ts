@@ -1,6 +1,5 @@
 import {
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -371,6 +370,12 @@ export async function blockUser(input: BlockUserInput): Promise<void> {
 
   batch.set(blockedUserRef, blockedUserData);
 
+  // Reverse reference so the blocked user can exclude this profile from their recommendations
+  batch.set(doc(db, "users", targetUserId, "blockedByUsers", currentUserId), {
+    blockedByUserId: currentUserId,
+    createdAt: serverTimestamp(),
+  });
+
   batch.delete(getFollowingDocRef(currentUserId, targetUserId));
 
   batch.delete(getFollowerDocRef(targetUserId, currentUserId));
@@ -406,5 +411,8 @@ export async function unblockUser(
     throw new Error("Missing required user ids.");
   }
 
-  await deleteDoc(getBlockedUserDocRef(currentUserId, targetUserId));
+  const batch = writeBatch(db);
+  batch.delete(getBlockedUserDocRef(currentUserId, targetUserId));
+  batch.delete(doc(db, "users", targetUserId, "blockedByUsers", currentUserId));
+  await batch.commit();
 }

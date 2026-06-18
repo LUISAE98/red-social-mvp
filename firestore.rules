@@ -403,6 +403,14 @@ service cloud.firestore {
           && request.auth.uid == uid;
       }
 
+      match /blockedByUsers/{blockerUid} {
+        allow get, list: if signedIn()
+          && request.auth.uid == uid;
+
+        allow write: if signedIn()
+          && request.auth.uid == blockerUid;
+      }
+
       match /postFlames/{postId} {
         allow get, list: if signedIn()
           && request.auth.uid == uid;
@@ -2314,14 +2322,35 @@ allow list: if canReadPost()
           && request.resource.data.updatedAt is timestamp;
       }
 
+      function canUpdateLivePeakViewers() {
+        return signedIn()
+          && resource.data.authorId == request.auth.uid
+          && resource.data.postType == "live"
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(["liveData", "updatedAt"])
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.updatedAt is timestamp;
+      }
+
       allow update: if canSoftDeletePost()
         || canUpdateCommentCount(1)
         || canUpdateCommentCount(-1)
         || canEditPost()
         || canEditLivePost()
-        || canUnpinGroupPost();
+        || canUnpinGroupPost()
+        || canUpdateLivePeakViewers();
 
       allow delete: if false;
+
+      // Presencia de espectadores en vivo — cada usuario escribe/borra su propio doc
+      match /liveViewers/{viewerId} {
+        allow get, list: if signedIn();
+        allow create: if signedIn()
+          && request.auth.uid == viewerId
+          && request.resource.data.uid == viewerId
+          && request.resource.data.joinedAt is timestamp;
+        allow delete: if signedIn() && request.auth.uid == viewerId;
+        allow update: if false;
+      }
 
       // Credenciales privadas del live stream (streamKey) — solo el autor puede leer
       match /liveStream/{doc} {
@@ -2572,6 +2601,15 @@ function canUpdateReplyCount(delta) {
           && livePostDoc().data.authorId == request.auth.uid;
       }
 
+      // Bloquea a usuarios muteados en el grupo al que pertenece este live.
+      // effectiveMemberStatus() ya incorpora mutedUntil > request.time,
+      // por lo que el muteo expira automáticamente cuando vence el plazo.
+      function userNotMutedInGroupChat() {
+        return !("groupId" in livePostDoc().data)
+          || livePostDoc().data.groupId == null
+          || effectiveMemberStatus(livePostDoc().data.groupId, request.auth.uid) != "muted";
+      }
+
       function canDeleteLiveChatMsg() {
         return signedIn()
           && (
@@ -2590,6 +2628,7 @@ function canUpdateReplyCount(delta) {
         && liveChatEnabled()
         && userNotMuted()
         && userNotBanned()
+        && userNotMutedInGroupChat()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.liveId == liveId
         && request.resource.data.text is string

@@ -6,9 +6,11 @@ import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 type Props = {
   viewerUid: string | null | undefined;
   profileUid: string;
+  onUnblockSuccess?: () => void;
+  onUnblockError?: () => void;
 };
 
-export default function ProfileMoreMenu({ viewerUid, profileUid }: Props) {
+export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSuccess, onUnblockError }: Props) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -43,7 +45,12 @@ export default function ProfileMoreMenu({ viewerUid, profileUid }: Props) {
   async function handleUnblockClick() {
     if (loading) return;
     setMenuOpen(false);
-    await unblock();
+    const success = await unblock();
+    if (success) {
+      onUnblockSuccess?.();
+    } else {
+      onUnblockError?.();
+    }
   }
 
   return (

@@ -10,6 +10,7 @@ import { useAuth } from "@/app/providers";
 import type { Post, PostLiveData } from "@/lib/posts/types";
 import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
+import { joinLivePresence, leaveLivePresence, subscribeToViewerCount } from "@/lib/liveKit/liveViewers";
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -63,6 +64,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [hasAccess, setHasAccess] = useState(false);
   const [payingAccess, setPayingAccess] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [viewerCount, setViewerCount] = useState(0);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
   useEffect(() => {
@@ -78,6 +80,30 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     );
     return () => unsub();
   }, [post.id]);
+
+  // ── Presencia de espectador ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!open || !hasAccess || localLiveData?.status !== "live" || !user?.uid || !post.id) return;
+    const uid = user.uid;
+    const postId = post.id;
+    joinLivePresence(postId, uid).catch(console.warn);
+
+    // Best-effort cleanup cuando el usuario cierra la pestaña o navega fuera.
+    // El caso garantizado (modal cerrado normalmente) lo cubre el return cleanup de abajo.
+    const handlePageHide = () => { leaveLivePresence(postId, uid).catch(console.warn); };
+    window.addEventListener("pagehide", handlePageHide);
+
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+      leaveLivePresence(postId, uid).catch(console.warn);
+    };
+  }, [open, hasAccess, localLiveData?.status, user?.uid, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Contador de espectadores ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!open || localLiveData?.status !== "live" || !post.id) return;
+    return subscribeToViewerCount(post.id, setViewerCount);
+  }, [open, localLiveData?.status, post.id]);
 
   // ── Verificación de acceso ─────────────────────────────────────────────────
   useEffect(() => {
@@ -647,6 +673,48 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     );
   }
 
+  // ── Badge contador de espectadores ────────────────────────────────────────
+  function renderViewerBadge(position: "bottom-left" | "top-left" = "bottom-left") {
+    if (!isLive || viewerCount <= 0) return null;
+
+    const posStyle: CSSProperties = position === "top-left"
+      ? {
+          position: "absolute",
+          top: "max(12px, env(safe-area-inset-top))",
+          left: "max(14px, env(safe-area-inset-left))",
+          zIndex: 10,
+        }
+      : {
+          position: "absolute",
+          bottom: "max(14px, env(safe-area-inset-bottom))",
+          left: "max(14px, env(safe-area-inset-left))",
+          zIndex: 10,
+        };
+
+    return (
+      <div style={{
+        ...posStyle,
+        display: "inline-flex", alignItems: "center", gap: 5,
+        background: "rgba(0,0,0,0.55)",
+        borderRadius: 7,
+        border: "1px solid rgba(255,255,255,0.12)",
+        padding: "5px 10px 5px 8px",
+        fontFamily: FONT, fontSize: 12, fontWeight: 600,
+        color: "rgba(255,255,255,0.88)",
+        backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+        pointerEvents: "none",
+      }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </svg>
+        {viewerCount.toLocaleString("es-MX")}
+      </div>
+    );
+  }
+
   // ── Overlay "Transmisión finalizada" — se muestra sobre el último frame ───
   function renderEndedOverlay() {
     if (!isEnded) return null;
@@ -886,6 +954,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderBannedOverlay()}
             {renderHeader(false, false)}
             {renderLiveBadge()}
+            {renderViewerBadge()}
           </div>
         </div>
       </>,
@@ -924,6 +993,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderBannedOverlay()}
             {renderHeader(false, false)}
             {renderLiveBadge()}
+            {renderViewerBadge()}
           </div>
           {/* Card de chat */}
           <div
@@ -978,6 +1048,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderBannedOverlay()}
             {renderHeader(false, false)}
             {renderLiveBadge()}
+            {renderViewerBadge()}
           </div>
           {/* Card de chat */}
           <div
@@ -1039,6 +1110,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderBannedOverlay()}
             {renderHeader(false, false)}
             {renderLiveBadge()}
+            {renderViewerBadge()}
           </div>
         </div>
       </>,
@@ -1071,6 +1143,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
             {/* Badge siempre visible — cambia de EN VIVO a Finalizado al terminar */}
             {renderLiveBadge("top-center")}
+            {renderViewerBadge("top-left")}
 
             {/* Header y chat se ocultan con tap */}
             <div style={ctrlStyle}>{renderHeader(true, false)}</div>
@@ -1106,6 +1179,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           {renderBannedOverlay()}
           {renderHeader(false, false)}
           {renderLiveBadge()}
+          {renderViewerBadge()}
         </div>
 
         {/* Panel: creator info + chat */}

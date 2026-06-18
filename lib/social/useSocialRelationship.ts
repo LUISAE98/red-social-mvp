@@ -31,7 +31,7 @@ type UseSocialRelationshipResult = {
   follow: () => void;
   unfollow: () => void;
   block: () => Promise<void>;
-  unblock: () => Promise<void>;
+  unblock: () => Promise<boolean>;
 };
 
 export function useSocialRelationship(
@@ -159,17 +159,19 @@ export function useSocialRelationship(
     }
   }, [currentUserId, targetUserId]);
 
-  const unblock = useCallback(async () => {
-    if (!currentUserId || !targetUserId) return;
+  const unblock = useCallback(async (): Promise<boolean> => {
+    if (!currentUserId || !targetUserId) return false;
 
     setActionLoading(true);
     setError(null);
 
     try {
       await unblockUser({ currentUserId, targetUserId });
+      return true;
     } catch (err) {
       console.error("Error unblocking user:", err);
       setError("No se pudo desbloquear este usuario.");
+      return false;
     } finally {
       setActionLoading(false);
     }

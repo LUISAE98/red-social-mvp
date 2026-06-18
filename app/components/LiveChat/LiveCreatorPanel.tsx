@@ -16,6 +16,7 @@ import {
 } from "@/lib/liveChat/live-chat-service";
 import { useAuth } from "@/app/providers";
 import LiveDirectBroadcast from "@/app/components/LiveDirectBroadcast/LiveDirectBroadcast";
+import { subscribeToViewerCount, updatePeakViewers } from "@/lib/liveKit/liveViewers";
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
 const DIV = "1px solid rgba(255,255,255,0.12)";
@@ -59,6 +60,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   // Ref so the resize handler always reads the latest value without stale closure
   const isBroadcastingRef = useRef(false);
   isBroadcastingRef.current = isBroadcasting;
+  const [viewerCount, setViewerCount] = useState(0);
+  const [peakViewerCount, setPeakViewerCount] = useState(post.liveData?.peakViewers ?? 0);
+  const peakViewerCountRef = useRef(post.liveData?.peakViewers ?? 0);
+  peakViewerCountRef.current = peakViewerCount;
 
   // Freeze the effective layout orientation during a broadcast. The `portrait`
   // prop can change mid-broadcast (e.g. LiveInlinePlayer detects stream orientation)
@@ -94,23 +99,44 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  useEffect(() => { setOptimisticChatEnabled(null); }, [liveData?.chatEnabled]);
+  useEffect(() => {
+    console.log("[LiveCreatorPanel] liveData.chatEnabled changed to:", liveData?.chatEnabled, "→ resetting optimistic");
+    setOptimisticChatEnabled(null);
+  }, [liveData?.chatEnabled]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    if (!open || isEnded || !post.id) return;
+    return subscribeToViewerCount(post.id, (count) => {
+      setViewerCount(count);
+      if (count > peakViewerCountRef.current) {
+        setPeakViewerCount(count);
+        updatePeakViewers(post.id, count).catch(console.warn);
+      }
+    });
+  }, [open, isEnded, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleToggleChat = useCallback(async () => {
     if (togglingChat || !user) return;
     const newValue = !chatEnabled;
+    console.log("[toggleChat] current:", chatEnabled, "→ newValue:", newValue, "postId:", post.id);
     setTogglingChat(true);
     setToggleError(null);
     setOptimisticChatEnabled(newValue);
     try {
       await updateLiveChatEnabled(post.id, newValue);
-    } catch {
+      console.log("[toggleChat] write ok, chatEnabled now:", newValue);
+      // Re-assert optimistic after confirmed write to guard against the
+      // Firestore listener resetting it before the snapshot arrives.
+      setOptimisticChatEnabled(newValue);
+    } catch (err) {
+      console.error("[LiveCreatorPanel] toggleChat error:", err);
       setOptimisticChatEnabled(null);
-      setToggleError("Error al cambiar estado del chat.");
+      const msg = err instanceof Error ? err.message : String(err);
+      setToggleError(msg.includes("permission") ? "Sin permiso para cambiar el chat." : "Error al cambiar el chat.");
     } finally {
       setTogglingChat(false);
     }
@@ -190,6 +216,77 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     );
   }
 
+  function renderStatsSection() {
+    return (
+      <div style={{ flex: 1, overflow: "auto", scrollbarWidth: "none", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {/* Espectadores actuales */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 12px", borderRadius: 10,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            background: "rgba(168,85,247,0.15)",
+            display: "grid", placeItems: "center",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
+              {viewerCount.toLocaleString("es-MX")}
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+              Espectadores ahora
+            </span>
+          </div>
+          {liveStatus === "live" && (
+            <span style={{
+              marginLeft: "auto", fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
+              color: "#a855f7", background: "rgba(168,85,247,0.12)",
+              border: "1px solid rgba(168,85,247,0.25)", borderRadius: 4, padding: "2px 6px",
+            }}>
+              EN VIVO
+            </span>
+          )}
+        </div>
+
+        {/* Pico de espectadores */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 12px", borderRadius: 10,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            background: "rgba(251,146,60,0.15)",
+            display: "grid", placeItems: "center",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fb923c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+              <polyline points="16 7 22 7 22 13" />
+            </svg>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
+              {peakViewerCount.toLocaleString("es-MX")}
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+              Pico máximo simultáneo
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   function renderEndedOverlay() {
     return (
       <div style={{
@@ -236,7 +333,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             >
               Chat {chatEnabled ? "activo" : "cerrado"}
             </button>
-            {toggleError && <span style={{ fontSize: 9, color: "#f87171" }}>{toggleError}</span>}
+            {toggleError && <span style={{ fontSize: 11, color: "#f87171", fontWeight: 600 }}>{toggleError}</span>}
           </div>
         )}
         <div className="lcp-chat" style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
@@ -361,7 +458,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             {/* Bottom half: Estadísticas */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               {sectionHeader("Estadísticas")}
-              {comingSoon()}
+              {renderStatsSection()}
             </div>
           </div>
 
@@ -443,7 +540,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               {/* Bottom-right: Estadísticas */}
               <div style={{ flex: 3, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                 {sectionHeader("Estadísticas")}
-                {comingSoon()}
+                {renderStatsSection()}
               </div>
             </div>
           </div>
@@ -504,8 +601,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             </div>
 
             {/* Tab content */}
-            <div style={{ flex: 1, overflow: "hidden" }}>
-              {comingSoon()}
+            <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              {mobileTab === "estadisticas" ? renderStatsSection() : comingSoon()}
             </div>
           </div>
         </div>
@@ -585,8 +682,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   </button>
                 ))}
               </div>
-              <div style={{ flex: 1, overflow: "hidden" }}>
-                {comingSoon()}
+              <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                {mobileTab === "estadisticas" ? renderStatsSection() : comingSoon()}
               </div>
             </div>
           </div>

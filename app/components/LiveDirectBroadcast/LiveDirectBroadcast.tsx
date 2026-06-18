@@ -110,6 +110,13 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
     isPortraitRef.current = currentPortrait;
     onOrientationChange?.(currentPortrait);
 
+    // Signal the parent panel IMMEDIATELY so it freezes its layout before the
+    // Mux webhook fires. The Egress starts the RTMP connection during the API
+    // call below, and Mux can fire live_stream.active within 5-8 seconds —
+    // before the room is connected and tracks are published. If the parent
+    // isn't frozen yet, the layout switch unmounts this component mid-broadcast.
+    onBroadcastingChange?.(true);
+
     try {
       // Get Firebase ID token for auth
       const currentUser = getAuth().currentUser;
@@ -192,7 +199,6 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
 
       setStatus("live");
       isLiveRef.current = true;
-      onBroadcastingChange?.(true);
 
       // Keep screen on during broadcast — prevents automatic dimming which
       // sends the browser to background and kills WebRTC on mobile.
@@ -217,13 +223,15 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
       const msg = err instanceof Error ? err.message : "Error desconocido al iniciar";
       setError(msg);
       setStatus("error");
+      // Undo the early broadcasting signal so the parent unfreezes its layout
+      onBroadcastingChange?.(false);
       // Clean up egress if it was started
       if (egressIdRef.current) {
         stopEgress(egressIdRef.current);
         egressIdRef.current = null;
       }
     }
-  }, [postId]);
+  }, [postId, onBroadcastingChange]);
 
   const stopEgress = async (egressId: string) => {
     try {

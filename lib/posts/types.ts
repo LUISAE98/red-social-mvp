@@ -252,6 +252,7 @@ export type PostLiveData = {
   currency?: "MXN" | "USD" | null;
   paidAccessMode?: LivePaidAccessMode | null;
   broadcastMode?: "direct" | "rtmp" | null;
+  peakViewers?: number | null;
 };
 
 export type PostVideoData = {

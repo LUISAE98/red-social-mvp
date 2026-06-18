@@ -292,7 +292,9 @@ export default function ProfileClient() {
 
   const [profileBlockedByViewer, setProfileBlockedByViewer] = useState(false);
   const [viewerBlockedByProfile, setViewerBlockedByProfile] = useState(false);
-  const [blockStatusLoading, setBlockStatusLoading] = useState(false);
+  const [blockStatusLoading, setBlockStatusLoading] = useState(true);
+  const [pendingUnblock, setPendingUnblock] = useState(false);
+  const prevBlockedByViewerRef = useRef(false);
 
   const [uploading, setUploading] = useState(false);
   const [savingProfileRestricted, setSavingProfileRestricted] = useState(false);
@@ -385,7 +387,13 @@ useEffect(() => {
   }, [profileUid]);
 
   const { ring: profileRing, stories: profileRingStories, startIndex: profileRingStart } =
-    useStoryRingState(profileUid, "profile", viewer?.uid ?? null);
+    useStoryRingState(
+      !isOwner && (blockStatusLoading || profileBlockedByViewer || viewerBlockedByProfile || pendingUnblock)
+        ? null
+        : profileUid,
+      "profile",
+      viewer?.uid ?? null,
+    );
   const [profileStoriesOpen, setProfileStoriesOpen] = useState(false);
 
   const ownerShowPosts = userDoc?.showPosts ?? true;
@@ -402,7 +410,7 @@ useEffect(() => {
     authReady && !!viewer && !!profileUid && !isOwner && blockStatusLoading;
 
   const shouldHideProfileSocialContent =
-    !isOwner && (checkingProfileBlock || profileBlockedByRelationship);
+    !isOwner && (checkingProfileBlock || profileBlockedByRelationship || pendingUnblock);
 
   const visitorCanSeePosts =
     !shouldHideProfileSocialContent &&
@@ -782,7 +790,6 @@ useEffect(() => {
   if (!authReady || !viewer || !profileUid || isOwner) {
     setProfileBlockedByViewer(false);
     setViewerBlockedByProfile(false);
-    setBlockStatusLoading(false);
     return;
   }
 
@@ -852,6 +859,25 @@ useEffect(() => {
     unsubProfileBlockedViewer();
   };
 }, [authReady, viewer, profileUid, isOwner]);
+
+// Detect block→unblock transition to prevent race condition:
+// Firestore local snapshot fires before batch.commit() is confirmed by server,
+// so we gate the feed behind pendingUnblock until the server write is confirmed.
+useEffect(() => {
+  if (prevBlockedByViewerRef.current && !profileBlockedByViewer && !viewerBlockedByProfile) {
+    setPendingUnblock(true);
+  }
+  prevBlockedByViewerRef.current = profileBlockedByViewer;
+}, [profileBlockedByViewer, viewerBlockedByProfile]);
+
+function handleUnblockConfirmed() {
+  setPendingUnblock(false);
+  setProfilePostsRefreshKey((v) => v + 1);
+}
+
+function handleUnblockFailed() {
+  setPendingUnblock(false);
+}
 
   useEffect(() => {
   if (!authReady || !userDoc) return;
@@ -1698,7 +1724,7 @@ await createExclusiveSessionRequest({
 
 
 <>
-  {!shouldHideProfileSocialContent && (
+  {!isOwner && !!userDoc && (
     <div
     style={{
       position: "absolute",
@@ -1711,25 +1737,29 @@ await createExclusiveSessionRequest({
       gap: 8,
     }}
   >
-    <CopyLinkButton
-      href={profileShareHref}
-      copiedLabel="Link del perfil copiado correctamente"
-      title="Copiar link del perfil"
-      style={{
-        width: 34,
-        height: 34,
-        borderRadius: "50%",
-        border: "none",
-        background:
-          "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
-        boxShadow:
-          "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
-        backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
-      }}
-    />
+    {!shouldHideProfileSocialContent && (
+      <CopyLinkButton
+        href={profileShareHref}
+        copiedLabel="Link del perfil copiado correctamente"
+        title="Copiar link del perfil"
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: "50%",
+          border: "none",
+          background:
+            "linear-gradient(135deg, rgb(3,3,6) 0%, rgb(8,5,13) 48%, rgb(0,0,0) 100%)",
+          boxShadow:
+            "inset 0 1px 0 rgba(255,255,255,0.04), inset 0 -1px 0 rgba(255,255,255,0.016), inset 0 0 11px rgba(168,85,255,0.13), inset 0 0 18px rgba(168,85,255,0.085), inset 0 0 26px rgba(126,34,206,0.065), 0 0 7px rgba(168,85,255,0.05), 0 12px 24px rgba(0,0,0,0.5)",
+          backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+        }}
+      />
+    )}
     <ProfileMoreMenu
       viewerUid={viewer?.uid}
       profileUid={userDoc.uid}
+      onUnblockSuccess={handleUnblockConfirmed}
+      onUnblockError={handleUnblockFailed}
     />
   </div>
   )}
@@ -2000,7 +2030,7 @@ await createExclusiveSessionRequest({
                       {checkingProfileBlock
                         ? "Validando acceso al perfil..."
                         : profileBlockedByViewer
-                          ? "Bloqueaste este perfil. Puedes desbloquearlo desde el menú de opciones."
+                          ? "Bloqueaste este perfil. Puedes desbloquearlo usando el menú ⋮."
                           : "Este perfil no está disponible."}
                     </div>
                   ) : null}
@@ -2072,7 +2102,7 @@ await createExclusiveSessionRequest({
             </div>
           </div>
 
-{profileUid && (
+{profileUid && !shouldHideProfileSocialContent && (
   <StoryCircles creatorId={profileUid} currentUserId={viewer?.uid ?? null} />
 )}
 
