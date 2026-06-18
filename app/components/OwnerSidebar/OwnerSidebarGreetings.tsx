@@ -19,6 +19,7 @@ import {
   setExclusiveSessionPreparing,
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import { type Timestamp } from "firebase/firestore";
+import { callGetRecordingDownloadUrl } from "@/lib/liveKit/sessionLifecycle";
 import type {
   GroupDocLite,
   GreetingRequestDoc,
@@ -708,6 +709,9 @@ export default function OwnerSidebarGreetings({
   const [scheduleNoteMap, setScheduleNoteMap] = useState<TextMap>({});
   const [calendarOpenMap, setCalendarOpenMap] = useState<ToggleMap>({});
   const [schedulePartsMap, setSchedulePartsMap] = useState<Record<string, ScheduleParts>>({});
+  const [deliveredScheduledSectionOpen, setDeliveredScheduledSectionOpen] = useState(false);
+  const [downloadBusyMap, setDownloadBusyMap] = useState<Record<string, boolean>>({});
+  const [downloadErrorMap, setDownloadErrorMap] = useState<Record<string, string | null>>({});
 
 
   const incomingMeetGreets = useMemo<ScheduledRow[]>(
@@ -761,11 +765,15 @@ export default function OwnerSidebarGreetings({
     return () => window.clearInterval(interval);
   }, [hasTimedScheduledServices]);
 
+  const completedBuyerScheduledRows = useMemo<ScheduledRow[]>(() => {
+    return buyerScheduledServices.filter((row) => row.data.status === "completed");
+  }, [buyerScheduledServices]);
+
   const requestedRows = useMemo<DisplayRow[]>(() => {
     const rows: DisplayRow[] = [
       ...buyerPending.map((row) => ({ rowType: "buyer_greeting" as const, id: `buyer-greeting-${row.id}`, row })),
       ...buyerScheduledServices
-        .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "requested")
+        .filter((row) => row.data.status !== "completed" && getSectionForMeetGreetStatus(row.data.status) === "requested")
         .map((row) => ({ rowType: "buyer_scheduled" as const, id: `buyer-${row.serviceKind}-${row.id}`, row })),
       ...incomingScheduledServices
         .filter((row) => getSectionForMeetGreetStatus(row.data.status) === "requested")
@@ -1907,6 +1915,197 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           {refundRows.map(renderDisplayRow)}
         </div>
       </SectionBlock>
+
+      {completedBuyerScheduledRows.length > 0 && (
+        <div
+          style={{
+            ...styles.card,
+            margin: 0,
+            borderRadius: 16,
+            background: deliveredScheduledSectionOpen
+              ? "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)"
+              : "rgba(0,0,0,0.96)",
+            border: "none",
+            boxShadow: deliveredScheduledSectionOpen
+              ? "inset 0 1px 0 rgba(255,255,255,0.04), 0 10px 24px rgba(0,0,0,0.22)"
+              : "none",
+            transition: "background 0.25s ease, box-shadow 0.25s ease",
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              setDeliveredScheduledSectionOpen((v) => !v);
+              setOpenSectionKey(null);
+              setOpenItemKey(null);
+            }}
+            aria-expanded={deliveredScheduledSectionOpen}
+            style={{
+              width: "100%",
+              border: "none",
+              background: "transparent",
+              color: "#fff",
+              cursor: "pointer",
+              padding: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              textAlign: "left",
+            }}
+          >
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              <span
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: "50%",
+                  background: "rgba(34,197,94,0.12)",
+                  border: "1px solid rgba(34,197,94,0.24)",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 15,
+                  flexShrink: 0,
+                }}
+              >
+                ✅
+              </span>
+              <span style={{ display: "grid", gap: 4, minWidth: 0 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1.15 }}>
+                  Entregados
+                </span>
+              </span>
+            </span>
+            <CountBadge count={completedBuyerScheduledRows.length} tone="green" />
+          </button>
+
+          {deliveredScheduledSectionOpen && (
+            <div
+              style={{
+                marginTop: 9,
+                paddingTop: 9,
+                borderTop: "1px solid rgba(255,255,255,0.06)",
+                display: "grid",
+                gap: 8,
+              }}
+            >
+              {completedBuyerScheduledRows.map((row) => {
+                const req = row.data;
+                const isExclusive = row.serviceKind === "exclusive_session";
+                const sessionType = isExclusive ? "exclusive_session" : "meet_greet";
+                const serviceTitle = isExclusive ? "Sesión exclusiva" : "Meet & Greet";
+                const creator = userMiniMap[req.creatorId] ?? null;
+                const group = req.groupId ? groupMetaMap[req.groupId] ?? null : null;
+                const sourceName = req.profileDisplayName ?? creator?.displayName ?? (group?.name ?? "Creador");
+                const sourceAvatar = creator?.photoURL ?? group?.avatarUrl ?? null;
+                const sourceInitial = sourceName.charAt(0).toUpperCase();
+                const completedTs = req.updatedAt as { toDate: () => Date } | undefined;
+                const relTime = completedTs ? getRelativeTime(completedTs) : null;
+                const canDownload = req.recordingStatus === "ready";
+                const downloadBusy = !!downloadBusyMap[row.id];
+                const downloadError = downloadErrorMap[row.id] ?? null;
+
+                return (
+                  <div
+                    key={`completed-session-${row.id}`}
+                    style={{
+                      ...styles.miniItem,
+                      background: "rgba(90,41,174,0.14)",
+                      border: "none",
+                      borderRadius: 12,
+                      padding: 10,
+                      display: "grid",
+                      gap: 8,
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {sourceAvatar ? (
+                        <img
+                          src={sourceAvatar}
+                          alt={sourceName}
+                          width={36}
+                          height={36}
+                          style={{ borderRadius: 999, objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.10)" }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: 36, height: 36, borderRadius: 999, flexShrink: 0,
+                          background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.10)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontWeight: 700, fontSize: 14, color: "#fff",
+                        }}>
+                          {sourceInitial}
+                        </div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {serviceTitle} · {sourceName}
+                        </div>
+                        {relTime && (
+                          <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginTop: 2 }}>
+                            {relTime}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {canDownload && (
+                      <div style={{ display: "grid", gap: 6 }}>
+                        <button
+                          type="button"
+                          disabled={downloadBusy}
+                          onClick={async () => {
+                            setDownloadBusyMap((prev) => ({ ...prev, [row.id]: true }));
+                            setDownloadErrorMap((prev) => ({ ...prev, [row.id]: null }));
+                            try {
+                              const url = await callGetRecordingDownloadUrl({ sessionId: row.id, sessionType });
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `sesion_${row.id}.mp4`;
+                              document.body.appendChild(a);
+                              a.click();
+                              document.body.removeChild(a);
+                            } catch {
+                              setDownloadErrorMap((prev) => ({ ...prev, [row.id]: "No se pudo obtener el enlace de descarga." }));
+                            } finally {
+                              setDownloadBusyMap((prev) => ({ ...prev, [row.id]: false }));
+                            }
+                          }}
+                          style={{
+                            height: 32,
+                            padding: "0 14px",
+                            borderRadius: 8,
+                            border: "1px solid rgba(34,197,94,0.30)",
+                            background: "rgba(34,197,94,0.14)",
+                            color: "#86efac",
+                            fontWeight: 700,
+                            fontSize: 12,
+                            cursor: downloadBusy ? "not-allowed" : "pointer",
+                            opacity: downloadBusy ? 0.7 : 1,
+                            width: "fit-content",
+                          }}
+                        >
+                          {downloadBusy ? "Obteniendo enlace..." : "Descargar grabación"}
+                        </button>
+                        {downloadError && (
+                          <div style={{ fontSize: 11, color: "#fca5a5" }}>{downloadError}</div>
+                        )}
+                      </div>
+                    )}
+
+                    {!canDownload && req.recordingStatus === "processing" && (
+                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>
+                        Grabación en proceso...
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {buyerDelivered.length > 0 && (
         <div

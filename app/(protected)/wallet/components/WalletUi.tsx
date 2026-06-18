@@ -24,6 +24,7 @@ import {
   setExclusiveSessionPreparing,
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import MeetGreetPreparationFullscreen from "@/app/components/meetGreet/MeetGreetPreparationFullscreen";
+import { callGetRecordingDownloadUrl } from "@/lib/liveKit/sessionLifecycle";
 
 import ScheduleDateTimeSelector, {
   getSchedulePartsFromDate,
@@ -539,6 +540,8 @@ export function WalletServiceRow({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [downloadBusy, setDownloadBusy] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [preparationOpen, setPreparationOpen] = useState(false);
@@ -1195,7 +1198,7 @@ export function WalletServiceRow({
 
               {isScheduledService &&
               row.status === "completed" &&
-              row.recordingStatus &&
+              row.recordingStatus != null &&
               row.recordingStatus !== "not_started" ? (
                 <div className="walletSessionRecording" style={{ display: "grid", gap: 6 }}>
                   {row.recordingStatus === "recording" ||
@@ -1203,7 +1206,7 @@ export function WalletServiceRow({
                     <div className="walletServiceWarningBox">
                       ⏳ Procesando grabación…
                     </div>
-                  ) : row.recordingStatus === "ready" && row.recordingUrl ? (
+                  ) : row.recordingStatus === "ready" ? (
                     (() => {
                       const { expired, label } = getRecordingExpiry(row.recordingExpiresAt ?? null);
                       return expired ? (
@@ -1215,13 +1218,32 @@ export function WalletServiceRow({
                           <button
                             type="button"
                             className="walletPrimaryBtn"
-                            onClick={(e) => {
+                            disabled={downloadBusy}
+                            style={{ opacity: downloadBusy ? 0.6 : undefined }}
+                            onClick={async (e) => {
                               e.stopPropagation();
-                              window.open(row.recordingUrl!, "_blank", "noopener,noreferrer");
+                              setDownloadBusy(true);
+                              setDownloadError(null);
+                              try {
+                                const url = await callGetRecordingDownloadUrl({
+                                  sessionId: row.id,
+                                  sessionType: row.source as "meet_greet" | "exclusive_session",
+                                });
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `sesion_${row.id}.mp4`;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                              } catch {
+                                setDownloadError("No se pudo obtener el enlace de descarga.");
+                              } finally {
+                                setDownloadBusy(false);
+                              }
                             }}
                           >
-                            ↓ Descargar grabación
-                            {row.recordingDurationSeconds
+                            {downloadBusy ? "Obteniendo enlace…" : "↓ Descargar grabación"}
+                            {!downloadBusy && row.recordingDurationSeconds
                               ? ` (${formatRecordingDuration(row.recordingDurationSeconds)})`
                               : ""}
                           </button>
@@ -1229,6 +1251,9 @@ export function WalletServiceRow({
                             <div className="walletMiniMeta" style={{ color: "rgba(253,230,138,0.85)" }}>
                               {label}
                             </div>
+                          ) : null}
+                          {downloadError ? (
+                            <div className="walletServiceErrorBox">{downloadError}</div>
                           ) : null}
                         </>
                       );

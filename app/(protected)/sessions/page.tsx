@@ -16,6 +16,7 @@ import { getMeetGreetStatusLabel } from "@/lib/meetGreet/types";
 import { getExclusiveSessionStatusLabel } from "@/lib/exclusiveSession/types";
 import { setMeetGreetPreparing } from "@/lib/meetGreet/meetGreetRequests";
 import { setExclusiveSessionPreparing } from "@/lib/exclusiveSession/exclusiveSessionRequests";
+import { callGetRecordingDownloadUrl } from "@/lib/liveKit/sessionLifecycle";
 import { formatWalletMoney } from "@/lib/wallet/ownerWallet";
 import type { LiveKitSessionRecordingStatus } from "@/types/livekit";
 
@@ -165,13 +166,16 @@ function SessionCard({ session }: { session: BuyerSession }) {
   const [open, setOpen] = useState(false);
   const [joiningBusy, setJoiningBusy] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [downloadBusy, setDownloadBusy] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const joinable = canJoin(session);
   const isCompleted = session.status === "completed";
   const hasRecording =
     isCompleted &&
-    session.recordingStatus &&
+    session.recordingStatus != null &&
     session.recordingStatus !== "not_started";
+  const recordingReady = session.recordingStatus === "ready";
 
   const callHref =
     `/sessions/${session.id}/call` +
@@ -271,7 +275,7 @@ function SessionCard({ session }: { session: BuyerSession }) {
               {session.recordingStatus === "processing" ||
               session.recordingStatus === "recording" ? (
                 <div style={processingBadge}>⏳ Procesando grabación…</div>
-              ) : session.recordingStatus === "ready" && session.recordingUrl ? (
+              ) : recordingReady ? (
                 (() => {
                   const { expired, label } = getRecordingExpiry(session.recordingExpiresAt);
                   return expired ? (
@@ -282,19 +286,39 @@ function SessionCard({ session }: { session: BuyerSession }) {
                     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                       <button
                         type="button"
-                        style={downloadBtn}
-                        onClick={(e) => {
+                        style={{
+                          ...downloadBtn,
+                          opacity: downloadBusy ? 0.6 : 1,
+                          cursor: downloadBusy ? "default" : "pointer",
+                        }}
+                        disabled={downloadBusy}
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          window.open(session.recordingUrl!, "_blank", "noopener,noreferrer");
+                          setDownloadBusy(true);
+                          setDownloadError(null);
+                          try {
+                            const url = await callGetRecordingDownloadUrl({
+                              sessionId: session.id,
+                              sessionType: session.kind,
+                            });
+                            window.open(url, "_blank", "noopener,noreferrer");
+                          } catch {
+                            setDownloadError("No se pudo obtener el enlace de descarga.");
+                          } finally {
+                            setDownloadBusy(false);
+                          }
                         }}
                       >
-                        ↓ Descargar grabación
-                        {session.recordingDurationSeconds
+                        {downloadBusy ? "Obteniendo enlace…" : "↓ Descargar grabación"}
+                        {!downloadBusy && session.recordingDurationSeconds
                           ? ` (${formatDuration(session.recordingDurationSeconds)})`
                           : ""}
                       </button>
-                      {label ? (
-                        <span style={expiryLabel}>{label}</span>
+                      {label ? <span style={expiryLabel}>{label}</span> : null}
+                      {downloadError ? (
+                        <span style={{ ...expiryLabel, color: "#fca5a5" }}>
+                          {downloadError}
+                        </span>
                       ) : null}
                     </div>
                   );

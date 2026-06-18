@@ -250,6 +250,10 @@ export type MeetGreetRequestDoc = {
   autoRejectReason?: string | null;
   requestSource?: string | null;
 
+  recordingStatus?: "not_started" | "recording" | "processing" | "ready" | "failed" | null;
+  recordingS3Key?: string | null;
+  recordingUrl?: string | null;
+
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 };

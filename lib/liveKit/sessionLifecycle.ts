@@ -26,3 +26,14 @@ export async function callEndSession(payload: SessionLifecyclePayload): Promise<
   );
   await fn(payload);
 }
+
+export async function callGetRecordingDownloadUrl(
+  payload: SessionLifecyclePayload
+): Promise<string> {
+  const fn = httpsCallable<SessionLifecyclePayload, { url: string }>(
+    functions,
+    "getRecordingDownloadUrl"
+  );
+  const result = await fn(payload);
+  return result.data.url;
+}

@@ -33,14 +33,10 @@ function NavHomeIcon() {
 function NavWalletIcon() {
   return (
     <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {/* Outer wallet body */}
       <path d="M4 9C4 7.3 5.3 6 7 6H17C18.7 6 20 7.3 20 9V16C20 17.7 18.7 19 17 19H7C5.3 19 4 17.7 4 16V9Z" />
-      {/* Top separator line */}
       <path d="M4 11.5H20" />
-      {/* Bill lines left side */}
       <path d="M6.5 14.5H11" strokeWidth={1.6} />
       <path d="M6.5 16.5H10" strokeWidth={1.6} />
-      {/* Coin pocket right side */}
       <circle cx="15.5" cy="15.2" r="2.2" />
     </svg>
   );
@@ -49,11 +45,9 @@ function NavWalletIcon() {
 function NavGroupsIcon() {
   return (
     <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      {/* Three circles in triangle arrangement suggesting a group/community */}
       <circle cx="12" cy="6.5" r="3.2" />
       <circle cx="6.5" cy="16" r="3.2" />
       <circle cx="17.5" cy="16" r="3.2" />
-      {/* Connecting lines between nodes */}
       <path d="M9.4 8.8L8.8 13" strokeWidth={1.5} />
       <path d="M14.6 8.8L15.2 13" strokeWidth={1.5} />
       <path d="M9.7 16H14.3" strokeWidth={1.5} />
@@ -214,7 +208,6 @@ export default function MobileBottomNav({
           -webkit-backface-visibility: hidden;
           pointer-events: none;
           background: #000000;
-          /* Safe area fill: the wrap's own background covers the inset on all OS */
           padding-bottom: env(safe-area-inset-bottom, 0px);
         }
 

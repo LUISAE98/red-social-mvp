@@ -82,7 +82,9 @@ export async function POST(req: NextRequest) {
   // Ignore "already exists" so retries work cleanly.
   const roomService = new RoomServiceClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
   try {
-    await roomService.createRoom({ name: roomName, emptyTimeout: 300 });
+    // emptyTimeout: 600s gives a 10-minute buffer for the creator to reconnect
+    // if they lose connection (e.g., iOS background, network switch)
+    await roomService.createRoom({ name: roomName, emptyTimeout: 600 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     const isAlreadyExists = msg.toLowerCase().includes("already exist") || msg.includes("409");

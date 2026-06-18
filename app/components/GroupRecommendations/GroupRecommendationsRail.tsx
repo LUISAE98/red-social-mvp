@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import StoryRingAvatar from "@/app/components/Stories/StoryRingAvatar";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { joinGroup } from "@/lib/groups/membership";
@@ -267,12 +267,15 @@ function ProfileCard({
   isFollowing,
   loading,
   onFollow,
+  currentUserId,
 }: {
   profile: RecommendationProfileCard;
   isFollowing: boolean;
   loading: boolean;
   onFollow: () => void;
+  currentUserId: string | null;
 }) {
+  const router = useRouter();
   const followersLabel =
     profile.followersCount > 0
       ? `${profile.followersCount.toLocaleString("es-MX")} ${
@@ -313,6 +316,28 @@ function ProfileCard({
               "linear-gradient(180deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.18) 28%, rgba(0,0,0,0.62) 58%, rgba(0,0,0,0.90) 80%, rgba(0,0,0,0.97) 100%)",
           }}
         />
+        {/* Avatar con aro de historias — fuera del Link para evitar button dentro de <a> */}
+        <div
+          style={{
+            position: "absolute",
+            top: 14,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 2,
+            filter: "drop-shadow(0 8px 22px rgba(0,0,0,0.50))",
+          }}
+        >
+          <StoryRingAvatar
+            entityId={profile.uid}
+            entityType="profile"
+            currentUserId={currentUserId}
+            photoURL={profile.avatarUrl}
+            displayName={profile.displayName}
+            size={68}
+            onClick={() => router.push(`/u/${profile.handle}`)}
+          />
+        </div>
+
         <Link
           href={`/u/${profile.handle}`}
           style={{
@@ -328,35 +353,8 @@ function ProfileCard({
             color: "inherit",
           }}
         >
-          <div
-            style={{
-              width: 68,
-              height: 68,
-              borderRadius: "50%",
-              overflow: "hidden",
-              background: "#111",
-              border: "3px solid rgba(255,255,255,0.14)",
-              boxShadow: "0 8px 22px rgba(0,0,0,0.50)",
-              display: "grid",
-              placeItems: "center",
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: 20,
-              flexShrink: 0,
-              fontFamily: fontStack,
-            }}
-          >
-            {profile.avatarUrl ? (
-              <Image
-                src={profile.avatarUrl}
-                alt={`Avatar de ${profile.displayName}`}
-                width={68} height={68}
-                style={{ objectFit: "cover" }}
-              />
-            ) : (
-              profile.displayName.slice(0, 1).toUpperCase()
-            )}
-          </div>
+          {/* Spacer que ocupa el lugar del avatar para mantener el layout del texto */}
+          <div style={{ width: 68, height: 68, flexShrink: 0 }} />
           <div
             style={{
               marginTop: 10,
@@ -459,12 +457,15 @@ function GroupCard({
   joinState,
   loading,
   onJoin,
+  currentUserId,
 }: {
   group: RecommendationGroupCard;
   joinState: RecommendationJoinState;
   loading: boolean;
   onJoin: () => void;
+  currentUserId: string | null;
 }) {
+  const router = useRouter();
   const categoryLabel = group.category
     ? GROUP_CATEGORY_LABELS[group.category]
     : "Sin categoría";
@@ -521,6 +522,28 @@ function GroupCard({
           }}
         />
 
+        {/* Avatar con aro de historias — fuera del Link para evitar button dentro de <a> */}
+        <div
+          style={{
+            position: "absolute",
+            top: 14,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 2,
+            filter: "drop-shadow(0 8px 22px rgba(0,0,0,0.50))",
+          }}
+        >
+          <StoryRingAvatar
+            entityId={group.id}
+            entityType="group"
+            currentUserId={currentUserId}
+            photoURL={group.avatarUrl}
+            displayName={group.name}
+            size={68}
+            onClick={() => router.push(`/groups/${group.id}`)}
+          />
+        </div>
+
         {/* Navigable area — full card minus button zone */}
         <Link
           href={`/groups/${group.id}`}
@@ -537,36 +560,8 @@ function GroupCard({
             color: "inherit",
           }}
         >
-          {/* Avatar */}
-          <div
-            style={{
-              width: 68,
-              height: 68,
-              borderRadius: "50%",
-              overflow: "hidden",
-              background: "#111",
-              border: "3px solid rgba(255,255,255,0.14)",
-              boxShadow: "0 8px 22px rgba(0,0,0,0.50)",
-              display: "grid",
-              placeItems: "center",
-              color: "#fff",
-              fontWeight: 700,
-              fontSize: 20,
-              flexShrink: 0,
-              fontFamily: fontStack,
-            }}
-          >
-            {group.avatarUrl ? (
-              <Image
-                src={group.avatarUrl}
-                alt={`Avatar de ${group.name}`}
-                width={68} height={68}
-                style={{ objectFit: "cover" }}
-              />
-            ) : (
-              group.name.slice(0, 1).toUpperCase()
-            )}
-          </div>
+          {/* Spacer que ocupa el lugar del avatar para mantener el layout del texto */}
+          <div style={{ width: 68, height: 68, flexShrink: 0 }} />
 
           {/* Name + meta — tight gap below avatar */}
           <div
@@ -1020,6 +1015,7 @@ export default function GroupRecommendationsRail({
                 joinState={joinStates[item.data.id] ?? "join"}
                 loading={Boolean(joinLoadingByGroup[item.data.id])}
                 onJoin={() => handleJoin(item.data)}
+                currentUserId={currentUserId}
               />
             ) : (
               <ProfileCard
@@ -1028,6 +1024,7 @@ export default function GroupRecommendationsRail({
                 isFollowing={followStates[item.data.uid] ?? false}
                 loading={Boolean(followLoadingByProfile[item.data.uid])}
                 onFollow={() => handleFollow(item.data)}
+                currentUserId={currentUserId}
               />
             )
           )}

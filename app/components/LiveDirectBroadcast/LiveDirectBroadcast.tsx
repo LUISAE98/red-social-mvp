@@ -37,6 +37,12 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
   const [error, setError] = useState<string | null>(null);
   const [hasMedia, setHasMedia] = useState(false);
   const isPortraitRef = useRef(false);
+  // Distinguishes user-initiated stop from unexpected network disconnects
+  const intentionalStopRef = useRef(false);
+  // Wake lock to prevent screen from dimming during broadcast (kills WebRTC on mobile)
+  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
+  // Suppresses resize-based orientation updates while a live broadcast is active
+  const isLiveRef = useRef(false);
 
   const initCamera = useCallback(async () => {
     setError(null);
@@ -54,13 +60,10 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
         vTrack.attach(videoRef.current);
       }
 
-      const settings = vTrack.mediaStreamTrack.getSettings();
-      // Detecta retrato: si el navegador devuelve dimensiones lógicas ya giradas usa eso;
-      // si no, cae en la orientación de pantalla como respaldo.
+      // Use screen dimensions — more reliable than getSettings() on iOS which always
+      // returns the requested constraint dimensions regardless of device rotation.
       const portrait =
-        settings.width && settings.height
-          ? settings.height > settings.width
-          : typeof window !== "undefined" && window.innerHeight > window.innerWidth;
+        typeof window !== "undefined" ? window.innerHeight > window.innerWidth : false;
       isPortraitRef.current = portrait;
       if (onOrientationChange) onOrientationChange(portrait);
 
@@ -79,10 +82,33 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
     };
   }, [initCamera]);
 
+  // Keep isPortraitRef in sync with device orientation changes (user rotates phone
+  // after camera init but before starting broadcast). Skipped while live so that
+  // physical rotation (on iOS where lock isn't supported) doesn't confuse the UI.
+  useEffect(() => {
+    const updateOrientation = () => {
+      if (isLiveRef.current) return;
+      const portrait = window.innerHeight > window.innerWidth;
+      isPortraitRef.current = portrait;
+      onOrientationChange?.(portrait);
+    };
+    window.addEventListener("resize", updateOrientation);
+    return () => window.removeEventListener("resize", updateOrientation);
+  }, [onOrientationChange]);
+
   const startBroadcast = useCallback(async () => {
     if (!videoTrackRef.current || !audioTrackRef.current) return;
     setStatus("connecting");
     setError(null);
+    intentionalStopRef.current = false;
+
+    // Re-read orientation at broadcast start time — more reliable than reading
+    // at camera init, because the user may have rotated the device since then.
+    // window.innerHeight > innerWidth always reflects actual current orientation.
+    const currentPortrait =
+      typeof window !== "undefined" ? window.innerHeight > window.innerWidth : false;
+    isPortraitRef.current = currentPortrait;
+    onOrientationChange?.(currentPortrait);
 
     try {
       // Get Firebase ID token for auth
@@ -108,20 +134,48 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
       const { token, roomName, egressId, livekitUrl } = await resp.json();
       egressIdRef.current = egressId;
 
-      // Connect to LiveKit room
+      // disconnectOnPageLeave: false prevents LiveKit from killing the room
+      // when the phone screen dims (the #1 cause of ~1-minute auto-terminations)
       const room = new Room({
         adaptiveStream: false,
         dynacast: true,
+        disconnectOnPageLeave: false,
       });
       roomRef.current = room;
 
+      room.on(RoomEvent.Reconnecting, () => {
+        setStatus("connecting");
+      });
+
+      room.on(RoomEvent.Reconnected, () => {
+        setStatus("live");
+      });
+
       room.on(RoomEvent.Disconnected, () => {
-        setStatus("idle");
+        const wasIntentional = intentionalStopRef.current;
+        intentionalStopRef.current = false;
+
         onBroadcastingChangeRef.current?.(false);
-        // Stop egress if it's still active (e.g. unexpected disconnect)
-        if (egressIdRef.current) {
-          stopEgress(egressIdRef.current);
-          egressIdRef.current = null;
+
+        // Release wake lock and orientation lock regardless of reason
+        isLiveRef.current = false;
+        wakeLockRef.current?.release().catch(() => {});
+        wakeLockRef.current = null;
+        try { (screen.orientation as any).unlock?.(); } catch { /* not supported */ }
+
+        if (wasIntentional) {
+          // stopBroadcast() already stopped the egress explicitly
+          setStatus("idle");
+        } else {
+          // Unexpected disconnect (network, iOS background, etc.) — egress may
+          // still be running on the server. Don't auto-stop it; let the user
+          // decide to restart. Show error so they know what happened.
+          setStatus("error");
+          setError("Transmisión interrumpida por conexión inestable. Puedes reiniciarla.");
+          if (egressIdRef.current) {
+            stopEgress(egressIdRef.current);
+            egressIdRef.current = null;
+          }
         }
       });
 
@@ -137,7 +191,28 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
       });
 
       setStatus("live");
+      isLiveRef.current = true;
       onBroadcastingChange?.(true);
+
+      // Keep screen on during broadcast — prevents automatic dimming which
+      // sends the browser to background and kills WebRTC on mobile.
+      try {
+        if (typeof navigator !== "undefined" && "wakeLock" in navigator) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
+        }
+      } catch {
+        // Wake Lock not supported or permission denied — non-critical
+      }
+
+      // Lock screen orientation so rotating the device doesn't corrupt the stream.
+      // Android Chrome supports this; iOS Safari throws — catch silently.
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (screen.orientation as any).lock?.(currentPortrait ? "portrait" : "landscape");
+      } catch {
+        // Not supported (iOS Safari) — non-critical, wake lock compensates
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Error desconocido al iniciar";
       setError(msg);
@@ -165,15 +240,27 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
   };
 
   const stopBroadcast = useCallback(async () => {
-    const room = roomRef.current;
-    if (room) {
-      await room.disconnect();
-      roomRef.current = null;
-    }
+    // Mark as intentional so Disconnected handler knows not to show error
+    intentionalStopRef.current = true;
+    isLiveRef.current = false;
+
+    // Release wake lock and orientation lock before disconnecting
+    try { await wakeLockRef.current?.release(); } catch {}
+    wakeLockRef.current = null;
+    try { screen.orientation.unlock(); } catch { /* not supported on iOS */ }
+
+    // Stop egress first so Mux stream ends cleanly
     if (egressIdRef.current) {
       await stopEgress(egressIdRef.current);
       egressIdRef.current = null;
     }
+
+    const room = roomRef.current;
+    if (room) {
+      room.disconnect();
+      roomRef.current = null;
+    }
+
     setStatus("idle");
     onBroadcastingChange?.(false);
   }, [onBroadcastingChange]);
@@ -212,7 +299,9 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
   }, [camOff]);
 
   const statusLabel =
-    status === "live" ? "EN VIVO" : status === "connecting" ? "CONECTANDO..." : "VISTA PREVIA";
+    status === "live" ? "EN VIVO" :
+    status === "connecting" ? "CONECTANDO..." :
+    "VISTA PREVIA";
   const statusColor =
     status === "live" ? "#ef4444" : status === "connecting" ? "#f59e0b" : "#6b7280";
 

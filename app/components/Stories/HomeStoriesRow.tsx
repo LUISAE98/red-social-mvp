@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   collection,
   documentId,
@@ -12,11 +12,13 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import {
+  fetchStoriesFromCreatorIds,
   recordStoryView,
   subscribeToStoriesFromCreators,
   subscribeToStoriesFromGroups,
   subscribeToViewedStories,
 } from "@/lib/stories/storyService";
+import { fetchRecommendedProfilesForUser } from "@/app/components/GroupRecommendations/recommendation-engine";
 import type { StoryDoc } from "@/lib/stories/types";
 import StoryViewer from "./StoryViewer";
 import HomeStoryCarouselDesktop, { type CarouselGroup } from "./HomeStoryCarouselDesktop";
@@ -53,6 +55,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   const [groupIds, setGroupIds] = useState<string[]>([]);
   const [profileStories, setProfileStories] = useState<StoryDoc[]>([]);
   const [groupStories, setGroupStories] = useState<StoryDoc[]>([]);
+  const [recommendedStories, setRecommendedStories] = useState<StoryDoc[]>([]);
   const [viewedMap, setViewedMap] = useState<Map<string, number>>(new Map());
   const [displayInfoMap, setDisplayInfoMap] = useState<Map<string, DisplayInfo>>(new Map());
   const [activeGroup, setActiveGroup] = useState<StoryGroup | null>(null);
@@ -125,10 +128,30 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     return subscribeToViewedStories(currentUserId, setViewedMap);
   }, [currentUserId]);
 
-  // 5. Batch-fetch display info for creators/groups
+  // 4b. One-shot fetch of recommended creator stories (refreshes on every mount / page navigation)
+  useEffect(() => {
+    if (!currentUserId) return;
+    let cancelled = false;
+    async function load() {
+      try {
+        const profiles = await fetchRecommendedProfilesForUser(currentUserId, { skipMarkShown: true });
+        if (cancelled || profiles.length === 0) return;
+        const uids = profiles.map((p) => p.uid);
+        const cutoff = Date.now() - TWENTY_FOUR_HOURS_MS;
+        const stories = await fetchStoriesFromCreatorIds(uids, cutoff);
+        if (!cancelled) setRecommendedStories(stories);
+      } catch (err) {
+        console.error("[HomeStoriesRow] loadRecommended", err);
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [currentUserId]);
+
+  // 5. Batch-fetch display info for creators/groups (including recommended)
   useEffect(() => {
     const newCreatorIds = [...new Set(
-      profileStories
+      [...profileStories, ...recommendedStories]
         .map((s) => s.creatorId)
         .filter((id) => !fetchedInfoKeys.current.has(id)),
     )];
@@ -194,7 +217,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
       }
     }
     void fetchInfo();
-  }, [profileStories, groupStories]);
+  }, [profileStories, groupStories, recommendedStories]);
 
   const handleStoryViewed = useCallback(
     (storyId: string) => {
@@ -204,30 +227,126 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   );
 
   const storyGroups = buildStoryGroups(profileStories, groupStories, viewedMap, displayInfoMap);
-  // Keep refs in sync so callbacks always see current data
-  storyGroupsRef.current = storyGroups;
-  activeGroupRef.current = activeGroup;
+  const recommendedStoryGroups = buildStoryGroups(recommendedStories, [], viewedMap, displayInfoMap);
+  const allGroups = [...storyGroups, ...recommendedStoryGroups];
+  // Keep refs in sync after every render so mobile callbacks always see current data
+  useLayoutEffect(() => {
+    storyGroupsRef.current = allGroups;
+    activeGroupRef.current = activeGroup;
+  });
 
   // Mobile: when the last story in a group is exhausted (or swipe-left), advance to next unread group
-  const handleMobileGroupFinished = useCallback(() => {
+  function handleMobileGroupFinished() {
     const groups = storyGroupsRef.current;
     const currentKey = activeGroupRef.current?.key;
     const currentIdx = currentKey ? groups.findIndex((g) => g.key === currentKey) : -1;
     const next = currentIdx >= 0 && currentIdx < groups.length - 1 ? groups[currentIdx + 1] : null;
     setActiveGroup(next ?? null);
-  }, []);
+  }
 
   // Mobile: swipe-right or tap-left on first story → go to previous group
-  const handleMobileGroupBack = useCallback(() => {
+  function handleMobileGroupBack() {
     const groups = storyGroupsRef.current;
     const currentKey = activeGroupRef.current?.key;
     const currentIdx = currentKey ? groups.findIndex((g) => g.key === currentKey) : -1;
     if (currentIdx > 0) {
       setActiveGroup(groups[currentIdx - 1]);
     }
-  }, []);
+  }
 
-  if (storyGroups.length === 0) return null;
+  if (allGroups.length === 0) return null;
+
+  function renderBubble(group: StoryGroup) {
+    const isGrp = group.source === "group";
+    const emoji = isGrp ? "🏘️" : "👤";
+    const name = group.info.displayName ?? (isGrp ? "Comunidad" : "Usuario");
+    const ring = group.hasUnviewed ? VIBRA_GRADIENT : SEEN_COLOR;
+    return (
+      <button
+        key={group.key}
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isDesktop) {
+            const idx = allGroups.findIndex((g) => g.key === group.key);
+            setDesktopOpen({ groups: allGroups, initialIdx: idx >= 0 ? idx : 0 });
+          } else {
+            setActiveGroup(group);
+          }
+        }}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 5,
+          background: "none",
+          border: "none",
+          padding: 0,
+          cursor: "pointer",
+          WebkitTapHighlightColor: "transparent",
+          flexShrink: 0,
+          position: "relative",
+        }}
+      >
+        <div
+          style={{
+            width: 80,
+            height: 80,
+            borderRadius: "50%",
+            background: ring,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 2.5,
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              borderRadius: "50%",
+              border: "2px solid rgb(10,10,14)",
+              overflow: "hidden",
+              background: "#1a1a2e",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxSizing: "border-box",
+              position: "relative",
+            }}
+          >
+            {group.thumbnailUrl ? (
+              <Image
+                src={group.thumbnailUrl}
+                alt={name}
+                fill
+                style={{ objectFit: "cover" }}
+              />
+            ) : (
+              <span style={{ fontSize: 22, lineHeight: 1 }}>{emoji}</span>
+            )}
+          </div>
+        </div>
+        <span
+          style={{
+            color: "rgba(255,255,255,0.72)",
+            fontSize: 11,
+            fontWeight: 500,
+            lineHeight: 1.4,
+            letterSpacing: "-0.01em",
+            fontFamily: fontStack,
+            maxWidth: 88,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {name}
+        </span>
+      </button>
+    );
+  }
 
   return (
     <>
@@ -240,102 +359,39 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
           scrollbarWidth: "none",
           WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
           marginBottom: 14,
+          alignItems: "flex-end",
         }}
       >
-        {storyGroups.map((group) => {
-          const isGroup = group.source === "group";
-          const emoji = isGroup ? "🏘️" : "👤";
-          const name = group.info.displayName ?? (isGroup ? "Comunidad" : "Usuario");
-          const ring = group.hasUnviewed ? VIBRA_GRADIENT : SEEN_COLOR;
+        {storyGroups.map((group) => renderBubble(group))}
 
-          return (
-            <button
-              key={group.key}
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (isDesktop) {
-                  const idx = storyGroups.findIndex((g) => g.key === group.key);
-                  setDesktopOpen({ groups: storyGroups, initialIdx: idx >= 0 ? idx : 0 });
-                } else {
-                  setActiveGroup(group);
-                }
-              }}
+        {recommendedStoryGroups.length > 0 && (
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              flexShrink: 0,
+              gap: 0,
+            }}
+          >
+            <span
               style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 5,
-                background: "none",
-                border: "none",
-                padding: 0,
-                cursor: "pointer",
-                WebkitTapHighlightColor: "transparent",
-                flexShrink: 0,
-                position: "relative",
+                fontSize: 10,
+                color: "rgba(255,255,255,0.38)",
+                fontFamily: fontStack,
+                fontWeight: 500,
+                letterSpacing: "-0.01em",
+                paddingLeft: 2,
+                paddingBottom: 6,
               }}
             >
-              {/* Ring */}
-              <div
-                style={{
-                  width: 80,
-                  height: 80,
-                  borderRadius: "50%",
-                  background: ring,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: 2.5,
-                  boxSizing: "border-box",
-                }}
-              >
-                <div
-                  style={{
-                    width: "100%",
-                    height: "100%",
-                    borderRadius: "50%",
-                    border: "2px solid rgb(10,10,14)",
-                    overflow: "hidden",
-                    background: "#1a1a2e",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    boxSizing: "border-box",
-                    position: "relative",
-                  }}
-                >
-                  {group.thumbnailUrl ? (
-                    <Image
-                      src={group.thumbnailUrl}
-                      alt={name}
-                      fill
-                      style={{ objectFit: "cover" }}
-                    />
-                  ) : (
-                    <span style={{ fontSize: 22, lineHeight: 1 }}>{emoji}</span>
-                  )}
-                </div>
-              </div>
-              {/* Name */}
-              <span
-                style={{
-                  color: "rgba(255,255,255,0.72)",
-                  fontSize: 11,
-                  fontWeight: 500,
-                  lineHeight: 1.4,
-                  letterSpacing: "-0.01em",
-                  fontFamily: fontStack,
-                  maxWidth: 88,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {name}
-              </span>
-            </button>
-          );
-        })}
+              Recomendados
+            </span>
+            <div style={{ display: "flex", gap: 16 }}>
+              {recommendedStoryGroups.map((group) => renderBubble(group))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Desktop: carousel with next-group preview */}

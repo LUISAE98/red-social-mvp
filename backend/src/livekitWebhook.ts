@@ -175,9 +175,10 @@ async function handleEgressEnded(event: WebhookEvent): Promise<void> {
     return;
   }
 
-  // Egress completado exitosamente — extraer URL y duración del primer resultado
+  // Egress completado exitosamente — extraer clave S3 y duración del primer resultado
   const fileResult = egressInfo.fileResults?.[0];
-  const recordingUrl = fileResult?.location ?? null;
+  // location puede ser: "s3://bucket/key", "bucket/key" o solo la clave
+  const rawLocation = fileResult?.location || null;
   // duration en FileInfo es bigint (segundos)
   const recordingDurationSeconds = fileResult?.duration
     ? Number(fileResult.duration)
@@ -190,7 +191,8 @@ async function handleEgressEnded(event: WebhookEvent): Promise<void> {
 
   await session.ref.update({
     recordingStatus: "ready",
-    recordingUrl,
+    recordingS3Key: rawLocation,
+    recordingUrl: rawLocation,
     recordingDurationSeconds,
     recordingExpiresAt: expiresAt.toISOString(),
     updatedAt: admin.firestore.Timestamp.now(),
@@ -200,7 +202,7 @@ async function handleEgressEnded(event: WebhookEvent): Promise<void> {
     roomName,
     egressId: egressInfo.egressId,
     sessionId: session.ref.id,
-    recordingUrl,
+    recordingS3Key: rawLocation,
     recordingDurationSeconds,
   });
 }

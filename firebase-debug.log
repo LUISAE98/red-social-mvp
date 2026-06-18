@@ -1,0 +1,16 @@
+[debug] [2026-06-18T00:56:25.975Z] ----------------------------------------------------------------------
+[debug] [2026-06-18T00:56:25.980Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\luis\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions:backend:getRecordingDownloadUrl
+[debug] [2026-06-18T00:56:25.981Z] CLI Version:   15.6.0
+[debug] [2026-06-18T00:56:25.982Z] Platform:      win32
+[debug] [2026-06-18T00:56:25.982Z] Node Version:  v25.2.1
+[debug] [2026-06-18T00:56:25.982Z] Time:          Wed Jun 17 2026 18:56:25 GMT-0600 (hora estándar central)
+[debug] [2026-06-18T00:56:25.982Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-06-18T00:56:32.116Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-06-18T00:56:32.118Z] > authorizing via signed-in user (luis@consumed.mx)
+[debug] [2026-06-18T00:56:32.118Z] [iam] checking project red-social-mvp for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2026-06-18T00:56:32.122Z] Checked if tokens are valid: true, expires at: 1781745733438
+[debug] [2026-06-18T00:56:32.122Z] Checked if tokens are valid: true, expires at: 1781745733438
+[debug] [2026-06-18T00:56:32.125Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/red-social-mvp:testIamPermissions [none]
+[debug] [2026-06-18T00:56:32.125Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/red-social-mvp:testIamPermissions  x-goog-user-project=red-social-mvp
+[debug] [2026-06-18T00:56:32.125Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/red-social-mvp:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}

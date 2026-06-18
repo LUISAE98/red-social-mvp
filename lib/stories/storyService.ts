@@ -5,6 +5,7 @@ import {
   deleteField,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
   serverTimestamp,
@@ -259,4 +260,30 @@ export async function setGroupStoryCoverPhoto(
   await updateDoc(doc(db, "groups", groupId), {
     [`storyCoverPhoto.${type}`]: url ?? deleteField(),
   });
+}
+
+// ─── Recommended stories (one-shot fetch) ────────────────────────────────────
+
+// Fetches active profile stories from a specific list of creator UIDs.
+// Used by HomeStoriesRow to load stories from recommended creators without
+// setting up a real-time listener. cutoffMs filters out stories older than 24h.
+export async function fetchStoriesFromCreatorIds(
+  creatorIds: string[],
+  cutoffMs: number,
+): Promise<StoryDoc[]> {
+  if (creatorIds.length === 0) return [];
+  const ids = creatorIds.slice(0, 30);
+  try {
+    const snap = await getDocs(
+      query(collection(db, "stories"), where("creatorId", "in", ids)),
+    );
+    const docs = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }) as StoryDoc)
+      .filter((s) => s.source === "profile" && (s.createdAt?.toMillis() ?? 0) >= cutoffMs);
+    await patchMissingPlaybackIds(docs);
+    return sortByDate(docs);
+  } catch (err) {
+    console.error("[fetchStoriesFromCreatorIds]", err);
+    return [];
+  }
 }

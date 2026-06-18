@@ -878,7 +878,8 @@ async function fetchFriendsOfFriends(
 }
 
 export async function fetchRecommendedProfilesForUser(
-  uid: string
+  uid: string,
+  options?: { skipMarkShown?: boolean }
 ): Promise<RecommendationProfileCard[]> {
   if (!uid) return [];
 
@@ -931,7 +932,7 @@ export async function fetchRecommendedProfilesForUser(
   const fresh = ranked.filter((p) => !shownIds.has(p.uid));
   const final = (fresh.length >= 2 ? fresh : ranked).slice(0, MAX_PROFILE_RECOMMENDATIONS);
 
-  if (final.length > 0) {
+  if (final.length > 0 && !options?.skipMarkShown) {
     markProfilesAsShown(uid, final.map((p) => p.uid));
   }
 
