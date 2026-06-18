@@ -56,6 +56,9 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [optimisticChatEnabled, setOptimisticChatEnabled] = useState<boolean | null>(null);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
+  // Ref so the resize handler always reads the latest value without stale closure
+  const isBroadcastingRef = useRef(false);
+  isBroadcastingRef.current = isBroadcasting;
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const liveData = post.liveData;
@@ -72,7 +75,12 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const showVideo = (liveStatus === "live" || isEnded) && !!hlsUrl && !showDirectBroadcast;
 
   useEffect(() => {
-    const update = () => setIsDesktop(window.innerWidth >= 768);
+    const update = () => {
+      // Freeze layout while a broadcast is active — changing branches would
+      // unmount LiveDirectBroadcast and its cleanup disconnects the room.
+      if (isBroadcastingRef.current) return;
+      setIsDesktop(window.innerWidth >= 768);
+    };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);

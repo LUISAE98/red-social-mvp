@@ -16,6 +16,7 @@ import * as admin from "firebase-admin";
 import {
   EncodedFileOutput,
   S3Upload,
+  EncodingOptionsPreset,
   type EgressInfo,
   type EgressClient,
 } from "livekit-server-sdk";
@@ -103,7 +104,8 @@ async function startRecording(
   let egressInfo: EgressInfo;
   try {
     egressInfo = await egressClient.startRoomCompositeEgress(roomName, fileOutput, {
-      layout: "speaker-dark",
+      layout: "grid",
+      encodingOptions: EncodingOptionsPreset.H264_1080P_30,
     });
   } catch (err: unknown) {
     logger.error("livekit_egress_start_failed", { sessionId, roomName, err });

@@ -1229,12 +1229,7 @@ export function WalletServiceRow({
                                   sessionId: row.id,
                                   sessionType: row.source as "meet_greet" | "exclusive_session",
                                 });
-                                const a = document.createElement("a");
-                                a.href = url;
-                                a.download = `sesion_${row.id}.mp4`;
-                                document.body.appendChild(a);
-                                a.click();
-                                document.body.removeChild(a);
+                                window.location.href = url;
                               } catch {
                                 setDownloadError("No se pudo obtener el enlace de descarga.");
                               } finally {

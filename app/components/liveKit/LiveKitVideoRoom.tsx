@@ -11,7 +11,7 @@ import {
   useConnectionState,
   useParticipants,
 } from "@livekit/components-react";
-import { Track, ConnectionState } from "livekit-client";
+import { Track, ConnectionState, VideoPresets, type RoomOptions } from "livekit-client";
 import { doc, onSnapshot, type Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useLivekitRoom } from "@/lib/liveKit/useLivekitRoom";
@@ -60,6 +60,30 @@ export default function LiveKitVideoRoom({ sessionId, sessionType, role, onLeave
 
   const { token, livekitUrl } = roomState.data;
 
+  const roomOptions: RoomOptions = {
+    videoCaptureDefaults: {
+      resolution: VideoPresets.h720.resolution,
+      facingMode: "user",
+    },
+    audioCaptureDefaults: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      sampleRate: 48000,
+    },
+    publishDefaults: {
+      videoEncoding: {
+        maxBitrate: 2_500_000,
+        maxFramerate: 30,
+      },
+      dtx: true,
+      red: true,
+      simulcast: false,
+    },
+    adaptiveStream: true,
+    dynacast: false,
+  };
+
   return (
     <LiveKitRoom
       token={token}
@@ -67,6 +91,7 @@ export default function LiveKitVideoRoom({ sessionId, sessionType, role, onLeave
       video
       audio
       connect
+      options={roomOptions}
       onMediaDeviceFailure={(failure, kind) => {
         console.warn("livekit_device_failure", { failure, kind });
       }}

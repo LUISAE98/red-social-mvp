@@ -2060,12 +2060,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                             setDownloadErrorMap((prev) => ({ ...prev, [row.id]: null }));
                             try {
                               const url = await callGetRecordingDownloadUrl({ sessionId: row.id, sessionType });
-                              const a = document.createElement("a");
-                              a.href = url;
-                              a.download = `sesion_${row.id}.mp4`;
-                              document.body.appendChild(a);
-                              a.click();
-                              document.body.removeChild(a);
+                              window.location.href = url;
                             } catch {
                               setDownloadErrorMap((prev) => ({ ...prev, [row.id]: "No se pudo obtener el enlace de descarga." }));
                             } finally {
