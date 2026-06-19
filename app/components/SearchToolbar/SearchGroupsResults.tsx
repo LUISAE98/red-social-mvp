@@ -9,7 +9,7 @@ import {
 } from "react";
 import type { User } from "firebase/auth";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
-import StoryRingAvatar from "@/app/components/Stories/StoryRingAvatar";
+import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 
 import type {
   CanonicalMemberStatus,
@@ -847,7 +847,7 @@ const serviceDots = buildSearchServiceDots(group);
       >
         <div style={mainGridStyle} className="search-result-grid">
           <div style={mainInfoStyle} className="search-result-main">
-            <StoryRingAvatar
+            <LiveRingAvatar
               entityId={group.id}
               entityType="group"
               currentUserId={currentUser?.uid ?? null}

@@ -551,6 +551,19 @@ match /hiddenGroupTransitions/{groupId} {
           && (!("onboardingCompleted" in request.resource.data) || request.resource.data.onboardingCompleted is bool);
       }
 
+      // Configuración de supercomentarios — solo el propio usuario puede leer/escribir
+      match /settings/{settingId} {
+        allow get: if signedIn() && request.auth.uid == uid;
+        allow write: if signedIn()
+          && request.auth.uid == uid
+          && settingId == "superCommentConfig"
+          && request.resource.data.enabled is bool
+          && request.resource.data.currency == "MXN"
+          && request.resource.data.tiers is list
+          && request.resource.data.tiers.size() >= 1
+          && request.resource.data.tiers.size() <= 10;
+      }
+
       allow delete: if false;
     }
 
@@ -2348,15 +2361,55 @@ allow list: if canReadPost()
           && request.resource.data.updatedAt is timestamp;
       }
 
+      // activeSuper (Reproducir supercomentario) y superCommentConfig — solo el autor del live
+      function canUpdateLiveRuntimeData() {
+        return signedIn()
+          && resource.data.authorId == request.auth.uid
+          && resource.data.postType == "live"
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(["liveData", "updatedAt"])
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.updatedAt is timestamp;
+      }
+
       allow update: if canSoftDeletePost()
         || canUpdateCommentCount(1)
         || canUpdateCommentCount(-1)
         || canEditPost()
         || canEditLivePost()
         || canUnpinGroupPost()
-        || canUpdateLivePeakViewers();
+        || canUpdateLivePeakViewers()
+        || canUpdateLiveRuntimeData();
 
       allow delete: if false;
+
+      // Supercomentarios del live
+      match /superComments/{superCommentId} {
+        // Lista abierta a usuarios autenticados; filtros de visibilidad en cliente
+        allow list: if signedIn();
+
+        allow get: if signedIn();
+
+        // Viewers crean supercomentarios (pago simulado → status: "paid")
+        allow create: if signedIn()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 600
+          && request.resource.data.status == "paid"
+          && request.resource.data.hidden == false
+          && request.resource.data.isDeleted == false
+          && request.resource.data.played == false
+          && request.resource.data.amount is number
+          && request.resource.data.amount > 0
+          && request.resource.data.createdAt is timestamp;
+
+        // Creador puede ocultar, borrar o marcar como reproducido
+        allow update: if signedIn()
+          && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(["hidden", "isDeleted", "played"]);
+
+        allow delete: if false;
+      }
 
       // Presencia de espectadores en vivo — cada usuario escribe/borra su propio doc
       match /liveViewers/{viewerId} {

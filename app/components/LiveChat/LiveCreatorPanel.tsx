@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState, memo } from "react";
 import Hls from "hls.js";
 import type { Post } from "@/lib/posts/types";
-import type { LiveChatMessage } from "@/lib/liveChat/types";
+import type { LiveChatMessage, SuperComment } from "@/lib/liveChat/types";
 import { useLiveChat } from "@/lib/hooks/useLiveChat";
 import {
   updateLiveChatEnabled,
@@ -14,6 +14,14 @@ import {
   banLiveChatUser,
   unbanLiveChatUser,
 } from "@/lib/liveChat/live-chat-service";
+import {
+  subscribeSuperComments,
+  playSuperComment,
+  hideSuperComment,
+  showSuperComment,
+  deleteSuperComment,
+  clearActiveSuper,
+} from "@/lib/liveChat/super-comment-service";
 import { useAuth } from "@/app/providers";
 import LiveDirectBroadcast from "@/app/components/LiveDirectBroadcast/LiveDirectBroadcast";
 import { subscribeToViewerCount, updatePeakViewers } from "@/lib/liveKit/liveViewers";
@@ -64,6 +72,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [peakViewerCount, setPeakViewerCount] = useState(post.liveData?.peakViewers ?? 0);
   const peakViewerCountRef = useRef(post.liveData?.peakViewers ?? 0);
   peakViewerCountRef.current = peakViewerCount;
+  const [superComments, setSuperComments] = useState<SuperComment[]>([]);
+  const [playingId, setPlayingId] = useState<string | null>(null);
 
   // Freeze the effective layout orientation during a broadcast. The `portrait`
   // prop can change mid-broadcast (e.g. LiveInlinePlayer detects stream orientation)
@@ -118,6 +128,15 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       }
     });
   }, [open, isEnded, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Supercomentarios — solo en modo directo
+  useEffect(() => {
+    if (!open || !post.id || broadcastMode !== "direct") {
+      setSuperComments([]);
+      return;
+    }
+    return subscribeSuperComments(post.id, setSuperComments);
+  }, [open, post.id, broadcastMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleChat = useCallback(async () => {
     if (togglingChat || !user) return;
@@ -287,6 +306,153 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     );
   }
 
+  function renderSuperCommentsSection() {
+    if (broadcastMode !== "direct") {
+      return (
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT, textAlign: "center", padding: "0 16px" }}>
+            Los supercomentarios solo están disponibles en transmisión directa
+          </span>
+        </div>
+      );
+    }
+
+    const visible = superComments.filter((sc) => !sc.isDeleted);
+
+    if (visible.length === 0) {
+      return (
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="6" width="20" height="12" rx="2" />
+            <path d="M6 10h.01M10 10h8M6 14h.01M10 14h8" />
+          </svg>
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.15)", fontFamily: FONT }}>
+            Sin supercomentarios aún
+          </span>
+        </div>
+      );
+    }
+
+    async function handlePlay(sc: SuperComment) {
+      if (playingId) return;
+      setPlayingId(sc.id);
+      try {
+        await playSuperComment(post.id, sc);
+        // Auto-limpiar después de displaySeconds + 1s
+        setTimeout(() => {
+          clearActiveSuper(post.id).catch(() => {});
+          setPlayingId(null);
+        }, (sc.displaySeconds + 1) * 1000);
+      } catch {
+        setPlayingId(null);
+      }
+    }
+
+    return (
+      <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
+        <style>{`.lcp-sc::-webkit-scrollbar{display:none}`}</style>
+        <div className="lcp-sc">
+          {visible.map((sc) => (
+            <div
+              key={sc.id}
+              style={{
+                display: "flex", alignItems: "flex-start", gap: 10,
+                padding: "10px 12px",
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                borderLeft: `3px solid ${sc.color}`,
+                opacity: sc.hidden ? 0.45 : 1,
+                background: sc.played ? "rgba(255,255,255,0.02)" : "transparent",
+              }}
+            >
+              {/* Info principal */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.75)", fontFamily: FONT }}>
+                    {sc.username}
+                  </span>
+                  <span style={{
+                    fontSize: 10, fontWeight: 700, color: sc.color,
+                    background: `${sc.color}22`, border: `1px solid ${sc.color}44`,
+                    borderRadius: 4, padding: "1px 5px", fontFamily: FONT,
+                  }}>
+                    ${sc.amount} MXN · {sc.tierName}
+                  </span>
+                  {sc.played && (
+                    <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>
+                      ✓ REPRODUCIDO
+                    </span>
+                  )}
+                  {sc.hidden && (
+                    <span style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", fontFamily: FONT }}>
+                      OCULTO
+                    </span>
+                  )}
+                </div>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", lineHeight: 1.4, fontFamily: FONT, wordBreak: "break-word" }}>
+                  {sc.text}
+                </span>
+              </div>
+
+              {/* Acciones */}
+              <div style={{ display: "flex", gap: 2, flexShrink: 0, alignItems: "flex-start" }}>
+                {/* Reproducir */}
+                <ModActionBtn
+                  onClick={() => handlePlay(sc)}
+                  active={playingId === sc.id}
+                  activeColor={sc.color}
+                  title={sc.played ? "Reproducir de nuevo" : "Reproducir"}
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill={playingId === sc.id ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                </ModActionBtn>
+
+                {/* Ocultar / mostrar */}
+                <ModActionBtn
+                  onClick={() => {
+                    if (sc.hidden) showSuperComment(post.id, sc.id);
+                    else hideSuperComment(post.id, sc.id);
+                  }}
+                  active={sc.hidden}
+                  activeColor="#f59e0b"
+                  title={sc.hidden ? "Mostrar" : "Ocultar"}
+                >
+                  {sc.hidden ? (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                      <line x1="1" y1="1" x2="23" y2="23" />
+                    </svg>
+                  ) : (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </ModActionBtn>
+
+                {/* Borrar */}
+                <ModActionBtn
+                  onClick={() => deleteSuperComment(post.id, sc.id)}
+                  active={false}
+                  activeColor="#ef4444"
+                  title="Eliminar supercomentario"
+                >
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6l-1 14H6L5 6" />
+                    <path d="M10 11v6" /><path d="M14 11v6" />
+                    <path d="M9 6V4h6v2" />
+                  </svg>
+                </ModActionBtn>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   function renderEndedOverlay() {
     return (
       <div style={{
@@ -448,7 +614,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               {/* Supercomentarios */}
               <div style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: DIV, overflow: "hidden" }}>
                 {sectionHeader("Supercomentarios")}
-                {comingSoon()}
+                {renderSuperCommentsSection()}
               </div>
 
               {/* Chat en vivo */}
@@ -491,57 +657,68 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       ) : isDesktop && !layoutPortrait ? (
         /* ── Desktop + Horizontal live ────────────────────────────────────── */
         showDirectBroadcast ? (
-          /* Direct broadcast: cámara grande a la izquierda + chat a la derecha */
+          /* Direct broadcast: cámara izquierda + columna derecha (super+chat arriba, stats abajo) */
           <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
             <div style={{ flex: 3, position: "relative", overflow: "hidden", background: "#000", minWidth: 0 }}>
               <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} />
             </div>
+            {/* Columna derecha */}
             <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderLeft: DIV, minWidth: 0 }}>
-              {renderChatSection()}
-            </div>
-          </div>
-        ) : (
-          /* Grid 2×2 para RTMP / HLS */
-          <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-
-            {/* Top row */}
-            <div style={{ flex: 1, display: "flex", overflow: "hidden", borderBottom: DIV }}>
-
-              {/* Top-left: Chat en vivo */}
-              <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
-                {renderChatSection()}
+              {/* Arriba: Supercomentarios | Chat en vivo */}
+              <div style={{ flex: 2, display: "flex", overflow: "hidden", borderBottom: DIV }}>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
+                  {sectionHeader("Supercomentarios")}
+                  {renderSuperCommentsSection()}
+                </div>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  {renderChatSection()}
+                </div>
               </div>
-
-              {/* Top-right: Video en vivo */}
-              <div style={{ flex: 3, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                {sectionHeader("En vivo")}
-                {showVideo ? (
-                  <div style={{
-                    flex: 1, margin: "12px 16px 16px",
-                    position: "relative", borderRadius: 14,
-                    overflow: "hidden", background: "#000",
-                  }}>
-                    <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
-                    {isEnded && renderEndedOverlay()}
-                  </div>
-                ) : comingSoon()}
-              </div>
-            </div>
-
-            {/* Bottom row */}
-            <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-
-              {/* Bottom-left: Supercomentarios */}
-              <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
-                {sectionHeader("Supercomentarios")}
-                {comingSoon()}
-              </div>
-
-              {/* Bottom-right: Estadísticas */}
-              <div style={{ flex: 3, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              {/* Abajo: Estadísticas */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                 {sectionHeader("Estadísticas")}
                 {renderStatsSection()}
               </div>
+            </div>
+          </div>
+        ) : (
+          /* RTMP / HLS: video derecha + izquierda (super+chat arriba, stats abajo) */
+          <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
+
+            {/* Columna izquierda */}
+            <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV, minWidth: 0 }}>
+
+              {/* Arriba: Supercomentarios | Chat en vivo */}
+              <div style={{ flex: 2, display: "flex", overflow: "hidden", borderBottom: DIV }}>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
+                  {sectionHeader("Supercomentarios")}
+                  {renderSuperCommentsSection()}
+                </div>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                  {renderChatSection()}
+                </div>
+              </div>
+
+              {/* Abajo: Estadísticas */}
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {sectionHeader("Estadísticas")}
+                {renderStatsSection()}
+              </div>
+            </div>
+
+            {/* Columna derecha: Video en vivo */}
+            <div style={{ flex: 3, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              {sectionHeader("En vivo")}
+              {showVideo ? (
+                <div style={{
+                  flex: 1, margin: "12px 16px 16px",
+                  position: "relative", borderRadius: 14,
+                  overflow: "hidden", background: "#000",
+                }}>
+                  <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
+                  {isEnded && renderEndedOverlay()}
+                </div>
+              ) : comingSoon()}
             </div>
           </div>
         )
@@ -602,7 +779,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
             {/* Tab content */}
             <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              {mobileTab === "estadisticas" ? renderStatsSection() : comingSoon()}
+              {mobileTab === "estadisticas" ? renderStatsSection() : renderSuperCommentsSection()}
             </div>
           </div>
         </div>
@@ -683,7 +860,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 ))}
               </div>
               <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                {mobileTab === "estadisticas" ? renderStatsSection() : comingSoon()}
+                {mobileTab === "estadisticas" ? renderStatsSection() : renderSuperCommentsSection()}
               </div>
             </div>
           </div>

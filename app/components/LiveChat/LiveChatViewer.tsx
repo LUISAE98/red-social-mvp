@@ -6,6 +6,9 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import { useLiveChat } from "@/lib/hooks/useLiveChat";
+import SuperCommentModal from "./SuperCommentModal";
+import { subscribeVisibleSuperComments } from "@/lib/liveChat/super-comment-service";
+import type { SuperCommentConfig, SuperComment } from "@/lib/liveChat/types";
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
 
@@ -16,27 +19,46 @@ type Props = {
   isMuted?: boolean;
   /** panel = full chat section; overlay = translucent overlay on top of video */
   mode?: "panel" | "overlay";
+  broadcastMode?: "direct" | "rtmp" | null;
+  superCommentConfig?: SuperCommentConfig | null;
 };
 
 type SenderInfo = { username: string; avatarUrl: string | null };
 
-export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded = false, isMuted = false, mode = "panel" }: Props) {
+export default function LiveChatViewer({
+  liveId,
+  chatEnabled = true,
+  liveEnded = false,
+  isMuted = false,
+  mode = "panel",
+  broadcastMode,
+  superCommentConfig,
+}: Props) {
   const { user } = useAuth();
   const { messages, send } = useLiveChat(liveId);
   const [text, setText] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
   const [senderInfo, setSenderInfo] = useState<SenderInfo | null>(null);
+  const [superCommentOpen, setSuperCommentOpen] = useState(false);
+  const [visibleSuperComments, setVisibleSuperComments] = useState<SuperComment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
 
+  const showSuperCommentBtn =
+    !!user &&
+    broadcastMode === "direct" &&
+    superCommentConfig?.enabled === true &&
+    (superCommentConfig?.tiers?.length ?? 0) > 0 &&
+    chatEnabled &&
+    !liveEnded &&
+    !isMuted;
+
   useEffect(() => {
     if (!user?.uid) { setSenderInfo(null); return; }
-    // Inicializar desde auth inmediatamente para no bloquear el envío
     setSenderInfo({
       username: user.displayName ?? "Espectador",
       avatarUrl: user.photoURL ?? null,
     });
-    // Enriquecer con datos de perfil en Firestore
     getDoc(doc(db, "users", user.uid))
       .then((snap) => {
         if (!snap.exists()) return;
@@ -46,13 +68,19 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
           avatarUrl: d?.photoURL ?? user.photoURL ?? null,
         });
       })
-      .catch(() => {}); // se queda con el valor de auth
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
 
   useEffect(() => {
+    if (broadcastMode !== "direct" || !liveId) return;
+    const unsub = subscribeVisibleSuperComments(liveId, setVisibleSuperComments);
+    return unsub;
+  }, [liveId, broadcastMode]);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, visibleSuperComments]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
@@ -62,7 +90,6 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
   const handleSend = useCallback(async () => {
     if (!user || !senderInfo || !text.trim()) return;
     const messageText = text.trim();
-    // Limpiar input inmediatamente para no bloquear al usuario
     setText("");
     setSendError(null);
     isAtBottomRef.current = true;
@@ -75,7 +102,7 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
       });
     } catch {
       setSendError("No se pudo enviar.");
-      setText(messageText); // restaurar si falló
+      setText(messageText);
     }
   }, [user, senderInfo, text, send]);
 
@@ -83,85 +110,142 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
+  // Merge regular messages + super comments into a single time-sorted feed
+  type FeedItem =
+    | { kind: "msg"; id: string; username: string; avatarUrl?: string | null; text: string; ts: number }
+    | { kind: "sc"; id: string; username: string; avatarUrl?: string | null; text: string; ts: number; tierName: string; color: string; amount: number };
+
+  const feed: FeedItem[] = [
+    ...messages.map((m) => ({
+      kind: "msg" as const,
+      id: m.id,
+      username: m.username,
+      avatarUrl: m.avatarUrl,
+      text: m.text,
+      ts: (m.createdAt as { seconds?: number })?.seconds ?? 0,
+    })),
+    ...visibleSuperComments.map((sc) => ({
+      kind: "sc" as const,
+      id: sc.id,
+      username: sc.username,
+      avatarUrl: sc.avatarUrl,
+      text: sc.text,
+      ts: (sc.createdAt as { seconds?: number })?.seconds ?? 0,
+      tierName: sc.tierName,
+      color: sc.color,
+      amount: sc.amount,
+    })),
+  ].sort((a, b) => a.ts - b.ts);
+
+  const superCommentModal = showSuperCommentBtn && superCommentConfig ? (
+    <SuperCommentModal
+      open={superCommentOpen}
+      onClose={() => setSuperCommentOpen(false)}
+      postId={liveId}
+      userId={user!.uid}
+      username={senderInfo?.username ?? user?.displayName ?? "Espectador"}
+      avatarUrl={senderInfo?.avatarUrl ?? user?.photoURL ?? null}
+      config={superCommentConfig}
+    />
+  ) : null;
+
   // ── Overlay mode (mobile portrait) — TikTok style, 1/3 de pantalla ─────────
   if (mode === "overlay") {
     return (
-      <div
-        className="lvc-overlay"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 5,
-          display: "flex", flexDirection: "column",
-          background: "linear-gradient(to top, rgba(0,0,0,0.68) 50%, transparent 100%)",
-        }}
-      >
-        <style>{`
-          .lvc-msgs::-webkit-scrollbar{display:none}
-          .lvc-overlay{height:33vh;height:33dvh}
-        `}</style>
-
-        {/* Mensajes — flotan desde abajo, scrollable */}
+      <>
         <div
-          className="lvc-msgs"
-          onScroll={handleScroll}
+          className="lvc-overlay"
+          onClick={(e) => e.stopPropagation()}
           style={{
-            flex: 1, overflowY: "auto",
-            padding: "0 14px",
+            position: "absolute", bottom: 0, left: 0, right: 0, zIndex: 5,
             display: "flex", flexDirection: "column",
-            scrollbarWidth: "none",
+            background: "linear-gradient(to top, rgba(0,0,0,0.68) 50%, transparent 100%)",
           }}
         >
-          <div style={{ flex: 1 }} />
-          {messages.map((msg) => (
-            <div key={msg.id} style={{
-              display: "flex", alignItems: "flex-start", gap: 7,
-              marginBottom: 5,
-            }}>
-              <Avatar url={msg.avatarUrl} name={msg.username} size={20} />
-              <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "rgba(255,255,255,0.92)" }}>
-                <strong style={{ fontWeight: 700, color: "#fff", marginRight: 5 }}>{msg.username}</strong>
-                {msg.text}
-              </span>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
+          <style>{`
+            .lvc-msgs::-webkit-scrollbar{display:none}
+            .lvc-overlay{height:33vh;height:33dvh}
+          `}</style>
 
-        {/* Input o estado */}
-        {chatEnabled && !liveEnded && user ? (
-          <div style={{
-            paddingTop: 7,
-            paddingLeft: 14,
-            paddingRight: 14,
-            paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
-          }}>
-            {isMuted ? (
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
-                Fuiste silenciado en este live
-              </div>
-            ) : (
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <input
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  maxLength={500}
-                  placeholder="Escribe un mensaje..."
-                  style={{
-                    flex: 1, background: "rgba(255,255,255,0.13)",
-                    border: "1px solid rgba(255,255,255,0.18)", borderRadius: 20,
-                    padding: "8px 13px", color: "#fff", fontSize: 12.5,
-                    fontFamily: FONT, outline: "none",
-                  }}
-                />
-                <SendButton onClick={handleSend} active={!!text.trim()} />
-              </div>
+          <div
+            className="lvc-msgs"
+            onScroll={handleScroll}
+            style={{
+              flex: 1, overflowY: "auto",
+              padding: "0 14px",
+              display: "flex", flexDirection: "column",
+              scrollbarWidth: "none",
+            }}
+          >
+            <div style={{ flex: 1 }} />
+            {feed.map((item) =>
+              item.kind === "sc" ? (
+                <div key={item.id} style={{
+                  display: "flex", alignItems: "flex-start", gap: 7, marginBottom: 5,
+                  borderLeft: `3px solid ${item.color}`, paddingLeft: 6,
+                  background: `${item.color}18`, borderRadius: "0 6px 6px 0",
+                }}>
+                  <Avatar url={item.avatarUrl} name={item.username} size={20} />
+                  <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "rgba(255,255,255,0.95)" }}>
+                    <strong style={{ fontWeight: 700, color: item.color, marginRight: 5 }}>{item.username}</strong>
+                    <span style={{ fontSize: 10, background: item.color, color: "#000", borderRadius: 4, padding: "1px 5px", marginRight: 5, fontWeight: 700 }}>
+                      ${item.amount} · {item.tierName}
+                    </span>
+                    {item.text}
+                  </span>
+                </div>
+              ) : (
+                <div key={item.id} style={{ display: "flex", alignItems: "flex-start", gap: 7, marginBottom: 5 }}>
+                  <Avatar url={item.avatarUrl} name={item.username} size={20} />
+                  <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "rgba(255,255,255,0.92)" }}>
+                    <strong style={{ fontWeight: 700, color: "#fff", marginRight: 5 }}>{item.username}</strong>
+                    {item.text}
+                  </span>
+                </div>
+              )
             )}
+            <div ref={messagesEndRef} />
           </div>
-        ) : (
-          <div style={{ height: "calc(8px + env(safe-area-inset-bottom))" }} />
-        )}
-      </div>
+
+          {chatEnabled && !liveEnded && user ? (
+            <div style={{
+              paddingTop: 7,
+              paddingLeft: 14,
+              paddingRight: 14,
+              paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
+            }}>
+              {isMuted ? (
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
+                  Fuiste silenciado en este live
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {showSuperCommentBtn && (
+                    <BillButton onClick={() => setSuperCommentOpen(true)} />
+                  )}
+                  <input
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    maxLength={500}
+                    placeholder="Escribe un mensaje..."
+                    style={{
+                      flex: 1, background: "rgba(255,255,255,0.13)",
+                      border: "1px solid rgba(255,255,255,0.18)", borderRadius: 20,
+                      padding: "8px 13px", color: "#fff", fontSize: 12.5,
+                      fontFamily: FONT, outline: "none",
+                    }}
+                  />
+                  <SendButton onClick={handleSend} active={!!text.trim()} />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ height: "calc(8px + env(safe-area-inset-bottom))" }} />
+          )}
+        </div>
+        {superCommentModal}
+      </>
     );
   }
 
@@ -171,79 +255,104 @@ export default function LiveChatViewer({ liveId, chatEnabled = true, liveEnded =
       <style>{`.lvc-panel::-webkit-scrollbar{display:none}`}</style>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
 
-      {/* Messages — sin título, scrollbar oculto, auto-scroll al fondo */}
-      <div
-        className="lvc-panel"
-        onScroll={handleScroll}
-        style={{ flex: 1, overflowY: "auto", padding: "6px 10px", display: "flex", flexDirection: "column", gap: 1, scrollbarWidth: "none" }}
-      >
-        {messages.length === 0 && (
-          <div style={{
-            flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-            color: "rgba(255,255,255,0.2)", fontSize: 12, fontFamily: FONT, textAlign: "center", padding: "24px 0",
-          }}>
-            {liveEnded ? "El live ha terminado" : chatEnabled ? "Sé el primero en comentar" : "El chat está cerrado"}
-          </div>
-        )}
-        {messages.map((msg) => (
-          <div key={msg.id} style={{ display: "flex", gap: 6, padding: "3px 0", alignItems: "flex-start" }}>
-            <Avatar url={msg.avatarUrl} name={msg.username} size={22} />
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <span style={{ fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", marginRight: 4 }}>
-                {msg.username}
-              </span>
-              <span style={{ fontFamily: FONT, fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.4, wordBreak: "break-word" }}>
-                {msg.text}
-              </span>
+        <div
+          className="lvc-panel"
+          onScroll={handleScroll}
+          style={{ flex: 1, overflowY: "auto", padding: "6px 10px", display: "flex", flexDirection: "column", gap: 1, scrollbarWidth: "none" }}
+        >
+          {feed.length === 0 && (
+            <div style={{
+              flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+              color: "rgba(255,255,255,0.2)", fontSize: 12, fontFamily: FONT, textAlign: "center", padding: "24px 0",
+            }}>
+              {liveEnded ? "El live ha terminado" : chatEnabled ? "Sé el primero en comentar" : "El chat está cerrado"}
             </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
+          )}
+          {feed.map((item) =>
+            item.kind === "sc" ? (
+              <div key={item.id} style={{
+                display: "flex", gap: 6, padding: "4px 6px", alignItems: "flex-start",
+                borderLeft: `3px solid ${item.color}`,
+                background: `${item.color}14`,
+                borderRadius: "0 6px 6px 0",
+                margin: "2px 0",
+              }}>
+                <Avatar url={item.avatarUrl} name={item.username} size={22} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <span style={{ fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: item.color, marginRight: 4 }}>
+                    {item.username}
+                  </span>
+                  <span style={{ fontFamily: FONT, fontSize: 10, background: item.color, color: "#000", borderRadius: 4, padding: "1px 5px", marginRight: 5, fontWeight: 700, verticalAlign: "middle" }}>
+                    ${item.amount} · {item.tierName}
+                  </span>
+                  <span style={{ fontFamily: FONT, fontSize: 12, color: "rgba(255,255,255,0.85)", lineHeight: 1.4, wordBreak: "break-word" }}>
+                    {item.text}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div key={item.id} style={{ display: "flex", gap: 6, padding: "3px 0", alignItems: "flex-start" }}>
+                <Avatar url={item.avatarUrl} name={item.username} size={22} />
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <span style={{ fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", marginRight: 4 }}>
+                    {item.username}
+                  </span>
+                  <span style={{ fontFamily: FONT, fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.4, wordBreak: "break-word" }}>
+                    {item.text}
+                  </span>
+                </div>
+              </div>
+            )
+          )}
+          <div ref={messagesEndRef} />
+        </div>
 
-      {/* Input */}
-      <div style={{ padding: "8px 10px", borderTop: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
-        {liveEnded ? (
-          <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
-            El live ha terminado
-          </div>
-        ) : !chatEnabled ? (
-          <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
-            El chat está cerrado
-          </div>
-        ) : !user ? (
-          <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
-            Inicia sesión para participar
-          </div>
-        ) : isMuted ? (
-          <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
-            Fuiste silenciado en este live
-          </div>
-        ) : (
-          <>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <input
-                value={text}
-                onChange={(e) => { setText(e.target.value); setSendError(null); }}
-                onKeyDown={handleKeyDown}
-                maxLength={500}
-                placeholder="Escribe un mensaje..."
-                style={{
-                  flex: 1, background: "rgba(255,255,255,0.07)",
-                  border: "1px solid rgba(255,255,255,0.09)", borderRadius: 18,
-                  padding: "7px 12px", color: "#fff", fontSize: 12.5,
-                  fontFamily: FONT, outline: "none",
-                }}
-              />
-              <SendButton onClick={handleSend} active={!!text.trim()} />
+        <div style={{ padding: "8px 10px", borderTop: "1px solid rgba(255,255,255,0.06)", flexShrink: 0 }}>
+          {liveEnded ? (
+            <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
+              El live ha terminado
             </div>
-            {sendError && (
-              <p style={{ margin: "4px 0 0", fontSize: 11, color: "#f87171", fontFamily: FONT }}>{sendError}</p>
-            )}
-          </>
-        )}
+          ) : !chatEnabled ? (
+            <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
+              El chat está cerrado
+            </div>
+          ) : !user ? (
+            <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
+              Inicia sesión para participar
+            </div>
+          ) : isMuted ? (
+            <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
+              Fuiste silenciado en este live
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {showSuperCommentBtn && (
+                  <BillButton onClick={() => setSuperCommentOpen(true)} />
+                )}
+                <input
+                  value={text}
+                  onChange={(e) => { setText(e.target.value); setSendError(null); }}
+                  onKeyDown={handleKeyDown}
+                  maxLength={500}
+                  placeholder="Escribe un mensaje..."
+                  style={{
+                    flex: 1, background: "rgba(255,255,255,0.07)",
+                    border: "1px solid rgba(255,255,255,0.09)", borderRadius: 18,
+                    padding: "7px 12px", color: "#fff", fontSize: 12.5,
+                    fontFamily: FONT, outline: "none",
+                  }}
+                />
+                <SendButton onClick={handleSend} active={!!text.trim()} />
+              </div>
+              {sendError && (
+                <p style={{ margin: "4px 0 0", fontSize: 11, color: "#f87171", fontFamily: FONT }}>{sendError}</p>
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+      {superCommentModal}
     </>
   );
 }
@@ -270,6 +379,28 @@ function Avatar({ url, name, size }: { url?: string | null; name: string; size: 
         {name.charAt(0).toUpperCase()}
       </span>
     </div>
+  );
+}
+
+function BillButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title="Supercomentario"
+      style={{
+        width: 32, height: 32, borderRadius: "50%", border: "none",
+        background: "rgba(234,179,8,0.18)",
+        color: "#eab308", cursor: "pointer",
+        display: "grid", placeItems: "center", flexShrink: 0,
+        transition: "background 0.15s ease",
+      }}
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <path d="M6 10h.01M10 10h8M6 14h.01M10 14h8" />
+      </svg>
+    </button>
   );
 }
 

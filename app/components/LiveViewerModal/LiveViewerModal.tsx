@@ -65,6 +65,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [payingAccess, setPayingAccess] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
+  const [superOverlayVisible, setSuperOverlayVisible] = useState(false);
+  const lastPlayedSuperIdRef = useRef<string | null>(null);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
   useEffect(() => {
@@ -104,6 +106,29 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     if (!open || localLiveData?.status !== "live" || !post.id) return;
     return subscribeToViewerCount(post.id, setViewerCount);
   }, [open, localLiveData?.status, post.id]);
+
+  // ── Overlay de supercomentario activo + TTS ────────────────────────────────
+  useEffect(() => {
+    const activeSuper = localLiveData?.activeSuper;
+    if (!activeSuper) {
+      setSuperOverlayVisible(false);
+      return;
+    }
+    if (activeSuper.id === lastPlayedSuperIdRef.current) return;
+    lastPlayedSuperIdRef.current = activeSuper.id;
+    setSuperOverlayVisible(true);
+
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(activeSuper.text);
+      utterance.lang = "es-MX";
+      utterance.rate = 1;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    const t = window.setTimeout(() => setSuperOverlayVisible(false), activeSuper.displaySeconds * 1000);
+    return () => window.clearTimeout(t);
+  }, [localLiveData?.activeSuper?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Verificación de acceso ─────────────────────────────────────────────────
   useEffect(() => {
@@ -777,6 +802,42 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     );
   }
 
+  // ── Overlay de supercomentario activo ─────────────────────────────────────
+  function renderActiveSuperOverlay() {
+    const sc = localLiveData?.activeSuper;
+    if (!sc || !superOverlayVisible) return null;
+    return (
+      <div style={{
+        position: "absolute",
+        bottom: 90,
+        left: 12,
+        right: 12,
+        zIndex: 20,
+        background: `linear-gradient(135deg, ${sc.color}2e 0%, rgba(0,0,0,0.82) 100%)`,
+        border: `1px solid ${sc.color}55`,
+        borderLeft: `3px solid ${sc.color}`,
+        borderRadius: 12,
+        padding: "12px 14px",
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+        animation: "lvFadeIn 0.3s ease",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 7 }}>
+          <div style={{ width: 9, height: 9, borderRadius: "50%", background: sc.color, flexShrink: 0 }} />
+          <span style={{ fontSize: 12, fontWeight: 700, color: sc.color, fontFamily: FONT }}>
+            {sc.tierName}
+          </span>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontFamily: FONT }}>
+            {sc.username} · ${sc.amount} MXN
+          </span>
+        </div>
+        <p style={{ fontSize: 14, fontWeight: 500, color: "#fff", fontFamily: FONT, lineHeight: 1.45, margin: 0 }}>
+          {sc.text}
+        </p>
+      </div>
+    );
+  }
+
   // ── Video element ──────────────────────────────────────────────────────────
   function renderVideo(fit: "cover" | "contain" = "contain") {
     return (
@@ -955,6 +1016,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
+            {renderActiveSuperOverlay()}
           </div>
         </div>
       </>,
@@ -994,6 +1056,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
+            {renderActiveSuperOverlay()}
           </div>
           {/* Card de chat */}
           <div
@@ -1008,7 +1071,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           >
             {renderCreatorInfo()}
             <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" />
+              <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
             </div>
           </div>
         </div>
@@ -1049,6 +1112,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
+            {renderActiveSuperOverlay()}
           </div>
           {/* Card de chat */}
           <div
@@ -1063,7 +1127,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           >
             {renderCreatorInfo()}
             <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" />
+              <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
             </div>
           </div>
         </div>
@@ -1111,6 +1175,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
+            {renderActiveSuperOverlay()}
           </div>
         </div>
       </>,
@@ -1140,6 +1205,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderVideo("cover")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
+            {renderActiveSuperOverlay()}
 
             {/* Badge siempre visible — cambia de EN VIVO a Finalizado al terminar */}
             {renderLiveBadge("top-center")}
@@ -1148,7 +1214,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {/* Header y chat se ocultan con tap */}
             <div style={ctrlStyle}>{renderHeader(true, false)}</div>
             <div style={ctrlStyle}>
-              <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="overlay" />
+              <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="overlay" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
             </div>
           </div>
         </div>
@@ -1180,6 +1246,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           {renderHeader(false, false)}
           {renderLiveBadge()}
           {renderViewerBadge()}
+          {renderActiveSuperOverlay()}
         </div>
 
         {/* Panel: creator info + chat */}
@@ -1191,7 +1258,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         }}>
           {renderCreatorInfo()}
           <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" />
+            <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="panel" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
           </div>
         </div>
       </div>

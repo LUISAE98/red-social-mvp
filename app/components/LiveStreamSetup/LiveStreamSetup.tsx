@@ -2,11 +2,22 @@
 
 import { useState, useEffect, useCallback, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { getAuth } from "firebase/auth";
 import {
   callCreateMuxLiveStream,
   fetchLiveStreamCredentials,
   saveLiveBroadcastMode,
 } from "@/lib/posts/post-service";
+import {
+  getSuperCommentConfig,
+  saveSuperCommentConfig,
+  copySuperCommentConfigToLive,
+} from "@/lib/liveChat/super-comment-service";
+import {
+  DEFAULT_SUPER_COMMENT_CONFIG,
+  type SuperCommentConfig,
+  type SuperCommentTier,
+} from "@/lib/liveChat/types";
 
 const fontStack =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -159,6 +170,12 @@ export default function LiveStreamSetup({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Super comentarios
+  const [scConfig, setScConfig] = useState<SuperCommentConfig>(DEFAULT_SUPER_COMMENT_CONFIG);
+  const [loadingConfig, setLoadingConfig] = useState(false);
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [configSaved, setConfigSaved] = useState(false);
+
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -179,6 +196,18 @@ export default function LiveStreamSetup({
     if (broadcastModeProp) setSelectedMode(broadcastModeProp);
     else if (liveStreamId && !broadcastModeProp) setSelectedMode("rtmp");
   }, [broadcastModeProp, liveStreamId]);
+
+  // Cargar config de supercomentarios cuando el modal está abierto en modo directo
+  useEffect(() => {
+    if (!open || selectedMode !== "direct") return;
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
+    setLoadingConfig(true);
+    getSuperCommentConfig(uid)
+      .then((cfg) => setScConfig(cfg))
+      .catch(() => {/* usa defaults */})
+      .finally(() => setLoadingConfig(false));
+  }, [open, selectedMode]);
 
   const loadCredentials = useCallback(async () => {
     setLoadingCreds(true);
@@ -202,6 +231,39 @@ export default function LiveStreamSetup({
       setError(null);
     }
   }, [open, liveStreamId, selectedMode, loadCredentials]);
+
+  function updateTierField(tierId: string, field: keyof SuperCommentTier, rawValue: string) {
+    setScConfig((prev) => ({
+      ...prev,
+      tiers: prev.tiers.map((t) => {
+        if (t.id !== tierId) return t;
+        const numericFields: (keyof SuperCommentTier)[] = ["maxChars", "price", "displaySeconds"];
+        if (numericFields.includes(field)) {
+          const parsed = parseInt(rawValue, 10);
+          return { ...t, [field]: isNaN(parsed) ? 0 : parsed };
+        }
+        return { ...t, [field]: rawValue };
+      }),
+    }));
+    setConfigSaved(false);
+  }
+
+  async function handleSaveConfig() {
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
+    setSavingConfig(true);
+    setConfigSaved(false);
+    try {
+      await saveSuperCommentConfig(uid, scConfig);
+      await copySuperCommentConfigToLive(postId, scConfig);
+      setConfigSaved(true);
+      setTimeout(() => setConfigSaved(false), 3000);
+    } catch {
+      // silencioso — no bloquea el flujo principal
+    } finally {
+      setSavingConfig(false);
+    }
+  }
 
   async function handleSelectMode(mode: BroadcastMode) {
     setSelectedMode(mode);
@@ -428,53 +490,203 @@ export default function LiveStreamSetup({
             </div>
           )}
 
-          {/* Modo directo — listo */}
+          {/* Modo directo — listo + configuración de supercomentarios */}
           {showDirectReady && (
-            <div style={{
-              background: "rgba(239,68,68,0.07)",
-              border: "1px solid rgba(239,68,68,0.25)",
-              borderRadius: 12,
-              padding: "20px 16px",
-              textAlign: "center",
-            }}>
+            <>
+              {/* Card: listo para transmitir */}
               <div style={{
-                width: 48, height: 48, borderRadius: 12,
-                background: "rgba(239,68,68,0.15)",
-                border: "1px solid rgba(239,68,68,0.3)",
-                display: "grid", placeItems: "center",
-                margin: "0 auto 14px",
+                background: "rgba(239,68,68,0.07)",
+                border: "1px solid rgba(239,68,68,0.25)",
+                borderRadius: 12,
+                padding: "16px",
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                marginBottom: 20,
               }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
-                  <path d="M19.4 14a8 8 0 1 0-14.8 0" />
-                  <path d="M12 20v-4" />
-                </svg>
+                <div style={{
+                  width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                  background: "rgba(239,68,68,0.15)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  display: "grid", placeItems: "center",
+                }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+                    <path d="M19.4 14a8 8 0 1 0-14.8 0" />
+                    <path d="M12 20v-4" />
+                  </svg>
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>
+                    Todo listo para transmitir desde Vibra
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>
+                    Usa los controles en el panel de tu live.
+                  </div>
+                </div>
               </div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", fontFamily: fontStack, marginBottom: 6 }}>
-                Todo listo para transmitir desde Vibra
+
+              {/* Sección: Supercomentarios */}
+              <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 20 }}>
+                {/* Header de sección */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{
+                      width: 28, height: 28, borderRadius: 7,
+                      background: "rgba(234,179,8,0.15)",
+                      border: "1px solid rgba(234,179,8,0.3)",
+                      display: "grid", placeItems: "center",
+                    }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="6" width="20" height="12" rx="2" />
+                        <path d="M6 10h.01M10 10h8M6 14h.01M10 14h8" />
+                      </svg>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>
+                      Supercomentarios
+                    </span>
+                  </div>
+                  {/* Toggle */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScConfig((prev) => ({ ...prev, enabled: !prev.enabled }));
+                      setConfigSaved(false);
+                    }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 7,
+                      background: "transparent", border: "none", cursor: "pointer", padding: 0,
+                    }}
+                  >
+                    <span style={{ fontSize: 12, color: scConfig.enabled ? "#86efac" : "rgba(255,255,255,0.35)", fontFamily: fontStack }}>
+                      {scConfig.enabled ? "Activados" : "Desactivados"}
+                    </span>
+                    <div style={{
+                      width: 38, height: 22, borderRadius: 999,
+                      background: scConfig.enabled ? "rgba(34,197,94,0.35)" : "rgba(255,255,255,0.1)",
+                      border: `1px solid ${scConfig.enabled ? "rgba(34,197,94,0.5)" : "rgba(255,255,255,0.15)"}`,
+                      position: "relative", transition: "all 0.2s",
+                    }}>
+                      <div style={{
+                        position: "absolute", top: 2, borderRadius: "50%",
+                        width: 16, height: 16, background: scConfig.enabled ? "#22c55e" : "rgba(255,255,255,0.4)",
+                        left: scConfig.enabled ? 18 : 2,
+                        transition: "all 0.2s",
+                      }} />
+                    </div>
+                  </button>
+                </div>
+
+                {loadingConfig ? (
+                  <div style={{ textAlign: "center", padding: "16px 0", fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: fontStack }}>
+                    Cargando configuración...
+                  </div>
+                ) : scConfig.enabled ? (
+                  <>
+                    {/* Tabla de tiers */}
+                    <div style={{ marginBottom: 16 }}>
+                      {/* Encabezados */}
+                      <div style={{
+                        display: "grid", gridTemplateColumns: "1fr 80px 80px",
+                        gap: 6, marginBottom: 6, padding: "0 4px",
+                      }}>
+                        {["Tier", "Caracteres", "Precio (MXN)"].map((h) => (
+                          <span key={h} style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: fontStack }}>
+                            {h}
+                          </span>
+                        ))}
+                      </div>
+                      {/* Filas */}
+                      {scConfig.tiers.map((tier) => (
+                        <div key={tier.id} style={{
+                          display: "grid", gridTemplateColumns: "1fr 80px 80px",
+                          gap: 6, marginBottom: 6, alignItems: "center",
+                        }}>
+                          {/* Nombre con punto de color */}
+                          <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: "50%", background: tier.color, flexShrink: 0 }} />
+                            <span style={{ fontSize: 13, color: "#fff", fontFamily: fontStack }}>{tier.name}</span>
+                          </div>
+                          {/* maxChars */}
+                          <input
+                            type="number"
+                            min={10}
+                            max={600}
+                            value={tier.maxChars}
+                            onChange={(e) => updateTierField(tier.id, "maxChars", e.target.value)}
+                            style={{
+                              width: "100%", padding: "5px 8px",
+                              borderRadius: 7, border: "1px solid rgba(255,255,255,0.1)",
+                              background: "rgba(255,255,255,0.05)", color: "#fff",
+                              fontSize: 12, fontFamily: fontStack, textAlign: "center",
+                              outline: "none",
+                            }}
+                          />
+                          {/* price */}
+                          <input
+                            type="number"
+                            min={1}
+                            value={tier.price}
+                            onChange={(e) => updateTierField(tier.id, "price", e.target.value)}
+                            style={{
+                              width: "100%", padding: "5px 8px",
+                              borderRadius: 7, border: "1px solid rgba(255,255,255,0.1)",
+                              background: "rgba(255,255,255,0.05)", color: "#fff",
+                              fontSize: 12, fontFamily: fontStack, textAlign: "center",
+                              outline: "none",
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: fontStack, marginBottom: 14, lineHeight: 1.5 }}>
+                      La configuración guardada se usará en todos tus próximos lives.
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: fontStack, marginBottom: 16 }}>
+                    Los supercomentarios están desactivados para este live.
+                  </div>
+                )}
+
+                {/* Botones de acción */}
+                <div style={{ display: "flex", gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={handleSaveConfig}
+                    disabled={savingConfig}
+                    style={{
+                      flex: 1, padding: "10px 16px", borderRadius: 9,
+                      background: configSaved
+                        ? "rgba(34,197,94,0.2)"
+                        : savingConfig
+                        ? "rgba(168,85,255,0.2)"
+                        : "linear-gradient(135deg,rgba(168,85,255,0.8),rgba(124,58,237,0.8))",
+                      color: configSaved ? "#86efac" : "#fff",
+                      fontSize: 13, fontWeight: 600, fontFamily: fontStack,
+                      cursor: savingConfig ? "not-allowed" : "pointer",
+                      border: configSaved ? "1px solid rgba(34,197,94,0.35)" : "none",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    {configSaved ? "¡Guardado!" : savingConfig ? "Guardando..." : "Guardar configuración"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    style={{
+                      padding: "10px 20px", borderRadius: 9,
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.6)",
+                      fontSize: 13, fontWeight: 600, fontFamily: fontStack, cursor: "pointer",
+                    }}
+                  >
+                    Cerrar
+                  </button>
+                </div>
               </div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontFamily: fontStack, lineHeight: 1.5 }}>
-                Cuando estés listo, abre el panel de tu live y usa los controles de transmisión directa.
-              </div>
-              <button
-                type="button"
-                onClick={onClose}
-                style={{
-                  marginTop: 18,
-                  padding: "10px 24px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: "linear-gradient(135deg,#ef4444,#dc2626)",
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fontFamily: fontStack,
-                  cursor: "pointer",
-                }}
-              >
-                Entendido
-              </button>
-            </div>
+            </>
           )}
 
           {/* Flujo RTMP — cargar/mostrar credenciales */}

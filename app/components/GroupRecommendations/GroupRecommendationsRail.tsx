@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import StoryRingAvatar from "@/app/components/Stories/StoryRingAvatar";
+import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { joinGroup } from "@/lib/groups/membership";
@@ -327,7 +327,7 @@ function ProfileCard({
             filter: "drop-shadow(0 8px 22px rgba(0,0,0,0.50))",
           }}
         >
-          <StoryRingAvatar
+          <LiveRingAvatar
             entityId={profile.uid}
             entityType="profile"
             currentUserId={currentUserId}
@@ -533,7 +533,7 @@ function GroupCard({
             filter: "drop-shadow(0 8px 22px rgba(0,0,0,0.50))",
           }}
         >
-          <StoryRingAvatar
+          <LiveRingAvatar
             entityId={group.id}
             entityType="group"
             currentUserId={currentUserId}

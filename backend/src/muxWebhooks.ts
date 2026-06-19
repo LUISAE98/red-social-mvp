@@ -807,13 +807,31 @@ async function handleLiveStreamActive(event: MuxWebhookEvent) {
   }
 
   const now = FieldValue.serverTimestamp();
-  await result.ref.update({
-    "liveData.status": "live",
-    "liveData.startedAt": now,
-    updatedAt: now,
-  });
+  const postId = result.ref.id;
+  const authorId = typeof result.data.authorId === "string" ? result.data.authorId : null;
+  const groupId = typeof result.data.groupId === "string" ? result.data.groupId : null;
 
-  logger.info("muxWebhook live_stream.active processed", { liveStreamId: event.data?.id });
+  const updates: Array<Promise<unknown>> = [
+    result.ref.update({
+      "liveData.status": "live",
+      "liveData.startedAt": now,
+      updatedAt: now,
+    }),
+  ];
+
+  if (authorId) {
+    updates.push(
+      db.collection("users").doc(authorId).update({ activeLivePostId: postId })
+    );
+  }
+  if (groupId) {
+    updates.push(
+      db.collection("groups").doc(groupId).update({ activeLivePostId: postId })
+    );
+  }
+
+  await Promise.all(updates);
+  logger.info("muxWebhook live_stream.active processed", { liveStreamId: event.data?.id, postId });
 }
 
 async function handleLiveStreamIdle(event: MuxWebhookEvent) {
@@ -849,27 +867,40 @@ async function handleLiveStreamIdle(event: MuxWebhookEvent) {
     updateData.profilePinnedBy = null;
   }
 
-  await result.ref.update(updateData);
+  const authorId = typeof result.data.authorId === "string" ? result.data.authorId : null;
+  const groupId = typeof result.data.groupId === "string" ? result.data.groupId : null;
 
-  if (wasPinnedOnProfile) {
-    const authorId = typeof result.data.authorId === "string" ? result.data.authorId : null;
-    if (authorId) {
-      await db
-        .collection("users")
-        .doc(authorId)
-        .collection("profileFeed")
-        .doc(result.ref.id)
-        .set(
-          {
-            isPinnedOnProfile: false,
-            profilePinnedAt: null,
-            profilePinnedBy: null,
-            updatedAt: now,
-            syncedAt: now,
-          },
-          { merge: true }
-        );
-    }
+  const cleanupUpdates: Array<Promise<unknown>> = [result.ref.update(updateData)];
+
+  if (authorId) {
+    cleanupUpdates.push(
+      db.collection("users").doc(authorId).update({ activeLivePostId: FieldValue.delete() })
+    );
+  }
+  if (groupId) {
+    cleanupUpdates.push(
+      db.collection("groups").doc(groupId).update({ activeLivePostId: FieldValue.delete() })
+    );
+  }
+
+  await Promise.all(cleanupUpdates);
+
+  if (wasPinnedOnProfile && authorId) {
+    await db
+      .collection("users")
+      .doc(authorId)
+      .collection("profileFeed")
+      .doc(result.ref.id)
+      .set(
+        {
+          isPinnedOnProfile: false,
+          profilePinnedAt: null,
+          profilePinnedBy: null,
+          updatedAt: now,
+          syncedAt: now,
+        },
+        { merge: true }
+      );
   }
 
   logger.info("muxWebhook live_stream.idle → ended, unpinned", {

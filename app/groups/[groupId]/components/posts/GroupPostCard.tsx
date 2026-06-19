@@ -43,7 +43,7 @@ import {
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import { useGroupMemberBlocks } from "@/lib/groups/useGroupMemberBlocks";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
-import StoryRingAvatar from "@/app/components/Stories/StoryRingAvatar";
+import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import {
   resolvePostPremiumState,
   type PostPremiumStateResult,
@@ -2467,7 +2467,7 @@ const shouldClampFeedPostText =
             flex: 1,
           }}
         >
-          <StoryRingAvatar
+          <LiveRingAvatar
             entityId={postAuthor.authorId}
             entityType="profile"
             currentUserId={currentUserId}

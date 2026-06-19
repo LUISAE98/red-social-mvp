@@ -10,7 +10,7 @@ import {
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 
 import type { PublicUser } from "./GroupsSearchPanel";
-import StoryRingAvatar from "@/app/components/Stories/StoryRingAvatar";
+import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 
 type SearchProfilesResultsProps = {
   fontStack: string;
@@ -204,7 +204,7 @@ export default function SearchProfilesResults({
             onClick={() => openProfile(profile.handle)}
           >
             <div style={rowStyle} className="search-profile-row">
-              <StoryRingAvatar
+              <LiveRingAvatar
                 entityId={profile.uid}
                 entityType="profile"
                 currentUserId={currentUserId}

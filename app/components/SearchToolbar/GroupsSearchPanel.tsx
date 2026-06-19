@@ -13,7 +13,7 @@ import { auth, db } from "@/lib/firebase";
 import { searchGroups } from "@/lib/groups/searchGroups";
 import { searchProfiles } from "@/lib/profile/searchProfiles";
 import GroupsSearchToolbar from "./GroupsSearchToolbar";
-import StoryRingAvatar from "@/app/components/Stories/StoryRingAvatar";
+import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 
 
 export type CommunitySearchMatchType = "exact" | "related" | "suggested";
@@ -1572,7 +1572,7 @@ const visLabel =
                       >
                         <div className="result-grid">
                           <div className="result-main-mobile">
-                            <StoryRingAvatar
+                            <LiveRingAvatar
                               entityId={g.id}
                               entityType="group"
                               currentUserId={user?.uid ?? null}
@@ -1730,7 +1730,7 @@ const visLabel =
                       >
                         <div className="result-grid">
 <div className="result-main-mobile">
-  <StoryRingAvatar
+  <LiveRingAvatar
     entityId={p.uid}
     entityType="profile"
     currentUserId={user?.uid ?? null}

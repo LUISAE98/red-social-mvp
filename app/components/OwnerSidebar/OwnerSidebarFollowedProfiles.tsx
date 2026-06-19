@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import type { CSSProperties } from "react";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import type { FollowedProfileLite } from "./OwnerSidebar";
-import StoryRingAvatar from "@/app/components/Stories/StoryRingAvatar";
+import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 
 type Props = {
   loadingFollowing: boolean;
@@ -98,7 +98,7 @@ export default function OwnerSidebarFollowedProfiles({
                   WebkitTapHighlightColor: "transparent",
                 }}
               >
-                <StoryRingAvatar
+                <LiveRingAvatar
                   entityId={profile.uid}
                   entityType="profile"
                   currentUserId={currentUserId}

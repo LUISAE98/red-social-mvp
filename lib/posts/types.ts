@@ -1,4 +1,17 @@
 import type { Timestamp } from "firebase/firestore";
+import type { SuperCommentConfig } from "@/lib/liveChat/types";
+
+export type ActiveSuperComment = {
+  id: string;
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  text: string;
+  tierName: string;
+  color: string;
+  amount: number;
+  displaySeconds: number;
+};
 
 export const MAX_POST_IMAGES = 10;
 export const MAX_POST_VIDEOS = 3;
@@ -253,6 +266,8 @@ export type PostLiveData = {
   paidAccessMode?: LivePaidAccessMode | null;
   broadcastMode?: "direct" | "rtmp" | null;
   peakViewers?: number | null;
+  superCommentConfig?: SuperCommentConfig | null;
+  activeSuper?: ActiveSuperComment | null;
 };
 
 export type PostVideoData = {
