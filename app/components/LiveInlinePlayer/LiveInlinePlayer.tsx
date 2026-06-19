@@ -69,13 +69,19 @@ export default function LiveInlinePlayer({
         startLevel: -1,
         autoStartLoad: true,
         liveSyncDurationCount: 3,
-        liveMaxLatencyDurationCount: 10,
+        liveMaxLatencyDurationCount: 8,
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
         liveDurationInfinity: true,
-        fragLoadingMaxRetry: 6,
-        manifestLoadingMaxRetry: 4,
-        levelLoadingMaxRetry: 4,
+        // Adaptive bitrate más reactivo durante streams en vivo
+        abrEwmaFastLive: 3.0,
+        abrEwmaSlowLive: 9.0,
+        // Recuperación rápida ante stalls
+        nudgeOffset: 0.1,
+        nudgeMaxRetry: 5,
+        fragLoadingMaxRetry: 8,
+        manifestLoadingMaxRetry: 6,
+        levelLoadingMaxRetry: 6,
         backBufferLength: 30,
       });
       hls.loadSource(hlsUrl);

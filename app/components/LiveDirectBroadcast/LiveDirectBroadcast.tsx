@@ -30,6 +30,9 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
   // Ref so disconnect handler always sees the latest callback without recreating the Room listener
   const onBroadcastingChangeRef = useRef(onBroadcastingChange);
   useEffect(() => { onBroadcastingChangeRef.current = onBroadcastingChange; }, [onBroadcastingChange]);
+  // Ref so the disconnect handler can call initCamera without stale closure
+  // eslint-disable-next-line @typescript-eslint/no-use-before-define
+  const initCameraRef = useRef<() => Promise<void>>(async () => {});
 
   const [status, setStatus] = useState<BroadcastStatus>("idle");
   const [micMuted, setMicMuted] = useState(false);
@@ -73,9 +76,35 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
     }
   }, [onOrientationChange]);
 
+  // Keep ref in sync so the Room disconnect handler can call it
+  useEffect(() => { initCameraRef.current = initCamera; }, [initCamera]);
+
+  // Releases the camera and microphone at the OS level.
+  // Stops the underlying MediaStreamTrack (not just the LiveKit wrapper) and
+  // clears the <video> srcObject — both are required to turn off the iOS
+  // camera indicator (Dynamic Island / status bar dot) on all platforms.
+  const releaseCameraTracks = useCallback(() => {
+    const video = videoRef.current;
+    if (video?.srcObject) {
+      (video.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
+      video.srcObject = null;
+    }
+    videoTrackRef.current?.stop();
+    audioTrackRef.current?.stop();
+    videoTrackRef.current = null;
+    audioTrackRef.current = null;
+    setHasMedia(false);
+  }, []);
+
   useEffect(() => {
     initCamera();
     return () => {
+      // Release camera at the OS level before unmounting
+      const video = videoRef.current;
+      if (video?.srcObject) {
+        (video.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
+        video.srcObject = null;
+      }
       videoTrackRef.current?.stop();
       audioTrackRef.current?.stop();
       roomRef.current?.disconnect();
@@ -171,18 +200,30 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
         try { (screen.orientation as any).unlock?.(); } catch { /* not supported */ }
 
         if (wasIntentional) {
-          // stopBroadcast() already stopped the egress explicitly
+          // stopBroadcast() already handled track release and re-init
           setStatus("idle");
         } else {
-          // Unexpected disconnect (network, iOS background, etc.) — egress may
-          // still be running on the server. Don't auto-stop it; let the user
-          // decide to restart. Show error so they know what happened.
+          // Unexpected disconnect — release camera, stop egress, show error.
+          // Re-init camera so the user can restart without refreshing.
+          const video = videoRef.current;
+          if (video?.srcObject) {
+            (video.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
+            video.srcObject = null;
+          }
+          videoTrackRef.current?.stop();
+          audioTrackRef.current?.stop();
+          videoTrackRef.current = null;
+          audioTrackRef.current = null;
+          setHasMedia(false);
+
           setStatus("error");
           setError("Transmisión interrumpida por conexión inestable. Puedes reiniciarla.");
           if (egressIdRef.current) {
             stopEgress(egressIdRef.current);
             egressIdRef.current = null;
           }
+          // Re-acquire camera so the start button is enabled for restart
+          initCameraRef.current();
         }
       });
 
@@ -269,9 +310,16 @@ export default function LiveDirectBroadcast({ postId, onOrientationChange, onBro
       roomRef.current = null;
     }
 
+    // Release camera and microphone at the OS level so the indicator goes off
+    // immediately (iOS Dynamic Island, Android green dot, etc.)
+    releaseCameraTracks();
+
     setStatus("idle");
     onBroadcastingChange?.(false);
-  }, [onBroadcastingChange]);
+
+    // Re-acquire camera so the preview is ready if the user wants to restart
+    initCamera();
+  }, [onBroadcastingChange, releaseCameraTracks, initCamera]);
 
   const toggleMic = useCallback(() => {
     const track = audioTrackRef.current;

@@ -82,6 +82,7 @@ export default function StoryViewer({
   const [dragY, setDragY] = useState(0);
   const [contextOpen, setContextOpen] = useState(false);
   const [instructions, setInstructions] = useState<string | null>(null);
+  const [instructionsLoading, setInstructionsLoading] = useState(false);
   const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
   const [speechHighlight, setSpeechHighlight] = useState<{ start: number; length: number } | null>(null);
   const [speechRate, setSpeechRate] = useState<1 | 1.4 | 1.8>(1);
@@ -155,17 +156,36 @@ export default function StoryViewer({
     );
   }, [story?.greetingRequestId, story?.muxPlaybackId]);
 
-  // Read instructions — from story doc (new stories) or greetingRequest fallback (A/B only)
+  // Read instructions — from story doc (new stories) or greetingRequest fallback (legacy)
   useEffect(() => {
-    if (story?.instructions) { setInstructions(story.instructions); return; }
-    if (!story?.greetingRequestId) { setInstructions(null); return; }
+    if (story?.instructions) {
+      setInstructions(story.instructions);
+      setInstructionsLoading(false);
+      return;
+    }
+    if (!story?.greetingRequestId) {
+      setInstructions(null);
+      setInstructionsLoading(false);
+      return;
+    }
     setInstructions(null);
+    setInstructionsLoading(true);
+    let cancelled = false;
     getDoc(doc(db, "greetingRequests", story.greetingRequestId))
       .then((snap) => {
+        if (cancelled) return;
         const instr = snap.data()?.instructions;
-        if (typeof instr === "string" && instr) setInstructions(instr);
+        setInstructions(typeof instr === "string" && instr.trim() ? instr.trim() : null);
       })
-      .catch(() => {});
+      .catch(() => {
+        if (cancelled) return;
+        setInstructions(null);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setInstructionsLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [story?.instructions, story?.greetingRequestId]);
 
   // Resolve the actual greeting creator (A) from the story doc itself (no greetingRequests read needed)
@@ -729,6 +749,7 @@ export default function StoryViewer({
                   {hasSpeechSupport && (
                   <button
                     type="button"
+                    disabled={instructionsLoading || !instructions}
                     aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer contexto"}
                     onTouchStart={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); handleToggleSpeech(); }}
@@ -776,7 +797,9 @@ export default function StoryViewer({
                     }}
                   >
                     {(() => {
-                      const text = instructions ?? "Sin contexto disponible.";
+                      const text = instructionsLoading
+                        ? "Cargando contexto…"
+                        : instructions ?? "Sin contexto disponible.";
                       if (speechState === "idle" || !speechHighlight) return text;
                       const { start, length } = speechHighlight;
                       return (
