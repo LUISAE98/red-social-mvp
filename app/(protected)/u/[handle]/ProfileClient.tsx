@@ -18,6 +18,7 @@ import {
 
 import {
   doc,
+  getDoc,
   getDocs,
   limit,
   query,
@@ -63,12 +64,19 @@ import { createMediaPost, createTextPost } from "@/lib/posts/post-service";
 import { uploadPostImages } from "@/lib/posts/image-upload";
 import { clearAllPostFeedCaches } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
-import type { PostMedia, PostPremium } from "@/lib/posts/types";
+import type { Post, PostMedia, PostPremium } from "@/lib/posts/types";
+import dynamic from "next/dynamic";
 import StoryCircles from "@/app/components/Stories/StoryCircles";
 import { useStoryRingState } from "@/lib/stories/useStoryRingState";
 import { recordStoryView } from "@/lib/stories/storyService";
 import StoryViewer from "@/app/components/Stories/StoryViewer";
 import { setLastVisitTimestamp } from "@/lib/utils/visitTimestamps";
+import { useLiveRingState } from "@/lib/live/useLiveRingState";
+
+const LiveViewerModal = dynamic(
+  () => import("@/app/components/LiveViewerModal/LiveViewerModal"),
+  { ssr: false }
+);
 
 type ProfileComposerMediaItem = {
   type: "image" | "video";
@@ -394,6 +402,14 @@ useEffect(() => {
       "profile",
       viewer?.uid ?? null,
     );
+  const { isLive: profileIsLive, livePostId: profileLivePostId } = useLiveRingState(
+    !isOwner && (blockStatusLoading || profileBlockedByViewer || viewerBlockedByProfile || pendingUnblock)
+      ? null
+      : profileUid,
+    "profile"
+  );
+  const [profileLivePost, setProfileLivePost] = useState<Post | null>(null);
+  const [profileLiveViewerOpen, setProfileLiveViewerOpen] = useState(false);
   const [profileStoriesOpen, setProfileStoriesOpen] = useState(false);
 
   const ownerShowPosts = userDoc?.showPosts ?? true;
@@ -946,6 +962,20 @@ function handleUnblockFailed() {
     },
     [isOwner]
   );
+
+  const handleProfileLiveClick = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!profileLivePostId) return;
+    try {
+      const snap = await getDoc(doc(db, "posts", profileLivePostId));
+      if (snap.exists()) {
+        setProfileLivePost({ id: snap.id, ...snap.data() } as Post);
+        setProfileLiveViewerOpen(true);
+      }
+    } catch {
+      // silencioso — el live puede haber terminado justo antes del clic
+    }
+  }, [profileLivePostId]);
 
   function handlePickAvatar() {
     if (!isOwner) return;
@@ -1822,33 +1852,62 @@ await createExclusiveSessionRequest({
                 }}
               >
                 <div style={{ position: "relative" }}>
-                  {/* Vibra ring when profile has active stories */}
-                  {profileRing !== "none" && (
+                  {/* Live ring (priority) or story ring */}
+                  {(profileIsLive || profileRing !== "none") && (
                     <div
                       style={{
                         position: "absolute",
                         inset: -6,
                         borderRadius: "50%",
-                        background: profileRing === "vibra"
-                          ? "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)"
-                          : "rgba(255,255,255,0.28)",
+                        background: profileIsLive
+                          ? "#ef4444"
+                          : profileRing === "vibra"
+                            ? "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)"
+                            : "rgba(255,255,255,0.28)",
                         zIndex: 0,
                         pointerEvents: "none",
                       }}
                     />
+                  )}
+                  {/* LIVE badge below avatar */}
+                  {profileIsLive && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        bottom: -14,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        background: "#ef4444",
+                        color: "#fff",
+                        fontSize: 9,
+                        fontWeight: 700,
+                        letterSpacing: "0.07em",
+                        padding: "2px 5px",
+                        borderRadius: 3,
+                        lineHeight: 1,
+                        whiteSpace: "nowrap",
+                        zIndex: 2,
+                        pointerEvents: "none",
+                        fontFamily: fontStack,
+                      }}
+                    >
+                      LIVE
+                    </div>
                   )}
                   <button
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      if (profileRing !== "none" && profileRingStories.length > 0) {
+                      if (profileIsLive) {
+                        void handleProfileLiveClick(e);
+                      } else if (profileRing !== "none" && profileRingStories.length > 0) {
                         setProfileStoriesOpen(true);
                       } else if (isOwner) {
                         handlePickAvatar();
                       }
                     }}
-                    disabled={(!isOwner && profileRing === "none") || uploading}
+                    disabled={(!isOwner && !profileIsLive && profileRing === "none") || uploading}
                     style={{
                       width: avatarSz,
                       height: avatarSz,
@@ -1862,18 +1921,20 @@ await createExclusiveSessionRequest({
                       userSelect: "none",
                       padding: 0,
                       margin: 0,
-                      cursor: (isOwner || profileRing !== "none") && !uploading ? "pointer" : "default",
+                      cursor: (isOwner || profileIsLive || profileRing !== "none") && !uploading ? "pointer" : "default",
                       position: "relative",
                       zIndex: 1,
                     }}
                     aria-label={
-                      profileRing !== "none" && profileRingStories.length > 0
-                        ? `Ver historias de ${fullName}`
-                        : isOwner
-                          ? "Cambiar foto de perfil"
-                          : undefined
+                      profileIsLive
+                        ? `Ver live de ${fullName}`
+                        : profileRing !== "none" && profileRingStories.length > 0
+                          ? `Ver historias de ${fullName}`
+                          : isOwner
+                            ? "Cambiar foto de perfil"
+                            : undefined
                     }
-                    title={isOwner && profileRing === "none" ? "Cambiar foto de perfil" : undefined}
+                    title={isOwner && !profileIsLive && profileRing === "none" ? "Cambiar foto de perfil" : undefined}
                   >
                     {avatarSrc ? (
                       <Image
@@ -2473,6 +2534,17 @@ await createExclusiveSessionRequest({
           onStoryViewed={(storyId) => {
             if (viewer?.uid) recordStoryView(viewer.uid, storyId).catch(console.error);
           }}
+        />
+      )}
+
+      {profileLiveViewerOpen && profileLivePost && (
+        <LiveViewerModal
+          open={profileLiveViewerOpen}
+          onClose={() => {
+            setProfileLiveViewerOpen(false);
+            setProfileLivePost(null);
+          }}
+          post={profileLivePost}
         />
       )}
 

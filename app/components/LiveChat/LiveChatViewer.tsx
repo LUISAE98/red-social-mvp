@@ -9,6 +9,7 @@ import { useLiveChat } from "@/lib/hooks/useLiveChat";
 import SuperCommentModal from "./SuperCommentModal";
 import { subscribeVisibleSuperComments } from "@/lib/liveChat/super-comment-service";
 import type { SuperCommentConfig, SuperComment } from "@/lib/liveChat/types";
+import { DEFAULT_SUPER_COMMENT_CONFIG } from "@/lib/liveChat/types";
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
 
@@ -44,11 +45,17 @@ export default function LiveChatViewer({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
 
+  // Si el creador nunca guardó config, usar defaults para que el botón siempre esté disponible en direct
+  const effectiveConfig: SuperCommentConfig | null =
+    broadcastMode === "direct"
+      ? (superCommentConfig ?? DEFAULT_SUPER_COMMENT_CONFIG)
+      : (superCommentConfig ?? null);
+
   const showSuperCommentBtn =
     !!user &&
     broadcastMode === "direct" &&
-    superCommentConfig?.enabled === true &&
-    (superCommentConfig?.tiers?.length ?? 0) > 0 &&
+    effectiveConfig?.enabled === true &&
+    (effectiveConfig?.tiers?.length ?? 0) > 0 &&
     chatEnabled &&
     !liveEnded &&
     !isMuted;
@@ -137,7 +144,7 @@ export default function LiveChatViewer({
     })),
   ].sort((a, b) => a.ts - b.ts);
 
-  const superCommentModal = showSuperCommentBtn && superCommentConfig ? (
+  const superCommentModal = showSuperCommentBtn && effectiveConfig ? (
     <SuperCommentModal
       open={superCommentOpen}
       onClose={() => setSuperCommentOpen(false)}
@@ -145,7 +152,7 @@ export default function LiveChatViewer({
       userId={user!.uid}
       username={senderInfo?.username ?? user?.displayName ?? "Espectador"}
       avatarUrl={senderInfo?.avatarUrl ?? user?.photoURL ?? null}
-      config={superCommentConfig}
+      config={effectiveConfig}
     />
   ) : null;
 

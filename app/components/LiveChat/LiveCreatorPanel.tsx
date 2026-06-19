@@ -74,6 +74,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   peakViewerCountRef.current = peakViewerCount;
   const [superComments, setSuperComments] = useState<SuperComment[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [activeSuperOverlay, setActiveSuperOverlay] = useState<SuperComment | null>(null);
 
   // Freeze the effective layout orientation during a broadcast. The `portrait`
   // prop can change mid-broadcast (e.g. LiveInlinePlayer detects stream orientation)
@@ -336,16 +337,27 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     async function handlePlay(sc: SuperComment) {
       if (playingId) return;
       setPlayingId(sc.id);
-      try {
-        await playSuperComment(post.id, sc);
-        // Auto-limpiar después de displaySeconds + 1s
-        setTimeout(() => {
-          clearActiveSuper(post.id).catch(() => {});
-          setPlayingId(null);
-        }, (sc.displaySeconds + 1) * 1000);
-      } catch {
-        setPlayingId(null);
+      setActiveSuperOverlay(sc);
+
+      // TTS local — solo el creador lo escucha
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(sc.text);
+        utterance.lang = "es-MX";
+        utterance.rate = 1;
+        window.speechSynthesis.speak(utterance);
       }
+
+      try {
+        // Escribe liveData.activeSuper en Firestore → viewers reciben el overlay vía listener
+        await playSuperComment(post.id, sc);
+      } catch { /* noop */ }
+
+      setTimeout(() => {
+        setActiveSuperOverlay(null);
+        setPlayingId(null);
+        clearActiveSuper(post.id).catch(() => {});
+      }, sc.displaySeconds * 1000);
     }
 
     return (
@@ -473,6 +485,37 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         <span style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.01em" }}>
           Transmisión finalizada
         </span>
+      </div>
+    );
+  }
+
+  function renderSuperOverlay() {
+    if (!activeSuperOverlay) return null;
+    const sc = activeSuperOverlay;
+    return (
+      <div style={{
+        position: "absolute", bottom: 80, left: 12, right: 12, zIndex: 10,
+        background: `linear-gradient(135deg, ${sc.color}22 0%, ${sc.color}44 100%)`,
+        border: `2px solid ${sc.color}`,
+        borderRadius: 14, padding: "12px 14px",
+        fontFamily: FONT, animation: "fadeInUp 0.3s ease",
+      }}>
+        <style>{`@keyframes fadeInUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}`}</style>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: sc.color, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            {sc.tierName}
+          </span>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>·</span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>
+            ${sc.amount} MXN
+          </span>
+          <span style={{ marginLeft: "auto", fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+            {sc.username}
+          </span>
+        </div>
+        <p style={{ margin: 0, fontSize: 13, color: "#fff", lineHeight: 1.4, wordBreak: "break-word" }}>
+          {sc.text}
+        </p>
       </div>
     );
   }
@@ -644,11 +687,12 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 background: "#000",
               }}>
                 {showDirectBroadcast ? (
-                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} />
+                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
                 ) : (
                   <VideoPreview hlsUrl={hlsUrl!} fill />
                 )}
                 {isEnded && renderEndedOverlay()}
+                {showDirectBroadcast && renderSuperOverlay()}
               </div>
             </div>
           )}
@@ -660,7 +704,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           /* Direct broadcast: cámara izquierda + columna derecha (super+chat arriba, stats abajo) */
           <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
             <div style={{ flex: 3, position: "relative", overflow: "hidden", background: "#000", minWidth: 0 }}>
-              <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} />
+              <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
+              {renderSuperOverlay()}
             </div>
             {/* Columna derecha */}
             <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderLeft: DIV, minWidth: 0 }}>
@@ -734,11 +779,12 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               position: "relative", background: "#000",
             }}>
               {showDirectBroadcast ? (
-                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} />
+                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
               ) : (
                 <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
               )}
               {isEnded && renderEndedOverlay()}
+              {showDirectBroadcast && renderSuperOverlay()}
             </div>
           )}
 
@@ -800,7 +846,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           >
             {showDirectBroadcast ? (
               <div style={{ width: "100%", height: "100%", position: "relative" }}>
-                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} />
+                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
+                {renderSuperOverlay()}
               </div>
             ) : showVideo ? (
               <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -873,7 +920,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             <div style={{ flexShrink: 0, background: "#000", position: "relative" }}>
               {showDirectBroadcast ? (
                 <div style={{ width: "100%", aspectRatio: "9/16", position: "relative" }}>
-                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} />
+                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
                 </div>
               ) : (
                 <>

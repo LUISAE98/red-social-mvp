@@ -107,7 +107,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return subscribeToViewerCount(post.id, setViewerCount);
   }, [open, localLiveData?.status, post.id]);
 
-  // ── Overlay de supercomentario activo + TTS ────────────────────────────────
+  // ── Overlay de supercomentario activo ─────────────────────────────────────
   useEffect(() => {
     const activeSuper = localLiveData?.activeSuper;
     if (!activeSuper) {
@@ -117,15 +117,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     if (activeSuper.id === lastPlayedSuperIdRef.current) return;
     lastPlayedSuperIdRef.current = activeSuper.id;
     setSuperOverlayVisible(true);
-
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(activeSuper.text);
-      utterance.lang = "es-MX";
-      utterance.rate = 1;
-      window.speechSynthesis.speak(utterance);
-    }
-
     const t = window.setTimeout(() => setSuperOverlayVisible(false), activeSuper.displaySeconds * 1000);
     return () => window.clearTimeout(t);
   }, [localLiveData?.activeSuper?.id]); // eslint-disable-line react-hooks/exhaustive-deps

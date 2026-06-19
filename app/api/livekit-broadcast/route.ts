@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
   });
 }
 
-// DELETE /api/livekit-broadcast?egressId=xxx — stop broadcast
+// DELETE /api/livekit-broadcast?egressId=xxx&postId=xxx — stop broadcast
 export async function DELETE(req: NextRequest) {
   if (livekitMissing()) {
     return NextResponse.json({ error: "LiveKit no configurado" }, { status: 500 });
@@ -156,6 +156,16 @@ export async function DELETE(req: NextRequest) {
   const egressId = req.nextUrl.searchParams.get("egressId");
   if (!egressId) {
     return new NextResponse(null, { status: 204 });
+  }
+
+  // Verify ownership: only the post author can stop their own egress.
+  const postId = req.nextUrl.searchParams.get("postId");
+  if (postId) {
+    const db = getAdminFirestore();
+    const postSnap = await db.collection("posts").doc(postId).get();
+    if (postSnap.exists && postSnap.data()?.authorId !== uid) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
   }
 
   try {
