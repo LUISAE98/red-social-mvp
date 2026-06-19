@@ -772,6 +772,9 @@ function resolveEffectiveMembershipStatus(
   return "active";
 }
 
+// Caché de sesión — el perfil del autor rara vez cambia durante una sesión
+let _authorCache: { uid: string; data: AuthorSnapshot; expiresAt: number } | null = null;
+
 async function getCurrentAuthorSnapshot(): Promise<AuthorSnapshot> {
   const user = auth.currentUser;
   if (!user?.uid) {
@@ -779,6 +782,11 @@ async function getCurrentAuthorSnapshot(): Promise<AuthorSnapshot> {
   }
 
   const uid = user.uid;
+
+  if (_authorCache && _authorCache.uid === uid && _authorCache.expiresAt > Date.now()) {
+    return _authorCache.data;
+  }
+
   let userDocData: Record<string, unknown> | null = null;
 
   try {
@@ -810,12 +818,9 @@ async function getCurrentAuthorSnapshot(): Promise<AuthorSnapshot> {
     pickString(userDocData?.handle) ||
     null;
 
-  return {
-    uid,
-    authorName,
-    authorAvatarUrl,
-    authorUsername,
-  };
+  const snapshot: AuthorSnapshot = { uid, authorName, authorAvatarUrl, authorUsername };
+  _authorCache = { uid, data: snapshot, expiresAt: Date.now() + 5 * 60 * 1000 };
+  return snapshot;
 }
 
 async function fetchUsersByIds(
@@ -2497,26 +2502,70 @@ export async function fetchUserProfilePosts(
   return page.posts;
 }
 
+// Rate limit ejecutado directamente en Firestore desde el cliente.
+// Elimina el cold start de Cloud Functions (1-4s) sin sacrificar la lógica de límite.
 async function enforcePostRateLimit(): Promise<void> {
-  const fn = httpsCallable(functions, "checkRateLimitPost");
-  try {
-    await fn();
-  } catch (err: unknown) {
-    const msg =
-      err instanceof Error ? err.message : "Demasiadas publicaciones. Intenta más tarde.";
-    throw new Error(msg);
-  }
+  const user = auth.currentUser;
+  if (!user?.uid) throw new Error("Debes iniciar sesión.");
+  const INTERVAL_MS = 10_000;
+  const MAX_PER_HOUR = 20;
+  const docRef = doc(db, "rateLimits", `${user.uid}_post`);
+  const nowMs = Date.now();
+  const oneHourAgoMs = nowMs - 60 * 60 * 1000;
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(docRef);
+    let lastAtMs = 0;
+    let hourTimestamps: Timestamp[] = [];
+    if (snap.exists()) {
+      const data = snap.data()!;
+      const lastAt = data.lastAt as Timestamp | undefined;
+      lastAtMs = lastAt ? lastAt.toMillis() : 0;
+      hourTimestamps = ((data.hourTimestamps as Timestamp[]) ?? []).filter(
+        (ts: Timestamp) => ts.toMillis() > oneHourAgoMs
+      );
+    }
+    if (nowMs - lastAtMs < INTERVAL_MS) {
+      const waitSec = Math.ceil((INTERVAL_MS - (nowMs - lastAtMs)) / 1000);
+      throw new Error(`Espera ${waitSec}s antes de publicar de nuevo.`);
+    }
+    if (hourTimestamps.length >= MAX_PER_HOUR) {
+      throw new Error(`Alcanzaste el límite de ${MAX_PER_HOUR} publicaciones por hora.`);
+    }
+    const nowTs = Timestamp.fromMillis(nowMs);
+    tx.set(docRef, { lastAt: nowTs, hourTimestamps: [...hourTimestamps, nowTs] });
+  });
 }
 
 async function enforceCommentRateLimit(): Promise<void> {
-  const fn = httpsCallable(functions, "checkRateLimitComment");
-  try {
-    await fn();
-  } catch (err: unknown) {
-    const msg =
-      err instanceof Error ? err.message : "Demasiados comentarios. Intenta más tarde.";
-    throw new Error(msg);
-  }
+  const user = auth.currentUser;
+  if (!user?.uid) throw new Error("Debes iniciar sesión.");
+  const INTERVAL_MS = 3_000;
+  const MAX_PER_HOUR = 60;
+  const docRef = doc(db, "rateLimits", `${user.uid}_comment`);
+  const nowMs = Date.now();
+  const oneHourAgoMs = nowMs - 60 * 60 * 1000;
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(docRef);
+    let lastAtMs = 0;
+    let hourTimestamps: Timestamp[] = [];
+    if (snap.exists()) {
+      const data = snap.data()!;
+      const lastAt = data.lastAt as Timestamp | undefined;
+      lastAtMs = lastAt ? lastAt.toMillis() : 0;
+      hourTimestamps = ((data.hourTimestamps as Timestamp[]) ?? []).filter(
+        (ts: Timestamp) => ts.toMillis() > oneHourAgoMs
+      );
+    }
+    if (nowMs - lastAtMs < INTERVAL_MS) {
+      const waitSec = Math.ceil((INTERVAL_MS - (nowMs - lastAtMs)) / 1000);
+      throw new Error(`Espera ${waitSec}s antes de comentar de nuevo.`);
+    }
+    if (hourTimestamps.length >= MAX_PER_HOUR) {
+      throw new Error(`Alcanzaste el límite de ${MAX_PER_HOUR} comentarios por hora.`);
+    }
+    const nowTs = Timestamp.fromMillis(nowMs);
+    tx.set(docRef, { lastAt: nowTs, hourTimestamps: [...hourTimestamps, nowTs] });
+  });
 }
 
 export async function createTextPost(params: {

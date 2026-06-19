@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, memo } from "react";
 import Hls from "hls.js";
 import type { Post } from "@/lib/posts/types";
 import type { LiveChatMessage } from "@/lib/liveChat/types";
@@ -836,9 +836,11 @@ function ModActionBtn({
 }
 
 // ── VideoPreview ───────────────────────────────────────────────────────────
+// memo: evita re-renders por cambios de estado del panel (chat, viewers, etc.)
 
-function VideoPreview({ hlsUrl, fill, objectFit = "cover" }: { hlsUrl: string; fill?: boolean; objectFit?: "cover" | "contain" }) {
+const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cover" }: { hlsUrl: string; fill?: boolean; objectFit?: "cover" | "contain" }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const [muted, setMuted] = useState(true);
 
   useEffect(() => {
@@ -872,11 +874,25 @@ function VideoPreview({ hlsUrl, fill, objectFit = "cover" }: { hlsUrl: string; f
       levelLoadingMaxRetry: 6,
       backBufferLength: 30,
     });
+    hlsRef.current = hls;
     hls.loadSource(hlsUrl);
     hls.attachMedia(video);
     hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(() => {}); });
 
-    return () => { hls.destroy(); };
+    // Recuperación automática de errores — sin esto el player para silenciosamente
+    hls.on(Hls.Events.ERROR, (_, data) => {
+      if (!data.fatal) return;
+      if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+        hls.startLoad();
+      } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+        hls.recoverMediaError();
+      } else {
+        hls.destroy();
+        hlsRef.current = null;
+      }
+    });
+
+    return () => { hls.destroy(); hlsRef.current = null; };
   }, [hlsUrl]);
 
   const muteBtn = (size: number, bottom: number, right: number, bordered: boolean) => (
@@ -934,4 +950,4 @@ function VideoPreview({ hlsUrl, fill, objectFit = "cover" }: { hlsUrl: string; f
       {muteBtn(13, 8, 8, false)}
     </div>
   );
-}
+});

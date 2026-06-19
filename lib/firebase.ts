@@ -8,7 +8,13 @@ import {
   browserPopupRedirectResolver,
   type Auth,
 } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore,
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 
@@ -46,6 +52,19 @@ return initializeAuth(app, {
 }
 
 export const auth = createAuth();
-export const db = getFirestore(app);
+export const db = (function createFirestore(): Firestore {
+  if (typeof window === "undefined") {
+    return getFirestore(app);
+  }
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+      }),
+    });
+  } catch {
+    return getFirestore(app);
+  }
+})();
 export const storage = getStorage(app);
 export const functions = getFunctions(app);

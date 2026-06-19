@@ -291,7 +291,7 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
               pageSize: HOME_FEED_PAGE_SIZE,
               cursor: mode === "more" ? pageCursorRef.current : null,
             }),
-          { timeoutMs: mode === "more" ? 25000 : 20000 }
+          { timeoutMs: mode === "more" ? 15000 : 12000 }
         );
 
         if (feedRequestIdRef.current !== requestId) {

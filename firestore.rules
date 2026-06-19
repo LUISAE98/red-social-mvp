@@ -199,6 +199,23 @@ service cloud.firestore {
       && request.resource.data.createdAt is timestamp;
     }
 
+    // ==========================
+    // RATE LIMITS (client-side enforcement)
+    // ==========================
+    match /rateLimits/{docId} {
+      // Solo el propio usuario puede leer y escribir su documento de rate limit.
+      // El docId tiene formato "{uid}_post" o "{uid}_comment".
+      allow read: if signedIn()
+        && (docId == request.auth.uid + '_post'
+            || docId == request.auth.uid + '_comment');
+      allow write: if signedIn()
+        && (docId == request.auth.uid + '_post'
+            || docId == request.auth.uid + '_comment')
+        && request.resource.data.keys().hasOnly(['lastAt', 'hourTimestamps'])
+        && request.resource.data.lastAt is timestamp
+        && request.resource.data.lastAt <= request.time;
+    }
+
     match /users/{uid} {
       allow get, list: if true;
 
@@ -1962,7 +1979,7 @@ function validPostCommonCreateShape() {
   || request.resource.data.search is map
 )
 && (!("requiresPayment" in request.resource.data) || request.resource.data.requiresPayment is bool)
-&& (!("accessModel" in request.resource.data) || request.resource.data.accessModel in ["free", "paid"])
+&& (!("accessModel" in request.resource.data) || request.resource.data.accessModel in ["free", "paid", "one_time_purchase"])
 && (
   !("oneTimePrice" in request.resource.data)
   || request.resource.data.oneTimePrice == null

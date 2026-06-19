@@ -741,6 +741,11 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
   const [followedProfiles, setFollowedProfiles] = useState<
     FollowedProfileLite[]
   >(() => ownerSidebarCache?.followedProfiles ?? []);
+  // Mirror of followedProfiles used inside onSnapshot to avoid stale closures
+  // and skip re-fetching profiles that are already in memory.
+  const followedProfilesRef = useRef<FollowedProfileLite[]>(
+    ownerSidebarCache?.followedProfiles ?? []
+  );
 
   const newPostsEntities = useMemo(
     () => [
@@ -1330,11 +1335,14 @@ miniItem: {
     let cancelled = false;
 
     if (!viewer?.uid) {
+      followedProfilesRef.current = [];
       setFollowedProfiles([]);
       setLoadingFollowing(false);
       return;
     }
 
+    // Reset cache on viewer change or sidebar refresh so stale profiles don't persist
+    followedProfilesRef.current = [];
     setLoadingFollowing(true);
 
     const followingQ = query(
@@ -1362,8 +1370,13 @@ miniItem: {
 
           const uniqueTargetUserIds = Array.from(new Set(targetUserIds));
 
-          const profiles = await Promise.all(
-            uniqueTargetUserIds.map(async (targetUserId) => {
+          // Reuse profiles already in memory; only fetch unknown UIDs.
+          // For unfollow this means zero network calls — update is instant.
+          const cachedMap = new Map(followedProfilesRef.current.map((p) => [p.uid, p]));
+          const toFetch = uniqueTargetUserIds.filter((uid) => !cachedMap.has(uid));
+
+          const fetched = await Promise.all(
+            toFetch.map(async (targetUserId) => {
               try {
                 const userSnap = await getDoc(doc(db, "users", targetUserId));
 
@@ -1397,16 +1410,24 @@ miniItem: {
 
           if (cancelled) return;
 
-          setFollowedProfiles(
-            profiles.filter(
-              (profile): profile is FollowedProfileLite => profile !== null
-            )
+          const fetchedMap = new Map(
+            fetched
+              .filter((p): p is FollowedProfileLite => p !== null)
+              .map((p) => [p.uid, p])
           );
+
+          const nextProfiles = uniqueTargetUserIds
+            .map((uid) => cachedMap.get(uid) ?? fetchedMap.get(uid) ?? null)
+            .filter((p): p is FollowedProfileLite => p !== null);
+
+          followedProfilesRef.current = nextProfiles;
+          setFollowedProfiles(nextProfiles);
         } catch (e: unknown) {
           if (!cancelled) {
             setGroupsErr(
               (e instanceof Error ? e.message : null) ?? "No se pudieron cargar los perfiles que sigues."
             );
+            followedProfilesRef.current = [];
             setFollowedProfiles([]);
           }
         } finally {
@@ -1420,6 +1441,7 @@ miniItem: {
           setGroupsErr(
             e.message ?? "No se pudieron cargar los perfiles que sigues."
           );
+          followedProfilesRef.current = [];
           setFollowedProfiles([]);
           setLoadingFollowing(false);
         }

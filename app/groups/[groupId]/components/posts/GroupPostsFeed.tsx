@@ -587,7 +587,7 @@ export default function GroupPostsFeed({
               posts: hydratedPosts,
             };
           },
-          { timeoutMs: mode === "more" ? 25000 : 20000 },
+          { timeoutMs: mode === "more" ? 15000 : 12000 },
         );
 
         if (feedRequestIdRef.current !== requestId) {
