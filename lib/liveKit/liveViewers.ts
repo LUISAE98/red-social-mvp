@@ -45,3 +45,32 @@ export function updatePeakViewers(postId: string, peak: number): Promise<void> {
     updatedAt: serverTimestamp(),
   });
 }
+
+/** Writes the viewer's current HLS playback latency (in seconds) to their presence doc. */
+export function updateViewerLatency(postId: string, uid: string, latencySeconds: number): Promise<void> {
+  return updateDoc(doc(db, "posts", postId, "liveViewers", uid), {
+    latency: latencySeconds,
+    latencyUpdatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Subscribes to all viewer latency values for a live post.
+ * Returns an array of latency values in seconds (only for viewers who have reported latency).
+ */
+export function subscribeViewerLatencies(
+  postId: string,
+  onData: (latencies: number[]) => void,
+): () => void {
+  return onSnapshot(
+    collection(db, "posts", postId, "liveViewers"),
+    (snap) => {
+      const latencies: number[] = [];
+      snap.docs.forEach((d) => {
+        const l = d.data().latency;
+        if (typeof l === "number" && l > 0 && l < 120) latencies.push(l);
+      });
+      onData(latencies);
+    },
+  );
+}

@@ -184,7 +184,7 @@ export default function LiveRingAvatar({
           onClick={handleLiveClick}
           style={{
             position: "absolute",
-            bottom: -6,
+            bottom: 2,
             left: "50%",
             transform: "translateX(-50%)",
             background: LIVE_RED,
@@ -200,6 +200,7 @@ export default function LiveRingAvatar({
             zIndex: 2,
             fontFamily: FONT,
             pointerEvents: "auto",
+            border: `1.5px solid ${GAP_COLOR}`,
           }}
         >
           LIVE

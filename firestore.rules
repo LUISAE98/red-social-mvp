@@ -2419,7 +2419,10 @@ allow list: if canReadPost()
           && request.resource.data.uid == viewerId
           && request.resource.data.joinedAt is timestamp;
         allow delete: if signedIn() && request.auth.uid == viewerId;
-        allow update: if false;
+        allow update: if signedIn()
+          && request.auth.uid == viewerId
+          && request.resource.data.uid == viewerId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['latency', 'latencyUpdatedAt']);
       }
 
       // Credenciales privadas del live stream (streamKey) — solo el autor puede leer

@@ -4,9 +4,8 @@ import {
   Room,
   RoomEvent,
   Track,
-  createLocalAudioTrack,
   LocalVideoTrack,
-  type LocalAudioTrack,
+  LocalAudioTrack,
 } from "livekit-client";
 import { getAuth } from "firebase/auth";
 import type { SuperComment } from "@/lib/liveChat/types";
@@ -146,9 +145,13 @@ export default function LiveDirectBroadcast({
       // userProvidedTrack: true — LiveKit must not try to restart/replace this track
       videoTrackRef.current = new LocalVideoTrack(canvasVideoTrack, undefined, true);
 
-      // Audio track (separate from camera getUserMedia for cross-browser compatibility)
-      const aTrack = await createLocalAudioTrack();
-      audioTrackRef.current = aTrack;
+      // ── Audio: micrófono directo → LocalAudioTrack
+      const micStream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false,
+      });
+      const micTrack = micStream.getAudioTracks()[0];
+      audioTrackRef.current = new LocalAudioTrack(micTrack, undefined, true);
 
       startDrawLoop();
 

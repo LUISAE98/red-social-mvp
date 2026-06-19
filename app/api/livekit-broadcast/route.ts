@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AccessToken, EgressClient, EncodingOptionsPreset, RoomServiceClient, StreamOutput, StreamProtocol } from "livekit-server-sdk";
+import { FieldValue } from "firebase-admin/firestore";
 import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
 
 export const runtime = "nodejs";
@@ -118,6 +119,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Error iniciando Egress: ${msg}` }, { status: 502 });
   }
 
+  // Set activeLivePostId immediately so the live ring shows without waiting for the Mux webhook
+  const postData = postSnap.data();
+  const liveGroupId = typeof postData?.groupId === "string" && postData.groupId ? postData.groupId : null;
+  const setLiveUpdates: Promise<unknown>[] = [
+    db.collection("users").doc(uid).update({ activeLivePostId: postId }),
+  ];
+  if (liveGroupId) {
+    setLiveUpdates.push(db.collection("groups").doc(liveGroupId).update({ activeLivePostId: postId }));
+  }
+  await Promise.all(setLiveUpdates).catch((err) => {
+    console.error("[livekit-broadcast] Failed to set activeLivePostId:", err);
+  });
+
   // Generate publisher token
   const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
     identity: uid,
@@ -158,13 +172,18 @@ export async function DELETE(req: NextRequest) {
     return new NextResponse(null, { status: 204 });
   }
 
-  // Verify ownership: only the post author can stop their own egress.
+  // Verify ownership and read groupId for live ring cleanup
   const postId = req.nextUrl.searchParams.get("postId");
+  let stopGroupId: string | null = null;
   if (postId) {
     const db = getAdminFirestore();
     const postSnap = await db.collection("posts").doc(postId).get();
     if (postSnap.exists && postSnap.data()?.authorId !== uid) {
       return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+    if (postSnap.exists) {
+      const g = postSnap.data()?.groupId;
+      if (typeof g === "string" && g) stopGroupId = g;
     }
   }
 
@@ -173,6 +192,20 @@ export async function DELETE(req: NextRequest) {
     await egressClient.stopEgress(egressId);
   } catch (err) {
     console.error("[livekit-broadcast] Stop egress error:", err instanceof Error ? err.message : err);
+  }
+
+  // Clear activeLivePostId immediately so the live ring disappears without waiting for Mux idle webhook
+  if (postId) {
+    const db = getAdminFirestore();
+    const clearUpdates: Promise<unknown>[] = [
+      db.collection("users").doc(uid).update({ activeLivePostId: FieldValue.delete() }),
+    ];
+    if (stopGroupId) {
+      clearUpdates.push(db.collection("groups").doc(stopGroupId).update({ activeLivePostId: FieldValue.delete() }));
+    }
+    await Promise.all(clearUpdates).catch((err) => {
+      console.error("[livekit-broadcast] Failed to clear activeLivePostId:", err);
+    });
   }
 
   return new NextResponse(null, { status: 204 });

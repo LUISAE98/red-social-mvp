@@ -1869,12 +1869,12 @@ await createExclusiveSessionRequest({
                       }}
                     />
                   )}
-                  {/* LIVE badge below avatar */}
+                  {/* LIVE badge inside the ring at the bottom */}
                   {profileIsLive && (
                     <div
                       style={{
                         position: "absolute",
-                        bottom: -14,
+                        bottom: 2,
                         left: "50%",
                         transform: "translateX(-50%)",
                         background: "#ef4444",
@@ -1889,6 +1889,7 @@ await createExclusiveSessionRequest({
                         zIndex: 2,
                         pointerEvents: "none",
                         fontFamily: fontStack,
+                        border: "1.5px solid rgb(10,10,14)",
                       }}
                     >
                       LIVE

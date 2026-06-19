@@ -17,6 +17,7 @@ import {
 import {
   subscribeSuperComments,
   playSuperComment,
+  pushActiveSuperToViewers,
   hideSuperComment,
   showSuperComment,
   deleteSuperComment,
@@ -24,7 +25,7 @@ import {
 } from "@/lib/liveChat/super-comment-service";
 import { useAuth } from "@/app/providers";
 import LiveDirectBroadcast from "@/app/components/LiveDirectBroadcast/LiveDirectBroadcast";
-import { subscribeToViewerCount, updatePeakViewers } from "@/lib/liveKit/liveViewers";
+import { subscribeToViewerCount, updatePeakViewers, subscribeViewerLatencies } from "@/lib/liveKit/liveViewers";
 
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
 const DIV = "1px solid rgba(255,255,255,0.12)";
@@ -75,6 +76,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [superComments, setSuperComments] = useState<SuperComment[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [activeSuperOverlay, setActiveSuperOverlay] = useState<SuperComment | null>(null);
+  const [streamDelayMs, setStreamDelayMs] = useState<number>((post.liveData?.streamDelay ?? 8) * 1000);
+  const [measuredDelayMs, setMeasuredDelayMs] = useState<number | null>(null);
 
   // Freeze the effective layout orientation during a broadcast. The `portrait`
   // prop can change mid-broadcast (e.g. LiveInlinePlayer detects stream orientation)
@@ -137,6 +140,19 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       return;
     }
     return subscribeSuperComments(post.id, setSuperComments);
+  }, [open, post.id, broadcastMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Latencia medida de espectadores — para pre-llenar el slider de delay
+  useEffect(() => {
+    if (!open || !post.id || broadcastMode !== "direct") return;
+    return subscribeViewerLatencies(post.id, (latencies) => {
+      if (latencies.length === 0) return;
+      const sorted = [...latencies].sort((a, b) => a - b);
+      const median = sorted[Math.floor(sorted.length / 2)];
+      const medianMs = Math.round(median * 1000);
+      setMeasuredDelayMs(medianMs);
+      setStreamDelayMs(medianMs);
+    });
   }, [open, post.id, broadcastMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleChat = useCallback(async () => {
@@ -320,16 +336,52 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
     const visible = superComments.filter((sc) => !sc.isDeleted);
 
+    const delayControl = (
+      <div style={{
+        flexShrink: 0, padding: "8px 12px 10px",
+        borderBottom: "1px solid rgba(255,255,255,0.07)",
+        display: "flex", flexDirection: "column", gap: 4,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.3)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+            Delay del stream
+          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {measuredDelayMs !== null && (
+              <span style={{ fontSize: 10, color: "rgba(168,85,247,0.7)", fontWeight: 600 }}>
+                ~{(measuredDelayMs / 1000).toFixed(1)}s medido
+              </span>
+            )}
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", minWidth: 32, textAlign: "right" }}>
+              {(streamDelayMs / 1000).toFixed(1)}s
+            </span>
+          </div>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={30000}
+          step={500}
+          value={streamDelayMs}
+          onChange={(e) => setStreamDelayMs(Number(e.target.value))}
+          style={{ width: "100%", accentColor: "#a855f7", cursor: "pointer" }}
+        />
+      </div>
+    );
+
     if (visible.length === 0) {
       return (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="6" width="20" height="12" rx="2" />
-            <path d="M6 10h.01M10 10h8M6 14h.01M10 14h8" />
-          </svg>
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.15)", fontFamily: FONT }}>
-            Sin supercomentarios aún
-          </span>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+          {delayControl}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="6" width="20" height="12" rx="2" />
+              <path d="M6 10h.01M10 10h8M6 14h.01M10 14h8" />
+            </svg>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.15)", fontFamily: FONT }}>
+              Sin supercomentarios aún
+            </span>
+          </div>
         </div>
       );
     }
@@ -337,31 +389,47 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     async function handlePlay(sc: SuperComment) {
       if (playingId) return;
       setPlayingId(sc.id);
+
+      // Canvas empieza a dibujar el overlay inmediatamente — solo el creador lo ve
       setActiveSuperOverlay(sc);
 
-      // TTS local — solo el creador lo escucha
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(sc.text);
-        utterance.lang = "es-MX";
-        utterance.rate = 1;
-        window.speechSynthesis.speak(utterance);
-      }
+      // Marcar como reproducido inmediatamente (sin impacto en viewers)
+      playSuperComment(post.id, sc).catch(() => {});
 
-      try {
-        // Escribe liveData.activeSuper en Firestore → viewers reciben el overlay vía listener
-        await playSuperComment(post.id, sc);
-      } catch { /* noop */ }
+      const delay = streamDelayMs;
 
-      setTimeout(() => {
+      // TTS local después del delay — se alinea con el momento en que los viewers ven el overlay
+      window.setTimeout(() => {
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(sc.text);
+          utterance.lang = "es-MX";
+          utterance.rate = 1;
+          window.speechSynthesis.speak(utterance);
+        }
+      }, delay);
+
+      // Después del delay: publicar el overlay a los viewers
+      window.setTimeout(() => {
+        pushActiveSuperToViewers(post.id, sc).catch(() => {});
+      }, delay);
+
+      // Creador: ocultar overlay después de displaySeconds
+      window.setTimeout(() => {
         setActiveSuperOverlay(null);
         setPlayingId(null);
-        clearActiveSuper(post.id).catch(() => {});
       }, sc.displaySeconds * 1000);
+
+      // Viewers: limpiar liveData.activeSuper después de delay + displaySeconds
+      window.setTimeout(() => {
+        clearActiveSuper(post.id).catch(() => {});
+      }, delay + sc.displaySeconds * 1000);
     }
 
     return (
-      <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {delayControl}
+        <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
         <style>{`.lcp-sc::-webkit-scrollbar{display:none}`}</style>
         <div className="lcp-sc">
           {visible.map((sc) => (
@@ -461,6 +529,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             </div>
           ))}
         </div>
+        </div>
       </div>
     );
   }
@@ -485,37 +554,6 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         <span style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.85)", letterSpacing: "0.01em" }}>
           Transmisión finalizada
         </span>
-      </div>
-    );
-  }
-
-  function renderSuperOverlay() {
-    if (!activeSuperOverlay) return null;
-    const sc = activeSuperOverlay;
-    return (
-      <div style={{
-        position: "absolute", bottom: 80, left: 12, right: 12, zIndex: 10,
-        background: `linear-gradient(135deg, ${sc.color}22 0%, ${sc.color}44 100%)`,
-        border: `2px solid ${sc.color}`,
-        borderRadius: 14, padding: "12px 14px",
-        fontFamily: FONT, animation: "fadeInUp 0.3s ease",
-      }}>
-        <style>{`@keyframes fadeInUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}`}</style>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: sc.color, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-            {sc.tierName}
-          </span>
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }}>·</span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}>
-            ${sc.amount} MXN
-          </span>
-          <span style={{ marginLeft: "auto", fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-            {sc.username}
-          </span>
-        </div>
-        <p style={{ margin: 0, fontSize: 13, color: "#fff", lineHeight: 1.4, wordBreak: "break-word" }}>
-          {sc.text}
-        </p>
       </div>
     );
   }
@@ -692,7 +730,6 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   <VideoPreview hlsUrl={hlsUrl!} fill />
                 )}
                 {isEnded && renderEndedOverlay()}
-                {showDirectBroadcast && renderSuperOverlay()}
               </div>
             </div>
           )}
@@ -705,7 +742,6 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
             <div style={{ flex: 3, position: "relative", overflow: "hidden", background: "#000", minWidth: 0 }}>
               <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
-              {renderSuperOverlay()}
             </div>
             {/* Columna derecha */}
             <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderLeft: DIV, minWidth: 0 }}>
@@ -784,7 +820,6 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
               )}
               {isEnded && renderEndedOverlay()}
-              {showDirectBroadcast && renderSuperOverlay()}
             </div>
           )}
 
@@ -847,7 +882,6 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             {showDirectBroadcast ? (
               <div style={{ width: "100%", height: "100%", position: "relative" }}>
                 <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
-                {renderSuperOverlay()}
               </div>
             ) : showVideo ? (
               <div style={{ width: "100%", height: "100%", position: "relative" }}>

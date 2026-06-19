@@ -152,7 +152,19 @@ export function deleteSuperComment(postId: string, superCommentId: string): Prom
   );
 }
 
+// Marks the super comment as played (immediate — no viewer impact)
 export async function playSuperComment(
+  postId: string,
+  superComment: SuperComment,
+): Promise<void> {
+  await updateDoc(doc(db, "posts", postId, "superComments", superComment.id), {
+    played: true,
+  });
+}
+
+// Pushes the overlay to viewers via liveData.activeSuper.
+// Call this AFTER the stream delay so viewers see it in sync with the video.
+export async function pushActiveSuperToViewers(
   postId: string,
   superComment: SuperComment,
 ): Promise<void> {
@@ -167,15 +179,10 @@ export async function playSuperComment(
     amount: superComment.amount,
     displaySeconds: superComment.displaySeconds,
   };
-  await Promise.all([
-    updateDoc(doc(db, "posts", postId), {
-      "liveData.activeSuper": activeSuper,
-      updatedAt: serverTimestamp(),
-    }),
-    updateDoc(doc(db, "posts", postId, "superComments", superComment.id), {
-      played: true,
-    }),
-  ]);
+  await updateDoc(doc(db, "posts", postId), {
+    "liveData.activeSuper": activeSuper,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 export function clearActiveSuper(postId: string): Promise<void> {

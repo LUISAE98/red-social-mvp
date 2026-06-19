@@ -10,7 +10,7 @@ import { useAuth } from "@/app/providers";
 import type { Post, PostLiveData } from "@/lib/posts/types";
 import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
-import { joinLivePresence, leaveLivePresence, subscribeToViewerCount } from "@/lib/liveKit/liveViewers";
+import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, updateViewerLatency } from "@/lib/liveKit/liveViewers";
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
@@ -65,8 +65,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [payingAccess, setPayingAccess] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [viewerCount, setViewerCount] = useState(0);
-  const [superOverlayVisible, setSuperOverlayVisible] = useState(false);
-  const lastPlayedSuperIdRef = useRef<string | null>(null);
+  const [retryKey, setRetryKey] = useState(0);
+  const hlsRetryCountRef = useRef(0);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
   useEffect(() => {
@@ -107,19 +107,21 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return subscribeToViewerCount(post.id, setViewerCount);
   }, [open, localLiveData?.status, post.id]);
 
-  // ── Overlay de supercomentario activo ─────────────────────────────────────
+  // ── Reporte de latencia HLS al creador (cada 5 s) ─────────────────────────
   useEffect(() => {
-    const activeSuper = localLiveData?.activeSuper;
-    if (!activeSuper) {
-      setSuperOverlayVisible(false);
-      return;
-    }
-    if (activeSuper.id === lastPlayedSuperIdRef.current) return;
-    lastPlayedSuperIdRef.current = activeSuper.id;
-    setSuperOverlayVisible(true);
-    const t = window.setTimeout(() => setSuperOverlayVisible(false), activeSuper.displaySeconds * 1000);
-    return () => window.clearTimeout(t);
-  }, [localLiveData?.activeSuper?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!open || localLiveData?.status !== "live" || !hasAccess || !user?.uid || !post.id) return;
+    const postId = post.id;
+    const uid = user.uid;
+    const interval = window.setInterval(() => {
+      const hls = hlsRef.current;
+      if (!hls) return;
+      const latency = hls.latency;
+      if (typeof latency === "number" && latency > 0 && latency < 120) {
+        updateViewerLatency(postId, uid, latency).catch(() => {});
+      }
+    }, 5000);
+    return () => window.clearInterval(interval);
+  }, [open, localLiveData?.status, hasAccess, user?.uid, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Verificación de acceso ─────────────────────────────────────────────────
   useEffect(() => {
@@ -191,6 +193,11 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const chatEnabled = !isEnded && !isBanned && liveData?.chatEnabled !== false;
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Resetear contador de reintentos cada vez que se abre el modal
+  useEffect(() => {
+    if (open) hlsRetryCountRef.current = 0;
+  }, [open]);
 
   // Detecta cambio de orientación física para saber si aplicar rotación CSS o no
   useEffect(() => {
@@ -284,7 +291,18 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     } else {
       setError(true);
     }
-  }, [open, shouldRender, hlsUrl, isLive, hasAccess]);
+  }, [open, shouldRender, hlsUrl, isLive, hasAccess, retryKey]);
+
+  // Auto-reintento cuando HLS falla y el live no ha terminado
+  useEffect(() => {
+    if (!error || isEnded || !hlsUrl || !hasAccess || hlsRetryCountRef.current >= 8) return;
+    const t = setTimeout(() => {
+      hlsRetryCountRef.current++;
+      setError(false);
+      setRetryKey((k) => k + 1);
+    }, 5000);
+    return () => clearTimeout(t);
+  }, [error, isEnded, hlsUrl, hasAccess]);
 
   // Congelar video en último frame cuando el live termina o el usuario es baneado
   useEffect(() => {
@@ -793,42 +811,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     );
   }
 
-  // ── Overlay de supercomentario activo ─────────────────────────────────────
-  function renderActiveSuperOverlay() {
-    const sc = localLiveData?.activeSuper;
-    if (!sc || !superOverlayVisible) return null;
-    return (
-      <div style={{
-        position: "absolute",
-        bottom: 90,
-        left: 12,
-        right: 12,
-        zIndex: 20,
-        background: `linear-gradient(135deg, ${sc.color}2e 0%, rgba(0,0,0,0.82) 100%)`,
-        border: `1px solid ${sc.color}55`,
-        borderLeft: `3px solid ${sc.color}`,
-        borderRadius: 12,
-        padding: "12px 14px",
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
-        animation: "lvFadeIn 0.3s ease",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 7 }}>
-          <div style={{ width: 9, height: 9, borderRadius: "50%", background: sc.color, flexShrink: 0 }} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: sc.color, fontFamily: FONT }}>
-            {sc.tierName}
-          </span>
-          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontFamily: FONT }}>
-            {sc.username} · ${sc.amount} MXN
-          </span>
-        </div>
-        <p style={{ fontSize: 14, fontWeight: 500, color: "#fff", fontFamily: FONT, lineHeight: 1.45, margin: 0 }}>
-          {sc.text}
-        </p>
-      </div>
-    );
-  }
-
   // ── Video element ──────────────────────────────────────────────────────────
   function renderVideo(fit: "cover" | "contain" = "contain") {
     return (
@@ -843,13 +825,26 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         {error && (
           <div style={{
             position: "absolute", inset: 0, display: "flex", flexDirection: "column",
-            alignItems: "center", justifyContent: "center", gap: 10,
-            color: "rgba(255,255,255,0.45)", fontFamily: FONT, fontSize: 13, textAlign: "center",
+            alignItems: "center", justifyContent: "center", gap: 12,
+            color: "rgba(255,255,255,0.5)", fontFamily: FONT, fontSize: 13, textAlign: "center",
+            padding: "0 24px",
           }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
-            </svg>
-            {isEnded ? "La transmisión ha finalizado." : "No se pudo cargar el stream."}
+            {isEnded ? (
+              <>
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                </svg>
+                La transmisión ha finalizado.
+              </>
+            ) : (
+              <>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" style={{ animation: "lvSpin 1s linear infinite", flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
+                  <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.7)" />
+                </svg>
+                El stream iniciará en unos segundos…
+              </>
+            )}
           </div>
         )}
         {!error && !playbackId && (
@@ -878,6 +873,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     @keyframes lvPulse { 0%,100%{opacity:1}50%{opacity:0.35} }
     @keyframes lvFadeIn { from{opacity:0}to{opacity:1} }
     @keyframes lvFadeOut { from{opacity:1}to{opacity:0} }
+    @keyframes lvSpin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
   `;
 
   const floatCardShadow = "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)";
@@ -1007,7 +1003,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
-            {renderActiveSuperOverlay()}
+
           </div>
         </div>
       </>,
@@ -1047,7 +1043,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
-            {renderActiveSuperOverlay()}
+
           </div>
           {/* Card de chat */}
           <div
@@ -1103,7 +1099,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
-            {renderActiveSuperOverlay()}
+
           </div>
           {/* Card de chat */}
           <div
@@ -1166,7 +1162,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
-            {renderActiveSuperOverlay()}
+
           </div>
         </div>
       </>,
@@ -1196,7 +1192,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderVideo("cover")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
-            {renderActiveSuperOverlay()}
+
 
             {/* Badge siempre visible — cambia de EN VIVO a Finalizado al terminar */}
             {renderLiveBadge("top-center")}
@@ -1237,7 +1233,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           {renderHeader(false, false)}
           {renderLiveBadge()}
           {renderViewerBadge()}
-          {renderActiveSuperOverlay()}
         </div>
 
         {/* Panel: creator info + chat */}

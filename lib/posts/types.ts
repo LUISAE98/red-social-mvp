@@ -268,6 +268,7 @@ export type PostLiveData = {
   peakViewers?: number | null;
   superCommentConfig?: SuperCommentConfig | null;
   activeSuper?: ActiveSuperComment | null;
+  streamDelay?: number | null;
 };
 
 export type PostVideoData = {
