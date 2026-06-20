@@ -10,10 +10,12 @@ import { useAuth } from "@/app/providers";
 import type { Post, PostLiveData } from "@/lib/posts/types";
 import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
-import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, updateViewerLatency } from "@/lib/liveKit/liveViewers";
+import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer } from "@/lib/liveKit/liveViewers";
+import { subscribeVisibleSuperComments } from "@/lib/liveChat/super-comment-service";
+import type { SuperComment } from "@/lib/liveChat/types";
 
 const FONT =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+  'inherit';
 
 
 type Props = {
@@ -68,6 +70,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [retryKey, setRetryKey] = useState(0);
   const hlsRetryCountRef = useRef(0);
 
+  // ── Supercomentario activo (overlay sobre el video) ────────────────────────
+  const [activeSuperComment, setActiveSuperComment] = useState<SuperComment | null>(null);
+  const seenPlayedIdsRef = useRef<Set<string>>(new Set());
+  const pollIntervalRef = useRef<number | null>(null);
+  const overlayTimerRef = useRef<number | null>(null);
+
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
   useEffect(() => {
     if (!post.id) return;
@@ -89,6 +97,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     const uid = user.uid;
     const postId = post.id;
     joinLivePresence(postId, uid).catch(console.warn);
+    registerUniqueViewer(postId, uid).catch(console.warn);
 
     // Best-effort cleanup cuando el usuario cierra la pestaña o navega fuera.
     // El caso garantizado (modal cerrado normalmente) lo cubre el return cleanup de abajo.
@@ -107,21 +116,82 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return subscribeToViewerCount(post.id, setViewerCount);
   }, [open, localLiveData?.status, post.id]);
 
-  // ── Reporte de latencia HLS al creador (cada 5 s) ─────────────────────────
+  // ── Overlay de supercomentario sincronizado con timestamp ─────────────────
+  // Cuando el creador activa un supercomentario, escribe playedAt en Firestore.
+  // Aquí cada viewer espera a que su reproducción HLS alcance ese timestamp
+  // y entonces muestra el overlay exactamente en el momento correcto del video.
   useEffect(() => {
-    if (!open || localLiveData?.status !== "live" || !hasAccess || !user?.uid || !post.id) return;
-    const postId = post.id;
-    const uid = user.uid;
-    const interval = window.setInterval(() => {
-      const hls = hlsRef.current;
-      if (!hls) return;
-      const latency = hls.latency;
-      if (typeof latency === "number" && latency > 0 && latency < 120) {
-        updateViewerLatency(postId, uid, latency).catch(() => {});
-      }
-    }, 5000);
-    return () => window.clearInterval(interval);
-  }, [open, localLiveData?.status, hasAccess, user?.uid, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!open || !hasAccess || localLiveData?.broadcastMode !== "direct" || !post.id) return;
+
+    seenPlayedIdsRef.current = new Set();
+
+    const unsub = subscribeVisibleSuperComments(post.id, (superComments) => {
+      superComments.forEach((sc) => {
+        if (!sc.playedAt || seenPlayedIdsRef.current.has(sc.id)) return;
+        seenPlayedIdsRef.current.add(sc.id);
+
+        const playedAt = sc.playedAt.toDate();
+
+        // Cancelar cualquier poll anterior
+        if (pollIntervalRef.current !== null) {
+          window.clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+
+        if (hlsRef.current) {
+          // HLS.js: poll cada 500ms hasta que la posición del video alcance playedAt
+          pollIntervalRef.current = window.setInterval(() => {
+            const hls = hlsRef.current;
+            if (!hls) {
+              if (pollIntervalRef.current !== null) window.clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+              return;
+            }
+
+            // Tiempo de video estimado del viewer = ahora - latencia HLS
+            const rawLatency = hls.latency;
+            const latencyMs = Number.isFinite(rawLatency) && rawLatency > 0 ? rawLatency * 1000 : 12000;
+            const viewerVideoTimeMs = Date.now() - latencyMs;
+
+            // Seguridad: si el supercomentario ya expiró con margen, cancelar
+            if (viewerVideoTimeMs - playedAt.getTime() > sc.displaySeconds * 1000 + 5000) {
+              if (pollIntervalRef.current !== null) window.clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+              return;
+            }
+
+            if (viewerVideoTimeMs >= playedAt.getTime()) {
+              if (pollIntervalRef.current !== null) window.clearInterval(pollIntervalRef.current);
+              pollIntervalRef.current = null;
+
+              // Calcular cuánto tiempo del overlay ya transcurrió (el viewer puede tener menos latencia)
+              const elapsedSecs = (viewerVideoTimeMs - playedAt.getTime()) / 1000;
+              const remainingSecs = sc.displaySeconds - elapsedSecs;
+              if (remainingSecs > 0.5) {
+                showSuperOverlay(sc, remainingSecs);
+              }
+            }
+          }, 500);
+        } else {
+          // iOS Safari (HLS nativo, sin HLS.js): fallback de 12 s
+          window.setTimeout(() => showSuperOverlay(sc, sc.displaySeconds), 12000);
+        }
+      });
+    });
+
+    return () => {
+      unsub();
+      if (pollIntervalRef.current !== null) window.clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    };
+  }, [open, hasAccess, localLiveData?.broadcastMode, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup de timers al desmontar
+  useEffect(() => {
+    return () => {
+      if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
+    };
+  }, []);
 
   // ── Verificación de acceso ─────────────────────────────────────────────────
   useEffect(() => {
@@ -185,9 +255,14 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   const liveData = localLiveData;
   const playbackId = liveData?.playbackId;
-  const hlsUrl = playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null;
   const isLive = liveData?.status === "live";
   const isEnded = liveData?.status === "ended";
+  // Cloudflare Stream stores hlsUrl directly; Mux derives it from playbackId.
+  // DVR is enabled for CF lives by appending ?dvrEnabled=true while the stream is active.
+  const baseHlsUrl = liveData?.hlsUrl ?? (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null);
+  const hlsUrl = baseHlsUrl && liveData?.streamProvider === "cloudflare" && isLive
+    ? `${baseHlsUrl}?dvrEnabled=true`
+    : baseHlsUrl;
   const isMuted = !!(user?.uid && liveData?.mutedUsers?.includes(user.uid));
   const isBanned = !!(user?.uid && liveData?.bannedUsers?.includes(user.uid));
   const chatEnabled = !isEnded && !isBanned && liveData?.chatEnabled !== false;
@@ -507,6 +582,52 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   // Mientras se verifica el acceso a live de pago, no mostrar el player
   if (isPaidLive && !accessChecked) return null;
+
+  // ── Supercomentario overlay ─────────────────────────────────────────────────
+  function showSuperOverlay(sc: SuperComment, durationSeconds: number) {
+    setActiveSuperComment(sc);
+    if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
+    overlayTimerRef.current = window.setTimeout(() => {
+      setActiveSuperComment(null);
+      overlayTimerRef.current = null;
+    }, durationSeconds * 1000);
+  }
+
+  function renderSuperOverlay() {
+    if (!activeSuperComment) return null;
+    const sc = activeSuperComment;
+    return (
+      <div style={{
+        position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 6,
+        background: "rgba(5,5,5,0.88)",
+        borderTop: `3px solid ${sc.color}`,
+        padding: "10px 14px 12px",
+        animation: "lvFadeIn 0.3s ease",
+      }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <div style={{ width: 4, alignSelf: "stretch", background: sc.color, borderRadius: 2, flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap",
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: sc.color, fontFamily: FONT }}>
+                {sc.tierName}
+              </span>
+              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: FONT }}>
+                · ${sc.amount} MXN · {sc.username}
+              </span>
+            </div>
+            <span style={{
+              fontSize: 15, fontWeight: 500, color: "#fff",
+              lineHeight: 1.4, display: "block", wordBreak: "break-word", fontFamily: FONT,
+            }}>
+              {sc.text}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ── Header — siempre visible: título izquierda (solo desktop), controles derecha ──
   function renderHeader(safeTop = false, showTitle = true) {
@@ -847,7 +968,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             )}
           </div>
         )}
-        {!error && !playbackId && (
+        {!error && !hlsUrl && (
           <div style={{
             position: "absolute", inset: 0, display: "flex", alignItems: "center",
             justifyContent: "center", color: "rgba(255,255,255,0.35)", fontFamily: FONT,
@@ -1000,6 +1121,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderVideo("contain")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
+            {renderSuperOverlay()}
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
@@ -1040,6 +1162,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderVideo("cover")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
+            {renderSuperOverlay()}
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
@@ -1096,6 +1219,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderVideo("contain")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
+            {renderSuperOverlay()}
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
@@ -1159,6 +1283,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderVideo("cover")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
+            {renderSuperOverlay()}
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
@@ -1192,7 +1317,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderVideo("cover")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
-
+            {renderSuperOverlay()}
 
             {/* Badge siempre visible — cambia de EN VIVO a Finalizado al terminar */}
             {renderLiveBadge("top-center")}
@@ -1230,6 +1355,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           {renderVideo("cover")}
           {renderEndedOverlay()}
           {renderBannedOverlay()}
+          {renderSuperOverlay()}
           {renderHeader(false, false)}
           {renderLiveBadge()}
           {renderViewerBadge()}

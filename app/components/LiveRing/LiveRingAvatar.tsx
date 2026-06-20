@@ -17,7 +17,7 @@ const LiveViewerModal = dynamic(
 const LIVE_RED = "#ef4444";
 const GAP_COLOR = "rgb(10,10,14)";
 const FONT =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+  'inherit';
 
 type Props = {
   entityId: string;
@@ -87,8 +87,8 @@ export default function LiveRingAvatar({
     return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
   })();
 
-  const badgeSize = Math.max(9, Math.round(size * 0.22));
-  const badgePad = `${Math.round(badgeSize * 0.22)}px ${Math.round(badgeSize * 0.55)}px`;
+  const badgeSize = Math.max(7, Math.round(size * 0.13));
+  const badgePad = `1px ${Math.max(3, Math.round(badgeSize * 0.5))}px`;
 
   return (
     <>
@@ -179,28 +179,27 @@ export default function LiveRingAvatar({
           </div>
         </button>
 
-        {/* Badge LIVE */}
+        {/* Badge LIVE — etiqueta con esquinas redondeadas, dentro del anillo */}
         <div
           onClick={handleLiveClick}
           style={{
             position: "absolute",
-            bottom: 2,
+            bottom: Math.max(2, Math.round(size * 0.05)),
             left: "50%",
             transform: "translateX(-50%)",
             background: LIVE_RED,
             color: "#fff",
             fontSize: badgeSize,
             fontWeight: 700,
-            letterSpacing: "0.07em",
+            letterSpacing: "0.06em",
             padding: badgePad,
-            borderRadius: 3,
+            borderRadius: Math.max(2, Math.round(badgeSize * 0.35)),
             lineHeight: 1,
             whiteSpace: "nowrap",
             cursor: fetching ? "wait" : "pointer",
             zIndex: 2,
             fontFamily: FONT,
             pointerEvents: "auto",
-            border: `1.5px solid ${GAP_COLOR}`,
           }}
         >
           LIVE

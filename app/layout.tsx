@@ -1,19 +1,17 @@
 import { AuthProvider } from "./providers";
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import RootChrome from "./RootChrome";
 import VibraGlobalBackground from "./components/VibraGlobalBackground";
 import DesktopRefreshSplash from "@/components/DesktopRefreshSplash";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -85,7 +83,7 @@ export default function RootLayout({
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-family: inherit;
   font-size: clamp(34px, 3.2vw, 50px);
   font-weight: 630;
   letter-spacing: -0.045em;
@@ -142,9 +140,7 @@ export default function RootLayout({
         />
       </head>
 
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${plusJakarta.variable} antialiased`}>
         <div id="desktop-refresh-splash">
           <div className="desktop-refresh-aura" />
 
@@ -160,7 +156,7 @@ export default function RootLayout({
 
   <VibraGlobalBackground />
 
-  <RootChrome>{children}</RootChrome>
+  <Suspense fallback={null}><RootChrome>{children}</RootChrome></Suspense>
 </AuthProvider>
       </body>
     </html>

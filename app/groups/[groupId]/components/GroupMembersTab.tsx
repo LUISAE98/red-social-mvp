@@ -265,7 +265,7 @@ export default function GroupMembersTab({
   const menuButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
+    'inherit';
 
   const safeCanMembersViewList = canMembersViewList === true;
   const canUseFilters = isOwner || isModerator;

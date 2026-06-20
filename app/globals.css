@@ -6,10 +6,65 @@
 }
 
 @theme inline {
+  /* ── Tipografía ── */
+  --font-sans: var(--font-jakarta);
+  --font-mono: ui-monospace, "SF Mono", "Fira Code", monospace;
+
+  /* ── Colores base ── */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  /* ── Colores de marca ── */
+  --color-brand:        #a855f7;
+  --color-brand-light:  #c084fc;
+  --color-brand-dim:    rgba(168, 85, 247, 0.15);
+  --color-brand-glow:   rgba(168, 85, 247, 0.35);
+  --color-pink:         #f02fae;
+  --color-pink-dim:     rgba(240, 47, 174, 0.15);
+
+  /* ── Escala de grises ── */
+  --color-surface:      #0f0f0f;
+  --color-surface-2:    #1a1a1a;
+  --color-surface-3:    #252525;
+  --color-border:       rgba(255, 255, 255, 0.08);
+  --color-border-soft:  rgba(255, 255, 255, 0.05);
+  --color-muted:        rgba(255, 255, 255, 0.4);
+  --color-subtle:       rgba(255, 255, 255, 0.2);
+
+  /* ── Colores semánticos ── */
+  --color-success:      #22c55e;
+  --color-success-dim:  rgba(34, 197, 94, 0.15);
+  --color-error:        #ef4444;
+  --color-error-dim:    rgba(239, 68, 68, 0.15);
+  --color-warning:      #f59e0b;
+  --color-warning-dim:  rgba(245, 158, 11, 0.15);
+
+  /* ── Border radius ── */
+  --radius-xs:   4px;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   20px;
+  --radius-2xl:  28px;
+  --radius-full: 9999px;
+
+  /* ── Sombras ── */
+  --shadow-card:  0 2px 16px rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 8px 40px rgba(0, 0, 0, 0.6);
+  --shadow-glow:  0 0 20px rgba(168, 85, 247, 0.3);
+  --shadow-glow-strong: 0 0 40px rgba(168, 85, 247, 0.5);
+
+  /* ── Duraciones de animación ── */
+  --duration-instant: 80ms;
+  --duration-fast:    150ms;
+  --duration-normal:  250ms;
+  --duration-slow:    400ms;
+
+  /* ── Easings ── */
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out:    cubic-bezier(0, 0, 0.2, 1);
+  --ease-in:     cubic-bezier(0.4, 0, 1, 1);
 }
 
 /* MVP dark fijo */

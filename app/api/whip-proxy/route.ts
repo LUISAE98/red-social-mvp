@@ -1,81 +1,89 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAdminAuth, getAdminFirestore } from "@/lib/firebase-admin";
 
-// Mux REST API — WHIP endpoint requires Basic auth (tokenId:tokenSecret)
-const MUX_API_BASE = "https://api.mux.com";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-function muxAuthHeader(): string | null {
-  const id = process.env.MUX_TOKEN_ID;
-  const secret = process.env.MUX_TOKEN_SECRET;
-  if (!id || !secret) return null;
-  return `Basic ${Buffer.from(`${id}:${secret}`).toString("base64")}`;
+async function verifyAndGetUid(req: NextRequest): Promise<string | null> {
+  try {
+    const auth = req.headers.get("Authorization");
+    const token = auth?.startsWith("Bearer ") ? auth.slice(7) : null;
+    if (!token) return null;
+    const decoded = await getAdminAuth().verifyIdToken(token);
+    return decoded.uid;
+  } catch {
+    return null;
+  }
 }
 
-function errorDetails(err: unknown): string {
-  if (!(err instanceof Error)) return String(err);
-  const cause = (err as Error & { cause?: { code?: string; message?: string } }).cause;
-  const causeStr = cause ? ` (cause: ${cause.code ?? cause.message ?? JSON.stringify(cause)})` : "";
-  return `${err.message}${causeStr}`;
-}
-
+// POST — browser sends SDP offer; server reads the private WHIP URL from Firestore
+// and proxies the request to Cloudflare Stream so the stream key is never exposed to the client.
 export async function POST(req: NextRequest) {
-  const liveStreamId = req.nextUrl.searchParams.get("id");
-  if (!liveStreamId) {
-    return NextResponse.json({ error: "Missing liveStreamId" }, { status: 400 });
+  const uid = await verifyAndGetUid(req);
+  if (!uid) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+
+  const postId = req.nextUrl.searchParams.get("postId");
+  if (!postId) return NextResponse.json({ error: "postId requerido" }, { status: 400 });
+
+  const db = getAdminFirestore();
+
+  const postSnap = await db.collection("posts").doc(postId).get();
+  if (!postSnap.exists) return NextResponse.json({ error: "Post no encontrado" }, { status: 404 });
+  if (postSnap.data()?.authorId !== uid) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+
+  const credSnap = await db
+    .collection("posts")
+    .doc(postId)
+    .collection("liveStream")
+    .doc("credentials")
+    .get();
+
+  if (!credSnap.exists) {
+    return NextResponse.json({ error: "Credenciales no encontradas. Configura el live primero." }, { status: 404 });
   }
 
-  const auth = muxAuthHeader();
-  if (!auth) {
-    return NextResponse.json(
-      { error: "MUX_TOKEN_ID / MUX_TOKEN_SECRET no configurados en .env.local" },
-      { status: 500 },
-    );
+  const whipUrl = credSnap.data()?.whipUrl as string | undefined;
+  if (!whipUrl) {
+    return NextResponse.json({ error: "WHIP URL no disponible" }, { status: 500 });
   }
 
   const sdpOffer = await req.text();
-  const whipUrl = `${MUX_API_BASE}/video/v1/live-streams/${liveStreamId}/whip`;
 
-  let muxResp: Response;
+  let cfResp: Response;
   try {
-    muxResp = await fetch(whipUrl, {
+    cfResp = await fetch(whipUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/sdp",
-        "Authorization": auth,
-      },
+      headers: { "Content-Type": "application/sdp" },
       body: sdpOffer,
     });
   } catch (err) {
-    const detail = errorDetails(err);
-    console.error("[whip-proxy] fetch error →", whipUrl, detail);
+    console.error("[whip-proxy] fetch error:", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Error conectando con Cloudflare Stream" }, { status: 502 });
+  }
+
+  const sdpAnswer = await cfResp.text();
+  console.info("[whip-proxy] CF responded", cfResp.status, sdpAnswer.slice(0, 120));
+
+  if (!cfResp.ok) {
     return NextResponse.json(
-      { error: `Error connecting to Mux: ${detail}`, url: whipUrl },
-      { status: 502 },
+      { error: `Cloudflare error ${cfResp.status}`, body: sdpAnswer },
+      { status: cfResp.status >= 400 && cfResp.status < 600 ? cfResp.status : 502 }
     );
   }
 
-  const body = await muxResp.text();
-  console.info("[whip-proxy] Mux responded", muxResp.status, body.slice(0, 200));
-
-  if (!muxResp.ok) {
-    return NextResponse.json(
-      { error: `Mux error ${muxResp.status}`, body },
-      { status: muxResp.status >= 400 && muxResp.status < 600 ? muxResp.status : 502 },
-    );
-  }
-
-  const location = muxResp.headers.get("Location");
+  const location = cfResp.headers.get("Location");
   const headers: Record<string, string> = { "Content-Type": "application/sdp" };
   if (location) headers["X-Whip-Resource"] = location;
 
-  return new NextResponse(body, { status: muxResp.status, headers });
+  return new NextResponse(sdpAnswer, { status: cfResp.status, headers });
 }
 
+// DELETE — closes the WHIP resource URL returned by Cloudflare at session start
 export async function DELETE(req: NextRequest) {
   const resource = req.nextUrl.searchParams.get("r");
-  const auth = muxAuthHeader();
-  if (resource && auth) {
+  if (resource) {
     try {
-      await fetch(resource, { method: "DELETE", headers: { "Authorization": auth } });
+      await fetch(resource, { method: "DELETE" });
     } catch { /* best effort */ }
   }
   return new NextResponse(null, { status: 204 });

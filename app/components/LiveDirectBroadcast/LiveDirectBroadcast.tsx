@@ -1,17 +1,15 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Room,
-  RoomEvent,
-  Track,
-  LocalVideoTrack,
-  LocalAudioTrack,
-} from "livekit-client";
 import { getAuth } from "firebase/auth";
 import type { SuperComment } from "@/lib/liveChat/types";
 
-const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
-const CANVAS_FONT = '-apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif';
+const FONT = "inherit";
+const CANVAS_FONT = "inherit";
+
+const ICE_SERVERS: RTCIceServer[] = [
+  { urls: "stun:stun.cloudflare.com:3478" },
+  { urls: "stun:stun.l.google.com:19302" },
+];
 
 type BroadcastStatus = "idle" | "connecting" | "live" | "error";
 
@@ -28,47 +26,40 @@ export default function LiveDirectBroadcast({
   onBroadcastingChange,
   activeSuperOverlay,
 }: Props) {
-  // Hidden video element — receives raw camera stream for canvas drawing
   const hiddenVideoRef = useRef<HTMLVideoElement>(null);
-  // Canvas — composites camera + overlay; previewed to creator and streamed to Mux
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const roomRef = useRef<Room | null>(null);
-  const videoTrackRef = useRef<LocalVideoTrack | null>(null);
-  const audioTrackRef = useRef<LocalAudioTrack | null>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const whipResourceRef = useRef<string | null>(null);
+  const micTrackRef = useRef<MediaStreamTrack | null>(null);
+  const canvasVideoTrackRef = useRef<MediaStreamTrack | null>(null);
   const cameraStreamRef = useRef<MediaStream | null>(null);
   const canvasStreamRef = useRef<MediaStream | null>(null);
   const rafRef = useRef<number | null>(null);
-  const egressIdRef = useRef<string | null>(null);
 
   const onBroadcastingChangeRef = useRef(onBroadcastingChange);
   useEffect(() => { onBroadcastingChangeRef.current = onBroadcastingChange; }, [onBroadcastingChange]);
 
-  // Sync activeSuperOverlay to a ref so the RAF closure always has the latest value
   const activeSuperOverlayRef = useRef<SuperComment | null>(null);
-  useEffect(() => {
-    activeSuperOverlayRef.current = activeSuperOverlay ?? null;
-  }, [activeSuperOverlay]);
+  useEffect(() => { activeSuperOverlayRef.current = activeSuperOverlay ?? null; }, [activeSuperOverlay]);
 
-  // eslint-disable-next-line @typescript-eslint/no-use-before-define
-  const initCameraRef = useRef<() => Promise<void>>(async () => {});
+  const camOffRef = useRef(false);
+  const intentionalStopRef = useRef(false);
+  const isLiveRef = useRef(false);
+  const isPortraitRef = useRef(false);
+  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
 
   const [status, setStatus] = useState<BroadcastStatus>("idle");
   const [micMuted, setMicMuted] = useState(false);
   const [camOff, setCamOff] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMedia, setHasMedia] = useState(false);
-  const isPortraitRef = useRef(false);
-  const intentionalStopRef = useRef(false);
-  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
-  const isLiveRef = useRef(false);
 
   // ── Canvas compositing loop ────────────────────────────────────────────────
   const startDrawLoop = useCallback(() => {
     const canvas = canvasRef.current;
     const video = hiddenVideoRef.current;
     if (!canvas || !video) return;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -76,19 +67,18 @@ export default function LiveDirectBroadcast({
       const W = canvas.width;
       const H = canvas.height;
 
-      // Draw camera frame (not mirrored — correct orientation for viewers)
-      if (video.readyState >= 2) {
+      if (camOffRef.current) {
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, W, H);
+      } else if (video.readyState >= 2) {
         ctx.drawImage(video, 0, 0, W, H);
       } else {
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, W, H);
       }
 
-      // Draw super comment overlay if active
       const sc = activeSuperOverlayRef.current;
-      if (sc) {
-        drawSuperCommentOverlay(ctx, sc, W, H);
-      }
+      if (sc) drawSuperCommentOverlay(ctx, sc, W, H);
 
       rafRef.current = requestAnimationFrame(draw);
     };
@@ -107,7 +97,6 @@ export default function LiveDirectBroadcast({
   const initCamera = useCallback(async () => {
     setError(null);
     try {
-      // Request 4K (3840×2160) and let the browser/device fall back gracefully
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: { ideal: 3840 },
@@ -122,10 +111,9 @@ export default function LiveDirectBroadcast({
       const video = hiddenVideoRef.current;
       if (video) {
         video.srcObject = stream;
-        await video.play().catch(() => {}); // autoplay policy: may need user gesture
+        await video.play().catch(() => {});
       }
 
-      // Size canvas to actual camera resolution
       const vTrack = stream.getVideoTracks()[0];
       const settings = vTrack.getSettings();
       const W = settings.width ?? 1920;
@@ -137,21 +125,12 @@ export default function LiveDirectBroadcast({
         canvas.height = H;
       }
 
-      // Capture canvas as MediaStream → will be published to LiveKit/Mux
       const canvasStream = canvas!.captureStream(30);
       canvasStreamRef.current = canvasStream;
+      canvasVideoTrackRef.current = canvasStream.getVideoTracks()[0];
 
-      const canvasVideoTrack = canvasStream.getVideoTracks()[0];
-      // userProvidedTrack: true — LiveKit must not try to restart/replace this track
-      videoTrackRef.current = new LocalVideoTrack(canvasVideoTrack, undefined, true);
-
-      // ── Audio: micrófono directo → LocalAudioTrack
-      const micStream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: false,
-      });
-      const micTrack = micStream.getAudioTracks()[0];
-      audioTrackRef.current = new LocalAudioTrack(micTrack, undefined, true);
+      const micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      micTrackRef.current = micStream.getAudioTracks()[0];
 
       startDrawLoop();
 
@@ -165,16 +144,12 @@ export default function LiveDirectBroadcast({
     }
   }, [onOrientationChange, startDrawLoop]);
 
-  useEffect(() => { initCameraRef.current = initCamera; }, [initCamera]);
-
-  const releaseCameraTracks = useCallback(() => {
+  const releaseTracks = useCallback(() => {
     stopDrawLoop();
-
-    // Stop canvas stream tracks
     canvasStreamRef.current?.getTracks().forEach((t) => t.stop());
     canvasStreamRef.current = null;
+    canvasVideoTrackRef.current = null;
 
-    // Stop camera stream tracks and clear video srcObject
     const video = hiddenVideoRef.current;
     if (video?.srcObject) {
       (video.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
@@ -183,10 +158,8 @@ export default function LiveDirectBroadcast({
     cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
     cameraStreamRef.current = null;
 
-    videoTrackRef.current?.stop();
-    audioTrackRef.current?.stop();
-    videoTrackRef.current = null;
-    audioTrackRef.current = null;
+    micTrackRef.current?.stop();
+    micTrackRef.current = null;
     setHasMedia(false);
   }, [stopDrawLoop]);
 
@@ -201,18 +174,15 @@ export default function LiveDirectBroadcast({
       }
       cameraStreamRef.current?.getTracks().forEach((t) => t.stop());
       canvasStreamRef.current?.getTracks().forEach((t) => t.stop());
-      videoTrackRef.current?.stop();
-      audioTrackRef.current?.stop();
-      // Al desmontar: si el egress sigue activo, pararlo explícitamente antes de
-      // desconectar la sala para que Mux no quede en estado indefinido.
-      if (egressIdRef.current) {
+      micTrackRef.current?.stop();
+      // Best-effort stop if unmounted while live
+      if (pcRef.current) {
         intentionalStopRef.current = true;
-        stopEgress(egressIdRef.current);
-        egressIdRef.current = null;
+        stopBroadcastCleanup();
       }
-      roomRef.current?.disconnect();
     };
-  }, [initCamera, stopDrawLoop]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const updateOrientation = () => {
@@ -225,15 +195,46 @@ export default function LiveDirectBroadcast({
     return () => window.removeEventListener("resize", updateOrientation);
   }, [onOrientationChange]);
 
+  // ── WHIP helpers ───────────────────────────────────────────────────────────
+  async function waitForIceGathering(pc: RTCPeerConnection, timeoutMs = 5000): Promise<void> {
+    if (pc.iceGatheringState === "complete") return;
+    return new Promise((resolve) => {
+      const timer = setTimeout(resolve, timeoutMs);
+      const handler = () => {
+        if (pc.iceGatheringState === "complete") {
+          clearTimeout(timer);
+          pc.removeEventListener("icegatheringstatechange", handler);
+          resolve();
+        }
+      };
+      pc.addEventListener("icegatheringstatechange", handler);
+    });
+  }
+
+  async function stopBroadcastCleanup() {
+    const pc = pcRef.current;
+    pcRef.current = null;
+
+    if (whipResourceRef.current) {
+      const resource = encodeURIComponent(whipResourceRef.current);
+      fetch(`/api/whip-proxy?r=${resource}`, { method: "DELETE" }).catch(() => {});
+      whipResourceRef.current = null;
+    }
+
+    if (pc) {
+      try { pc.close(); } catch { /* best effort */ }
+    }
+  }
+
   // ── Broadcast control ──────────────────────────────────────────────────────
   const startBroadcast = useCallback(async () => {
     setStatus("connecting");
     setError(null);
     intentionalStopRef.current = false;
 
-    if (!videoTrackRef.current || !audioTrackRef.current) {
+    if (!canvasVideoTrackRef.current || !micTrackRef.current) {
       await initCamera();
-      if (!videoTrackRef.current || !audioTrackRef.current) {
+      if (!canvasVideoTrackRef.current || !micTrackRef.current) {
         setStatus("error");
         return;
       }
@@ -249,63 +250,74 @@ export default function LiveDirectBroadcast({
       if (!currentUser) throw new Error("Debes iniciar sesión para transmitir.");
       const idToken = await currentUser.getIdToken();
 
-      const resp = await fetch("/api/livekit-broadcast", {
+      // Notify server to set activeLivePostId immediately (live ring appears)
+      const startResp = await fetch("/api/cf-broadcast", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`,
-        },
-        body: JSON.stringify({ postId, isPortrait: isPortraitRef.current }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${idToken}` },
+        body: JSON.stringify({ postId }),
       });
-
-      if (!resp.ok) {
-        const data = await resp.json().catch(() => ({}));
-        throw new Error(data?.error ?? `Error ${resp.status} al iniciar transmisión`);
+      if (!startResp.ok) {
+        const d = await startResp.json().catch(() => ({}));
+        throw new Error(d?.error ?? `Error ${startResp.status} al iniciar transmisión`);
       }
 
-      const { token, egressId, livekitUrl } = await resp.json();
-      egressIdRef.current = egressId;
+      // Build RTCPeerConnection
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      pcRef.current = pc;
 
-      const room = new Room({
-        adaptiveStream: false,
-        dynacast: true,
-        disconnectOnPageLeave: false,
-      });
-      roomRef.current = room;
+      const videoTrack = canvasVideoTrackRef.current!;
+      const audioTrack = micTrackRef.current!;
 
-      room.on(RoomEvent.Reconnecting, () => setStatus("connecting"));
-      room.on(RoomEvent.Reconnected, () => setStatus("live"));
+      const videoStream = new MediaStream([videoTrack]);
+      const audioStream = new MediaStream([audioTrack]);
+      pc.addTrack(videoTrack, videoStream);
+      pc.addTrack(audioTrack, audioStream);
 
-      room.on(RoomEvent.Disconnected, () => {
-        const wasIntentional = intentionalStopRef.current;
-        intentionalStopRef.current = false;
-        onBroadcastingChangeRef.current?.(false);
-        isLiveRef.current = false;
-        wakeLockRef.current?.release().catch(() => {});
-        wakeLockRef.current = null;
-        try { (screen.orientation as unknown as { unlock?: () => void }).unlock?.(); } catch { /* not supported */ }
-
-        if (wasIntentional) {
-          setStatus("idle");
-        } else {
-          // No detener el egress — el stream de Mux sigue vivo para los espectadores.
-          // El creador puede reconectarse y retomar la transmisión.
-          releaseCameraTracks();
-          setStatus("error");
-          setError("Conexión interrumpida. Puedes reconectar para continuar el live.");
-          initCameraRef.current();
+      pc.addEventListener("iceconnectionstatechange", () => {
+        const state = pc.iceConnectionState;
+        if (state === "failed" || state === "disconnected" || state === "closed") {
+          if (!intentionalStopRef.current) {
+            onBroadcastingChangeRef.current?.(false);
+            isLiveRef.current = false;
+            wakeLockRef.current?.release().catch(() => {});
+            wakeLockRef.current = null;
+            releaseTracks();
+            setStatus("error");
+            setError("Conexión interrumpida. Puedes reconectar para continuar el live.");
+            initCamera();
+          }
         }
       });
 
-      await room.connect(livekitUrl, token, { autoSubscribe: false });
+      const offer = await pc.createOffer({
+        offerToReceiveAudio: false,
+        offerToReceiveVideo: false,
+      });
+      await pc.setLocalDescription(offer);
+      await waitForIceGathering(pc);
 
-      await room.localParticipant.publishTrack(videoTrackRef.current, {
-        source: Track.Source.Camera,
-        simulcast: false,
+      const sdp = pc.localDescription?.sdp;
+      if (!sdp) throw new Error("No se pudo generar la oferta SDP.");
+
+      const proxyResp = await fetch(`/api/whip-proxy?postId=${encodeURIComponent(postId)}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/sdp",
+          Authorization: `Bearer ${idToken}`,
+        },
+        body: sdp,
       });
-      await room.localParticipant.publishTrack(audioTrackRef.current, {
-        source: Track.Source.Microphone,
-      });
+
+      if (!proxyResp.ok) {
+        const d = await proxyResp.json().catch(() => ({}));
+        throw new Error(d?.error ?? `Error ${proxyResp.status} al conectar con Cloudflare`);
+      }
+
+      const sdpAnswer = await proxyResp.text();
+      const whipResource = proxyResp.headers.get("X-Whip-Resource");
+      if (whipResource) whipResourceRef.current = whipResource;
+
+      await pc.setRemoteDescription({ type: "answer", sdp: sdpAnswer });
 
       setStatus("live");
       isLiveRef.current = true;
@@ -315,7 +327,7 @@ export default function LiveDirectBroadcast({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           wakeLockRef.current = await (navigator as any).wakeLock.request("screen");
         }
-      } catch { /* Wake Lock not supported — non-critical */ }
+      } catch { /* non-critical */ }
 
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -326,24 +338,10 @@ export default function LiveDirectBroadcast({
       setError(msg);
       setStatus("error");
       onBroadcastingChange?.(false);
-      if (egressIdRef.current) {
-        stopEgress(egressIdRef.current);
-        egressIdRef.current = null;
-      }
+      await stopBroadcastCleanup();
     }
-  }, [postId, onBroadcastingChange, initCamera, releaseCameraTracks, onOrientationChange]);
-
-  const stopEgress = async (egressId: string) => {
-    try {
-      const currentUser = getAuth().currentUser;
-      if (!currentUser) return;
-      const idToken = await currentUser.getIdToken();
-      await fetch(
-        `/api/livekit-broadcast?egressId=${encodeURIComponent(egressId)}&postId=${encodeURIComponent(postId)}`,
-        { method: "DELETE", headers: { Authorization: `Bearer ${idToken}` } },
-      );
-    } catch { /* best effort */ }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postId, onBroadcastingChange, initCamera, releaseTracks, onOrientationChange]);
 
   const stopBroadcast = useCallback(async () => {
     intentionalStopRef.current = true;
@@ -353,37 +351,37 @@ export default function LiveDirectBroadcast({
     wakeLockRef.current = null;
     try { screen.orientation.unlock(); } catch { /* not supported on iOS */ }
 
-    if (egressIdRef.current) {
-      await stopEgress(egressIdRef.current);
-      egressIdRef.current = null;
-    }
+    // Notify server to mark live as ended and clear live rings
+    try {
+      const currentUser = getAuth().currentUser;
+      if (currentUser) {
+        const idToken = await currentUser.getIdToken();
+        await fetch(`/api/cf-broadcast?postId=${encodeURIComponent(postId)}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${idToken}` },
+        });
+      }
+    } catch { /* best effort */ }
 
-    const room = roomRef.current;
-    roomRef.current = null;
-    if (room) {
-      try { await room.disconnect(); } catch { /* best effort */ }
-    }
-
-    releaseCameraTracks();
+    await stopBroadcastCleanup();
+    releaseTracks();
     setStatus("idle");
     onBroadcastingChange?.(false);
-  }, [onBroadcastingChange, releaseCameraTracks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postId, onBroadcastingChange, releaseTracks]);
 
   const toggleMic = useCallback(() => {
-    const track = audioTrackRef.current;
+    const track = micTrackRef.current;
     if (!track) return;
-    if (micMuted) track.unmute(); else track.mute();
-    setMicMuted((p) => !p);
-    const pub = roomRef.current?.localParticipant.getTrackPublication(Track.Source.Microphone);
-    if (pub) { micMuted ? pub.unmute() : pub.mute(); }
+    const newMuted = !micMuted;
+    track.enabled = !newMuted;
+    setMicMuted(newMuted);
   }, [micMuted]);
 
   const toggleCam = useCallback(() => {
     setCamOff((prev) => {
       const next = !prev;
-      // Mute/unmute at the published track level — canvas keeps drawing locally
-      const pub = roomRef.current?.localParticipant.getTrackPublication(Track.Source.Camera);
-      if (pub) { next ? pub.mute() : pub.unmute(); }
+      camOffRef.current = next;
       return next;
     });
   }, []);
@@ -401,23 +399,13 @@ export default function LiveDirectBroadcast({
       borderRadius: 12, overflow: "hidden", position: "relative",
       display: "flex", flexDirection: "column", fontFamily: FONT,
     }}>
-      {/* Hidden video — camera source for canvas */}
-      <video
-        ref={hiddenVideoRef}
-        autoPlay
-        muted
-        playsInline
-        style={{ display: "none" }}
-      />
+      <video ref={hiddenVideoRef} autoPlay muted playsInline style={{ display: "none" }} />
 
-      {/* Canvas preview — mirrored for creator (CSS only; stream is not mirrored) */}
       <div style={{ flex: 1, position: "relative", background: "#111", minHeight: 0 }}>
         <canvas
           ref={canvasRef}
           style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
+            width: "100%", height: "100%", objectFit: "cover",
             transform: "scaleX(-1)",
             display: hasMedia ? "block" : "none",
           }}
@@ -432,7 +420,6 @@ export default function LiveDirectBroadcast({
           </div>
         )}
 
-        {/* Status badge */}
         <div style={{
           position: "absolute", top: 12, left: 12,
           background: "rgba(0,0,0,0.7)",
@@ -455,14 +442,12 @@ export default function LiveDirectBroadcast({
         </div>
       )}
 
-      {/* Controls */}
       <div style={{
         display: "flex", alignItems: "center", gap: 8,
         padding: "10px 12px",
         background: "rgba(0,0,0,0.85)",
         borderTop: "1px solid rgba(255,255,255,0.08)",
       }}>
-        {/* Mic */}
         <ControlBtn onClick={toggleMic} disabled={!hasMedia} active={micMuted} title={micMuted ? "Activar micrófono" : "Silenciar micrófono"}>
           {micMuted ? (
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -480,7 +465,6 @@ export default function LiveDirectBroadcast({
           )}
         </ControlBtn>
 
-        {/* Cam */}
         <ControlBtn onClick={toggleCam} disabled={!hasMedia} active={camOff} title={camOff ? "Activar cámara" : "Apagar cámara"}>
           {camOff ? (
             <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -540,17 +524,14 @@ function drawSuperCommentOverlay(
 
   ctx.save();
 
-  // Dark background panel
   ctx.globalAlpha = 0.88;
   ctx.fillStyle = "#050505";
   ctx.fillRect(0, y, W, panelH);
   ctx.globalAlpha = 1;
 
-  // Left color bar
   ctx.fillStyle = sc.color;
   ctx.fillRect(0, y, barW, panelH);
 
-  // Subtle top border line in tier color
   ctx.globalAlpha = 0.5;
   ctx.fillStyle = sc.color;
   ctx.fillRect(0, y, W, Math.round(2 * scale));
@@ -559,22 +540,18 @@ function drawSuperCommentOverlay(
   const rowY1 = y + Math.round(20 * scale);
   const rowY2 = y + Math.round(62 * scale);
 
-  // Row 1: tier badge + amount + username
   const badgeFontSize = Math.round(18 * scale);
   ctx.font = `700 ${badgeFontSize}px ${CANVAS_FONT}`;
   ctx.textBaseline = "top";
 
-  // Tier name (colored)
   ctx.fillStyle = sc.color;
   ctx.fillText(sc.tierName, padX + barW, rowY1);
   const tierW = ctx.measureText(sc.tierName).width;
 
-  // Separator + amount + username (muted)
   ctx.fillStyle = "rgba(255,255,255,0.55)";
   const meta = `  ·  $${sc.amount} MXN  ·  ${sc.username}`;
   ctx.fillText(meta, padX + barW + tierW, rowY1);
 
-  // Row 2: comment text (white, larger)
   const textFontSize = Math.round(30 * scale);
   ctx.font = `500 ${textFontSize}px ${CANVAS_FONT}`;
   ctx.fillStyle = "#ffffff";
@@ -601,7 +578,6 @@ function wrapText(
     const testLine = line + words[i] + " ";
     if (ctx.measureText(testLine).width > maxWidth && line !== "") {
       if (linesDrawn >= maxLines - 1) {
-        // Last allowed line — truncate with ellipsis
         let truncated = line.trimEnd();
         while (truncated.length > 0 && ctx.measureText(truncated + "…").width > maxWidth) {
           truncated = truncated.slice(0, -1);

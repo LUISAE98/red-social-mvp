@@ -94,7 +94,7 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, su
             fontWeight: 500,
             lineHeight: 1,
             letterSpacing: "-0.01em",
-            fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
+            fontFamily: 'inherit',
           }}
         >
           {label}
@@ -107,7 +107,7 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, su
               fontWeight: 400,
               lineHeight: 1,
               letterSpacing: "-0.01em",
-              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
+              fontFamily: 'inherit',
             }}
           >
             {sublabel}

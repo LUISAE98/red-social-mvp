@@ -44,7 +44,7 @@ type Props = {
 };
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+  'inherit';
 
 const cardStyles = {
   position: "relative" as const,

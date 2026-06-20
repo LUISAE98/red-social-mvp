@@ -551,7 +551,7 @@ export default function SessionsPage() {
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+  'inherit';
 
 const pageWrapper: CSSProperties = {
   maxWidth: 640,

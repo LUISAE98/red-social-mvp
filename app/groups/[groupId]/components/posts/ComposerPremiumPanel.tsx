@@ -63,7 +63,7 @@ const freeForLabels: Record<
 };
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+  'inherit';
 
 function buildReadonlyConfigText(
   accessMode: PostPremiumAccessMode,

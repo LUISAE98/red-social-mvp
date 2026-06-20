@@ -38,6 +38,27 @@ export function subscribeToViewerCount(
   );
 }
 
+/**
+ * Registers the viewer in the permanent unique-viewer log (idempotent).
+ * Unlike liveViewers, this subcollection is never deleted — it's the historical record.
+ */
+export function registerUniqueViewer(postId: string, uid: string): Promise<void> {
+  return setDoc(doc(db, "posts", postId, "liveUniqueViewers", uid), { uid });
+}
+
+/** Subscribes to the total unique viewer count (ever connected) for a live post. */
+export function subscribeToUniqueViewerCount(
+  postId: string,
+  onCount: (count: number) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    collection(db, "posts", postId, "liveUniqueViewers"),
+    (snap) => onCount(snap.size),
+    (err) => onError?.(err),
+  );
+}
+
 /** Updates the recorded peak concurrent viewer count for the live. */
 export function updatePeakViewers(postId: string, peak: number): Promise<void> {
   return updateDoc(doc(db, "posts", postId), {

@@ -25,13 +25,7 @@ export default function WalletSectionShell({
         .page {
           width: 100%;
           color: #ffffff;
-          font-family:
-            -apple-system,
-            BlinkMacSystemFont,
-            "SF Pro Text",
-            "SF Pro Display",
-            system-ui,
-            sans-serif;
+          font-family: inherit;
         }
 
         .header {

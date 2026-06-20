@@ -249,11 +249,15 @@ export type PostLiveData = {
   scheduledStartAt?: Timestamp | null;
   startedAt?: Timestamp | null;
   endedAt?: Timestamp | null;
-  streamProvider?: "mux" | "custom_hls" | null;
+  streamProvider?: "mux" | "cloudflare" | "custom_hls" | null;
   liveStreamId?: string | null;
   playbackId?: string | null;
   streamKey?: string | null;
   ingestUrl?: string | null;
+  // Cloudflare Stream (live directo)
+  liveInputId?: string | null;
+  hlsUrl?: string | null;
+  vodStatus?: "processing" | "ready" | null;
   createdFrom?: "profile" | "group" | null;
   visibilityMode?: LiveVisibilityMode | null;
   allowLoggedOutViewers?: boolean | null;

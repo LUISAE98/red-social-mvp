@@ -213,7 +213,7 @@ const searchParams = useSearchParams();
 const { user, loading: authLoading } = useAuth();
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+    'inherit';
 
   const ui = {
     cardRadius: 14,
@@ -236,27 +236,33 @@ const { user, loading: authLoading } = useAuth();
     } as React.CSSProperties,
     buttonPrimary: {
       padding: ui.buttonPadding,
-      borderRadius: ui.buttonRadius,
-      border: "1px solid rgba(255,255,255,0.24)",
-      background: "#fff",
-      color: "#000",
-      cursor: "pointer",
-      fontWeight: 600,
-      fontSize: ui.fontBody,
-      fontFamily: fontStack,
-      lineHeight: 1.2,
-    } as React.CSSProperties,
-    buttonSecondary: {
-      padding: ui.buttonPadding,
-      borderRadius: ui.buttonRadius,
-      border: "1px solid rgba(255,255,255,0.18)",
-      background: "rgba(255,255,255,0.07)",
+      borderRadius: 10,
+      border: "none",
+      background: "linear-gradient(135deg, #f472b6, #a855f7)",
       color: "#fff",
       cursor: "pointer",
       fontWeight: 600,
       fontSize: ui.fontBody,
       fontFamily: fontStack,
+      letterSpacing: "-0.01em",
       lineHeight: 1.2,
+      WebkitTapHighlightColor: "transparent",
+      transition: "opacity 150ms ease",
+    } as React.CSSProperties,
+    buttonSecondary: {
+      padding: ui.buttonPadding,
+      borderRadius: 10,
+      border: "none",
+      background: "rgba(239, 68, 68, 0.10)",
+      color: "#fff",
+      cursor: "pointer",
+      fontWeight: 600,
+      fontSize: ui.fontBody,
+      fontFamily: fontStack,
+      letterSpacing: "-0.01em",
+      lineHeight: 1.2,
+      WebkitTapHighlightColor: "transparent",
+      transition: "opacity 150ms ease",
     } as React.CSSProperties,
     label: {
       fontSize: ui.fontMicro,
@@ -1517,15 +1523,18 @@ const onCropComplete = useCallback(
               style={{
                 width: "100%",
                 padding: "10px 12px",
-                borderRadius: 9,
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "#fff",
-                color: "#000",
-                fontSize: 13,
+                borderRadius: 10,
+                border: "none",
+                background: "linear-gradient(135deg, #f472b6, #a855f7)",
+                color: "#fff",
+                fontSize: 14,
                 fontWeight: 600,
+                letterSpacing: "-0.01em",
                 cursor: loading ? "not-allowed" : "pointer",
                 opacity: loading ? 0.72 : 1,
                 fontFamily: fontStack,
+                WebkitTapHighlightColor: "transparent",
+                transition: "opacity 150ms ease",
               }}
             >
               {loading ? "Creando..." : "Crear comunidad"}
@@ -1656,8 +1665,7 @@ const onCropComplete = useCallback(
                     disabled={croppingBusy}
                     style={{
                       ...styles.buttonPrimary,
-                      background: croppingBusy ? "rgba(255,255,255,0.15)" : "#ffffff",
-                      color: croppingBusy ? "#fff" : "#000",
+                      opacity: croppingBusy ? 0.65 : 1,
                       cursor: croppingBusy ? "not-allowed" : "pointer",
                     }}
                   >

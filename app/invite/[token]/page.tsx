@@ -57,7 +57,7 @@ const { user } = useAuth();
   const [consuming, setConsuming] = useState(false);
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+    'inherit';
 
   const ui = {
     pageMaxWidth: 1080,

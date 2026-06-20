@@ -237,7 +237,7 @@ export default function DonationEntryPoint({
     boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
     overflow: "auto",
     fontFamily:
-      '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+      'inherit',
   };
 
   const sectionStyle: React.CSSProperties = {
@@ -261,20 +261,29 @@ export default function DonationEntryPoint({
   const buttonBaseStyle: React.CSSProperties = {
     minHeight: 42,
     padding: "10px 14px",
-    borderRadius: 12,
+    borderRadius: 10,
     border: "1px solid rgba(255,255,255,0.18)",
     background: "rgba(255,255,255,0.06)",
     color: "#fff",
-    fontWeight: 700,
-    fontSize: 13,
+    fontWeight: 600,
+    fontSize: 14,
+    letterSpacing: "-0.01em",
     cursor: "pointer",
+    WebkitTapHighlightColor: "transparent",
+    transition: "opacity 150ms ease",
   };
 
   const primaryButtonStyle: React.CSSProperties = {
     ...buttonBaseStyle,
-    background: "#fff",
-    color: "#000",
-    border: "1px solid rgba(255,255,255,0.92)",
+    border: "none",
+    background: "linear-gradient(135deg, #f472b6, #a855f7)",
+    color: "#fff",
+  };
+
+  const cancelButtonStyle: React.CSSProperties = {
+    ...buttonBaseStyle,
+    border: "none",
+    background: "rgba(239, 68, 68, 0.10)",
   };
 
   const fieldStyle: React.CSSProperties = {
@@ -330,7 +339,7 @@ export default function DonationEntryPoint({
             type="button"
             onClick={closePanel}
             disabled={submitting}
-            style={buttonBaseStyle}
+            style={cancelButtonStyle}
           >
             Cerrar
           </button>
@@ -445,7 +454,7 @@ export default function DonationEntryPoint({
               onClick={closePanel}
               disabled={submitting}
               style={{
-                ...buttonBaseStyle,
+                ...cancelButtonStyle,
                 opacity: submitting ? 0.75 : 1,
                 cursor: submitting ? "not-allowed" : "pointer",
               }}
@@ -486,7 +495,7 @@ export default function DonationEntryPoint({
           cursor: viewerCanDonate ? "pointer" : "default",
           opacity: 1,
           fontFamily:
-            '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+            'inherit',
           ...buttonStyle,
         }}
       >

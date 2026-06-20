@@ -8,7 +8,7 @@ import StoryViewer, { desktopPanelSize } from "./StoryViewer";
 
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const LABELS: Record<StoryType, string> = { saludo: "Saludo", consejo: "Consejo" };
-const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+const FONT = 'inherit';
 const NEXT_SCALE = 0.82;
 const NEXT_GAP = 20;
 

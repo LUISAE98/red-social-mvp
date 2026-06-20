@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Hls from "hls.js";
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+  'inherit';
 
 type Props = {
   playbackId: string;

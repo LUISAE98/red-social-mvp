@@ -385,7 +385,7 @@ function WalletDesktopRail({
   color: #fff;
   text-align: center;
   justify-items: center;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-family: inherit;
 }
 
 .createCommunityCopy strong {
@@ -425,7 +425,7 @@ opacity: 0.85;
   font-size: 14px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  font-family: inherit;
   cursor: pointer;
   box-shadow: 0 7px 18px rgba(168, 85, 255, 0.11);
   filter: saturate(0.84) brightness(0.93);
@@ -690,7 +690,7 @@ const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+    'inherit';
 
 useEffect(() => {
   setMobileSearchOpen(false);

@@ -1972,33 +1972,9 @@ const avatarNode = (
             min-width: 0;
           }
 
-          .group-card::before {
-            content: "";
-            position: absolute;
-            inset: -42%;
-            border-radius: inherit;
-            pointer-events: none;
-            background:
-              radial-gradient(circle at 18% 10%, rgba(168, 85, 255, 0.075), transparent 34%),
-              radial-gradient(circle at 86% 18%, rgba(126, 34, 206, 0.055), transparent 36%),
-              radial-gradient(circle at 22% 92%, rgba(168, 85, 255, 0.045), transparent 40%);
-            filter: blur(26px);
-            opacity: 0.42;
-            z-index: 0;
-          }
-
+          .group-card::before,
           .group-card::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            pointer-events: none;
-            border-radius: inherit;
-            box-shadow:
-              inset 0 0 24px rgba(79, 70, 255, 0.07),
-              inset 0 0 20px rgba(168, 85, 255, 0.065),
-              inset 0 1px 0 rgba(255, 255, 255, 0.05),
-              0 0 18px rgba(168, 85, 255, 0.055);
-            z-index: 1;
+            display: none;
           }
 
           .group-card > * {

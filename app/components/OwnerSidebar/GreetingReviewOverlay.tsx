@@ -12,7 +12,7 @@ import type { StoryDoc } from "@/lib/stories/types";
 import type { GreetingRequestDoc, UserMini } from "./OwnerSidebar";
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+  'inherit';
 
 function getRelativeTime(createdAt?: { toDate: () => Date } | null): string {
   if (!createdAt) return "Hace un momento";
@@ -124,7 +124,7 @@ function drawOverlayOnly(
     ctx.fillStyle = g;
     ctx.fillRect(ax - aSize / 2, ay - aSize / 2, aSize, aSize);
     ctx.fillStyle = "#fff";
-    ctx.font = `700 ${Math.round(aSize * 0.38)}px -apple-system, sans-serif`;
+    ctx.font = `700 ${Math.round(aSize * 0.38)}px "Plus Jakarta Sans", sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(initials.slice(0, 2), ax, ay);
@@ -136,11 +136,11 @@ function drawOverlayOnly(
   const textX = ax + aSize / 2 + gap + ringW;
   ctx.save();
   ctx.fillStyle = "#ffffff";
-  ctx.font = `700 ${nameFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.font = `700 ${nameFs}px "Plus Jakarta Sans", sans-serif`;
   ctx.textBaseline = "alphabetic";
   ctx.fillText(creatorName, textX, ay - Math.round(typeFs * 0.3));
   ctx.fillStyle = "rgba(255,255,255,0.80)";
-  ctx.font = `500 ${typeFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.font = `500 ${typeFs}px "Plus Jakarta Sans", sans-serif`;
   ctx.fillText(serviceType, textX, ay + typeFs + Math.round(typeFs * 0.1));
   ctx.restore();
 
@@ -149,9 +149,9 @@ function drawOverlayOnly(
   const pillPad = Math.round(base * 0.016);
   const pillH   = Math.round(base * 0.050);
   const dotR    = Math.round(base * 0.006);
-  ctx.font = `700 ${nameFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.font = `700 ${nameFs}px "Plus Jakarta Sans", sans-serif`;
   const nameW = ctx.measureText(creatorName).width;
-  ctx.font = `700 ${urlFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.font = `700 ${urlFs}px "Plus Jakarta Sans", sans-serif`;
   const urlW  = ctx.measureText("vibra.com").width;
   const pillW = pillPad + dotR * 2 + Math.round(base * 0.011) + urlW + pillPad;
   const pillX = textX + nameW + Math.round(base * 0.011);
@@ -165,7 +165,7 @@ function drawOverlayOnly(
   ctx.arc(pillX + pillPad + dotR, pillY + pillH / 2, dotR, 0, Math.PI * 2);
   ctx.fill();
   ctx.fillStyle = "#ffffff";
-  ctx.font = `700 ${urlFs}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  ctx.font = `700 ${urlFs}px "Plus Jakarta Sans", sans-serif`;
   ctx.textBaseline = "middle";
   ctx.fillText("vibra.com", pillX + pillPad + dotR * 2 + Math.round(base * 0.011), pillY + pillH / 2);
   ctx.restore();

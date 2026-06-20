@@ -187,6 +187,7 @@ export async function DELETE(req: NextRequest) {
     }
   }
 
+  // 1. Stop egress — severs the LiveKit → Mux RTMP feed
   try {
     const egressClient = new EgressClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
     await egressClient.stopEgress(egressId);
@@ -194,17 +195,36 @@ export async function DELETE(req: NextRequest) {
     console.error("[livekit-broadcast] Stop egress error:", err instanceof Error ? err.message : err);
   }
 
-  // Clear activeLivePostId immediately so the live ring disappears without waiting for Mux idle webhook
+  // 2. Delete the LiveKit room immediately so it closes now instead of after emptyTimeout (600s).
+  // Prevents the egress compositor from billing as a phantom participant while the room drains.
+  if (postId) {
+    try {
+      const roomService = new RoomServiceClient(LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET);
+      await roomService.deleteRoom(`live-${postId}`);
+    } catch (err) {
+      console.error("[livekit-broadcast] Delete room error:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  // 3. Update Firestore: mark live as ended and clear live ring badges.
+  // Direct write avoids the 120s delay from Mux's reconnect_window before live_stream.idle fires.
+  // The muxWebhook handler is a no-op when liveData.status is already "ended".
   if (postId) {
     const db = getAdminFirestore();
+    const now = FieldValue.serverTimestamp();
     const clearUpdates: Promise<unknown>[] = [
       db.collection("users").doc(uid).update({ activeLivePostId: FieldValue.delete() }),
+      db.collection("posts").doc(postId).update({
+        "liveData.status": "ended",
+        "liveData.endedAt": now,
+        updatedAt: now,
+      }),
     ];
     if (stopGroupId) {
       clearUpdates.push(db.collection("groups").doc(stopGroupId).update({ activeLivePostId: FieldValue.delete() }));
     }
     await Promise.all(clearUpdates).catch((err) => {
-      console.error("[livekit-broadcast] Failed to clear activeLivePostId:", err);
+      console.error("[livekit-broadcast] Failed to clear live state:", err);
     });
   }
 

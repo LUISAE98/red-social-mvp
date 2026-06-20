@@ -12,7 +12,7 @@ type Props = {
 type Unit = "minutes" | "hours" | "days";
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+  'inherit';
 
 function friendlyUnitLabel(unit: Unit, value: number) {
   if (unit === "days") return value === 1 ? "día" : "días";

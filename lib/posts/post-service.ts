@@ -4554,7 +4554,7 @@ export async function updatePostCommentReply(params: {
 
   clearCommentRepliesCache(params.postId, params.commentId);
 }
-// ─── Live streams (Mux) ───────────────────────────────────────────────────────
+// ─── Live streams (Mux — OBS/RTMP) ───────────────────────────────────────────
 
 export async function callCreateMuxLiveStream(postId: string): Promise<{
   liveStreamId: string;
@@ -4564,6 +4564,20 @@ export async function callCreateMuxLiveStream(postId: string): Promise<{
     { postId: string },
     { liveStreamId: string; playbackId: string | null }
   >(functions, "createMuxLiveStream");
+  const result = await callable({ postId });
+  return result.data;
+}
+
+// ─── Live streams (Cloudflare Stream — live directo desde browser) ────────────
+
+export async function callCreateCFLiveInput(postId: string): Promise<{
+  liveInputId: string;
+  hlsUrl: string;
+}> {
+  const callable = httpsCallable<
+    { postId: string },
+    { liveInputId: string; hlsUrl: string }
+  >(functions, "createCFLiveInput");
   const result = await callable({ postId });
   return result.data;
 }

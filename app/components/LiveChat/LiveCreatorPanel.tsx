@@ -13,21 +13,20 @@ import {
   unmuteLiveChatUser,
   banLiveChatUser,
   unbanLiveChatUser,
+  subscribeToTotalChatMessages,
 } from "@/lib/liveChat/live-chat-service";
 import {
   subscribeSuperComments,
   playSuperComment,
-  pushActiveSuperToViewers,
   hideSuperComment,
   showSuperComment,
   deleteSuperComment,
-  clearActiveSuper,
 } from "@/lib/liveChat/super-comment-service";
 import { useAuth } from "@/app/providers";
 import LiveDirectBroadcast from "@/app/components/LiveDirectBroadcast/LiveDirectBroadcast";
-import { subscribeToViewerCount, updatePeakViewers, subscribeViewerLatencies } from "@/lib/liveKit/liveViewers";
+import { subscribeToViewerCount, updatePeakViewers, subscribeToUniqueViewerCount } from "@/lib/liveKit/liveViewers";
 
-const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+const FONT = 'inherit';
 const DIV = "1px solid rgba(255,255,255,0.12)";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -73,11 +72,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [peakViewerCount, setPeakViewerCount] = useState(post.liveData?.peakViewers ?? 0);
   const peakViewerCountRef = useRef(post.liveData?.peakViewers ?? 0);
   peakViewerCountRef.current = peakViewerCount;
+  const [uniqueViewerCount, setUniqueViewerCount] = useState(0);
+  const [totalChatMessages, setTotalChatMessages] = useState(0);
   const [superComments, setSuperComments] = useState<SuperComment[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [activeSuperOverlay, setActiveSuperOverlay] = useState<SuperComment | null>(null);
-  const [streamDelayMs, setStreamDelayMs] = useState<number>((post.liveData?.streamDelay ?? 8) * 1000);
-  const [measuredDelayMs, setMeasuredDelayMs] = useState<number | null>(null);
 
   // Freeze the effective layout orientation during a broadcast. The `portrait`
   // prop can change mid-broadcast (e.g. LiveInlinePlayer detects stream orientation)
@@ -133,6 +132,16 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     });
   }, [open, isEnded, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!open || !post.id) return;
+    return subscribeToUniqueViewerCount(post.id, setUniqueViewerCount);
+  }, [open, post.id]);
+
+  useEffect(() => {
+    if (!open || !post.id) return;
+    return subscribeToTotalChatMessages(post.id, setTotalChatMessages);
+  }, [open, post.id]);
+
   // Supercomentarios — solo en modo directo
   useEffect(() => {
     if (!open || !post.id || broadcastMode !== "direct") {
@@ -140,19 +149,6 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       return;
     }
     return subscribeSuperComments(post.id, setSuperComments);
-  }, [open, post.id, broadcastMode]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Latencia medida de espectadores — para pre-llenar el slider de delay
-  useEffect(() => {
-    if (!open || !post.id || broadcastMode !== "direct") return;
-    return subscribeViewerLatencies(post.id, (latencies) => {
-      if (latencies.length === 0) return;
-      const sorted = [...latencies].sort((a, b) => a - b);
-      const median = sorted[Math.floor(sorted.length / 2)];
-      const medianMs = Math.round(median * 1000);
-      setMeasuredDelayMs(medianMs);
-      setStreamDelayMs(medianMs);
-    });
   }, [open, post.id, broadcastMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleChat = useCallback(async () => {
@@ -319,6 +315,61 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             </span>
           </div>
         </div>
+
+        {/* Total espectadores únicos */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 12px", borderRadius: 10,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            background: "rgba(34,197,94,0.12)",
+            display: "grid", placeItems: "center",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
+              {uniqueViewerCount.toLocaleString("es-MX")}
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+              Espectadores únicos
+            </span>
+          </div>
+        </div>
+
+        {/* Total comentarios del chat */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 12px", borderRadius: 10,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            background: "rgba(99,102,241,0.15)",
+            display: "grid", placeItems: "center",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
+              {totalChatMessages.toLocaleString("es-MX")}
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+              Mensajes en el chat
+            </span>
+          </div>
+        </div>
       </div>
     );
   }
@@ -336,52 +387,16 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
     const visible = superComments.filter((sc) => !sc.isDeleted);
 
-    const delayControl = (
-      <div style={{
-        flexShrink: 0, padding: "8px 12px 10px",
-        borderBottom: "1px solid rgba(255,255,255,0.07)",
-        display: "flex", flexDirection: "column", gap: 4,
-      }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.3)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
-            Delay del stream
-          </span>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            {measuredDelayMs !== null && (
-              <span style={{ fontSize: 10, color: "rgba(168,85,247,0.7)", fontWeight: 600 }}>
-                ~{(measuredDelayMs / 1000).toFixed(1)}s medido
-              </span>
-            )}
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", minWidth: 32, textAlign: "right" }}>
-              {(streamDelayMs / 1000).toFixed(1)}s
-            </span>
-          </div>
-        </div>
-        <input
-          type="range"
-          min={0}
-          max={30000}
-          step={500}
-          value={streamDelayMs}
-          onChange={(e) => setStreamDelayMs(Number(e.target.value))}
-          style={{ width: "100%", accentColor: "#a855f7", cursor: "pointer" }}
-        />
-      </div>
-    );
-
     if (visible.length === 0) {
       return (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {delayControl}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="6" width="20" height="12" rx="2" />
-              <path d="M6 10h.01M10 10h8M6 14h.01M10 14h8" />
-            </svg>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.15)", fontFamily: FONT }}>
-              Sin supercomentarios aún
-            </span>
-          </div>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="6" width="20" height="12" rx="2" />
+            <path d="M6 10h.01M10 10h8M6 14h.01M10 14h8" />
+          </svg>
+          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.15)", fontFamily: FONT }}>
+            Sin supercomentarios aún
+          </span>
         </div>
       );
     }
@@ -390,46 +405,31 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       if (playingId) return;
       setPlayingId(sc.id);
 
-      // Canvas empieza a dibujar el overlay inmediatamente — solo el creador lo ve
+      // Canvas dibuja el overlay inmediatamente — queda grabado en el stream de Mux
       setActiveSuperOverlay(sc);
 
-      // Marcar como reproducido inmediatamente (sin impacto en viewers)
+      // TTS inmediato — el creador escucha y reacciona en tiempo real
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(sc.text);
+        utterance.lang = "es-MX";
+        utterance.rate = 1;
+        window.speechSynthesis.speak(utterance);
+      }
+
+      // Registra played + playedAt en Firestore — los viewers sincronizan el overlay
+      // usando playedAt + su propia latencia HLS, sin delay hardcodeado
       playSuperComment(post.id, sc).catch(() => {});
 
-      const delay = streamDelayMs;
-
-      // TTS local después del delay — se alinea con el momento en que los viewers ven el overlay
-      window.setTimeout(() => {
-        if (typeof window !== "undefined" && "speechSynthesis" in window) {
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(sc.text);
-          utterance.lang = "es-MX";
-          utterance.rate = 1;
-          window.speechSynthesis.speak(utterance);
-        }
-      }, delay);
-
-      // Después del delay: publicar el overlay a los viewers
-      window.setTimeout(() => {
-        pushActiveSuperToViewers(post.id, sc).catch(() => {});
-      }, delay);
-
-      // Creador: ocultar overlay después de displaySeconds
+      // Ocultar overlay del canvas del creador al terminar
       window.setTimeout(() => {
         setActiveSuperOverlay(null);
         setPlayingId(null);
       }, sc.displaySeconds * 1000);
-
-      // Viewers: limpiar liveData.activeSuper después de delay + displaySeconds
-      window.setTimeout(() => {
-        clearActiveSuper(post.id).catch(() => {});
-      }, delay + sc.displaySeconds * 1000);
     }
 
     return (
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        {delayControl}
-        <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
+      <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
         <style>{`.lcp-sc::-webkit-scrollbar{display:none}`}</style>
         <div className="lcp-sc">
           {visible.map((sc) => (
@@ -528,7 +528,6 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               </div>
             </div>
           ))}
-        </div>
         </div>
       </div>
     );

@@ -19,7 +19,7 @@ const LABELS: Record<StoryType, string> = {
 const VIBRA_RING = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const VIEW_THRESHOLD_MS = 15_000;
 const FONT =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+  'inherit';
 
 type Props = {
   stories: StoryDoc[];
@@ -826,14 +826,15 @@ export default function StoryViewer({
                   padding: isDesktop ? "8px 10px" : "11px 10px",
                   borderRadius: 10,
                   border: "none",
-                  background: contextOpen ? "#3b82f6" : "#60a5fa",
+                  background: "#3b82f6",
                   color: "#fff",
                   fontSize: isDesktop ? 12 : 14,
                   fontWeight: 600,
                   fontFamily: FONT,
                   cursor: "pointer",
                   letterSpacing: "-0.01em",
-                  transition: "background 0.15s",
+                  transition: "opacity 150ms ease",
+                  WebkitTapHighlightColor: "transparent",
                 }}
               >
                 Contexto
@@ -847,13 +848,15 @@ export default function StoryViewer({
                   padding: isDesktop ? "8px 10px" : "11px 10px",
                   borderRadius: 10,
                   border: "none",
-                  background: "linear-gradient(135deg, #f472b6 0%, #a855f7 100%)",
+                  background: "linear-gradient(135deg, #f472b6, #a855f7)",
                   color: "#fff",
                   fontSize: isDesktop ? 12 : 14,
                   fontWeight: 600,
                   fontFamily: FONT,
                   cursor: "pointer",
                   letterSpacing: "-0.01em",
+                  transition: "opacity 150ms ease",
+                  WebkitTapHighlightColor: "transparent",
                 }}
               >
                 {effectiveType === "saludo" ? "Quiero mi saludo" : "Quiero mi consejo"}

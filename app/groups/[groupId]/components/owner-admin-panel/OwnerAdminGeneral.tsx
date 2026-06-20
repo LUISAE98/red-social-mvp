@@ -235,7 +235,7 @@ const data = snap.data() as {
   const isHiddenLocked = savedVisibility === "hidden";
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
+    'inherit';
 
   const contentStyle: React.CSSProperties = {
     display: "grid",

@@ -1372,7 +1372,7 @@ boxShadow:
     fontSize: 13,
     fontWeight: isProfileCard ? 600 : 550,
     fontFamily:
-      '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
+      'inherit',
     letterSpacing: "-0.08px",
     color: "rgba(255,255,255,0.94)",
     whiteSpace: "nowrap",
@@ -1693,7 +1693,7 @@ boxShadow:
                                             fontWeight: 520,
                                             fontSize: 12,
                                             cursor: busy ? "not-allowed" : "pointer",
-                                            fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
+                                            fontFamily: "inherit",
                                             opacity: busy ? 0.6 : 1,
                                           }}
                                         >
@@ -1716,7 +1716,7 @@ boxShadow:
                                             fontWeight: 520,
                                             fontSize: 12,
                                             cursor: busy ? "not-allowed" : "pointer",
-                                            fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
+                                            fontFamily: "inherit",
                                             opacity: busy ? 0.6 : 1,
                                           }}
                                         >
@@ -1863,7 +1863,7 @@ boxShadow:
                                           fontWeight: 520,
                                           fontSize: 12,
                                           cursor: "pointer",
-                                          fontFamily: "-apple-system, BlinkMacSystemFont, sans-serif",
+                                          fontFamily: "inherit",
                                         }}
                                       >
                                         {reviewLabel}
@@ -2917,7 +2917,7 @@ const scheduleConflictMessage = scheduleConflict.message;
 fontSize: 15,
 fontWeight: 600,
 fontFamily:
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
+  'inherit',
 color: "#fff",
 letterSpacing: "-0.18px",
 lineHeight: 1.15,
@@ -2952,7 +2952,7 @@ maxWidth: 220,
             "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)",
           boxShadow: "0 12px 28px rgba(147,51,234,0.32)",
           fontFamily:
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif',
+  'inherit',
         }}
       >
         Crear comunidad

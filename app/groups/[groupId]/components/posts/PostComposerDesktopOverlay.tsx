@@ -78,7 +78,7 @@ type PostComposerDesktopOverlayProps = {
 };
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+  'inherit';
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);

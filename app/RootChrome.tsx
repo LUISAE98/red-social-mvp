@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { useAuth } from "@/app/providers";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
+import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 
 export default function RootChrome({
   children,
@@ -14,6 +15,7 @@ export default function RootChrome({
   const { user, loading, authTransitionMode, startAuthTransition } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isPublicPostRoute = pathname.startsWith("/p/");
 
 const isPublicRoute =
@@ -27,24 +29,39 @@ const isPublicRoute =
   pathname.startsWith("/u/") ||
   pathname.startsWith("/p/");
 
+  const isAuthPage =
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/forgot-password" ||
+    pathname === "/reset-password";
+
+  // Track previous auth state to detect sign-out on public routes
+  const prevUserRef = useRef<typeof user | undefined>(undefined);
+
   useEffect(() => {
-    if (!loading && !user && !isPublicRoute) {
+    if (loading) return;
+
+    const wasAuthenticated = prevUserRef.current != null;
+    const isNowUnauthenticated = !user;
+
+    prevUserRef.current = user;
+
+    if (!user && !isPublicRoute) {
+      // Protected route — always redirect unauthenticated users
+      startAuthTransition("exiting");
+      router.replace("/login");
+    } else if (wasAuthenticated && isNowUnauthenticated && !isAuthPage) {
+      // User signed out while on any page (including public routes like /u/ or /groups/)
       startAuthTransition("exiting");
       router.replace("/login");
     }
-  }, [loading, user, isPublicRoute, router, startAuthTransition]);
+  }, [loading, user, isPublicRoute, isAuthPage, router, startAuthTransition]);
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+    'inherit';
     if (authTransitionMode === "exiting") {
   return null;
 }
-    const isAuthPage =
-  pathname === "/login" ||
-  pathname === "/register" ||
-  pathname === "/forgot-password" ||
-  pathname === "/reset-password";
-
 if (user && isAuthPage) {
   return null;
 }
@@ -138,8 +155,7 @@ if (isPublicPostRoute) {
           font-size: 14px;
           font-weight: 600;
           letter-spacing: -0.01em;
-          font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
-            "SF Pro Display", system-ui, sans-serif;
+          font-family: inherit;
           cursor: pointer;
           box-shadow: 0 10px 28px rgba(168, 85, 255, 0.22);
           overflow: hidden;
@@ -219,7 +235,7 @@ if (isPublicPostRoute) {
               <div className="rootChromeDesktopActions">
                 {pathname !== "/login" ? (
                   <Link
-                    href="/login"
+                    href={`/login?next=${encodeURIComponent(buildCurrentPathWithSearch(pathname, searchParams))}`}
                     className="rootChromeDesktopAuthLink"
                     onClick={() => startAuthTransition("entering")}
                   >

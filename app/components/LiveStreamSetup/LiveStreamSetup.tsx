@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { getAuth } from "firebase/auth";
 import {
   callCreateMuxLiveStream,
+  callCreateCFLiveInput,
   fetchLiveStreamCredentials,
   saveLiveBroadcastMode,
 } from "@/lib/posts/post-service";
@@ -20,7 +21,7 @@ import {
 } from "@/lib/liveChat/types";
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+  'inherit';
 
 type BroadcastMode = "direct" | "rtmp";
 
@@ -271,9 +272,12 @@ export default function LiveStreamSetup({
     setCreating(true);
     try {
       await saveLiveBroadcastMode(postId, mode);
-      const result = await callCreateMuxLiveStream(postId);
-      onStreamCreated?.(result.liveStreamId, result.playbackId);
-      if (mode === "rtmp") {
+      if (mode === "direct") {
+        const result = await callCreateCFLiveInput(postId);
+        onStreamCreated?.(result.liveInputId, null);
+      } else {
+        const result = await callCreateMuxLiveStream(postId);
+        onStreamCreated?.(result.liveStreamId, result.playbackId);
         await loadCredentials();
       }
     } catch (e) {
@@ -327,9 +331,10 @@ export default function LiveStreamSetup({
     animation: open ? "slideUp 0.2s ease" : "slideDown 0.2s ease forwards",
   };
 
-  const showModeSelector = !selectedMode && !hasStream && !creating;
-  const showDirectReady = selectedMode === "direct" && !creating && !error;
-  const showRtmpFlow = selectedMode === "rtmp" || (!selectedMode && hasStream);
+  const effectiveMode = selectedMode ?? broadcastModeProp;
+  const showModeSelector = !effectiveMode && !hasStream && !creating;
+  const showDirectReady = effectiveMode === "direct" && !creating && !error;
+  const showRtmpFlow = effectiveMode === "rtmp" && !creating;
 
   return createPortal(
     <>

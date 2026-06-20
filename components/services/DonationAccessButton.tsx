@@ -68,7 +68,7 @@ export default function DonationAccessButton({
         color: "#fff",
         cursor: disabled ? "not-allowed" : "pointer",
         fontFamily:
-          '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif',
+          'inherit',
         backdropFilter: "blur(10px)",
         WebkitBackdropFilter: "blur(10px)",
         boxShadow: "0 16px 42px rgba(0,0,0,0.45)",

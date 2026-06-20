@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import type { GreetingRequestDoc } from "./OwnerSidebar";
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+  'inherit';
 
 const containerBase: React.CSSProperties = {
   background: "linear-gradient(145deg, rgb(6,3,12) 0%, rgb(10,5,20) 100%)",

@@ -1,17 +1,21 @@
 "use client";
 
 import type React from "react";
+import { usePathname } from "next/navigation";
 import { useAuth } from "../providers";
 
 export default function VibraGlobalBackground() {
-  const { user, loading, authTransitionMode } = useAuth();
+  const { authTransitionMode } = useAuth();
+  const pathname = usePathname();
 
-  const isLoggedIn = Boolean(user);
+  const isAuthPage =
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/forgot-password";
 
-  const isGlobalLoading =
-    loading ||
-    authTransitionMode === "entering" ||
-    authTransitionMode === "exiting";
+  const isGlobalLoading = authTransitionMode === "entering";
+
+  if (!isAuthPage) return null;
 
   return (
     <>
@@ -203,9 +207,9 @@ export default function VibraGlobalBackground() {
         aria-hidden="true"
         style={
           {
-"--vibra-bg-darkness": isLoggedIn ? "1" : "0.28",
-"--vibra-bg-brightness": isLoggedIn ? "0" : "0.88",
-"--vibra-bg-saturation": isLoggedIn ? "0" : "0.95",
+            "--vibra-bg-darkness": "0.28",
+            "--vibra-bg-brightness": "0.88",
+            "--vibra-bg-saturation": "0.95",
           } as React.CSSProperties
         }
       />
@@ -215,7 +219,7 @@ export default function VibraGlobalBackground() {
         aria-hidden="true"
         style={
           {
-            "--vibra-color-filter-opacity": isLoggedIn ? "0" : "0.45",
+            "--vibra-color-filter-opacity": "0.45",
           } as React.CSSProperties
         }
       />
@@ -225,16 +229,8 @@ export default function VibraGlobalBackground() {
         aria-hidden="true"
         style={
           {
-"--vibra-particles-opacity": isGlobalLoading
-  ? "1"
-  : isLoggedIn
-    ? "0"
-    : "1",
-"--vibra-particles-brightness": isGlobalLoading
-  ? "1"
-  : isLoggedIn
-    ? "0"
-    : "1",
+            "--vibra-particles-opacity": "1",
+            "--vibra-particles-brightness": "1",
           } as React.CSSProperties
         }
       >

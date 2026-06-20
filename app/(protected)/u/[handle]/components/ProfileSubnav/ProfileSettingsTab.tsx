@@ -232,7 +232,7 @@ export default function ProfileSettingsTab({
   }, [bio]);
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
+    'inherit';
 
   const remainingDays = daysUntilNameChange(displayNameLastChangedAt);
   const canChangeName = remainingDays <= 0;

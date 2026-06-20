@@ -25,7 +25,7 @@ type Props = {
   onDonate: () => void;
 };
 
-const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+const FONT = 'inherit';
 
 function desktopPanelSize(): { width: number; height: number } {
   if (typeof window === "undefined") return { width: 380, height: 675 };

@@ -413,7 +413,7 @@ function DonationModeButton({
         fontWeight: 700,
         fontSize: 12,
         fontFamily:
-          '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif',
+          'inherit',
         transition: "all 160ms ease",
         minHeight: 42,
       }}
@@ -478,7 +478,7 @@ function OverlayModal({
   if (!open) return null;
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
+    'inherit';
 
   return createPortal(
   <div
@@ -704,7 +704,7 @@ export default function ProfileServicesTab({
   if (!isOwner) return null;
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif';
+    'inherit';
 
   const contentStyle: React.CSSProperties = {
     display: "grid",

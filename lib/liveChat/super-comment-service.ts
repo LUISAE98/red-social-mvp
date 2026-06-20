@@ -152,13 +152,15 @@ export function deleteSuperComment(postId: string, superCommentId: string): Prom
   );
 }
 
-// Marks the super comment as played (immediate — no viewer impact)
+// Marks the super comment as played and records the wall-clock timestamp.
+// Viewers use playedAt + their HLS latency to show the overlay in sync with the video.
 export async function playSuperComment(
   postId: string,
   superComment: SuperComment,
 ): Promise<void> {
   await updateDoc(doc(db, "posts", postId, "superComments", superComment.id), {
     played: true,
+    playedAt: serverTimestamp(),
   });
 }
 

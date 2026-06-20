@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { submitSuperComment } from "@/lib/liveChat/super-comment-service";
 import type { SuperCommentConfig, SuperCommentTier } from "@/lib/liveChat/types";
 
-const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+const FONT = 'inherit';
 
 type Props = {
   open: boolean;
@@ -276,11 +276,12 @@ export default function SuperCommentModal({
                 style={{
                   width: "100%", padding: "12px 20px", borderRadius: 10, border: "none",
                   background: selectedTier && text.trim() && !submitting
-                    ? `linear-gradient(135deg,${selectedTier.color}cc,${selectedTier.color}99)`
+                    ? "#a855f7"
                     : "rgba(255,255,255,0.07)",
-                  color: "#fff", fontSize: 14, fontWeight: 700, fontFamily: FONT,
+                  color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em", fontFamily: FONT,
                   cursor: submitting || !text.trim() || !selectedTier ? "not-allowed" : "pointer",
-                  transition: "all 0.2s",
+                  transition: "opacity 150ms ease",
+                  WebkitTapHighlightColor: "transparent",
                 }}
               >
                 {submitting

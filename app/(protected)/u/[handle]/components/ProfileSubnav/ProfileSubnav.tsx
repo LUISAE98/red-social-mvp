@@ -1,6 +1,6 @@
 "use client";
 
-import { CSSProperties } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 import {
   VibraSubnavIcon,
   VibraSubnavIconsStyles,
@@ -28,12 +28,23 @@ export default function ProfileSubnav({
   showServicesTab = true,
   showSettingsTab = true,
 }: ProfileSubnavProps) {
-  const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+  const fontStack = 'inherit';
+
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 769px)");
+    setIsDesktop(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const iconSize = isDesktop ? 26 : 34;
 
   const tabs: {
     key: ProfileTabKey;
     title: string;
+    label: string;
     iconType: VibraSubnavIconType;
   }[] = [
     ...(showPostsTab
@@ -41,6 +52,7 @@ export default function ProfileSubnav({
           {
             key: "posts" as const,
             title: "Publicaciones",
+            label: "Publicaciones",
             iconType: "posts" as const,
           },
         ]
@@ -49,9 +61,8 @@ export default function ProfileSubnav({
       ? [
           {
             key: "groups" as const,
-            title: isOwner
-              ? "Mis comunidades"
-              : "Las comunidades de este perfil",
+            title: isOwner ? "Mis comunidades" : "Las comunidades de este perfil",
+            label: isOwner ? "Mis comunidades" : "Comunidades",
             iconType: "communities" as const,
           },
         ]
@@ -61,6 +72,7 @@ export default function ProfileSubnav({
           {
             key: "services" as const,
             title: "Servicios del perfil",
+            label: "Servicios",
             iconType: "services" as const,
           },
         ]
@@ -70,6 +82,7 @@ export default function ProfileSubnav({
           {
             key: "settings" as const,
             title: "Configuración del perfil",
+            label: "Configuración",
             iconType: "settings" as const,
           },
         ]
@@ -135,6 +148,15 @@ export default function ProfileSubnav({
     alignItems: "center",
   };
 
+  const itemLabel: CSSProperties = {
+    display: "none",
+    fontSize: 13,
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
+    whiteSpace: "nowrap",
+    lineHeight: 1,
+  };
+
   return (
     <>
       <style jsx>{`
@@ -148,6 +170,27 @@ export default function ProfileSubnav({
             border-right: 0 !important;
             background: transparent !important;
             box-shadow: none !important;
+          }
+        }
+
+        @media (min-width: 769px) {
+          .subnav-item-inner {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 7px !important;
+          }
+          .subnav-icon-wrap {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex-shrink: 0 !important;
+          }
+          .subnav-label {
+            display: block !important;
+            color: #a855f7 !important;
+            line-height: 1 !important;
           }
         }
       `}</style>
@@ -189,12 +232,17 @@ export default function ProfileSubnav({
                   : "none",
               }}
             >
-              <span style={itemInner}>
-                <VibraSubnavIcon
-                  type={tab.iconType}
-                  size={34}
-                  strokeWidth={2.25}
-                />
+              <span style={itemInner} className="subnav-item-inner">
+                <span className="subnav-icon-wrap">
+                  <VibraSubnavIcon
+                    type={tab.iconType}
+                    size={iconSize}
+                    strokeWidth={2.25}
+                  />
+                </span>
+                <span style={itemLabel} className="subnav-label">
+                  {tab.label}
+                </span>
               </span>
             </button>
           );

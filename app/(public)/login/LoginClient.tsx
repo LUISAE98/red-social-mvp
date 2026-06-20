@@ -197,7 +197,7 @@ router.replace(nextPath);
 }
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+    'inherit';
 
 const pageStyle: React.CSSProperties = {
   height: "100dvh",

@@ -55,7 +55,7 @@ type PostCommentThreadProps = {
 };
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+  'inherit';
 
 const ACTIONS_MENU_STYLES = `
   @keyframes vbCmtMenuFadeIn { from { opacity: 0; } to { opacity: 1; } }

@@ -13,8 +13,22 @@ import {
   arrayRemove,
   type Unsubscribe,
 } from "firebase/firestore";
+
 import { db } from "@/lib/firebase";
 import type { LiveChatMessage } from "./types";
+
+/** Subscribes to the total message count (including soft-deleted) for a live chat. */
+export function subscribeToTotalChatMessages(
+  liveId: string,
+  onCount: (count: number) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    collection(db, "liveChats", liveId, "messages"),
+    (snap) => onCount(snap.size),
+    (err) => onError?.(err),
+  );
+}
 
 export function subscribeToLiveChat(
   liveId: string,

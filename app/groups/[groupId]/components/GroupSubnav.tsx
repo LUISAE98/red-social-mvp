@@ -21,7 +21,7 @@ export default function GroupSubnav({
   canManage = false,
 }: GroupSubnavProps) {
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+    'inherit';
 
   const tabs: {
     key: TabKey;

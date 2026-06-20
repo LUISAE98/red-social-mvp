@@ -10,7 +10,7 @@ import { addStoryFromGreeting, deleteStory } from "@/lib/stories/storyService";
 import type { StoryDoc, StoryType } from "@/lib/stories/types";
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+  'inherit';
 
 type GreetingItem = {
   id: string;

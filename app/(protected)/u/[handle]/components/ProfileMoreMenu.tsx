@@ -101,14 +101,17 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
                 width: "100%",
                 minHeight: 38,
                 border: "none",
-                borderRadius: 12,
+                borderRadius: 10,
                 padding: "9px 11px",
-                color: "rgba(255,255,255,0.9)",
-                background: "transparent",
+                color: "#fff",
+                background: "rgba(239, 68, 68, 0.10)",
                 fontSize: 13,
-                fontWeight: 700,
+                fontWeight: 600,
+                letterSpacing: "-0.01em",
                 textAlign: "left",
                 cursor: "pointer",
+                WebkitTapHighlightColor: "transparent",
+                transition: "opacity 150ms ease",
               }}
             >
               Desbloquear usuario
@@ -122,14 +125,17 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
                 width: "100%",
                 minHeight: 38,
                 border: "none",
-                borderRadius: 12,
+                borderRadius: 10,
                 padding: "9px 11px",
-                color: "rgba(255,165,165,0.98)",
-                background: "transparent",
+                color: "#fff",
+                background: "rgba(239, 68, 68, 0.22)",
                 fontSize: 13,
-                fontWeight: 700,
+                fontWeight: 600,
+                letterSpacing: "-0.01em",
                 textAlign: "left",
                 cursor: "pointer",
+                WebkitTapHighlightColor: "transparent",
+                transition: "opacity 150ms ease",
               }}
             >
               Bloquear usuario

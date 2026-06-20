@@ -2403,11 +2403,20 @@ allow list: if canReadPost()
           && request.resource.data.amount > 0
           && request.resource.data.createdAt is timestamp;
 
-        // Creador puede ocultar, borrar o marcar como reproducido
+        // Creador puede ocultar, borrar, marcar como reproducido o registrar playedAt
         allow update: if signedIn()
           && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid
-          && request.resource.data.diff(resource.data).changedKeys().hasOnly(["hidden", "isDeleted", "played"]);
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly(["hidden", "isDeleted", "played", "playedAt"]);
 
+        allow delete: if false;
+      }
+
+      // Registro histórico de espectadores únicos — solo se crea, nunca se borra
+      match /liveUniqueViewers/{viewerId} {
+        allow get, list: if signedIn();
+        allow create, update: if signedIn()
+          && request.auth.uid == viewerId
+          && request.resource.data.uid == viewerId;
         allow delete: if false;
       }
 

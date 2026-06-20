@@ -341,6 +341,9 @@ const [isProfileLiveModalOpen, setIsProfileLiveModalOpen] = useState(false);
 const [profilePostsRefreshKey, setProfilePostsRefreshKey] = useState(0);
 const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
 const avatarSz = mobileRefreshEnabled ? "clamp(146px, 31.2vw, 286px)" : "clamp(112px, 24vw, 220px)";
+const liveBadgeFontSz = mobileRefreshEnabled ? "clamp(15px, 3vw, 24px)" : "clamp(12px, 2.4vw, 19px)";
+const liveBadgeRadius = mobileRefreshEnabled ? "clamp(4px, 0.8vw, 7px)" : "clamp(3px, 0.6vw, 6px)";
+const liveBadgeBottom = mobileRefreshEnabled ? "clamp(6px, 1.2vw, 10px)" : "clamp(5px, 1vw, 8px)";
 const avatarOffsetTopSz = mobileRefreshEnabled ? "calc(clamp(146px, 31.2vw, 286px) / -2)" : "calc(clamp(112px, 24vw, 220px) / -2)";
 const contentTopPaddingSz = mobileRefreshEnabled ? "calc((clamp(146px, 31.2vw, 286px) / 2) + 22px)" : "calc((clamp(112px, 24vw, 220px) / 2) + 22px)";
 const [profileVideoUploadProgress, setProfileVideoUploadProgress] = useState<number | null>(null);
@@ -384,7 +387,7 @@ useEffect(() => {
   const cropAspect = cropMode === "avatar" ? 1 / 1 : 16 / 9;
 
   const fontStack =
-    '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", sans-serif';
+    'inherit';
 
   const isOwner = !!viewer && !!userDoc && viewer.uid === userDoc.uid;
   const profileUid = userDoc?.uid ?? null;
@@ -1869,27 +1872,26 @@ await createExclusiveSessionRequest({
                       }}
                     />
                   )}
-                  {/* LIVE badge inside the ring at the bottom */}
+                  {/* LIVE badge — etiqueta proporcional, dentro del anillo sin tocar el borde */}
                   {profileIsLive && (
                     <div
                       style={{
                         position: "absolute",
-                        bottom: 2,
+                        bottom: liveBadgeBottom,
                         left: "50%",
                         transform: "translateX(-50%)",
                         background: "#ef4444",
                         color: "#fff",
-                        fontSize: 9,
+                        fontSize: liveBadgeFontSz,
                         fontWeight: 700,
                         letterSpacing: "0.07em",
-                        padding: "2px 5px",
-                        borderRadius: 3,
+                        padding: "0.38em 0.75em",
+                        borderRadius: liveBadgeRadius,
                         lineHeight: 1,
                         whiteSpace: "nowrap",
                         zIndex: 2,
                         pointerEvents: "none",
                         fontFamily: fontStack,
-                        border: "1.5px solid rgb(10,10,14)",
                       }}
                     >
                       LIVE

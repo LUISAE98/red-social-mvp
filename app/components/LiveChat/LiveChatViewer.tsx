@@ -11,7 +11,7 @@ import { subscribeVisibleSuperComments } from "@/lib/liveChat/super-comment-serv
 import type { SuperCommentConfig, SuperComment } from "@/lib/liveChat/types";
 import { DEFAULT_SUPER_COMMENT_CONFIG } from "@/lib/liveChat/types";
 
-const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif';
+const FONT = 'inherit';
 
 type Props = {
   liveId: string;

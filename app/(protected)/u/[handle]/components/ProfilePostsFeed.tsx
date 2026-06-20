@@ -1205,14 +1205,7 @@ const shellStyle: CSSProperties = {
 
   return (
     <section style={shellStyle}>
-      <div style={headerStyle}>
-        <h2 style={titleStyle}>Publicaciones</h2>
-        <p style={subtitleStyle}>
-          Feed del perfil ordenado por antigüedad inversa.
-        </p>
-      </div>
-
-      {error && <div style={noticeStyle}>{error}</div>}
+      {error &&<div style={noticeStyle}>{error}</div>}
 
       {loadingInitial && <div style={noticeStyle}>Cargando publicaciones...</div>}
 

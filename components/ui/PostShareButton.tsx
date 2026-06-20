@@ -10,7 +10,7 @@ type PostShareButtonProps = {
 };
 
 const fontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+  'inherit';
 
 export default function PostShareButton({ postId }: PostShareButtonProps) {
   const [copied, setCopied] = useState(false);

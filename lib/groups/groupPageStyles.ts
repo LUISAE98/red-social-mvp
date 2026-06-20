@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 
 export const groupPageFontStack =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", system-ui, sans-serif';
+  'inherit';
 
 export const groupPageUi = {
   pageMaxWidth: 1080,
@@ -10,7 +10,7 @@ export const groupPageUi = {
   avatarOffsetTop: "clamp(-56px, -7vw, -72px)",
   cardRadius: 18,
   panelRadius: 14,
-  buttonRadius: 12,
+  buttonRadius: 10,
   buttonPadding: "11px 16px",
   inputPadding: "10px 12px",
   modalMaxWidth: 680,
@@ -110,42 +110,43 @@ export const labelStyle: CSSProperties = {
 export const primaryButton: CSSProperties = {
   padding: groupPageUi.buttonPadding,
   borderRadius: groupPageUi.buttonRadius,
-  border: "1px solid rgba(255,255,255,0.92)",
-  background: "#fff",
-  color: "#000",
-  fontWeight: 700,
+  border: "none",
+  background: "linear-gradient(135deg, #f472b6, #a855f7)",
+  color: "#fff",
+  fontWeight: 600,
   fontSize: groupPageUi.body,
   lineHeight: 1.2,
   cursor: "pointer",
   fontFamily: groupPageFontStack,
-  boxShadow: "0 10px 30px rgba(255,255,255,0.10)",
+  letterSpacing: "-0.01em",
   minHeight: 42,
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
   textAlign: "center",
-  transition: "all 160ms ease",
+  transition: "opacity 150ms ease",
+  WebkitTapHighlightColor: "transparent",
 };
 
 export const secondaryButton: CSSProperties = {
   padding: groupPageUi.buttonPadding,
   borderRadius: groupPageUi.buttonRadius,
-  border: "1px solid rgba(255,255,255,0.18)",
-  background: "rgba(255,255,255,0.07)",
+  border: "none",
+  background: "rgba(239, 68, 68, 0.10)",
   color: "#fff",
-  fontWeight: 700,
+  fontWeight: 600,
   fontSize: groupPageUi.body,
   lineHeight: 1.2,
   cursor: "pointer",
   fontFamily: groupPageFontStack,
-  backdropFilter: "blur(8px)",
-  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+  letterSpacing: "-0.01em",
   minHeight: 42,
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
   textAlign: "center",
-  transition: "all 160ms ease",
+  transition: "opacity 150ms ease",
+  WebkitTapHighlightColor: "transparent",
 };
 
 export const tinyGhostButton: CSSProperties = {
