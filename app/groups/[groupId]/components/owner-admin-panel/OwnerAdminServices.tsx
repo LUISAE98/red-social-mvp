@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
 import {
   collection,
   doc,
@@ -1107,8 +1109,8 @@ export default function OwnerAdminServices({
   const [savedDraft, setSavedDraft] = useState<ServiceDraft>(createEmptyDraft());
 
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const { toast: adminServicesToast, showToast: showAdminServicesToast } = useVibraToast();
 
   const [removingLegacyMembers, setRemovingLegacyMembers] = useState(false);
   const [activeLegacyFreeMembersCount, setActiveLegacyFreeMembersCount] =
@@ -1197,7 +1199,6 @@ export default function OwnerAdminServices({
       lastHydratedGroupIdRef.current = groupId;
       setDraft(nextDraft);
       setSavedDraft(nextDraft);
-      setMsg(null);
       setErr(null);
       return;
     }
@@ -1386,7 +1387,6 @@ export default function OwnerAdminServices({
     if (!canRemoveLegacyFreeMembersLater) return;
 
     setRemovingLegacyMembers(true);
-    setMsg(null);
     setErr(null);
 
     try {
@@ -1395,7 +1395,7 @@ export default function OwnerAdminServices({
           groupId,
         });
 
-      setMsg(
+      showAdminServicesToast(
         buildManualLegacyRemovalSuccessMessage({
           removedMembers: response.removedMembers,
           reminderMembers: response.reminderMembers,
@@ -1403,9 +1403,10 @@ export default function OwnerAdminServices({
         })
       );
     } catch (e: unknown) {
-      setErr(
+      showAdminServicesToast(
         (e instanceof Error ? e.message : null) ??
-          "❌ No se pudo retirar a los miembros gratuitos."
+          "❌ No se pudo retirar a los miembros gratuitos.",
+        "error"
       );
     } finally {
       setRemovingLegacyMembers(false);
@@ -1414,7 +1415,6 @@ export default function OwnerAdminServices({
 
   async function saveServicesFromDraft(sourceDraft?: ServiceDraft) {
     setSaving(true);
-    setMsg(null);
     setErr(null);
 
     const workingDraft = sourceDraft ?? draft;
@@ -1887,8 +1887,9 @@ export default function OwnerAdminServices({
 
           setDraft(nextSavedAfterPartialSuccess);
           setSavedDraft(nextSavedAfterPartialSuccess);
-          setErr(
-            `⚠️ La configuración del grupo sí se guardó, pero la transición de miembros no terminó correctamente: ${transitionMessage}`
+          showAdminServicesToast(
+            `⚠️ La configuración del grupo sí se guardó, pero la transición de miembros no terminó correctamente: ${transitionMessage}`,
+            "warning"
           );
           return;
         }
@@ -1952,9 +1953,9 @@ export default function OwnerAdminServices({
 
       setDraft(nextSaved);
       setSavedDraft(nextSaved);
-      setMsg(successMessage);
+      showAdminServicesToast(successMessage);
     } catch (e: unknown) {
-      setErr((e instanceof Error ? e.message : null) ?? "❌ No se pudieron guardar los servicios.");
+      showAdminServicesToast((e instanceof Error ? e.message : null) ?? "❌ No se pudieron guardar los servicios.", "error");
     } finally {
       skipHydrationWhileSavingRef.current = false;
       setSaving(false);
@@ -2070,7 +2071,7 @@ export default function OwnerAdminServices({
       />
 
       {err && <div style={noticeStyle}>{err}</div>}
-      {msg && <div style={noticeStyle}>{msg}</div>}
+      <VibraToast toast={adminServicesToast} />
     </div>
   );
 }

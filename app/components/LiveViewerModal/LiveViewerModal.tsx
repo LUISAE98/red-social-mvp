@@ -24,6 +24,7 @@ type Props = {
   post: Post;
   onManage?: () => void;
   initialPortrait?: boolean;
+  initialStream?: MediaStream | null;
 };
 
 // Igual que StoryViewer.desktopPanelSize()
@@ -43,7 +44,7 @@ function desktopHorizontalSize(): { width: number; height: number } {
 
 const CHAT_FLOAT_W = 300;
 
-export default function LiveViewerModal({ open, onClose, post, onManage, initialPortrait = false }: Props) {
+export default function LiveViewerModal({ open, onClose, post, onManage, initialPortrait = false, initialStream }: Props) {
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
@@ -110,7 +111,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       window.removeEventListener("pagehide", handlePageHide);
       leaveLivePresence(postId, uid).catch(console.warn);
     };
-  }, [open, hasAccess, localLiveData?.status, user?.uid, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, hasAccess, localLiveData?.status, user?.uid, post.id]);
 
   // ── Contador de espectadores ────────────────────────────────────────────────
   useEffect(() => {
@@ -174,6 +175,13 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               }
             }
           }, 500);
+        } else if (localLiveData?.streamProvider === "cloudflare") {
+          // Vibra Directo (WebRTC): delay < 1s — mostrar inmediatamente.
+          // Restar el tiempo ya transcurrido desde que el creador lo activó por si
+          // el snapshot de Firestore llega con algunos ms de retraso.
+          const elapsedMs = Date.now() - playedAt.getTime();
+          const remainingSecs = sc.displaySeconds - elapsedMs / 1000;
+          if (remainingSecs > 0.5) showSuperOverlay(sc, remainingSecs);
         } else {
           // iOS Safari (HLS nativo, sin HLS.js): fallback de 12 s
           window.setTimeout(() => showSuperOverlay(sc, sc.displaySeconds), 12000);
@@ -186,7 +194,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       if (pollIntervalRef.current !== null) window.clearInterval(pollIntervalRef.current);
       pollIntervalRef.current = null;
     };
-  }, [open, hasAccess, localLiveData?.broadcastMode, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, hasAccess, localLiveData?.broadcastMode, localLiveData?.streamProvider, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup de timers al desmontar
   useEffect(() => {
@@ -322,6 +330,27 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   useEffect(() => {
     console.log("[LiveViewerModal] CF WebRTC effect — cfWebRTCPlayUrl:", cfWebRTCPlayUrl, "open:", open, "shouldRender:", shouldRender, "hasAccess:", hasAccess);
     if (!cfWebRTCPlayUrl || !open || !shouldRender || !hasAccess) return;
+
+    // Si el feed ya tiene un MediaStream activo, úsalo directamente sin crear nueva conexión WebRTC.
+    if (initialStream) {
+      const video = videoRef.current;
+      if (video) {
+        video.srcObject = initialStream;
+        setReady(true);
+        setError(false);
+        if (video.videoWidth > 0 && video.videoHeight > 0) setIsPortrait(video.videoHeight > video.videoWidth);
+        video.play().catch(() => {
+          video.muted = true;
+          setMuted(true);
+          video.play().catch(() => {});
+        });
+      }
+      const vid = videoRef.current;
+      return () => {
+        if (vid) vid.srcObject = null;
+        setReady(false);
+      };
+    }
 
     let cancelled = false;
     const pc = new RTCPeerConnection({
@@ -469,7 +498,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       if (video) { video.srcObject = null; }
       setReady(false);
     };
-  }, [cfWebRTCPlayUrl, open, shouldRender, hasAccess, retryKey]);
+  }, [cfWebRTCPlayUrl, open, shouldRender, hasAccess, retryKey, initialStream]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialize HLS (Mux streams + CF ended streams — not used for CF live WebRTC)
   useEffect(() => {
@@ -539,7 +568,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     } else {
       setError(true);
     }
-  }, [open, shouldRender, hlsUrl, isLive, hasAccess, retryKey]);
+  }, [open, shouldRender, hlsUrl, isLive, hasAccess, retryKey, cfWebRTCPlayUrl]);
 
   // Auto-reintento mientras el live esté activo — sin límite de intentos (el viewer se bloqueaba
   // cuando agotaba los 8 reintentos antes de que CF produjera segmentos HLS)
@@ -758,7 +787,39 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   if (isPaidLive && !accessChecked) return null;
 
   // ── Supercomentario overlay ─────────────────────────────────────────────────
+  function playSuperCommentSound() {
+    try {
+      const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const playNote = (freq: number, start: number, duration: number, vol: number) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+        gain.gain.setValueAtTime(0, ctx.currentTime + start);
+        gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + start + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+        osc.start(ctx.currentTime + start);
+        osc.stop(ctx.currentTime + start + duration + 0.02);
+      };
+      playNote(880, 0, 0.25, 0.28);     // A5
+      playNote(1320, 0.12, 0.22, 0.2);  // E6
+      setTimeout(() => ctx.close().catch(() => {}), 900);
+    } catch { /* audio no disponible */ }
+  }
+
   function showSuperOverlay(sc: SuperComment, durationSeconds: number) {
+    playSuperCommentSound();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(sc.text);
+      utterance.lang = "es-MX";
+      utterance.rate = 1;
+      window.speechSynthesis.speak(utterance);
+    }
     setActiveSuperComment(sc);
     if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
     overlayTimerRef.current = window.setTimeout(() => {

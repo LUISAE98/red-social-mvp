@@ -51,16 +51,18 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const { messages, deleteMessage } = useLiveChat(open ? post.id : null, 50);
   const [isDesktop, setIsDesktop] = useState(false);
   const [mobileTab, setMobileTab] = useState<"supercomentarios" | "estadisticas">("supercomentarios");
-  const [panelRatio, setPanelRatio] = useState(0.52);
+  const [panelRatio, setPanelRatio] = useState(0.65);
   const bodyContainerRef = useRef<HTMLDivElement>(null);
   const videoAreaRef = useRef<HTMLDivElement>(null);
   const panelDragRef = useRef<HTMLDivElement>(null);
   const isDraggingPanel = useRef(false);
   const panelDragStartY = useRef(0);
-  const panelDragStartRatio = useRef(0.52);
-  const panelRatioRef = useRef(0.52);
+  const panelDragStartRatio = useRef(0.65);
+  const panelRatioRef = useRef(0.65);
   panelRatioRef.current = panelRatio;
-  const PANEL_SNAPS = [0.28, 0.52, 0.72] as const;
+  const PANEL_SNAPS = [0.25, 0.65, 0.82] as const;
+  const docTouchMoveRef = useRef<((e: TouchEvent) => void) | null>(null);
+  const docTouchEndRef = useRef<(() => void) | null>(null);
   const [togglingChat, setTogglingChat] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [optimisticChatEnabled, setOptimisticChatEnabled] = useState<boolean | null>(null);
@@ -77,6 +79,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [superComments, setSuperComments] = useState<SuperComment[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [activeSuperOverlay, setActiveSuperOverlay] = useState<SuperComment | null>(null);
+  const [superCommentTab, setSuperCommentTab] = useState<"nuevos" | "reproducidos">("nuevos");
+  const [playingOverlay, setPlayingOverlay] = useState<SuperComment | null>(null);
 
   // Freeze the effective layout orientation during a broadcast. The `portrait`
   // prop can change mid-broadcast (e.g. LiveInlinePlayer detects stream orientation)
@@ -195,32 +199,45 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     await deleteMessage(msgId, user.uid);
   }, [user, deleteMessage]);
 
+  useEffect(() => {
+    return () => {
+      if (docTouchMoveRef.current) document.removeEventListener("touchmove", docTouchMoveRef.current);
+      if (docTouchEndRef.current) document.removeEventListener("touchend", docTouchEndRef.current);
+    };
+  }, []);
+
   // ── Drag handlers para panel portrait mobile ─────────────────────────────
+  // Usa listeners a nivel document para que el drag siga aunque el dedo salga del handle
   const onPanelTouchStart = (e: React.TouchEvent) => {
     isDraggingPanel.current = true;
     panelDragStartY.current = e.touches[0].clientY;
     panelDragStartRatio.current = panelRatioRef.current;
-  };
 
-  const onPanelTouchMove = (e: React.TouchEvent) => {
-    if (!isDraggingPanel.current) return;
-    const totalH = bodyContainerRef.current?.offsetHeight ?? window.innerHeight;
-    const deltaY = panelDragStartY.current - e.touches[0].clientY; // positivo = arriba
-    const newRatio = Math.max(0.15, Math.min(0.85, panelDragStartRatio.current + deltaY / totalH));
-    if (panelDragRef.current) panelDragRef.current.style.height = `${newRatio * 100}%`;
-    if (videoAreaRef.current) videoAreaRef.current.style.height = `${(1 - newRatio) * 100}%`;
-  };
+    docTouchMoveRef.current = (ev: TouchEvent) => {
+      if (!isDraggingPanel.current) return;
+      ev.preventDefault();
+      const totalH = bodyContainerRef.current?.offsetHeight ?? window.innerHeight;
+      const deltaY = panelDragStartY.current - ev.touches[0].clientY;
+      const newRatio = Math.max(0.15, Math.min(0.88, panelDragStartRatio.current + deltaY / totalH));
+      if (panelDragRef.current) panelDragRef.current.style.height = `${newRatio * 100}%`;
+      if (videoAreaRef.current) videoAreaRef.current.style.height = `${(1 - newRatio) * 100}%`;
+    };
 
-  const onPanelTouchEnd = () => {
-    if (!isDraggingPanel.current) return;
-    isDraggingPanel.current = false;
-    const totalH = bodyContainerRef.current?.offsetHeight ?? window.innerHeight;
-    const cur = (panelDragRef.current?.offsetHeight ?? totalH * 0.52) / totalH;
-    const snapped = [...PANEL_SNAPS].reduce((a, b) => Math.abs(b - cur) < Math.abs(a - cur) ? b : a);
-    // Fijar en valor snap antes de que React re-renderice (sin flash)
-    if (panelDragRef.current) panelDragRef.current.style.height = `${snapped * 100}%`;
-    if (videoAreaRef.current) videoAreaRef.current.style.height = `${(1 - snapped) * 100}%`;
-    setPanelRatio(snapped);
+    docTouchEndRef.current = () => {
+      if (!isDraggingPanel.current) return;
+      isDraggingPanel.current = false;
+      if (docTouchMoveRef.current) document.removeEventListener("touchmove", docTouchMoveRef.current);
+      if (docTouchEndRef.current) document.removeEventListener("touchend", docTouchEndRef.current);
+      const totalH = bodyContainerRef.current?.offsetHeight ?? window.innerHeight;
+      const cur = (panelDragRef.current?.offsetHeight ?? totalH * 0.65) / totalH;
+      const snapped = [...PANEL_SNAPS].reduce((a, b) => Math.abs(b - cur) < Math.abs(a - cur) ? b : a);
+      if (panelDragRef.current) panelDragRef.current.style.height = `${snapped * 100}%`;
+      if (videoAreaRef.current) videoAreaRef.current.style.height = `${(1 - snapped) * 100}%`;
+      setPanelRatio(snapped);
+    };
+
+    document.addEventListener("touchmove", docTouchMoveRef.current, { passive: false });
+    document.addEventListener("touchend", docTouchEndRef.current);
   };
 
   if (!open || typeof document === "undefined") return null;
@@ -229,13 +246,17 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   function sectionHeader(label: string, extra?: React.ReactNode) {
     return (
       <div style={{
-        flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "9px 12px", borderBottom: DIV,
+        flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+        position: "relative", padding: "12px 16px", borderBottom: DIV, minHeight: 44,
       }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.3)", letterSpacing: "0.06em", textTransform: "uppercase" as const }}>
+        <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", lineHeight: 1.2, letterSpacing: "-0.02em", fontFamily: FONT }}>
           {label}
         </span>
-        {extra}
+        {extra && (
+          <div style={{ position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)" }}>
+            {extra}
+          </div>
+        )}
       </div>
     );
   }
@@ -278,15 +299,6 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               Espectadores ahora
             </span>
           </div>
-          {liveStatus === "live" && (
-            <span style={{
-              marginLeft: "auto", fontSize: 9, fontWeight: 700, letterSpacing: "0.06em",
-              color: "#a855f7", background: "rgba(168,85,247,0.12)",
-              border: "1px solid rgba(168,85,247,0.25)", borderRadius: 4, padding: "2px 6px",
-            }}>
-              EN VIVO
-            </span>
-          )}
         </div>
 
         {/* Pico de espectadores */}
@@ -374,6 +386,32 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     );
   }
 
+  function _doPlay(sc: SuperComment) {
+    setPlayingId(sc.id);
+    setActiveSuperOverlay(sc);
+    setPlayingOverlay(sc);
+    playSuperComment(post.id, sc).catch(() => {});
+    window.setTimeout(() => { setActiveSuperOverlay(null); }, sc.displaySeconds * 1000);
+  }
+
+  function handlePlaySC(sc: SuperComment) {
+    if (playingId) return;
+    _doPlay(sc);
+  }
+
+  function handleCloseSCOverlay() {
+    setPlayingOverlay(null);
+    setPlayingId(null);
+  }
+
+  function handleNextSCOverlay() {
+    const currentId = playingOverlay?.id;
+    setPlayingOverlay(null);
+    setPlayingId(null);
+    const next = superComments.find((sc) => !sc.isDeleted && !sc.played && sc.id !== currentId);
+    if (next) window.setTimeout(() => _doPlay(next), 0);
+  }
+
   function renderSuperCommentsSection() {
     if (broadcastMode !== "direct") {
       return (
@@ -401,134 +439,145 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       );
     }
 
-    async function handlePlay(sc: SuperComment) {
-      if (playingId) return;
-      setPlayingId(sc.id);
-
-      // Canvas dibuja el overlay inmediatamente — queda grabado en el stream de Mux
-      setActiveSuperOverlay(sc);
-
-      // TTS inmediato — el creador escucha y reacciona en tiempo real
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(sc.text);
-        utterance.lang = "es-MX";
-        utterance.rate = 1;
-        window.speechSynthesis.speak(utterance);
-      }
-
-      // Registra played + playedAt en Firestore — los viewers sincronizan el overlay
-      // usando playedAt + su propia latencia HLS, sin delay hardcodeado
-      playSuperComment(post.id, sc).catch(() => {});
-
-      // Ocultar overlay del canvas del creador al terminar
-      window.setTimeout(() => {
-        setActiveSuperOverlay(null);
-        setPlayingId(null);
-      }, sc.displaySeconds * 1000);
-    }
+    const nuevos = visible.filter((sc) => !sc.played);
+    const reproducidos = visible.filter((sc) => sc.played);
+    const tabItems = superCommentTab === "nuevos" ? nuevos : reproducidos;
 
     return (
-      <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
-        <style>{`.lcp-sc::-webkit-scrollbar{display:none}`}</style>
-        <div className="lcp-sc">
-          {visible.map((sc) => (
-            <div
-              key={sc.id}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* Tab bar: Nuevos / Reproducidos */}
+        <div style={{
+          flexShrink: 0, display: "flex",
+          borderBottom: "1px solid rgba(255,255,255,0.06)",
+          padding: "0 4px",
+        }}>
+          {(["nuevos", "reproducidos"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setSuperCommentTab(tab)}
               style={{
-                display: "flex", alignItems: "flex-start", gap: 10,
-                padding: "10px 12px",
-                borderBottom: "1px solid rgba(255,255,255,0.04)",
-                borderLeft: `3px solid ${sc.color}`,
-                opacity: sc.hidden ? 0.45 : 1,
-                background: sc.played ? "rgba(255,255,255,0.02)" : "transparent",
+                flex: 1, padding: "8px 4px",
+                border: "none", background: "transparent",
+                color: superCommentTab === tab ? "#fff" : "rgba(255,255,255,0.3)",
+                fontSize: 10, fontWeight: 700, fontFamily: FONT,
+                cursor: "pointer", letterSpacing: "0.04em", textTransform: "uppercase",
+                borderBottom: superCommentTab === tab ? "2px solid #a855f7" : "2px solid transparent",
+                marginBottom: -1,
+                transition: "color 0.15s",
               }}
             >
-              {/* Info principal */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.75)", fontFamily: FONT }}>
-                    {sc.username}
-                  </span>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, color: sc.color,
-                    background: `${sc.color}22`, border: `1px solid ${sc.color}44`,
-                    borderRadius: 4, padding: "1px 5px", fontFamily: FONT,
-                  }}>
-                    ${sc.amount} MXN · {sc.tierName}
-                  </span>
-                  {sc.played && (
-                    <span style={{ fontSize: 9, fontWeight: 700, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>
-                      ✓ REPRODUCIDO
-                    </span>
-                  )}
-                  {sc.hidden && (
-                    <span style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", fontFamily: FONT }}>
-                      OCULTO
-                    </span>
-                  )}
-                </div>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", lineHeight: 1.4, fontFamily: FONT, wordBreak: "break-word" }}>
-                  {sc.text}
-                </span>
-              </div>
-
-              {/* Acciones */}
-              <div style={{ display: "flex", gap: 2, flexShrink: 0, alignItems: "flex-start" }}>
-                {/* Reproducir */}
-                <ModActionBtn
-                  onClick={() => handlePlay(sc)}
-                  active={playingId === sc.id}
-                  activeColor={sc.color}
-                  title={sc.played ? "Reproducir de nuevo" : "Reproducir"}
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill={playingId === sc.id ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="5 3 19 12 5 21 5 3" />
-                  </svg>
-                </ModActionBtn>
-
-                {/* Ocultar / mostrar */}
-                <ModActionBtn
-                  onClick={() => {
-                    if (sc.hidden) showSuperComment(post.id, sc.id);
-                    else hideSuperComment(post.id, sc.id);
-                  }}
-                  active={sc.hidden}
-                  activeColor="#f59e0b"
-                  title={sc.hidden ? "Mostrar" : "Ocultar"}
-                >
-                  {sc.hidden ? (
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
-                    </svg>
-                  ) : (
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
-                </ModActionBtn>
-
-                {/* Borrar */}
-                <ModActionBtn
-                  onClick={() => deleteSuperComment(post.id, sc.id)}
-                  active={false}
-                  activeColor="#ef4444"
-                  title="Eliminar supercomentario"
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6l-1 14H6L5 6" />
-                    <path d="M10 11v6" /><path d="M14 11v6" />
-                    <path d="M9 6V4h6v2" />
-                  </svg>
-                </ModActionBtn>
-              </div>
-            </div>
+              {tab === "nuevos"
+                ? `Nuevos${nuevos.length > 0 ? ` (${nuevos.length})` : ""}`
+                : `Reproducidos${reproducidos.length > 0 ? ` (${reproducidos.length})` : ""}`}
+            </button>
           ))}
         </div>
+
+        {tabItems.length === 0 ? (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.15)", fontFamily: FONT }}>
+              {superCommentTab === "nuevos" ? "Sin supercomentarios nuevos" : "Ninguno reproducido aún"}
+            </span>
+          </div>
+        ) : (
+          <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
+            <style>{`.lcp-sc::-webkit-scrollbar{display:none}`}</style>
+            <div className="lcp-sc">
+              {tabItems.map((sc) => (
+                <div
+                  key={sc.id}
+                  style={{
+                    display: "flex", alignItems: "flex-start", gap: 10,
+                    padding: "10px 12px",
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
+                    borderLeft: `3px solid ${sc.color}`,
+                    opacity: sc.hidden ? 0.45 : 1,
+                    background: sc.played ? "rgba(255,255,255,0.02)" : "transparent",
+                  }}
+                >
+                  {/* Info principal */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.75)", fontFamily: FONT }}>
+                        {sc.username}
+                      </span>
+                      <span style={{
+                        fontSize: 10, fontWeight: 700, color: sc.color,
+                        background: `${sc.color}22`, border: `1px solid ${sc.color}44`,
+                        borderRadius: 4, padding: "1px 5px", fontFamily: FONT,
+                      }}>
+                        ${sc.amount} MXN · {sc.tierName}
+                      </span>
+                      {sc.hidden && (
+                        <span style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", fontFamily: FONT }}>
+                          OCULTO
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", lineHeight: 1.4, fontFamily: FONT, wordBreak: "break-word" }}>
+                      {sc.text}
+                    </span>
+                  </div>
+
+                  {/* Acciones */}
+                  <div style={{ display: "flex", gap: 2, flexShrink: 0, alignItems: "flex-start" }}>
+                    {/* Reproducir */}
+                    <ModActionBtn
+                      onClick={() => handlePlaySC(sc)}
+                      active={playingId === sc.id}
+                      activeColor={sc.color}
+                      title={sc.played ? "Reproducir de nuevo" : "Reproducir"}
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill={playingId === sc.id ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                    </ModActionBtn>
+
+                    {/* Ocultar / mostrar */}
+                    <ModActionBtn
+                      onClick={() => {
+                        if (sc.hidden) showSuperComment(post.id, sc.id);
+                        else hideSuperComment(post.id, sc.id);
+                      }}
+                      active={sc.hidden}
+                      activeColor="#f59e0b"
+                      title={sc.hidden ? "Mostrar" : "Ocultar"}
+                    >
+                      {sc.hidden ? (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+                      ) : (
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </ModActionBtn>
+
+                    {/* Borrar */}
+                    <ModActionBtn
+                      onClick={() => deleteSuperComment(post.id, sc.id)}
+                      active={false}
+                      activeColor="#ef4444"
+                      title="Eliminar supercomentario"
+                    >
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6l-1 14H6L5 6" />
+                        <path d="M10 11v6" /><path d="M14 11v6" />
+                        <path d="M9 6V4h6v2" />
+                      </svg>
+                    </ModActionBtn>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -560,28 +609,54 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   function renderChatSection() {
     return (
       <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", flex: 1, minHeight: 0 }}>
-        {sectionHeader(
-          `Chat · ${messages.length}`,
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 3 }}>
-            <button
-              type="button"
-              onClick={handleToggleChat}
-              disabled={togglingChat}
+        {sectionHeader("Chat")}
+
+        {/* Fila activar/desactivar chat con switch — agrupados a la derecha */}
+        <div style={{
+          flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end",
+          gap: 8, padding: "10px 16px",
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: "#a855f7", fontFamily: FONT }}>
+            {chatEnabled ? "Desactivar chat live" : "Activar chat live"}
+          </span>
+          <button
+            type="button"
+            onClick={handleToggleChat}
+            disabled={togglingChat}
+            aria-label={chatEnabled ? "Desactivar chat" : "Activar chat"}
+            style={{
+              border: "none", padding: 0, background: "transparent",
+              cursor: togglingChat ? "not-allowed" : "pointer",
+              opacity: togglingChat ? 0.6 : 1, flexShrink: 0,
+            }}
+          >
+            <span
+              aria-hidden="true"
               style={{
-                display: "inline-flex", alignItems: "center", gap: 4,
-                padding: "4px 10px", borderRadius: 999,
-                border: chatEnabled ? "1px solid rgba(34,197,94,0.35)" : "1px solid rgba(255,255,255,0.1)",
-                background: chatEnabled ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.04)",
-                color: chatEnabled ? "#4ade80" : "rgba(255,255,255,0.3)",
-                cursor: togglingChat ? "not-allowed" : "pointer",
-                fontSize: 10, fontWeight: 600, opacity: togglingChat ? 0.6 : 1, transition: "all 0.15s",
+                width: 40, height: 22, borderRadius: 11,
+                background: chatEnabled ? "#a855ff" : "transparent",
+                boxShadow: chatEnabled ? "none" : "inset 0 0 0 1.5px rgba(168,85,255,0.3)",
+                position: "relative", display: "inline-block",
+                transition: "background 0.18s",
               }}
             >
-              Chat {chatEnabled ? "activo" : "cerrado"}
-            </button>
-            {toggleError && <span style={{ fontSize: 11, color: "#f87171", fontWeight: 600 }}>{toggleError}</span>}
+              <span style={{
+                position: "absolute", top: 3,
+                left: chatEnabled ? 21 : 3,
+                width: 16, height: 16, borderRadius: "50%",
+                background: chatEnabled ? "#fff" : "rgba(196,168,255,0.45)",
+                boxShadow: chatEnabled ? "0 1px 3px rgba(0,0,0,0.35)" : "none",
+                transition: "left 0.18s, background 0.18s",
+              }} />
+            </span>
+          </button>
+        </div>
+        {toggleError && (
+          <div style={{ flexShrink: 0, padding: "6px 16px", borderBottom: DIV }}>
+            <span style={{ fontSize: 11, color: "#f87171", fontWeight: 600, fontFamily: FONT }}>{toggleError}</span>
           </div>
         )}
+
         <div className="lcp-chat" style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
           {messages.length === 0 ? (
             <div style={{
@@ -622,10 +697,77 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       <style>{`
         @keyframes lcPulse { 0%,100%{opacity:1}50%{opacity:0.35} }
         .lcp-chat::-webkit-scrollbar{display:none}
+        @keyframes scOverlayFadeIn { from{opacity:0} to{opacity:1} }
+        @keyframes scOverlaySlideUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
       `}</style>
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div style={{
+      {/* SC Playback Overlay */}
+      {playingOverlay && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 10002,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(0,0,0,0.6)",
+          animation: "scOverlayFadeIn 0.2s ease",
+        }}>
+          <div style={{
+            width: "min(420px, 90vw)",
+            background: "#0d0d12",
+            borderRadius: 18,
+            border: `1px solid ${playingOverlay.color}33`,
+            borderLeft: `4px solid ${playingOverlay.color}`,
+            boxShadow: `0 0 0 1px ${playingOverlay.color}22, 0 32px 64px rgba(0,0,0,0.9)`,
+            padding: "24px 24px 20px",
+            animation: "scOverlaySlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.9)", fontFamily: FONT }}>
+                {playingOverlay.username}
+              </span>
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: playingOverlay.color,
+                background: `${playingOverlay.color}22`, border: `1px solid ${playingOverlay.color}44`,
+                borderRadius: 5, padding: "2px 7px", fontFamily: FONT,
+              }}>
+                ${playingOverlay.amount} MXN · {playingOverlay.tierName}
+              </span>
+            </div>
+            <p style={{
+              fontSize: 16, color: "#fff", lineHeight: 1.55, fontFamily: FONT,
+              margin: "0 0 24px", wordBreak: "break-word",
+            }}>
+              {playingOverlay.text}
+            </p>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={handleCloseSCOverlay}
+                style={{
+                  padding: "9px 18px", borderRadius: 9,
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  background: "transparent", color: "rgba(255,255,255,0.6)",
+                  fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT,
+                }}
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                onClick={handleNextSCOverlay}
+                style={{
+                  padding: "9px 18px", borderRadius: 9, border: "none",
+                  background: playingOverlay.color, color: "#fff",
+                  fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: FONT,
+                }}
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Header — se oculta en desktop horizontal (va dentro de la card de cámara) */}
+      {!(isDesktop && !layoutPortrait) && <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
         paddingBottom: 14,
@@ -666,19 +808,20 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           </div>
         </div>
 
-        <div style={{
-          display: "inline-flex", alignItems: "center", gap: 5,
-          padding: "4px 10px", borderRadius: 999, fontSize: 11, fontWeight: 700,
-          background: liveStatus === "live" ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.06)",
-          color: liveStatus === "live" ? "#ef4444" : "rgba(255,255,255,0.45)",
-          border: `1px solid ${liveStatus === "live" ? "rgba(239,68,68,0.3)" : "rgba(255,255,255,0.1)"}`,
-        }}>
-          {liveStatus === "live" && (
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ef4444", animation: "lcPulse 1.4s ease-in-out infinite" }} />
-          )}
-          {liveStatus ? (STATUS_LABELS[liveStatus] ?? liveStatus) : "—"}
-        </div>
-      </div>
+        {liveStatus !== "live" && (
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "4px 10px",
+            borderRadius: 7, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em",
+            background: "rgba(255,255,255,0.06)",
+            color: "rgba(255,255,255,0.45)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+          }}>
+            {liveStatus ? (STATUS_LABELS[liveStatus] ?? liveStatus) : "—"}
+          </div>
+        )}
+      </div>}
 
       {/* ── Body ───────────────────────────────────────────────────────────── */}
       {isDesktop && layoutPortrait ? (
@@ -735,73 +878,115 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         </div>
 
       ) : isDesktop && !layoutPortrait ? (
-        /* ── Desktop + Horizontal live ────────────────────────────────────── */
-        showDirectBroadcast ? (
-          /* Direct broadcast: cámara izquierda + columna derecha (super+chat arriba, stats abajo) */
-          <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
-            <div style={{ flex: 3, position: "relative", overflow: "hidden", background: "#000", minWidth: 0 }}>
-              <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
+        /* ── Desktop + Horizontal live — 4 cards flotantes ──────────────── */
+        <div style={{
+          flex: 1, overflow: "hidden",
+          display: "flex", flexDirection: "column",
+          padding: 12, gap: 10,
+        }}>
+
+          {/* Fila superior: 3 cards en fila */}
+          <div style={{ flex: 2, display: "flex", gap: 10, minHeight: 0 }}>
+
+            {/* Card 1: Cámara / Video */}
+            <div style={{
+              flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
+              background: "#0d0d12", borderRadius: 18,
+              boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 24px 48px rgba(0,0,0,0.8)",
+            }}>
+              {/* Header de la card: botón salir + Centro de control + badge EN VIVO */}
+              <div style={{
+                flexShrink: 0, display: "flex", alignItems: "center",
+                gap: 10, padding: "10px 14px", borderBottom: DIV,
+              }}>
+                <button
+                  type="button"
+                  onClick={isBroadcasting ? undefined : onClose}
+                  disabled={isBroadcasting}
+                  title={isBroadcasting ? "Detén la transmisión antes de salir" : "Cerrar"}
+                  style={{
+                    width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+                    border: isBroadcasting ? "1px solid rgba(168,85,255,0.4)" : "none",
+                    background: isBroadcasting ? "rgba(168,85,255,0.1)" : "rgba(255,255,255,0.08)",
+                    color: isBroadcasting ? "rgba(168,85,255,0.6)" : "#fff",
+                    cursor: isBroadcasting ? "not-allowed" : "pointer",
+                    display: "grid", placeItems: "center",
+                  }}
+                  aria-label={isBroadcasting ? "Detén la transmisión antes de salir" : "Cerrar"}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
+                  </svg>
+                </button>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: "#fff", lineHeight: 1, fontFamily: FONT }}>Centro de control</span>
+                  {isBroadcasting && (
+                    <span style={{ fontSize: 10, color: "rgba(168,85,255,0.75)", fontWeight: 500, lineHeight: 1 }}>
+                      Detén la transmisión para salir
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div style={{ flex: 1, position: "relative", overflow: "hidden", minHeight: 0, background: "#000", margin: "0 10px 10px", borderRadius: 12 }}>
+                {showDirectBroadcast ? (
+                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
+                ) : showVideo ? (
+                  <>
+                    <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
+                    {isEnded && renderEndedOverlay()}
+                  </>
+                ) : (
+                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>Sin transmisión activa</span>
+                  </div>
+                )}
+                {liveStatus === "live" && isBroadcasting && (
+                  <div style={{
+                    position: "absolute", top: 10, left: 10, zIndex: 10,
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    background: "rgba(239,68,68,0.88)",
+                    borderRadius: 7, padding: "5px 11px 5px 8px",
+                    fontSize: 11, fontWeight: 700, letterSpacing: "0.06em", color: "#fff",
+                    backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+                    fontFamily: FONT,
+                  }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff", flexShrink: 0, animation: "lcPulse 1.4s ease-in-out infinite" }} />
+                    EN VIVO
+                  </div>
+                )}
+              </div>
             </div>
-            {/* Columna derecha */}
-            <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderLeft: DIV, minWidth: 0 }}>
-              {/* Arriba: Supercomentarios | Chat en vivo */}
-              <div style={{ flex: 2, display: "flex", overflow: "hidden", borderBottom: DIV }}>
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
-                  {sectionHeader("Supercomentarios")}
-                  {renderSuperCommentsSection()}
-                </div>
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                  {renderChatSection()}
-                </div>
-              </div>
-              {/* Abajo: Estadísticas */}
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                {sectionHeader("Estadísticas")}
-                {renderStatsSection()}
-              </div>
+
+            {/* Card 2: Chat live */}
+            <div style={{
+              flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
+              background: "#0d0d12", borderRadius: 18,
+              boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 24px 48px rgba(0,0,0,0.8)",
+            }}>
+              {renderChatSection()}
+            </div>
+
+            {/* Card 3: Supercomentarios */}
+            <div style={{
+              flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
+              background: "#0d0d12", borderRadius: 18,
+              boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 24px 48px rgba(0,0,0,0.8)",
+            }}>
+              {sectionHeader("Supercomentarios")}
+              {renderSuperCommentsSection()}
             </div>
           </div>
-        ) : (
-          /* RTMP / HLS: video derecha + izquierda (super+chat arriba, stats abajo) */
-          <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
 
-            {/* Columna izquierda */}
-            <div style={{ flex: 2, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV, minWidth: 0 }}>
-
-              {/* Arriba: Supercomentarios | Chat en vivo */}
-              <div style={{ flex: 2, display: "flex", overflow: "hidden", borderBottom: DIV }}>
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: DIV }}>
-                  {sectionHeader("Supercomentarios")}
-                  {renderSuperCommentsSection()}
-                </div>
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                  {renderChatSection()}
-                </div>
-              </div>
-
-              {/* Abajo: Estadísticas */}
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                {sectionHeader("Estadísticas")}
-                {renderStatsSection()}
-              </div>
-            </div>
-
-            {/* Columna derecha: Video en vivo */}
-            <div style={{ flex: 3, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              {sectionHeader("En vivo")}
-              {showVideo ? (
-                <div style={{
-                  flex: 1, margin: "12px 16px 16px",
-                  position: "relative", borderRadius: 14,
-                  overflow: "hidden", background: "#000",
-                }}>
-                  <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
-                  {isEnded && renderEndedOverlay()}
-                </div>
-              ) : comingSoon()}
-            </div>
+          {/* Card 4: Estadísticas — fila inferior, ancho completo */}
+          <div style={{
+            flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
+            background: "#0d0d12", borderRadius: 18,
+            boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 24px 48px rgba(0,0,0,0.8)",
+          }}>
+            {sectionHeader("Estadísticas")}
+            {renderStatsSection()}
           </div>
-        )
+        </div>
 
       ) : !isDesktop && !layoutPortrait ? (
         /* ── Mobile + Horizontal live ─────────────────────────────────────── */
@@ -865,10 +1050,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         </div>
 
       ) : !isDesktop && layoutPortrait ? (
-        /* ── Mobile + Portrait live: panel deslizable ────────────────────── */
+        /* ── Mobile + Portrait live: video miniatura + panel drawer ─────── */
         <div ref={bodyContainerRef} style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
-          {/* Área de video — crece/encoge según posición del panel */}
+          {/* Miniatura de video — se encoge/crece según posición del panel */}
           <div
             ref={videoAreaRef}
             style={{
@@ -879,7 +1064,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             }}
           >
             {showDirectBroadcast ? (
-              <div style={{ width: "100%", height: "100%", position: "relative" }}>
+              <div style={{ height: "100%", aspectRatio: "9/16", position: "relative", overflow: "hidden" }}>
                 <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
               </div>
             ) : showVideo ? (
@@ -892,24 +1077,28 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             )}
           </div>
 
-          {/* Panel deslizable */}
+          {/* Panel drawer — deslizable con handle en la parte superior */}
           <div
             ref={panelDragRef}
-            style={{ height: `${panelRatio * 100}%`, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}
+            style={{
+              height: `${panelRatio * 100}%`, flexShrink: 0,
+              display: "flex", flexDirection: "column", overflow: "hidden",
+              borderRadius: "16px 16px 0 0",
+              background: "#0a0a0a",
+              borderTop: "1px solid rgba(255,255,255,0.1)",
+            }}
           >
-            {/* Handle de arrastre */}
+            {/* Handle de arrastre — solo onTouchStart, el move/end van a document */}
             <div
               onTouchStart={onPanelTouchStart}
-              onTouchMove={onPanelTouchMove}
-              onTouchEnd={onPanelTouchEnd}
               style={{
-                flexShrink: 0, paddingTop: 10, paddingBottom: 8,
+                flexShrink: 0, paddingTop: 10, paddingBottom: 10,
                 display: "flex", justifyContent: "center", alignItems: "center",
                 touchAction: "none", cursor: "grab",
-                borderBottom: DIV, background: "#0a0a0a",
+                borderBottom: DIV,
               }}
             >
-              <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.25)" }} />
+              <div style={{ width: 44, height: 5, borderRadius: 3, background: "rgba(255,255,255,0.3)" }} />
             </div>
 
             {/* Chat en vivo */}
@@ -1008,24 +1197,16 @@ function ChatMessageRow({ msg, isMuted, isBanned, onMute, onBan, onDelete }: Mes
         </div>
       )}
 
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 1, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.75)" }}>{msg.username}</span>
-          {isMuted && !isBanned && (
-            <span style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 3, padding: "0px 4px" }}>
-              MUTE
-            </span>
-          )}
-          {isBanned && (
-            <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 3, padding: "0px 4px" }}>
-              BAN
-            </span>
-          )}
-        </div>
-        <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.5)", lineHeight: 1.4, wordBreak: "break-word" }}>
-          {msg.text}
-        </span>
-      </div>
+      <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, lineHeight: 1.4, color: "rgba(255,255,255,0.85)", wordBreak: "break-word", fontFamily: FONT }}>
+        <strong style={{ fontWeight: 700, color: "#fff", marginRight: 5, whiteSpace: "nowrap" }}>{msg.username}</strong>
+        {isMuted && !isBanned && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 3, padding: "0px 4px", marginRight: 4 }}>MUTE</span>
+        )}
+        {isBanned && (
+          <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 3, padding: "0px 4px", marginRight: 4 }}>BAN</span>
+        )}
+        {msg.text}
+      </span>
 
       <div style={{ display: "flex", gap: 2, flexShrink: 0, alignItems: "flex-start", marginTop: 1 }}>
         <ModActionBtn onClick={onMute} active={isMuted} activeColor="#f59e0b" title={isMuted ? "Desmutear" : "Mutear"}>

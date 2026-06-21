@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { createPortal } from "react-dom";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
 import {
   useRef,
   useState,
@@ -43,7 +45,7 @@ export default function PostEditModal({
   );
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { toast: editToast, showToast: showEditToast } = useVibraToast();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -62,12 +64,11 @@ export default function PostEditModal({
     if (files.length === 0) return;
 
     if (!groupIdForUpload) {
-      setError("No se puede subir imágenes sin contexto de grupo o perfil.");
+      showEditToast("No se puede subir imágenes sin contexto de grupo o perfil.", "error");
       return;
     }
 
     setUploading(true);
-    setError(null);
 
     try {
       const uploaded = await Promise.all(
@@ -77,7 +78,7 @@ export default function PostEditModal({
       );
       setMediaItems((prev) => [...prev, ...uploaded]);
     } catch {
-      setError("No se pudieron subir las imágenes. Intenta de nuevo.");
+      showEditToast("No se pudieron subir las imágenes. Intenta de nuevo.", "error");
     } finally {
       setUploading(false);
     }
@@ -87,7 +88,6 @@ export default function PostEditModal({
     if (saving || uploading) return;
 
     setSaving(true);
-    setError(null);
 
     try {
       await updatePost({
@@ -98,8 +98,9 @@ export default function PostEditModal({
       onSaved(text, mediaItems);
       onClose();
     } catch (err) {
-      setError(
+      showEditToast(
         err instanceof Error ? err.message : "No se pudo guardar la edición.",
+        "error",
       );
     } finally {
       setSaving(false);
@@ -476,22 +477,7 @@ export default function PostEditModal({
               </div>
             )}
 
-            {/* Error */}
-            {error && (
-              <div
-                style={{
-                  borderRadius: 8,
-                  border: "1px solid rgba(239,68,68,0.3)",
-                  background: "rgba(239,68,68,0.08)",
-                  padding: "10px 12px",
-                  fontSize: 12.5,
-                  color: "rgba(255,150,150,0.9)",
-                  lineHeight: 1.5,
-                }}
-              >
-                {error}
-              </div>
-            )}
+            <VibraToast toast={editToast} />
           </div>
 
           {/* Footer */}

@@ -512,7 +512,7 @@ export default function LiveDirectBroadcast({
         <canvas
           ref={canvasRef}
           style={{
-            width: "100%", height: "100%", objectFit: "cover",
+            width: "100%", height: "100%", objectFit: "contain",
             transform: "scaleX(-1)",
             display: hasMedia ? "block" : "none",
           }}
@@ -527,15 +527,6 @@ export default function LiveDirectBroadcast({
           </div>
         )}
 
-        <div style={{
-          position: "absolute", top: 12, left: 12,
-          background: "rgba(0,0,0,0.7)",
-          border: `1px solid ${statusColor}`,
-          borderRadius: 6, padding: "3px 10px",
-          fontSize: 11, fontWeight: 700, color: statusColor, letterSpacing: "0.08em",
-        }}>
-          {statusLabel}
-        </div>
       </div>
 
       {error && (
@@ -590,10 +581,10 @@ export default function LiveDirectBroadcast({
 
         {status === "live" ? (
           <button type="button" onClick={stopBroadcast} style={{
-            height: 36, padding: "0 16px", borderRadius: 8,
-            border: "1px solid rgba(239,68,68,0.5)",
-            background: "rgba(239,68,68,0.15)",
-            color: "#ef4444", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: FONT,
+            height: 36, padding: "0 16px", borderRadius: 10,
+            border: "none",
+            background: "rgba(239,68,68,0.72)",
+            color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em", cursor: "pointer", fontFamily: FONT,
           }}>
             Detener transmisión
           </button>

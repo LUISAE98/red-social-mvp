@@ -892,7 +892,7 @@ return (
 
       {error && <div style={noticeStyle}>{error}</div>}
 
-      {loadingInitial && (
+      {loadingInitial && posts.length === 0 && (
         <div
           style={{
             display: "flex",

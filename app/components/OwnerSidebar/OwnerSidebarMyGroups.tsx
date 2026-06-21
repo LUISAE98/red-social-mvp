@@ -47,6 +47,9 @@ import {
   setExclusiveSessionPreparing,
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+
 import ScheduleDateTimeSelector, {
   getSchedulePartsFromDate,
   schedulePartsToIso,
@@ -482,6 +485,7 @@ useEffect(() => {
   const [meetGreetBusyMap, setMeetGreetBusyMap] = useState<BusyMap>({});
   const [meetGreetErrorMap, setMeetGreetErrorMap] = useState<TextMap>({});
   const [meetGreetSuccessMap, setMeetGreetSuccessMap] = useState<TextMap>({});
+  const { toast: myGroupsToast, showToast: showMyGroupsToast } = useVibraToast();
 
   const [meetGreetSectionOpen, setMeetGreetSectionOpen] = useState<Record<string, boolean>>({});
   const [rejectOpenMap, setRejectOpenMap] = useState<ToggleMap>({});
@@ -587,20 +591,14 @@ useEffect(() => {
         await acceptMeetGreetRequest({ requestId });
       }
 
-      setMeetGreetSuccess(
-        requestId,
-        "✅ Solicitud aceptada. Ahora puedes proponer fecha y hora."
-      );
+      showMyGroupsToast("✅ Solicitud aceptada. Ahora puedes proponer fecha y hora.");
 
       setScheduleOpenMap((prev) => ({
         ...prev,
         [requestId]: true,
       }));
     } catch (e: unknown) {
-      setMeetGreetError(
-        requestId,
-        (e instanceof Error ? e.message : null) ?? "No se pudo aceptar la solicitud."
-      );
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo aceptar la solicitud.", "error");
     } finally {
       setMeetGreetBusy(requestId, false);
     }
@@ -626,17 +624,14 @@ useEffect(() => {
         });
       }
 
-      setMeetGreetSuccess(requestId, "✅ Solicitud rechazada.");
+      showMyGroupsToast("✅ Solicitud rechazada.");
 
       setRejectOpenMap((prev) => ({
         ...prev,
         [requestId]: false,
       }));
     } catch (e: unknown) {
-      setMeetGreetError(
-        requestId,
-        (e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud."
-      );
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.", "error");
     } finally {
       setMeetGreetBusy(requestId, false);
     }
@@ -690,20 +685,14 @@ if (scheduleConflict.hasConflict) {
         await proposeMeetGreetSchedule(payload);
       }
 
-      setMeetGreetSuccess(
-        requestId,
-        "✅ Fecha propuesta/agendada correctamente."
-      );
+      showMyGroupsToast("✅ Fecha propuesta/agendada correctamente.");
 
       setScheduleOpenMap((prev) => ({
         ...prev,
         [requestId]: false,
       }));
     } catch (e: unknown) {
-      setMeetGreetError(
-        requestId,
-        (e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha."
-      );
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.", "error");
     } finally {
       setMeetGreetBusy(requestId, false);
     }
@@ -735,12 +724,9 @@ if (scheduleConflict.hasConflict) {
         [requestId]: true,
       }));
 
-      setMeetGreetSuccess(requestId, "✅ Panel de preparación abierto.");
+      showMyGroupsToast("✅ Panel de preparación abierto.");
     } catch (e: unknown) {
-      setMeetGreetError(
-        requestId,
-        (e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparación."
-      );
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparación.", "error");
     } finally {
       setMeetGreetBusy(requestId, false);
     }
@@ -3020,6 +3006,7 @@ maxWidth: 220,
           typeLabel={typeLabel}
         />
       )}
+      <VibraToast toast={myGroupsToast} />
     </>
   );
 }

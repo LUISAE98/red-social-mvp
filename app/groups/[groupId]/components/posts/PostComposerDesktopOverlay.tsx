@@ -303,21 +303,20 @@ const removeMediaButtonStyle: CSSProperties = {
       aria-modal="true"
       aria-label={isEditMode ? "Editar publicación" : "Crear publicación"}
       style={{
-position: "fixed",
-top: 0,
-left: 0,
-right: 0,
-bottom: 0,
-width: "100vw",
-height: "100vh",
-zIndex: 999999,
-display: "flex",
-alignItems: "center",
-justifyContent: "center",
-padding: 24,
-background: "rgba(0,0,0,0.52)",
-backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
-fontFamily: fontStack,
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: "100vw",
+        height: "100vh",
+        zIndex: 999999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 24,
+        background: "rgba(0,0,0,0.88)",
+        fontFamily: fontStack,
       }}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
@@ -381,11 +380,9 @@ fontFamily: fontStack,
     maxHeight: "min(88vh, 680px)",
     display: "flex",
     flexDirection: "column",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.1)",
-    background: "rgba(8,9,11,0.985)",
-    boxShadow:
-      "0 30px 90px rgba(0,0,0,0.56), 0 0 0 1px rgba(255,255,255,0.035)",
+    borderRadius: 18,
+    background: "#0a0a0a",
+    boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
     color: "#fff",
     overflow: "hidden",
     animation: open
@@ -400,42 +397,37 @@ fontFamily: fontStack,
     gridTemplateColumns: "48px 1fr 48px",
     alignItems: "center",
     padding: "0 12px",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
+    borderBottom: "1px solid rgba(255,255,255,0.12)",
+    flexShrink: 0,
   }}
 >
           <div />
 
-<h2
-  style={{
-    margin: 0,
-    textAlign: "center",
-    fontSize: 17,
-    fontWeight: 500,
-    letterSpacing: "-0.02em",
-  }}
->
-  {isEditMode ? "Editar publicación" : "Crear publicación"}
-</h2>
+          <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em" }}>
+            {isEditMode ? "Editar publicación" : "Crear publicación"}
+          </span>
 
           <button
             type="button"
             onClick={onClose}
             aria-label="Cerrar"
-style={{
-  width: 40,
-  height: 40,
-  border: "none",
-  background: "transparent",
-  color: "rgba(255,255,255,0.86)",
-  cursor: "pointer",
-  display: "grid",
-  placeItems: "center",
-  fontSize: 32,
-  fontWeight: 300,
-  lineHeight: 1,
-}}
+            style={{
+              width: 32,
+              height: 32,
+              border: "none",
+              background: "rgba(255,255,255,0.08)",
+              color: "#fff",
+              cursor: "pointer",
+              display: "grid",
+              placeItems: "center",
+              borderRadius: "50%",
+              justifySelf: "end",
+            }}
           >
-            ×
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
           </button>
         </header>
 
@@ -1010,7 +1002,7 @@ borderRadius: 14,
         <div
           style={{
             padding: "14px 20px 18px",
-            borderTop: "1px solid rgba(255,255,255,0.07)",
+            borderTop: "1px solid rgba(255,255,255,0.12)",
           }}
         >
 <button

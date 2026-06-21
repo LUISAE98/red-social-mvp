@@ -32,6 +32,8 @@ import ScheduleDateTimeSelector, {
   type ScheduleParts,
 } from "./ScheduleDateTimeSelector";
 import ScheduleCalendarOverlay from "./ScheduleCalendarOverlay";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
 
 function getServiceEmoji(row: WalletServiceItem): string {
   if (row.status === "rejected" || row.status === "cancelled") return "❌";
@@ -538,8 +540,7 @@ export function WalletServiceRow({
   mode?: "pending" | "history";
 }) {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const { toast: walletRowToast, showToast: showWalletRowToast } = useVibraToast();
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [rejectOpen, setRejectOpen] = useState(false);
@@ -607,8 +608,6 @@ export function WalletServiceRow({
 
   async function handleGreeting(action: "accept" | "reject") {
     setBusy(true);
-    setError(null);
-    setSuccess(null);
 
     try {
       await respondGreetingRequest({
@@ -616,13 +615,9 @@ export function WalletServiceRow({
         action,
       });
 
-      setSuccess(
-        action === "accept"
-          ? "✅ Solicitud aceptada."
-          : "✅ Solicitud rechazada."
-      );
+      showWalletRowToast(action === "accept" ? "✅ Solicitud aceptada." : "✅ Solicitud rechazada.");
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la solicitud.");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? "No se pudo actualizar la solicitud.", "error");
     } finally {
       setBusy(false);
     }
@@ -630,21 +625,19 @@ export function WalletServiceRow({
 
   async function handleScheduledServiceAccept() {
     setBusy(true);
-    setError(null);
-    setSuccess(null);
 
     try {
       if (isExclusiveSession) {
         await acceptExclusiveSessionRequest({ requestId: row.id });
-        setSuccess("✅ Sesión exclusiva aceptada. Ahora puedes poner fecha.");
+        showWalletRowToast("✅ Sesión exclusiva aceptada. Ahora puedes poner fecha.");
       } else {
         await acceptMeetGreetRequest({ requestId: row.id });
-        setSuccess("✅ Meet & Greet aceptado. Ahora puedes poner fecha.");
+        showWalletRowToast("✅ Meet & Greet aceptado. Ahora puedes poner fecha.");
       }
 
       setScheduleOpen(true);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo aceptar la solicitud.");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? "No se pudo aceptar la solicitud.", "error");
     } finally {
       setBusy(false);
     }
@@ -652,8 +645,6 @@ export function WalletServiceRow({
 
   async function handleScheduledServiceReject() {
     setBusy(true);
-    setError(null);
-    setSuccess(null);
 
     try {
       if (isExclusiveSession) {
@@ -661,18 +652,18 @@ export function WalletServiceRow({
           requestId: row.id,
           rejectionReason: rejectReason || null,
         });
-        setSuccess("✅ Sesión exclusiva rechazada.");
+        showWalletRowToast("✅ Sesión exclusiva rechazada.");
       } else {
         await rejectMeetGreetRequest({
           requestId: row.id,
           rejectionReason: rejectReason || null,
         });
-        setSuccess("✅ Meet & Greet rechazado.");
+        showWalletRowToast("✅ Meet & Greet rechazado.");
       }
 
       setRejectOpen(false);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.", "error");
     } finally {
       setBusy(false);
     }
@@ -682,21 +673,20 @@ export function WalletServiceRow({
     const scheduledAt = schedulePartsToIso(scheduleParts);
 
     if (!scheduledAt) {
-      setError("Selecciona día, mes, año, hora y minuto.");
+      showWalletRowToast("Selecciona día, mes, año, hora y minuto.", "error");
       return;
     }
 
     if (scheduleConflict.hasConflict) {
-      setError(
+      showWalletRowToast(
         scheduleConflict.message ??
-          "Ese horario ya está ocupado. Selecciona otra hora disponible."
+          "Ese horario ya está ocupado. Selecciona otra hora disponible.",
+        "error"
       );
       return;
     }
 
     setBusy(true);
-    setError(null);
-    setSuccess(null);
 
     try {
       const payload = {
@@ -711,11 +701,11 @@ export function WalletServiceRow({
         await proposeMeetGreetSchedule(payload);
       }
 
-      setSuccess("✅ Fecha guardada correctamente.");
+      showWalletRowToast("✅ Fecha guardada correctamente.");
       setScheduleOpen(false);
       setCalendarOpen(false);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.", "error");
     } finally {
       setBusy(false);
     }
@@ -723,8 +713,6 @@ export function WalletServiceRow({
 
   async function handlePrepare() {
     setBusy(true);
-    setError(null);
-    setSuccess(null);
 
     try {
       if (isExclusiveSession) {
@@ -740,9 +728,8 @@ export function WalletServiceRow({
       }
 
       setPreparationOpen(true);
-      setSuccess(null);
     } catch (e: unknown) {
-      setError((e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparación.");
+      showWalletRowToast((e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparación.", "error");
     } finally {
       setBusy(false);
     }
@@ -1423,8 +1410,6 @@ export function WalletServiceRow({
                     value={scheduleParts}
                     onChange={(nextParts) => {
                       setScheduleParts(nextParts);
-                      setError(null);
-                      setSuccess(null);
                     }}
                     disabled={busy}
                   />
@@ -1490,8 +1475,6 @@ export function WalletServiceRow({
                     conflictMessage={scheduleConflict.message}
                     onSelectDate={(date) => {
                       setScheduleParts(getSchedulePartsFromDate(date));
-                      setError(null);
-                      setSuccess(null);
                     }}
                     onClose={() => setCalendarOpen(false)}
                     renderItem={(calendarRow) => (
@@ -1508,8 +1491,6 @@ export function WalletServiceRow({
                           value={scheduleParts}
                           onChange={(nextParts) => {
                             setScheduleParts(nextParts);
-                            setError(null);
-                            setSuccess(null);
                           }}
                           disabled={busy}
                         />
@@ -1571,13 +1552,7 @@ export function WalletServiceRow({
                 </div>
               ) : null}
 
-              {error ? (
-                <div className="walletServiceErrorBox">{error}</div>
-              ) : null}
-
-              {success ? (
-                <div className="walletServiceSuccessBox">{success}</div>
-              ) : null}
+              <VibraToast toast={walletRowToast} />
             </div>
           </div>
         ) : null}

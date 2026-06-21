@@ -2,6 +2,8 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
 
 import Greetings from "@/app/groups/[groupId]/components/owner-admin-panel/services/Greetings";
 import Advice from "@/app/groups/[groupId]/components/owner-admin-panel/services/Advice";
@@ -614,8 +616,8 @@ export default function ProfileServicesTab({
   const [draft, setDraft] = useState<ServiceDraft>(createEmptyDraft());
   const [, setSavedDraft] = useState<ServiceDraft>(createEmptyDraft());
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
 
   const lastHydratedProfileIdRef = useRef<string | null>(null);
   const skipHydrationWhileSavingRef = useRef(false);
@@ -692,7 +694,6 @@ export default function ProfileServicesTab({
       lastHydratedProfileIdRef.current = profileUserId;
       setDraft(nextDraft);
       setSavedDraft(nextDraft);
-      setMsg(null);
       setErr(null);
       return;
     }
@@ -773,7 +774,6 @@ export default function ProfileServicesTab({
 
   async function saveServicesFromDraft(sourceDraft?: ServiceDraft) {
     setSaving(true);
-    setMsg(null);
     setErr(null);
 
     const workingDraft = sourceDraft ?? draft;
@@ -1039,9 +1039,9 @@ export default function ProfileServicesTab({
         donation: nextDonation,
       });
 
-      setMsg("✅ Servicios del perfil guardados.");
+      showToast("✅ Servicios del perfil guardados.");
     } catch (e: unknown) {
-      setErr((e instanceof Error ? e.message : null) ?? "❌ No se pudieron guardar los servicios del perfil.");
+      showToast((e instanceof Error ? e.message : null) ?? "❌ No se pudieron guardar los servicios del perfil.", "error");
     } finally {
       skipHydrationWhileSavingRef.current = false;
       setSaving(false);
@@ -1130,7 +1130,7 @@ export default function ProfileServicesTab({
       />
 
       {err && <div style={noticeStyle}>{err}</div>}
-      {msg && <div style={noticeStyle}>{msg}</div>}
+      <VibraToast toast={toast} />
     </div>
   );
 }

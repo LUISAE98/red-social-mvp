@@ -222,7 +222,7 @@ export default function PostImageViewer({
   const [mobileVideoTrueFullscreen, setMobileVideoTrueFullscreen] =
     useState(false);
   const [desktopPostTextExpanded, setDesktopPostTextExpanded] = useState(false);
-  const [, setMobileChromeVisible] = useState(true);
+  const [mobileChromeVisible, setMobileChromeVisible] = useState(true);
   const [videoDuration, setVideoDuration] = useState(0);
   const [videoCurrentTime, setVideoCurrentTime] = useState(0);
   const [, setIsLandscape] = useState(false);
@@ -231,6 +231,8 @@ export default function PostImageViewer({
   const [isTouchCapable, setIsTouchCapable] = useState(false);
   const [videoPlaybackRate, setVideoPlaybackRateState] = useState(1);
   const [desktopSpeedMenuOpen, setDesktopSpeedMenuOpen] = useState(false);
+  const [mobileSpeedMenuOpen, setMobileSpeedMenuOpen] = useState(false);
+  const [videoMuted, setVideoMuted] = useState(false);
   const [mobileSpeedGestureActive, setMobileSpeedGestureActive] =
     useState(false);
   const [desktopControlsVisible, setDesktopControlsVisible] = useState(true);
@@ -259,6 +261,8 @@ export default function PostImageViewer({
   const mobileContentClipRef = useRef<HTMLDivElement | null>(null);
   const mediaAspectRatioRef = useRef<number | null>(null);
   const safeAreaTopRef = useRef<number>(0);
+  const savedPositionsRef = useRef<Map<string, number>>(new Map());
+  const lastVideoSrcRef = useRef<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -455,6 +459,10 @@ const previousMedia =
 
   const playbackRates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2];
 
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.muted = videoMuted;
+  }, [videoMuted]);
+
   const clearChromeTimer = useCallback(() => {
     if (chromeHideTimerRef.current !== null) {
       window.clearTimeout(chromeHideTimerRef.current);
@@ -596,8 +604,16 @@ const previousMedia =
       if (playPromise && typeof playPromise.catch === "function") {
         playPromise.catch(() => undefined);
       }
+      if (useMobileLayout) {
+        setMobileChromeVisible(true);
+        scheduleChromeHide();
+      }
     } else {
       video.pause();
+      if (useMobileLayout) {
+        clearChromeTimer();
+        setMobileChromeVisible(true);
+      }
     }
   }
 
@@ -644,9 +660,12 @@ const previousMedia =
     const handleFullscreenChange = () => {
       const isShellFullscreen =
         document.fullscreenElement === desktopVideoShellRef.current;
+      const isMobileVideoFullscreen =
+        document.fullscreenElement === videoRef.current;
 
       setDesktopFullscreenActive(isShellFullscreen);
       setDesktopControlsVisible(true);
+      setMobileVideoTrueFullscreen(isMobileVideoFullscreen);
 
       if (!isShellFullscreen) {
         clearDesktopControlsTimer();
@@ -729,6 +748,7 @@ const previousMedia =
   useEffect(() => {
     if (!open) {
       setMobileCommentsOpen(false);
+      setMobileSpeedMenuOpen(false);
       setMobileSheetSnap(0);
       setMobileSheetShowComments(false);
       if (mobileSheetRef.current) {
@@ -771,17 +791,30 @@ const previousMedia =
     const video = videoRef.current;
     if (!video) return;
 
+    // Save position of the previous video before resetting
+    if (lastVideoSrcRef.current && video.currentTime > 0.5) {
+      savedPositionsRef.current.set(lastVideoSrcRef.current, video.currentTime);
+    }
+
     video.pause();
     video.currentTime = 0;
     video.playbackRate = videoPlaybackRate;
 
     if (open && isCurrentVideo && currentVideoSrc) {
+      // Restore saved position if switching back to a previously watched video
+      const saved = savedPositionsRef.current.get(currentVideoSrc);
+      if (saved && saved > 0) {
+        video.currentTime = saved;
+        setVideoCurrentTime(saved);
+      }
       const playPromise = video.play();
       if (playPromise && typeof playPromise.catch === "function") {
         playPromise.catch(() => undefined);
       }
       scheduleChromeHide();
     }
+
+    lastVideoSrcRef.current = currentVideoSrc;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     currentMediaIndex,
@@ -856,6 +889,30 @@ const flameButtonStyle: CSSProperties = {
   transform: viewerHasFlamed ? "scale(1.04)" : "scale(1)",
   transition: "transform 140ms ease",
   touchAction: "manipulation",
+};
+
+const topBtnStyle: CSSProperties = {
+  width: 36, height: 36,
+  borderRadius: "50%",
+  background: "rgba(0,0,0,0.46)",
+  border: "none",
+  display: "grid", placeItems: "center",
+  cursor: "pointer",
+  WebkitTapHighlightColor: "transparent",
+  flexShrink: 0,
+};
+
+const liveBtnStyle: CSSProperties = {
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  color: "rgba(255,255,255,0.9)",
+  padding: "0 5px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  WebkitTapHighlightColor: "transparent",
+  flexShrink: 0,
 };
 
   const mobileVerticalProgress = useMobileLayout
@@ -1018,7 +1075,7 @@ const previewUrl = media.url;
                 ref={videoRef}
                 src={currentVideoSrc}
                 poster={currentVideoPoster}
-                controls
+                controls={!useMobileLayout || mobileVideoTrueFullscreen}
                 autoPlay
                 playsInline
                 preload="metadata"
@@ -1039,15 +1096,19 @@ const previewUrl = media.url;
                 onTimeUpdate={(event) => {
                   setVideoCurrentTime(event.currentTarget.currentTime);
                 }}
-                onPlay={() => setVideoPlaying(true)}
+                onPlay={() => { setVideoPlaying(true); if (useMobileLayout) scheduleChromeHide(); }}
                 onPause={() => setVideoPlaying(false)}
+                onEnded={() => {
+                  setVideoPlaying(false);
+                  if (useMobileLayout) { clearChromeTimer(); setMobileChromeVisible(true); }
+                }}
                 style={{
                   width: "100%",
                   height: "100%",
                   objectFit: "contain",
                   background: "#000",
                   opacity: videoReady || !currentVideoPoster ? 1 : 0,
-                  pointerEvents: useMobileLayout ? "auto" : "none",
+                  pointerEvents: "none",
                 }}
               />
             </>
@@ -1333,8 +1394,7 @@ const previewUrl = media.url;
 
           if (!axis && Math.abs(diffX) < 10 && Math.abs(diffY) < 10) {
             if (isCurrentVideo) {
-              const video = videoRef.current;
-              if (video) video.muted = !video.muted;
+              handleVideoPlayPause();
             }
             setMobileDragOffsetX(0);
             setMobileDragOffsetY(0);
@@ -1380,56 +1440,109 @@ const previewUrl = media.url;
           WebkitTouchCallout: "none",
         }}
       >
-        {/* Close button */}
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Cerrar visor"
+        {/* Top bar: ⋮ izquierda | [mute, expand, ×] derecha */}
+        <div
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
           style={{
             position: "absolute",
-            top: "calc(14px + env(safe-area-inset-top))",
-            right: 16,
+            top: 0,
+            left: 0,
+            right: 0,
             zIndex: 10,
-            background: "rgba(0,0,0,0.42)",
-            border: "none",
-            color: "#fff",
-            fontSize: 26,
-            fontWeight: 300,
-            lineHeight: 1,
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            display: "grid",
-            placeItems: "center",
-            cursor: "pointer",
-            WebkitTapHighlightColor: "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingTop: "max(12px, env(safe-area-inset-top))",
+            paddingBottom: 8,
+            paddingLeft: "max(8px, env(safe-area-inset-left))",
+            paddingRight: "max(8px, env(safe-area-inset-right))",
           }}
         >
-          ×
-        </button>
+          {/* ⋮ velocidad — izquierda (video only) */}
+          {isCurrentVideo && !mobileVideoTrueFullscreen ? (
+            <button
+              type="button"
+              onTouchEnd={(e) => { e.preventDefault(); setMobileSpeedMenuOpen((prev) => !prev); }}
+              onClick={() => setMobileSpeedMenuOpen((prev) => !prev)}
+              aria-label="Velocidad de reproducción"
+              style={liveBtnStyle}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="12" cy="5"  r="1.6" />
+                <circle cx="12" cy="12" r="1.6" />
+                <circle cx="12" cy="19" r="1.6" />
+              </svg>
+            </button>
+          ) : (
+            <span />
+          )}
 
-        {/* Media counter */}
-        {canNavigateMedia && totalMedia > 1 && (
-          <div
-            style={{
-              position: "absolute",
-              top: "calc(14px + env(safe-area-inset-top))",
-              left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: 10,
-              background: "rgba(0,0,0,0.42)",
-              borderRadius: 999,
-              padding: "5px 12px",
-              fontSize: 12,
-              fontWeight: 700,
-              lineHeight: 1,
-              whiteSpace: "nowrap",
-              pointerEvents: "none",
-            }}
-          >
-            {currentMediaIndex + 1} / {totalMedia}
+          {/* Derecha: mute + expand + × */}
+          <div style={{ display: "flex", alignItems: "center" }}>
+            {isCurrentVideo && !mobileVideoTrueFullscreen && (
+              <>
+                {/* Mute */}
+                <button
+                  type="button"
+                  onTouchEnd={(e) => { e.preventDefault(); setVideoMuted((m) => !m); }}
+                  onClick={() => setVideoMuted((m) => !m)}
+                  aria-label={videoMuted ? "Activar sonido" : "Silenciar"}
+                  style={liveBtnStyle}
+                >
+                  {videoMuted ? (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
+                    </svg>
+                  ) : (
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                    </svg>
+                  )}
+                </button>
+                {/* Expand / fullscreen */}
+                <button
+                  type="button"
+                  onTouchEnd={(e) => { e.preventDefault(); void (async () => { const vid = videoRef.current; if (!vid) return; try { if (typeof vid.requestFullscreen === "function") await vid.requestFullscreen(); else if (typeof (vid as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen === "function") (vid as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen(); } catch { /* ignored */ } })(); }}
+                  onClick={async () => {
+                    const vid = videoRef.current;
+                    if (!vid) return;
+                    try {
+                      if (typeof vid.requestFullscreen === "function") await vid.requestFullscreen();
+                      else if (typeof (vid as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen === "function")
+                        (vid as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen();
+                    } catch { /* ignored */ }
+                  }}
+                  aria-label="Pantalla completa"
+                  style={liveBtnStyle}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="15 3 21 3 21 9" />
+                    <polyline points="9 21 3 21 3 15" />
+                    <line x1="21" y1="3" x2="14" y2="10" />
+                    <line x1="3" y1="21" x2="10" y2="14" />
+                  </svg>
+                </button>
+              </>
+            )}
+            {/* Cerrar × */}
+            <button
+              type="button"
+              onTouchEnd={(e) => { e.preventDefault(); onClose(); }}
+              onClick={onClose}
+              aria-label="Cerrar visor"
+              style={liveBtnStyle}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
-        )}
+        </div>
 
         {renderMediaPreview(previousMedia, "Anterior")}
         {renderCurrentMedia()}
@@ -1459,133 +1572,231 @@ const previewUrl = media.url;
             {videoPlaybackRate.toFixed(videoPlaybackRate % 1 === 0 ? 0 : 1)}x
           </div>
         )}
-      </div>
 
-      {/* ── Bottom info bar ── */}
-      <div
-        style={{
-          flexShrink: 0,
-          background: "rgba(8,9,11,0.96)",
-          borderTop: "1px solid rgba(255,255,255,0.08)",
-          paddingBottom: "calc(8px + env(safe-area-inset-bottom))",
-        }}
-      >
-        {/* Avatar + name/time */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "10px 16px 6px",
-            minWidth: 0,
-          }}
-        >
-          <Link href={author.profileHref} style={{ flexShrink: 0, lineHeight: 0 }}>
-            <Avatar name={author.authorName} avatarUrl={author.avatarUrl} size={34} />
-          </Link>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Link
-              href={author.profileHref}
-              style={{
-                color: "#fff",
-                textDecoration: "none",
-                fontSize: 13,
-                fontWeight: 700,
-                lineHeight: 1.2,
-                display: "block",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {author.authorName}
-            </Link>
-            <button
-              type="button"
-              onClick={() => setShowExactDate((prev) => !prev)}
-              title={exactDate}
-              aria-label={showExactDate ? "Mostrar fecha relativa" : "Mostrar fecha exacta"}
-              style={{
-                color: "rgba(255,255,255,0.55)",
-                fontSize: 11,
-                lineHeight: 1.2,
-                border: "none",
-                background: "transparent",
-                padding: 0,
-                fontFamily: fontStack,
-                cursor: "pointer",
-                textAlign: "left",
-                WebkitTapHighlightColor: "transparent",
-              }}
-            >
-              {showExactDate ? exactDate : relativeDate}
-            </button>
-          </div>
-        </div>
-
-        {/* Actions row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 12,
-            padding: "2px 16px 6px",
-          }}
-        >
-          <div style={actionGroupStyle}>
-            <button
-              type="button"
-              onClick={onToggleFlame}
-              aria-pressed={viewerHasFlamed}
-              aria-label={viewerHasFlamed ? "Quitar flamita de la publicación" : "Dar flamita a la publicación"}
-              style={flameButtonStyle}
-            >
-              <span aria-hidden="true" style={{ display: "inline-grid", placeItems: "center", lineHeight: 1 }}>
-                <VibraFlameIcon active={viewerHasFlamed} size={22} />
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={onOpenFlames}
-              disabled={!onOpenFlames || likesCount === 0}
-              aria-label="Ver usuarios que dieron flamita"
-              style={{
-                ...actionButtonStyle,
-                opacity: !onOpenFlames || likesCount === 0 ? 0.55 : 1,
-                cursor: !onOpenFlames || likesCount === 0 ? "default" : "pointer",
-              }}
-            >
-              {likesCount}
-            </button>
-          </div>
-
+        {/* ── Center play/pause ── */}
+        {isCurrentVideo && !mobileVideoTrueFullscreen && (
           <button
             type="button"
-            onClick={onOpenComments}
-            aria-label="Ver comentarios"
-            style={actionButtonStyle}
+            onClick={handleVideoPlayPause}
+            aria-label={videoPlaying ? "Pausar video" : "Reproducir video"}
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              zIndex: 8,
+              width: 64,
+              height: 64,
+              borderRadius: "50%",
+              border: "2px solid rgba(255,255,255,0.92)",
+              background: "rgba(0,0,0,0.46)",
+              color: "#fff",
+              display: "grid",
+              placeItems: "center",
+              cursor: "pointer",
+              WebkitTapHighlightColor: "transparent",
+              opacity: mobileChromeVisible ? 1 : 0,
+              transition: "opacity 220ms ease",
+              pointerEvents: mobileChromeVisible ? "auto" : "none",
+            }}
           >
-            <span aria-hidden="true">
-              <VibraCommentIcon size={20} color="rgba(255,255,255,0.88)" />
-            </span>
-            <span>{commentsCount}</span>
-          </button>
-
-          <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
-            <PostSaveButton
-              count={savesCount}
-              saved={isSaved}
-              loading={saveBusy}
-              disabled={!onToggleSave}
-              onClick={onToggleSave}
-            />
-            {post.isShareable === true && (
-              <PostShareButton
-                postId={post.id}
-                title={post.shareTitle || "Publicación"}
-                text={post.shareDescription || post.text || "Mira esta publicación."}
-              />
+            {videoPlaying ? (
+              <svg width="20" height="22" viewBox="0 0 14 18" fill="none" aria-hidden="true">
+                <rect x="0" y="0" width="5" height="18" rx="1.5" fill="white" />
+                <rect x="9" y="0" width="5" height="18" rx="1.5" fill="white" />
+              </svg>
+            ) : (
+              <svg width="20" height="22" viewBox="0 0 12 15" fill="none" aria-hidden="true" style={{ marginLeft: 3 }}>
+                <path d="M0 0 L12 7.5 L0 15 Z" fill="white" />
+              </svg>
             )}
+          </button>
+        )}
+
+        {/* ── Bottom info bar ── */}
+        <div
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            background: "linear-gradient(to top, rgba(0,0,0,0.84) 0%, rgba(0,0,0,0.54) 58%, transparent 100%)",
+            paddingBottom: "calc(8px + env(safe-area-inset-bottom))",
+            zIndex: 5,
+          }}
+        >
+          {/* Avatar + name/date + [video: ⋮ expand] */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "4px 16px 2px",
+              minWidth: 0,
+            }}
+          >
+            <Link href={author.profileHref} style={{ flexShrink: 0, lineHeight: 0 }}>
+              <Avatar name={author.authorName} avatarUrl={author.avatarUrl} size={34} />
+            </Link>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <Link
+                href={author.profileHref}
+                style={{
+                  color: "#fff",
+                  textDecoration: "none",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  lineHeight: 1.2,
+                  display: "block",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {author.authorName}
+              </Link>
+              <button
+                type="button"
+                onClick={() => setShowExactDate((prev) => !prev)}
+                title={exactDate}
+                aria-label={showExactDate ? "Mostrar fecha relativa" : "Mostrar fecha exacta"}
+                style={{
+                  display: "block",
+                  color: "rgba(255,255,255,0.54)",
+                  fontSize: 10.5,
+                  lineHeight: 1.2,
+                  border: "none",
+                  background: "transparent",
+                  padding: 0,
+                  margin: 0,
+                  fontFamily: fontStack,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  WebkitTapHighlightColor: "transparent",
+                  WebkitAppearance: "none",
+                  appearance: "none",
+                }}
+              >
+                {showExactDate ? exactDate : relativeDate}
+              </button>
+            </div>
+          </div>
+
+          {/* Time + progress bar — always rendered, animates in/out smoothly */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateRows: (isCurrentVideo && !mobileVideoTrueFullscreen && mobileChromeVisible) ? "1fr" : "0fr",
+              opacity: (isCurrentVideo && !mobileVideoTrueFullscreen && mobileChromeVisible) ? 1 : 0,
+              transition: "grid-template-rows 240ms ease, opacity 200ms ease",
+            }}
+          >
+            <div style={{ overflow: "hidden", minHeight: 0 }}>
+              {isCurrentVideo && !mobileVideoTrueFullscreen && (
+                <div style={{ padding: "0px 16px 4px", pointerEvents: mobileChromeVisible ? "auto" : "none" }}>
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 3 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.68)", letterSpacing: "0.01em", fontVariantNumeric: "tabular-nums" }}>
+                      {formatMediaDuration(videoCurrentTime)}
+                    </span>
+                  </div>
+                  <div style={{ position: "relative", height: 20, display: "flex", alignItems: "center" }}>
+                    <div style={{ position: "absolute", left: 0, right: 0, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.28)" }}>
+                      <div style={{ height: "100%", width: `${videoDuration > 0 ? Math.min(100, (videoCurrentTime / videoDuration) * 100) : 0}%`, background: "#fff", borderRadius: 2 }} />
+                    </div>
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: `${videoDuration > 0 ? Math.min(100, (videoCurrentTime / videoDuration) * 100) : 0}%`,
+                        transform: "translate(-50%, 0)",
+                        width: 14, height: 14, borderRadius: "50%",
+                        background: "#fff", boxShadow: "0 1px 5px rgba(0,0,0,0.55)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                    <input
+                      type="range"
+                      min={0}
+                      max={videoDuration > 0 ? videoDuration : 0}
+                      step={0.1}
+                      value={Math.min(videoCurrentTime, videoDuration > 0 ? videoDuration : videoCurrentTime)}
+                      aria-label="Progreso del video"
+                      onChange={(e) => handleVideoSeek(Number(e.currentTarget.value))}
+                      onTouchStart={(e) => e.stopPropagation()}
+                      onTouchMove={(e) => e.stopPropagation()}
+                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", margin: 0 }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Actions row */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "2px 16px 6px",
+            }}
+          >
+            <div style={actionGroupStyle}>
+              <button
+                type="button"
+                onClick={onToggleFlame}
+                aria-pressed={viewerHasFlamed}
+                aria-label={viewerHasFlamed ? "Quitar flamita de la publicación" : "Dar flamita a la publicación"}
+                style={flameButtonStyle}
+              >
+                <span aria-hidden="true" style={{ display: "inline-grid", placeItems: "center", lineHeight: 1 }}>
+                  <VibraFlameIcon active={viewerHasFlamed} size={22} />
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={onOpenFlames}
+                disabled={!onOpenFlames || likesCount === 0}
+                aria-label="Ver usuarios que dieron flamita"
+                style={{
+                  ...actionButtonStyle,
+                  opacity: !onOpenFlames || likesCount === 0 ? 0.55 : 1,
+                  cursor: !onOpenFlames || likesCount === 0 ? "default" : "pointer",
+                }}
+              >
+                {likesCount}
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={onOpenComments}
+              aria-label="Ver comentarios"
+              style={actionButtonStyle}
+            >
+              <span aria-hidden="true">
+                <VibraCommentIcon size={20} color="rgba(255,255,255,0.88)" />
+              </span>
+              <span>{commentsCount}</span>
+            </button>
+
+            <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 14 }}>
+              <PostSaveButton
+                count={savesCount}
+                saved={isSaved}
+                loading={saveBusy}
+                disabled={!onToggleSave}
+                onClick={onToggleSave}
+              />
+              {post.isShareable === true && (
+                <PostShareButton
+                  postId={post.id}
+                  title={post.shareTitle || "Publicación"}
+                  text={post.shareDescription || post.text || "Mira esta publicación."}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -1622,6 +1833,69 @@ const previewUrl = media.url;
           </div>
         </div>
       )}
+
+      {/* Panel central de velocidad */}
+      {mounted && mobileSpeedMenuOpen && createPortal(
+        <>
+          <div
+            style={{ position: "fixed", inset: 0, zIndex: 2147483647, background: "rgba(0,0,0,0.52)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
+            onClick={() => setMobileSpeedMenuOpen(false)}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              zIndex: 2147483647,
+              background: "rgba(18,18,20,0.98)",
+              border: "1px solid rgba(255,255,255,0.10)",
+              borderRadius: 18,
+              width: 230,
+              overflow: "hidden",
+              boxShadow: "0 24px 64px rgba(0,0,0,0.64)",
+            }}
+          >
+            <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.38)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+                Velocidad de reproducción
+              </span>
+            </div>
+            {([0.5, 1, 1.5, 2] as const).map((rate) => (
+              <button
+                key={rate}
+                type="button"
+                onClick={() => { setVideoPlaybackRate(rate); setMobileSpeedMenuOpen(false); }}
+                aria-pressed={videoPlaybackRate === rate}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  width: "100%",
+                  padding: "14px 16px",
+                  border: "none",
+                  borderBottom: "1px solid rgba(255,255,255,0.05)",
+                  background: "transparent",
+                  color: videoPlaybackRate === rate ? "#fff" : "rgba(255,255,255,0.68)",
+                  fontSize: 15,
+                  fontWeight: videoPlaybackRate === rate ? 700 : 400,
+                  cursor: "pointer",
+                  WebkitTapHighlightColor: "transparent",
+                  textAlign: "left",
+                }}
+              >
+                <span>{rate === 1 ? "Normal" : `${rate}×`}</span>
+                {videoPlaybackRate === rate && (
+                  <svg width="16" height="12" viewBox="0 0 16 12" fill="none" aria-hidden="true">
+                    <path d="M1 6L5.5 10.5L15 1" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+            ))}
+          </div>
+        </>,
+        document.body
+      )}
     </div>
   );
 
@@ -1641,7 +1915,7 @@ const previewUrl = media.url;
         alignItems: "center",
         justifyContent: "center",
         gap: 14,
-        padding: 24,
+        padding: "24px 10vw",
         boxSizing: "border-box",
       }}
       onClick={onClose}
@@ -1652,7 +1926,7 @@ const previewUrl = media.url;
           onClick={(e) => { e.stopPropagation(); revealDesktopControls(); }}
           style={{
             flex: 1,
-            height: "min(90dvh, 860px)",
+            height: "min(72dvh, 688px)",
             position: "relative",
             minWidth: 0,
             minHeight: 0,
@@ -1671,9 +1945,24 @@ const previewUrl = media.url;
               type="button"
               onClick={onClose}
               aria-label="Cerrar visor"
-              style={closeButtonStyle}
+              style={{
+                position: "absolute",
+                top: 14,
+                left: 14,
+                zIndex: 8,
+                background: "none",
+                border: "none",
+                color: "#fff",
+                cursor: "pointer",
+                padding: 4,
+                display: "grid",
+                placeItems: "center",
+              }}
             >
-              ×
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </button>
           )}
 
@@ -1733,41 +2022,6 @@ const previewUrl = media.url;
             />
           )}
 
-          {(!desktopFullscreenActive || desktopControlsVisible) &&
-            (currentMedia.type === "video" || canNavigateMedia) && (
-            <div
-              style={{
-                position: "absolute",
-                top: 14,
-                right: 14,
-                zIndex: 7,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-
-              {canNavigateMedia && (
-                <div
-                  style={{
-                    minHeight: 30,
-                    padding: "8px 10px",
-                    borderRadius: 999,
-                    background: "rgba(0,0,0,0.52)",
-                    border: "1px solid rgba(255,255,255,0.16)",
-                    color: "rgba(255,255,255,0.92)",
-                    fontSize: 11,
-                    fontWeight: 750,
-                    lineHeight: 1,
-                    display: "grid",
-                    placeItems: "center",
-                  }}
-                >
-                  {currentMediaIndex + 1}/{totalMedia}
-                </div>
-              )}
-            </div>
-          )}
 
           {false &&
             currentMedia.type === "video" &&
@@ -2022,8 +2276,8 @@ const previewUrl = media.url;
         <aside
           onClick={(e) => e.stopPropagation()}
           style={{
-            width: "min(380px, 34vw)",
-            height: "min(90dvh, 860px)",
+            width: "min(304px, 27vw)",
+            height: "min(72dvh, 688px)",
             flexShrink: 0,
             minHeight: 0,
             background: "rgba(14,14,16,0.98)",
@@ -2070,8 +2324,8 @@ const previewUrl = media.url;
                     color: "#fff",
                     textDecoration: "none",
                     fontSize: 13,
-                    fontWeight: 700,
-                    lineHeight: 1.2,
+                    fontWeight: 500,
+                    lineHeight: 1.35,
                     display: "block",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -2167,9 +2421,9 @@ const previewUrl = media.url;
                   display: "block",
                   width: "fit-content",
                   marginTop: 0,
-                  color: "rgba(255,255,255,0.52)",
-                  fontSize: 11,
-                  lineHeight: "11px",
+                  color: "rgba(255,255,255,0.54)",
+                  fontSize: 10.5,
+                  lineHeight: 1.35,
                   border: "none",
                   background: "transparent",
                   padding: 0,

@@ -788,6 +788,7 @@ onToggleProfilePin,
 
   const [isLivePortrait, setIsLivePortrait] = useState(false);
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
+  const [feedLiveStream, setFeedLiveStream] = useState<MediaStream | null>(null);
 
   // Auto-abrir el live cuando inicia si el viewer ya tiene acceso (ticket pagado o miembro con acceso gratis)
   const prevIsLiveActiveRef = useRef(false);
@@ -2884,12 +2885,15 @@ style={{
       {/* Área de media — player activo, finalizado, o programado */}
       {isLivePlayer && (activeLiveData?.playbackId || activeLiveData?.hlsUrl) ? (
         <LiveInlinePlayer
+          postId={post.id}
           playbackId={activeLiveData.playbackId ?? undefined}
           hlsUrl={activeLiveData.hlsUrl ?? undefined}
           title={activeLiveData.title}
           coverUrl={activeLiveData.coverUrl}
           portrait={isLivePortrait}
           paused={liveViewerOpen || liveCreatorOpen}
+          streamProvider={activeLiveData.streamProvider ?? undefined}
+          onStreamReady={(s) => setFeedLiveStream(s)}
           onClick={() => currentUserId === post.authorId ? setLiveCreatorOpen(true) : setLiveViewerOpen(true)}
           onOrientationDetected={(p) => {
             // Don't change portrait while the creator panel is open — it would
@@ -4270,6 +4274,7 @@ padding: "0 0 2px 0",
     post={{ ...post, liveData: activeLiveData ?? post.liveData }}
     onManage={currentUserId === post.authorId ? () => { setLiveViewerOpen(false); setLiveCreatorOpen(true); } : undefined}
     initialPortrait={isLivePortrait}
+    initialStream={feedLiveStream}
   />
 )}
 {liveCreatorOpen && (

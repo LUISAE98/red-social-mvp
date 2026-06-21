@@ -600,6 +600,8 @@ export default function PostComposerMobileOverlay({
         fontSize: 17,
         fontWeight: 500,
         letterSpacing: "-0.02em",
+        lineHeight: 1.2,
+        color: "#fff",
       }}
     >
       {isEditMode ? "Editar publicación" : "Crear publicación"}

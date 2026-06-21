@@ -44,6 +44,7 @@ export default function LiveChatViewer({
   const [visibleSuperComments, setVisibleSuperComments] = useState<SuperComment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
+  const sendErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Si el creador nunca guardó config, usar defaults para que el botón siempre esté disponible en direct
   const effectiveConfig: SuperCommentConfig | null =
@@ -97,6 +98,12 @@ export default function LiveChatViewer({
   const handleSend = useCallback(async () => {
     if (!user || !senderInfo || !text.trim()) return;
     const messageText = text.trim();
+    if (messageText.length > 50) {
+      if (sendErrorTimerRef.current) clearTimeout(sendErrorTimerRef.current);
+      setSendError("El mensaje no puede exceder 50 caracteres.");
+      sendErrorTimerRef.current = setTimeout(() => setSendError(null), 3500);
+      return;
+    }
     setText("");
     setSendError(null);
     isAtBottomRef.current = true;
@@ -226,25 +233,29 @@ export default function LiveChatViewer({
                   Fuiste silenciado en este live
                 </div>
               ) : (
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  {showSuperCommentBtn && (
-                    <BillButton onClick={() => setSuperCommentOpen(true)} />
+                <>
+                  {sendError && (
+                    <p style={{ margin: "0 0 5px", fontSize: 11, color: "#f87171", fontFamily: FONT, textAlign: "center" }}>{sendError}</p>
                   )}
-                  <input
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    maxLength={500}
-                    placeholder="Escribe un mensaje..."
-                    style={{
-                      flex: 1, background: "rgba(255,255,255,0.13)",
-                      border: "1px solid rgba(255,255,255,0.18)", borderRadius: 20,
-                      padding: "8px 13px", color: "#fff", fontSize: 12.5,
-                      fontFamily: FONT, outline: "none",
-                    }}
-                  />
-                  <SendButton onClick={handleSend} active={!!text.trim()} />
-                </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {showSuperCommentBtn && (
+                      <BillButton onClick={() => setSuperCommentOpen(true)} />
+                    )}
+                    <input
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      placeholder="Escribe un mensaje..."
+                      style={{
+                        flex: 1, background: "rgba(255,255,255,0.13)",
+                        border: "1px solid rgba(255,255,255,0.18)", borderRadius: 20,
+                        padding: "8px 13px", color: "#fff", fontSize: 12.5,
+                        fontFamily: FONT, outline: "none",
+                      }}
+                    />
+                    <SendButton onClick={handleSend} active={!!text.trim()} />
+                  </div>
+                </>
               )}
             </div>
           ) : (
@@ -333,15 +344,17 @@ export default function LiveChatViewer({
             </div>
           ) : (
             <>
+              {sendError && (
+                <p style={{ margin: "0 0 5px", fontSize: 11, color: "#f87171", fontFamily: FONT, textAlign: "center" }}>{sendError}</p>
+              )}
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 {showSuperCommentBtn && (
                   <BillButton onClick={() => setSuperCommentOpen(true)} />
                 )}
                 <input
                   value={text}
-                  onChange={(e) => { setText(e.target.value); setSendError(null); }}
+                  onChange={(e) => setText(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  maxLength={500}
                   placeholder="Escribe un mensaje..."
                   style={{
                     flex: 1, background: "rgba(255,255,255,0.07)",
@@ -352,9 +365,6 @@ export default function LiveChatViewer({
                 />
                 <SendButton onClick={handleSend} active={!!text.trim()} />
               </div>
-              {sendError && (
-                <p style={{ margin: "4px 0 0", fontSize: 11, color: "#f87171", fontFamily: FONT }}>{sendError}</p>
-              )}
             </>
           )}
         </div>

@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
 import Link from "next/link";
 import {
   collection,
@@ -122,6 +124,7 @@ export default function ProfileGroupsTab({
   const [loading, setLoading] = useState(true);
   const [savingVisibility, setSavingVisibility] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const { toast, showToast } = useVibraToast();
 
   const fontStack =
     'inherit';
@@ -250,13 +253,13 @@ export default function ProfileGroupsTab({
       });
 
       onGroupsVisibilityChanged?.(nextValue);
-      setMsg(
+      showToast(
         nextValue
           ? "✅ Ahora los visitantes pueden ver tus comunidades."
           : "✅ Tus comunidades ya no se muestran a visitantes."
       );
     } catch (e: unknown) {
-      setMsg(
+      showToast(
         (e instanceof Error ? e.message : null) ?? "❌ No se pudo actualizar la visibilidad de tus comunidades."
       );
     } finally {
@@ -592,6 +595,7 @@ export default function ProfileGroupsTab({
           </div>
         )}
       </div>
+      <VibraToast toast={toast} />
     </section>
   );
 }

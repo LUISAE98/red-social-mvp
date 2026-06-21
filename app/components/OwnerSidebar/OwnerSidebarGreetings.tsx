@@ -42,6 +42,8 @@ import {
   getWalletScheduleConflictResult,
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
 
 type ScheduledServiceKind = "meet_greet" | "exclusive_session";
 
@@ -698,6 +700,7 @@ export default function OwnerSidebarGreetings({
   const [busyMap, setBusyMap] = useState<BusyMap>({});
   const [errorMap, setErrorMap] = useState<TextMap>({});
   const [successMap, setSuccessMap] = useState<TextMap>({});
+  const { toast: greetingsToast, showToast: showGreetingsToast } = useVibraToast();
   const [viewItem, setViewItem] = useState<{ item: { id: string; data: GreetingRequestDoc }; sourceName: string; sourceAvatar: string | null } | null>(null);
   const [viewDeliveredItem, setViewDeliveredItem] = useState<{ item: { id: string; data: GreetingRequestDoc }; sourceName: string; sourceAvatar: string | null } | null>(null);
   const [openSectionKey, setOpenSectionKey] = useState<ServiceSectionKey | null>(null);
@@ -857,12 +860,12 @@ export default function OwnerSidebarGreetings({
       } else {
         await acceptMeetGreetRequest({ requestId });
       }
-      setSuccess(requestId, "✅ Solicitud aceptada. Ahora puedes proponer fecha y hora.");
+      showGreetingsToast("✅ Solicitud aceptada. Ahora puedes proponer fecha y hora.");
       closeInlinePanels(requestId, "schedule");
       setScheduleOpenMap((prev) => ({ ...prev, [requestId]: true }));
       setOpenItemKey(`incoming-${kind}-${requestId}`);
     } catch (e: unknown) {
-      setError(requestId, (e instanceof Error ? e.message : null) ?? "No se pudo aceptar la solicitud.");
+      showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo aceptar la solicitud.", "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -885,10 +888,10 @@ export default function OwnerSidebarGreetings({
         await rejectMeetGreetRequest(payload);
       }
 
-      setSuccess(requestId, "✅ Solicitud rechazada.");
+      showGreetingsToast("✅ Solicitud rechazada.");
       setRejectOpenMap((prev) => ({ ...prev, [requestId]: false }));
     } catch (e: unknown) {
-      setError(requestId, (e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.");
+      showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.", "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -944,11 +947,11 @@ async function handleCreatorSchedule(
       await proposeMeetGreetSchedule(payload);
     }
 
-    setSuccess(requestId, "✅ Fecha propuesta/agendada correctamente.");
+    showGreetingsToast("✅ Fecha propuesta/agendada correctamente.");
     setScheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
     setCalendarOpenMap((prev) => ({ ...prev, [requestId]: false }));
   } catch (e: unknown) {
-    setError(requestId, (e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.");
+    showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.", "error");
   } finally {
     setBusy(requestId, false);
   }
@@ -971,10 +974,10 @@ async function handleCreatorSchedule(
         await requestMeetGreetRefund(payload);
       }
 
-      setSuccess(requestId, "✅ Devolución solicitada.");
+      showGreetingsToast("✅ Devolución solicitada.");
       setRefundOpenMap((prev) => ({ ...prev, [requestId]: false }));
     } catch (e: unknown) {
-      setError(requestId, (e instanceof Error ? e.message : null) ?? "No se pudo solicitar la devolución.");
+      showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo solicitar la devolución.", "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -997,10 +1000,10 @@ async function handleCreatorSchedule(
         await requestMeetGreetReschedule(payload);
       }
 
-      setSuccess(requestId, "✅ Cambio de fecha solicitado.");
+      showGreetingsToast("✅ Cambio de fecha solicitado.");
       setRescheduleOpenMap((prev) => ({ ...prev, [requestId]: false }));
     } catch (e: unknown) {
-      setError(requestId, (e instanceof Error ? e.message : null) ?? "No se pudo solicitar el cambio de fecha.");
+      showGreetingsToast((e instanceof Error ? e.message : null) ?? "No se pudo solicitar el cambio de fecha.", "error");
     } finally {
       setBusy(requestId, false);
     }
@@ -2322,6 +2325,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         typeLabel={(t) => t === "consejo" ? "Consejo" : t === "mensaje" ? "Mensaje" : "Saludo"}
       />
     )}
+    <VibraToast toast={greetingsToast} />
     </>
   );
 }

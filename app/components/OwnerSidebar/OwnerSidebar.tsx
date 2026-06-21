@@ -40,6 +40,8 @@ import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { useSidebarVisitCounts } from "@/lib/hooks/useSidebarVisitCounts";
 import { useNewPostsCounts } from "@/lib/hooks/useNewPostsCounts";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
 
 export type Currency = "MXN" | "USD";
 export type SidebarMemberStatus =
@@ -776,6 +778,7 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
   const [msg, setMsg] = useState<string | null>(
     () => ownerSidebarCache?.msg ?? null
   );
+  const { toast: sidebarToast, showToast: showSidebarToast } = useVibraToast();
 
   const [activeView, setActiveView] = useState<TopView>(
     () => ownerSidebarCache?.activeView ?? "owned"
@@ -2187,7 +2190,7 @@ const groupsForSeen = [
       }));
 
       await approveJoinRequest(groupId, userId);
-      setMsg("✅ Solicitud de acceso aprobada.");
+      showSidebarToast("✅ Solicitud de acceso aprobada.");
     } catch (e: unknown) {
       const friendly = friendlyJoinErrorMessage(e);
       if (friendly) setGroupsErr(friendly);
@@ -2217,7 +2220,7 @@ const groupsForSeen = [
       }));
 
       await rejectJoinRequest(groupId, userId);
-      setMsg("✅ Solicitud de acceso rechazada.");
+      showSidebarToast("✅ Solicitud de acceso rechazada.");
     } catch (e: unknown) {
       const friendly = friendlyJoinErrorMessage(e);
       if (friendly) setGroupsErr(friendly);
@@ -2246,13 +2249,13 @@ const groupsForSeen = [
 
     try {
       await respondGreetingRequest({ requestId, action });
-      setMsg(
+      showSidebarToast(
         action === "accept"
           ? "✅ Solicitud de servicio aceptada."
           : "✅ Solicitud de servicio rechazada."
       );
     } catch (e: unknown) {
-      setGroupsErr((e instanceof Error ? e.message : null) ?? "❌ No se pudo actualizar la solicitud.");
+      showSidebarToast((e instanceof Error ? e.message : null) ?? "❌ No se pudo actualizar la solicitud.", "error");
     } finally {
       setGreetingBusyId(null);
     }
@@ -2995,6 +2998,7 @@ newPostsCounts={newPostsCounts}
 </div>
 </RefreshableArea>
 </aside>
+      <VibraToast toast={sidebarToast} />
     </>
   );
 }

@@ -223,7 +223,6 @@ export default function PostFlamesPanel({
           style={{
             display: "flex", alignItems: "center", gap: 12,
             padding: "10px 4px", color: "#fff", textDecoration: "none",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
           }}
         >
           <FlameAvatar name={user.displayName} avatarUrl={user.avatarUrl} />
@@ -264,6 +263,21 @@ export default function PostFlamesPanel({
 
       {isMobile ? (
         /* ── Mobile: pestaña deslizable ── */
+        <>
+        {/* Piso: mismo z-index que el backdrop pero aparece después en el DOM → queda encima
+            del backdrop en la brecha, pero el panel (z+1) siempre lo cubre cuando está en posición */}
+        <div
+          aria-hidden
+          style={{
+            position: "fixed", bottom: 0, left: 0, right: 0,
+            height: 120,
+            background: "rgba(8,9,11,0.96)",
+            zIndex: 2147483640,
+            pointerEvents: "none",
+            transform: `translateY(${Math.max(0, panelOffsetY)}px)`,
+            transition: isDragging ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
+          }}
+        />
         <div
           style={{
             position: "fixed", bottom: 0, left: 0, right: 0,
@@ -299,6 +313,7 @@ export default function PostFlamesPanel({
           </div>
           {bodyEl}
         </div>
+        </>
       ) : (
         /* ── Desktop: panel centrado con animación scale ── */
         <div
