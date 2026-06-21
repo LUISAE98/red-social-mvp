@@ -2732,15 +2732,28 @@ await createExclusiveSessionRequest({
       {profileToast && createPortal(
         <>
           <style>{`
-            @keyframes profileToastIn {
-              from { opacity: 0; transform: translateX(-50%) translateY(10px); }
-              to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+            @keyframes profileToastExpand {
+              0%   { opacity: 0; max-width: 46px; }
+              18%  { opacity: 1; max-width: 46px; }
+              70%  { opacity: 1; max-width: 480px; }
+              100% { opacity: 1; max-width: 480px; }
+            }
+            @keyframes profileToastIconPop {
+              0%   { transform: scale(0.4); opacity: 0; }
+              40%  { transform: scale(1.15); opacity: 1; }
+              65%  { transform: scale(0.92); }
+              100% { transform: scale(1); opacity: 1; }
+            }
+            @keyframes profileToastText {
+              0%, 40% { opacity: 0; }
+              80%     { opacity: 1; }
+              100%    { opacity: 1; }
             }
           `}</style>
           <div
             style={{
               position: "fixed",
-              bottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
+              bottom: "calc(88px + env(safe-area-inset-bottom, 0px))",
               left: "50%",
               transform: "translateX(-50%)",
               zIndex: 11500,
@@ -2749,57 +2762,53 @@ await createExclusiveSessionRequest({
               gap: 10,
               padding: "10px 18px 10px 10px",
               borderRadius: 40,
-              background: "rgba(14,14,14,0.86)",
-              backdropFilter: "blur(16px)",
-              WebkitBackdropFilter: "blur(16px)",
-              border: "1px solid rgba(255,255,255,0.10)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+              background: "#0a0a0a",
+              border: `1.5px solid ${
+                profileToast.type === "success"
+                  ? "rgba(34,197,94,0.35)"
+                  : profileToast.type === "error"
+                  ? "rgba(239,68,68,0.35)"
+                  : "rgba(255,255,255,0.14)"
+              }`,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
               color: "#fff",
               fontSize: 14,
               fontWeight: 500,
               pointerEvents: "none",
               whiteSpace: "nowrap",
+              overflow: "hidden",
               maxWidth: "calc(100vw - 32px)",
-              animation: "profileToastIn 220ms ease-out",
+              animation: "profileToastExpand 500ms cubic-bezier(0.4,0,0.2,1) forwards",
             }}
           >
-            {profileToast.type === "success" ? (
-              <span
-                style={{
-                  width: 22, height: 22, borderRadius: "50%",
-                  background: "#22c55e", flexShrink: 0,
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                  <path d="M2 6.5L4.5 9L10 3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <span
+              style={{
+                width: 24, height: 24, borderRadius: "50%",
+                flexShrink: 0,
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                background: profileToast.type === "success"
+                  ? "#22c55e"
+                  : profileToast.type === "error"
+                  ? "#ef4444"
+                  : "#6b7280",
+                animation: "profileToastIconPop 420ms cubic-bezier(0.34,1.56,0.64,1) forwards",
+              }}
+            >
+              {profileToast.type === "success" ? (
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                  <path d="M2.5 7L5 9.5L10.5 3.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
-              </span>
-            ) : profileToast.type === "error" ? (
-              <span
-                style={{
-                  width: 22, height: 22, borderRadius: "50%",
-                  background: "#ef4444", flexShrink: 0,
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                }}
-              >
-                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                  <path d="M2 2L8 8M8 2L2 8" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+              ) : profileToast.type === "error" ? (
+                <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+                  <path d="M2 2L9 9M9 2L2 9" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
                 </svg>
-              </span>
-            ) : (
-              <span
-                style={{
-                  width: 22, height: 22, borderRadius: "50%",
-                  background: "#f59e0b", flexShrink: 0,
-                  display: "inline-flex", alignItems: "center", justifyContent: "center",
-                  fontSize: 13, fontWeight: 700, color: "#fff",
-                }}
-              >
-                !
-              </span>
-            )}
-            <span>{profileToast.text}</span>
+              ) : (
+                <span style={{ fontSize: 13, fontWeight: 800, lineHeight: 1, color: "#fff" }}>!</span>
+              )}
+            </span>
+            <span style={{ animation: "profileToastText 500ms ease forwards" }}>
+              {profileToast.text}
+            </span>
           </div>
         </>,
         document.body

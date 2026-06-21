@@ -12,8 +12,8 @@ const BASE: React.CSSProperties = {
   flexShrink: 0,
 };
 
-// Gradient defined globally in app/layout.tsx as #vibraIconGradient
-const g = "url(#vibraIconGradient)";
+// Solid purple — url(#gradient) no resuelve confiablemente en Safari mobile
+const g = "#a855f7";
 
 // Perfiles seguidos — persona con checkmark de follow
 export function SidebarFollowingIcon({ size = 18, strokeWidth = 1.75 }: IconProps) {

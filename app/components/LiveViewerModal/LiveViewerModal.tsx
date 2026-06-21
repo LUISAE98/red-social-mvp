@@ -50,6 +50,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const cfPcRef = useRef<RTCPeerConnection | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -335,60 +336,70 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     setReady(false);
     setError(false);
 
-    pc.ontrack = ({ streams, track }) => {
-      console.log("[LiveViewerModal] ontrack — kind:", track.kind, "readyState:", track.readyState, "streams:", streams.length);
-      if (cancelled || !streams[0] || !video) {
-        console.warn("[LiveViewerModal] ontrack skipped — cancelled:", cancelled, "streams[0]:", !!streams[0], "video:", !!video);
+    // Create a single MediaStream to accumulate all remote tracks.
+    // CF may deliver audio and video in separate ontrack events with different streams[0],
+    // so using event.streams[0] directly as srcObject causes the second ontrack (audio) to
+    // overwrite srcObject with an audio-only stream — resulting in size:0x0 and no video.
+    const remoteStream = new MediaStream();
+    remoteStreamRef.current = remoteStream;
+
+    const logVideoState = (label: string) => {
+      if (!video) return;
+      console.log(`[LiveViewerModal] video[${label}] readyState:${video.readyState} paused:${video.paused} size:${video.videoWidth}x${video.videoHeight}`);
+    };
+
+    pc.ontrack = ({ track }) => {
+      console.log("[LiveViewerModal] ontrack — kind:", track.kind, "readyState:", track.readyState, "id:", track.id.slice(0, 8));
+      if (cancelled || !video) {
+        console.warn("[LiveViewerModal] ontrack skipped — cancelled:", cancelled, "video:", !!video);
         return;
       }
-      const stream = streams[0];
-      console.log("[LiveViewerModal] ontrack stream tracks:", stream.getTracks().map(t => `${t.kind}/${t.readyState}/${t.id.slice(0,8)}`).join(", "));
-      // Only assign srcObject if different stream — ontrack fires once per track even if they share a stream
-      if (video.srcObject !== stream) {
-        console.log("[LiveViewerModal] srcObject assigned — stream:", stream.id);
-        video.srcObject = stream;
-      } else {
-        console.log("[LiveViewerModal] srcObject already set (same stream), skipping reassign");
-        return; // listeners and play() already set up on first ontrack
+
+      if (!remoteStream.getTrackById(track.id)) {
+        remoteStream.addTrack(track);
       }
+      console.log("[LiveViewerModal] remoteStream tracks:", remoteStream.getTracks().map(t => `${t.kind}/${t.readyState}/${t.id.slice(0, 8)}`).join(", "));
 
-      const logVideoState = (label: string) => {
-        console.log(`[LiveViewerModal] video[${label}] readyState:${video.readyState} paused:${video.paused} size:${video.videoWidth}x${video.videoHeight}`);
-      };
+      // Assign srcObject once (first ontrack). Subsequent ontrack calls add tracks to the
+      // same remoteStream so the video element picks them up automatically.
+      if (video.srcObject !== remoteStream) {
+        video.srcObject = remoteStream;
+        console.log("[LiveViewerModal] srcObject assigned to remoteStream");
 
-      video.addEventListener("loadedmetadata", () => {
-        console.log("[LiveViewerModal] video: loadedmetadata");
-        logVideoState("loadedmetadata");
-        setReady(true);
-        if (video.videoWidth > 0 && video.videoHeight > 0) setIsPortrait(video.videoHeight > video.videoWidth);
-      }, { once: true });
+        video.addEventListener("loadedmetadata", () => {
+          console.log("[LiveViewerModal] video: loadedmetadata");
+          logVideoState("loadedmetadata");
+          setReady(true);
+          if (video.videoWidth > 0 && video.videoHeight > 0) setIsPortrait(video.videoHeight > video.videoWidth);
+        }, { once: true });
 
-      video.addEventListener("canplay", () => {
-        console.log("[LiveViewerModal] video: canplay");
-        logVideoState("canplay");
-        setReady(true);
-        if (video.videoWidth > 0 && video.videoHeight > 0) setIsPortrait(video.videoHeight > video.videoWidth);
-      }, { once: true });
+        video.addEventListener("canplay", () => {
+          console.log("[LiveViewerModal] video: canplay");
+          logVideoState("canplay");
+          setReady(true);
+          if (video.videoWidth > 0 && video.videoHeight > 0) setIsPortrait(video.videoHeight > video.videoWidth);
+        }, { once: true });
 
-      video.addEventListener("playing", () => {
-        console.log("[LiveViewerModal] video: playing");
-        logVideoState("playing");
-      }, { once: true });
+        video.addEventListener("playing", () => {
+          console.log("[LiveViewerModal] video: playing");
+          logVideoState("playing");
+        }, { once: true });
 
-      video.addEventListener("error", () => {
-        console.error("[LiveViewerModal] video error — code:", video.error?.code, "msg:", video.error?.message);
-      }, { once: true });
+        video.addEventListener("error", () => {
+          console.error("[LiveViewerModal] video error — code:", video.error?.code, "msg:", video.error?.message);
+        }, { once: true });
 
-      video.play().catch((err) => {
-        console.warn("[LiveViewerModal] video.play() rejected:", (err as Error)?.message, "— retrying muted");
-        video.muted = true;
-        setMuted(true); // sync React state so re-renders don't reset video.muted back to false
-        video.play().catch((err2) => {
-          console.error("[LiveViewerModal] video.play() muted also failed:", (err2 as Error)?.message);
+        video.play().catch((err) => {
+          console.warn("[LiveViewerModal] video.play() rejected:", (err as Error)?.message, "— retrying muted");
+          video.muted = true;
+          setMuted(true);
+          video.play().catch((err2) => {
+            console.error("[LiveViewerModal] video.play() muted also failed:", (err2 as Error)?.message);
+          });
         });
-      });
 
-      setTimeout(() => logVideoState("1s-after-ontrack"), 1000);
+        setTimeout(() => logVideoState("1s-after-ontrack"), 1000);
+      }
     };
 
     pc.onconnectionstatechange = () => {
@@ -454,6 +465,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       cancelled = true;
       try { pc.close(); } catch { /* best effort */ }
       cfPcRef.current = null;
+      remoteStreamRef.current = null;
       if (video) { video.srcObject = null; }
       setReady(false);
     };

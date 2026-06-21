@@ -24,8 +24,8 @@ const vibraPink = "#ec4899";
 const vibraPurple = "#9333ea";
 const vibraBlue = "#3b82f6";
 
-// Gradient defined globally in app/layout.tsx as #vibraIconGradient
-const gradientStroke = "url(#vibraIconGradient)";
+// Solid purple — url(#gradient) no resuelve confiablemente en Safari mobile
+const gradientStroke = "#a855f7";
 const purpleStroke = vibraPurple;
 
 const NAVIGATION_ICON_CONFIG: Record<

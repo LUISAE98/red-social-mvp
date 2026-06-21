@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 
 export type PostFlameUser = {
@@ -20,60 +20,39 @@ type PostFlamesPanelProps = {
   onClose: () => void;
 };
 
-const fontStack =
-  'inherit';
+const DRAG_CLOSE_THRESHOLD = 130;
 
 function getInitials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
   if (parts.length === 0) return "U";
-  return parts.map((part) => part.charAt(0).toUpperCase()).join("");
+  return parts.map((p) => p.charAt(0).toUpperCase()).join("");
 }
 
 function getProfileHref(user: PostFlameUser) {
   return user.username ? `/u/${user.username}` : `/u/${user.userId}`;
 }
 
-function FlameAvatar({
-  name,
-  avatarUrl,
-}: {
-  name: string;
-  avatarUrl?: string | null;
-}) {
+function FlameAvatar({ name, avatarUrl }: { name: string; avatarUrl?: string | null }) {
   if (avatarUrl) {
     return (
       <Image
         src={avatarUrl}
         alt={name}
-        width={38} height={38}
-        style={{
-          borderRadius: "50%",
-          objectFit: "cover",
-          display: "block",
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(255,255,255,0.04)",
-          flexShrink: 0,
-        }}
+        width={42}
+        height={42}
+        style={{ borderRadius: "50%", objectFit: "cover", display: "block", flexShrink: 0 }}
       />
     );
   }
-
   return (
     <div
       aria-hidden="true"
       style={{
-        width: 38,
-        height: 38,
-        borderRadius: "50%",
-        display: "grid",
-        placeItems: "center",
+        width: 42, height: 42, borderRadius: "50%",
+        display: "grid", placeItems: "center",
         background: "rgba(255,255,255,0.08)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        color: "#fff",
-        fontSize: 12,
-        fontWeight: 700,
-        letterSpacing: "-0.02em",
-        flexShrink: 0,
+        color: "#fff", fontSize: 13, fontWeight: 700,
+        letterSpacing: "-0.02em", flexShrink: 0,
       }}
     >
       {getInitials(name)}
@@ -88,204 +67,283 @@ export default function PostFlamesPanel({
   users,
   onClose,
 }: PostFlamesPanelProps) {
-  const isMobile = useMemo(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia("(max-width: 640px)").matches;
+  // mounted gate — prevents portal on server
+  const [mounted, setMounted] = useState(false);
+  // closing animation state
+  const [closing, setClosing] = useState(false);
+  // visible = actually in the DOM (open OR still animating out)
+  const [visible, setVisible] = useState(false);
+
+  // Detect mobile on the CLIENT only (effect, not SSR state)
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Drag state (mobile)
+  const [panelOffsetY, setPanelOffsetY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartYRef = useRef(0);
+  const dragStartOffsetRef = useRef(0);
+
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openRafRef = useRef<number | null>(null);
+
+  // Mount + mobile detection
+  useEffect(() => {
+    setMounted(true);
+    const mq = window.matchMedia("(max-width: 639px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
   }, []);
 
+  // Drive visible / closing from open prop
   useEffect(() => {
-    if (!open || typeof document === "undefined") return;
+    if (!mounted) return;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        onClose();
+    if (open) {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
       }
+      setClosing(false);
+      setVisible(true);
+      // Mobile: start off-screen, then slide in
+      if (window.matchMedia("(max-width: 639px)").matches) {
+        setPanelOffsetY(window.innerHeight);
+        if (openRafRef.current) cancelAnimationFrame(openRafRef.current);
+        openRafRef.current = requestAnimationFrame(() => {
+          openRafRef.current = requestAnimationFrame(() => {
+            setPanelOffsetY(0);
+            openRafRef.current = null;
+          });
+        });
+      }
+    } else if (visible) {
+      setClosing(true);
+      if (isMobile) setPanelOffsetY(window.innerHeight);
+      const dur = isMobile ? 260 : 180;
+      closeTimerRef.current = setTimeout(() => {
+        setVisible(false);
+        setClosing(false);
+        setPanelOffsetY(0);
+        closeTimerRef.current = null;
+      }, dur);
     }
+  }, [open, mounted]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    document.addEventListener("keydown", handleEscape);
+  // Block body scroll while open
+  useEffect(() => {
+    if (!visible) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [visible]);
 
+  // Escape key
+  useEffect(() => {
+    if (!visible) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [visible, onClose]);
+
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleEscape);
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+      if (openRafRef.current) cancelAnimationFrame(openRafRef.current);
     };
-  }, [open, onClose]);
+  }, []);
 
-  if (!open || typeof document === "undefined") {
-    return null;
+  // Drag handlers (mobile)
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if ((e.target as HTMLElement).closest("button, a")) return;
+    dragStartYRef.current = e.clientY;
+    dragStartOffsetRef.current = panelOffsetY;
+    setIsDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!isDragging) return;
+    const delta = e.clientY - dragStartYRef.current;
+    const raw = dragStartOffsetRef.current + delta;
+    setPanelOffsetY(raw < 0 ? raw / 4 : raw);
+  }
+  function handlePointerUp() {
+    if (!isDragging) return;
+    setIsDragging(false);
+    if (panelOffsetY >= DRAG_CLOSE_THRESHOLD) {
+      onClose();
+    } else {
+      setPanelOffsetY(0);
+    }
   }
 
-  const backdropStyle: CSSProperties = {
-    position: "fixed",
-    inset: 0,
-    zIndex: 2147483647,
-    background: "rgba(0,0,0,0.64)",
-    display: "flex",
-    alignItems: isMobile ? "flex-end" : "center",
-    justifyContent: "center",
-    padding: isMobile ? 0 : 16,
-    boxSizing: "border-box",
-  };
+  if (!mounted || !visible) return null;
 
-  const panelStyle: CSSProperties = {
-    width: isMobile ? "100%" : "min(420px, calc(100vw - 32px))",
-    maxHeight: isMobile ? "78vh" : "min(560px, calc(100vh - 48px))",
-    borderRadius: isMobile ? "18px 18px 0 0" : 18,
-    border: isMobile ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(255,255,255,0.12)",
-    borderBottom: isMobile ? "none" : "1px solid rgba(255,255,255,0.12)",
-    background: "rgba(10,10,10,0.98)",
-    boxShadow: isMobile
-      ? "0 -18px 50px rgba(0,0,0,0.46)"
-      : "0 24px 80px rgba(0,0,0,0.56)",
-    backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
-    color: "#fff",
-    display: "grid",
-    gridTemplateRows: "auto minmax(0, 1fr)",
-    overflow: "hidden",
-    fontFamily: fontStack,
-  };
+  const titleEl = (
+    <h2 style={{ margin: 0, fontSize: 17, fontWeight: 500, lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em" }}>
+      Flamitas
+    </h2>
+  );
 
-  const headerStyle: CSSProperties = {
-    minHeight: 52,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    padding: "14px 16px",
-    borderBottom: "1px solid rgba(255,255,255,0.08)",
-    boxSizing: "border-box",
-  };
+  const closeBtn = (
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label="Cerrar"
+      style={{ background: "none", border: "none", color: "rgba(255,255,255,0.86)", cursor: "pointer", fontSize: 32, fontWeight: 300, lineHeight: 1, padding: 0 }}
+    >
+      ×
+    </button>
+  );
 
-  const titleStyle: CSSProperties = {
-    margin: 0,
-    fontSize: 15,
-    fontWeight: 700,
-    lineHeight: 1.1,
-    letterSpacing: "-0.02em",
-  };
+  const bodyEl = (
+    <div style={{ padding: "8px 14px calc(16px + env(safe-area-inset-bottom))", overflowY: "auto", flex: 1, minHeight: 0 }}>
+      {loading && <p style={stateStyle}>Cargando...</p>}
 
-  const closeButtonStyle: CSSProperties = {
-    width: 32,
-    height: 32,
-    borderRadius: 999,
-    border: "none",
-    background: "rgba(255,255,255,0.07)",
-    color: "#fff",
-    cursor: "pointer",
-    display: "grid",
-    placeItems: "center",
-    fontSize: 18,
-    lineHeight: 1,
-    padding: 0,
-    flexShrink: 0,
-    WebkitTapHighlightColor: "transparent",
-  };
+      {!loading && error && <p style={stateStyle}>{error}</p>}
 
-  const contentStyle: CSSProperties = {
-    overflowY: "auto",
-    WebkitOverflowScrolling: "touch",
-    padding: 8,
-    display: "grid",
-    gap: 2,
-  };
+      {!loading && !error && users.length === 0 && (
+        <div style={emptyCardStyle}>
+          <span style={{ fontSize: 28, lineHeight: 1 }}>🔥</span>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#fff" }}>
+            Sé el primero en dar flamita
+          </p>
+          <p style={{ margin: 0, fontSize: 12.5, color: "rgba(255,255,255,0.52)", lineHeight: 1.4 }}>
+            Todavía nadie ha reaccionado a esta publicación.
+          </p>
+        </div>
+      )}
 
-  const stateStyle: CSSProperties = {
-    padding: "18px 12px",
-    color: "rgba(255,255,255,0.68)",
-    fontSize: 13,
-    lineHeight: 1.45,
-    textAlign: "center",
-  };
-
-  const rowStyle: CSSProperties = {
-    minHeight: 54,
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "8px 10px",
-    borderRadius: 12,
-    textDecoration: "none",
-    color: "#fff",
-    boxSizing: "border-box",
-  };
-
-  const nameStyle: CSSProperties = {
-    display: "block",
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: 650,
-    lineHeight: 1.15,
-    letterSpacing: "-0.02em",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  };
-
-  const usernameStyle: CSSProperties = {
-    display: "block",
-    marginTop: 3,
-    color: "rgba(255,255,255,0.52)",
-    fontSize: 11.5,
-    fontWeight: 400,
-    lineHeight: 1.15,
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    whiteSpace: "nowrap",
-  };
+      {!loading && !error && users.map((user) => (
+        <Link
+          key={user.userId}
+          href={getProfileHref(user)}
+          style={{
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "10px 4px", color: "#fff", textDecoration: "none",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+          }}
+        >
+          <FlameAvatar name={user.displayName} avatarUrl={user.avatarUrl} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {user.displayName}
+            </div>
+            {user.username && (
+              <div style={{ marginTop: 3, fontSize: 12, color: "rgba(255,255,255,0.52)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                @{user.username}
+              </div>
+            )}
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
 
   return createPortal(
-    <div
-      style={backdropStyle}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Usuarios que dieron flamita"
-      onClick={onClose}
-    >
-      <div style={panelStyle} onClick={(event) => event.stopPropagation()}>
-        <div style={headerStyle}>
-          <h3 style={titleStyle}>Flamitas</h3>
+    <>
+      <style>{`
+        @keyframes vbFBdIn  { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes vbFBdOut { from { opacity: 1; } to { opacity: 0; } }
+        @keyframes vbFPanelIn  { from { opacity: 0; transform: scale(0.94) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes vbFPanelOut { from { opacity: 1; transform: scale(1) translateY(0); } to { opacity: 0; transform: scale(0.94) translateY(10px); } }
+      `}</style>
 
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Cerrar"
-            style={closeButtonStyle}
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed", inset: 0, zIndex: 2147483640,
+          background: "rgba(0,0,0,0.52)",
+          backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+          animation: closing ? "vbFBdOut 0.26s ease forwards" : "vbFBdIn 0.18s ease",
+        }}
+      />
+
+      {isMobile ? (
+        /* ── Mobile: pestaña deslizable ── */
+        <div
+          style={{
+            position: "fixed", bottom: 0, left: 0, right: 0,
+            zIndex: 2147483641,
+            maxHeight: "calc(100dvh - 72px)",
+            borderRadius: "22px 22px 0 0",
+            border: "1px solid transparent",
+            background: "rgba(8,9,11,0.96)",
+            boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",
+            color: "#fff", overflow: "hidden",
+            display: "flex", flexDirection: "column",
+            transform: `translateY(${panelOffsetY}px)`,
+            transition: isDragging ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
+            willChange: "transform",
+          }}
+        >
+          {/* Drag zone: pill + header */}
+          <div
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            style={{ touchAction: "none", userSelect: "none", flexShrink: 0 }}
           >
-            ×
-          </button>
+            <div style={{ padding: "12px 0 4px", cursor: "grab" }}>
+              <div style={{ width: 38, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.18)", margin: "0 auto" }} />
+            </div>
+            <div style={{ height: 56, display: "grid", gridTemplateColumns: "48px 1fr 48px", alignItems: "center", padding: "0 12px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+              <div />
+              {titleEl}
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>{closeBtn}</div>
+            </div>
+          </div>
+          {bodyEl}
         </div>
-
-        <div style={contentStyle}>
-          {loading && <div style={stateStyle}>Cargando usuarios...</div>}
-
-          {!loading && error && <div style={stateStyle}>{error}</div>}
-
-          {!loading && !error && users.length === 0 && (
-            <div style={stateStyle}>Todavía no hay flamitas.</div>
-          )}
-
-          {!loading &&
-            !error &&
-            users.map((user) => (
-              <Link key={user.userId} href={getProfileHref(user)} style={rowStyle}>
-                <FlameAvatar
-                  name={user.displayName}
-                  avatarUrl={user.avatarUrl}
-                />
-
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <span style={nameStyle}>{user.displayName}</span>
-                  {user.username && (
-                    <span style={usernameStyle}>@{user.username}</span>
-                  )}
-                </div>
-              </Link>
-            ))}
+      ) : (
+        /* ── Desktop: panel centrado con animación scale ── */
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 2147483641,
+            display: "grid", placeItems: "center",
+            padding: 14, pointerEvents: "none",
+          }}
+        >
+          <section
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              pointerEvents: "auto",
+              width: "min(520px, calc(100vw - 28px))",
+              maxHeight: "calc(100dvh - 28px)",
+              overflow: "hidden",
+              display: "flex", flexDirection: "column",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(8,9,11,0.985)",
+              boxShadow: "0 30px 90px rgba(0,0,0,0.56), 0 0 0 1px rgba(255,255,255,0.035)",
+              color: "#fff",
+              animation: closing ? "vbFPanelOut 0.18s ease-in forwards" : "vbFPanelIn 0.18s ease-out",
+            }}
+          >
+            <header style={{ height: 56, display: "grid", gridTemplateColumns: "48px 1fr 48px", alignItems: "center", padding: "0 12px", borderBottom: "1px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
+              <div />
+              {titleEl}
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>{closeBtn}</div>
+            </header>
+            {bodyEl}
+          </section>
         </div>
-      </div>
-    </div>,
+      )}
+    </>,
     document.body
   );
 }
+
+const stateStyle: CSSProperties = {
+  margin: 0, padding: "20px 0",
+  color: "rgba(255,255,255,0.52)", fontSize: 13, lineHeight: 1.4, textAlign: "center",
+};
+
+const emptyCardStyle: CSSProperties = {
+  display: "flex", flexDirection: "column", alignItems: "center",
+  gap: 10, padding: "32px 20px", textAlign: "center",
+};

@@ -298,9 +298,24 @@ export default function PostCommentsPanel({
             )}
 
             {!loading && comments !== null && comments.length === 0 && (
-              <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
-                Aún no hay comentarios.
-              </p>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "28px 16px",
+                  textAlign: "center",
+                }}
+              >
+                <span style={{ fontSize: 26, lineHeight: 1 }}>💬</span>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#fff" }}>
+                  Sé el primero en comentar
+                </p>
+                <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.52)", lineHeight: 1.4 }}>
+                  Todavía no hay comentarios en esta publicación.
+                </p>
+              </div>
             )}
 
             {!loading &&
@@ -487,9 +502,24 @@ export default function PostCommentsPanel({
           )}
 
           {!loading && comments !== null && comments.length === 0 && (
-            <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.58)" }}>
-              Aún no hay comentarios.
-            </p>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 8,
+                padding: "28px 16px",
+                textAlign: "center",
+              }}
+            >
+              <span style={{ fontSize: 26, lineHeight: 1 }}>💬</span>
+              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#fff" }}>
+                Sé el primero en comentar
+              </p>
+              <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.52)", lineHeight: 1.4 }}>
+                Todavía no hay comentarios en esta publicación.
+              </p>
+            </div>
           )}
 
           {!loading &&
