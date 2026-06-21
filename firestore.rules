@@ -1933,6 +1933,12 @@ function canReadPostFromOwnHomeFeed() {
     );
 }
 
+function canReadPostFromOwnSavedPosts() {
+  return signedIn()
+    && resource.data.isDeleted == false
+    && exists(/databases/$(database)/documents/users/$(request.auth.uid)/savedPosts/$(postId));
+}
+
 function validPostCommonCreateShape() {
   return signedIn()
     && request.resource.data.authorId == request.auth.uid
@@ -2297,10 +2303,12 @@ function canModeratePostCommentData(data) {
 }
 
       allow get: if canReadPost()
-  || canReadPostFromOwnHomeFeed();
+  || canReadPostFromOwnHomeFeed()
+  || canReadPostFromOwnSavedPosts();
 
 allow list: if canReadPost()
   || canReadPostFromOwnHomeFeed()
+  || canReadPostFromOwnSavedPosts()
   || canListPublicSearchablePost()
   || canListReadableGroupSearchablePost()
   || canListPublicPremiumGroupPost()
@@ -2610,7 +2618,8 @@ function canUpdateReplyCount(delta) {
             && parentPost().data.isDeleted == false
             && (
               parentPost().data.authorId == request.auth.uid
-              || canReadGroupContent(parentPost().data.groupId)
+              || (isGroupPostData(parentPost().data) && canReadGroupContent(parentPost().data.groupId))
+              || (isProfilePostData(parentPost().data) && canReadProfileContent(parentPost().data.profileId))
               || (
                 parentPost().data.get('postType', '') == "live"
                 && parentPost().data.get('isShareable', false) == true

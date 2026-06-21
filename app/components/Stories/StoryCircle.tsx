@@ -86,12 +86,12 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, su
         </div>
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
         <span
           style={{
-            color: "rgba(255,255,255,0.72)",
-            fontSize: 10.5,
-            fontWeight: 500,
+            color: "rgba(255,255,255,0.82)",
+            fontSize: 11,
+            fontWeight: 600,
             lineHeight: 1,
             letterSpacing: "-0.01em",
             fontFamily: 'inherit',
@@ -102,11 +102,11 @@ export default function StoryCircle({ type, thumbnailUrl, onClick, size = 74, su
         {sublabel && (
           <span
             style={{
-              color: "rgba(255,255,255,0.40)",
+              color: "rgba(255,255,255,0.38)",
               fontSize: 9.5,
-              fontWeight: 400,
+              fontWeight: 500,
               lineHeight: 1,
-              letterSpacing: "-0.01em",
+              letterSpacing: "0em",
               fontFamily: 'inherit',
             }}
           >

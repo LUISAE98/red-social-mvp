@@ -48,6 +48,7 @@ export default function LiveDirectBroadcast({
   const isLiveRef = useRef(false);
   const isPortraitRef = useRef(false);
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
+  const setLiveSentRef = useRef(false);
 
   const [status, setStatus] = useState<BroadcastStatus>("idle");
   const [micMuted, setMicMuted] = useState(false);
@@ -99,8 +100,8 @@ export default function LiveDirectBroadcast({
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 3840 },
-          height: { ideal: 2160 },
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
           frameRate: { ideal: 30, min: 15 },
           facingMode: "user",
         },
@@ -231,6 +232,7 @@ export default function LiveDirectBroadcast({
     setStatus("connecting");
     setError(null);
     intentionalStopRef.current = false;
+    setLiveSentRef.current = false;
 
     if (!canvasVideoTrackRef.current || !micTrackRef.current) {
       await initCamera();
@@ -265,17 +267,89 @@ export default function LiveDirectBroadcast({
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       pcRef.current = pc;
 
-      const videoTrack = canvasVideoTrackRef.current!;
-      const audioTrack = micTrackRef.current!;
+      // Use raw camera track for WebRTC — canvas.captureStream() often produces no RTP packets
+      // in Chrome/mobile. Viewer-side SuperComment overlays are handled via Firestore events.
+      const rawVideoTrack = cameraStreamRef.current?.getVideoTracks()[0] ?? null;
+      const audioTrack = micTrackRef.current;
+      if (!rawVideoTrack || !audioTrack) {
+        throw new Error("Tracks de cámara o micrófono no disponibles.");
+      }
 
-      const videoStream = new MediaStream([videoTrack]);
-      const audioStream = new MediaStream([audioTrack]);
-      pc.addTrack(videoTrack, videoStream);
-      pc.addTrack(audioTrack, audioStream);
+      // Both tracks must share the same MediaStream. If each track gets its own stream,
+      // the viewer's ontrack fires twice with different streams[0], and the second call
+      // (audio) overwrites video.srcObject with an audio-only stream — resulting in size:0x0.
+      const localStream = new MediaStream([rawVideoTrack, audioTrack]);
+      pc.addTrack(rawVideoTrack, localStream);
+      pc.addTrack(audioTrack, localStream);
+
+      // Force sendonly: WHIP is browser→CF only. Without this the SDP may be sendrecv and CF
+      // answers inactive, meaning no media flows even though ICE+DTLS connect.
+      for (const transceiver of pc.getTransceivers()) {
+        transceiver.direction = "sendonly";
+      }
+
+      // Prefer H.264 for Cloudflare Stream — VP8/VP9 can fail to transcode to HLS
+      const videoTransceiver = pc.getTransceivers().find(
+        (t) => t.sender.track?.kind === "video"
+      );
+      if (videoTransceiver && typeof RTCRtpSender.getCapabilities === "function") {
+        try {
+          const caps = RTCRtpSender.getCapabilities("video");
+          if (caps) {
+            const h264 = caps.codecs.filter(
+              (c) => c.mimeType.toLowerCase() === "video/h264"
+            );
+            const rest = caps.codecs.filter(
+              (c) => c.mimeType.toLowerCase() !== "video/h264"
+            );
+            if (h264.length > 0) {
+              videoTransceiver.setCodecPreferences([...h264, ...rest]);
+            }
+          }
+        } catch {
+          // setCodecPreferences not available in all browsers
+        }
+      }
+
+      // Timeout: if ICE never reaches "connected" within 20s, abort
+      const iceConnectTimeout = setTimeout(() => {
+        if (pc.iceConnectionState !== "connected" && pc.iceConnectionState !== "completed") {
+          intentionalStopRef.current = true;
+          onBroadcastingChangeRef.current?.(false);
+          isLiveRef.current = false;
+          stopBroadcastCleanup();
+          releaseTracks();
+          setStatus("error");
+          setError("No se pudo conectar con el servidor de video. Verifica tu conexión y vuelve a intentarlo.");
+          initCamera();
+        }
+      }, 20000);
 
       pc.addEventListener("iceconnectionstatechange", () => {
         const state = pc.iceConnectionState;
-        if (state === "failed" || state === "disconnected" || state === "closed") {
+        if (state === "connected" || state === "completed") {
+          clearTimeout(iceConnectTimeout);
+          if (!isLiveRef.current) {
+            isLiveRef.current = true;
+            setStatus("live"); // Show EN VIVO to creator immediately
+            console.log("[LiveDirectBroadcast] ICE connected, waiting for DTLS (connectionState=connected) to mark live...");
+            // Fallback: if connectionState never fires "connected" (browser edge case), mark live after 5s
+            setTimeout(() => {
+              if (!setLiveSentRef.current && isLiveRef.current && !intentionalStopRef.current) {
+                setLiveSentRef.current = true;
+                console.log("[LiveDirectBroadcast] connectionState fallback — marking live via ICE+5s");
+                getAuth().currentUser?.getIdToken().then((token) => {
+                  fetch("/api/cf-broadcast", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ postId, setLive: true }),
+                  }).catch(() => {});
+                }).catch(() => {});
+              }
+            }, 5000);
+          }
+        } else if (state === "failed" || state === "disconnected" || state === "closed") {
+          clearTimeout(iceConnectTimeout);
           if (!intentionalStopRef.current) {
             onBroadcastingChangeRef.current?.(false);
             isLiveRef.current = false;
@@ -284,6 +358,36 @@ export default function LiveDirectBroadcast({
             releaseTracks();
             setStatus("error");
             setError("Conexión interrumpida. Puedes reconectar para continuar el live.");
+            initCamera();
+          }
+        }
+      });
+
+      // connectionState === "connected" means BOTH ICE AND DTLS are done — media can now flow to CF.
+      // Mark live in Firestore here so viewers start loading HLS when CF can actually serve segments.
+      pc.addEventListener("connectionstatechange", () => {
+        console.log("[LiveDirectBroadcast] connectionState:", pc.connectionState);
+        if (pc.connectionState === "connected") {
+          if (!setLiveSentRef.current && isLiveRef.current && !intentionalStopRef.current) {
+            setLiveSentRef.current = true;
+            console.log("[LiveDirectBroadcast] DTLS connected — marking live in Firestore");
+            getAuth().currentUser?.getIdToken().then((token) => {
+              fetch("/api/cf-broadcast", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ postId, setLive: true }),
+              }).catch(() => {});
+            }).catch(() => {});
+          }
+        } else if (pc.connectionState === "failed") {
+          if (!intentionalStopRef.current) {
+            onBroadcastingChangeRef.current?.(false);
+            isLiveRef.current = false;
+            wakeLockRef.current?.release().catch(() => {});
+            wakeLockRef.current = null;
+            releaseTracks();
+            setStatus("error");
+            setError("Conexión interrumpida. Verifica tu conexión y vuelve a intentarlo.");
             initCamera();
           }
         }
@@ -298,6 +402,7 @@ export default function LiveDirectBroadcast({
 
       const sdp = pc.localDescription?.sdp;
       if (!sdp) throw new Error("No se pudo generar la oferta SDP.");
+      console.log("[LiveDirectBroadcast] SDP offer directions:", sdp.match(/a=(sendrecv|sendonly|recvonly|inactive)/g));
 
       const proxyResp = await fetch(`/api/whip-proxy?postId=${encodeURIComponent(postId)}`, {
         method: "POST",
@@ -314,13 +419,12 @@ export default function LiveDirectBroadcast({
       }
 
       const sdpAnswer = await proxyResp.text();
+      console.log("[LiveDirectBroadcast] SDP answer directions:", sdpAnswer.match(/a=(sendrecv|sendonly|recvonly|inactive)/g));
       const whipResource = proxyResp.headers.get("X-Whip-Resource");
       if (whipResource) whipResourceRef.current = whipResource;
 
       await pc.setRemoteDescription({ type: "answer", sdp: sdpAnswer });
-
-      setStatus("live");
-      isLiveRef.current = true;
+      // Status stays "connecting" until iceconnectionstatechange fires "connected"
 
       try {
         if (typeof navigator !== "undefined" && "wakeLock" in navigator) {
@@ -382,6 +486,9 @@ export default function LiveDirectBroadcast({
     setCamOff((prev) => {
       const next = !prev;
       camOffRef.current = next;
+      // Disable the raw camera track so viewers also see black (not just the local canvas preview)
+      const rawTrack = cameraStreamRef.current?.getVideoTracks()[0];
+      if (rawTrack) rawTrack.enabled = !next;
       return next;
     });
   }, []);

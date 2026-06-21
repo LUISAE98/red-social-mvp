@@ -544,7 +544,14 @@ function CleanServiceCard({
         <div style={{ ...styles.subtle, lineHeight: 1.35 }}>{subtitle}</div>
       </button>
 
-      {expanded ? (
+      <div
+        style={{
+          maxHeight: expanded ? "600px" : "0",
+          overflow: "hidden",
+          opacity: expanded ? 1 : 0,
+          transition: "max-height 360ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease",
+        }}
+      >
         <div
           id={`service-details-${id}`}
           className="mini-vertical-scroll"
@@ -557,7 +564,7 @@ function CleanServiceCard({
         >
           {children}
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
@@ -586,7 +593,8 @@ function SectionBlock({
       style={{
         ...styles.card,
         margin: 0,
-        borderRadius: 16,
+        padding: "7px 10px",
+        borderRadius: 14,
         background: open
           ? "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)"
           : "rgba(0,0,0,0.96)",
@@ -603,6 +611,7 @@ function SectionBlock({
         aria-expanded={open}
         style={{
           width: "100%",
+          minHeight: 34,
           border: "none",
           background: "transparent",
           color: "#fff",
@@ -615,52 +624,51 @@ function SectionBlock({
           textAlign: "left",
         }}
       >
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 10,
-            minWidth: 0,
-          }}
-        >
+        <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <span
             style={{
-              width: 30,
-              height: 30,
+              width: 28,
+              height: 28,
               borderRadius: "50%",
               background: "rgba(255,255,255,0.06)",
               border: "1px solid rgba(255,255,255,0.10)",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 15,
+              fontSize: 14,
               flexShrink: 0,
             }}
           >
             {visual.icon}
           </span>
-          <span style={{ display: "grid", gap: 4, minWidth: 0 }}>
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 700,
-                color: "#fff",
-                lineHeight: 1.15,
-              }}
-            >
-              {visual.title}
-            </span>
+          <span
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: "#fff",
+              lineHeight: 1.2,
+              minWidth: 0,
+            }}
+          >
+            {visual.title}
           </span>
         </span>
 
         <CountBadge count={count} tone="pink" />
       </button>
 
-      {open ? (
+      <div
+        style={{
+          maxHeight: open ? "1200px" : "0",
+          overflow: "hidden",
+          opacity: open ? 1 : 0,
+          transition: "max-height 360ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease",
+        }}
+      >
         <div
           style={{
-            marginTop: 9,
-            paddingTop: 9,
+            marginTop: 8,
+            paddingTop: 8,
             borderTop: "1px solid rgba(255,255,255,0.06)",
             display: "grid",
             gap: 8,
@@ -668,7 +676,7 @@ function SectionBlock({
         >
           {children}
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
@@ -1921,7 +1929,8 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           style={{
             ...styles.card,
             margin: 0,
-            borderRadius: 16,
+            padding: "7px 10px",
+            borderRadius: 14,
             background: deliveredScheduledSectionOpen
               ? "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)"
               : "rgba(0,0,0,0.96)",
@@ -1942,6 +1951,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
             aria-expanded={deliveredScheduledSectionOpen}
             style={{
               width: "100%",
+              minHeight: 34,
               border: "none",
               background: "transparent",
               color: "#fff",
@@ -1954,33 +1964,38 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
               textAlign: "left",
             }}
           >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
               <span
                 style={{
-                  width: 30,
-                  height: 30,
+                  width: 28,
+                  height: 28,
                   borderRadius: "50%",
                   background: "rgba(34,197,94,0.12)",
                   border: "1px solid rgba(34,197,94,0.24)",
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 15,
+                  fontSize: 14,
                   flexShrink: 0,
                 }}
               >
                 ✅
               </span>
-              <span style={{ display: "grid", gap: 4, minWidth: 0 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1.15 }}>
-                  Entregados
-                </span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1.2, minWidth: 0 }}>
+                Entregados
               </span>
             </span>
             <CountBadge count={completedBuyerScheduledRows.length} tone="green" />
           </button>
 
-          {deliveredScheduledSectionOpen && (
+          <div
+            style={{
+              maxHeight: deliveredScheduledSectionOpen ? "1200px" : "0",
+              overflow: "hidden",
+              opacity: deliveredScheduledSectionOpen ? 1 : 0,
+              transition: "max-height 360ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease",
+            }}
+          >
             <div
               style={{
                 marginTop: 9,
@@ -2098,7 +2113,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 );
               })}
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -2107,7 +2122,8 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           style={{
             ...styles.card,
             margin: 0,
-            borderRadius: 16,
+            padding: "7px 10px",
+            borderRadius: 14,
             background: deliveredSectionOpen
               ? "linear-gradient(90deg, rgba(236,72,153,0.20) 0%, rgba(147,51,234,0.18) 42%, rgba(59,130,246,0.14) 100%)"
               : "rgba(0,0,0,0.96)",
@@ -2128,6 +2144,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
             aria-expanded={deliveredSectionOpen}
             style={{
               width: "100%",
+              minHeight: 34,
               border: "none",
               background: "transparent",
               color: "#fff",
@@ -2140,33 +2157,38 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
               textAlign: "left",
             }}
           >
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
               <span
                 style={{
-                  width: 30,
-                  height: 30,
+                  width: 28,
+                  height: 28,
                   borderRadius: "50%",
                   background: "rgba(34,197,94,0.12)",
                   border: "1px solid rgba(34,197,94,0.24)",
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 15,
+                  fontSize: 14,
                   flexShrink: 0,
                 }}
               >
                 🎬
               </span>
-              <span style={{ display: "grid", gap: 4, minWidth: 0 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1.15 }}>
-                  Entregados
-                </span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1.2, minWidth: 0 }}>
+                Entregados
               </span>
             </span>
             <CountBadge count={buyerDelivered.length} tone="pink" />
           </button>
 
-          {deliveredSectionOpen && (
+          <div
+            style={{
+              maxHeight: deliveredSectionOpen ? "1200px" : "0",
+              overflow: "hidden",
+              opacity: deliveredSectionOpen ? 1 : 0,
+              transition: "max-height 360ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease",
+            }}
+          >
             <div
               style={{
                 marginTop: 9,
@@ -2273,7 +2295,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
                 </button>
               )}
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

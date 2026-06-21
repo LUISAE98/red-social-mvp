@@ -522,6 +522,11 @@ export default function WalletDesktopRail({
             transform: translateX(8%);
           }
         }
+
+        .walletPanelOuter {
+          overflow: hidden;
+          transition: max-height 360ms cubic-bezier(0.4, 0, 0.2, 1), opacity 220ms ease;
+        }
       `}</style>
 
       <aside className="walletRail" aria-label="Accesos directos">
@@ -586,7 +591,13 @@ export default function WalletDesktopRail({
                 </span>
               </button>
 
-              {walletOpen ? (
+              <div
+                className="walletPanelOuter"
+                style={{
+                  maxHeight: walletOpen ? "1200px" : "0",
+                  opacity: walletOpen ? 1 : 0,
+                }}
+              >
                 <nav className="walletNav">
                   {walletItems.map((item) => {
                     const isActive = activeWalletTab === item.key;
@@ -604,7 +615,7 @@ export default function WalletDesktopRail({
                     );
                   })}
                 </nav>
-              ) : null}
+              </div>
             </section>
           ) : null}
         </div>

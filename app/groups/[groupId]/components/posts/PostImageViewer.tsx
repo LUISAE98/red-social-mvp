@@ -1018,7 +1018,7 @@ const previewUrl = media.url;
                 ref={videoRef}
                 src={currentVideoSrc}
                 poster={currentVideoPoster}
-                controls={!useMobileLayout || mobileSheetSnap === 0}
+                controls
                 autoPlay
                 playsInline
                 preload="metadata"
@@ -1048,8 +1048,6 @@ const previewUrl = media.url;
                   background: "#000",
                   opacity: videoReady || !currentVideoPoster ? 1 : 0,
                   pointerEvents: useMobileLayout ? "auto" : "none",
-                  clipPath: useMobileLayout ? getMobileVideoDirectClipPath(mobileSheetSnap, mediaAspectRatio) : undefined,
-                  transition: useMobileLayout ? "clip-path 320ms ease" : undefined,
                 }}
               />
             </>
@@ -1079,25 +1077,12 @@ const previewUrl = media.url;
             transform: mobileGestureAxis === "vertical"
               ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
               : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
-            transition: mobileSwipeAnimating
-              ? "transform 180ms ease, clip-path 320ms ease"
-              : "clip-path 320ms ease",
+            transition: mobileSwipeAnimating ? "transform 180ms ease" : undefined,
             opacity: mobileOverlayOpacity,
             background: "#000",
-            clipPath: useMobileLayout
-              ? getMobileContentClipPath(mobileSheetSnap, mediaAspectRatio)
-              : "none",
           }}
         >
-          <div style={{
-            position: "absolute",
-            top: useMobileLayout ? "env(safe-area-inset-top)" : 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-          }}>
-            {videoSurface}
-          </div>
+          {videoSurface}
         </div>
       );
     }
@@ -1111,14 +1096,9 @@ const previewUrl = media.url;
           transform: mobileGestureAxis === "vertical"
             ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
             : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
-          transition: mobileSwipeAnimating
-            ? "transform 180ms ease, clip-path 320ms ease"
-            : "clip-path 320ms ease",
+          transition: mobileSwipeAnimating ? "transform 180ms ease" : undefined,
           opacity: mobileOverlayOpacity,
           background: "#000",
-          clipPath: useMobileLayout
-            ? getMobileContentClipPath(mobileSheetSnap, mediaAspectRatio)
-            : "none",
         }}
       >
         {useMobileLayout ? (
@@ -1151,8 +1131,23 @@ const previewUrl = media.url;
   }
 
   const mobileContent = (
-    <div style={overlayStyle}>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 2147483647,
+        background: "#000",
+        display: "flex",
+        flexDirection: "column",
+        fontFamily: fontStack,
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        color: "#fff",
+      }}
+    >
+      {/* ── Media area ── */}
       <div
+        ref={mobileMediaClipRef}
         onTouchStart={(event) => {
           if (
             mobileSwipeAnimating ||
@@ -1184,7 +1179,6 @@ const previewUrl = media.url;
             startMobileVideoSpeedHold(touch.clientY);
           }
           event.currentTarget.dataset.gestureAxis = "";
-
           setMobileGestureAxis(null);
           setMobileDragOffsetX(0);
           setMobileDragOffsetY(0);
@@ -1233,6 +1227,7 @@ const previewUrl = media.url;
               return;
             }
           }
+
           const absX = Math.abs(diffX);
           const absY = Math.abs(diffY);
 
@@ -1337,7 +1332,7 @@ const previewUrl = media.url;
           }
 
           if (!axis && Math.abs(diffX) < 10 && Math.abs(diffY) < 10) {
-            if (isCurrentVideo && mobileSheetSnap > 0) {
+            if (isCurrentVideo) {
               const video = videoRef.current;
               if (video) video.muted = !video.muted;
             }
@@ -1376,375 +1371,144 @@ const previewUrl = media.url;
             setMobileSwipeAnimating(false);
           }, 180);
         }}
-        ref={mobileMediaClipRef}
         style={{
+          flex: 1,
           position: "relative",
-          width: "100%",
-          height: useMobileLayout
-            ? mobileSheetSnap === 2 ? "calc(100dvh / 3)"
-              : mobileSheetSnap === 1 ? "calc(200dvh / 3)"
-              : "calc(100dvh - 120px)"
-            : "100%",
           overflow: "hidden",
           touchAction: "none",
           background: "#000",
-          userSelect: "none",
-          WebkitUserSelect: "none",
           WebkitTouchCallout: "none",
-          borderRadius: useMobileLayout && mobileSheetSnap > 0 ? 12 : 0,
-          boxShadow: useMobileLayout && mobileSheetSnap > 0
-            ? "0 0 0 1.5px rgba(255,255,255,0.18)"
-            : "none",
-          transition: useMobileLayout
-            ? "height 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94), border-radius 320ms ease, box-shadow 320ms ease"
-            : undefined,
         }}
       >
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar visor"
+          style={{
+            position: "absolute",
+            top: "calc(14px + env(safe-area-inset-top))",
+            right: 16,
+            zIndex: 10,
+            background: "rgba(0,0,0,0.42)",
+            border: "none",
+            color: "#fff",
+            fontSize: 26,
+            fontWeight: 300,
+            lineHeight: 1,
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            display: "grid",
+            placeItems: "center",
+            cursor: "pointer",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          ×
+        </button>
+
+        {/* Media counter */}
+        {canNavigateMedia && totalMedia > 1 && (
+          <div
+            style={{
+              position: "absolute",
+              top: "calc(14px + env(safe-area-inset-top))",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 10,
+              background: "rgba(0,0,0,0.42)",
+              borderRadius: 999,
+              padding: "5px 12px",
+              fontSize: 12,
+              fontWeight: 700,
+              lineHeight: 1,
+              whiteSpace: "nowrap",
+              pointerEvents: "none",
+            }}
+          >
+            {currentMediaIndex + 1} / {totalMedia}
+          </div>
+        )}
+
         {renderMediaPreview(previousMedia, "Anterior")}
         {renderCurrentMedia()}
         {renderMediaPreview(nextMedia, "Siguiente")}
-      </div>
 
-
-
-      {isCurrentVideo && mobileSpeedGestureActive && (
-        <div
-          style={{
-            position: "fixed",
-            left: "50%",
-            top: "calc(54px + env(safe-area-inset-top))",
-            transform: "translateX(-50%)",
-            zIndex: 2147483647,
-            minHeight: 30,
-            padding: "7px 12px",
-            borderRadius: 999,
-            background: "rgba(0,0,0,0.66)",
-            border: "1px solid rgba(255,255,255,0.18)",
-            color: "#fff",
-            fontSize: 12,
-            fontWeight: 800,
-            lineHeight: 1,
-            pointerEvents: "none",
-          }}
-        >
-          {videoPlaybackRate.toFixed(videoPlaybackRate % 1 === 0 ? 0 : 1)}x
-        </div>
-      )}
-
-      <div
-        ref={mobileSheetRef}
-        style={{
-          position: "fixed",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 2147483646,
-          height: "88dvh",
-          display: "flex",
-          flexDirection: "column",
-          background: "rgb(10, 10, 14)",
-          borderRadius: "14px 14px 0 0",
-          borderTop: "1px solid rgba(255,255,255,0.08)",
-          transform:
-            mobileSheetSnap === 2 ? "translateY(calc(100% - 200dvh / 3))" :
-            mobileSheetSnap === 1 ? "translateY(calc(100% - 100dvh / 3))" :
-            "translateY(calc(100% - 120px))",
-          transition: "transform 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-          overflow: "hidden",
-        }}
-      >
-        {/* Drag zone — touch handlers scoped here so the content area below can scroll freely */}
-        <div
-          style={{
-            flexShrink: 0,
-            touchAction: "none",
-            userSelect: "none",
-            WebkitUserSelect: "none",
-          }}
-          onTouchStart={(e) => {
-            const sheet = mobileSheetRef.current;
-            const touch = e.touches[0];
-            if (!sheet || !touch) return;
-            mobileSheetDragStartYRef.current = touch.clientY;
-            const maxOffset = Math.max(0, sheet.offsetHeight - 120);
-            const thirdOffset = Math.max(0, sheet.offsetHeight - Math.round(window.innerHeight / 3));
-            const twoThirdOffset = Math.max(0, sheet.offsetHeight - Math.round(window.innerHeight * 2 / 3));
-            mobileSheetBaseOffsetRef.current =
-              mobileSheetSnap === 2 ? twoThirdOffset :
-              mobileSheetSnap === 1 ? thirdOffset :
-              maxOffset;
-            sheet.style.transition = "none";
-            if (mobileMediaClipRef.current) mobileMediaClipRef.current.style.transition = "none";
-            if (mobileContentClipRef.current) mobileContentClipRef.current.style.transition = "none";
-            if (videoRef.current) videoRef.current.style.transition = "none";
-          }}
-          onTouchMove={(e) => {
-            const sheet = mobileSheetRef.current;
-            const startY = mobileSheetDragStartYRef.current;
-            if (!sheet || startY === null) return;
-            const touch = e.touches[0];
-            if (!touch) return;
-            const diff = touch.clientY - startY;
-            const maxOffset = Math.max(0, sheet.offsetHeight - 120);
-            const twoThirdOffset = Math.max(0, sheet.offsetHeight - Math.round(window.innerHeight * 2 / 3));
-            const clamped = Math.max(twoThirdOffset, Math.min(maxOffset, mobileSheetBaseOffsetRef.current + diff));
-            sheet.style.transform = `translateY(${clamped}px)`;
-            const mediaH = Math.max(0, window.innerHeight - (sheet.offsetHeight - clamped));
-            if (mobileMediaClipRef.current) {
-              mobileMediaClipRef.current.style.height = `${mediaH}px`;
-            }
-            if (mobileContentClipRef.current) {
-              mobileContentClipRef.current.style.clipPath =
-                computeContentClipPath(mediaH, mediaAspectRatioRef.current, 12);
-            }
-            if (videoRef.current) {
-              const videoH = Math.max(0, mediaH - safeAreaTopRef.current);
-              videoRef.current.style.clipPath = computeContentClipPath(
-                videoH > 0 ? videoH : mediaH,
-                mediaAspectRatioRef.current,
-                12,
-              );
-            }
-          }}
-          onTouchEnd={(e) => {
-            const sheet = mobileSheetRef.current;
-            const startY = mobileSheetDragStartYRef.current;
-            mobileSheetDragStartYRef.current = null;
-            if (!sheet || startY === null) return;
-            const touch = e.changedTouches[0];
-            const endY = touch?.clientY ?? startY;
-            const diff = endY - startY;
-            const maxOffset = Math.max(0, sheet.offsetHeight - 120);
-            const thirdOffset = Math.max(0, sheet.offsetHeight - Math.round(window.innerHeight / 3));
-            const twoThirdOffset = Math.max(0, sheet.offsetHeight - Math.round(window.innerHeight * 2 / 3));
-            const snapOffsets: [number, number, number] = [maxOffset, thirdOffset, twoThirdOffset];
-            sheet.style.transition = "transform 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94)";
-            if (mobileMediaClipRef.current) mobileMediaClipRef.current.style.transition = "height 320ms cubic-bezier(0.25, 0.46, 0.45, 0.94), border-radius 320ms ease, box-shadow 320ms ease";
-            if (mobileContentClipRef.current) mobileContentClipRef.current.style.transition = "clip-path 320ms ease";
-            if (videoRef.current) videoRef.current.style.transition = "clip-path 320ms ease";
-            if (Math.abs(diff) < 8) {
-              const target = e.target as HTMLElement;
-              if (target.closest("button, a, input, textarea, select")) {
-                sheet.style.transform = `translateY(${snapOffsets[mobileSheetSnap]}px)`;
-                return;
-              }
-              // Tap: peek→1/3, 1/3 o 2/3→peek
-              const tapTarget: 0 | 1 | 2 = mobileSheetSnap === 0 ? 1 : 0;
-              if (tapTarget !== mobileSheetSnap) setMobileSheetSnap(tapTarget);
-              return;
-            }
-            // Snap al tope más cercano a la posición de release
-            let newSnap: 0 | 1 | 2;
-            const releasePos = Math.max(twoThirdOffset, Math.min(maxOffset, mobileSheetBaseOffsetRef.current + diff));
-            const d0 = Math.abs(releasePos - maxOffset);
-            const d1 = Math.abs(releasePos - thirdOffset);
-            const d2 = Math.abs(releasePos - twoThirdOffset);
-            if (d0 <= d1 && d0 <= d2) newSnap = 0;
-            else if (d1 <= d2) newSnap = 1;
-            else newSnap = 2;
-            if (newSnap !== mobileSheetSnap) {
-              setMobileSheetSnap(newSnap);
-            } else {
-              sheet.style.transform = `translateY(${snapOffsets[newSnap]}px)`;
-              if (mobileMediaClipRef.current) {
-                mobileMediaClipRef.current.style.height = `${window.innerHeight - (sheet.offsetHeight - snapOffsets[newSnap])}px`;
-              }
-              const s = newSnap;
-              setTimeout(() => {
-                if (mobileSheetRef.current) mobileSheetRef.current.style.transform =
-                  s === 2 ? "translateY(calc(100% - 200dvh / 3))" :
-                  s === 1 ? "translateY(calc(100% - 100dvh / 3))" :
-                  "translateY(calc(100% - 120px))";
-                if (mobileMediaClipRef.current) {
-                  mobileMediaClipRef.current.style.height =
-                    s === 2 ? "calc(100dvh / 3)" :
-                    s === 1 ? "calc(200dvh / 3)" :
-                    "calc(100dvh - 120px)";
-                  mobileMediaClipRef.current.style.borderRadius = s > 0 ? "12px" : "0";
-                  mobileMediaClipRef.current.style.boxShadow = s > 0
-                    ? "0 0 0 1.5px rgba(255,255,255,0.18)"
-                    : "none";
-                }
-                if (mobileContentClipRef.current) {
-                  const snapH = s === 2 ? window.innerHeight / 3
-                    : s === 1 ? (window.innerHeight * 2) / 3
-                    : window.innerHeight - 120;
-                  mobileContentClipRef.current.style.clipPath =
-                    computeContentClipPath(s === 0 ? 0 : snapH, mediaAspectRatioRef.current, s > 0 ? 12 : 0);
-                }
-                if (videoRef.current) {
-                  const snapH = s === 2 ? window.innerHeight / 3 : s === 1 ? (window.innerHeight * 2) / 3 : 0;
-                  if (s === 0) {
-                    videoRef.current.style.clipPath = "inset(0 0 0 0 round 0px)";
-                  } else {
-                    const videoH = Math.max(snapH - safeAreaTopRef.current, snapH * 0.5);
-                    videoRef.current.style.clipPath = computeContentClipPath(videoH, mediaAspectRatioRef.current, 12);
-                  }
-                }
-              }, 340);
-            }
-          }}
-        >
-        <div
-          style={{
-            flexShrink: 0,
-            display: "flex",
-            justifyContent: "center",
-            paddingTop: 14,
-            paddingBottom: 8,
-            cursor: "pointer",
-          }}
-        >
+        {/* Speed indicator */}
+        {isCurrentVideo && mobileSpeedGestureActive && (
           <div
             style={{
-              width: 36,
-              height: 4,
+              position: "absolute",
+              left: "50%",
+              top: "calc(54px + env(safe-area-inset-top))",
+              transform: "translateX(-50%)",
+              zIndex: 20,
+              minHeight: 30,
+              padding: "7px 12px",
               borderRadius: 999,
-              background: "rgba(255,255,255,0.22)",
+              background: "rgba(0,0,0,0.66)",
+              border: "1px solid rgba(255,255,255,0.18)",
+              color: "#fff",
+              fontSize: 12,
+              fontWeight: 800,
+              lineHeight: 1,
+              pointerEvents: "none",
             }}
-          />
-        </div>
+          >
+            {videoPlaybackRate.toFixed(videoPlaybackRate % 1 === 0 ? 0 : 1)}x
+          </div>
+        )}
+      </div>
 
-        {/* Row 1: Avatar + Name/Date */}
+      {/* ── Bottom info bar ── */}
+      <div
+        style={{
+          flexShrink: 0,
+          background: "rgba(8,9,11,0.96)",
+          borderTop: "1px solid rgba(255,255,255,0.08)",
+          paddingBottom: "calc(8px + env(safe-area-inset-bottom))",
+        }}
+      >
+        {/* Avatar + name/time */}
         <div
           style={{
-            flexShrink: 0,
             display: "flex",
             alignItems: "center",
             gap: 10,
-            padding: "2px 16px 6px",
+            padding: "10px 16px 6px",
             minWidth: 0,
           }}
         >
           <Link href={author.profileHref} style={{ flexShrink: 0, lineHeight: 0 }}>
-            <Avatar name={author.authorName} avatarUrl={author.avatarUrl} size={36} />
+            <Avatar name={author.authorName} avatarUrl={author.avatarUrl} size={34} />
           </Link>
-
-          <div
-            style={{
-              flex: 1,
-              minWidth: 0,
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
-            }}
-          >
-            <div
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Link
+              href={author.profileHref}
               style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                minWidth: 0,
-                maxWidth: "100%",
+                color: "#fff",
+                textDecoration: "none",
+                fontSize: 13,
+                fontWeight: 700,
+                lineHeight: 1.2,
+                display: "block",
                 overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
-              <Link
-                href={author.profileHref}
-                style={{
-                  color: "#fff",
-                  textDecoration: "none",
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                  lineHeight: 1.1,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                }}
-              >
-                {author.authorName}
-              </Link>
-
-              {group && (
-                <>
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      color: "rgba(255,255,255,0.34)",
-                      fontSize: 12,
-                      flexShrink: 0,
-                    }}
-                  >
-                    •
-                  </span>
-                  {group.href ? (
-                    <Link
-                      href={group.href}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 5,
-                        minWidth: 0,
-                        color: "rgba(255,255,255,0.68)",
-                        textDecoration: "none",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        overflow: "hidden",
-                      }}
-                    >
-                      <Avatar
-                        name={group.name}
-                        avatarUrl={group.avatarUrl}
-                        size={15}
-                      />
-                      <span
-                        style={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {group.name}
-                      </span>
-                    </Link>
-                  ) : (
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 5,
-                        minWidth: 0,
-                        color: "rgba(255,255,255,0.68)",
-                        fontSize: 11,
-                        fontWeight: 600,
-                        overflow: "hidden",
-                      }}
-                    >
-                      <Avatar
-                        name={group.name}
-                        avatarUrl={group.avatarUrl}
-                        size={15}
-                      />
-                      <span
-                        style={{
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {group.name}
-                      </span>
-                    </span>
-                  )}
-                </>
-              )}
-            </div>
-
+              {author.authorName}
+            </Link>
             <button
               type="button"
               onClick={() => setShowExactDate((prev) => !prev)}
               title={exactDate}
-              aria-label={
-                showExactDate
-                  ? "Mostrar fecha relativa"
-                  : "Mostrar fecha exacta"
-              }
+              aria-label={showExactDate ? "Mostrar fecha relativa" : "Mostrar fecha exacta"}
               style={{
-                width: "fit-content",
                 color: "rgba(255,255,255,0.55)",
-                fontSize: 10.5,
-                lineHeight: 1.1,
+                fontSize: 11,
+                lineHeight: 1.2,
                 border: "none",
                 background: "transparent",
                 padding: 0,
@@ -1759,14 +1523,13 @@ const previewUrl = media.url;
           </div>
         </div>
 
-        {/* Row 2: Actions — always visible in peek */}
+        {/* Actions row */}
         <div
           style={{
-            flexShrink: 0,
             display: "flex",
             alignItems: "center",
             gap: 12,
-            padding: "0 16px 4px",
+            padding: "2px 16px 6px",
           }}
         >
           <div style={actionGroupStyle}>
@@ -1774,21 +1537,10 @@ const previewUrl = media.url;
               type="button"
               onClick={onToggleFlame}
               aria-pressed={viewerHasFlamed}
-              aria-label={
-                viewerHasFlamed
-                  ? "Quitar flamita de la publicación"
-                  : "Dar flamita a la publicación"
-              }
+              aria-label={viewerHasFlamed ? "Quitar flamita de la publicación" : "Dar flamita a la publicación"}
               style={flameButtonStyle}
             >
-              <span
-                aria-hidden="true"
-                style={{
-                  display: "inline-grid",
-                  placeItems: "center",
-                  lineHeight: 1,
-                }}
-              >
+              <span aria-hidden="true" style={{ display: "inline-grid", placeItems: "center", lineHeight: 1 }}>
                 <VibraFlameIcon active={viewerHasFlamed} size={22} />
               </span>
             </button>
@@ -1800,8 +1552,7 @@ const previewUrl = media.url;
               style={{
                 ...actionButtonStyle,
                 opacity: !onOpenFlames || likesCount === 0 ? 0.55 : 1,
-                cursor:
-                  !onOpenFlames || likesCount === 0 ? "default" : "pointer",
+                cursor: !onOpenFlames || likesCount === 0 ? "default" : "pointer",
               }}
             >
               {likesCount}
@@ -1810,11 +1561,7 @@ const previewUrl = media.url;
 
           <button
             type="button"
-            onClick={() => {
-              onOpenComments();
-              setMobileSheetSnap(2);
-              setMobileSheetShowComments(true);
-            }}
+            onClick={onOpenComments}
             aria-label="Ver comentarios"
             style={actionButtonStyle}
           >
@@ -1841,64 +1588,9 @@ const previewUrl = media.url;
             )}
           </div>
         </div>
-        </div>{/* end drag zone */}
-
-        {/* Expanded section — always in DOM to prevent height changes during animation */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: mobileSheetSnap > 0 ? "auto" : "hidden",
-            opacity: mobileSheetSnap > 0 ? 1 : 0,
-            pointerEvents: mobileSheetSnap > 0 ? "auto" : "none",
-            transition: "opacity 200ms ease",
-            padding: "6px 16px calc(20px + env(safe-area-inset-bottom))",
-            overscrollBehavior: "contain",
-          }}
-        >
-          {shouldShowMobilePostText && (
-            mobilePostTextExpanded ? (
-              <p style={{ margin: 0, color: "rgba(255,255,255,0.86)", fontSize: 13, fontWeight: 300, lineHeight: 1.55, wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
-                {cleanPostText}{" "}
-                {postTextNeedsExpand && (
-                  <span
-                    onClick={() => setMobilePostTextExpanded(false)}
-                    style={{ color: "rgba(255,255,255,0.45)", cursor: "pointer" }}
-                  >
-                    ...menos
-                  </span>
-                )}
-              </p>
-            ) : (
-              <div style={{ position: "relative", overflow: "hidden", maxHeight: 21 }}>
-                <p ref={postTextPRef} style={{ margin: 0, color: "rgba(255,255,255,0.86)", fontSize: 13, fontWeight: 300, lineHeight: 1.55, wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
-                  {cleanPostText}
-                </p>
-                {postTextNeedsExpand && (
-                  <span
-                    onClick={() => setMobilePostTextExpanded(true)}
-                    style={{
-                      position: "absolute", right: 0, bottom: 0,
-                      paddingLeft: 36,
-                      background: "linear-gradient(to right, transparent, rgb(10,10,14) 40%)",
-                      color: "rgba(255,255,255,0.86)", fontSize: 13, fontWeight: 400,
-                      lineHeight: "21px", cursor: "pointer",
-                    }}
-                  >
-                    ...más
-                  </span>
-                )}
-              </div>
-            )
-          )}
-
-          {mobileSheetShowComments && mobileSheetCommentsContent && (
-            <div style={{ marginTop: 16 }}>
-              {mobileSheetCommentsContent}
-            </div>
-          )}
-        </div>
       </div>
 
+      {/* Comments overlay */}
       {mobileCommentsOpen && (
         <div
           style={{
@@ -1934,36 +1626,44 @@ const previewUrl = media.url;
   );
 
   const desktopContent = (
-    <div style={overlayStyle} onClick={onClose}>
-      <div
-        style={{
-          width: "min(960px, calc(100vw - 96px))",
-          height: "min(620px, calc(100dvh - 96px))",
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 620px) 340px",
-          borderRadius: 16,
-          overflow: "hidden",
-          background: "#000",
-          border: "1px solid rgba(255,255,255,0.12)",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.58)",
-        }}
-        onClick={(event) => event.stopPropagation()}
-      >
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 2147483647,
+        background: "rgba(0,0,0,0.86)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        color: "#fff",
+        fontFamily: fontStack,
+        userSelect: "none",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 14,
+        padding: 24,
+        boxSizing: "border-box",
+      }}
+      onClick={onClose}
+    >
         <div
           ref={desktopVideoShellRef}
           onMouseMove={revealDesktopControls}
-          onClick={revealDesktopControls}
+          onClick={(e) => { e.stopPropagation(); revealDesktopControls(); }}
           style={{
+            flex: 1,
+            height: "min(90dvh, 860px)",
             position: "relative",
             minWidth: 0,
             minHeight: 0,
-            width: "100%",
-            height: "100%",
             background: "#000",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
+            borderRadius: 16,
+            border: "1px solid rgba(255,255,255,0.10)",
+            boxShadow: "0 24px 80px rgba(0,0,0,0.64)",
           }}
         >
           {(!desktopFullscreenActive || desktopControlsVisible) && (
@@ -2280,17 +1980,14 @@ const previewUrl = media.url;
                   top: "50%",
                   transform: "translateY(-50%)",
                   zIndex: 6,
-                  width: 42,
-                  height: 42,
-                  borderRadius: 999,
-                  border: "1px solid rgba(255,255,255,0.16)",
-                  background: "rgba(0,0,0,0.48)",
-                  color: "#fff",
-                  fontSize: 26,
+                  border: "none",
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.82)",
+                  fontSize: 42,
                   lineHeight: 1,
-                  display: "grid",
-                  placeItems: "center",
                   cursor: "pointer",
+                  padding: 0,
+                  textShadow: "0 1px 6px rgba(0,0,0,0.6)",
                 }}
               >
                 ‹
@@ -2306,17 +2003,14 @@ const previewUrl = media.url;
                   top: "50%",
                   transform: "translateY(-50%)",
                   zIndex: 6,
-                  width: 42,
-                  height: 42,
-                  borderRadius: 999,
-                  border: "1px solid rgba(255,255,255,0.16)",
-                  background: "rgba(0,0,0,0.48)",
-                  color: "#fff",
-                  fontSize: 26,
+                  border: "none",
+                  background: "transparent",
+                  color: "rgba(255,255,255,0.82)",
+                  fontSize: 42,
                   lineHeight: 1,
-                  display: "grid",
-                  placeItems: "center",
                   cursor: "pointer",
+                  padding: 0,
+                  textShadow: "0 1px 6px rgba(0,0,0,0.6)",
                 }}
               >
                 ›
@@ -2326,13 +2020,20 @@ const previewUrl = media.url;
         </div>
 
         <aside
+          onClick={(e) => e.stopPropagation()}
           style={{
+            width: "min(380px, 34vw)",
+            height: "min(90dvh, 860px)",
+            flexShrink: 0,
             minHeight: 0,
-            borderLeft: "1px solid rgba(255,255,255,0.10)",
-            background: "rgba(22,22,22,0.98)",
+            background: "rgba(14,14,16,0.98)",
+            border: "1px solid rgba(255,255,255,0.10)",
+            boxShadow: "0 24px 80px rgba(0,0,0,0.64)",
+            borderRadius: 16,
             display: "grid",
             gridTemplateRows: "auto 1fr",
             minWidth: 0,
+            overflow: "hidden",
           }}
         >
           <div
@@ -2648,7 +2349,6 @@ const previewUrl = media.url;
             </div>
           </div>
         </aside>
-      </div>
 
       <style>
         {`

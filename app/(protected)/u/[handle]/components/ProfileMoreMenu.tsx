@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 
 type Props = {
@@ -11,8 +12,11 @@ type Props = {
 };
 
 export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSuccess, onUnblockError }: Props) {
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuPanelRef = useRef<HTMLDivElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const menuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuClosing, setMenuClosing] = useState(false);
 
   const isOwnProfile = !!viewerUid && viewerUid === profileUid;
 
@@ -21,30 +25,49 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
     profileUid
   );
 
+  const closeMenu = useCallback(() => {
+    if (menuCloseTimerRef.current !== null) return;
+    setMenuClosing(true);
+    menuCloseTimerRef.current = setTimeout(() => {
+      setMenuOpen(false);
+      setMenuClosing(false);
+      menuCloseTimerRef.current = null;
+    }, 360);
+  }, []);
+
   useEffect(() => {
     if (!menuOpen) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (!menuRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    function handlePointerDown(e: MouseEvent) {
+      const target = e.target as Node | null;
+      if (!target) return;
+      const insidePanel = !!menuPanelRef.current && menuPanelRef.current.contains(target);
+      const insideButton = !!menuButtonRef.current && menuButtonRef.current.contains(target);
+      if (!insidePanel && !insideButton) closeMenu();
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [menuOpen]);
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") closeMenu();
+    }
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [menuOpen, closeMenu]);
 
   if (!viewerUid || isOwnProfile || relationship.isBlockedBy) return null;
 
   async function handleBlockClick() {
     if (loading) return;
-    const confirmed = window.confirm(
-      "¿Seguro que quieres bloquear a este usuario?"
-    );
+    const confirmed = window.confirm("¿Seguro que quieres bloquear a este usuario?");
     if (!confirmed) return;
-    setMenuOpen(false);
+    closeMenu();
     await block();
   }
 
   async function handleUnblockClick() {
     if (loading) return;
-    setMenuOpen(false);
+    closeMenu();
     const success = await unblock();
     if (success) {
       onUnblockSuccess?.();
@@ -53,12 +76,32 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
     }
   }
 
+  const itemStyle: React.CSSProperties = {
+    width: "100%",
+    minHeight: 46,
+    border: "none",
+    padding: "11px 16px",
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: 600,
+    letterSpacing: "-0.01em",
+    textAlign: "center",
+    cursor: "pointer",
+    background: "transparent",
+    WebkitTapHighlightColor: "transparent",
+    display: "block",
+    boxSizing: "border-box",
+  };
+
   return (
-    <div ref={menuRef} style={{ position: "relative", display: "inline-flex" }}>
+    <>
       <button
+        ref={menuButtonRef}
         type="button"
         aria-label="Opciones del perfil"
         title="Opciones"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
         onClick={() => setMenuOpen((v) => !v)}
         disabled={loading}
         style={{
@@ -76,73 +119,97 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
         ⋮
       </button>
 
-      {menuOpen && (
-        <div
-          style={{
-            position: "absolute",
-            top: 40,
-            right: 0,
-            zIndex: 80,
-            minWidth: 190,
-            padding: 6,
-            borderRadius: 16,
-            border: "1px solid rgba(255,255,255,0.1)",
-            background: "rgba(10,10,14,0.96)",
-            backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
-            boxShadow: "0 18px 38px rgba(0,0,0,0.45)",
-          }}
-        >
-          {relationship.hasBlocked ? (
-            <button
-              type="button"
-              onClick={handleUnblockClick}
-              disabled={loading}
+      {menuOpen && typeof document !== "undefined" && createPortal(
+        <>
+          <style>{`
+            @keyframes pmFadeIn {
+              from { opacity: 0; }
+              to   { opacity: 1; }
+            }
+            @keyframes pmFadeOut {
+              from { opacity: 1; }
+              to   { opacity: 0; }
+            }
+            @keyframes pmScaleIn {
+              from { opacity: 0; transform: scale(0.92); }
+              to   { opacity: 1; transform: scale(1); }
+            }
+            @keyframes pmScaleOut {
+              from { opacity: 1; transform: scale(1); }
+              to   { opacity: 0; transform: scale(0.92); }
+            }
+          `}</style>
+
+          {/* Backdrop */}
+          <div
+            onClick={() => closeMenu()}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 99990,
+              background: "rgba(0,0,0,0.50)",
+              animation: menuClosing
+                ? "pmFadeOut 0.15s ease forwards"
+                : "pmFadeIn 0.18s ease",
+            }}
+          />
+
+          {/* Panel centrado */}
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 99991,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <div
+              ref={menuPanelRef}
+              role="menu"
               style={{
-                width: "100%",
-                minHeight: 38,
-                border: "none",
-                borderRadius: 10,
-                padding: "9px 11px",
-                color: "#fff",
-                background: "rgba(239, 68, 68, 0.10)",
-                fontSize: 13,
-                fontWeight: 600,
-                letterSpacing: "-0.01em",
-                textAlign: "left",
-                cursor: "pointer",
-                WebkitTapHighlightColor: "transparent",
-                transition: "opacity 150ms ease",
+                pointerEvents: "auto",
+                width: "min(280px, 88vw)",
+                background: "rgba(8,9,11,0.985)",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.10)",
+                overflow: "hidden",
+                boxShadow: "0 30px 90px rgba(0,0,0,0.56), 0 0 0 1px rgba(255,255,255,0.035)",
+                backdropFilter: "blur(10px)",
+                WebkitBackdropFilter: "blur(10px)",
+                animation: menuClosing
+                  ? "pmScaleOut 0.15s ease forwards"
+                  : "pmScaleIn 0.18s ease",
               }}
             >
-              Desbloquear usuario
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleBlockClick}
-              disabled={loading}
-              style={{
-                width: "100%",
-                minHeight: 38,
-                border: "none",
-                borderRadius: 10,
-                padding: "9px 11px",
-                color: "#fff",
-                background: "rgba(239, 68, 68, 0.22)",
-                fontSize: 13,
-                fontWeight: 600,
-                letterSpacing: "-0.01em",
-                textAlign: "left",
-                cursor: "pointer",
-                WebkitTapHighlightColor: "transparent",
-                transition: "opacity 150ms ease",
-              }}
-            >
-              Bloquear usuario
-            </button>
-          )}
-        </div>
+              {relationship.hasBlocked ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleUnblockClick}
+                  disabled={loading}
+                  style={{ ...itemStyle, color: "#ff8a8a" }}
+                >
+                  Desbloquear usuario
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleBlockClick}
+                  disabled={loading}
+                  style={{ ...itemStyle, color: "#ff8a8a" }}
+                >
+                  Bloquear usuario
+                </button>
+              )}
+            </div>
+          </div>
+        </>,
+        document.body
       )}
-    </div>
+    </>
   );
 }

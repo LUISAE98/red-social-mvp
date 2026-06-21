@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
   }
 
   const sdpOffer = await req.text();
+  console.info("[whip-proxy] SDP offer directions:", sdpOffer.match(/a=(sendrecv|sendonly|recvonly|inactive)/g));
 
   let cfResp: Response;
   try {
@@ -62,7 +63,8 @@ export async function POST(req: NextRequest) {
   }
 
   const sdpAnswer = await cfResp.text();
-  console.info("[whip-proxy] CF responded", cfResp.status, sdpAnswer.slice(0, 120));
+  console.info("[whip-proxy] CF status:", cfResp.status);
+  console.info("[whip-proxy] CF SDP answer directions:", sdpAnswer.match(/a=(sendrecv|sendonly|recvonly|inactive)/g));
 
   if (!cfResp.ok) {
     return NextResponse.json(

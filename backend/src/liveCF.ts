@@ -25,7 +25,7 @@ type CFLiveInputResponse = {
 function deriveHlsUrl(webRTCPlaybackUrl: string): string {
   // webRTCPlayback.url: https://customer-xxx.cloudflarestream.com/{uid}/webRTC/play
   // HLS URL:           https://customer-xxx.cloudflarestream.com/{uid}/manifest/video.m3u8
-  return webRTCPlaybackUrl.replace("/webRTC/play", "/manifest/video.m3u8");
+  return webRTCPlaybackUrl.replace("/webRTC/play", "/manifest/video.m3u8").split("?")[0];
 }
 
 export const createCFLiveInput = onCall(
@@ -59,7 +59,12 @@ export const createCFLiveInput = onCall(
     if (post.liveData?.liveInputId) {
       // Already configured — return existing data
       const credSnap = await postRef.collection("liveStream").doc("credentials").get();
-      const hlsUrl = credSnap.data()?.hlsUrl ?? post.liveData?.hlsUrl ?? null;
+      const rawHlsUrl = credSnap.data()?.hlsUrl ?? post.liveData?.hlsUrl ?? null;
+      const hlsUrl = rawHlsUrl ? rawHlsUrl.split("?")[0] : null;
+      // Self-heal: remove any query params that may have been stored by older code
+      if (hlsUrl && rawHlsUrl !== hlsUrl) {
+        await postRef.update({ "liveData.hlsUrl": hlsUrl });
+      }
       return { liveInputId: post.liveData.liveInputId as string, hlsUrl };
     }
 

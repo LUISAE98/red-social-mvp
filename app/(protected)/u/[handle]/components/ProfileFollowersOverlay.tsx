@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { getProfileFollowers } from "@/lib/social/social-service";
 import type { ProfileFollowerListItem } from "@/types/social";
@@ -20,6 +21,8 @@ function initials(name: string) {
   return (a + b).toUpperCase() || "?";
 }
 
+const PANEL_CLOSE_THRESHOLD = 130;
+
 export default function ProfileFollowersOverlay({
   open,
   currentUserId,
@@ -32,240 +35,455 @@ export default function ProfileFollowersOverlay({
 
   const canViewFollowers = !!currentUserId && currentUserId === profileUserId;
 
+  // --- Animation lifecycle ---
+  const [shouldRender, setShouldRender] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const shouldRenderRef = useRef(false);
+
+  // --- Mobile detection ---
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(max-width: 639px)").matches
+      : false
+  );
+  const isMobileRef = useRef(isMobile);
+
+  // --- Mobile drag ---
+  const [panelOffsetY, setPanelOffsetY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartYRef = useRef(0);
+  const dragStartOffsetRef = useRef(0);
+
+  const closeAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openAnimRafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const handler = (e: MediaQueryListEvent) => {
+      setIsMobile(e.matches);
+      isMobileRef.current = e.matches;
+    };
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  // Sync shouldRenderRef
+  useEffect(() => {
+    shouldRenderRef.current = shouldRender;
+  }, [shouldRender]);
+
+  // Watch open prop → drive animation
+  useEffect(() => {
+    if (open) {
+      if (closeAnimTimerRef.current) {
+        clearTimeout(closeAnimTimerRef.current);
+        closeAnimTimerRef.current = null;
+      }
+      if (isMobileRef.current) {
+        setPanelOffsetY(window.innerHeight);
+      }
+      setIsClosing(false);
+      setShouldRender(true);
+    } else if (shouldRenderRef.current) {
+      setIsClosing(true);
+      if (isMobileRef.current) {
+        setPanelOffsetY(window.innerHeight);
+      }
+      const duration = isMobileRef.current ? 260 : 180;
+      closeAnimTimerRef.current = setTimeout(() => {
+        setShouldRender(false);
+        setIsClosing(false);
+        closeAnimTimerRef.current = null;
+      }, duration);
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mobile: animate panel in after mount
+  useEffect(() => {
+    if (!shouldRender || isClosing || !isMobile) return;
+    if (openAnimRafRef.current) cancelAnimationFrame(openAnimRafRef.current);
+    openAnimRafRef.current = requestAnimationFrame(() => {
+      openAnimRafRef.current = requestAnimationFrame(() => {
+        setPanelOffsetY(0);
+        openAnimRafRef.current = null;
+      });
+    });
+  }, [shouldRender]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    return () => {
+      if (closeAnimTimerRef.current) clearTimeout(closeAnimTimerRef.current);
+      if (openAnimRafRef.current) cancelAnimationFrame(openAnimRafRef.current);
+    };
+  }, []);
+
+  // Bloquear scroll del body mientras el panel está abierto
+  useEffect(() => {
+    if (!shouldRender) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [shouldRender]);
+
+  // Load followers
   useEffect(() => {
     if (!open) return;
-
     let cancelled = false;
 
     async function loadFollowers() {
       setLoading(true);
       setError(null);
-
       try {
         const result = await getProfileFollowers({
           currentUserId,
           profileUserId,
           limitCount: 50,
         });
-
-        if (!cancelled) {
-          setFollowers(result);
-        }
+        if (!cancelled) setFollowers(result);
       } catch (e: unknown) {
         if (!cancelled) {
           setFollowers([]);
-          setError((e instanceof Error ? e.message : null) ?? "No se pudo cargar la lista de seguidores.");
+          setError(
+            (e instanceof Error ? e.message : null) ??
+              "No se pudo cargar la lista de seguidores."
+          );
         }
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     }
 
     loadFollowers();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [open, currentUserId, profileUserId]);
 
-  if (!open) return null;
+  // Mobile drag handlers
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    // No capturar si el usuario toca un botón
+    if ((e.target as HTMLElement).closest("button")) return;
+    dragStartYRef.current = e.clientY;
+    dragStartOffsetRef.current = panelOffsetY;
+    setIsDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
 
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Seguidores"
-      onClick={onClose}
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!isDragging) return;
+    const delta = e.clientY - dragStartYRef.current;
+    const raw = dragStartOffsetRef.current + delta;
+    // Hacia arriba: resistencia (divide entre 4), hacia abajo: libre
+    setPanelOffsetY(raw < 0 ? raw / 4 : raw);
+  }
+
+  function handlePointerUp() {
+    if (!isDragging) return;
+    setIsDragging(false);
+    if (panelOffsetY >= PANEL_CLOSE_THRESHOLD) {
+      onClose();
+    } else {
+      setPanelOffsetY(0); // regresa al reposo con la transición spring
+    }
+  }
+
+  if (!shouldRender || typeof document === "undefined") return null;
+
+  const titleEl = (
+    <h2
       style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 10000,
-        background: "rgba(0,0,0,0.72)",
-        display: "grid",
-        placeItems: "center",
-        paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
-        paddingBottom: 14,
-        paddingLeft: 14,
-        paddingRight: 14,
+        margin: 0,
+        fontSize: 17,
+        fontWeight: 500,
+        lineHeight: 1.2,
+        textAlign: "center",
+        letterSpacing: "-0.02em",
       }}
     >
-      <section
-        onClick={(event) => event.stopPropagation()}
-        style={{
-          width: "min(520px, calc(100vw - 28px))",
-          maxHeight: "calc(100dvh - 28px)",
-          overflow: "hidden",
-          borderRadius: 18,
-          border: "1px solid rgba(255,255,255,0.14)",
-          background:
-            "linear-gradient(180deg, rgba(18,18,18,0.98), rgba(8,8,8,0.98))",
-          boxShadow: "0 24px 80px rgba(0,0,0,0.72)",
-          color: "#fff",
-        }}
-      >
-        <header
-          style={{
-            padding: "14px 16px",
-            borderBottom: "1px solid rgba(255,255,255,0.1)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-          }}
-        >
-          <div>
-            <h2
+      Seguidores
+    </h2>
+  );
+
+  const listEl = (
+    <>
+      {!canViewFollowers ? (
+        <div style={emptyStyle}>No puedes ver los seguidores de este perfil.</div>
+      ) : loading ? (
+        <div style={emptyStyle}>Cargando seguidores...</div>
+      ) : error ? (
+        <div style={emptyStyle}>{error}</div>
+      ) : followers.length === 0 ? (
+        <div style={emptyStyle}>Todavía no tienes seguidores.</div>
+      ) : (
+        <div style={{ display: "grid", gap: 10 }}>
+          {followers.map((follower) => (
+            <a
+              key={follower.uid}
+              href={follower.handle ? `/u/${follower.handle}` : "#"}
               style={{
-                margin: 0,
-                fontSize: 16,
-                fontWeight: 700,
-                lineHeight: 1.2,
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: 10,
+                color: "#fff",
+                textDecoration: "none",
               }}
+              onClick={(e) => { if (!follower.handle) e.preventDefault(); }}
             >
-              Seguidores
-            </h2>
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  background: "rgba(255,255,255,0.08)",
+                  display: "grid",
+                  placeItems: "center",
+                  flex: "0 0 auto",
+                }}
+              >
+                {follower.avatarUrl ? (
+                  <Image
+                    src={follower.avatarUrl}
+                    alt=""
+                    width={42}
+                    height={42}
+                    style={{ objectFit: "cover" }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.88)" }}>
+                    {initials(follower.displayName)}
+                  </span>
+                )}
+              </div>
 
-            <p
-              style={{
-                margin: "4px 0 0",
-                fontSize: 12,
-                color: "rgba(255,255,255,0.62)",
-                lineHeight: 1.35,
-              }}
-            >
-              Solo tú puedes ver esta lista.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              border: "1px solid rgba(255,255,255,0.14)",
-              background: "rgba(255,255,255,0.06)",
-              color: "#fff",
-              cursor: "pointer",
-              fontSize: 18,
-              lineHeight: 1,
-            }}
-            aria-label="Cerrar seguidores"
-            title="Cerrar"
-          >
-            ×
-          </button>
-        </header>
-
-        <div
-          style={{
-            padding: 14,
-            maxHeight: "min(520px, calc(100dvh - 116px))",
-            overflowY: "auto",
-          }}
-        >
-          {!canViewFollowers ? (
-            <div style={emptyStyle}>No puedes ver los seguidores de este perfil.</div>
-          ) : loading ? (
-            <div style={emptyStyle}>Cargando seguidores...</div>
-          ) : error ? (
-            <div style={emptyStyle}>{error}</div>
-          ) : followers.length === 0 ? (
-            <div style={emptyStyle}>Todavía no tienes seguidores.</div>
-          ) : (
-            <div style={{ display: "grid", gap: 10 }}>
-              {followers.map((follower) => (
-                <a
-                  key={follower.uid}
-                  href={follower.handle ? `/u/${follower.handle}` : "#"}
+              <div style={{ minWidth: 0 }}>
+                <div
                   style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: 10,
-                    borderRadius: 14,
-                    border: "1px solid rgba(255,255,255,0.1)",
-                    background: "rgba(255,255,255,0.04)",
-                    color: "#fff",
-                    textDecoration: "none",
-                  }}
-                  onClick={(event) => {
-                    if (!follower.handle) {
-                      event.preventDefault();
-                    }
+                    fontSize: 14,
+                    fontWeight: 700,
+                    lineHeight: 1.2,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
                   }}
                 >
+                  {follower.displayName}
+                </div>
+                {follower.handle ? (
                   <div
                     style={{
-                      width: 42,
-                      height: 42,
-                      borderRadius: "50%",
+                      marginTop: 3,
+                      fontSize: 12,
+                      color: "rgba(255,255,255,0.58)",
+                      whiteSpace: "nowrap",
                       overflow: "hidden",
-                      background: "rgba(255,255,255,0.08)",
-                      display: "grid",
-                      placeItems: "center",
-                      flex: "0 0 auto",
+                      textOverflow: "ellipsis",
                     }}
                   >
-                    {follower.avatarUrl ? (
-                      <Image
-                        src={follower.avatarUrl}
-                        alt=""
-                        width={42} height={42}
-                        style={{ objectFit: "cover" }}
-                      />
-                    ) : (
-                      <span
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "rgba(255,255,255,0.88)",
-                        }}
-                      >
-                        {initials(follower.displayName)}
-                      </span>
-                    )}
+                    @{follower.handle}
                   </div>
-
-                  <div style={{ minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 700,
-                        lineHeight: 1.2,
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {follower.displayName}
-                    </div>
-
-                    {follower.handle ? (
-                      <div
-                        style={{
-                          marginTop: 3,
-                          fontSize: 12,
-                          color: "rgba(255,255,255,0.58)",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        @{follower.handle}
-                      </div>
-                    ) : null}
-                  </div>
-                </a>
-              ))}
-            </div>
-          )}
+                ) : null}
+              </div>
+            </a>
+          ))}
         </div>
-      </section>
-    </div>
+      )}
+    </>
+  );
+
+  return createPortal(
+    <>
+      <style>{`
+        @keyframes vbFollowersIn {
+          from { opacity: 0; transform: scale(0.94) translateY(10px); }
+          to   { opacity: 1; transform: scale(1)    translateY(0);    }
+        }
+        @keyframes vbFollowersOut {
+          from { opacity: 1; transform: scale(1)    translateY(0);    }
+          to   { opacity: 0; transform: scale(0.94) translateY(10px); }
+        }
+        @keyframes vbFollowersBdIn  { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes vbFollowersBdOut { from { opacity: 1; } to { opacity: 0; } }
+      `}</style>
+
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 99980,
+          background: "rgba(0,0,0,0.52)",
+          backdropFilter: "blur(10px)",
+          WebkitBackdropFilter: "blur(10px)",
+          animation: isClosing
+            ? "vbFollowersBdOut 0.18s ease forwards"
+            : "vbFollowersBdIn 0.18s ease",
+        }}
+      />
+
+      {isMobile ? (
+        /* ── Mobile: pestaña deslizable desde abajo ── */
+        <div
+          style={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 99981,
+            maxHeight: "calc(100vh - 72px)",
+            borderRadius: "22px 22px 0 0",
+            border: "1px solid transparent",
+            background: "rgba(8,9,11,0.96)",
+            boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",
+            color: "#fff",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            transform: `translateY(${panelOffsetY}px)`,
+            transition: isDragging
+              ? "none"
+              : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
+            willChange: "transform",
+          }}
+        >
+          {/* Zona de arrastre unificada: pill + header */}
+          <div
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            style={{ touchAction: "none", userSelect: "none", flexShrink: 0 }}
+          >
+            {/* Pill visual */}
+            <div style={{ padding: "12px 0 4px", cursor: "grab" }}>
+              <div
+                style={{
+                  width: 38,
+                  height: 4,
+                  borderRadius: 2,
+                  background: "rgba(255,255,255,0.18)",
+                  margin: "0 auto",
+                }}
+              />
+            </div>
+
+            {/* Header */}
+            <div
+              style={{
+                height: 56,
+                display: "grid",
+                gridTemplateColumns: "48px 1fr 48px",
+                alignItems: "center",
+                padding: "0 12px",
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "rgba(255,255,255,0.86)",
+                    cursor: "pointer",
+                    fontSize: 32,
+                    fontWeight: 300,
+                    lineHeight: 1,
+                    padding: 0,
+                  }}
+                  aria-label="Cerrar seguidores"
+                >
+                  ×
+                </button>
+              </div>
+              {titleEl}
+              <div />
+            </div>
+          </div>
+
+          <div style={{ padding: 14, overflowY: "auto", flex: 1, minHeight: 0 }}>
+            {listEl}
+          </div>
+        </div>
+      ) : (
+        /* ── Desktop: panel centrado con animación scale ── */
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 99981,
+            display: "grid",
+            placeItems: "center",
+            paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
+            paddingBottom: 14,
+            paddingLeft: 14,
+            paddingRight: 14,
+            pointerEvents: "none",
+          }}
+        >
+          <section
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              pointerEvents: "auto",
+              width: "min(520px, calc(100vw - 28px))",
+              maxHeight: "calc(100dvh - 28px)",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              borderRadius: 12,
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: "rgba(8,9,11,0.985)",
+              boxShadow:
+                "0 30px 90px rgba(0,0,0,0.56), 0 0 0 1px rgba(255,255,255,0.035)",
+              color: "#fff",
+              animation: isClosing
+                ? "vbFollowersOut 0.18s ease-in forwards"
+                : "vbFollowersIn 0.18s ease-out",
+            }}
+          >
+            <header
+              style={{
+                height: 56,
+                display: "grid",
+                gridTemplateColumns: "48px 1fr 48px",
+                alignItems: "center",
+                padding: "0 12px",
+                borderBottom: "1px solid rgba(255,255,255,0.08)",
+                flexShrink: 0,
+              }}
+            >
+              <div />
+              {titleEl}
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "rgba(255,255,255,0.86)",
+                    cursor: "pointer",
+                    fontSize: 32,
+                    fontWeight: 300,
+                    lineHeight: 1,
+                    padding: 0,
+                  }}
+                  aria-label="Cerrar seguidores"
+                >
+                  ×
+                </button>
+              </div>
+            </header>
+
+            <div style={{ padding: 14, maxHeight: 450, overflowY: "auto" }}>
+              {listEl}
+            </div>
+          </section>
+        </div>
+      )}
+    </>,
+    document.body
   );
 }
 

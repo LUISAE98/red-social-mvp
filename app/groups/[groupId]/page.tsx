@@ -1205,12 +1205,21 @@ const openCropWithFile = useCallback(
 
   if (loading) {
     return (
-      <main style={groupRoutePageWrap}>
-        <div style={groupRouteContainer}>
-          <div style={{ ...cardStyle, padding: 18 }}>
-            <div style={textStyle}>Cargando comunidad...</div>
-          </div>
-        </div>
+      <main
+        style={{
+          minHeight: "100dvh",
+          background: "#000",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+        }}
+      >
+        <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
+        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
+          Cargando comunidad...
+        </span>
       </main>
     );
   }

@@ -908,7 +908,14 @@ return (
                     </div>
                   )}
 
-                  {joinListOpen && (
+                  <div
+                    style={{
+                      maxHeight: joinListOpen ? "800px" : "0",
+                      overflow: "hidden",
+                      opacity: joinListOpen ? 1 : 0,
+                      transition: "max-height 360ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease",
+                    }}
+                  >
                     <div style={styles.sectionPanel}>
                       <div
                         style={{
@@ -1045,7 +1052,7 @@ return (
                         </div>
                       </div>
                     </div>
-                  )}
+                    </div>
                 </div>
               );
             })}

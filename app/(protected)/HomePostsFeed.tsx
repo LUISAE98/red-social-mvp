@@ -807,7 +807,21 @@ return (
     {error && <div style={noticeStyle}>{error}</div>}
 
     {loadingInitial && (
-      <div style={noticeStyle}>Cargando publicaciones de tus comunidades...</div>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
+          minHeight: "50vh",
+        }}
+      >
+        <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
+        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
+          Cargando publicaciones...
+        </span>
+      </div>
     )}
 
     {!loadingInitial && posts.length === 0 && (

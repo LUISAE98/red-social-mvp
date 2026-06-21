@@ -49,6 +49,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [shouldRender, setShouldRender] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const cfPcRef = useRef<RTCPeerConnection | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -258,21 +259,29 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const isLive = liveData?.status === "live";
   const isEnded = liveData?.status === "ended";
   // Cloudflare Stream stores hlsUrl directly; Mux derives it from playbackId.
-  // DVR is enabled for CF lives by appending ?dvrEnabled=true while the stream is active.
-  const baseHlsUrl = liveData?.hlsUrl ?? (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null);
-  const hlsUrl = baseHlsUrl && liveData?.streamProvider === "cloudflare" && isLive
-    ? `${baseHlsUrl}?dvrEnabled=true`
-    : baseHlsUrl;
+  // Strip query params defensively — older code stored ?dvrEnabled=true which causes Cloudflare to return 204.
+  const rawHlsUrl = liveData?.hlsUrl ?? (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null);
+  const hlsUrl = rawHlsUrl ? rawHlsUrl.split("?")[0] : null;
+
+  // For Cloudflare WHIP streams, HLS (204) only becomes available after transcoding warms up.
+  // The WebRTC playback endpoint (/webRTC/play) works instantly — same pipeline the CF dashboard uses.
+  const cfWebRTCPlayUrl = (liveData?.streamProvider === "cloudflare" && isLive && hlsUrl)
+    ? hlsUrl.replace("/manifest/video.m3u8", "/webRTC/play")
+    : null;
   const isMuted = !!(user?.uid && liveData?.mutedUsers?.includes(user.uid));
   const isBanned = !!(user?.uid && liveData?.bannedUsers?.includes(user.uid));
   const chatEnabled = !isEnded && !isBanned && liveData?.chatEnabled !== false;
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Resetear contador de reintentos cada vez que se abre el modal
+  // Resetear contador de reintentos cada vez que se abre el modal o cambia la URL
   useEffect(() => {
     if (open) hlsRetryCountRef.current = 0;
   }, [open]);
+
+  useEffect(() => {
+    hlsRetryCountRef.current = 0;
+  }, [hlsUrl]);
 
   // Detecta cambio de orientación física para saber si aplicar rotación CSS o no
   useEffect(() => {
@@ -306,9 +315,154 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
-  // Initialize HLS
+  // ── WebRTC viewer for Cloudflare live streams ─────────────────────────────
+  // WHIP → /webRTC/play works instantly. HLS (/manifest/video.m3u8) requires CF
+  // transcoding warmup (10-30s) and returns 204 until segments are ready.
+  useEffect(() => {
+    console.log("[LiveViewerModal] CF WebRTC effect — cfWebRTCPlayUrl:", cfWebRTCPlayUrl, "open:", open, "shouldRender:", shouldRender, "hasAccess:", hasAccess);
+    if (!cfWebRTCPlayUrl || !open || !shouldRender || !hasAccess) return;
+
+    let cancelled = false;
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: "stun:stun.cloudflare.com:3478" },
+        { urls: "stun:stun.l.google.com:19302" },
+      ],
+    });
+    cfPcRef.current = pc;
+
+    const video = videoRef.current;
+    setReady(false);
+    setError(false);
+
+    pc.ontrack = ({ streams, track }) => {
+      console.log("[LiveViewerModal] ontrack — kind:", track.kind, "readyState:", track.readyState, "streams:", streams.length);
+      if (cancelled || !streams[0] || !video) {
+        console.warn("[LiveViewerModal] ontrack skipped — cancelled:", cancelled, "streams[0]:", !!streams[0], "video:", !!video);
+        return;
+      }
+      const stream = streams[0];
+      console.log("[LiveViewerModal] ontrack stream tracks:", stream.getTracks().map(t => `${t.kind}/${t.readyState}/${t.id.slice(0,8)}`).join(", "));
+      // Only assign srcObject if different stream — ontrack fires once per track even if they share a stream
+      if (video.srcObject !== stream) {
+        console.log("[LiveViewerModal] srcObject assigned — stream:", stream.id);
+        video.srcObject = stream;
+      } else {
+        console.log("[LiveViewerModal] srcObject already set (same stream), skipping reassign");
+        return; // listeners and play() already set up on first ontrack
+      }
+
+      const logVideoState = (label: string) => {
+        console.log(`[LiveViewerModal] video[${label}] readyState:${video.readyState} paused:${video.paused} size:${video.videoWidth}x${video.videoHeight}`);
+      };
+
+      video.addEventListener("loadedmetadata", () => {
+        console.log("[LiveViewerModal] video: loadedmetadata");
+        logVideoState("loadedmetadata");
+        setReady(true);
+        if (video.videoWidth > 0 && video.videoHeight > 0) setIsPortrait(video.videoHeight > video.videoWidth);
+      }, { once: true });
+
+      video.addEventListener("canplay", () => {
+        console.log("[LiveViewerModal] video: canplay");
+        logVideoState("canplay");
+        setReady(true);
+        if (video.videoWidth > 0 && video.videoHeight > 0) setIsPortrait(video.videoHeight > video.videoWidth);
+      }, { once: true });
+
+      video.addEventListener("playing", () => {
+        console.log("[LiveViewerModal] video: playing");
+        logVideoState("playing");
+      }, { once: true });
+
+      video.addEventListener("error", () => {
+        console.error("[LiveViewerModal] video error — code:", video.error?.code, "msg:", video.error?.message);
+      }, { once: true });
+
+      video.play().catch((err) => {
+        console.warn("[LiveViewerModal] video.play() rejected:", (err as Error)?.message, "— retrying muted");
+        video.muted = true;
+        setMuted(true); // sync React state so re-renders don't reset video.muted back to false
+        video.play().catch((err2) => {
+          console.error("[LiveViewerModal] video.play() muted also failed:", (err2 as Error)?.message);
+        });
+      });
+
+      setTimeout(() => logVideoState("1s-after-ontrack"), 1000);
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (cancelled) return;
+      const s = pc.connectionState;
+      console.log("[LiveViewerModal] CF WebRTC viewer connectionState:", s);
+      if (s === "failed" || s === "disconnected") setError(true);
+    };
+
+    pc.addTransceiver("video", { direction: "recvonly" });
+    pc.addTransceiver("audio", { direction: "recvonly" });
+
+    (async () => {
+      try {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        await new Promise<void>((resolve) => {
+          if (pc.iceGatheringState === "complete") { resolve(); return; }
+          const timer = setTimeout(resolve, 5000);
+          const handler = () => {
+            if (pc.iceGatheringState === "complete") {
+              clearTimeout(timer);
+              pc.removeEventListener("icegatheringstatechange", handler);
+              resolve();
+            }
+          };
+          pc.addEventListener("icegatheringstatechange", handler);
+        });
+
+        if (cancelled) return;
+
+        const sdp = pc.localDescription?.sdp;
+        if (!sdp) throw new Error("No SDP for CF WebRTC viewer");
+
+        // POST via server-side proxy — avoids CORS: /webRTC/play does not send
+        // Access-Control-Allow-Origin headers for cross-origin browser requests.
+        const proxyUrl = `/api/cf-viewer-proxy?postId=${encodeURIComponent(post.id)}`;
+        console.log("[LiveViewerModal] Posting SDP offer to CF viewer proxy, postId:", post.id);
+        const resp = await fetch(proxyUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/sdp" },
+          body: sdp,
+        });
+
+        if (!resp.ok) {
+          const errBody = await resp.text().catch(() => "");
+          throw new Error(`CF viewer proxy ${resp.status}: ${errBody.slice(0, 120)}`);
+        }
+
+        const answer = await resp.text();
+        console.log("[LiveViewerModal] SDP answer from proxy, directions:", answer.match(/a=(sendrecv|sendonly|recvonly|inactive)/g));
+
+        if (cancelled) return;
+        await pc.setRemoteDescription({ type: "answer", sdp: answer });
+      } catch (err) {
+        console.error("[LiveViewerModal] CF WebRTC viewer error:", err);
+        if (!cancelled) setError(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      try { pc.close(); } catch { /* best effort */ }
+      cfPcRef.current = null;
+      if (video) { video.srcObject = null; }
+      setReady(false);
+    };
+  }, [cfWebRTCPlayUrl, open, shouldRender, hasAccess, retryKey]);
+
+  // Initialize HLS (Mux streams + CF ended streams — not used for CF live WebRTC)
   useEffect(() => {
     if (!open || !shouldRender || !hlsUrl || !hasAccess) return;
+    if (cfWebRTCPlayUrl) return; // CF live uses WebRTC playback above
     const video = videoRef.current;
     if (!video) return;
 
@@ -333,6 +487,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       }
     };
 
+    console.log("[LiveViewerModal] Loading HLS:", hlsUrl);
+
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
@@ -355,7 +511,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         video.addEventListener("loadedmetadata", onMeta, { once: true });
         video.play().catch(() => {});
       });
-      hls.on(Hls.Events.ERROR, (_, data) => { if (data.fatal) setError(true); });
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data.fatal) {
+          console.error("[LiveViewerModal] HLS fatal error:", data.type, data.details, "status:", (data as unknown as { response?: { code?: number } }).response?.code, "url:", hlsUrl);
+          setError(true);
+        }
+      });
       hlsRef.current = hls;
       return () => { hls.destroy(); hlsRef.current = null; };
     }
@@ -368,16 +529,17 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     }
   }, [open, shouldRender, hlsUrl, isLive, hasAccess, retryKey]);
 
-  // Auto-reintento cuando HLS falla y el live no ha terminado
+  // Auto-reintento mientras el live esté activo — sin límite de intentos (el viewer se bloqueaba
+  // cuando agotaba los 8 reintentos antes de que CF produjera segmentos HLS)
   useEffect(() => {
-    if (!error || isEnded || !hlsUrl || !hasAccess || hlsRetryCountRef.current >= 8) return;
+    if (!error || isEnded || !isLive || !hlsUrl || !hasAccess) return;
     const t = setTimeout(() => {
       hlsRetryCountRef.current++;
       setError(false);
       setRetryKey((k) => k + 1);
     }, 5000);
     return () => clearTimeout(t);
-  }, [error, isEnded, hlsUrl, hasAccess]);
+  }, [error, isEnded, isLive, hlsUrl, hasAccess]);
 
   // Congelar video en último frame cuando el live termina o el usuario es baneado
   useEffect(() => {
@@ -963,7 +1125,22 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                   <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
                   <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.7)" />
                 </svg>
-                El stream iniciará en unos segundos…
+                Conectando con el stream…
+                {isLive && (
+                  <button
+                    type="button"
+                    onClick={() => { hlsRetryCountRef.current = 0; setError(false); setRetryKey((k) => k + 1); }}
+                    style={{
+                      marginTop: 4, padding: "7px 18px", borderRadius: 8,
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      background: "rgba(255,255,255,0.08)",
+                      color: "rgba(255,255,255,0.8)", fontSize: 12,
+                      cursor: "pointer", fontFamily: FONT,
+                    }}
+                  >
+                    Reintentar ahora
+                  </button>
+                )}
               </>
             )}
           </div>

@@ -118,11 +118,6 @@ export default function CompleteProfileClient() {
       return;
     }
 
-    if (age < 13) {
-      setMsg("Debes tener al menos 13 años para crear una cuenta.");
-      return;
-    }
-
     if (!sex) {
       setMsg("Selecciona una opción de sexo.");
       return;

@@ -1,4 +1,4 @@
-import { FieldValue, getFirestore } from "firebase-admin/firestore";
+import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 
@@ -458,5 +458,148 @@ export const onSavedPostsPostDeleted = onDocumentUpdated(
     }
 
     await Promise.all(batches);
+  }
+);
+
+const ADMIN_EMAIL = "luis@consumed.mx";
+
+/**
+ * Backfill: sincroniza users/{uid}/savedPosts/{postId} a partir de
+ * posts/{postId}/saves/{uid}. Solo puede llamarlo el admin autenticado.
+ *
+ * Casos que repara:
+ * 1. El doc users/{uid}/savedPosts/{postId} no existe (save viejo).
+ * 2. El doc existe pero le falta el campo savedAt (orderBy lo excluye).
+ */
+export const backfillSavedPosts = onCall(
+  { region: "us-central1", timeoutSeconds: 540, memory: "512MiB" },
+  async (request) => {
+    const email = request.auth?.token?.email;
+    if (!email || email !== ADMIN_EMAIL) {
+      throw new HttpsError("permission-denied", "Solo el administrador puede ejecutar esto.");
+    }
+
+    const savesSnap = await db.collectionGroup("saves").get();
+
+    let created = 0;
+    let patched = 0;
+    let skipped = 0;
+    let errors = 0;
+
+    for (const saveDoc of savesSnap.docs) {
+      try {
+        // path: posts/{postId}/saves/{uid}
+        const parts = saveDoc.ref.path.split("/");
+        if (parts.length < 4 || parts[0] !== "posts" || parts[2] !== "saves") {
+          skipped++;
+          continue;
+        }
+
+        const postId = parts[1];
+        const uid = parts[3];
+
+        if (!postId || !uid) {
+          skipped++;
+          continue;
+        }
+
+        const userSavedRef = db
+          .collection("users")
+          .doc(uid)
+          .collection("savedPosts")
+          .doc(postId);
+
+        const userSavedSnap = await userSavedRef.get();
+
+        // Already has savedAt — nothing to do
+        if (userSavedSnap.exists) {
+          const data = userSavedSnap.data() ?? {};
+          if (data.savedAt instanceof Timestamp) {
+            skipped++;
+            continue;
+          }
+        }
+
+        // Need post data to populate the savedPosts doc
+        const postSnap = await db.collection("posts").doc(postId).get();
+        if (!postSnap.exists) {
+          skipped++;
+          continue;
+        }
+
+        const postData = postSnap.data() ?? {};
+
+        // Skip soft-deleted posts
+        if (
+          postData.isDeleted === true ||
+          postData.deletedAt != null ||
+          postData.search?.isDeleted === true
+        ) {
+          skipped++;
+          continue;
+        }
+
+        const saveData = saveDoc.data();
+        const savedAt =
+          saveData.createdAt instanceof Timestamp
+            ? saveData.createdAt
+            : FieldValue.serverTimestamp();
+
+        const payload: Record<string, unknown> = {
+          postId,
+          userId: uid,
+          contextType:
+            postData.contextType === "profile" ? "profile" : "group",
+          groupId:
+            typeof postData.groupId === "string" ? postData.groupId : null,
+          profileId:
+            typeof postData.profileId === "string"
+              ? postData.profileId
+              : null,
+          authorId:
+            typeof postData.authorId === "string" ? postData.authorId : null,
+          postCreatedAt: postData.createdAt ?? null,
+          isVisible: true,
+          isDeleted: false,
+          groupVisibility:
+            typeof postData.groupVisibility === "string"
+              ? postData.groupVisibility
+              : null,
+          profileRestricted: postData.profileRestricted === true,
+          accessModel:
+            typeof postData.accessModel === "string"
+              ? postData.accessModel
+              : "free",
+          requiresPayment: postData.requiresPayment === true,
+          requiresSubscription: postData.requiresSubscription === true,
+          updatedAt: FieldValue.serverTimestamp(),
+          version: 1,
+        };
+
+        if (!userSavedSnap.exists) {
+          // Doc missing entirely — set all fields including savedAt
+          await userSavedRef.set({ ...payload, savedAt }, { merge: true });
+          created++;
+        } else {
+          // Doc exists but savedAt is missing/wrong — patch only savedAt
+          await userSavedRef.update({ savedAt, updatedAt: FieldValue.serverTimestamp() });
+          patched++;
+        }
+      } catch (err) {
+        console.error("[backfillSavedPosts] error on doc", saveDoc.ref.path, err);
+        errors++;
+      }
+    }
+
+    const summary = {
+      total: savesSnap.size,
+      created,
+      patched,
+      skipped,
+      errors,
+    };
+
+    console.log("[backfillSavedPosts] done", summary);
+    return summary;
   }
 );

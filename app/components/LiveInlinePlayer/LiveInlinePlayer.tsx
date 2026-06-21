@@ -8,7 +8,8 @@ const fontStack =
   'inherit';
 
 type Props = {
-  playbackId: string;
+  playbackId?: string | null;
+  hlsUrl?: string | null;
   title?: string | null;
   coverUrl?: string | null;
   portrait?: boolean;
@@ -19,6 +20,7 @@ type Props = {
 
 export default function LiveInlinePlayer({
   playbackId,
+  hlsUrl: hlsUrlProp,
   title,
   coverUrl,
   portrait = false,
@@ -35,7 +37,8 @@ export default function LiveInlinePlayer({
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
 
-  const hlsUrl = `https://stream.mux.com/${playbackId}.m3u8`;
+  const rawHlsUrl = hlsUrlProp ?? (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : "");
+  const hlsUrl = rawHlsUrl ? rawHlsUrl.split("?")[0] : "";
 
   // Initialize HLS
   useEffect(() => {

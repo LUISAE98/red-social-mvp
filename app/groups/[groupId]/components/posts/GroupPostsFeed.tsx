@@ -1350,9 +1350,10 @@ const shellStyle: CSSProperties = {
   maxWidth: "100%",
   minWidth: 0,
   display: "grid",
-  gap: 12,
+  gap: 0,
   overflowX: "hidden",
   boxSizing: "border-box",
+  overflowAnchor: "none",
 };
 
   const headerStyle: CSSProperties = {
@@ -1436,6 +1437,7 @@ const shellStyle: CSSProperties = {
 
   const postShellStyle: CSSProperties = {
     ...cardShellStyle,
+    paddingBottom: 12,
   };
 
   return (

@@ -2612,7 +2612,6 @@ return (
     0 18px 54px rgba(0, 0, 0, 0.68);
   transition:
     max-height 320ms ease,
-    height 320ms ease,
     background 180ms ease;
 }
 
@@ -2684,22 +2683,7 @@ return (
   display: none;
 }
 
-        @keyframes ownerPanelReveal {
-          from {
-            opacity: 0;
-            transform: translateY(-6px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .owner-panel-reveal {
-          animation: ownerPanelReveal 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
-        }
-
-        .mini-vertical-scroll {
+.mini-vertical-scroll {
           overflow: visible;
         }
 
@@ -2793,6 +2777,7 @@ return (
   .profile-owner-sidebar-scroll {
     overflow: visible !important;
     max-height: none !important;
+    height: auto !important;
   }
 }
 
@@ -2844,7 +2829,7 @@ className="profile-owner-sidebar-fixed"
 <div
   className="profile-owner-sidebar-scroll"
   style={{
-    maxHeight: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom + 20}px)`,
+    height: `calc(100vh - ${ui.sidebarTop + ui.sidebarBottom + 20}px)`,
   }}
 >
 {profileSidebarGroup && (

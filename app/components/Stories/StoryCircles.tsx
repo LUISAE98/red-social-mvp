@@ -176,19 +176,20 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
 const gearBtnStyle: React.CSSProperties = {
   position: "absolute",
   bottom: 22,
-  right: -3,
-  width: 20,
-  height: 20,
+  right: -4,
+  width: 22,
+  height: 22,
   borderRadius: "50%",
-  background: "rgba(14,14,20,0.90)",
-  border: "1.5px solid rgba(255,255,255,0.18)",
+  background: "rgba(10,10,16,0.96)",
+  border: "1.5px solid rgba(255,255,255,0.14)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   cursor: "pointer",
   padding: 0,
   zIndex: 2,
-  boxShadow: "0 1px 4px rgba(0,0,0,0.4)",
+  boxShadow: "0 2px 8px rgba(0,0,0,0.5)",
+  WebkitTapHighlightColor: "transparent",
 };
 
 function GearIcon() {

@@ -1257,6 +1257,20 @@ const copyTitle = isProfileCard
   hasNewGreeting ||
   hasPreparingAlert;
 
+            const handleToggle = () => {
+              const nextOpen = !openCommunities[g.id];
+              setOpenCommunities(nextOpen ? { [g.id]: true } : { [g.id]: false });
+              if (nextOpen) {
+                setSeenCountsByGroup((prev) => ({
+                  ...prev,
+                  [g.id]: {
+                    join: currentJoinCount,
+                    greeting: currentGreetingCount,
+                  },
+                }));
+              }
+            };
+
             return (
               <div
                 key={g.id}
@@ -1286,7 +1300,9 @@ boxShadow:
                       alignItems: "center",
                       justifyContent: "space-between",
                       gap: 10,
+                      ...(hasOwnerSidebarAlerts ? { cursor: "pointer" } : {}),
                     }}
+                    onClick={hasOwnerSidebarAlerts ? handleToggle : undefined}
                   >
 <Link
   href={
@@ -1295,6 +1311,7 @@ boxShadow:
       : `/groups/${g.id}`
   }
   onClick={(e) => {
+    e.stopPropagation();
     if (g.visibility === "profile" && !g.profileHref && !g.handle) {
       e.preventDefault();
     }
@@ -1404,22 +1421,6 @@ boxShadow:
 {hasOwnerSidebarAlerts ? (
   <button
     type="button"
-    onClick={() => {
-      const nextOpen = !openCommunities[g.id];
-
-      // Accordion: close all other cards when opening this one
-      setOpenCommunities(nextOpen ? { [g.id]: true } : { [g.id]: false });
-
-      if (nextOpen) {
-        setSeenCountsByGroup((prev) => ({
-          ...prev,
-          [g.id]: {
-            join: currentJoinCount,
-            greeting: currentGreetingCount,
-          },
-        }));
-      }
-    }}
     aria-label={
       isOpen
         ? "Cerrar opciones de comunidad"
@@ -1463,7 +1464,7 @@ boxShadow:
   isInviteEligible ? (
     <button
       type="button"
-      onClick={() => setInviteGroupId(g.id)}
+      onClick={(e) => { e.stopPropagation(); setInviteGroupId(g.id); }}
       title="Generar link de invitación"
       aria-label="Generar link de invitación"
       style={{
@@ -1496,21 +1497,29 @@ boxShadow:
       </span>
     </button>
   ) : (
-    <CopyLinkButton
-      href={copyHref}
-      title={copyTitle}
-      style={{
-        flexShrink: 0,
-        marginLeft: "auto",
-      }}
-    />
+    <div
+      onClick={(e) => e.stopPropagation()}
+      style={{ flexShrink: 0, marginLeft: "auto", display: "inline-flex" }}
+    >
+      <CopyLinkButton
+        href={copyHref}
+        title={copyTitle}
+      />
+    </div>
   )
 )}
                   </div>
 
-                  {isOpen && hasOwnerSidebarAlerts && (
+                  {hasOwnerSidebarAlerts && (
                     <div
-                      className="owner-panel-reveal"
+                      style={{
+                        maxHeight: isOpen ? "1200px" : "0",
+                        overflow: "hidden",
+                        opacity: isOpen ? 1 : 0,
+                        transition: "max-height 360ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease",
+                      }}
+                    >
+                    <div
                       style={{
                         marginTop: 9,
                         paddingTop: 9,
@@ -1553,7 +1562,7 @@ boxShadow:
                         </div>
                       )}
                                             {showJoinSection && (
-                        <div style={styles.sectionPanel}>
+                        <div style={{ ...styles.sectionPanel, gap: 0 }}>
                           <button
                             type="button"
                             onClick={() => {
@@ -1591,8 +1600,15 @@ boxShadow:
                             <CountBadge count={joinRequests.length} tone="pink" />
                           </button>
 
-                          {joinListOpen && (
-                            <div className="mini-vertical-scroll owner-panel-reveal" style={{ paddingTop: 6 }}>
+                          <div
+                            style={{
+                              maxHeight: joinListOpen ? "600px" : "0",
+                              overflow: "hidden",
+                              opacity: joinListOpen ? 1 : 0,
+                              transition: "max-height 360ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease",
+                            }}
+                          >
+                            <div className="mini-vertical-scroll" style={{ paddingTop: 8 }}>
                               <div style={{ display: "grid", gap: 7 }}>
                                 {joinRequests.map((r) => {
                                   const approveKey = `${g.id}:${r.userId}:approve`;
@@ -1728,11 +1744,11 @@ boxShadow:
                                 })}
                               </div>
                             </div>
-                          )}
+                          </div>
                         </div>
                       )}
-                                            {greetingServiceCount > 0 && (
-                        <div style={styles.sectionPanel}>
+                      {greetingServiceCount > 0 && (
+                        <div style={{ ...styles.sectionPanel, gap: 0 }}>
                           <button
                             type="button"
                             onClick={() => {
@@ -1769,8 +1785,15 @@ boxShadow:
                             <CountBadge count={greetingServiceCount} tone="pink" />
                           </button>
 
-                          {greetingListOpen && (
-                            <div className="mini-vertical-scroll owner-panel-reveal" style={{ paddingTop: 6 }}>
+                          <div
+                            style={{
+                              maxHeight: greetingListOpen ? "600px" : "0",
+                              overflow: "hidden",
+                              opacity: greetingListOpen ? 1 : 0,
+                              transition: "max-height 360ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease",
+                            }}
+                          >
+                            <div className="mini-vertical-scroll" style={{ paddingTop: 8 }}>
                               <div style={{ display: "grid", gap: 10 }}>
                                 {sortedGreetings.map((r) => {
                                   const req = r.data;
@@ -1874,12 +1897,12 @@ boxShadow:
 
                               </div>
                             </div>
-                          )}
+                          </div>
                         </div>
                       )}
 
                       {scheduledServiceRequests.length > 0 && (
-                        <div style={styles.sectionPanel}>
+                        <div style={{ ...styles.sectionPanel, gap: 0 }}>
                           <button
                             type="button"
                             onClick={() => {
@@ -1915,8 +1938,15 @@ boxShadow:
                             </span>
                             <CountBadge count={scheduledServiceRequests.length} tone="pink" />
                           </button>
-                          {meetGreetSectionOpen[g.id] === true && (
-                            <div className="mini-vertical-scroll owner-panel-reveal" style={{ paddingTop: 6 }}>
+                          <div
+                            style={{
+                              maxHeight: meetGreetSectionOpen[g.id] === true ? "600px" : "0",
+                              overflow: "hidden",
+                              opacity: meetGreetSectionOpen[g.id] === true ? 1 : 0,
+                              transition: "max-height 360ms cubic-bezier(0.4,0,0.2,1), opacity 220ms ease",
+                            }}
+                          >
+                            <div className="mini-vertical-scroll" style={{ paddingTop: 8 }}>
                               <div style={{ display: "grid", gap: 10 }}>
                                 {sortedScheduledServiceRequests.map((r) => {
                                   const req = r.data;
@@ -2625,7 +2655,7 @@ const scheduleConflictMessage = scheduleConflict.message;
                                 })}
                               </div>
                             </div>
-                          )}
+                          </div>
                         </div>
                       )}
 
@@ -2869,6 +2899,7 @@ const scheduleConflictMessage = scheduleConflict.message;
                           padding: "0 2px 2px",
                         }}
                       ></div>
+                    </div>
                     </div>
                   )}
                 </div>

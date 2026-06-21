@@ -5,6 +5,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -695,6 +696,19 @@ function buildActionLabel(action: ModerationAction) {
   return "Eliminar publicación";
 }
 
+function getMenuActionTexts(action: ModerationAction): { loading: string; done: string } | null {
+  if (action === "delete_post") return { loading: "Eliminando publicación", done: "Publicación eliminada" };
+  if (action === "pin_group_post") return { loading: "Fijando en grupo", done: "Fijado en grupo" };
+  if (action === "unpin_group_post") return { loading: "Desfijando del grupo", done: "Desfijado del grupo" };
+  if (action === "pin_profile_post") return { loading: "Fijando en perfil", done: "Fijado en perfil" };
+  if (action === "unpin_profile_post") return { loading: "Desfijando del perfil", done: "Desfijado del perfil" };
+  if (action === "ban") return { loading: "Baneando integrante", done: "Integrante baneado" };
+  if (action === "unban") return { loading: "Quitando ban", done: "Ban quitado" };
+  if (action === "remove") return { loading: "Expulsando integrante", done: "Integrante expulsado" };
+  if (action === "unmute") return { loading: "Quitando mute", done: "Mute quitado" };
+  return null;
+}
+
 export default function GroupPostCard({
   post,
   groupId = null,
@@ -732,6 +746,12 @@ onToggleProfilePin,
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuClosing, setMenuClosing] = useState(false);
+  const menuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressMenuCloseRef = useRef(false);
+  const cardRef = useRef<HTMLElement>(null);
+  const [menuActionPhase, setMenuActionPhase] = useState<"idle" | "loading" | "done">("idle");
+  const [menuActionTexts, setMenuActionTexts] = useState<{ loading: string; done: string } | null>(null);
   const [moderationBusy, setModerationBusy] = useState(false);
   const [muteModalOpen, setMuteModalOpen] = useState(false);
   const [muteDays, setMuteDays] = useState("7");
@@ -843,6 +863,17 @@ useEffect(() => {
 
   const menuPanelRef = useRef<HTMLDivElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const closeMenu = useCallback(() => {
+    if (suppressMenuCloseRef.current) return;
+    if (menuCloseTimerRef.current !== null) return;
+    setMenuClosing(true);
+    menuCloseTimerRef.current = setTimeout(() => {
+      setMenuOpen(false);
+      setMenuClosing(false);
+      menuCloseTimerRef.current = null;
+    }, 360);
+  }, []);
   const flameUsersCacheRef = useRef<Record<string, PostFlameUser[]>>({});
   const flameServerStateRef = useRef(post.viewerHasFlamed === true);
   const flamePendingRef = useRef<boolean | null>(null);
@@ -913,13 +944,13 @@ useEffect(() => {
         !!menuButtonRef.current && menuButtonRef.current.contains(target);
 
       if (!clickedInsidePanel && !clickedButton && !muteModalOpen) {
-        setMenuOpen(false);
+        closeMenu();
       }
     }
 
     function handleEscape(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setMenuOpen(false);
+        closeMenu();
         setMuteModalOpen(false);
         setMuteDays("7");
       }
@@ -1338,7 +1369,7 @@ function handleToggleSave() {
       setPinBusy(true);
       setInlineActionError(null);
       await handler(post.id);
-      setMenuOpen(false);
+      closeMenu();
     } catch (e: unknown) {
       setInlineActionError(
         (e instanceof Error ? e.message : null) ??
@@ -1356,7 +1387,7 @@ function handleToggleSave() {
     try {
       setDeleting(true);
       await onDelete(post.id);
-      setMenuOpen(false);
+      closeMenu();
     } finally {
       setDeleting(false);
     }
@@ -1380,7 +1411,7 @@ function handleToggleSave() {
         await removeGroupMember(groupInfo.groupId, postAuthor.authorId);
       }
 
-      setMenuOpen(false);
+      closeMenu();
       await refreshAfterModeration();
     } finally {
       setModerationBusy(false);
@@ -1399,7 +1430,7 @@ function handleToggleSave() {
       setModerationBusy(true);
       await muteGroupMember(groupInfo.groupId, postAuthor.authorId, durationDays);
       setMuteModalOpen(false);
-      setMenuOpen(false);
+      closeMenu();
       setMuteDays("7");
       await refreshAfterModeration();
     } finally {
@@ -1418,7 +1449,7 @@ function handleToggleSave() {
 
     try {
       setInlineActionError(null);
-      setMenuOpen(false);
+      closeMenu();
       await blockPostAuthor();
     } catch (e: unknown) {
       setInlineActionError((e instanceof Error ? e.message : null) ?? "No se pudo bloquear este usuario.");
@@ -1430,7 +1461,7 @@ function handleToggleSave() {
 
     try {
       setInlineActionError(null);
-      setMenuOpen(false);
+      closeMenu();
       await unblockPostAuthor();
     } catch (e: unknown) {
       setInlineActionError((e instanceof Error ? e.message : null) ?? "No se pudo desbloquear este usuario.");
@@ -1448,7 +1479,7 @@ function handleToggleSave() {
 
     try {
       setInlineActionError(null);
-      setMenuOpen(false);
+      closeMenu();
       setComments(null);
       await blockPostAuthorInGroup();
       await onGroupMemberBlockComplete?.();
@@ -1464,7 +1495,7 @@ function handleToggleSave() {
 
     try {
       setInlineActionError(null);
-      setMenuOpen(false);
+      closeMenu();
       setComments(null);
       await unblockPostAuthorInGroup();
       await onGroupMemberBlockComplete?.();
@@ -1496,44 +1527,35 @@ function handleToggleSave() {
     setLocalMedia(finalMedia);
   }
 
+  function startExitAnimation(afterMs = 460) {
+    const el = cardRef.current;
+    if (!el) {
+      if (onDelete) onDelete(post.id).catch(() => {});
+      return;
+    }
+    // Animar el wrapper (que incluye el paddingBottom de espaciado) para que
+    // el collapse sea limpio y no quede un gap residual al eliminar el nodo.
+    const target = el.parentElement ?? el;
+    const h = target.getBoundingClientRect().height;
+    target.style.height = `${h}px`;
+    target.style.overflow = "hidden";
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        target.style.transition =
+          "height 400ms cubic-bezier(0.4,0,0.2,1) 40ms";
+        target.style.height = "0px";
+        el.style.transition = "opacity 260ms ease";
+        el.style.opacity = "0";
+      });
+    });
+    setTimeout(() => {
+      if (onDelete) onDelete(post.id).catch(() => {});
+    }, afterMs);
+  }
+
   async function handleModerationAction(action: ModerationAction) {
-    if (action === "delete_post") {
-      await handleDelete();
-      return;
-    }
-
-    if (action === "pin_group_post" || action === "unpin_group_post") {
-      await handleTogglePin("group");
-      return;
-    }
-
-    if (action === "pin_profile_post" || action === "unpin_profile_post") {
-      await handleTogglePin("profile");
-      return;
-    }
-
-    if (action === "block_user") {
-      await handleBlockPostAuthor();
-      return;
-    }
-
-    if (action === "unblock_user") {
-      await handleUnblockPostAuthor();
-      return;
-    }
-
-    if (action === "block_in_group") {
-      await handleBlockPostAuthorInGroup();
-      return;
-    }
-
-    if (action === "unblock_in_group") {
-      await handleUnblockPostAuthorInGroup();
-      return;
-    }
-
     if (action === "edit_post") {
-      setMenuOpen(false);
+      closeMenu();
       if (post.postType === "live") {
         setLiveEditOpen(true);
       } else {
@@ -1545,13 +1567,58 @@ function handleToggleSave() {
     if (action === "mute") {
       setMuteDays("7");
       setMuteModalOpen(true);
-      setMenuOpen(false);
+      closeMenu();
       return;
     }
 
-    await runModerationAction(
-      action as "unmute" | "ban" | "unban" | "remove",
-    );
+    if (action === "block_user") { await handleBlockPostAuthor(); return; }
+    if (action === "unblock_user") { await handleUnblockPostAuthor(); return; }
+    if (action === "block_in_group") { await handleBlockPostAuthorInGroup(); return; }
+    if (action === "unblock_in_group") { await handleUnblockPostAuthorInGroup(); return; }
+
+    const texts = getMenuActionTexts(action);
+    if (!texts) return;
+
+    suppressMenuCloseRef.current = true;
+    setMenuActionTexts(texts);
+    setMenuActionPhase("loading");
+
+    // For delete: use optimistic UI — show the animation first, then actually
+    // remove the post. This prevents the component from unmounting mid-animation
+    // (onDelete removes the post from parent state, which would unmount this component).
+    if (action === "delete_post") {
+      try {
+        await new Promise<void>((resolve) => setTimeout(resolve, 380));
+        setMenuActionPhase("done");
+        await new Promise<void>((resolve) => setTimeout(resolve, 1300));
+      } finally {
+        suppressMenuCloseRef.current = false;
+        setMenuActionPhase("idle");
+        setMenuActionTexts(null);
+        closeMenu();
+        startExitAnimation();
+      }
+      return;
+    }
+
+    try {
+      if (action === "pin_group_post" || action === "unpin_group_post") {
+        await handleTogglePin("group");
+      } else if (action === "pin_profile_post" || action === "unpin_profile_post") {
+        await handleTogglePin("profile");
+      } else {
+        await runModerationAction(action as "unmute" | "ban" | "unban" | "remove");
+      }
+      setMenuActionPhase("done");
+      await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+    } catch {
+      // on error close immediately
+    } finally {
+      suppressMenuCloseRef.current = false;
+      setMenuActionPhase("idle");
+      setMenuActionTexts(null);
+      closeMenu();
+    }
   }
 
   async function handleDeleteComment(commentId: string) {
@@ -2449,7 +2516,7 @@ const shouldClampFeedPostText =
 }, [comments, post.counts?.comments]);
 
   return (
-    <article style={cardStyle}>
+    <article ref={cardRef} style={cardStyle}>
       <div
         style={{
           display: "flex",
@@ -2815,9 +2882,10 @@ style={{
       )}
 
       {/* Área de media — player activo, finalizado, o programado */}
-      {isLivePlayer && activeLiveData?.playbackId ? (
+      {isLivePlayer && (activeLiveData?.playbackId || activeLiveData?.hlsUrl) ? (
         <LiveInlinePlayer
-          playbackId={activeLiveData.playbackId}
+          playbackId={activeLiveData.playbackId ?? undefined}
+          hlsUrl={activeLiveData.hlsUrl ?? undefined}
           title={activeLiveData.title}
           coverUrl={activeLiveData.coverUrl}
           portrait={isLivePortrait}
@@ -3331,23 +3399,9 @@ cursor: isMobile ? "pointer" : "default",
       pointerEvents: "none",
     }}
   >
-    <span
-      style={{
-        width: 62,
-        height: 62,
-        borderRadius: 999,
-        display: "grid",
-        placeItems: "center",
-        background: "rgba(124,58,237,0.28)",
-        border: "1px solid rgba(255,255,255,0.22)",
-        color: "#fff",
-        fontSize: 28,
-        paddingLeft: 4,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.32)",
-      }}
-    >
-      ▶
-    </span>
+    <svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.78)" width="104" height="104" style={{ marginLeft: 5, filter: "drop-shadow(0 1px 5px rgba(0,0,0,0.4))" }}>
+      <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+    </svg>
   </div>
 )}
 
@@ -3368,25 +3422,12 @@ cursor: isMobile ? "pointer" : "default",
       WebkitTapHighlightColor: "transparent",
     }}
   >
-    <span
-      aria-hidden="true"
-      style={{
-        width: 62,
-        height: 62,
-        borderRadius: 999,
-        display: "grid",
-        placeItems: "center",
-        background: "rgba(124,58,237,0.28)",
-        border: "1px solid rgba(255,255,255,0.22)",
-        color: "#fff",
-        fontSize: 28,
-        paddingLeft: 4,
-      }}
-    >
-      ▶
-    </span>
+    <svg aria-hidden="true" viewBox="0 0 24 24" fill="rgba(255,255,255,0.78)" width="104" height="104" style={{ marginLeft: 5, filter: "drop-shadow(0 1px 5px rgba(0,0,0,0.4))" }}>
+      <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+    </svg>
   </button>
 )}
+
       </div>
     ) : (
       <div
@@ -3515,21 +3556,11 @@ function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
               }}
             >
               <span
-                style={{
-                  width: 50,
-                  height: 50,
-                  borderRadius: 999,
-                  display: "grid",
-                  placeItems: "center",
-                  background: "rgba(124,58,237,0.28)",
-                  border: "1px solid rgba(255,255,255,0.22)",
-                  color: "#fff",
-                  fontSize: 23,
-                  paddingLeft: 3,
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.32)",
-                }}
+                style={{ display: "contents" }}
               >
-                ▶
+                <svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.78)" width="81" height="81" style={{ marginLeft: 3, filter: "drop-shadow(0 1px 5px rgba(0,0,0,0.4))" }}>
+                  <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                </svg>
               </span>
             </div>
 
@@ -3541,16 +3572,12 @@ function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
                   right: 8,
                   bottom: 8,
                   zIndex: 3,
-                  minHeight: 20,
-                  padding: "3px 7px",
-                  borderRadius: 6,
-                  background: "rgba(124,58,237,0.48)",
-                  border: "1px solid rgba(255,255,255,0.18)",
                   color: "#fff",
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: 700,
                   lineHeight: 1,
                   letterSpacing: "-0.01em",
+                  textShadow: "0 1px 4px rgba(0,0,0,0.5)",
                 }}
               >
                 {durationLabel}
@@ -3869,15 +3896,13 @@ style={{
                     borderRadius: 999,
                     display: "grid",
                     placeItems: "center",
-                    background: "rgba(124,58,237,0.28)",
-                    border: "1px solid rgba(255,255,255,0.22)",
-                    color: "#fff",
-                    fontSize: 23,
-                    paddingLeft: 3,
+                    background: "#7c3aed",
                     boxShadow: "0 8px 24px rgba(0,0,0,0.32)",
                   }}
                 >
-                  ▶
+                  <svg viewBox="0 0 24 24" fill="white" width="22" height="22" style={{ marginLeft: 2 }}>
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
                 </span>
               </div>
               {durationLabel && (
@@ -3891,8 +3916,7 @@ style={{
                     minHeight: 20,
                     padding: "3px 7px",
                     borderRadius: 6,
-                    background: "rgba(124,58,237,0.48)",
-                    border: "1px solid rgba(255,255,255,0.18)",
+                    background: "#7c3aed",
                     color: "#fff",
                     fontSize: 11,
                     fontWeight: 700,
@@ -4009,7 +4033,8 @@ style={{
                 zIndex: 10,
 width: 30,
 height: 30,
-background: "rgba(0,0,0,0.48)",
+background: "transparent",
+border: "none",
 display: isMobile ? "none" : "flex",
 alignItems: "center",
 justifyContent: "center",
@@ -4037,7 +4062,8 @@ padding: "0 0 2px 0",
                 zIndex: 10,
 width: 30,
 height: 30,
-background: "rgba(0,0,0,0.48)",
+background: "transparent",
+border: "none",
 display: isMobile ? "none" : "flex",
 alignItems: "center",
 justifyContent: "center",
@@ -4072,15 +4098,13 @@ padding: "0 0 2px 0",
                         borderRadius: 999,
                         display: "grid",
                         placeItems: "center",
-                        background: "rgba(124,58,237,0.28)",
-                        border: "1px solid rgba(255,255,255,0.22)",
-                        color: "#fff",
-                        fontSize: 23,
-                        paddingLeft: 3,
+                        background: "#7c3aed",
                         boxShadow: "0 8px 24px rgba(0,0,0,0.32)",
                       }}
                     >
-                      ▶
+                      <svg viewBox="0 0 24 24" fill="white" width="22" height="22" style={{ marginLeft: 2 }}>
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
                     </span>
                   </div>
                   {durationLabel && (
@@ -4094,8 +4118,7 @@ padding: "0 0 2px 0",
                         minHeight: 20,
                         padding: "3px 7px",
                         borderRadius: 6,
-                        background: "rgba(124,58,237,0.48)",
-                        border: "1px solid rgba(255,255,255,0.18)",
+                        background: "#7c3aed",
                         color: "#fff",
                         fontSize: 11,
                         fontWeight: 700,
@@ -4359,13 +4382,28 @@ padding: "0 0 2px 0",
                 from { opacity: 0; }
                 to { opacity: 1; }
               }
+              @keyframes vbActionsMenuFadeOut {
+                from { opacity: 1; }
+                to { opacity: 0; }
+              }
               @keyframes vbActionsMenuScaleIn {
+                from { opacity: 0; transform: scale(0.92); }
+                to { opacity: 1; transform: scale(1); }
+              }
+              @keyframes vbActionsMenuScaleOut {
+                from { opacity: 1; transform: scale(1); }
+                to { opacity: 0; transform: scale(0.92); }
+              }
+              @keyframes vbMenuSpinner {
+                to { transform: rotate(360deg); }
+              }
+              @keyframes vbMenuFeedbackIn {
                 from { opacity: 0; transform: scale(0.94); }
                 to { opacity: 1; transform: scale(1); }
               }
-              @keyframes vbActionsMenuSlideUp {
-                from { transform: translateY(100%); }
-                to { transform: translateY(0); }
+              @keyframes vbMenuDoneIn {
+                from { transform: scale(0.3); opacity: 0; }
+                to { transform: scale(1); opacity: 1; }
               }
             `}</style>
 
@@ -4376,112 +4414,95 @@ padding: "0 0 2px 0",
                 inset: 0,
                 zIndex: 99990,
                 background: "rgba(0,0,0,0.50)",
-                animation: "vbActionsMenuFadeIn 0.18s ease",
+                animation: menuClosing
+                  ? "vbActionsMenuFadeOut 0.15s ease forwards"
+                  : "vbActionsMenuFadeIn 0.18s ease",
               }}
-              onClick={() => setMenuOpen(false)}
+              onClick={() => closeMenu()}
             />
 
-            {isMobile ? (
-              /* ── Mobile: bottom sheet ── */
+            {/* Panel centrado — igual en mobile y desktop */}
+            <div
+              style={{
+                position: "fixed",
+                inset: 0,
+                zIndex: 99991,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                pointerEvents: "none",
+              }}
+            >
               <div
                 ref={menuPanelRef}
                 role="menu"
                 style={{
-                  position: "fixed",
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  zIndex: 99991,
-                  background: "#111",
-                  borderTopLeftRadius: 20,
-                  borderTopRightRadius: 20,
+                  pointerEvents: "auto",
+                  width: "min(280px, 88vw)",
+                  background: "rgba(8,9,11,0.985)",
+                  borderRadius: 12,
                   border: "1px solid rgba(255,255,255,0.10)",
-                  borderBottom: "none",
-                  paddingTop: 12,
-                  paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
+                  padding: 0,
                   display: "grid",
                   gap: 0,
                   overflow: "hidden",
-                  boxShadow: "0 -12px 40px rgba(0,0,0,0.50)",
-                  animation: "vbActionsMenuSlideUp 0.30s ease",
+                  boxShadow: "0 30px 90px rgba(0,0,0,0.56), 0 0 0 1px rgba(255,255,255,0.035)",
+                  backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+                  animation: menuClosing
+                    ? "vbActionsMenuScaleOut 0.15s ease forwards"
+                    : "vbActionsMenuScaleIn 0.18s ease",
                 }}
               >
-                {/* Handle pill */}
-                <div
-                  style={{
-                    width: 38,
-                    height: 4,
-                    borderRadius: 2,
-                    background: "rgba(255,255,255,0.18)",
-                    margin: "0 auto 12px",
-                  }}
-                />
-
-                {availableActions.map((action, index) => {
-                  const isSocialAction = action === "block_user" || action === "unblock_user";
-                  const isGroupMemberBlockAction = action === "block_in_group" || action === "unblock_in_group";
-                  const isDanger =
-                    action === "ban" || action === "remove" || action === "delete_post" ||
-                    action === "block_user" || action === "block_in_group";
-                  const isBusy =
-                    moderationBusy || deleting || pinBusy ||
-                    (isSocialAction && socialRelationshipLoading) ||
-                    (isGroupMemberBlockAction && groupMemberBlockLoading);
-
-                  return (
-                    <button
-                      key={action}
-                      type="button"
-                      role="menuitem"
-                      disabled={isBusy}
-                      onClick={() => handleModerationAction(action)}
+                {menuActionPhase !== "idle" ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "20px 24px",
+                      gap: 14,
+                      minHeight: 96,
+                      animation: "vbMenuFeedbackIn 0.2s ease",
+                    }}
+                  >
+                    <span
+                      key={menuActionPhase}
                       style={{
-                        ...menuItemStyle,
-                        minHeight: 50,
-                        fontSize: 14.5,
-                        padding: "12px 16px",
-                        borderTop: index > 0 ? "1px solid rgba(255,255,255,0.07)" : "none",
-                        ...(isBusy ? { color: "rgba(255,255,255,0.35)", cursor: "not-allowed" } : {}),
-                        ...(isDanger && !isBusy ? { color: "#ff8a8a" } : {}),
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "rgba(255,255,255,0.88)",
+                        letterSpacing: "-0.01em",
+                        lineHeight: 1.2,
+                        animation: "vbMenuFeedbackIn 0.18s ease",
                       }}
                     >
-                      {isBusy ? "Procesando..." : buildActionLabel(action)}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              /* ── Desktop: centered modal ── */
-              <div
-                style={{
-                  position: "fixed",
-                  inset: 0,
-                  zIndex: 99991,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  pointerEvents: "none",
-                }}
-              >
-                <div
-                  ref={menuPanelRef}
-                  role="menu"
-                  style={{
-                    pointerEvents: "auto",
-                    width: "min(280px, 90vw)",
-                    background: "rgba(16,16,16,0.98)",
-                    borderRadius: 14,
-                    border: "1px solid rgba(255,255,255,0.10)",
-                    padding: 0,
-                    display: "grid",
-                    gap: 0,
-                    overflow: "hidden",
-                    boxShadow: "0 24px 64px rgba(0,0,0,0.55)",
-                    backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
-                    animation: "vbActionsMenuScaleIn 0.18s ease",
-                  }}
-                >
-                  {availableActions.map((action, index) => {
+                      {menuActionPhase === "loading" ? menuActionTexts?.loading : menuActionTexts?.done}
+                    </span>
+
+                    {menuActionPhase === "loading" ? (
+                      <div className="vibraPullRefreshSpinner refreshing" style={{ width: 28, height: 28 }} />
+                    ) : (
+                      <svg
+                        width="28"
+                        height="28"
+                        viewBox="0 0 28 28"
+                        fill="none"
+                        style={{ animation: "vbMenuDoneIn 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards" }}
+                      >
+                        <circle cx="14" cy="14" r="14" fill="#22c55e" />
+                        <path
+                          d="M8 14l4.5 4.5 7.5-8"
+                          stroke="#fff"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                ) : (
+                  availableActions.map((action, index) => {
                     const isSocialAction = action === "block_user" || action === "unblock_user";
                     const isGroupMemberBlockAction = action === "block_in_group" || action === "unblock_in_group";
                     const isDanger =
@@ -4501,10 +4522,10 @@ padding: "0 0 2px 0",
                         onClick={() => handleModerationAction(action)}
                         style={{
                           ...menuItemStyle,
-                          minHeight: 42,
-                          fontSize: 13.5,
-                          padding: "10px 16px",
-                          borderTop: index > 0 ? "1px solid rgba(255,255,255,0.07)" : "none",
+                          minHeight: 46,
+                          fontSize: 14,
+                          padding: "11px 16px",
+                          borderTop: index > 0 ? "1px solid rgba(255,255,255,0.08)" : "none",
                           ...(isBusy ? { color: "rgba(255,255,255,0.35)", cursor: "not-allowed" } : {}),
                           ...(isDanger && !isBusy ? { color: "#ff8a8a" } : {}),
                         }}
@@ -4512,10 +4533,10 @@ padding: "0 0 2px 0",
                         {isBusy ? "Procesando..." : buildActionLabel(action)}
                       </button>
                     );
-                  })}
-                </div>
+                  })
+                )}
               </div>
-            )}
+            </div>
           </>,
           document.body
         )}

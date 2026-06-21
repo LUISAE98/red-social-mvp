@@ -151,6 +151,17 @@ export default function RootLayout({
           </div>
         </div>
 
+{/* SVG sprite: gradient defined once at document root so url(#vibraIconGradient) resolves from any position:fixed context */}
+<svg aria-hidden="true" focusable="false" style={{ display: "none", position: "absolute", width: 0, height: 0 }}>
+  <defs>
+    <linearGradient id="vibraIconGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stopColor="#ec4899" />
+      <stop offset="52%" stopColor="#9333ea" />
+      <stop offset="100%" stopColor="#3b82f6" />
+    </linearGradient>
+  </defs>
+</svg>
+
 <AuthProvider>
   <DesktopRefreshSplash />
 

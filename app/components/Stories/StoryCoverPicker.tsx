@@ -121,6 +121,7 @@ export default function StoryCoverPicker({
   onClose,
 }: Props) {
   const [mounted, setMounted] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [greetingList, setGreetingList] = useState<GreetingItem[]>([]);
@@ -191,11 +192,17 @@ export default function StoryCoverPicker({
     if (mounted) updateScrollState();
   }, [mounted, stories]);
 
+  const handleClose = () => {
+    if (closing) return;
+    setClosing(true);
+    setTimeout(() => onClose(), 180);
+  };
+
   const dirLabel = role === "buyer" ? "recibidos" : "enviados";
   const title =
     type === "saludo"
-      ? `Portada de Saludos ${dirLabel}`
-      : `Portada de Consejos ${dirLabel}`;
+      ? `Portada de saludos ${dirLabel}`
+      : `Portada de consejos ${dirLabel}`;
   const emoji = type === "saludo" ? "👋" : "💡";
   const typeLabel = type === "saludo" ? "saludos" : "consejos";
 
@@ -275,67 +282,105 @@ export default function StoryCoverPicker({
         padding: "0 20px",
       }}
     >
+      <style>{`
+        @keyframes vibraCoverPickerIn {
+          from { opacity: 0; transform: scale(0.94) translateY(10px); }
+          to   { opacity: 1; transform: scale(1)    translateY(0);    }
+        }
+        @keyframes vibraCoverPickerOut {
+          from { opacity: 1; transform: scale(1)    translateY(0);    }
+          to   { opacity: 0; transform: scale(0.94) translateY(10px); }
+        }
+        @keyframes vibraCoverBackdropIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes vibraCoverBackdropOut {
+          from { opacity: 1; }
+          to   { opacity: 0; }
+        }
+      `}</style>
+
       {/* Backdrop */}
       <div
-        style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.72)" }}
-        onClick={onClose}
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(0,0,0,0.72)",
+          animation: closing
+            ? "vibraCoverBackdropOut 180ms ease-in forwards"
+            : "vibraCoverBackdropIn 160ms ease-out",
+        }}
+        onClick={handleClose}
       />
 
       {/* Panel */}
       <div
         style={{
           position: "relative",
-          background: "rgb(14,14,20)",
-          borderRadius: 18,
+          background: "rgba(8,9,11,0.985)",
+          borderRadius: 12,
+          border: "1px solid rgba(255,255,255,0.1)",
           width: "100%",
-          maxWidth: 360,
+          maxWidth: 400,
           maxHeight: "82vh",
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
+          boxShadow: "0 30px 90px rgba(0,0,0,0.56), 0 0 0 1px rgba(255,255,255,0.035)",
           overflow: "hidden",
+          animation: closing
+            ? "vibraCoverPickerOut 180ms ease-in forwards"
+            : "vibraCoverPickerIn 180ms ease-out",
         }}
       >
         {/* Header */}
-        <div
+        <header
           style={{
-            display: "flex",
+            height: 56,
+            display: "grid",
+            gridTemplateColumns: "48px 1fr 48px",
             alignItems: "center",
-            padding: "16px 16px 10px",
+            padding: "0 12px",
+            borderBottom: "1px solid rgba(255,255,255,0.08)",
             flexShrink: 0,
           }}
         >
-          <span
+          <div />
+          <h2
             style={{
-              flex: 1,
-              color: "#fff",
-              fontWeight: 700,
+              margin: 0,
+              textAlign: "center",
               fontSize: 17,
+              fontWeight: 500,
+              letterSpacing: "-0.02em",
+              color: "#fff",
               fontFamily: fontStack,
             }}
           >
             {title}
-          </span>
+          </h2>
           <button
-            onClick={onClose}
+            type="button"
+            onClick={handleClose}
+            aria-label="Cerrar"
             style={{
-              background: "rgba(255,255,255,0.08)",
+              width: 40,
+              height: 40,
               border: "none",
-              color: "rgba(255,255,255,0.55)",
+              background: "transparent",
+              color: "rgba(255,255,255,0.86)",
               cursor: "pointer",
-              width: 28,
-              height: 28,
-              borderRadius: "50%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 14,
-              fontFamily: fontStack,
+              display: "grid",
+              placeItems: "center",
+              fontSize: 32,
+              fontWeight: 300,
+              lineHeight: 1,
+              WebkitTapHighlightColor: "transparent",
             }}
           >
-            ✕
+            ×
           </button>
-        </div>
+        </header>
 
         {/* Scrollable body */}
         <div style={{ flex: 1, overflowY: "auto", paddingBottom: 20 }}>
@@ -347,6 +392,7 @@ export default function StoryCoverPicker({
               fontSize: 11.5,
               fontFamily: fontStack,
               lineHeight: 1.4,
+              textAlign: "center",
             }}
           >
             Elige la portada de {typeLabel} que se verá en tu perfil y comunidades.
@@ -554,27 +600,6 @@ export default function StoryCoverPicker({
           {/* Greeting list */}
           {greetingList.length > 0 && (
             <>
-              <div
-                style={{
-                  margin: "14px 16px 0",
-                  height: 1,
-                  background: "rgba(255,255,255,0.07)",
-                }}
-              />
-              <p
-                style={{
-                  margin: "12px 16px 6px",
-                  color: "rgba(255,255,255,0.45)",
-                  fontSize: 11,
-                  fontFamily: fontStack,
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                }}
-              >
-                Mis {typeLabel}
-              </p>
-
               {greetingList.map((item) => {
                 const publishedStory = stories.find(
                   (s) => s.greetingRequestId === item.id,
@@ -590,28 +615,29 @@ export default function StoryCoverPicker({
                     style={{
                       display: "flex",
                       alignItems: "center",
-                      gap: 12,
-                      padding: "8px 16px",
+                      gap: 10,
+                      margin: "0 16px 4px",
+                      padding: "7px 0",
                     }}
                   >
                     {/* Thumbnail */}
                     <div
                       style={{
-                        width: 44,
-                        height: 44,
+                        width: 40,
+                        height: 40,
                         borderRadius: "50%",
                         overflow: "hidden",
                         flexShrink: 0,
-                        background: "#111118",
-                        border: "1.5px solid rgba(255,255,255,0.10)",
+                        background: "#0e0e14",
+                        border: "1px solid rgba(255,255,255,0.08)",
                       }}
                     >
                       {thumb ? (
                         <Image
                           src={thumb}
                           alt=""
-                          width={44}
-                          height={44}
+                          width={40}
+                          height={40}
                           style={{ objectFit: "cover", width: "100%", height: "100%" }}
                         />
                       ) : (
@@ -634,12 +660,14 @@ export default function StoryCoverPicker({
                       <div
                         style={{
                           color: "#fff",
-                          fontSize: 13.5,
+                          fontSize: 13,
                           fontFamily: fontStack,
-                          fontWeight: 500,
+                          fontWeight: 600,
+                          letterSpacing: "-0.01em",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           whiteSpace: "nowrap",
+                          lineHeight: 1.2,
                         }}
                       >
                         Para {item.toName}
@@ -648,12 +676,13 @@ export default function StoryCoverPicker({
                         <div
                           style={{
                             color: "rgba(255,255,255,0.38)",
-                            fontSize: 11.5,
+                            fontSize: 11,
                             fontFamily: fontStack,
                             overflow: "hidden",
                             textOverflow: "ellipsis",
                             whiteSpace: "nowrap",
-                            marginTop: 1,
+                            marginTop: 2,
+                            lineHeight: 1.2,
                           }}
                         >
                           {item.instructions}
@@ -669,10 +698,13 @@ export default function StoryCoverPicker({
                         onClick={() => handleRemove(publishedStory.id, item.id)}
                         style={{
                           ...actionBtnStyle,
-                          background: "rgba(239,68,68,0.12)",
-                          border: "1px solid rgba(239,68,68,0.40)",
-                          color: "#f87171",
-                          opacity: isProcessing ? 0.6 : 1,
+                          background: "rgba(239,68,68,0.10)",
+                          border: "1px solid rgba(239,68,68,0.22)",
+                          color: "#fca5a5",
+                          fontWeight: 600,
+                          letterSpacing: "-0.01em",
+                          opacity: isProcessing ? 0.5 : 1,
+                          WebkitTapHighlightColor: "transparent",
                         }}
                       >
                         {isProcessing ? "..." : "Quitar"}
@@ -684,10 +716,13 @@ export default function StoryCoverPicker({
                         onClick={() => handleShare(item)}
                         style={{
                           ...actionBtnStyle,
-                          background: "rgba(168,85,247,0.12)",
-                          border: "1px solid rgba(168,85,247,0.40)",
-                          color: "#c084fc",
-                          opacity: isProcessing ? 0.6 : 1,
+                          background: "rgba(168,85,247,0.14)",
+                          border: "1px solid rgba(168,85,247,0.28)",
+                          color: "#c4b5fd",
+                          fontWeight: 600,
+                          letterSpacing: "-0.01em",
+                          opacity: isProcessing ? 0.5 : 1,
+                          WebkitTapHighlightColor: "transparent",
                         }}
                       >
                         {isProcessing ? "..." : "Compartir"}

@@ -33,12 +33,21 @@ export async function POST(req: NextRequest) {
 
   const postData = postSnap.data();
   const liveGroupId = typeof postData?.groupId === "string" && postData.groupId ? postData.groupId : null;
+  const setLive = body?.setLive === true;
 
   const updates: Promise<unknown>[] = [
     db.collection("users").doc(uid).update({ activeLivePostId: postId }),
   ];
   if (liveGroupId) {
     updates.push(db.collection("groups").doc(liveGroupId).update({ activeLivePostId: postId }));
+  }
+  if (setLive) {
+    const now = FieldValue.serverTimestamp();
+    updates.push(db.collection("posts").doc(postId).update({
+      "liveData.status": "live",
+      "liveData.startedAt": now,
+      updatedAt: now,
+    }));
   }
   await Promise.all(updates).catch((err) => {
     console.error("[cf-broadcast] Failed to set activeLivePostId:", err);

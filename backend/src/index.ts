@@ -119,6 +119,7 @@ export { toggleCommentFlame } from "./postComments";
 export {
   togglePostSave,
   onSavedPostsPostDeleted,
+  backfillSavedPosts,
 } from "./postSaves";
 
 // Post pins

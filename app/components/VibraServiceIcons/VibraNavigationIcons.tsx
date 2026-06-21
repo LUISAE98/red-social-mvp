@@ -24,27 +24,9 @@ const vibraPink = "#ec4899";
 const vibraPurple = "#9333ea";
 const vibraBlue = "#3b82f6";
 
-const gradientStroke = "url(#vibraNavigationGradient)";
+// Gradient defined globally in app/layout.tsx as #vibraIconGradient
+const gradientStroke = "url(#vibraIconGradient)";
 const purpleStroke = vibraPurple;
-
-function VibraGradientDefs() {
-  return (
-    <defs>
-      <linearGradient
-        id="vibraNavigationGradient"
-        x1="3"
-        y1="3"
-        x2="21"
-        y2="21"
-        gradientUnits="userSpaceOnUse"
-      >
-        <stop offset="0%" stopColor={vibraPink} />
-        <stop offset="52%" stopColor={vibraPurple} />
-        <stop offset="100%" stopColor={vibraBlue} />
-      </linearGradient>
-    </defs>
-  );
-}
 
 const NAVIGATION_ICON_CONFIG: Record<
   VibraNavigationIconType,
@@ -57,7 +39,7 @@ const NAVIGATION_ICON_CONFIG: Record<
     label: "Inicio",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <VibraGradientDefs />
+
         <path stroke={gradientStroke} d="M3.5 11.2 12 4l8.5 7.2" />
         <path stroke={gradientStroke} d="M5.8 10.2V20h12.4v-9.8" />
         <path stroke={gradientStroke} d="M9.5 20v-5.8h5V20" />
@@ -227,7 +209,7 @@ premiumUnlocked: {
     label: "Guardados",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <VibraGradientDefs />
+
         <path
           stroke={gradientStroke}
           d="M6.5 4.5h11v15L12 16.2l-5.5 3.3v-15Z"
@@ -240,7 +222,7 @@ premiumUnlocked: {
     label: "Finanzas",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <VibraGradientDefs />
+
         <path stroke={gradientStroke} d="M5 4.5V19.5H21" />
         <path stroke={gradientStroke} d="M8.5 19.5V14.5" />
         <path stroke={gradientStroke} d="M12.5 19.5V10" />
@@ -253,7 +235,7 @@ premiumUnlocked: {
     label: "Calendario",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <VibraGradientDefs />
+
         <rect
           stroke={gradientStroke}
           x="4.5"
@@ -276,7 +258,7 @@ premiumUnlocked: {
     label: "Pendientes",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <VibraGradientDefs />
+
         <path stroke={gradientStroke} d="M5 6.8h14" />
         <path stroke={gradientStroke} d="M5 12h9" />
         <path stroke={gradientStroke} d="M5 17.2h6" />
@@ -289,7 +271,7 @@ premiumUnlocked: {
     label: "Historial",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <VibraGradientDefs />
+
         <circle stroke={gradientStroke} cx="12" cy="12" r="8.2" />
         <path stroke={gradientStroke} d="M12 7.5V12.5" />
         <path stroke={gradientStroke} d="M12 12.5L15.2 14.3" />
@@ -301,7 +283,7 @@ premiumUnlocked: {
     label: "Mis comunidades",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <VibraGradientDefs />
+
         <circle stroke={gradientStroke} cx="10" cy="8" r="3" />
         <path
           stroke={gradientStroke}
@@ -316,7 +298,7 @@ premiumUnlocked: {
     label: "Otras comunidades",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <VibraGradientDefs />
+
         <circle stroke={gradientStroke} cx="8.5" cy="8.8" r="2.5" />
         <circle stroke={gradientStroke} cx="16" cy="8.8" r="2.5" />
         <path stroke={gradientStroke} d="M3.8 19c.7-3.5 2.4-5.4 4.7-5.4" />
@@ -332,7 +314,7 @@ premiumUnlocked: {
     label: "Solicitados",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <VibraGradientDefs />
+
         <path stroke={gradientStroke} d="M6.5 4.5h11v15h-11v-15Z" />
         <path stroke={gradientStroke} d="M9 9h6" />
         <path stroke={gradientStroke} d="M9 13h4" />
@@ -345,7 +327,7 @@ premiumUnlocked: {
     label: "Copiar link",
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden="true">
-        <VibraGradientDefs />
+
 
         <path
           stroke="#a855ff"

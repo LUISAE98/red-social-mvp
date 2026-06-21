@@ -626,7 +626,21 @@ export default function SearchPostsResults({
         enabled={mobileRefreshEnabled}
         indicatorTop="calc(env(safe-area-inset-top) + 116px)"
       >
-        <div>Buscando publicaciones...</div>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 16,
+            minHeight: "40vh",
+          }}
+        >
+          <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
+          <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
+            Buscando publicaciones...
+          </span>
+        </div>
       </RefreshableArea>
     );
   }

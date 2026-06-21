@@ -1,10 +1,12 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import {
   CSSProperties,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -297,6 +299,8 @@ export default function ProfileClient() {
   const [userDoc, setUserDoc] = useState<UserDoc | null>(null);
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
+  const [profileToast, setProfileToast] = useState<{ text: string; type: "success" | "error" | "warning" } | null>(null);
+  const profileToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [profileBlockedByViewer, setProfileBlockedByViewer] = useState(false);
   const [viewerBlockedByProfile, setViewerBlockedByProfile] = useState(false);
@@ -315,6 +319,29 @@ export default function ProfileClient() {
   const [coverRenderUrl, setCoverRenderUrl] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<ProfileTabKey>("posts");
+  const tabSwitchScrollY = useRef<number | null>(null);
+
+  function showProfileToast(raw: string | null, typeHint?: "success" | "error" | "warning") {
+    if (!raw) return;
+    if (profileToastTimerRef.current) clearTimeout(profileToastTimerRef.current);
+    const text = raw.replace(/^[✅❌⚠️🚫]\s*/, "");
+    const type = typeHint ?? (raw.startsWith("✅") ? "success" : raw.startsWith("⚠️") ? "warning" : "error");
+    setProfileToast({ text, type });
+    profileToastTimerRef.current = setTimeout(() => setProfileToast(null), 3500);
+  }
+
+  const handleTabChange = useCallback((tab: ProfileTabKey) => {
+    tabSwitchScrollY.current = window.scrollY;
+    setActiveTab(tab);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (tabSwitchScrollY.current !== null) {
+      window.scrollTo({ top: tabSwitchScrollY.current, behavior: "instant" });
+      tabSwitchScrollY.current = null;
+    }
+  }, [activeTab]);
+
   const [donationViewerOpen, setDonationViewerOpen] = useState(false);
   const [greetOpen, setGreetOpen] = useState(false);
 const [greetSubmitting, setGreetSubmitting] = useState(false);
@@ -960,7 +987,7 @@ function handleUnblockFailed() {
         setCroppedAreaPixels(null);
         setCropOpen(true);
       } catch (e: unknown) {
-        setMsg((e instanceof Error ? e.message : null) ?? "❌ No se pudo leer la imagen.");
+        showProfileToast((e instanceof Error ? e.message : null) ?? "No se pudo leer la imagen.", "error");
       }
     },
     [isOwner]
@@ -1201,7 +1228,7 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
 
     clearAllPostFeedCaches();
     setProfilePostsRefreshKey((value) => value + 1);
-    setMsg("✅ Publicación creada en tu perfil.");
+    showProfileToast("Publicación creada en tu perfil.", "success");
 
     window.setTimeout(() => {
       setProfileVideoUploadProgress(null);
@@ -1236,17 +1263,14 @@ async function handleCreateProfilePost(payload: ProfileComposerSubmitPayload) {
         setActiveTab("groups");
       }
 
-      setMsg(
-        nextValue
-          ? "✅ Perfil reservado activado."
-          : "✅ Perfil público activado."
-      );
+      showProfileToast(nextValue ? "Perfil reservado activado." : "Perfil público activado.", "success");
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string } | null;
-      setMsg(
+      showProfileToast(
         err?.code === "permission-denied"
-          ? "❌ Permiso denegado. Revisa reglas de Firestore."
-          : `❌ No se pudo actualizar la privacidad del perfil: ${err?.message ?? "error"}`
+          ? "Permiso denegado. Revisa reglas de Firestore."
+          : `No se pudo actualizar la privacidad del perfil: ${err?.message ?? "error"}`,
+        "error"
       );
       throw e;
     } finally {
@@ -1313,12 +1337,11 @@ async function handleSendPasswordReset() {
     if (!userDoc || !isOwner) return;
 
     if (!cropImageSrc || !croppedAreaPixels) {
-      setMsg("❌ No se pudo recortar la imagen.");
+      showProfileToast("No se pudo recortar la imagen.", "error");
       return;
     }
 
     setUploading(true);
-    setMsg(null);
 
     try {
       const uid = userDoc.uid;
@@ -1346,12 +1369,12 @@ async function handleSendPasswordReset() {
         setAvatarRenderUrl(freshUrl);
         setUserDoc((prev) => (prev ? { ...prev, photoURL: freshUrl } : prev));
         await updateDoc(uref, { photoURL: freshUrl });
-        setMsg("✅ Foto de perfil actualizada.");
+        showProfileToast("Foto de perfil actualizada.", "success");
       } else {
         setCoverRenderUrl(freshUrl);
         setUserDoc((prev) => (prev ? { ...prev, coverUrl: freshUrl } : prev));
         await updateDoc(uref, { coverUrl: freshUrl });
-        setMsg("✅ Foto de portada actualizada.");
+        showProfileToast("Foto de portada actualizada.", "success");
       }
 
       setCropOpen(false);
@@ -1362,10 +1385,11 @@ async function handleSendPasswordReset() {
 
     } catch (e: unknown) {
       const err = e as { code?: string; message?: string } | null;
-      setMsg(
+      showProfileToast(
         err?.code === "permission-denied"
-          ? "❌ Permiso denegado. Revisa reglas de Storage/Firestore."
-          : `❌ No se pudo subir la imagen: ${err?.message ?? "error"}`
+          ? "Permiso denegado. Revisa reglas de Storage/Firestore."
+          : `No se pudo subir la imagen: ${err?.message ?? "error"}`,
+        "error"
       );
     } finally {
       setUploading(false);
@@ -1469,14 +1493,18 @@ await createExclusiveSessionRequest({
         style={{
           minHeight: "100dvh",
           background: "#000",
-          color: "#fff",
-          padding: "0 0 calc(108px + env(safe-area-inset-bottom))",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 16,
           fontFamily: fontStack,
         }}
       >
-        <div style={{ maxWidth: ui.pageMaxWidth, margin: "0 auto", padding: "0" }}>
+        <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
+        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.32)", letterSpacing: "0.01em" }}>
           Cargando perfil...
-        </div>
+        </span>
       </main>
     );
   }
@@ -2152,16 +2180,6 @@ await createExclusiveSessionRequest({
                 </div>
               )}
 
-              {msg && (
-                <div
-                  style={{
-                    ...styles.message,
-                    marginTop: 12,
-                  }}
-                >
-                  {msg}
-                </div>
-              )}
 
             </div>
           </div>
@@ -2174,7 +2192,7 @@ await createExclusiveSessionRequest({
   <div style={{ marginTop: 8 }}>
     <ProfileSubnav
                 activeTab={activeTab}
-                onChange={setActiveTab}
+                onChange={handleTabChange}
                 isOwner={isOwner}
                 showPostsTab={showPostsTab}
                 showGroupsTab={showGroupsTab}
@@ -2709,6 +2727,82 @@ await createExclusiveSessionRequest({
             </div>
           </div>
         </div>
+      )}
+
+      {profileToast && createPortal(
+        <>
+          <style>{`
+            @keyframes profileToastIn {
+              from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+              to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+            }
+          `}</style>
+          <div
+            style={{
+              position: "fixed",
+              bottom: "calc(24px + env(safe-area-inset-bottom, 0px))",
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 11500,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 18px 10px 10px",
+              borderRadius: 40,
+              background: "rgba(14,14,14,0.86)",
+              backdropFilter: "blur(16px)",
+              WebkitBackdropFilter: "blur(16px)",
+              border: "1px solid rgba(255,255,255,0.10)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 500,
+              pointerEvents: "none",
+              whiteSpace: "nowrap",
+              maxWidth: "calc(100vw - 32px)",
+              animation: "profileToastIn 220ms ease-out",
+            }}
+          >
+            {profileToast.type === "success" ? (
+              <span
+                style={{
+                  width: 22, height: 22, borderRadius: "50%",
+                  background: "#22c55e", flexShrink: 0,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M2 6.5L4.5 9L10 3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </span>
+            ) : profileToast.type === "error" ? (
+              <span
+                style={{
+                  width: 22, height: 22, borderRadius: "50%",
+                  background: "#ef4444", flexShrink: 0,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                }}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M2 2L8 8M8 2L2 8" stroke="#fff" strokeWidth="2" strokeLinecap="round"/>
+                </svg>
+              </span>
+            ) : (
+              <span
+                style={{
+                  width: 22, height: 22, borderRadius: "50%",
+                  background: "#f59e0b", flexShrink: 0,
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 13, fontWeight: 700, color: "#fff",
+                }}
+              >
+                !
+              </span>
+            )}
+            <span>{profileToast.text}</span>
+          </div>
+        </>,
+        document.body
       )}
     </>
   );
