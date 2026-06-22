@@ -808,6 +808,7 @@ onToggleProfilePin,
   const [localMedia, setLocalMedia] = useState<import("@/lib/posts/types").PostMedia[] | null>(null);
   const { isTempUnlocked, unlock: applyTempUnlock } = usePostTempUnlock(post.id, currentUserId);
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | null>(null);
+  const [viewerSourceRect, setViewerSourceRect] = useState<DOMRect | null>(null);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 const carouselShellRef = useRef<HTMLDivElement | null>(null);
 const carouselTouchStartXRef = useRef<number | null>(null);
@@ -1171,10 +1172,11 @@ useEffect(() => {
   ]);
 
 
-  function openMediaViewer(mediaUrl: string | null) {
+  function openMediaViewer(mediaUrl: string | null, rect?: DOMRect | null) {
     if (!mediaUrl) return;
     if (premiumState.isBlocked) return;
 
+    setViewerSourceRect(rect ?? null);
     videoRef.current?.pause();
     setSelectedMediaUrl(mediaUrl);
     void handleOpenCommentsPanel();
@@ -3354,15 +3356,15 @@ style={{
     playsInline
     preload="metadata"
     poster={videoThumbnailUrl ?? undefined}
-    onClick={() => {
+    onClick={(e) => {
       if (isMobile) {
-        openMediaViewer(videoThumbnailUrl || videoPlaybackUrl);
+        openMediaViewer(videoThumbnailUrl || videoPlaybackUrl, e.currentTarget.getBoundingClientRect());
       }
     }}
     onPlay={(event) => {
       if (isMobile) {
         event.currentTarget.pause();
-        openMediaViewer(videoThumbnailUrl || videoPlaybackUrl);
+        openMediaViewer(videoThumbnailUrl || videoPlaybackUrl, event.currentTarget.getBoundingClientRect());
       }
     }}
     onLoadedMetadata={(event) => {
@@ -3535,9 +3537,9 @@ function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
   return "46%";
 }
 
-      function openMedia(media: DisplayMediaItem) {
+      function openMedia(media: DisplayMediaItem, el?: HTMLElement | null) {
         if (media.isPlaceholder) return;
-        openMediaViewer(media.url);
+        openMediaViewer(media.url, el?.getBoundingClientRect());
       }
 
       function renderVideoOverlay(media: DisplayMediaItem, blocked = false) {
@@ -3851,7 +3853,7 @@ style={{
       >
         <button
           type="button"
-          onClick={() => openMedia(first)}
+          onClick={(e) => openMedia(first, e.currentTarget)}
           aria-label={
             first.type === "video"
               ? "Reproducir video de la publicación"
@@ -3986,7 +3988,7 @@ style={{
                 >
                   <button
                     type="button"
-                    onClick={() => openMedia(media)}
+                    onClick={(e) => openMedia(media, e.currentTarget)}
                     aria-label={
                       media.type === "video"
                         ? `Reproducir video ${index + 1} de ${totalMedia}`
@@ -4688,6 +4690,7 @@ padding: "0 0 2px 0",
   viewerHasFlamed={optimisticViewerHasFlamed}
   commentsCount={visibleCommentsTotal}
   flameBusy={flameBusy}
+  sourceRect={viewerSourceRect}
   commentsContent={
     <PostCommentsPanel
       open={selectedMediaUrl !== null}

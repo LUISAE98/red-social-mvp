@@ -76,6 +76,7 @@ type PostImageViewerProps = {
   isSaved?: boolean;
   saveBusy?: boolean;
   savesCount?: number;
+  sourceRect?: DOMRect | null;
 };
 
 const fontStack =
@@ -203,6 +204,7 @@ export default function PostImageViewer({
   isSaved = false,
   saveBusy = false,
   savesCount = 0,
+  sourceRect = null,
 }: PostImageViewerProps) {
   const [mounted, setMounted] = useState(false);
   const [showExactDate, setShowExactDate] = useState(false);
@@ -233,6 +235,8 @@ export default function PostImageViewer({
   const [desktopSpeedMenuOpen, setDesktopSpeedMenuOpen] = useState(false);
   const [mobileSpeedMenuOpen, setMobileSpeedMenuOpen] = useState(false);
   const [videoMuted, setVideoMuted] = useState(false);
+  const [heroPhase, setHeroPhase] = useState<"entering" | "open" | "exiting">("open");
+  const heroTimerRef = useRef<number | null>(null);
   const [mobileSpeedGestureActive, setMobileSpeedGestureActive] =
     useState(false);
   const [desktopControlsVisible, setDesktopControlsVisible] = useState(true);
@@ -824,7 +828,51 @@ const previousMedia =
     scheduleChromeHide,
   ]);
 
+  // Hero transition: reset phase when viewer opens
+  useLayoutEffect(() => {
+    if (!open || !isMobile) return;
+    setHeroPhase(sourceRect ? "entering" : "open");
+  }, [open, isMobile, sourceRect]);
+
+  // Hero transition: fire the CSS animation after initial FLIP frame is painted
+  useEffect(() => {
+    if (heroPhase !== "entering") return;
+    const id = requestAnimationFrame(() =>
+      requestAnimationFrame(() => setHeroPhase("open"))
+    );
+    return () => cancelAnimationFrame(id);
+  }, [heroPhase]);
+
+  // Cleanup hero timer on unmount
+  useEffect(() => {
+    return () => {
+      if (heroTimerRef.current) clearTimeout(heroTimerRef.current);
+    };
+  }, []);
+
   if (!mounted || !open || !currentMedia) return null;
+
+  function getHeroTransform(rect: DOMRect): string {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const sx = rect.width / vw;
+    const sy = rect.height / vh;
+    const tx = rect.left + rect.width / 2 - vw / 2;
+    const ty = rect.top + rect.height / 2 - vh / 2;
+    return `translate(${tx}px, ${ty}px) scale(${sx}, ${sy})`;
+  }
+
+  const heroActive = isMobile && sourceRect != null;
+  const heroTransform = heroActive && heroPhase !== "open"
+    ? getHeroTransform(sourceRect!)
+    : "none";
+  const heroTransition = heroPhase === "entering"
+    ? "none"
+    : "transform 320ms cubic-bezier(0.22, 1, 0.36, 1), background 280ms ease, border-radius 320ms ease";
+  const controlsOpacity = !heroActive || heroPhase === "open" ? 1 : 0;
+  const controlsTransition = heroPhase === "open"
+    ? "opacity 160ms ease 220ms"
+    : "opacity 120ms ease";
 
   const overlayStyle: CSSProperties = {
     position: "fixed",
@@ -1197,13 +1245,18 @@ const previewUrl = media.url;
         position: "fixed",
         inset: 0,
         zIndex: 2147483647,
-        background: "#000",
+        background: heroActive && heroPhase !== "open" ? "transparent" : "#000",
         display: "flex",
         flexDirection: "column",
         fontFamily: fontStack,
         userSelect: "none",
         WebkitUserSelect: "none",
         color: "#fff",
+        overflow: "hidden",
+        borderRadius: heroActive && heroPhase !== "open" ? 12 : 0,
+        transform: heroTransform,
+        transition: heroTransition,
+        transformOrigin: "50% 50%",
       }}
     >
       {/* ── Media area ── */}
@@ -1370,18 +1423,31 @@ const previewUrl = media.url;
           }
 
           if (axis === "vertical" && diffY > 120) {
-            setMobileVerticalClosing(true);
-            setMobileSwipeAnimating(true);
-            setMobileDragOffsetX(0);
-            setMobileDragOffsetY(window.innerHeight);
-
-            window.setTimeout(() => {
-              onClose();
-              setMobileDragOffsetY(0);
-              setMobileDragOffsetX(0);
-              setMobileVerticalClosing(false);
+            if (heroActive) {
+              // Hero exit: snap inner content instantly, animate container back to sourceRect
               setMobileSwipeAnimating(false);
-            }, 180);
+              setMobileDragOffsetX(0);
+              setMobileDragOffsetY(0);
+              setMobileVerticalClosing(false);
+              setHeroPhase("exiting");
+              if (heroTimerRef.current) clearTimeout(heroTimerRef.current);
+              heroTimerRef.current = window.setTimeout(() => {
+                onClose();
+                heroTimerRef.current = null;
+              }, 340);
+            } else {
+              setMobileVerticalClosing(true);
+              setMobileSwipeAnimating(true);
+              setMobileDragOffsetX(0);
+              setMobileDragOffsetY(window.innerHeight);
+              window.setTimeout(() => {
+                onClose();
+                setMobileDragOffsetY(0);
+                setMobileDragOffsetX(0);
+                setMobileVerticalClosing(false);
+                setMobileSwipeAnimating(false);
+              }, 180);
+            }
             return;
           }
 
@@ -1458,6 +1524,8 @@ const previewUrl = media.url;
             paddingBottom: 8,
             paddingLeft: "max(8px, env(safe-area-inset-left))",
             paddingRight: "max(8px, env(safe-area-inset-right))",
+            opacity: controlsOpacity,
+            transition: controlsTransition,
           }}
         >
           {/* ⋮ velocidad — izquierda (video only) */}
@@ -1625,6 +1693,8 @@ const previewUrl = media.url;
             background: "linear-gradient(to top, rgba(0,0,0,0.84) 0%, rgba(0,0,0,0.54) 58%, transparent 100%)",
             paddingBottom: "calc(8px + env(safe-area-inset-bottom))",
             zIndex: 5,
+            opacity: controlsOpacity,
+            transition: controlsTransition,
           }}
         >
           {/* Avatar + name/date + [video: ⋮ expand] */}

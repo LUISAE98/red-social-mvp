@@ -222,7 +222,6 @@ export default function WalletDesktopRail({
         .logoutSection {
           width: 100%;
           margin-top: 14px;
-          flex: 0 0 auto;
         }
 
         .logoutSection :global(button) {
@@ -618,11 +617,11 @@ export default function WalletDesktopRail({
               </div>
             </section>
           ) : null}
-        </div>
 
-        <section className="logoutSection" aria-label="Cerrar sesión">
-          <LogoutButton variant="settings" />
-        </section>
+          <section className="logoutSection" aria-label="Cerrar sesión">
+            <LogoutButton variant="settings" />
+          </section>
+        </div>
       </aside>
     </>
   );

@@ -401,6 +401,9 @@ async function markAssetReady(event: MuxWebhookEvent) {
   const now = FieldValue.serverTimestamp();
   const postRef = db.collection("posts").doc(postId);
 
+  // Flag set inside the transaction if this is a live stream recording
+  let isLiveRecording = false;
+
   await db.runTransaction(async (transaction) => {
     const postSnap = await transaction.get(postRef);
 
@@ -426,6 +429,12 @@ async function markAssetReady(event: MuxWebhookEvent) {
 
       return;
     }
+
+    // Detect live stream recording: live post with no mediaId in passthrough
+    if (postData.postType === "live" && !passthrough.mediaId) {
+      isLiveRecording = true;
+    }
+
     const currentMedia = Array.isArray(postData.media) ? postData.media : [];
 
     let matchedMedia = false;
@@ -595,6 +604,19 @@ async function markAssetReady(event: MuxWebhookEvent) {
       transaction.set(uploadRef, uploadUpdate, { merge: true });
     }
   });
+
+  // After transaction: for live recordings mark the VOD as ready inside liveData
+  if (isLiveRecording && playbackId) {
+    try {
+      await postRef.update({
+        "liveData.vodStatus": "ready",
+        updatedAt: now,
+      });
+      logger.info("muxWebhook live recording ready → vodStatus=ready", { postId, assetId, playbackId });
+    } catch (err) {
+      logger.warn("muxWebhook vodStatus update failed", { postId, err });
+    }
+  }
 }
 
 async function markAssetError(event: MuxWebhookEvent) {
@@ -849,6 +871,7 @@ async function handleLiveStreamIdle(event: MuxWebhookEvent) {
   const updateData: Record<string, unknown> = {
     "liveData.status": "ended",
     "liveData.endedAt": now,
+    "liveData.vodStatus": "processing",
     updatedAt: now,
   };
 

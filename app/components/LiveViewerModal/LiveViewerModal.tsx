@@ -7,7 +7,7 @@ import Hls from "hls.js";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
-import type { Post, PostLiveData } from "@/lib/posts/types";
+import type { Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer } from "@/lib/liveKit/liveViewers";
@@ -65,6 +65,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     typeof window !== "undefined" ? window.innerHeight > window.innerWidth : true
   );
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
+  const [localPlayback, setLocalPlayback] = useState<PostPlayback | null>(post.playback ?? null);
   const [accessChecked, setAccessChecked] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
   const [payingAccess, setPayingAccess] = useState(false);
@@ -72,6 +73,11 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [viewerCount, setViewerCount] = useState(0);
   const [retryKey, setRetryKey] = useState(0);
   const hlsRetryCountRef = useRef(0);
+
+  // ── DVR seek bar ──────────────────────────────────────────────────────────
+  const [dvrPosition, setDvrPosition] = useState(0);
+  const [dvrDuration, setDvrDuration] = useState(0);
+  const dvrTickRef = useRef<number | null>(null);
 
   // ── Supercomentario activo (overlay sobre el video) ────────────────────────
   const [activeSuperComment, setActiveSuperComment] = useState<SuperComment | null>(null);
@@ -88,6 +94,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         if (!snap.exists()) return;
         const data = snap.data();
         if (data?.liveData) setLocalLiveData(data.liveData as PostLiveData);
+        if (data?.playback) setLocalPlayback(data.playback as PostPlayback);
       },
       (err) => console.warn("[LiveViewerModal] snapshot error", err)
     );
@@ -267,10 +274,18 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const playbackId = liveData?.playbackId;
   const isLive = liveData?.status === "live";
   const isEnded = liveData?.status === "ended";
+  // For Mux ended streams the VOD asset has a different playbackId stored in post.playback
+  const vodHlsUrl = (isEnded && liveData?.streamProvider === "mux") ? (localPlayback?.hlsUrl ?? null) : null;
   // Cloudflare Stream stores hlsUrl directly; Mux derives it from playbackId.
   // Strip query params defensively — older code stored ?dvrEnabled=true which causes Cloudflare to return 204.
-  const rawHlsUrl = liveData?.hlsUrl ?? (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null);
+  const rawHlsUrl = vodHlsUrl ?? liveData?.hlsUrl ?? (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null);
   const hlsUrl = rawHlsUrl ? rawHlsUrl.split("?")[0] : null;
+  // vodReady: when true the HLS URL is a playable recording — no "processing" overlay shown
+  const vodReady = !isEnded || (
+    liveData?.streamProvider === "cloudflare"
+      ? liveData.vodStatus === "ready"
+      : !!vodHlsUrl
+  );
 
   // For Cloudflare WHIP streams, HLS (204) only becomes available after transcoding warms up.
   // The WebRTC playback endpoint (/webRTC/play) works instantly — same pipeline the CF dashboard uses.
@@ -544,7 +559,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         fragLoadingMaxRetry: 6,
         manifestLoadingMaxRetry: 4,
         levelLoadingMaxRetry: 4,
-        backBufferLength: 30,
+        backBufferLength: 3600,
       });
       hls.loadSource(hlsUrl);
       hls.attachMedia(video);
@@ -568,7 +583,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     } else {
       setError(true);
     }
-  }, [open, shouldRender, hlsUrl, isLive, hasAccess, retryKey, cfWebRTCPlayUrl]);
+  }, [open, shouldRender, hlsUrl, isLive, hasAccess, retryKey, cfWebRTCPlayUrl, vodReady]);
 
   // Auto-reintento mientras el live esté activo — sin límite de intentos (el viewer se bloqueaba
   // cuando agotaba los 8 reintentos antes de que CF produjera segmentos HLS)
@@ -592,6 +607,25 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   useEffect(() => {
     if (isEnded) setControlsVisible(true);
   }, [isEnded]);
+
+  // ── DVR tick — actualiza barra de seek cada segundo mientras el live está activo ──
+  useEffect(() => {
+    if (!isLive || cfWebRTCPlayUrl) { setDvrDuration(0); return; }
+    dvrTickRef.current = window.setInterval(() => {
+      const video = videoRef.current;
+      if (!video || video.seekable.length === 0) return;
+      const start = video.seekable.start(0);
+      const end = video.seekable.end(0);
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
+      setDvrDuration(end - start);
+      setDvrPosition(video.currentTime - start);
+    }, 1000);
+    return () => {
+      if (dvrTickRef.current !== null) window.clearInterval(dvrTickRef.current);
+      dvrTickRef.current = null;
+      setDvrDuration(0);
+    };
+  }, [isLive, cfWebRTCPlayUrl]);
 
   // Bloquear orientación landscape al entrar en fullscreen horizontal mobile (Android Chrome)
   // iOS Safari no soporta orientation.lock — el usuario puede girar el dispositivo manualmente
@@ -1105,29 +1139,27 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     );
   }
 
-  // ── Overlay "Transmisión finalizada" — se muestra sobre el último frame ───
+  // ── Overlay "Preparando grabación" / sin overlay cuando el VOD ya está listo ──
   function renderEndedOverlay() {
     if (!isEnded) return null;
+    // VOD is ready — let the video play as a recording with no blocking overlay
+    if (vodReady) return null;
+    // VOD is still processing — show a spinner
     return (
       <div style={{
         position: "absolute", inset: 0, zIndex: 8,
-        background: "rgba(0,0,0,0.55)",
+        background: "rgba(0,0,0,0.72)",
         display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center", gap: 12,
         fontFamily: FONT,
       }}>
-        <svg width="38" height="38" viewBox="0 0 24 24" fill="none"
-          stroke="rgba(255,255,255,0.75)" strokeWidth="1.5"
-          strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"
+          style={{ animation: "lvSpin 1s linear infinite" }}>
+          <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
+          <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.65)" />
         </svg>
-        <span style={{
-          fontSize: 15, fontWeight: 700,
-          color: "rgba(255,255,255,0.85)",
-          letterSpacing: "0.01em",
-        }}>
-          Transmisión finalizada
+        <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.72)", textAlign: "center", padding: "0 28px" }}>
+          Preparando grabación…
         </span>
       </div>
     );
@@ -1237,6 +1269,51 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           }}
         />
       </>
+    );
+  }
+
+  function formatDvr(secs: number): string {
+    const m = Math.floor(secs / 60);
+    const h = Math.floor(m / 60);
+    return h > 0 ? `${h}h ${m % 60}m` : `${m}m`;
+  }
+
+  function renderDvrBar() {
+    if (!isLive || cfWebRTCPlayUrl || dvrDuration < 60) return null;
+    const atLiveEdge = dvrDuration - dvrPosition < 5;
+    return (
+      <div style={{ position: "absolute", bottom: 52, left: 14, right: 14, zIndex: 7 }}>
+        <input
+          type="range"
+          min={0}
+          max={Math.floor(dvrDuration)}
+          value={Math.min(Math.floor(dvrPosition), Math.floor(dvrDuration))}
+          onChange={(e) => {
+            const video = videoRef.current;
+            if (!video || video.seekable.length === 0) return;
+            video.currentTime = video.seekable.start(0) + Number(e.target.value);
+          }}
+          style={{ width: "100%", accentColor: "#ef4444", cursor: "pointer", height: 4 }}
+        />
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: FONT, marginTop: 2 }}>
+          <span>-{formatDvr(dvrDuration)}</span>
+          {atLiveEdge ? (
+            <span style={{ color: "#ef4444", fontWeight: 700 }}>● EN VIVO</span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                const video = videoRef.current;
+                if (!video || video.seekable.length === 0) return;
+                video.currentTime = video.seekable.end(video.seekable.length - 1);
+              }}
+              style={{ background: "none", border: "1px solid rgba(239,68,68,0.6)", color: "#ef4444", fontSize: 10, fontWeight: 700, borderRadius: 4, padding: "1px 6px", cursor: "pointer", fontFamily: FONT }}
+            >
+              IR AL VIVO
+            </button>
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -1372,6 +1449,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderEndedOverlay()}
             {renderBannedOverlay()}
             {renderSuperOverlay()}
+            {renderDvrBar()}
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
@@ -1413,6 +1491,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderEndedOverlay()}
             {renderBannedOverlay()}
             {renderSuperOverlay()}
+            {renderDvrBar()}
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
@@ -1470,6 +1549,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderEndedOverlay()}
             {renderBannedOverlay()}
             {renderSuperOverlay()}
+            {renderDvrBar()}
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
@@ -1534,6 +1614,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderEndedOverlay()}
             {renderBannedOverlay()}
             {renderSuperOverlay()}
+            {renderDvrBar()}
             {renderHeader(false, false)}
             {renderLiveBadge()}
             {renderViewerBadge()}
@@ -1568,6 +1649,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderEndedOverlay()}
             {renderBannedOverlay()}
             {renderSuperOverlay()}
+            {renderDvrBar()}
 
             {/* Badge siempre visible — cambia de EN VIVO a Finalizado al terminar */}
             {renderLiveBadge("top-center")}
@@ -1606,6 +1688,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           {renderEndedOverlay()}
           {renderBannedOverlay()}
           {renderSuperOverlay()}
+          {renderDvrBar()}
           {renderHeader(false, false)}
           {renderLiveBadge()}
           {renderViewerBadge()}

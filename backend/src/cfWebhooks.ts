@@ -159,9 +159,20 @@ export const cfWebhook = onRequest(
           }
           logger.info("cfWebhook live-finished", { liveInputId });
         }
+      } else if (state === "ready" && event.readyToStream) {
+        // Recording finished processing — same hlsUrl is now available as VOD.
+        const result = await findPostByLiveInput(liveInputId, event.meta?.name);
+        if (result) {
+          const liveStatus = (result.data.liveData as Record<string, unknown> | undefined)?.status;
+          if (liveStatus === "ended") {
+            await result.ref.update({
+              "liveData.vodStatus": "ready",
+              updatedAt: FieldValue.serverTimestamp(),
+            });
+            logger.info("cfWebhook recording ready → vodStatus=ready", { liveInputId });
+          }
+        }
       }
-      // state === "ready" with readyToStream === true is a recorded video asset —
-      // CF Stream makes it available at the same HLS URL automatically; no extra action needed.
     } catch (err) {
       logger.error("cfWebhook processing error", {
         state,
