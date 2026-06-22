@@ -77,6 +77,8 @@ type PostImageViewerProps = {
   saveBusy?: boolean;
   savesCount?: number;
   sourceRect?: DOMRect | null;
+  initialVideoTime?: number;
+  onVideoClose?: (currentTime: number) => void;
 };
 
 const fontStack =
@@ -205,6 +207,8 @@ export default function PostImageViewer({
   saveBusy = false,
   savesCount = 0,
   sourceRect = null,
+  initialVideoTime,
+  onVideoClose,
 }: PostImageViewerProps) {
   const [mounted, setMounted] = useState(false);
   const [showExactDate, setShowExactDate] = useState(false);
@@ -805,11 +809,12 @@ const previousMedia =
     video.playbackRate = videoPlaybackRate;
 
     if (open && isCurrentVideo && currentVideoSrc) {
-      // Restore saved position if switching back to a previously watched video
+      // Restore saved position; fall back to initialVideoTime (feed video sync) if no saved position
       const saved = savedPositionsRef.current.get(currentVideoSrc);
-      if (saved && saved > 0) {
-        video.currentTime = saved;
-        setVideoCurrentTime(saved);
+      const startTime = (saved !== undefined && saved > 0) ? saved : (initialVideoTime ?? 0);
+      if (startTime > 0) {
+        video.currentTime = startTime;
+        setVideoCurrentTime(startTime);
       }
       const playPromise = video.play();
       if (playPromise && typeof playPromise.catch === "function") {
@@ -849,6 +854,13 @@ const previousMedia =
       if (heroTimerRef.current) clearTimeout(heroTimerRef.current);
     };
   }, []);
+
+  function handleMobileClose() {
+    if (onVideoClose && videoRef.current && isCurrentVideo) {
+      onVideoClose(videoRef.current.currentTime);
+    }
+    onClose();
+  }
 
   if (!mounted || !open || !currentMedia) return null;
 
@@ -1448,7 +1460,7 @@ const previewUrl = media.url;
               setHeroPhase("exiting");
               if (heroTimerRef.current) clearTimeout(heroTimerRef.current);
               heroTimerRef.current = window.setTimeout(() => {
-                onClose();
+                handleMobileClose();
                 heroTimerRef.current = null;
               }, 360);
             } else {
@@ -1457,7 +1469,7 @@ const previewUrl = media.url;
               setMobileDragOffsetX(0);
               setMobileDragOffsetY(window.innerHeight);
               window.setTimeout(() => {
-                onClose();
+                handleMobileClose();
                 setMobileDragOffsetY(0);
                 setMobileDragOffsetX(0);
                 setMobileVerticalClosing(false);
@@ -1615,8 +1627,8 @@ const previewUrl = media.url;
             {/* Cerrar × */}
             <button
               type="button"
-              onTouchEnd={(e) => { e.preventDefault(); onClose(); }}
-              onClick={onClose}
+              onTouchEnd={(e) => { e.preventDefault(); handleMobileClose(); }}
+              onClick={handleMobileClose}
               aria-label="Cerrar visor"
               style={liveBtnStyle}
             >

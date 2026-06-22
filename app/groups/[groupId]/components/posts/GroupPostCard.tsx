@@ -810,6 +810,8 @@ onToggleProfilePin,
   const { isTempUnlocked, unlock: applyTempUnlock } = usePostTempUnlock(post.id, currentUserId);
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | null>(null);
   const [viewerSourceRect, setViewerSourceRect] = useState<DOMRect | null>(null);
+  const [viewerInitialVideoTime, setViewerInitialVideoTime] = useState(0);
+  const viewerVideoTimeRef = useRef(0);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 const carouselShellRef = useRef<HTMLDivElement | null>(null);
 const carouselTouchStartXRef = useRef<number | null>(null);
@@ -1182,14 +1184,30 @@ useEffect(() => {
     if (premiumState.isBlocked) return;
 
     setViewerSourceRect(rect ?? null);
-    videoRef.current?.pause();
+
+    // Capture feed video time so viewer starts at the same position
+    const video = videoRef.current;
+    const isRootVideo = mediaUrl === videoPlaybackUrl || mediaUrl === videoThumbnailUrl;
+    const capturedTime = (isRootVideo && video) ? video.currentTime : 0;
+    setViewerInitialVideoTime(capturedTime);
+    viewerVideoTimeRef.current = capturedTime;
+
+    video?.pause();
     setSelectedMediaUrl(mediaUrl);
     void handleOpenCommentsPanel();
   }
 
   function closeMediaViewer() {
+    // Restore video position from viewer before resuming
+    const video = videoRef.current;
+    const resumeTime = viewerVideoTimeRef.current;
+    if (isMobile && video && resumeTime > 0) {
+      video.currentTime = resumeTime;
+    }
+    viewerVideoTimeRef.current = 0;
     setSelectedMediaUrl(null);
     setCommentsPanelOpen(false);
+    // Autoplay IntersectionObserver effect re-runs (selectedMediaUrl → null) and resumes the video
   }
   async function refreshAfterModeration() {
     await onModerationComplete?.();
@@ -2498,6 +2516,31 @@ const rootVideoShellAspectRatio =
     };
   }, [isMobile, videoPlaybackUrl]);
 
+  // Ensure muted is set as a DOM property (React JSX muted prop is unreliable on iOS Safari)
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.muted = isMobile;
+  }, [isMobile]);
+
+  // Mobile autoplay: play when ≥60% visible, pause when <60%. Re-runs when viewer opens/closes.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !isMobile || !videoPlaybackUrl || !shouldLoadFeedVideo || selectedMediaUrl) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        if (entry.intersectionRatio >= 0.6) {
+          video.play().catch(() => undefined);
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: [0, 0.6] }
+    );
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, [isMobile, videoPlaybackUrl, shouldLoadFeedVideo, selectedMediaUrl]);
+
     const cleanPostText = typeof (localText ?? post.text) === "string"
       ? (localText ?? post.text).trim()
       : "";
@@ -3378,7 +3421,11 @@ style={{
 
 {shouldLoadFeedVideo && (
   <video
-    ref={videoRef}
+    ref={(el) => {
+      videoRef.current = el;
+      // React's `muted` JSX prop doesn't reliably set the DOM property on iOS Safari
+      if (el) el.muted = isMobile;
+    }}
     src={videoPlaybackUrl}
     controls={!isMobile}
     playsInline
@@ -3387,12 +3434,6 @@ style={{
     onClick={(e) => {
       if (isMobile) {
         openMediaViewer(videoThumbnailUrl || videoPlaybackUrl, e.currentTarget.getBoundingClientRect());
-      }
-    }}
-    onPlay={(event) => {
-      if (isMobile) {
-        event.currentTarget.pause();
-        openMediaViewer(videoThumbnailUrl || videoPlaybackUrl, event.currentTarget.getBoundingClientRect());
       }
     }}
     onLoadedMetadata={(event) => {
@@ -4719,6 +4760,8 @@ padding: "0 0 2px 0",
   commentsCount={visibleCommentsTotal}
   flameBusy={flameBusy}
   sourceRect={viewerSourceRect}
+  initialVideoTime={viewerInitialVideoTime}
+  onVideoClose={(time) => { viewerVideoTimeRef.current = time; }}
   commentsContent={
     <PostCommentsPanel
       open={selectedMediaUrl !== null}
