@@ -852,27 +852,46 @@ const previousMedia =
 
   if (!mounted || !open || !currentMedia) return null;
 
-  function getHeroTransform(rect: DOMRect): string {
+  const heroActive = isMobile && sourceRect != null;
+
+  // Animate the outer container from sourceRect → fullscreen (no squish, no clip-path artifacts)
+  function getHeroContainerStyle() {
+    if (!heroActive) return null;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const sx = rect.width / vw;
-    const sy = rect.height / vh;
-    const tx = rect.left + rect.width / 2 - vw / 2;
-    const ty = rect.top + rect.height / 2 - vh / 2;
-    return `translate(${tx}px, ${ty}px) scale(${sx}, ${sy})`;
+    const r = sourceRect!;
+    const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+    const ease = "cubic-bezier(0.22,1,0.36,1)";
+    const dur = 340;
+
+    if (heroPhase === "entering") {
+      return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: 12, background: "transparent", transition: undefined as string | undefined };
+    }
+
+    if (heroPhase === "exiting") {
+      return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: 12, background: "transparent", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 260ms ease` };
+    }
+
+    // "open" — may have drag in progress
+    if (mobileDragOffsetY > 0) {
+      const t = Math.min(1, mobileDragOffsetY / vh);
+      return { left: lerp(0, r.left, t), top: mobileDragOffsetY, width: lerp(vw, r.width, t), height: lerp(vh, r.height, t), borderRadius: 12 * t, background: `rgba(0,0,0,${1 - t * 0.85})`, transition: undefined as string | undefined };
+    }
+
+    // Fullscreen
+    return { left: 0, top: 0, width: vw, height: vh, borderRadius: 0, background: "#000", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 300ms ease` };
   }
 
-  const heroActive = isMobile && sourceRect != null;
-  const heroTransform = heroActive && heroPhase !== "open"
-    ? getHeroTransform(sourceRect!)
-    : "none";
-  const heroTransition = heroPhase === "entering"
-    ? "none"
-    : "transform 320ms cubic-bezier(0.22, 1, 0.36, 1), background 280ms ease, border-radius 320ms ease";
-  const controlsOpacity = !heroActive || heroPhase === "open" ? 1 : 0;
-  const controlsTransition = heroPhase === "open"
-    ? "opacity 160ms ease 220ms"
-    : "opacity 120ms ease";
+  const heroContainerStyle = getHeroContainerStyle();
+  const controlsOpacity = (() => {
+    if (!heroActive) return 1;
+    if (heroPhase !== "open") return 0;
+    if (mobileDragOffsetY > 0) return Math.max(0, 1 - mobileDragOffsetY / 80);
+    return 1;
+  })();
+  const controlsTransition = heroPhase === "open" && mobileDragOffsetY === 0
+    ? "opacity 200ms ease 260ms"
+    : "opacity 100ms ease";
 
   const overlayStyle: CSSProperties = {
     position: "fixed",
@@ -1184,7 +1203,9 @@ const previewUrl = media.url;
             position: "absolute",
             inset: 0,
             transform: mobileGestureAxis === "vertical"
-              ? `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
+              ? heroActive
+                ? `translate3d(0, 0, 0) scale(1)`
+                : `translate3d(0, ${mobileDragOffsetY}px, 0) scale(${mobileVerticalScale})`
               : `translate3d(${mobileDragOffsetX}px, 0, 0) scale(1)`,
             transition: mobileSwipeAnimating ? "transform 180ms ease" : undefined,
             opacity: mobileOverlayOpacity,
@@ -1243,9 +1264,7 @@ const previewUrl = media.url;
     <div
       style={{
         position: "fixed",
-        inset: 0,
         zIndex: 2147483647,
-        background: heroActive && heroPhase !== "open" ? "transparent" : "#000",
         display: "flex",
         flexDirection: "column",
         fontFamily: fontStack,
@@ -1253,10 +1272,7 @@ const previewUrl = media.url;
         WebkitUserSelect: "none",
         color: "#fff",
         overflow: "hidden",
-        borderRadius: heroActive && heroPhase !== "open" ? 12 : 0,
-        transform: heroTransform,
-        transition: heroTransition,
-        transformOrigin: "50% 50%",
+        ...(heroContainerStyle ?? { inset: 0, background: "#000" }),
       }}
     >
       {/* ── Media area ── */}
@@ -1424,7 +1440,7 @@ const previewUrl = media.url;
 
           if (axis === "vertical" && diffY > 120) {
             if (heroActive) {
-              // Hero exit: snap inner content instantly, animate container back to sourceRect
+              // Hero close: animate container back to sourceRect, then close
               setMobileSwipeAnimating(false);
               setMobileDragOffsetX(0);
               setMobileDragOffsetY(0);
@@ -1434,7 +1450,7 @@ const previewUrl = media.url;
               heroTimerRef.current = window.setTimeout(() => {
                 onClose();
                 heroTimerRef.current = null;
-              }, 340);
+              }, 360);
             } else {
               setMobileVerticalClosing(true);
               setMobileSwipeAnimating(true);

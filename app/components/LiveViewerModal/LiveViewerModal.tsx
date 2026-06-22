@@ -1263,6 +1263,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           ref={videoRef}
           muted={muted}
           playsInline
+          controls={isEnded && vodReady}
           style={{
             position: "absolute", inset: 0, width: "100%", height: "100%",
             objectFit: fit, opacity: ready ? 1 : 0, transition: "opacity 0.3s ease",
@@ -1292,6 +1293,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             const video = videoRef.current;
             if (!video || video.seekable.length === 0) return;
             video.currentTime = video.seekable.start(0) + Number(e.target.value);
+            // Disable HLS.js live catch-up so it stays at the seeked position
+            if (hlsRef.current) hlsRef.current.config.liveMaxLatencyDurationCount = Infinity;
           }}
           style={{ width: "100%", accentColor: "#ef4444", cursor: "pointer", height: 4 }}
         />
@@ -1305,6 +1308,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               onClick={() => {
                 const video = videoRef.current;
                 if (!video || video.seekable.length === 0) return;
+                // Restore HLS.js live sync before jumping to live edge
+                if (hlsRef.current) hlsRef.current.config.liveMaxLatencyDurationCount = 10;
                 video.currentTime = video.seekable.end(video.seekable.length - 1);
               }}
               style={{ background: "none", border: "1px solid rgba(239,68,68,0.6)", color: "#ef4444", fontSize: 10, fontWeight: 700, borderRadius: 4, padding: "1px 6px", cursor: "pointer", fontFamily: FONT }}

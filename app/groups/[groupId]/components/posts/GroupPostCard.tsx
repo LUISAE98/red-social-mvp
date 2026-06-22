@@ -13,7 +13,7 @@ import {
   type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
-import type { Comment, CommentReply, Post, PostLiveData } from "@/lib/posts/types";
+import type { Comment, CommentReply, Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "firebase/firestore";
 import LiveInlinePlayer from "@/app/components/LiveInlinePlayer/LiveInlinePlayer";
@@ -788,6 +788,7 @@ onToggleProfilePin,
 
   const [isLivePortrait, setIsLivePortrait] = useState(false);
   const [localLiveData, setLocalLiveData] = useState<PostLiveData | null | undefined>(post.liveData);
+  const [localPlayback, setLocalPlayback] = useState<PostPlayback | null>(post.playback ?? null);
   const [feedLiveStream, setFeedLiveStream] = useState<MediaStream | null>(null);
 
   // Auto-abrir el live cuando inicia si el viewer ya tiene acceso (ticket pagado o miembro con acceso gratis)
@@ -832,11 +833,14 @@ const [optimisticSavesCount, setOptimisticSavesCount] = useState(
   post.counts?.saves ?? 0
 );
 
-// Real-time listener for live status changes (driven by Mux webhooks)
+// Real-time listener for live status changes (driven by Mux/CF webhooks)
 useEffect(() => {
   if (post.postType !== "live" || !post.id) return;
   const currentStatus = localLiveData?.status ?? post.liveData?.status;
-  if (currentStatus === "ended" || currentStatus === "cancelled") return;
+  // Stop subscription only when definitively done: cancelled, or ended+VOD ready
+  if (currentStatus === "cancelled") return;
+  const alreadyHasVod = !!(post.playback?.hlsUrl ?? ((localLiveData ?? post.liveData)?.vodStatus === "ready" ? (localLiveData ?? post.liveData)?.hlsUrl : null));
+  if (currentStatus === "ended" && alreadyHasVod) return;
 
   const unsubscribe = onSnapshot(
     doc(db, "posts", post.id),
@@ -845,6 +849,7 @@ useEffect(() => {
       const data = snap.data();
       const newLiveData = data?.liveData as PostLiveData | undefined;
       if (newLiveData) setLocalLiveData(newLiveData);
+      if (data?.playback) setLocalPlayback(data.playback as PostPlayback);
     },
     (err) => console.warn("[LiveCard] snapshot error", err)
   );
@@ -2037,6 +2042,13 @@ function renderBlurredMediaBackdrop(
 
   const activeLiveData = localLiveData ?? post.liveData;
 
+  // VOD URL: Mux saves it in post.playback after stream ends; CF reuses liveData.hlsUrl when vodStatus=ready
+  const effectivePlayback = localPlayback ?? post.playback;
+  const liveVodUrl = activeLiveData?.status === "ended"
+    ? (effectivePlayback?.hlsUrl ?? (activeLiveData?.vodStatus === "ready" ? (activeLiveData?.hlsUrl ?? null) : null))
+    : null;
+  const liveVodReady = !!liveVodUrl;
+
   const isLiveActive = post.postType === "live" && activeLiveData?.status === "live";
   const livePaidAccessMode = activeLiveData?.paidAccessMode ?? "everyone_pays";
   // Miembros con acceso gratis: mode members_free_non_members_pay y el viewer es miembro (o dueño)
@@ -2904,37 +2916,53 @@ style={{
           }}
         />
       ) : activeLiveData?.status === "ended" ? (
-        <div
-          style={{
-            position: "relative",
-            width: "100%",
-            aspectRatio: "16 / 7",
-            background: "rgba(0,0,0,0.7)",
-            overflow: "hidden",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {activeLiveData.coverUrl && (
-            <Image
-              src={activeLiveData.coverUrl}
-              alt={activeLiveData.title ?? "Live finalizado"}
-              fill
-              style={{ objectFit: "cover", opacity: 0.2, filter: "grayscale(40%)" }}
-            />
-          )}
-          <div style={{
-            position: "relative", zIndex: 1, display: "flex", flexDirection: "column",
-            alignItems: "center", gap: 8, color: "rgba(255,255,255,0.55)",
-            fontFamily: fontStack, textAlign: "center",
-          }}>
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-            </svg>
-            <span style={{ fontSize: 13, fontWeight: 600 }}>Transmisión finalizada</span>
+        liveVodReady ? (
+          <LiveInlinePlayer
+            postId={post.id}
+            hlsUrl={liveVodUrl!}
+            title={activeLiveData?.title}
+            coverUrl={activeLiveData?.coverUrl}
+            portrait={isLivePortrait}
+            paused={liveViewerOpen || liveCreatorOpen}
+            streamProvider="mux"
+            onClick={() => setLiveViewerOpen(true)}
+            onOrientationDetected={(p) => { if (!liveCreatorOpen) setIsLivePortrait(p); }}
+          />
+        ) : (
+          <div
+            style={{
+              position: "relative",
+              width: "100%",
+              aspectRatio: "16 / 7",
+              background: "rgba(0,0,0,0.7)",
+              overflow: "hidden",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {activeLiveData?.coverUrl && (
+              <Image
+                src={activeLiveData.coverUrl}
+                alt={activeLiveData.title ?? "Live"}
+                fill
+                style={{ objectFit: "cover", opacity: 0.15, filter: "grayscale(40%)" }}
+              />
+            )}
+            <div style={{
+              position: "relative", zIndex: 1, display: "flex", flexDirection: "column",
+              alignItems: "center", gap: 8, color: "rgba(255,255,255,0.45)",
+              fontFamily: fontStack, textAlign: "center",
+            }}>
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"
+                style={{ animation: "vbMenuSpinner 1s linear infinite" }}>
+                <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
+                <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.55)" />
+              </svg>
+              <span style={{ fontSize: 12, fontWeight: 500 }}>Preparando grabación…</span>
+            </div>
           </div>
-        </div>
+        )
       ) : (
         <div
           style={{
