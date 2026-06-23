@@ -1050,7 +1050,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // ── Badge EN VIVO / Finalizado ──────────────────────────────────────────────
   // position="bottom-right" → esquina inferior derecha (desktop + mobile horizontal)
   // position="top-center"   → centrado arriba junto al header (mobile portrait)
-  function renderLiveBadge(position: "bottom-right" | "top-center" = "bottom-right") {
+  function renderLiveBadge(position: "bottom-right" | "top-center" = "bottom-right", liftPx = 0) {
     if (!isLive && !isEnded) return null;
 
     function jumpToLive(e: React.MouseEvent) {
@@ -1075,9 +1075,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         }
       : {
           position: "absolute",
-          bottom: "max(14px, env(safe-area-inset-bottom))",
+          bottom: liftPx > 0
+            ? `calc(max(14px, env(safe-area-inset-bottom)) + ${liftPx}px)`
+            : "max(14px, env(safe-area-inset-bottom))",
           right: "max(14px, env(safe-area-inset-right))",
           zIndex: 10,
+          transition: "bottom 0.25s ease",
         };
 
     const sharedStyle: CSSProperties = {
@@ -1121,7 +1124,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   }
 
   // ── Badge contador de espectadores ────────────────────────────────────────
-  function renderViewerBadge(position: "bottom-left" | "top-left" = "bottom-left") {
+  function renderViewerBadge(position: "bottom-left" | "top-left" = "bottom-left", liftPx = 0) {
     if (!isLive || viewerCount <= 0) return null;
 
     const posStyle: CSSProperties = position === "top-left"
@@ -1133,9 +1136,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         }
       : {
           position: "absolute",
-          bottom: "max(14px, env(safe-area-inset-bottom))",
+          bottom: liftPx > 0
+            ? `calc(max(14px, env(safe-area-inset-bottom)) + ${liftPx}px)`
+            : "max(14px, env(safe-area-inset-bottom))",
           left: "max(14px, env(safe-area-inset-left))",
           zIndex: 10,
+          transition: "bottom 0.25s ease",
         };
 
     return (
@@ -1223,7 +1229,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   }
 
   // ── Video element ──────────────────────────────────────────────────────────
-  function renderVideo(fit: "cover" | "contain" = "contain") {
+  function renderVideo(fit: "cover" | "contain" = "contain", horizontal = false) {
     return (
       <>
         {!ready && liveData?.coverUrl && (
@@ -1288,32 +1294,78 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           playsInline
           controls={isEnded && vodReady}
           onClick={() => {
-            const video = videoRef.current;
-            if (!video || (isEnded && vodReady)) return;
-            if (video.paused) video.play().catch(() => {});
-            else video.pause();
+            if (horizontal) {
+              setHzControlsVisible(v => !v);
+            } else {
+              const video = videoRef.current;
+              if (!video || (isEnded && vodReady)) return;
+              if (video.paused) video.play().catch(() => {});
+              else video.pause();
+            }
           }}
           style={{
             position: "absolute", inset: 0, width: "100%", height: "100%",
             objectFit: fit, opacity: ready ? 1 : 0, transition: "opacity 0.3s ease",
-            cursor: (!isEnded || !vodReady) ? "pointer" : "default",
+            cursor: (horizontal || !isEnded || !vodReady) ? "pointer" : "default",
           }}
         />
       </>
     );
   }
 
-  function formatDvr(secs: number): string {
-    const m = Math.floor(secs / 60);
-    const h = Math.floor(m / 60);
-    return h > 0 ? `${h}h ${m % 60}m` : `${m}m`;
+  function renderPauseButton() {
+    if (!isLive || !hzControlsVisible || cfWebRTCPlayUrl || isEnded) return null;
+    return (
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          const video = videoRef.current;
+          if (!video) return;
+          if (video.paused) { video.play().catch(() => {}); setVideoPaused(false); }
+          else { video.pause(); setVideoPaused(true); }
+        }}
+        style={{
+          position: "absolute", top: "50%", left: "50%",
+          transform: "translate(-50%, -50%)",
+          zIndex: 8,
+          background: "rgba(0,0,0,0.45)",
+          border: "none", borderRadius: "50%",
+          width: 56, height: 56,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          cursor: "pointer",
+          backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)",
+        }}
+      >
+        {videoPaused ? (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+            <polygon points="5,3 19,12 5,21" />
+          </svg>
+        ) : (
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+            <rect x="6" y="4" width="4" height="16" rx="1" />
+            <rect x="14" y="4" width="4" height="16" rx="1" />
+          </svg>
+        )}
+      </button>
+    );
   }
 
-  function renderDvrBar() {
+  function renderDvrBar(horizontal = false) {
     if (!isLive || cfWebRTCPlayUrl || dvrDuration < 60) return null;
+    const visible = !horizontal || hzControlsVisible;
     const atLiveEdge = dvrDuration - dvrPosition < 5;
     return (
-      <div style={{ position: "absolute", bottom: 52, left: 14, right: 14, zIndex: 7 }}>
+      <div style={{
+        position: "absolute",
+        bottom: "max(14px, env(safe-area-inset-bottom))",
+        left: 14, right: 14, zIndex: 7,
+        display: "flex", flexDirection: "column", gap: 4,
+        opacity: visible ? 1 : 0,
+        transform: visible ? "translateY(0)" : "translateY(8px)",
+        transition: "opacity 0.25s ease, transform 0.25s ease",
+        pointerEvents: visible ? "auto" : "none",
+      }}>
         <input
           type="range"
           min={0}
@@ -1323,22 +1375,18 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             const video = videoRef.current;
             if (!video || video.seekable.length === 0) return;
             video.currentTime = video.seekable.start(0) + Number(e.target.value);
-            // Disable HLS.js live catch-up so it stays at the seeked position
             if (hlsRef.current) hlsRef.current.config.liveMaxLatencyDurationCount = Infinity;
           }}
           style={{ width: "100%", accentColor: "#ffffff", cursor: "pointer", height: 4 }}
         />
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: FONT, marginTop: 2 }}>
-          <span>-{formatDvr(dvrDuration)}</span>
-          {atLiveEdge ? (
-            <span style={{ color: "#ffffff", fontWeight: 700 }}>● EN VIVO</span>
-          ) : (
+        {!atLiveEdge && (
+          <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <button
               type="button"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 const video = videoRef.current;
                 if (!video || video.seekable.length === 0) return;
-                // Restore HLS.js live sync before jumping to live edge
                 if (hlsRef.current) hlsRef.current.config.liveMaxLatencyDurationCount = 10;
                 video.currentTime = video.seekable.end(video.seekable.length - 1);
               }}
@@ -1346,8 +1394,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             >
               IR AL VIVO
             </button>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1478,16 +1526,17 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         >
           <div
             style={{ position: "relative", width: "100%", height: "100%" }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); if (!isEnded) setHzControlsVisible(v => !v); }}
           >
-            {renderVideo("contain")}
+            {renderVideo("contain", true)}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
             {renderSuperOverlay()}
-            {renderDvrBar()}
+            {renderPauseButton()}
+            {renderDvrBar(true)}
             {renderHeader(false, false)}
-            {renderLiveBadge()}
-            {renderViewerBadge()}
+            {renderLiveBadge("bottom-right", badgeLift)}
+            {renderViewerBadge("bottom-left", badgeLift)}
 
           </div>
         </div>
@@ -1578,16 +1627,17 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               borderRadius: 18, overflow: "hidden", flexShrink: 0,
               boxShadow: floatCardShadow,
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); if (!isEnded) setHzControlsVisible(v => !v); }}
           >
-            {renderVideo("contain")}
+            {renderVideo("contain", true)}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
             {renderSuperOverlay()}
-            {renderDvrBar()}
+            {renderPauseButton()}
+            {renderDvrBar(true)}
             {renderHeader(false, false)}
-            {renderLiveBadge()}
-            {renderViewerBadge()}
+            {renderLiveBadge("bottom-right", badgeLift)}
+            {renderViewerBadge("bottom-left", badgeLift)}
 
           </div>
           {/* Card de chat */}
@@ -1644,15 +1694,19 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             zIndex: 10001, background: "#000", overflow: "hidden",
           }}
         >
-          <div style={{ position: "relative", width: "100%", height: "100%" }}>
-            {renderVideo("cover")}
+          <div
+            style={{ position: "relative", width: "100%", height: "100%" }}
+            onClick={() => { if (!isEnded) setHzControlsVisible(v => !v); }}
+          >
+            {renderVideo("cover", true)}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
             {renderSuperOverlay()}
-            {renderDvrBar()}
+            {renderPauseButton()}
+            {renderDvrBar(true)}
             {renderHeader(false, false)}
-            {renderLiveBadge()}
-            {renderViewerBadge()}
+            {renderLiveBadge("bottom-right", badgeLift)}
+            {renderViewerBadge("bottom-left", badgeLift)}
 
           </div>
         </div>
