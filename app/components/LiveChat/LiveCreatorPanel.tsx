@@ -1295,13 +1295,13 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
 
     const hls = new Hls({
       enableWorker: true,
-      lowLatencyMode: false,
+      lowLatencyMode: true,
       startLevel: -1,
       autoStartLoad: true,
-      liveSyncDurationCount: 3,
-      liveMaxLatencyDurationCount: 8,
-      maxBufferLength: 30,
-      maxMaxBufferLength: 60,
+      liveSyncDurationCount: 1,
+      liveMaxLatencyDurationCount: 3,
+      maxBufferLength: 8,
+      maxMaxBufferLength: 16,
       liveDurationInfinity: true,
       abrEwmaFastLive: 3.0,
       abrEwmaSlowLive: 9.0,
@@ -1310,7 +1310,7 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
       fragLoadingMaxRetry: 8,
       manifestLoadingMaxRetry: 6,
       levelLoadingMaxRetry: 6,
-      backBufferLength: 30,
+      backBufferLength: 0,
     });
     hlsRef.current = hls;
     hls.loadSource(hlsUrl);

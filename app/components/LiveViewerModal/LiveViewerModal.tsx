@@ -1268,9 +1268,16 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           muted={muted}
           playsInline
           controls={isEnded && vodReady}
+          onClick={() => {
+            const video = videoRef.current;
+            if (!video || (isEnded && vodReady)) return;
+            if (video.paused) video.play().catch(() => {});
+            else video.pause();
+          }}
           style={{
             position: "absolute", inset: 0, width: "100%", height: "100%",
             objectFit: fit, opacity: ready ? 1 : 0, transition: "opacity 0.3s ease",
+            cursor: (!isEnded || !vodReady) ? "pointer" : "default",
           }}
         />
       </>
@@ -1300,12 +1307,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             // Disable HLS.js live catch-up so it stays at the seeked position
             if (hlsRef.current) hlsRef.current.config.liveMaxLatencyDurationCount = Infinity;
           }}
-          style={{ width: "100%", accentColor: "#ef4444", cursor: "pointer", height: 4 }}
+          style={{ width: "100%", accentColor: "#ffffff", cursor: "pointer", height: 4 }}
         />
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "rgba(255,255,255,0.5)", fontFamily: FONT, marginTop: 2 }}>
           <span>-{formatDvr(dvrDuration)}</span>
           {atLiveEdge ? (
-            <span style={{ color: "#ef4444", fontWeight: 700 }}>● EN VIVO</span>
+            <span style={{ color: "#ffffff", fontWeight: 700 }}>● EN VIVO</span>
           ) : (
             <button
               type="button"
@@ -1316,7 +1323,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 if (hlsRef.current) hlsRef.current.config.liveMaxLatencyDurationCount = 10;
                 video.currentTime = video.seekable.end(video.seekable.length - 1);
               }}
-              style={{ background: "none", border: "1px solid rgba(239,68,68,0.6)", color: "#ef4444", fontSize: 10, fontWeight: 700, borderRadius: 4, padding: "1px 6px", cursor: "pointer", fontFamily: FONT }}
+              style={{ background: "none", border: "1px solid rgba(255,255,255,0.6)", color: "#ffffff", fontSize: 10, fontWeight: 700, borderRadius: 4, padding: "1px 6px", cursor: "pointer", fontFamily: FONT }}
             >
               IR AL VIVO
             </button>
