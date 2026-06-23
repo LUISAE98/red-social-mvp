@@ -592,8 +592,16 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       });
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (data.fatal) {
-          console.error("[LiveViewerModal] HLS fatal error:", data.type, data.details, "status:", (data as unknown as { response?: { code?: number } }).response?.code, "url:", hlsUrl);
-          setError(true);
+          console.error("[LiveViewerModal] HLS fatal error:", data.type, data.details);
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            hls.startLoad();
+          } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+            hls.recoverMediaError();
+          } else {
+            setError(true);
+          }
+        } else if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+          videoRef.current?.play().catch(() => {});
         }
       });
       hlsRef.current = hls;
@@ -1056,10 +1064,21 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     function jumpToLive(e: React.MouseEvent) {
       e.stopPropagation();
       const video = videoRef.current;
+      const hls = hlsRef.current;
       if (!video || !isLive) return;
       try {
-        const end = video.seekable.end(video.seekable.length - 1);
-        if (Number.isFinite(end)) video.currentTime = end;
+        // Restart HLS.js loading if stalled, reset live-sync config
+        if (hls) {
+          hls.config.liveMaxLatencyDurationCount = 10;
+          hls.config.liveSyncDurationCount = 3;
+          hls.startLoad();
+        }
+        const len = video.seekable.length;
+        if (len > 0) {
+          const end = video.seekable.end(len - 1);
+          if (Number.isFinite(end)) video.currentTime = end;
+        }
+        video.play().catch(() => {});
       } catch {
         // seekable puede estar vacío si el stream no ha cargado aún
       }
@@ -1293,8 +1312,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           muted={muted}
           playsInline
           controls={isEnded && vodReady}
-          onClick={() => {
+          onClick={(e) => {
             if (horizontal) {
+              e.stopPropagation();
               setHzControlsVisible(v => !v);
             } else {
               const video = videoRef.current;
