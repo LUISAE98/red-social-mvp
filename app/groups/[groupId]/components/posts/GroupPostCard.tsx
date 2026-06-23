@@ -2997,12 +2997,24 @@ style={{
               alignItems: "center", gap: 8, color: "rgba(255,255,255,0.45)",
               fontFamily: fontStack, textAlign: "center",
             }}>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"
-                style={{ animation: "vbMenuSpinner 1s linear infinite" }}>
-                <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
-                <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.55)" />
-              </svg>
-              <span style={{ fontSize: 12, fontWeight: 500 }}>Preparando grabación…</span>
+              {activeLiveData?.vodStatus === "processing" ? (
+                <>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"
+                    style={{ animation: "vbMenuSpinner 1s linear infinite" }}>
+                    <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.55)" />
+                  </svg>
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>Preparando grabación…</span>
+                </>
+              ) : (
+                <>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="10 15 15 12 10 9 10 15" />
+                  </svg>
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>El live ha terminado</span>
+                </>
+              )}
             </div>
           </div>
         )
@@ -3047,13 +3059,60 @@ style={{
               <path fillRule="evenodd" clipRule="evenodd" d="M6.6 10.2H17.4Q18.8 10.2 18.8 11.6V19Q18.8 20.4 17.4 20.4H6.6Q5.2 20.4 5.2 19V11.6Q5.2 10.2 6.6 10.2ZM12 14.1Q11.1 14.1 11.1 15Q11.1 15.9 12 15.9Q12.9 15.9 12.9 15Q12.9 14.1 12 14.1Z" fill="rgba(255,255,255,0.65)" />
             </svg>
           ) : (
-            <svg
-              width="52" height="52" viewBox="0 0 22 22" fill="none"
-              style={{ flexShrink: 0, position: "relative", zIndex: 1, animation: "livePulseIcon 2s ease-in-out infinite" }}
-            >
-              <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
-              <circle cx="11" cy="11" r="6" fill="#ef4444" />
-            </svg>
+            <>
+              <svg
+                width="52" height="52" viewBox="0 0 22 22" fill="none"
+                style={{ flexShrink: 0, position: "relative", zIndex: 1, animation: "livePulseIcon 2s ease-in-out infinite" }}
+              >
+                <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
+                <circle cx="11" cy="11" r="6" fill="#ef4444" />
+              </svg>
+              {(isOwner || isOwnPost) && post.postType === "live" && (
+                <div style={{ position: "absolute", top: "calc(50% + 38px)", left: "50%", transform: "translateX(-50%)", zIndex: 2 }}>
+                  {(activeLiveData?.liveStreamId || activeLiveData?.broadcastMode) ? (
+                    <button
+                      type="button"
+                      onClick={() => setLiveCreatorOpen(true)}
+                      style={{
+                        height: 36,
+                        padding: "0 18px",
+                        borderRadius: 10,
+                        border: "none",
+                        background: "rgba(168,85,255,0.55)",
+                        color: "#fff",
+                        fontWeight: 600,
+                        fontSize: 13,
+                        fontFamily: fontStack,
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Abrir panel para comenzar con la transmisión
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setLiveSetupOpen(true)}
+                      style={{
+                        height: 36,
+                        padding: "0 18px",
+                        borderRadius: 10,
+                        border: "none",
+                        background: "rgba(239,68,68,0.55)",
+                        color: "#fff",
+                        fontWeight: 600,
+                        fontSize: 13,
+                        fontFamily: fontStack,
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Iniciar transmisión
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
           )}
           <div style={{
             position: "absolute", top: 10, left: 10,
@@ -3205,65 +3264,6 @@ style={{
           </div>
         )}
 
-        {/* Botón Configurar transmisión — solo visible para el dueño del live */}
-        {isOwner && post.postType === "live" && (
-          <button
-            type="button"
-            onClick={() => setLiveSetupOpen(true)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "5px 12px",
-              borderRadius: 999,
-              border: "1px solid rgba(239,68,68,0.35)",
-              background: activeLiveData?.liveStreamId
-                ? "rgba(239,68,68,0.08)"
-                : "rgba(239,68,68,0.14)",
-              color: "#fca5a5",
-              fontSize: 11,
-              fontWeight: 600,
-              fontFamily: fontStack,
-              cursor: "pointer",
-              letterSpacing: "0.02em",
-            }}
-          >
-            <svg width="10" height="10" viewBox="0 0 22 22" fill="none">
-              <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
-              <circle cx="11" cy="11" r="5" fill="#ef4444" />
-            </svg>
-            {activeLiveData?.liveStreamId ? "Ver configuración" : "Configurar transmisión"}
-          </button>
-        )}
-
-        {/* Botón Abrir panel de control — visible para el autor cuando el live está por iniciar */}
-        {isOwnPost && post.postType === "live" && activeLiveData?.status === "upcoming" && (
-          <button
-            type="button"
-            onClick={() => setLiveCreatorOpen(true)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "5px 12px",
-              borderRadius: 999,
-              border: "1px solid rgba(255,255,255,0.18)",
-              background: "rgba(255,255,255,0.06)",
-              color: "#fff",
-              fontSize: 11,
-              fontWeight: 600,
-              fontFamily: fontStack,
-              cursor: "pointer",
-              letterSpacing: "0.02em",
-            }}
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14" />
-            </svg>
-            Abrir panel de control
-          </button>
-        )}
-
         {liveAccessBlocked && (
           <div style={{
             display: "inline-flex", alignItems: "center", gap: 5,
@@ -3295,6 +3295,9 @@ style={{
       @keyframes livePulseIcon {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.45; }
+      }
+      @keyframes vbMenuSpinner {
+        to { transform: rotate(360deg); }
       }
       @keyframes liveTicketShake {
         0%   { transform: translateX(0); }
@@ -4320,24 +4323,22 @@ padding: "0 0 2px 0",
     groupVisibility={post.groupVisibility}
   />
 )}
-{liveSetupOpen && (
-  <LiveStreamSetup
-    open={liveSetupOpen}
-    onClose={() => setLiveSetupOpen(false)}
-    postId={post.id}
-    liveStreamId={activeLiveData?.liveStreamId}
-    broadcastMode={activeLiveData?.broadcastMode ?? null}
-    onStreamCreated={(liveStreamId, playbackId) => {
-      setLocalLiveData((prev) => ({
-        ...(prev ?? post.liveData ?? {}),
-        liveStreamId,
-        playbackId: playbackId ?? null,
-        ingestUrl: "rtmps://global-live.mux.com:443/app",
-        streamProvider: "mux",
-      }));
-    }}
-  />
-)}
+<LiveStreamSetup
+  open={liveSetupOpen}
+  onClose={() => setLiveSetupOpen(false)}
+  postId={post.id}
+  liveStreamId={activeLiveData?.liveStreamId}
+  broadcastMode={activeLiveData?.broadcastMode ?? null}
+  onStreamCreated={(liveStreamId, playbackId) => {
+    setLocalLiveData((prev) => ({
+      ...(prev ?? post.liveData ?? {}),
+      liveStreamId,
+      playbackId: playbackId ?? null,
+      ingestUrl: "rtmps://global-live.mux.com:443/app",
+      streamProvider: "mux",
+    }));
+  }}
+/>
 {liveViewerOpen && (
   <LiveViewerModal
     open={liveViewerOpen}

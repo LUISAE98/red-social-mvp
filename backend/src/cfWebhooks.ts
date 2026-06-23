@@ -10,12 +10,21 @@ if (!getApps().length) initializeApp();
 const db = getFirestore();
 
 export const cfWebhookSecret = defineSecret("CF_WEBHOOK_SECRET");
+export const cfAccountId = defineSecret("CF_ACCOUNT_ID");
+export const cfApiToken = defineSecret("CF_API_TOKEN");
 
 type CFStreamEvent = {
   uid?: string;
   readyToStream?: boolean;
   status?: { state?: string };
   meta?: { name?: string };
+};
+
+type CFVideoResult = {
+  uid: string;
+  readyToStream?: boolean;
+  liveInput?: string;
+  playback?: { hls?: string; dash?: string };
 };
 
 // CF signature format: "time=<ts>,sig1=<hmac_hex>"
@@ -29,7 +38,8 @@ function verifyCFSignature(rawBody: string, sigHeader: string, secret: string): 
     const timestamp = timeMatch[1];
     const received = sig1Match[1];
     const payload = `${timestamp}.${rawBody}`;
-    const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+    // Trim the secret to handle trailing whitespace/newlines from Secret Manager
+    const expected = crypto.createHmac("sha256", secret.trim()).update(payload).digest("hex");
 
     return crypto.timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(received, "hex"));
   } catch {
@@ -59,10 +69,28 @@ async function findPostByLiveInput(
   return null;
 }
 
+async function getRecordingsForLiveInput(
+  accountId: string,
+  apiToken: string,
+  liveInputId: string
+): Promise<CFVideoResult[]> {
+  try {
+    const res = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/live_inputs/${liveInputId}/videos`,
+      { headers: { Authorization: `Bearer ${apiToken}` } }
+    );
+    if (!res.ok) return [];
+    const body = (await res.json()) as { result?: CFVideoResult[] };
+    return body.result ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export const cfWebhook = onRequest(
   {
     region: "us-central1",
-    secrets: [cfWebhookSecret],
+    secrets: [cfWebhookSecret, cfAccountId, cfApiToken],
   },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -93,10 +121,15 @@ export const cfWebhook = onRequest(
     const state = event.status?.state;
     const liveInputId = event.uid;
 
+    logger.info("cfWebhook received", { state, uid: liveInputId, readyToStream: event.readyToStream, meta: event.meta?.name });
+
     if (!liveInputId || !state) {
       res.status(200).json({ received: true });
       return;
     }
+
+    const accountId = cfAccountId.value().trim();
+    const apiToken = cfApiToken.value().trim();
 
     try {
       if (state === "live-inprogress") {
@@ -133,18 +166,25 @@ export const cfWebhook = onRequest(
         const result = await findPostByLiveInput(liveInputId, event.meta?.name);
         if (result) {
           const currentStatus = (result.data.liveData as Record<string, unknown> | undefined)?.status;
-          if (currentStatus !== "ended") {
-            const now = FieldValue.serverTimestamp();
-            const authorId = typeof result.data.authorId === "string" ? result.data.authorId : null;
-            const groupId = typeof result.data.groupId === "string" ? result.data.groupId : null;
+          const now = FieldValue.serverTimestamp();
+          const postId = result.ref.id;
+          const authorId = typeof result.data.authorId === "string" ? result.data.authorId : null;
+          const groupId = typeof result.data.groupId === "string" ? result.data.groupId : null;
 
-            const updates: Promise<unknown>[] = [
-              result.ref.update({
-                "liveData.status": "ended",
-                "liveData.endedAt": now,
-                updatedAt: now,
-              }),
-            ];
+          const baseUpdate: Record<string, unknown> = {
+            // Always mark recording as processing when stream ends
+            "liveData.vodStatus": "processing",
+            updatedAt: now,
+          };
+
+          if (currentStatus !== "ended") {
+            baseUpdate["liveData.status"] = "ended";
+            baseUpdate["liveData.endedAt"] = now;
+          }
+
+          const updates: Promise<unknown>[] = [result.ref.update(baseUpdate)];
+
+          if (currentStatus !== "ended") {
             if (authorId) {
               updates.push(
                 db.collection("users").doc(authorId).update({ activeLivePostId: FieldValue.delete() })
@@ -155,22 +195,103 @@ export const cfWebhook = onRequest(
                 db.collection("groups").doc(groupId).update({ activeLivePostId: FieldValue.delete() })
               );
             }
-            await Promise.all(updates);
           }
-          logger.info("cfWebhook live-finished", { liveInputId });
+
+          await Promise.all(updates);
+          logger.info("cfWebhook live-finished", { liveInputId, postId, previousStatus: currentStatus });
+
+          // Check immediately if a recording is already available (edge case: very short timeout)
+          if (accountId && apiToken) {
+            const recordings = await getRecordingsForLiveInput(accountId, apiToken, liveInputId);
+            const readyRec = recordings.find((r) => r.readyToStream && r.playback?.hls);
+            if (readyRec) {
+              await result.ref.update({
+                "liveData.vodStatus": "ready",
+                updatedAt: FieldValue.serverTimestamp(),
+              });
+              logger.info("cfWebhook recording already ready at live-finished", { liveInputId, videoUid: readyRec.uid });
+            } else {
+              logger.info("cfWebhook no ready recording at live-finished", { liveInputId, count: recordings.length });
+            }
+          }
+        } else {
+          logger.warn("cfWebhook live-finished: post not found", { liveInputId });
         }
-      } else if (state === "ready" && event.readyToStream) {
-        // Recording finished processing — same hlsUrl is now available as VOD.
-        const result = await findPostByLiveInput(liveInputId, event.meta?.name);
+      } else if (state === "ready") {
+        logger.info("cfWebhook state=ready", { uid: liveInputId, readyToStream: event.readyToStream });
+
+        if (!event.readyToStream) {
+          // Live input going idle without a recording ready — nothing to do
+          res.status(200).json({ received: true });
+          return;
+        }
+
+        // event.uid could be a VIDEO uid (recording) or a LIVE INPUT uid.
+        // Try video lookup first.
+        const videoUid = liveInputId;
+        let resolvedInputId: string | null = null;
+        let vodHlsUrl: string | null = null;
+
+        if (accountId && apiToken) {
+          try {
+            const cfRes = await fetch(
+              `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream/${videoUid}`,
+              { headers: { Authorization: `Bearer ${apiToken}` } }
+            );
+            if (cfRes.ok) {
+              const cfBody = (await cfRes.json()) as { result?: CFVideoResult };
+              if (cfBody.result?.liveInput) {
+                // It IS a video — liveInput field points to the live input uid
+                resolvedInputId = cfBody.result.liveInput;
+                vodHlsUrl = cfBody.result.playback?.hls ?? null;
+                logger.info("cfWebhook resolved video → live input", { videoUid, resolvedInputId });
+              }
+            } else if (cfRes.status === 404) {
+              // uid is a live input, not a video — check recordings for this live input
+              if (accountId && apiToken) {
+                const recordings = await getRecordingsForLiveInput(accountId, apiToken, videoUid);
+                const readyRec = recordings.find((r) => r.readyToStream && r.playback?.hls);
+                if (readyRec) {
+                  resolvedInputId = videoUid;
+                  vodHlsUrl = readyRec.playback?.hls ?? null;
+                  logger.info("cfWebhook found recording for live input", { liveInputId: videoUid, videoUid: readyRec.uid });
+                } else {
+                  // Live input going idle with no recording — do nothing
+                  logger.info("cfWebhook live input idle, no recording", { liveInputId: videoUid });
+                  res.status(200).json({ received: true });
+                  return;
+                }
+              }
+            }
+          } catch (fetchErr) {
+            logger.warn("cfWebhook state=ready CF API error", {
+              videoUid,
+              err: fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
+            });
+          }
+        }
+
+        if (!resolvedInputId) {
+          // Could not resolve — skip
+          res.status(200).json({ received: true });
+          return;
+        }
+
+        const result = await findPostByLiveInput(resolvedInputId, event.meta?.name);
         if (result) {
           const liveStatus = (result.data.liveData as Record<string, unknown> | undefined)?.status;
           if (liveStatus === "ended") {
-            await result.ref.update({
+            const updatePayload: Record<string, unknown> = {
               "liveData.vodStatus": "ready",
               updatedAt: FieldValue.serverTimestamp(),
-            });
-            logger.info("cfWebhook recording ready → vodStatus=ready", { liveInputId });
+            };
+            await result.ref.update(updatePayload);
+            logger.info("cfWebhook recording ready → vodStatus=ready", { videoUid, resolvedInputId, vodHlsUrl });
+          } else {
+            logger.warn("cfWebhook state=ready but liveStatus not ended", { resolvedInputId, liveStatus });
           }
+        } else {
+          logger.warn("cfWebhook state=ready: post not found", { resolvedInputId });
         }
       }
     } catch (err) {
