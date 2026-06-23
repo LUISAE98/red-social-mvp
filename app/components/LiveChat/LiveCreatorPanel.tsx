@@ -1182,16 +1182,16 @@ type MessageRowProps = {
 function ChatMessageRow({ msg, isMuted, isBanned, onMute, onBan, onDelete }: MessageRowProps) {
   return (
     <div style={{
-      display: "flex", alignItems: "flex-start", gap: 8,
+      display: "flex", alignItems: "center", gap: 8,
       padding: "8px 12px", borderBottom: "1px solid rgba(255,255,255,0.04)",
       opacity: isBanned ? 0.38 : 1,
     }}>
       {msg.avatarUrl ? (
-        <Image src={msg.avatarUrl} alt="" width={26} height={26} style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, marginTop: 1 }} />
+        <Image src={msg.avatarUrl} alt="" width={26} height={26} style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
       ) : (
         <div style={{
           width: 26, height: 26, borderRadius: "50%", background: "rgba(168,85,247,0.35)",
-          display: "grid", placeItems: "center", flexShrink: 0, marginTop: 1,
+          display: "grid", placeItems: "center", flexShrink: 0,
         }}>
           <span style={{ fontSize: 10, color: "#fff", fontWeight: 700 }}>{msg.username.charAt(0).toUpperCase()}</span>
         </div>

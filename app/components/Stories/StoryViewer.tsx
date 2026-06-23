@@ -411,7 +411,7 @@ export default function StoryViewer({
     heroTimerRef.current = window.setTimeout(() => {
       heroTimerRef.current = null;
       onClose();
-    }, 360);
+    }, 300);
   }, [onClose]);
 
   useEffect(() => {
@@ -469,7 +469,7 @@ export default function StoryViewer({
           heroTimerRef.current = window.setTimeout(() => {
             heroTimerRef.current = null;
             onClose();
-          }, 360);
+          }, 300);
         } else {
           onClose();
         }
@@ -585,7 +585,9 @@ export default function StoryViewer({
       return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: radius, background: "transparent" };
     }
     if (heroPhase === "exiting") {
-      return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: radius, background: "transparent", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 260ms ease` };
+      const exitEase = "cubic-bezier(0.4,0,0.2,1)";
+      const exitDur = 280;
+      return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: radius, background: "transparent", transition: `left ${exitDur}ms ${exitEase}, top ${exitDur}ms ${exitEase}, width ${exitDur}ms ${exitEase}, height ${exitDur}ms ${exitEase}, border-radius ${exitDur}ms ${exitEase}, background 220ms ease` };
     }
     if (dragY > 0) {
       const t = Math.min(1, dragY / vh);

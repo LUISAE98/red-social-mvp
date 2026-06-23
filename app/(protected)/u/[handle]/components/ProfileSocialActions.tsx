@@ -94,7 +94,7 @@ export default function ProfileSocialActions({
           </span>
           <svg width="28" height="28" viewBox="0 0 64 64" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
             <path
-              d="M36 24C33 21 24 17.5 24 12C24 7.5 28 5.5 32 7.5C34 8.5 35.5 10.5 36 12C36.5 10.5 38 8.5 40 7.5C44 5.5 48 7.5 48 12C48 17.5 39 21 36 24Z"
+              d="M39 24C36 21 27 17.5 27 12C27 7.5 31 5.5 35 7.5C37 8.5 38.5 10.5 39 12C39.5 10.5 41 8.5 43 7.5C47 5.5 51 7.5 51 12C51 17.5 42 21 39 24Z"
               fill="currentColor"
             />
             <path
