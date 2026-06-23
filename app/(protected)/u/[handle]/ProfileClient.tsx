@@ -432,6 +432,8 @@ useEffect(() => {
   const [profileLivePost, setProfileLivePost] = useState<Post | null>(null);
   const [profileLiveViewerOpen, setProfileLiveViewerOpen] = useState(false);
   const [profileStoriesOpen, setProfileStoriesOpen] = useState(false);
+  const [profileStoriesSourceRect, setProfileStoriesSourceRect] = useState<DOMRect | null>(null);
+  const profileAvatarBtnRef = useRef<HTMLButtonElement>(null);
 
   const ownerShowPosts = userDoc?.showPosts ?? true;
   const ownerShowGroups = userDoc?.showCreatedGroups ?? true;
@@ -1917,6 +1919,7 @@ await createExclusiveSessionRequest({
                     </div>
                   )}
                   <button
+                    ref={profileAvatarBtnRef}
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
@@ -1924,6 +1927,7 @@ await createExclusiveSessionRequest({
                       if (profileIsLive) {
                         void handleProfileLiveClick(e);
                       } else if (profileRing !== "none" && profileRingStories.length > 0) {
+                        setProfileStoriesSourceRect(profileAvatarBtnRef.current?.getBoundingClientRect() ?? null);
                         setProfileStoriesOpen(true);
                       } else if (isOwner) {
                         handlePickAvatar();
@@ -2546,6 +2550,7 @@ await createExclusiveSessionRequest({
           onStoryViewed={(storyId) => {
             if (viewer?.uid) recordStoryView(viewer.uid, storyId).catch(console.error);
           }}
+          sourceRect={profileStoriesSourceRect}
         />
       )}
 
