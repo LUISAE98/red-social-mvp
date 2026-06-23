@@ -13,7 +13,7 @@ const LABELS: Record<StoryType, string> = {
 type Props = {
   type: StoryType;
   thumbnailUrl: string | null;
-  onClick: () => void;
+  onClick: (e: React.MouseEvent<HTMLButtonElement>) => void;
   size?: number;
   sublabel?: string;
 };

@@ -32,6 +32,7 @@ type PickerGroup = { key: StoryGroupKey; type: StoryType; role: "creator" | "buy
 export default function StoryCircles({ creatorId, currentUserId }: Props) {
   const [stories, setStories] = useState<StoryDoc[]>([]);
   const [viewerState, setViewerState] = useState<ViewerState>(null);
+  const [viewerSourceRect, setViewerSourceRect] = useState<DOMRect | null>(null);
   const [pickerGroup, setPickerGroup] = useState<PickerGroup>(null);
   const [storyCovers, setStoryCovers] = useState<Partial<Record<string, string>>>({});
   const [storyCoverPhoto, setStoryCoverPhoto] = useState<Partial<Record<string, string>>>({});
@@ -126,7 +127,7 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
               type={g.type}
               thumbnailUrl={getCoverThumbnail(g.key, g.list)}
               sublabel={g.sublabel}
-              onClick={() => setViewerState({ stories: g.list, type: g.type })}
+              onClick={(e) => { setViewerSourceRect(e.currentTarget.getBoundingClientRect()); setViewerState({ stories: g.list, type: g.type }); }}
             />
             {isOwner && (
               <button
@@ -148,6 +149,7 @@ export default function StoryCircles({ creatorId, currentUserId }: Props) {
           type={viewerState.type}
           onClose={() => setViewerState(null)}
           onStoryViewed={handleStoryViewed}
+          sourceRect={viewerSourceRect}
         />
       )}
 

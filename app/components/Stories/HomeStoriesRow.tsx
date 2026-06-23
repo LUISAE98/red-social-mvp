@@ -59,6 +59,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   const [viewedMap, setViewedMap] = useState<Map<string, number>>(new Map());
   const [displayInfoMap, setDisplayInfoMap] = useState<Map<string, DisplayInfo>>(new Map());
   const [activeGroup, setActiveGroup] = useState<StoryGroup | null>(null);
+  const [mobileSourceRect, setMobileSourceRect] = useState<DOMRect | null>(null);
   // Desktop-only carousel: snapshot of groups at click time + initial index
   const [desktopOpen, setDesktopOpen] = useState<{ groups: CarouselGroup[]; initialIdx: number } | null>(null);
   const [isDesktop, setIsDesktop] = useState(() =>
@@ -271,6 +272,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
             const idx = allGroups.findIndex((g) => g.key === group.key);
             setDesktopOpen({ groups: allGroups, initialIdx: idx >= 0 ? idx : 0 });
           } else {
+            setMobileSourceRect(e.currentTarget.getBoundingClientRect());
             setActiveGroup(group);
           }
         }}
@@ -414,6 +416,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
           onGroupFinished={handleMobileGroupFinished}
           onPrevGroup={handleMobileGroupBack}
           onStoryViewed={handleStoryViewed}
+          sourceRect={mobileSourceRect}
         />
       )}
     </>

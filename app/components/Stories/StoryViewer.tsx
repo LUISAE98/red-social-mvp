@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
@@ -35,6 +35,8 @@ type Props = {
   onPrevGroup?: () => void;
   /** When provided, renders a close button inside the panel calling this handler (used by carousel so the button animates with the panel). */
   onCloseCarousel?: () => void;
+  /** Source element rect for hero open/close animation (mobile only). */
+  sourceRect?: DOMRect | null;
 };
 
 export function desktopPanelSize(): { width: number; height: number } {
@@ -53,6 +55,7 @@ export default function StoryViewer({
   contained = false,
   onPrevGroup,
   onCloseCarousel,
+  sourceRect,
 }: Props) {
   const [index, setIndex] = useState(initialIndex);
   const [progress, setProgress] = useState(0);
@@ -80,6 +83,8 @@ export default function StoryViewer({
     "SpeechSynthesisUtterance" in window
   );
   const [dragY, setDragY] = useState(0);
+  const [heroPhase, setHeroPhase] = useState<"entering" | "open" | "exiting" | null>(null);
+  const heroTimerRef = useRef<number | null>(null);
   const [contextOpen, setContextOpen] = useState(false);
   const [instructions, setInstructions] = useState<string | null>(null);
   const [instructionsLoading, setInstructionsLoading] = useState(false);
@@ -104,6 +109,20 @@ export default function StoryViewer({
   const suppressNextClickRef = useRef(false);
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Hero open animation: start at sourceRect, expand to fullscreen
+  useLayoutEffect(() => {
+    if (sourceRect && !contained) setHeroPhase("entering");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (heroPhase !== "entering") return;
+    let id: number;
+    id = requestAnimationFrame(() => {
+      id = requestAnimationFrame(() => setHeroPhase("open"));
+    });
+    return () => cancelAnimationFrame(id);
+  }, [heroPhase]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -383,16 +402,28 @@ export default function StoryViewer({
     setTimeout(() => goTo(index + 1), 120);
   }, [index, goTo, clearViewTimer, markCurrentViewed]);
 
+  // ── Hero animation helpers (must be before any hook deps that reference them) ─
+  const heroActive = !!(heroPhase && sourceRect && !contained);
+
+  const handleHeroClose = useCallback(() => {
+    if (heroTimerRef.current) clearTimeout(heroTimerRef.current);
+    setHeroPhase("exiting");
+    heroTimerRef.current = window.setTimeout(() => {
+      heroTimerRef.current = null;
+      onClose();
+    }, 360);
+  }, [onClose]);
+
   useEffect(() => {
     if (contained) return;
     const h = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") { if (heroActive) handleHeroClose(); else onClose(); }
       if (e.key === "ArrowRight") goTo(index + 1);
       if (e.key === "ArrowLeft") goTo(index - 1);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [index, goTo, onClose, contained]);
+  }, [index, goTo, onClose, contained, heroActive, handleHeroClose]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartXRef.current = e.touches[0]?.clientX ?? null;
@@ -407,10 +438,10 @@ export default function StoryViewer({
   }, [greetOpen]);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (contained || touchStartYRef.current === null) return;
+    if (contained || touchStartYRef.current === null || heroPhase === "entering" || heroPhase === "exiting") return;
     const dy = (e.touches[0]?.clientY ?? touchStartYRef.current) - touchStartYRef.current;
     if (dy > 0) setDragY(dy);
-  }, [contained]);
+  }, [contained, heroPhase]);
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
@@ -432,7 +463,16 @@ export default function StoryViewer({
       if (!contained && dy > 80 && dy > Math.abs(dx)) {
         holdingRef.current = false;
         setDragY(0);
-        onClose();
+        if (heroActive) {
+          setHeroPhase("exiting");
+          if (heroTimerRef.current) clearTimeout(heroTimerRef.current);
+          heroTimerRef.current = window.setTimeout(() => {
+            heroTimerRef.current = null;
+            onClose();
+          }, 360);
+        } else {
+          onClose();
+        }
         return;
       }
       setDragY(0);
@@ -455,7 +495,7 @@ export default function StoryViewer({
         }
       }
     },
-    [onClose, onGroupFinished, onPrevGroup, contained, greetOpen],
+    [onClose, onGroupFinished, onPrevGroup, contained, greetOpen, heroActive],
   );
 
   if (!mounted || !story) return null;
@@ -531,8 +571,34 @@ export default function StoryViewer({
     </div>
   );
 
+  // ── Hero container style ──────────────────────────────────────────────────
+  function getHeroContainerStyle(): React.CSSProperties | null {
+    if (!heroActive || !sourceRect) return null;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const r = sourceRect;
+    const ease = "cubic-bezier(0.22,1,0.36,1)";
+    const dur = 340;
+    const radius = r.width / 2;
+
+    if (heroPhase === "entering") {
+      return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: radius, background: "transparent" };
+    }
+    if (heroPhase === "exiting") {
+      return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: radius, background: "transparent", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 260ms ease` };
+    }
+    if (dragY > 0) {
+      const t = Math.min(1, dragY / vh);
+      const lerp = (a: number, b: number) => a + (b - a) * t;
+      return { left: lerp(0, r.left), top: dragY, width: lerp(vw, r.width), height: lerp(vh, r.height), borderRadius: lerp(0, radius), background: `rgba(0,0,0,${1 - t * 0.85})` };
+    }
+    return { left: 0, top: 0, width: vw, height: vh, borderRadius: 0, background: "#000", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 300ms ease` };
+  }
+  const heroContainerStyle = getHeroContainerStyle();
+
   // ── Shared panel content ──────────────────────────────────────────────────
-  const renderPanelContent = (safeTop: string | number = 12, showClose = false, safeBottom: string | number = 0) => (
+  const heroAnimating = heroPhase === "entering" || heroPhase === "exiting";
+  const renderPanelContent = (safeTop: string | number = 12, showClose = false, safeBottom: string | number = 0, onCloseOverride?: () => void) => (
     <>
       {/* Prevent long-press text selection and iOS callout on the story viewer */}
       <style>{`
@@ -542,17 +608,6 @@ export default function StoryViewer({
           user-select: none;
         }
       `}</style>
-      {isLandscape && thumbUrl && (
-        <div style={{
-          position: "absolute", inset: 0,
-          backgroundImage: `url(${thumbUrl})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          filter: "blur(28px) saturate(1.4) brightness(0.55)",
-          transform: "scale(1.08)",
-          zIndex: 0,
-        }} />
-      )}
       {videoUrl && (
         <video
           ref={videoRef}
@@ -581,6 +636,9 @@ export default function StoryViewer({
           <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontFamily: FONT }}>Procesando video...</span>
         </div>
       )}
+
+      {/* UI overlays — hidden during hero enter/exit animation */}
+      <div style={{ position: "absolute", inset: 0, opacity: heroAnimating ? 0 : 1, transition: heroAnimating ? "none" : "opacity 180ms ease", pointerEvents: heroAnimating ? "none" : undefined }}>
 
       {/* Progress bars */}
       <div style={{ position: "absolute", top: safeTop, left: 0, right: 0, paddingTop: 12, paddingLeft: 10, paddingRight: 10, display: "flex", gap: 4, zIndex: 10 }}>
@@ -671,7 +729,7 @@ export default function StoryViewer({
           <button
             type="button"
             aria-label="Cerrar"
-            onClick={onCloseCarousel ?? onClose}
+            onClick={onCloseOverride ?? onCloseCarousel ?? onClose}
             style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.9)", padding: "0 5px", display: "flex", alignItems: "center", justifyContent: "center" }}
           >
             <svg width={isDesktop ? 20 : 24} height={isDesktop ? 20 : 24} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -866,6 +924,7 @@ export default function StoryViewer({
         );
       })()}
 
+      </div>{/* end UI overlays wrapper */}
     </>
   );
 
@@ -969,13 +1028,31 @@ export default function StoryViewer({
       {createPortal(
         <div
           className="story-viewer-root"
-          style={{ position: "fixed", inset: 0, zIndex: 99999, background: "#000", display: "flex", flexDirection: "column", touchAction: "none", userSelect: "none", WebkitUserSelect: "none", transform: `translateY(${dragY}px)`, transition: dragY > 0 ? "none" : "transform 0.3s ease", opacity: 1 - Math.min(1, dragY / 300) } as React.CSSProperties}
+          style={{
+            position: "fixed",
+            zIndex: 99999,
+            display: "flex",
+            flexDirection: "column",
+            touchAction: "none",
+            userSelect: "none",
+            WebkitUserSelect: "none",
+            overflow: "hidden",
+            ...(heroActive
+              ? (heroContainerStyle ?? { inset: 0, background: "#000" })
+              : {
+                  inset: 0,
+                  background: "#000",
+                  transform: `translateY(${dragY}px)`,
+                  transition: dragY > 0 ? "none" : "transform 0.3s ease",
+                  opacity: 1 - Math.min(1, dragY / 300),
+                }),
+          } as React.CSSProperties}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           onContextMenu={(e) => e.preventDefault()}
         >
-          {renderPanelContent("env(safe-area-inset-top, 0px)", true, "env(safe-area-inset-bottom, 0px)")}
+          {renderPanelContent("env(safe-area-inset-top, 0px)", true, "env(safe-area-inset-bottom, 0px)", heroActive ? handleHeroClose : undefined)}
         </div>,
         document.body,
       )}

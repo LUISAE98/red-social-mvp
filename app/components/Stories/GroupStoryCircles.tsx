@@ -36,6 +36,7 @@ export default function GroupStoryCircles({
 }: Props) {
   const [stories, setStories] = useState<StoryDoc[]>([]);
   const [viewerType, setViewerType] = useState<StoryType | null>(null);
+  const [viewerSourceRect, setViewerSourceRect] = useState<DOMRect | null>(null);
   const [pickerType, setPickerType] = useState<StoryType | null>(null);
   const [storyCovers, setStoryCovers] = useState<Partial<Record<StoryType, string>>>({});
   const [storyCoverPhoto, setStoryCoverPhoto] = useState<Partial<Record<StoryType, string>>>({});
@@ -116,7 +117,7 @@ export default function GroupStoryCircles({
             <StoryCircle
               type="saludo"
               thumbnailUrl={getCoverThumbnail("saludo", saludos)}
-              onClick={() => setViewerType("saludo")}
+              onClick={(e) => { setViewerSourceRect(e.currentTarget.getBoundingClientRect()); setViewerType("saludo"); }}
             />
             {isOwner && (
               <button
@@ -136,7 +137,7 @@ export default function GroupStoryCircles({
             <StoryCircle
               type="consejo"
               thumbnailUrl={getCoverThumbnail("consejo", consejos)}
-              onClick={() => setViewerType("consejo")}
+              onClick={(e) => { setViewerSourceRect(e.currentTarget.getBoundingClientRect()); setViewerType("consejo"); }}
             />
             {isOwner && (
               <button
@@ -158,6 +159,7 @@ export default function GroupStoryCircles({
           type={viewerType}
           onClose={() => setViewerType(null)}
           onStoryViewed={handleStoryViewed}
+          sourceRect={viewerSourceRect}
         />
       )}
 

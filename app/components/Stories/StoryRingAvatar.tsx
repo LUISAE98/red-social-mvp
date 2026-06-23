@@ -40,12 +40,14 @@ export default function StoryRingAvatar({
     currentUserId,
   );
   const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerSourceRect, setViewerSourceRect] = useState<DOMRect | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       if (ring !== "none" && stories.length > 0) {
         e.stopPropagation();
+        setViewerSourceRect(buttonRef.current?.getBoundingClientRect() ?? null);
         setViewerOpen(true);
       } else {
         onClick?.(e);
@@ -152,6 +154,7 @@ export default function StoryRingAvatar({
           initialIndex={startIndex}
           onClose={() => setViewerOpen(false)}
           onStoryViewed={handleStoryViewed}
+          sourceRect={viewerSourceRect}
         />
       )}
     </>

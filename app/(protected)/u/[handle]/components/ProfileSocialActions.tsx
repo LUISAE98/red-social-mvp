@@ -87,9 +87,29 @@ export default function ProfileSocialActions({
           onClick={onDonate}
           style={styles.donateButton}
         >
-          {donation?.mode === "wedding"
-            ? `Apoya en su boda a ${profileName ?? ""}`
-            : `Apoya a ${profileName ?? ""}`}
+          <span>
+            {donation?.mode === "wedding"
+              ? `Apoya en su boda a ${profileName ?? ""}`
+              : `Apoya a ${profileName ?? ""}`}
+          </span>
+          <svg width="28" height="28" viewBox="0 0 64 64" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <path
+              d="M36 24C33 21 24 17.5 24 12C24 7.5 28 5.5 32 7.5C34 8.5 35.5 10.5 36 12C36.5 10.5 38 8.5 40 7.5C44 5.5 48 7.5 48 12C48 17.5 39 21 36 24Z"
+              fill="currentColor"
+            />
+            <path
+              d="M8.5 39.5L17 35L25 50.5L16.5 55Z"
+              fill="currentColor" stroke="currentColor" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round"
+            />
+            <path
+              d="M18 36.5L27.5 31.5C30 30.2 32.1 30.4 34.7 31.3L43.8 34.5C46.1 35.3 46.9 37.8 45.6 39.5C44.7 40.7 43.1 41.2 41.5 40.8L33.5 38.7"
+              stroke="currentColor" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round"
+            />
+            <path
+              d="M28.5 48.5H38.5C40.2 48.5 41.6 48.1 43 47.2L56 38.7C58.1 37.3 58.7 34.9 57.5 33.2C56.3 31.6 54 31.3 51.9 32.5L43.5 37.4"
+              stroke="currentColor" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round"
+            />
+          </svg>
         </button>
       )}
 
@@ -130,7 +150,7 @@ const styles = {
     height: 40,
     borderRadius: 10,
     border: "none",
-    background: "#3b82f6",
+    background: "#60a5fa",
     color: "#fff",
     fontFamily: "inherit",
     fontWeight: 600,
@@ -140,6 +160,10 @@ const styles = {
     cursor: "pointer",
     WebkitTapHighlightColor: "transparent",
     transition: "opacity 150ms ease",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
   } as const,
 
   error: {

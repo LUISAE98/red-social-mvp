@@ -1562,7 +1562,7 @@ boxShadow:
                             style={{
                               background: "transparent",
                               border: "none",
-                              padding: 0,
+                              padding: "0 6px 0 0",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "space-between",
@@ -1748,7 +1748,7 @@ boxShadow:
                             style={{
                               background: "transparent",
                               border: "none",
-                              padding: 0,
+                              padding: "0 6px 0 0",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "space-between",
@@ -1902,7 +1902,7 @@ boxShadow:
                             style={{
                               background: "transparent",
                               border: "none",
-                              padding: 0,
+                              padding: "0 6px 0 0",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "space-between",
