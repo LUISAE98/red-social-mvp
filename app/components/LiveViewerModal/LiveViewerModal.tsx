@@ -79,6 +79,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [dvrDuration, setDvrDuration] = useState(0);
   const dvrTickRef = useRef<number | null>(null);
 
+  // ── Controles horizontales (desktop + mobile fs horizontal) ───────────────
+  const [hzControlsVisible, setHzControlsVisible] = useState(false);
+  const [videoPaused, setVideoPaused] = useState(false);
+
   // ── Supercomentario activo (overlay sobre el video) ────────────────────────
   const [activeSuperComment, setActiveSuperComment] = useState<SuperComment | null>(null);
   const seenPlayedIdsRef = useRef<Set<string>>(new Set());
@@ -300,6 +304,11 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const isBanned = !!(user?.uid && liveData?.bannedUsers?.includes(user.uid));
   const chatEnabled = !isEnded && !isBanned && liveData?.chatEnabled !== false;
 
+  // ── Controles horizontales — computed ────────────────────────────────────
+  const dvrAvailable = isLive && !cfWebRTCPlayUrl && dvrDuration >= 60;
+  const DVR_H = 52; // height in px of the DVR controls bar
+  const badgeLift = (hzControlsVisible && dvrAvailable) ? DVR_H + 8 : 0;
+
   useEffect(() => { setMounted(true); }, []);
 
   // Resetear contador de reintentos cada vez que se abre el modal o cambia la URL
@@ -310,6 +319,16 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   useEffect(() => {
     hlsRetryCountRef.current = 0;
   }, [hlsUrl]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const onPause = () => setVideoPaused(true);
+    const onPlay = () => setVideoPaused(false);
+    video.addEventListener("pause", onPause);
+    video.addEventListener("play", onPlay);
+    return () => { video.removeEventListener("pause", onPause); video.removeEventListener("play", onPlay); };
+  }, [retryKey]);
 
   // Detecta cambio de orientación física para saber si aplicar rotación CSS o no
   useEffect(() => {

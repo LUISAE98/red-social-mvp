@@ -195,12 +195,12 @@ export default function LiveChatViewer({
             {feed.map((item) =>
               item.kind === "sc" ? (
                 <div key={item.id} style={{
-                  display: "flex", alignItems: "flex-start", gap: 7, marginBottom: 5,
+                  display: "flex", alignItems: "center", gap: 7, marginBottom: 5,
                   borderLeft: `3px solid ${item.color}`, paddingLeft: 6,
                   background: `${item.color}18`, borderRadius: "0 6px 6px 0",
                 }}>
                   <Avatar url={item.avatarUrl} name={item.username} size={20} />
-                  <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "rgba(255,255,255,0.95)" }}>
+                  <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "rgba(255,255,255,0.95)", alignSelf: "center" }}>
                     <strong style={{ fontWeight: 700, color: item.color, marginRight: 5 }}>{item.username}</strong>
                     <span style={{ fontSize: 10, background: item.color, color: "#000", borderRadius: 4, padding: "1px 5px", marginRight: 5, fontWeight: 700 }}>
                       ${item.amount} · {item.tierName}
@@ -209,9 +209,9 @@ export default function LiveChatViewer({
                   </span>
                 </div>
               ) : (
-                <div key={item.id} style={{ display: "flex", alignItems: "flex-start", gap: 7, marginBottom: 5 }}>
+                <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
                   <Avatar url={item.avatarUrl} name={item.username} size={20} />
-                  <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "rgba(255,255,255,0.92)" }}>
+                  <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "rgba(255,255,255,0.92)", alignSelf: "center" }}>
                     <strong style={{ fontWeight: 700, color: "#fff", marginRight: 5 }}>{item.username}</strong>
                     {item.text}
                   </span>
@@ -289,14 +289,14 @@ export default function LiveChatViewer({
           {feed.map((item) =>
             item.kind === "sc" ? (
               <div key={item.id} style={{
-                display: "flex", gap: 6, padding: "4px 6px", alignItems: "flex-start",
+                display: "flex", gap: 6, padding: "4px 6px", alignItems: "center",
                 borderLeft: `3px solid ${item.color}`,
                 background: `${item.color}14`,
                 borderRadius: "0 6px 6px 0",
                 margin: "2px 0",
               }}>
                 <Avatar url={item.avatarUrl} name={item.username} size={22} />
-                <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ minWidth: 0, flex: 1, alignSelf: "center" }}>
                   <span style={{ fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: item.color, marginRight: 4 }}>
                     {item.username}
                   </span>
@@ -309,9 +309,9 @@ export default function LiveChatViewer({
                 </div>
               </div>
             ) : (
-              <div key={item.id} style={{ display: "flex", gap: 6, padding: "3px 0", alignItems: "flex-start" }}>
+              <div key={item.id} style={{ display: "flex", gap: 6, padding: "3px 0", alignItems: "center" }}>
                 <Avatar url={item.avatarUrl} name={item.username} size={22} />
-                <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ minWidth: 0, flex: 1, alignSelf: "center" }}>
                   <span style={{ fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: "rgba(255,255,255,0.85)", marginRight: 4 }}>
                     {item.username}
                   </span>
@@ -379,17 +379,19 @@ export default function LiveChatViewer({
 function Avatar({ url, name, size }: { url?: string | null; name: string; size: number }) {
   if (url) {
     return (
-      <Image
-        src={url} alt=""
-        width={size} height={size}
-        style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0 }}
-      />
+      <div style={{ width: size, height: size, borderRadius: "50%", overflow: "hidden", flexShrink: 0, alignSelf: "center" }}>
+        <Image
+          src={url} alt=""
+          width={size} height={size}
+          style={{ display: "block", objectFit: "cover", width: "100%", height: "100%" }}
+        />
+      </div>
     );
   }
   return (
     <div style={{
       width: size, height: size, borderRadius: "50%",
-      background: "rgba(168,85,247,0.5)", flexShrink: 0,
+      background: "rgba(168,85,247,0.5)", flexShrink: 0, alignSelf: "center",
       display: "grid", placeItems: "center",
     }}>
       <span style={{ fontSize: size * 0.44, color: "#fff", fontFamily: FONT, fontWeight: 700 }}>

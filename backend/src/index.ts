@@ -175,6 +175,9 @@ export { cfWebhook } from "./cfWebhooks";
 // Live viewers cleanup
 export { cleanupLiveViewersOnEnd } from "./liveViewersCleanup";
 
+// Live heartbeat cleanup — termina lives CF directos huérfanos (browser cerrado sin detener)
+export { liveHeartbeatCleanup } from "./liveHeartbeatCleanup";
+
 // LiveKit — tokens de videollamada para sesiones exclusivas y meet & greet
 export { getLivekitToken } from "./livekitTokens";
 

@@ -2,23 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { getAuth } from "firebase/auth";
 import {
   callCreateMuxLiveStream,
   callCreateCFLiveInput,
   fetchLiveStreamCredentials,
   saveLiveBroadcastMode,
 } from "@/lib/posts/post-service";
-import {
-  getSuperCommentConfig,
-  saveSuperCommentConfig,
-  copySuperCommentConfigToLive,
-} from "@/lib/liveChat/super-comment-service";
-import {
-  DEFAULT_SUPER_COMMENT_CONFIG,
-  type SuperCommentConfig,
-  type SuperCommentTier,
-} from "@/lib/liveChat/types";
 
 const fontStack = "inherit";
 const PANEL_CLOSE_THRESHOLD = 130;
@@ -145,12 +134,6 @@ export default function LiveStreamSetup({
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Super comentarios
-  const [scConfig, setScConfig] = useState<SuperCommentConfig>(DEFAULT_SUPER_COMMENT_CONFIG);
-  const [loadingConfig, setLoadingConfig] = useState(false);
-  const [savingConfig, setSavingConfig] = useState(false);
-  const [configSaved, setConfigSaved] = useState(false);
-
   // Swipe to close (mobile)
   const [panelOffsetY, setPanelOffsetY] = useState(0);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
@@ -204,17 +187,6 @@ export default function LiveStreamSetup({
     else if (liveStreamId && !broadcastModeProp) setSelectedMode("rtmp");
   }, [broadcastModeProp, liveStreamId]);
 
-  useEffect(() => {
-    if (!open || selectedMode !== "direct") return;
-    const uid = getAuth().currentUser?.uid;
-    if (!uid) return;
-    setLoadingConfig(true);
-    getSuperCommentConfig(uid)
-      .then((cfg) => setScConfig(cfg))
-      .catch(() => {})
-      .finally(() => setLoadingConfig(false));
-  }, [open, selectedMode]);
-
   const loadCredentials = useCallback(async () => {
     setLoadingCreds(true);
     setError(null);
@@ -232,39 +204,6 @@ export default function LiveStreamSetup({
     if (open && liveStreamId && selectedMode === "rtmp") loadCredentials();
     if (!open) { setCredentials(null); setError(null); }
   }, [open, liveStreamId, selectedMode, loadCredentials]);
-
-  function updateTierField(tierId: string, field: keyof SuperCommentTier, rawValue: string) {
-    setScConfig((prev) => ({
-      ...prev,
-      tiers: prev.tiers.map((t) => {
-        if (t.id !== tierId) return t;
-        const numericFields: (keyof SuperCommentTier)[] = ["maxChars", "price", "displaySeconds"];
-        if (numericFields.includes(field)) {
-          const parsed = parseInt(rawValue, 10);
-          return { ...t, [field]: isNaN(parsed) ? 0 : parsed };
-        }
-        return { ...t, [field]: rawValue };
-      }),
-    }));
-    setConfigSaved(false);
-  }
-
-  async function handleSaveConfig() {
-    const uid = getAuth().currentUser?.uid;
-    if (!uid) return;
-    setSavingConfig(true);
-    setConfigSaved(false);
-    try {
-      await saveSuperCommentConfig(uid, scConfig);
-      await copySuperCommentConfigToLive(postId, scConfig);
-      setConfigSaved(true);
-      setTimeout(() => setConfigSaved(false), 3000);
-    } catch {
-      // silencioso
-    } finally {
-      setSavingConfig(false);
-    }
-  }
 
   async function handleSelectMode(mode: BroadcastMode) {
     setSelectedMode(mode);
@@ -344,88 +283,106 @@ export default function LiveStreamSetup({
   const scrollContent = (
     <div className="lss-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 24px" }}>
 
-      {/* Selector de modo */}
-      {showModeSelector && (
-        <div>
-          <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontFamily: fontStack, marginBottom: 16, lineHeight: 1.5 }}>
-            ¿Cómo quieres transmitir este live?
-          </p>
+      {/* Selección de modo → cargando: contenedor unificado que mantiene altura durante la transición */}
+      {(showModeSelector || creating) && !showDirectReady && !showRtmpFlow && (
+        <div style={{ position: "relative" }}>
+          {/* Botones: se desvanecen al iniciar la carga, permanecen en DOM para mantener altura */}
+          <div style={{
+            opacity: creating ? 0 : 1,
+            transition: "opacity 220ms ease",
+            pointerEvents: creating ? "none" : "auto",
+          }}>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", fontFamily: fontStack, marginBottom: 16, lineHeight: 1.5 }}>
+              ¿Cómo quieres transmitir este live?
+            </p>
 
-          <button
-            type="button"
-            onClick={() => handleSelectMode("direct")}
-            style={{
-              width: "100%", display: "flex", alignItems: "center", gap: 14,
-              padding: "14px 16px", borderRadius: 12,
-              border: "none",
-              background: "rgba(239,68,68,0.16)",
-              cursor: "pointer", textAlign: "left", marginBottom: 10,
-              transition: "background 0.15s",
-            }}
-          >
-            <div style={{
-              width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-              background: "rgba(239,68,68,0.22)", border: "none",
-              display: "grid", placeItems: "center",
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
-                <path d="M19.4 14a8 8 0 1 0-14.8 0" />
-                <path d="M12 20v-4" />
+            <button
+              type="button"
+              onClick={() => handleSelectMode("direct")}
+              style={{
+                width: "100%", display: "flex", alignItems: "center", gap: 14,
+                padding: "14px 16px", borderRadius: 12,
+                border: "none",
+                background: "rgba(239,68,68,0.16)",
+                cursor: "pointer", textAlign: "left", marginBottom: 10,
+                transition: "background 0.15s",
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                background: "rgba(239,68,68,0.22)", border: "none",
+                display: "grid", placeItems: "center",
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
+                  <path d="M19.4 14a8 8 0 1 0-14.8 0" />
+                  <path d="M12 20v-4" />
+                </svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>Transmitir desde Vibra</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>Usa la cámara y el micrófono de este dispositivo</div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "auto" }}>
+                <polyline points="9 18 15 12 9 6" />
               </svg>
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>Transmitir desde Vibra</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>Usa la cámara y el micrófono de este dispositivo</div>
-            </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "auto" }}>
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleSelectMode("rtmp")}
-            style={{
-              width: "100%", display: "flex", alignItems: "center", gap: 14,
-              padding: "14px 16px", borderRadius: 12,
-              border: "none",
-              background: "rgba(168,85,255,0.16)",
-              cursor: "pointer", textAlign: "left",
-              transition: "background 0.15s",
-            }}
-          >
-            <div style={{
-              width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-              background: "rgba(168,85,255,0.22)", border: "none",
-              display: "grid", placeItems: "center",
-            }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="2" />
-                <path d="M8 21h8M12 17v4" />
+            <button
+              type="button"
+              onClick={() => handleSelectMode("rtmp")}
+              style={{
+                width: "100%", display: "flex", alignItems: "center", gap: 14,
+                padding: "14px 16px", borderRadius: 12,
+                border: "none",
+                background: "rgba(168,85,255,0.16)",
+                cursor: "pointer", textAlign: "left",
+                transition: "background 0.15s",
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                background: "rgba(168,85,255,0.22)", border: "none",
+                display: "grid", placeItems: "center",
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="14" rx="2" />
+                  <path d="M8 21h8M12 17v4" />
+                </svg>
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>Software externo</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>OBS, Streamlabs u otro software RTMP</div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "auto" }}>
+                <polyline points="9 18 15 12 9 6" />
               </svg>
+            </button>
+          </div>
+
+          {/* Spinner: aparece encima del área de botones cuando carga */}
+          {creating && (
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 14,
+            }}>
+              <div className="vibraPullRefreshSpinner refreshing" style={{ width: 40, height: 40 }} />
+              <span style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: fontStack }}>
+                Preparando transmisión...
+              </span>
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>Software externo</div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>OBS, Streamlabs u otro software RTMP</div>
-            </div>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginLeft: "auto" }}>
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
+          )}
         </div>
       )}
 
-      {/* Creando stream */}
-      {creating && (
-        <div style={{ textAlign: "center", padding: "32px 0", color: "rgba(255,255,255,0.4)", fontFamily: fontStack, fontSize: 13 }}>
-          Preparando transmisión...
-        </div>
-      )}
-
-      {/* Modo directo — listo + supercomentarios */}
+      {/* Modo directo — listo */}
       {showDirectReady && (
-        <>
+        <div style={{ animation: "lssContentReveal 340ms cubic-bezier(0.22, 1, 0.36, 1)" }}>
           <div style={{
             background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.25)",
             borderRadius: 12, padding: 16,
@@ -447,126 +404,23 @@ export default function LiveStreamSetup({
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>Usa los controles en el panel de tu live.</div>
             </div>
           </div>
-
-          <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: 20 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{
-                  width: 28, height: 28, borderRadius: 7,
-                  background: "rgba(234,179,8,0.15)", border: "1px solid rgba(234,179,8,0.3)",
-                  display: "grid", placeItems: "center",
-                }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="6" width="20" height="12" rx="2" />
-                    <path d="M6 10h.01M10 10h8M6 14h.01M10 14h8" />
-                  </svg>
-                </div>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>Supercomentarios</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setScConfig((prev) => ({ ...prev, enabled: !prev.enabled })); setConfigSaved(false); }}
-                style={{ display: "flex", alignItems: "center", gap: 7, background: "transparent", border: "none", cursor: "pointer", padding: 0 }}
-              >
-                <span style={{ fontSize: 12, color: scConfig.enabled ? "#86efac" : "rgba(255,255,255,0.35)", fontFamily: fontStack }}>
-                  {scConfig.enabled ? "Activados" : "Desactivados"}
-                </span>
-                <div style={{
-                  width: 38, height: 22, borderRadius: 999,
-                  background: scConfig.enabled ? "rgba(34,197,94,0.35)" : "rgba(255,255,255,0.1)",
-                  border: `1px solid ${scConfig.enabled ? "rgba(34,197,94,0.5)" : "rgba(255,255,255,0.15)"}`,
-                  position: "relative", transition: "all 0.2s",
-                }}>
-                  <div style={{
-                    position: "absolute", top: 2, borderRadius: "50%",
-                    width: 16, height: 16,
-                    background: scConfig.enabled ? "#22c55e" : "rgba(255,255,255,0.4)",
-                    left: scConfig.enabled ? 18 : 2, transition: "all 0.2s",
-                  }} />
-                </div>
-              </button>
-            </div>
-
-            {loadingConfig ? (
-              <div style={{ textAlign: "center", padding: "16px 0", fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: fontStack }}>
-                Cargando configuración...
-              </div>
-            ) : scConfig.enabled ? (
-              <>
-                <div style={{ marginBottom: 16 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px", gap: 6, marginBottom: 6, padding: "0 4px" }}>
-                    {["Tier", "Caracteres", "Precio (MXN)"].map((h) => (
-                      <span key={h} style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: fontStack }}>
-                        {h}
-                      </span>
-                    ))}
-                  </div>
-                  {scConfig.tiers.map((tier) => (
-                    <div key={tier.id} style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px", gap: 6, marginBottom: 6, alignItems: "center" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: "50%", background: tier.color, flexShrink: 0 }} />
-                        <span style={{ fontSize: 13, color: "#fff", fontFamily: fontStack }}>{tier.name}</span>
-                      </div>
-                      <input
-                        type="number" min={10} max={600} value={tier.maxChars}
-                        onChange={(e) => updateTierField(tier.id, "maxChars", e.target.value)}
-                        style={{ width: "100%", padding: "5px 8px", borderRadius: 7, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 12, fontFamily: fontStack, textAlign: "center", outline: "none" }}
-                      />
-                      <input
-                        type="number" min={1} value={tier.price}
-                        onChange={(e) => updateTierField(tier.id, "price", e.target.value)}
-                        style={{ width: "100%", padding: "5px 8px", borderRadius: 7, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 12, fontFamily: fontStack, textAlign: "center", outline: "none" }}
-                      />
-                    </div>
-                  ))}
-                </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: fontStack, marginBottom: 14, lineHeight: 1.5 }}>
-                  La configuración guardada se usará en todos tus próximos lives.
-                </div>
-              </>
-            ) : (
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: fontStack, marginBottom: 16 }}>
-                Los supercomentarios están desactivados para este live.
-              </div>
-            )}
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                type="button"
-                onClick={handleSaveConfig}
-                disabled={savingConfig}
-                style={{
-                  flex: 1, padding: "10px 16px", borderRadius: 9,
-                  background: configSaved ? "rgba(34,197,94,0.2)" : savingConfig ? "rgba(168,85,255,0.2)" : "linear-gradient(135deg,rgba(168,85,255,0.8),rgba(124,58,237,0.8))",
-                  color: configSaved ? "#86efac" : "#fff",
-                  fontSize: 13, fontWeight: 600, fontFamily: fontStack,
-                  cursor: savingConfig ? "not-allowed" : "pointer",
-                  border: "none",
-                  transition: "all 0.2s",
-                }}
-              >
-                {configSaved ? "¡Guardado!" : savingConfig ? "Guardando..." : "Guardar configuración"}
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                style={{
-                  padding: "10px 20px", borderRadius: 9,
-                  border: "none",
-                  background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)",
-                  fontSize: 13, fontWeight: 600, fontFamily: fontStack, cursor: "pointer",
-                }}
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              width: "100%", padding: "11px 16px", borderRadius: 10, border: "none",
+              background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)",
+              fontSize: 14, fontWeight: 600, fontFamily: fontStack, cursor: "pointer",
+            }}
+          >
+            Cerrar
+          </button>
+        </div>
       )}
 
       {/* Flujo RTMP */}
       {showRtmpFlow && !creating && (
-        <>
+        <div style={{ animation: "lssContentReveal 340ms cubic-bezier(0.22, 1, 0.36, 1)" }}>
           {!hasStream && !loadingCreds && (
             <div style={{ textAlign: "center", padding: "24px 0" }}>
               <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", fontFamily: fontStack, marginBottom: 20, lineHeight: 1.5 }}>
@@ -635,7 +489,7 @@ export default function LiveStreamSetup({
               </div>
             </>
           )}
-        </>
+        </div>
       )}
 
       {/* Error */}
@@ -664,6 +518,10 @@ export default function LiveStreamSetup({
         @keyframes vibraLssOut {
           from { opacity: 1; transform: scale(1) translateY(0); }
           to   { opacity: 0; transform: scale(0.94) translateY(10px); }
+        }
+        @keyframes lssContentReveal {
+          from { opacity: 0; clip-path: inset(0 0 100% 0); }
+          to   { opacity: 1; clip-path: inset(0 0 0% 0); }
         }
         .lss-scroll::-webkit-scrollbar { width: 7px; height: 7px; }
         .lss-scroll::-webkit-scrollbar-track { background: transparent; }

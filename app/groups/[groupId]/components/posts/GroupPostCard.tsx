@@ -3,10 +3,13 @@
 "use client";
 
 import Image from "next/image";
+import Hls from "hls.js";
 import Link from "next/link";
 import {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useMemo,
   useRef,
   useState,
@@ -709,6 +712,229 @@ function getMenuActionTexts(action: ModerationAction): { loading: string; done: 
   return null;
 }
 
+type MediaGridVideoItemHandle = {
+  seek: (t: number) => void;
+  getVideoElement: () => HTMLVideoElement | null;
+  getFeedSlot: () => HTMLDivElement | null;
+};
+
+type MediaGridVideoItemProps = {
+  hlsUrl?: string | null;
+  playbackUrl?: string | null;
+  thumbnailUrl?: string | null;
+  duration?: number | null;
+  tileStyle: CSSProperties;
+  onRatioLoaded: (ratio: number) => void;
+  onLoadError: () => void;
+  onTimeUpdate?: (time: number) => void;
+};
+
+const MediaGridVideoItem = forwardRef<MediaGridVideoItemHandle, MediaGridVideoItemProps>(
+  function MediaGridVideoItem(
+    { hlsUrl, playbackUrl, thumbnailUrl, duration, tileStyle, onRatioLoaded, onLoadError, onTimeUpdate },
+    ref
+  ) {
+    const feedSlotRef = useRef<HTMLDivElement | null>(null);
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    const localHlsRef = useRef<Hls | null>(null);
+    const [metadataLoaded, setMetadataLoaded] = useState(false);
+    const [remainingSeconds, setRemainingSeconds] = useState<number | null>(
+      typeof duration === "number" && duration > 0 ? Math.ceil(duration) : null
+    );
+
+    // Stable refs for callbacks — avoids re-running event listener effects on every render
+    const onRatioLoadedRef = useRef(onRatioLoaded);
+    onRatioLoadedRef.current = onRatioLoaded;
+    const onLoadErrorRef = useRef(onLoadError);
+    onLoadErrorRef.current = onLoadError;
+    const onTimeUpdateRef = useRef(onTimeUpdate);
+    onTimeUpdateRef.current = onTimeUpdate;
+    const durationRef = useRef(duration);
+    durationRef.current = duration;
+
+    const src = hlsUrl ?? playbackUrl ?? null;
+    const srcRef = useRef(src);
+    srcRef.current = src;
+
+    useImperativeHandle(ref, () => ({
+      seek(t: number) {
+        const video = videoRef.current;
+        if (video) video.currentTime = t;
+      },
+      getVideoElement() { return videoRef.current; },
+      getFeedSlot() { return feedSlotRef.current; },
+    }), []);
+
+    // Create video element imperatively on mount so it can be moved between slots without remounting
+    useEffect(() => {
+      const slot = feedSlotRef.current;
+      if (!slot) return;
+
+      const video = document.createElement("video");
+      video.muted = true;
+      video.setAttribute("playsinline", "");
+      video.draggable = false;
+      Object.assign(video.style, {
+        position: "absolute",
+        inset: "0",
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        background: "#050505",
+        display: "block",
+        touchAction: "pan-y",
+      });
+      if (thumbnailUrl) video.poster = thumbnailUrl;
+
+      videoRef.current = video;
+      slot.appendChild(video);
+
+      return () => {
+        video.pause();
+        video.remove();
+        videoRef.current = null;
+      };
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Update poster when thumbnailUrl changes
+    useEffect(() => {
+      const video = videoRef.current;
+      if (video) video.poster = thumbnailUrl ?? "";
+    }, [thumbnailUrl]);
+
+    // HLS setup — re-runs when src changes
+    useEffect(() => {
+      const video = videoRef.current;
+      if (!video || !src) return;
+      localHlsRef.current?.destroy();
+      localHlsRef.current = null;
+      video.muted = true;
+      if (src.includes(".m3u8") && Hls.isSupported()) {
+        const hls = new Hls({ enableWorker: true, startLevel: -1, maxBufferLength: 30 });
+        localHlsRef.current = hls;
+        hls.loadSource(src);
+        hls.attachMedia(video);
+      } else {
+        video.src = src;
+      }
+      return () => {
+        localHlsRef.current?.destroy();
+        localHlsRef.current = null;
+        video.removeAttribute("src");
+        video.load();
+      };
+    }, [src]);
+
+    // Event listeners via addEventListener so the video element can move between slots
+    useEffect(() => {
+      const video = videoRef.current;
+      if (!video) return;
+
+      function handleLoadedMetadata() {
+        const v = videoRef.current;
+        if (!v) return;
+        const ratio = v.videoWidth > 0 && v.videoHeight > 0 ? v.videoWidth / v.videoHeight : 1;
+        setMetadataLoaded(true);
+        onRatioLoadedRef.current(ratio);
+        const dur = durationRef.current;
+        if (typeof dur === "number" && dur > 0) {
+          setRemainingSeconds(Math.ceil(Math.max(0, dur - v.currentTime)));
+        }
+      }
+
+      function handleTimeUpdate() {
+        const v = videoRef.current;
+        if (!v) return;
+        onTimeUpdateRef.current?.(v.currentTime);
+        const dur = durationRef.current;
+        if (typeof dur === "number" && dur > 0) {
+          const newR = Math.ceil(Math.max(0, dur - v.currentTime));
+          setRemainingSeconds((prev) => (prev !== newR ? newR : prev));
+        }
+      }
+
+      function handleError() { onLoadErrorRef.current(); }
+
+      video.addEventListener("loadedmetadata", handleLoadedMetadata);
+      video.addEventListener("timeupdate", handleTimeUpdate);
+      video.addEventListener("error", handleError);
+
+      return () => {
+        video.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        video.removeEventListener("timeupdate", handleTimeUpdate);
+        video.removeEventListener("error", handleError);
+      };
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Autoplay via IntersectionObserver — re-runs when src or metadataLoaded change
+    useEffect(() => {
+      const video = videoRef.current;
+      if (!video || !src || !metadataLoaded) return;
+      const observer = new IntersectionObserver(
+        ([entry]) => {
+          if (!entry) return;
+          if (entry.intersectionRatio >= 0.5) {
+            video.play().catch(() => undefined);
+          } else {
+            video.pause();
+          }
+        },
+        { threshold: [0, 0.5] }
+      );
+      observer.observe(video);
+      return () => observer.disconnect();
+    }, [src, metadataLoaded]);
+
+    // Pause when any other video starts playing
+    useEffect(() => {
+      function handleOtherVideoPlay(e: Event) {
+        const video = videoRef.current;
+        if (video && e.target !== video) video.pause();
+      }
+      document.addEventListener("play", handleOtherVideoPlay, true);
+      return () => document.removeEventListener("play", handleOtherVideoPlay, true);
+    }, []);
+
+    const durationLabel = remainingSeconds !== null ? formatMediaDuration(remainingSeconds) : null;
+
+    return (
+      <div
+        ref={feedSlotRef}
+        style={{
+          position: "relative",
+          zIndex: 1,
+          width: "100%",
+          height: "100%",
+          display: "block",
+          touchAction: "pan-y",
+          overflow: "hidden",
+        }}
+      >
+        {durationLabel && (
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              right: 8,
+              bottom: 8,
+              zIndex: 3,
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 700,
+              lineHeight: 1,
+              letterSpacing: "-0.01em",
+              textShadow: "0 1px 4px rgba(0,0,0,0.5)",
+              pointerEvents: "none",
+            }}
+          >
+            {durationLabel}
+          </span>
+        )}
+      </div>
+    );
+  }
+);
+
 export default function GroupPostCard({
   post,
   groupId = null,
@@ -812,6 +1038,9 @@ onToggleProfilePin,
   const [viewerSourceRect, setViewerSourceRect] = useState<DOMRect | null>(null);
   const [viewerInitialVideoTime, setViewerInitialVideoTime] = useState(0);
   const viewerVideoTimeRef = useRef(0);
+  const mediaCurrentTimesRef = useRef<Record<string, number>>({});
+  const mediaVideoHandlesRef = useRef<Map<string, MediaGridVideoItemHandle>>(new Map());
+  const [viewerExternalVideo, setViewerExternalVideo] = useState<HTMLVideoElement | null>(null);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
 const carouselShellRef = useRef<HTMLDivElement | null>(null);
 const carouselTouchStartXRef = useRef<number | null>(null);
@@ -891,6 +1120,7 @@ useEffect(() => {
   const savePendingRef = useRef<boolean | null>(null);
   const saveDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const feedHlsRef = useRef<Hls | null>(null);
   const feedVideoShellRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -1185,29 +1415,49 @@ useEffect(() => {
 
     setViewerSourceRect(rect ?? null);
 
-    // Capture feed video time so viewer starts at the same position
-    const video = videoRef.current;
+    const rootVideo = videoRef.current;
     const isRootVideo = mediaUrl === videoPlaybackUrl || mediaUrl === videoThumbnailUrl;
-    const capturedTime = (isRootVideo && video) ? video.currentTime : 0;
-    setViewerInitialVideoTime(capturedTime);
-    viewerVideoTimeRef.current = capturedTime;
 
-    video?.pause();
+    if (isRootVideo && rootVideo) {
+      setViewerInitialVideoTime(rootVideo.currentTime);
+      viewerVideoTimeRef.current = rootVideo.currentTime;
+      rootVideo.pause();
+      setViewerExternalVideo(null);
+    } else {
+      const handle = mediaVideoHandlesRef.current.get(mediaUrl);
+      const videoEl = handle?.getVideoElement() ?? null;
+      setViewerInitialVideoTime(0);
+      viewerVideoTimeRef.current = 0;
+      setViewerExternalVideo(videoEl);
+    }
+
     setSelectedMediaUrl(mediaUrl);
     void handleOpenCommentsPanel();
   }
 
   function closeMediaViewer() {
-    // Restore video position from viewer before resuming
-    const video = videoRef.current;
-    const resumeTime = viewerVideoTimeRef.current;
-    if (isMobile && video && resumeTime > 0) {
-      video.currentTime = resumeTime;
+    // Move grid video back to its feed slot BEFORE React state updates unmount the viewer slot
+    if (selectedMediaUrl && viewerExternalVideo) {
+      const handle = mediaVideoHandlesRef.current.get(selectedMediaUrl);
+      const feedSlot = handle?.getFeedSlot();
+      if (feedSlot && viewerExternalVideo) {
+        viewerExternalVideo.style.objectFit = "cover";
+        feedSlot.appendChild(viewerExternalVideo);
+      }
     }
+
+    setViewerExternalVideo(null);
+
+    // Root video: restore viewer position
+    const resumeTime = viewerVideoTimeRef.current;
+    const isRootVideo = selectedMediaUrl === videoPlaybackUrl || selectedMediaUrl === videoThumbnailUrl;
+    if (resumeTime > 0 && isRootVideo && videoRef.current) {
+      videoRef.current.currentTime = resumeTime;
+    }
+
     viewerVideoTimeRef.current = 0;
     setSelectedMediaUrl(null);
     setCommentsPanelOpen(false);
-    // Autoplay IntersectionObserver effect re-runs (selectedMediaUrl → null) and resumes the video
   }
   async function refreshAfterModeration() {
     await onModerationComplete?.();
@@ -2491,55 +2741,59 @@ const rootVideoShellAspectRatio =
     };
   }, [isVideoReady, videoPlaybackUrl]);
 
-      useEffect(() => {
+  // Set up HLS.js (required for Chrome — HLS .m3u8 is not natively supported).
+  // Safari supports HLS natively via <video src>, so we skip hls.js there.
+  // Runs when the video shell is in viewport range (shouldLoadFeedVideo = true).
+  useEffect(() => {
     const video = videoRef.current;
+    if (!video || !videoPlaybackUrl || !shouldLoadFeedVideo) return;
 
-    if (!video || isMobile || !videoPlaybackUrl) return;
+    // Destroy any previous instance
+    feedHlsRef.current?.destroy();
+    feedHlsRef.current = null;
+    video.muted = true;
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry) return;
+    const isHls = videoPlaybackUrl.includes(".m3u8");
 
-        if (entry.intersectionRatio < 0.35) {
-          video.pause();
-        }
-      },
-      {
-        threshold: [0, 0.35, 0.5, 0.75, 1],
-      }
-    );
-
-    observer.observe(video);
+    if (isHls && Hls.isSupported()) {
+      const hls = new Hls({ enableWorker: true, startLevel: -1, maxBufferLength: 30 });
+      feedHlsRef.current = hls;
+      hls.loadSource(videoPlaybackUrl);
+      hls.attachMedia(video);
+    } else {
+      // Safari native HLS or direct MP4
+      video.src = videoPlaybackUrl;
+    }
 
     return () => {
-      observer.disconnect();
+      feedHlsRef.current?.destroy();
+      feedHlsRef.current = null;
+      video.removeAttribute("src");
+      video.load();
     };
-  }, [isMobile, videoPlaybackUrl]);
+  }, [videoPlaybackUrl, shouldLoadFeedVideo]);
 
-  // Ensure muted is set as a DOM property (React JSX muted prop is unreliable on iOS Safari)
-  useEffect(() => {
-    if (videoRef.current) videoRef.current.muted = isMobile;
-  }, [isMobile]);
-
-  // Mobile autoplay: play when ≥60% visible, pause when <60%. Re-runs when viewer opens/closes.
+  // Autoplay muted: play when ≥50% visible, pause otherwise.
+  // Re-runs after metadata loads (videoMetadataLoaded) so the observer reads the correct
+  // intersection once the element switches from display:none to display:block.
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !isMobile || !videoPlaybackUrl || !shouldLoadFeedVideo || selectedMediaUrl) return;
+    if (!video || !videoPlaybackUrl || !shouldLoadFeedVideo || !videoMetadataLoaded || selectedMediaUrl) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry) return;
-        if (entry.intersectionRatio >= 0.6) {
+        if (entry.intersectionRatio >= 0.5) {
           video.play().catch(() => undefined);
         } else {
           video.pause();
         }
       },
-      { threshold: [0, 0.6] }
+      { threshold: [0, 0.5] }
     );
     observer.observe(video);
     return () => observer.disconnect();
-  }, [isMobile, videoPlaybackUrl, shouldLoadFeedVideo, selectedMediaUrl]);
+  }, [videoPlaybackUrl, shouldLoadFeedVideo, videoMetadataLoaded, selectedMediaUrl]);
 
     const cleanPostText = typeof (localText ?? post.text) === "string"
       ? (localText ?? post.text).trim()
@@ -2916,6 +3170,22 @@ style={{
         {isLiveActive ? "En vivo" : activeLiveData?.status === "ended" ? "Finalizado" : "Live Programado"}
       </div>
 
+      {/* Botón "Abrir panel" — solo para el creador cuando el live ya terminó */}
+      {currentUserId === post.authorId && activeLiveData?.status === "ended" && (
+        <button
+          type="button"
+          onClick={() => setLiveCreatorOpen(true)}
+          style={{
+            position: "absolute", top: 8, left: 8, zIndex: 4,
+            height: 36, padding: "0 18px", borderRadius: 10, border: "none",
+            background: "linear-gradient(135deg, #a855f7 0%, #d946b8 100%)", color: "#fff", fontWeight: 600,
+            fontSize: 13, fontFamily: fontStack, cursor: "pointer", whiteSpace: "nowrap",
+          }}
+        >
+          Abrir panel para ver estadísticas
+        </button>
+      )}
+
       {/* Botón "Abrir centro de control" — overlay top-center, solo para el creador del live activo */}
       {currentUserId === post.authorId && isLivePlayer && (
         <button
@@ -3060,35 +3330,61 @@ style={{
             </svg>
           ) : (
             <>
-              <svg
-                width="52" height="52" viewBox="0 0 22 22" fill="none"
-                style={{ flexShrink: 0, position: "relative", zIndex: 1, animation: "livePulseIcon 2s ease-in-out infinite" }}
-              >
-                <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
-                <circle cx="11" cy="11" r="6" fill="#ef4444" />
-              </svg>
+              {!isMobile && (
+                <svg
+                  width="52" height="52" viewBox="0 0 22 22" fill="none"
+                  style={{ flexShrink: 0, position: "relative", zIndex: 1, animation: "livePulseIcon 2s ease-in-out infinite" }}
+                >
+                  <circle cx="11" cy="11" r="10" stroke="#ef4444" strokeWidth="1.4" fill="none" />
+                  <circle cx="11" cy="11" r="6" fill="#ef4444" />
+                </svg>
+              )}
               {(isOwner || isOwnPost) && post.postType === "live" && (
-                <div style={{ position: "absolute", top: "calc(50% + 38px)", left: "50%", transform: "translateX(-50%)", zIndex: 2 }}>
+                <div style={{ position: "absolute", top: isMobile ? "62%" : "calc(50% + 38px)", left: "50%", transform: isMobile ? "translate(-50%, -50%)" : "translateX(-50%)", zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
                   {(activeLiveData?.liveStreamId || activeLiveData?.broadcastMode) ? (
-                    <button
-                      type="button"
-                      onClick={() => setLiveCreatorOpen(true)}
-                      style={{
-                        height: 36,
-                        padding: "0 18px",
-                        borderRadius: 10,
-                        border: "none",
-                        background: "rgba(168,85,255,0.55)",
-                        color: "#fff",
-                        fontWeight: 600,
-                        fontSize: 13,
-                        fontFamily: fontStack,
-                        cursor: "pointer",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      Abrir panel para comenzar con la transmisión
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setLiveCreatorOpen(true)}
+                        style={{
+                          height: 36,
+                          padding: "0 18px",
+                          borderRadius: 10,
+                          border: "none",
+                          background: "#a855f7",
+                          color: "#fff",
+                          fontWeight: 600,
+                          fontSize: 13,
+                          fontFamily: fontStack,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Abrir panel para comenzar con la transmisión
+                      </button>
+                      {activeLiveData?.broadcastMode === "rtmp" && activeLiveData?.liveStreamId && (
+                        <button
+                          type="button"
+                          onClick={() => setLiveSetupOpen(true)}
+                          style={{
+                            width: "100%",
+                            height: 36,
+                            padding: "0 18px",
+                            borderRadius: 10,
+                            border: "none",
+                            background: "#60a5fa",
+                            color: "#fff",
+                            fontWeight: 600,
+                            fontSize: 13,
+                            fontFamily: fontStack,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Ver Key y URL de transmisión
+                        </button>
+                      )}
+                    </>
                   ) : (
                     <button
                       type="button"
@@ -3098,7 +3394,7 @@ style={{
                         padding: "0 18px",
                         borderRadius: 10,
                         border: "none",
-                        background: "rgba(239,68,68,0.55)",
+                        background: "#ef4444",
                         color: "#fff",
                         fontWeight: 600,
                         fontSize: 13,
@@ -3426,13 +3722,11 @@ style={{
   <video
     ref={(el) => {
       videoRef.current = el;
-      // React's `muted` JSX prop doesn't reliably set the DOM property on iOS Safari
-      if (el) el.muted = isMobile;
+      if (el) el.muted = true;
     }}
-    src={videoPlaybackUrl}
+    muted
     controls={!isMobile}
     playsInline
-    preload="metadata"
     poster={videoThumbnailUrl ?? undefined}
     onClick={(e) => {
       if (isMobile) {
@@ -3465,23 +3759,6 @@ cursor: isMobile ? "pointer" : "default",
   />
 )}
 
-{!isMobile && (
-  <div
-    aria-hidden="true"
-    style={{
-      position: "absolute",
-      inset: 0,
-      zIndex: 3,
-      display: "grid",
-      placeItems: "center",
-      pointerEvents: "none",
-    }}
-  >
-    <svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.78)" width="104" height="104" style={{ marginLeft: 5, filter: "drop-shadow(0 1px 5px rgba(0,0,0,0.4))" }}>
-      <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-    </svg>
-  </div>
-)}
 
 {isMobile && (
   <button
@@ -3619,49 +3896,27 @@ function getCarouselMediaFrameWidth(media: DisplayMediaItem) {
         if (blocked) return null;
 
         const durationLabel = formatMediaDuration(media.duration);
+        if (!durationLabel) return null;
 
         return (
-          <>
-            <div
-              aria-hidden="true"
-              style={{
-                position: "absolute",
-                inset: 0,
-                zIndex: 3,
-                display: "grid",
-                placeItems: "center",
-                pointerEvents: "none",
-              }}
-            >
-              <span
-                style={{ display: "contents" }}
-              >
-                <svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.78)" width="81" height="81" style={{ marginLeft: 3, filter: "drop-shadow(0 1px 5px rgba(0,0,0,0.4))" }}>
-                  <path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                </svg>
-              </span>
-            </div>
-
-            {durationLabel && (
-              <span
-                aria-hidden="true"
-                style={{
-                  position: "absolute",
-                  right: 8,
-                  bottom: 8,
-                  zIndex: 3,
-                  color: "#fff",
-                  fontSize: 13,
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  letterSpacing: "-0.01em",
-                  textShadow: "0 1px 4px rgba(0,0,0,0.5)",
-                }}
-              >
-                {durationLabel}
-              </span>
-            )}
-          </>
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              right: 8,
+              bottom: 8,
+              zIndex: 3,
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 700,
+              lineHeight: 1,
+              letterSpacing: "-0.01em",
+              textShadow: "0 1px 4px rgba(0,0,0,0.5)",
+              pointerEvents: "none",
+            }}
+          >
+            {durationLabel}
+          </span>
         );
       }
 
@@ -3791,50 +4046,47 @@ const mediaRatio = mediaAspectRatios[media.url] ?? mediaAspectRatios[feedMediaUr
 const shouldContainTile = shouldContainMedia(mediaRatio);
 const mediaObjectFit = "cover";
 const mediaScale = 1;
-        if (media.type === "video" && !media.thumbnailUrl && media.playbackUrl) {
+        if (media.type === "video" && media.playbackUrl) {
           return (
             <>
-              {shouldContainTile && renderBlurredMediaBackdrop(media.playbackUrl, "video")}
+              {shouldContainTile && media.thumbnailUrl && renderBlurredMediaBackdrop(media.thumbnailUrl, "image")}
 
-              <video
-                src={media.playbackUrl}
-                muted
-                playsInline
-                preload="metadata"
-                draggable={false}
-                style={{
-                  ...tileImageStyle,
-objectFit: mediaObjectFit,
-background: shouldContainTile ? "transparent" : "#050505",
-transform: `scale(${mediaScale})`,
-transformOrigin: "center center",
+              <MediaGridVideoItem
+                ref={(handle) => {
+                  if (handle) mediaVideoHandlesRef.current.set(media.url, handle);
+                  else mediaVideoHandlesRef.current.delete(media.url);
                 }}
-                onLoadedMetadata={(event) => {
-                  const video = event.currentTarget;
-                  const ratio =
-                    video.videoWidth > 0 && video.videoHeight > 0
-                      ? video.videoWidth / video.videoHeight
-                      : 1;
-
+                hlsUrl={media.hlsUrl}
+                playbackUrl={media.playbackUrl}
+                thumbnailUrl={media.thumbnailUrl}
+                duration={media.duration}
+                tileStyle={{
+                  ...tileImageStyle,
+                  objectFit: mediaObjectFit as CSSProperties["objectFit"],
+                  background: shouldContainTile ? "transparent" : "#050505",
+                  transform: `scale(${mediaScale})`,
+                  transformOrigin: "center center",
+                }}
+                onRatioLoaded={(ratio) => {
                   setMediaAspectRatios((prev) => ({
                     ...prev,
                     [media.url]: ratio,
                   }));
-
                   setLoadedMediaUrls((prev) => ({
                     ...prev,
                     [media.url]: true,
                   }));
                 }}
-                onError={() => {
+                onLoadError={() => {
                   setFailedMediaUrls((prev) => ({
                     ...prev,
                     [media.url]: true,
                   }));
                 }}
+                onTimeUpdate={(t) => {
+                  mediaCurrentTimesRef.current[media.url] = t;
+                }}
               />
-
-              {renderVideoOverlay(media, premiumState.isBlocked)}
             </>
           );
         }
@@ -4738,6 +4990,7 @@ padding: "0 0 2px 0",
   isMobile={isMobile}
   mediaItems={viewerMediaItems}
   initialMediaUrl={selectedMediaUrl}
+  externalVideoElement={viewerExternalVideo}
   post={post}
   author={{
     authorName: postAuthor.authorName,

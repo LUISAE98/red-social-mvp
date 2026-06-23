@@ -56,6 +56,33 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true });
 }
 
+// PATCH /api/cf-broadcast — heartbeat: keeps liveData.heartbeatAt fresh while broadcasting
+export async function PATCH(req: NextRequest) {
+  const uid = await verifyAndGetUid(req);
+  if (!uid) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+
+  const body = await req.json().catch(() => ({}));
+  const postId = body?.postId as string | undefined;
+  if (!postId) return NextResponse.json({ error: "postId requerido" }, { status: 400 });
+
+  const db = getAdminFirestore();
+  const postSnap = await db.collection("posts").doc(postId).get();
+  if (!postSnap.exists || postSnap.data()?.authorId !== uid) {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
+
+  // Only write heartbeat if the live is still active
+  if (postSnap.data()?.liveData?.status !== "live") {
+    return NextResponse.json({ ok: true });
+  }
+
+  await db.collection("posts").doc(postId).update({
+    "liveData.heartbeatAt": FieldValue.serverTimestamp(),
+  });
+
+  return NextResponse.json({ ok: true });
+}
+
 // DELETE /api/cf-broadcast?postId=xxx — marks live as ended and clears live rings
 export async function DELETE(req: NextRequest) {
   const uid = await verifyAndGetUid(req);

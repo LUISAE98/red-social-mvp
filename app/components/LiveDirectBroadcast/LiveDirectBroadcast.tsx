@@ -49,12 +49,51 @@ export default function LiveDirectBroadcast({
   const isPortraitRef = useRef(false);
   const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
   const setLiveSentRef = useRef(false);
+  const cachedTokenRef = useRef<string | null>(null);
 
   const [status, setStatus] = useState<BroadcastStatus>("idle");
   const [micMuted, setMicMuted] = useState(false);
   const [camOff, setCamOff] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMedia, setHasMedia] = useState(false);
+
+  // ── Heartbeat: escribe liveData.heartbeatAt cada 20s mientras transmite ───
+  useEffect(() => {
+    if (status !== "live") return;
+
+    const sendHeartbeat = async () => {
+      if (!isLiveRef.current) return;
+      try {
+        const token = await getAuth().currentUser?.getIdToken();
+        if (!token) return;
+        cachedTokenRef.current = token;
+        await fetch("/api/cf-broadcast", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ postId }),
+        });
+      } catch { /* best effort */ }
+    };
+
+    void sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 20_000);
+    return () => clearInterval(interval);
+  }, [status, postId]);
+
+  // ── beforeunload: termina el live si el usuario cierra el navegador ────────
+  useEffect(() => {
+    const handler = () => {
+      if (!isLiveRef.current || !cachedTokenRef.current) return;
+      // keepalive: true asegura que la request se complete aunque la página cierre
+      fetch(`/api/cf-broadcast?postId=${encodeURIComponent(postId)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${cachedTokenRef.current}` },
+        keepalive: true,
+      }).catch(() => {});
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [postId]);
 
   // ── Canvas compositing loop ────────────────────────────────────────────────
   const startDrawLoop = useCallback(() => {
@@ -583,7 +622,7 @@ export default function LiveDirectBroadcast({
           <button type="button" onClick={stopBroadcast} style={{
             height: 36, padding: "0 16px", borderRadius: 10,
             border: "none",
-            background: "rgba(239,68,68,0.72)",
+            background: "#ef4444",
             color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em", cursor: "pointer", fontFamily: FONT,
           }}>
             Detener transmisión

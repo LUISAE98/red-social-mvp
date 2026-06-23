@@ -21,9 +21,12 @@ import {
   hideSuperComment,
   showSuperComment,
   deleteSuperComment,
+  updateLiveSuperCommentEnabled,
 } from "@/lib/liveChat/super-comment-service";
 import { useAuth } from "@/app/providers";
 import LiveDirectBroadcast from "@/app/components/LiveDirectBroadcast/LiveDirectBroadcast";
+import LiveStreamSetup from "@/app/components/LiveStreamSetup/LiveStreamSetup";
+import SuperCommentConfigPanel from "@/app/components/LiveChat/SuperCommentConfigPanel";
 import { subscribeToViewerCount, updatePeakViewers, subscribeToUniqueViewerCount } from "@/lib/liveKit/liveViewers";
 
 const FONT = 'inherit';
@@ -66,6 +69,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [togglingChat, setTogglingChat] = useState(false);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [optimisticChatEnabled, setOptimisticChatEnabled] = useState<boolean | null>(null);
+  const [togglingScEnabled, setTogglingScEnabled] = useState(false);
+  const [optimisticScEnabled, setOptimisticScEnabled] = useState<boolean | null>(null);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   // Ref so the resize handler always reads the latest value without stale closure
   const isBroadcastingRef = useRef(false);
@@ -81,6 +86,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [activeSuperOverlay, setActiveSuperOverlay] = useState<SuperComment | null>(null);
   const [superCommentTab, setSuperCommentTab] = useState<"nuevos" | "reproducidos">("nuevos");
   const [playingOverlay, setPlayingOverlay] = useState<SuperComment | null>(null);
+  const [liveSetupOpen, setLiveSetupOpen] = useState(false);
+  const [scConfigOpen, setScConfigOpen] = useState(false);
 
   // Freeze the effective layout orientation during a broadcast. The `portrait`
   // prop can change mid-broadcast (e.g. LiveInlinePlayer detects stream orientation)
@@ -95,6 +102,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const liveStatus = liveData?.status;
   const chatEnabledFromFirestore = liveData?.chatEnabled !== false;
   const chatEnabled = optimisticChatEnabled ?? chatEnabledFromFirestore;
+  const scEnabledFromFirestore = liveData?.superCommentConfig?.enabled !== false;
+  const scEnabled = optimisticScEnabled ?? scEnabledFromFirestore;
 
   const hlsUrl =
     post.playback?.hlsUrl ??
@@ -120,6 +129,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     console.log("[LiveCreatorPanel] liveData.chatEnabled changed to:", liveData?.chatEnabled, "→ resetting optimistic");
     setOptimisticChatEnabled(null);
   }, [liveData?.chatEnabled]);
+
+  useEffect(() => {
+    setOptimisticScEnabled(null);
+  }, [liveData?.superCommentConfig?.enabled]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -177,6 +190,21 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       setTogglingChat(false);
     }
   }, [togglingChat, user, post.id, chatEnabled]);
+
+  const handleToggleSuperComments = useCallback(async () => {
+    if (togglingScEnabled || !user) return;
+    const newValue = !scEnabled;
+    setTogglingScEnabled(true);
+    setOptimisticScEnabled(newValue);
+    try {
+      await updateLiveSuperCommentEnabled(post.id, newValue);
+      setOptimisticScEnabled(newValue);
+    } catch {
+      setOptimisticScEnabled(null);
+    } finally {
+      setTogglingScEnabled(false);
+    }
+  }, [togglingScEnabled, user, post.id, scEnabled]);
 
   const handleMuteToggle = useCallback(async (userId: string) => {
     const isMuted = liveData?.mutedUsers?.includes(userId) ?? false;
@@ -413,38 +441,80 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   }
 
   function renderSuperCommentsSection() {
-    if (broadcastMode !== "direct") {
-      return (
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT, textAlign: "center", padding: "0 16px" }}>
-            Los supercomentarios solo están disponibles en transmisión directa
-          </span>
-        </div>
-      );
-    }
-
     const visible = superComments.filter((sc) => !sc.isDeleted);
-
-    if (visible.length === 0) {
-      return (
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="6" width="20" height="12" rx="2" />
-            <path d="M6 10h.01M10 10h8M6 14h.01M10 14h8" />
-          </svg>
-          <span style={{ fontSize: 12, color: "rgba(255,255,255,0.15)", fontFamily: FONT }}>
-            Sin supercomentarios aún
-          </span>
-        </div>
-      );
-    }
-
     const nuevos = visible.filter((sc) => !sc.played);
     const reproducidos = visible.filter((sc) => sc.played);
     const tabItems = superCommentTab === "nuevos" ? nuevos : reproducidos;
 
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* Toggle activar/desactivar supercomentarios */}
+        <div style={{
+          flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end",
+          gap: 8, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)",
+        }}>
+          <span style={{ fontSize: 13, fontWeight: 500, color: "#a855f7", fontFamily: FONT }}>
+            {scEnabled ? "Desactivar supercomentarios" : "Activar supercomentarios"}
+          </span>
+          <button
+            type="button"
+            onClick={handleToggleSuperComments}
+            disabled={togglingScEnabled}
+            aria-label={scEnabled ? "Desactivar supercomentarios" : "Activar supercomentarios"}
+            style={{
+              border: "none", padding: 0, background: "transparent",
+              cursor: togglingScEnabled ? "not-allowed" : "pointer",
+              opacity: togglingScEnabled ? 0.6 : 1, flexShrink: 0,
+              display: "flex", alignItems: "center",
+            }}
+          >
+            <span
+              aria-hidden="true"
+              style={{
+                width: 40, height: 22, borderRadius: 11,
+                background: scEnabled ? "#a855ff" : "transparent",
+                boxShadow: scEnabled ? "none" : "inset 0 0 0 1.5px rgba(168,85,255,0.3)",
+                position: "relative", display: "inline-block",
+                transition: "background 0.18s",
+              }}
+            >
+              <span style={{
+                position: "absolute", top: 3,
+                left: scEnabled ? 21 : 3,
+                width: 16, height: 16, borderRadius: "50%",
+                background: scEnabled ? "#fff" : "rgba(196,168,255,0.45)",
+                boxShadow: scEnabled ? "0 1px 3px rgba(0,0,0,0.35)" : "none",
+                transition: "left 0.18s, background 0.18s",
+              }} />
+            </span>
+          </button>
+        </div>
+
+        {/* Botón config — solo antes de iniciar el live */}
+        {!isBroadcasting && (
+          <div style={{ flexShrink: 0, padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <button
+              type="button"
+              onClick={() => setScConfigOpen(true)}
+              style={{
+                width: "100%", padding: "10px 0", borderRadius: 10, border: "none",
+                background: "linear-gradient(135deg, rgba(168,85,255,0.85), rgba(124,58,237,0.85))",
+                color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+              }}
+            >
+              Configuración de supercomentarios
+            </button>
+          </div>
+        )}
+
+        {broadcastMode !== "direct" ? (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT, textAlign: "center", padding: "0 16px" }}>
+              Los supercomentarios solo están disponibles en transmisión directa
+            </span>
+          </div>
+        ) : (
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
         {/* Tab bar: Nuevos / Reproducidos */}
         <div style={{
           flexShrink: 0, display: "flex",
@@ -578,6 +648,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             </div>
           </div>
         )}
+          </div>
+        )}
       </div>
     );
   }
@@ -628,6 +700,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               border: "none", padding: 0, background: "transparent",
               cursor: togglingChat ? "not-allowed" : "pointer",
               opacity: togglingChat ? 0.6 : 1, flexShrink: 0,
+              display: "flex", alignItems: "center",
             }}
           >
             <span
@@ -766,8 +839,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         </div>
       )}
 
-      {/* ── Header — se oculta en desktop horizontal (va dentro de la card de cámara) */}
-      {!(isDesktop && !layoutPortrait) && <div style={{
+      {/* ── Header — se oculta en desktop (va dentro de la card de cámara) */}
+      {!isDesktop && <div style={{
         display: "flex", alignItems: "center", justifyContent: "space-between",
         paddingTop: "max(14px, env(safe-area-inset-top, 0px))",
         paddingBottom: 14,
@@ -808,77 +881,40 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           </div>
         </div>
 
-        {liveStatus !== "live" && (
-          <div style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            padding: "4px 10px",
-            borderRadius: 7, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em",
-            background: "rgba(255,255,255,0.06)",
-            color: "rgba(255,255,255,0.45)",
-            border: "1px solid rgba(255,255,255,0.1)",
-            backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
-          }}>
-            {liveStatus ? (STATUS_LABELS[liveStatus] ?? liveStatus) : "—"}
-          </div>
-        )}
-      </div>}
-
-      {/* ── Body ───────────────────────────────────────────────────────────── */}
-      {isDesktop && layoutPortrait ? (
-        /* ── Desktop + Portrait live ──────────────────────────────────────── */
-        <div style={{ flex: 1, overflow: "hidden", display: "flex" }}>
-
-          {/* Left area */}
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
-            {/* Top half: Supercomentarios | Chat */}
-            <div style={{ flex: 1, display: "flex", overflow: "hidden", borderBottom: DIV }}>
-
-              {/* Supercomentarios */}
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", borderRight: DIV, overflow: "hidden" }}>
-                {sectionHeader("Supercomentarios")}
-                {renderSuperCommentsSection()}
-              </div>
-
-              {/* Chat en vivo */}
-              {renderChatSection()}
-            </div>
-
-            {/* Bottom half: Estadísticas */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              {sectionHeader("Estadísticas")}
-              {renderStatsSection()}
-            </div>
-          </div>
-
-          {/* Right column: Live video portrait (story shape) */}
-          {(showVideo || showDirectBroadcast) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {broadcastMode === "rtmp" && liveData?.liveStreamId && (
+            <button
+              type="button"
+              onClick={() => setLiveSetupOpen(true)}
+              style={{
+                height: 26, padding: "0 10px", borderRadius: 7, border: "none",
+                background: "#60a5fa", color: "#fff", fontWeight: 600,
+                fontSize: 11, fontFamily: FONT, cursor: "pointer",
+                whiteSpace: "nowrap", flexShrink: 0,
+              }}
+            >
+              Ver Key y URL de transmisión
+            </button>
+          )}
+          {liveStatus !== "live" && (
             <div style={{
-              flexShrink: 0, display: "flex",
-              alignItems: "center", justifyContent: "center",
-              padding: "16px", borderLeft: DIV,
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "4px 10px",
+              borderRadius: 7, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em",
+              background: "rgba(255,255,255,0.06)",
+              color: "rgba(255,255,255,0.45)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
             }}>
-              <div style={{
-                position: "relative",
-                height: "clamp(220px, calc(100dvh - 100px), 540px)",
-                aspectRatio: "9 / 16",
-                borderRadius: 18,
-                overflow: "hidden",
-                background: "#000",
-              }}>
-                {showDirectBroadcast ? (
-                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
-                ) : (
-                  <VideoPreview hlsUrl={hlsUrl!} fill />
-                )}
-                {isEnded && renderEndedOverlay()}
-              </div>
+              {liveStatus ? (STATUS_LABELS[liveStatus] ?? liveStatus) : "—"}
             </div>
           )}
         </div>
+      </div>}
 
-      ) : isDesktop && !layoutPortrait ? (
-        /* ── Desktop + Horizontal live — 4 cards flotantes ──────────────── */
+      {/* ── Body ───────────────────────────────────────────────────────────── */}
+      {isDesktop ? (
+        /* ── Desktop — 4 cards flotantes (horizontal y vertical) ────────── */
         <div style={{
           flex: 1, overflow: "hidden",
           display: "flex", flexDirection: "column",
@@ -926,13 +962,40 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     </span>
                   )}
                 </div>
+                {broadcastMode === "rtmp" && liveData?.liveStreamId && (
+                  <button
+                    type="button"
+                    onClick={() => setLiveSetupOpen(true)}
+                    style={{
+                      height: 26, padding: "0 10px", borderRadius: 7, border: "none",
+                      background: "#60a5fa", color: "#fff", fontWeight: 600,
+                      fontSize: 11, fontFamily: FONT, cursor: "pointer",
+                      whiteSpace: "nowrap", flexShrink: 0,
+                    }}
+                  >
+                    Ver Key y URL de transmisión
+                  </button>
+                )}
               </div>
               <div style={{ flex: 1, position: "relative", overflow: "hidden", minHeight: 0, background: "#000", margin: "0 10px 10px", borderRadius: 12 }}>
-                {showDirectBroadcast ? (
+                {layoutPortrait && (showDirectBroadcast || showVideo) ? (
+                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ position: "relative", height: "100%", aspectRatio: "9 / 16", overflow: "hidden", borderRadius: 10 }}>
+                      {showDirectBroadcast ? (
+                        <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
+                      ) : (
+                        <>
+                          <VideoPreview hlsUrl={hlsUrl!} fill showLiveBadge={liveStatus === "live"} />
+                          {isEnded && renderEndedOverlay()}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ) : showDirectBroadcast ? (
                   <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
                 ) : showVideo ? (
                   <>
-                    <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
+                    <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} />
                     {isEnded && renderEndedOverlay()}
                   </>
                 ) : (
@@ -1001,7 +1064,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               {showDirectBroadcast ? (
                 <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
               ) : (
-                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
+                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} />
               )}
               {isEnded && renderEndedOverlay()}
             </div>
@@ -1069,7 +1132,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               </div>
             ) : showVideo ? (
               <div style={{ width: "100%", height: "100%", position: "relative" }}>
-                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" />
+                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} />
                 {isEnded && renderEndedOverlay()}
               </div>
             ) : (
@@ -1146,7 +1209,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 </div>
               ) : (
                 <>
-                  <VideoPreview hlsUrl={hlsUrl!} />
+                  <VideoPreview hlsUrl={hlsUrl!} showLiveBadge={liveStatus === "live"} />
                   {isEnded && renderEndedOverlay()}
                 </>
               )}
@@ -1162,6 +1225,22 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             </div>
           </div>
         </div>
+      )}
+      {broadcastMode === "rtmp" && liveData?.liveStreamId && (
+        <LiveStreamSetup
+          open={liveSetupOpen}
+          onClose={() => setLiveSetupOpen(false)}
+          postId={post.id}
+          liveStreamId={liveData.liveStreamId}
+          broadcastMode="rtmp"
+        />
+      )}
+      {broadcastMode === "direct" && (
+        <SuperCommentConfigPanel
+          open={scConfigOpen}
+          onClose={() => setScConfigOpen(false)}
+          postId={post.id}
+        />
       )}
     </div>,
     document.body
@@ -1276,10 +1355,23 @@ function ModActionBtn({
 // ── VideoPreview ───────────────────────────────────────────────────────────
 // memo: evita re-renders por cambios de estado del panel (chat, viewers, etc.)
 
-const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cover" }: { hlsUrl: string; fill?: boolean; objectFit?: "cover" | "contain" }) {
+const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cover", showLiveBadge }: { hlsUrl: string; fill?: boolean; objectFit?: "cover" | "contain"; showLiveBadge?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const [muted, setMuted] = useState(true);
+
+  function jumpToLive() {
+    const video = videoRef.current;
+    if (!video) return;
+    try {
+      if (video.seekable.length > 0) {
+        const end = video.seekable.end(video.seekable.length - 1);
+        if (Number.isFinite(end)) video.currentTime = end;
+      }
+    } catch {}
+    if (hlsRef.current) hlsRef.current.startLoad();
+    video.play().catch(() => {});
+  }
 
   useEffect(() => {
     const video = videoRef.current;
@@ -1363,6 +1455,39 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
     </button>
   );
 
+  const liveBadge = showLiveBadge ? (
+    <>
+      <style>{`@keyframes vpLivePulse{0%,100%{opacity:1}50%{opacity:0.35}}`}</style>
+      <button
+        type="button"
+        onClick={jumpToLive}
+        aria-label="Ir al momento actual del live"
+        style={{
+          position: "absolute",
+          bottom: "max(14px, env(safe-area-inset-bottom))",
+          right: "max(14px, env(safe-area-inset-right))",
+          zIndex: 10,
+          display: "inline-flex", alignItems: "center", gap: 6,
+          background: "rgba(239,68,68,0.88)",
+          borderRadius: 7, border: "none",
+          padding: "5px 11px 5px 8px",
+          fontFamily: "inherit", fontSize: 11, fontWeight: 700,
+          letterSpacing: "0.06em", color: "#fff",
+          backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+          cursor: "pointer",
+        }}
+      >
+        <span style={{
+          width: 7, height: 7, borderRadius: "50%",
+          background: "#fff", flexShrink: 0,
+          animation: "vpLivePulse 1.4s ease-in-out infinite",
+          display: "inline-block",
+        }} />
+        EN VIVO
+      </button>
+    </>
+  ) : null;
+
   // fill mode: parent provides container size (portrait story card or landscape rounded card)
   if (fill) {
     return (
@@ -1373,6 +1498,7 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
           style={{ width: "100%", height: "100%", objectFit: objectFit, display: "block" }}
         />
         {muteBtn(13, 12, 12, true)}
+        {liveBadge}
       </>
     );
   }
@@ -1386,6 +1512,7 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
         style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
       />
       {muteBtn(13, 8, 8, false)}
+      {liveBadge}
     </div>
   );
 });

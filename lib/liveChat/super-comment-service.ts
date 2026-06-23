@@ -55,6 +55,16 @@ export async function copySuperCommentConfigToLive(
   });
 }
 
+export async function updateLiveSuperCommentEnabled(
+  postId: string,
+  enabled: boolean,
+): Promise<void> {
+  await updateDoc(doc(db, "posts", postId), {
+    "liveData.superCommentConfig.enabled": enabled,
+    updatedAt: serverTimestamp(),
+  });
+}
+
 // ── Submit (pago simulado) ──────────────────────────────────────────────────
 
 export async function submitSuperComment(params: {

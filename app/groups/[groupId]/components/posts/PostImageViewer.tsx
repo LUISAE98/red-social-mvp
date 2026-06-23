@@ -79,6 +79,7 @@ type PostImageViewerProps = {
   sourceRect?: DOMRect | null;
   initialVideoTime?: number;
   onVideoClose?: (currentTime: number) => void;
+  externalVideoElement?: HTMLVideoElement | null;
 };
 
 const fontStack =
@@ -209,6 +210,7 @@ export default function PostImageViewer({
   sourceRect = null,
   initialVideoTime,
   onVideoClose,
+  externalVideoElement = null,
 }: PostImageViewerProps) {
   const [mounted, setMounted] = useState(false);
   const [showExactDate, setShowExactDate] = useState(false);
@@ -254,6 +256,7 @@ export default function PostImageViewer({
   const [mediaAspectRatio, setMediaAspectRatio] = useState<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const externalVideoSlotRef = useRef<HTMLDivElement | null>(null);
   const desktopVideoShellRef = useRef<HTMLDivElement | null>(null);
   const chromeHideTimerRef = useRef<number | null>(null);
   const desktopControlsHideTimerRef = useRef<number | null>(null);
@@ -795,9 +798,85 @@ const previousMedia =
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clearChromeTimer, clearDesktopControlsTimer, open, onClose, totalMedia]);
 
+  // Insert external video into viewer slot synchronously before first paint
+  useLayoutEffect(() => {
+    const slot = externalVideoSlotRef.current;
+    if (!slot || !externalVideoElement) return;
+    // Clear controls BEFORE appending so no native UI flashes during the opening animation
+    externalVideoElement.controls = false;
+    slot.appendChild(externalVideoElement);
+    externalVideoElement.style.objectFit = "contain";
+    if (useMobileLayout) {
+      // Mobile: gesture container must receive touch events; video must not intercept them
+      externalVideoElement.style.pointerEvents = "none";
+    } else {
+      // Desktop: enable native HTML5 controls (original viewer uses <video controls>)
+      externalVideoElement.controls = true;
+    }
+    videoRef.current = externalVideoElement;
+    return () => {
+      externalVideoElement.style.pointerEvents = "";
+      externalVideoElement.controls = false;
+      videoRef.current = null;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalVideoElement]);
+
+  // Sync viewer UI state from external video element (timeupdate, play/pause, etc.)
+  useEffect(() => {
+    if (!externalVideoElement) return;
+
+    function onTimeUpdate() { setVideoCurrentTime(externalVideoElement!.currentTime); }
+    function onPlay() {
+      setVideoPlaying(true);
+      if (useMobileLayout) scheduleChromeHide();
+    }
+    function onPause() { setVideoPlaying(false); }
+    function onEnded() {
+      setVideoPlaying(false);
+      if (useMobileLayout) { clearChromeTimer(); setMobileChromeVisible(true); }
+    }
+    function onLoadedMetadata() {
+      const d = externalVideoElement!.duration;
+      if (Number.isFinite(d) && d > 0) setVideoDuration(d);
+      setVideoReady(true);
+    }
+
+    externalVideoElement.addEventListener("timeupdate", onTimeUpdate);
+    externalVideoElement.addEventListener("play", onPlay);
+    externalVideoElement.addEventListener("pause", onPause);
+    externalVideoElement.addEventListener("ended", onEnded);
+    externalVideoElement.addEventListener("loadedmetadata", onLoadedMetadata);
+
+    // Sync initial state from already-playing video
+    setVideoCurrentTime(externalVideoElement.currentTime);
+    setVideoPlaying(!externalVideoElement.paused);
+    if (externalVideoElement.readyState >= 1) {
+      const d = externalVideoElement.duration;
+      if (Number.isFinite(d) && d > 0) setVideoDuration(d);
+      setVideoReady(true);
+    }
+
+    // Video is already playing when viewer opens — hide chrome so pause icon doesn't flash
+    if (!externalVideoElement.paused && useMobileLayout) {
+      setMobileChromeVisible(false);
+    }
+
+    return () => {
+      externalVideoElement.removeEventListener("timeupdate", onTimeUpdate);
+      externalVideoElement.removeEventListener("play", onPlay);
+      externalVideoElement.removeEventListener("pause", onPause);
+      externalVideoElement.removeEventListener("ended", onEnded);
+      externalVideoElement.removeEventListener("loadedmetadata", onLoadedMetadata);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalVideoElement]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+    // Skip for external video — it's already playing from the feed, no need to reset/seek/play
+    if (externalVideoElement) return;
 
     // Save position of the previous video before resetting
     if (lastVideoSrcRef.current && video.currentTime > 0.5) {
@@ -828,6 +907,7 @@ const previousMedia =
   }, [
     currentMediaIndex,
     currentVideoSrc,
+    externalVideoElement,
     isCurrentVideo,
     open,
     scheduleChromeHide,
@@ -1127,7 +1207,12 @@ const previewUrl = media.url;
             background: "#000",
           }}
         >
-          {currentVideoSrc ? (
+          {externalVideoElement ? (
+            <div
+              ref={externalVideoSlotRef}
+              style={{ position: "absolute", inset: 0, background: "#000" }}
+            />
+          ) : currentVideoSrc ? (
             <>
               {currentVideoPoster && !videoReady ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -2065,7 +2150,19 @@ const previewUrl = media.url;
           )}
 
           {currentMedia.type === "video" ? (
-            currentVideoSrc ? (
+            externalVideoElement ? (
+              <div
+                ref={externalVideoSlotRef}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  height: "100%",
+                  background: "#000",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              />
+            ) : currentVideoSrc ? (
               <video
                 ref={videoRef}
                 src={currentVideoSrc}
