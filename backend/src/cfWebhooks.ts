@@ -172,8 +172,6 @@ export const cfWebhook = onRequest(
           const groupId = typeof result.data.groupId === "string" ? result.data.groupId : null;
 
           const baseUpdate: Record<string, unknown> = {
-            // Always mark recording as processing when stream ends
-            "liveData.vodStatus": "processing",
             updatedAt: now,
           };
 

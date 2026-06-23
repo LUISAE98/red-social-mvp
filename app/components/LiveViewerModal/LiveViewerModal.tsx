@@ -274,16 +274,20 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const playbackId = liveData?.playbackId;
   const isLive = liveData?.status === "live";
   const isEnded = liveData?.status === "ended";
-  // For Mux ended streams the VOD asset has a different playbackId stored in post.playback
+  // For Mux ended streams the VOD asset has a different URL stored in post.playback
   const vodHlsUrl = (isEnded && liveData?.streamProvider === "mux") ? (localPlayback?.hlsUrl ?? null) : null;
-  // Cloudflare Stream stores hlsUrl directly; Mux derives it from playbackId.
+  // For CF ended streams: only use hlsUrl as VOD when vodStatus=ready (recording confirmed)
+  const cfVodHlsUrl = (isEnded && liveData?.streamProvider === "cloudflare" && liveData?.vodStatus === "ready")
+    ? (liveData?.hlsUrl ?? null)
+    : null;
   // Strip query params defensively — older code stored ?dvrEnabled=true which causes Cloudflare to return 204.
-  const rawHlsUrl = vodHlsUrl ?? liveData?.hlsUrl ?? (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null);
+  const rawHlsUrl = vodHlsUrl ?? cfVodHlsUrl ?? (!isEnded ? (liveData?.hlsUrl ?? (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null)) : null);
   const hlsUrl = rawHlsUrl ? rawHlsUrl.split("?")[0] : null;
   // vodReady: when true the HLS URL is a playable recording — no "processing" overlay shown
+  // CF direct live: no recording → vodReady=true when vodStatus absent (skip spinner, just show ended state)
   const vodReady = !isEnded || (
     liveData?.streamProvider === "cloudflare"
-      ? liveData.vodStatus === "ready"
+      ? (liveData?.vodStatus === "ready" || !liveData?.vodStatus)
       : !!vodHlsUrl
   );
 
