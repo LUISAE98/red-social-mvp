@@ -257,7 +257,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const chatEnabled = !isEnded && !isBanned && liveData?.chatEnabled !== false;
 
   // ── Controles horizontales — computed ────────────────────────────────────
-  const dvrAvailable = isLive && !cfWebRTCPlayUrl && dvrDuration >= 60;
+  const dvrAvailable = isLive && !cfWebRTCPlayUrl && dvrDuration >= 120;
   const badgeLift = (hzControlsVisible && dvrAvailable) ? 24 : 0;
 
   useEffect(() => { setMounted(true); }, []);
@@ -297,7 +297,19 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   }, []);
 
   useEffect(() => {
-    if (open) { setShouldRender(true); return; }
+    if (open) {
+      setShouldRender(true);
+      // iOS Safari bloquea speechSynthesis fuera de un gesto del usuario.
+      // Primar aquí (dentro del efecto del gesto que abre el modal) desbloquea
+      // llamadas futuras desde callbacks asíncronos de Firestore.
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const primer = new SpeechSynthesisUtterance("");
+        primer.volume = 0;
+        window.speechSynthesis.speak(primer);
+      }
+      return;
+    }
     setIsFullscreen(false);
     setMobileFsHorizontal(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1267,7 +1279,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           onClick={(e) => {
             if (horizontal) {
               e.stopPropagation();
-              setHzControlsVisible(v => !v);
+              if (dvrAvailable) setHzControlsVisible(v => !v);
             } else {
               const video = videoRef.current;
               if (!video || (isEnded && vodReady)) return;
@@ -1324,7 +1336,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   }
 
   function renderDvrBar(horizontal = false) {
-    if (!isLive || cfWebRTCPlayUrl || dvrDuration < 60) return null;
+    if (!isLive || cfWebRTCPlayUrl || dvrDuration < 120) return null;
     const visible = !horizontal || hzControlsVisible;
     return (
       <div style={{
@@ -1480,7 +1492,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         >
           <div
             style={{ position: "relative", width: "100%", height: "100%" }}
-            onClick={(e) => { e.stopPropagation(); if (!isEnded) setHzControlsVisible(v => !v); }}
+            onClick={(e) => { e.stopPropagation(); if (!isEnded && dvrAvailable) setHzControlsVisible(v => !v); }}
           >
             {renderVideo("contain", true)}
             {renderEndedOverlay()}
@@ -1581,7 +1593,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               borderRadius: 18, overflow: "hidden", flexShrink: 0,
               boxShadow: floatCardShadow,
             }}
-            onClick={(e) => { e.stopPropagation(); if (!isEnded) setHzControlsVisible(v => !v); }}
+            onClick={(e) => { e.stopPropagation(); if (!isEnded && dvrAvailable) setHzControlsVisible(v => !v); }}
           >
             {renderVideo("contain", true)}
             {renderEndedOverlay()}
@@ -1650,7 +1662,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         >
           <div
             style={{ position: "relative", width: "100%", height: "100%" }}
-            onClick={() => { if (!isEnded) setHzControlsVisible(v => !v); }}
+            onClick={() => { if (!isEnded && dvrAvailable) setHzControlsVisible(v => !v); }}
           >
             {renderVideo("cover", true)}
             {renderEndedOverlay()}
