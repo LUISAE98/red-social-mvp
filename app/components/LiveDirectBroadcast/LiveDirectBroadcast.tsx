@@ -18,6 +18,8 @@ interface Props {
   onOrientationChange?: (isPortrait: boolean) => void;
   onBroadcastingChange?: (isBroadcasting: boolean) => void;
   activeSuperOverlay?: SuperComment | null;
+  onHeadphonesChange?: (hasHeadphones: boolean) => void;
+  micMutedForTTS?: boolean;
 }
 
 export default function LiveDirectBroadcast({
@@ -25,6 +27,8 @@ export default function LiveDirectBroadcast({
   onOrientationChange,
   onBroadcastingChange,
   activeSuperOverlay,
+  onHeadphonesChange,
+  micMutedForTTS,
 }: Props) {
   const hiddenVideoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -43,6 +47,9 @@ export default function LiveDirectBroadcast({
   const activeSuperOverlayRef = useRef<SuperComment | null>(null);
   useEffect(() => { activeSuperOverlayRef.current = activeSuperOverlay ?? null; }, [activeSuperOverlay]);
 
+  const onHeadphonesChangeRef = useRef(onHeadphonesChange);
+  useEffect(() => { onHeadphonesChangeRef.current = onHeadphonesChange; }, [onHeadphonesChange]);
+
   const camOffRef = useRef(false);
   const intentionalStopRef = useRef(false);
   const isLiveRef = useRef(false);
@@ -56,6 +63,33 @@ export default function LiveDirectBroadcast({
   const [camOff, setCamOff] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasMedia, setHasMedia] = useState(false);
+
+  // ── Headphone detection ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.enumerateDevices) return;
+    const KEYWORDS = ["headphone", "headset", "earphone", "earbud", "airpod", "bluetooth", "auricular", "audífono", "casco", "casque"];
+    function detect(devices: MediaDeviceInfo[]) {
+      return devices
+        .filter((d) => d.kind === "audiooutput" && d.deviceId !== "default" && d.deviceId !== "communications")
+        .some((d) => KEYWORDS.some((k) => d.label.toLowerCase().includes(k)));
+    }
+    async function check() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        onHeadphonesChangeRef.current?.(detect(devices));
+      } catch { /* best effort */ }
+    }
+    check();
+    navigator.mediaDevices.addEventListener("devicechange", check);
+    return () => navigator.mediaDevices.removeEventListener("devicechange", check);
+  }, []);
+
+  // ── TTS mic muting: silencia el track sin tocar el estado micMuted del usuario ─
+  useEffect(() => {
+    const track = micTrackRef.current;
+    if (!track) return;
+    track.enabled = micMutedForTTS ? false : !micMuted;
+  }, [micMutedForTTS, micMuted]);
 
   // ── Heartbeat: escribe liveData.heartbeatAt cada 20s mientras transmite ───
   useEffect(() => {

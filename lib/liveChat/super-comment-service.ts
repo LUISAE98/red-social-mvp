@@ -7,6 +7,7 @@ import {
   query,
   orderBy,
   serverTimestamp,
+  Timestamp,
   getDoc,
   setDoc,
 } from "firebase/firestore";
@@ -162,15 +163,18 @@ export function deleteSuperComment(postId: string, superCommentId: string): Prom
   );
 }
 
-// Marks the super comment as played and records the wall-clock timestamp.
-// Viewers use playedAt + their HLS latency to show the overlay in sync with the video.
+// Marks the super comment as played.
+// scheduledAtMs: a client-side future timestamp (Date.now() + LEAD_MS) used by all
+// devices to show the overlay simultaneously, regardless of Firestore propagation delay.
 export async function playSuperComment(
   postId: string,
   superComment: SuperComment,
+  scheduledAtMs?: number,
 ): Promise<void> {
   await updateDoc(doc(db, "posts", postId, "superComments", superComment.id), {
     played: true,
     playedAt: serverTimestamp(),
+    ...(scheduledAtMs !== undefined ? { scheduledAt: Timestamp.fromMillis(scheduledAtMs) } : {}),
   });
 }
 

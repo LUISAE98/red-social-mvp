@@ -85,11 +85,15 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [superComments, setSuperComments] = useState<SuperComment[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const isPlayingRef = useRef(false);
+  const scheduledPlayTimeoutRef = useRef<number | null>(null);
+  const LEAD_MS = 800;
   const [activeSuperOverlay, setActiveSuperOverlay] = useState<SuperComment | null>(null);
   const [superCommentTab, setSuperCommentTab] = useState<"nuevos" | "reproducidos">("nuevos");
   const [playingOverlay, setPlayingOverlay] = useState<SuperComment | null>(null);
   const [liveSetupOpen, setLiveSetupOpen] = useState(false);
   const [scConfigOpen, setScConfigOpen] = useState(false);
+  const [headphonesDetected, setHeadphonesDetected] = useState(false);
+  const [micMutedForTTS, setMicMutedForTTS] = useState(false);
 
   // Freeze the effective layout orientation during a broadcast. The `portrait`
   // prop can change mid-broadcast (e.g. LiveInlinePlayer detects stream orientation)
@@ -426,21 +430,37 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   function _doPlay(sc: SuperComment) {
     if (isPlayingRef.current) return;
     isPlayingRef.current = true;
-    setPlayingId(sc.id);
-    setActiveSuperOverlay(sc);
-    setPlayingOverlay(sc);
-    playSuperComment(post.id, sc).catch(() => {});
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(sc.text);
-      utterance.lang = "es-MX";
-      utterance.rate = 1;
-      window.speechSynthesis.speak(utterance);
+    setPlayingId(sc.id); // Highlight in queue immediately
+
+    const scheduledAtMs = Date.now() + LEAD_MS;
+    playSuperComment(post.id, sc, scheduledAtMs).catch(() => {});
+
+    if (scheduledPlayTimeoutRef.current !== null) {
+      window.clearTimeout(scheduledPlayTimeoutRef.current);
     }
-    window.setTimeout(() => {
-      setActiveSuperOverlay(null);
-      isPlayingRef.current = false;
-    }, sc.displaySeconds * 1000);
+    scheduledPlayTimeoutRef.current = window.setTimeout(() => {
+      scheduledPlayTimeoutRef.current = null;
+      setActiveSuperOverlay(sc);
+      setPlayingOverlay(sc);
+
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(sc.text);
+        utterance.lang = "es-MX";
+        utterance.rate = 1;
+        if (!headphonesDetected) {
+          setMicMutedForTTS(true);
+          utterance.onend = () => setMicMutedForTTS(false);
+        }
+        window.speechSynthesis.speak(utterance);
+      }
+
+      window.setTimeout(() => {
+        setActiveSuperOverlay(null);
+        setMicMutedForTTS(false);
+        isPlayingRef.current = false;
+      }, sc.displaySeconds * 1000);
+    }, LEAD_MS);
   }
 
   function handlePlaySC(sc: SuperComment) {
@@ -448,14 +468,24 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   }
 
   function handleCloseSCOverlay() {
+    if (scheduledPlayTimeoutRef.current !== null) {
+      window.clearTimeout(scheduledPlayTimeoutRef.current);
+      scheduledPlayTimeoutRef.current = null;
+    }
     isPlayingRef.current = false;
+    setMicMutedForTTS(false);
     setPlayingOverlay(null);
     setPlayingId(null);
   }
 
   function handleNextSCOverlay() {
     const currentId = playingOverlay?.id;
+    if (scheduledPlayTimeoutRef.current !== null) {
+      window.clearTimeout(scheduledPlayTimeoutRef.current);
+      scheduledPlayTimeoutRef.current = null;
+    }
     isPlayingRef.current = false;
+    setMicMutedForTTS(false);
     setPlayingOverlay(null);
     setPlayingId(null);
     const next = superComments.find((sc) => !sc.isDeleted && !sc.played && sc.id !== currentId);
@@ -1004,7 +1034,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <div style={{ position: "relative", height: "100%", aspectRatio: "9 / 16", overflow: "hidden", borderRadius: 10 }}>
                       {showDirectBroadcast ? (
-                        <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
+                        <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
                       ) : (
                         <>
                           <VideoPreview hlsUrl={hlsUrl!} fill showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
@@ -1013,7 +1043,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     </div>
                   </div>
                 ) : showDirectBroadcast ? (
-                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
+                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
                 ) : showVideo ? (
                   <>
                     <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
@@ -1082,7 +1112,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               position: "relative", background: "#000",
             }}>
               {showDirectBroadcast ? (
-                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
+                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
               ) : (
                 <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
               )}
@@ -1147,7 +1177,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           >
             {showDirectBroadcast ? (
               <div style={{ height: "100%", aspectRatio: "9/16", position: "relative", overflow: "hidden" }}>
-                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
+                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
               </div>
             ) : showVideo ? (
               <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -1223,7 +1253,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             <div style={{ flexShrink: 0, background: "#000", position: "relative" }}>
               {showDirectBroadcast ? (
                 <div style={{ width: "100%", aspectRatio: "9/16", position: "relative" }}>
-                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
+                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
                 </div>
               ) : (
                 <>

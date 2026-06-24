@@ -55,6 +55,7 @@ export type SuperComment = {
   isDeleted: boolean;
   played: boolean;
   playedAt?: Timestamp | null;
+  scheduledAt?: Timestamp | null;
   createdAt: Timestamp | null;
 };
 

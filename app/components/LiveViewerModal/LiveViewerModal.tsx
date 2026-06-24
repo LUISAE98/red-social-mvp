@@ -146,17 +146,26 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
     const unsub = subscribeVisibleSuperComments(post.id, (superComments) => {
       superComments.forEach((sc) => {
-        if (!sc.playedAt || seenPlayedIdsRef.current.has(sc.id)) return;
+        if (seenPlayedIdsRef.current.has(sc.id)) return;
+        if (!sc.scheduledAt && !sc.playedAt) return;
         seenPlayedIdsRef.current.add(sc.id);
 
-        const playedAt = sc.playedAt.toDate();
-
-        // broadcastMode === "direct" garantiza CF/WebRTC — mostrar inmediatamente
-        // corrigiendo el tiempo ya transcurrido desde que el creador lo activó.
-        const elapsedMs = Date.now() - playedAt.getTime();
-        const remainingSecs = sc.displaySeconds - elapsedMs / 1000;
-        if (remainingSecs > 0.5) {
-          showSuperOverlay(sc, remainingSecs);
+        if (sc.scheduledAt) {
+          // Synchronized approach: schedule display at the exact same wall-clock
+          // time as the creator, regardless of Firestore propagation delay.
+          const delay = sc.scheduledAt.toMillis() - Date.now();
+          if (delay > 0) {
+            window.setTimeout(() => showSuperOverlay(sc, sc.displaySeconds), delay);
+          } else {
+            // Arrived late — show with remaining duration
+            const remainingSecs = sc.displaySeconds + delay / 1000;
+            if (remainingSecs > 0.5) showSuperOverlay(sc, remainingSecs);
+          }
+        } else if (sc.playedAt) {
+          // Legacy fallback for SCs without scheduledAt
+          const elapsedMs = Date.now() - sc.playedAt.toDate().getTime();
+          const remainingSecs = sc.displaySeconds - elapsedMs / 1000;
+          if (remainingSecs > 0.5) showSuperOverlay(sc, remainingSecs);
         }
       });
     });
