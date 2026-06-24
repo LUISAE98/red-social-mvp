@@ -195,15 +195,15 @@ export default function LiveChatViewer({
             {feed.map((item) =>
               item.kind === "sc" ? (
                 <div key={item.id} style={{
-                  display: "flex", alignItems: "center", gap: 7, marginBottom: 5,
-                  borderLeft: `3px solid ${item.color}`, paddingLeft: 6,
-                  background: `${item.color}18`, borderRadius: "0 6px 6px 0",
+                  display: "flex", alignItems: "center", gap: 7,
+                  margin: "0 -14px 5px -14px", padding: "6px 14px",
+                  background: `${item.color}80`,
                 }}>
                   <Avatar url={item.avatarUrl} name={item.username} size={20} />
-                  <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "rgba(255,255,255,0.95)", alignSelf: "center" }}>
-                    <strong style={{ fontWeight: 700, color: item.color, marginRight: 5 }}>{item.username}</strong>
-                    <span style={{ fontSize: 10, background: item.color, color: "#000", borderRadius: 4, padding: "1px 5px", marginRight: 5, fontWeight: 700 }}>
-                      ${item.amount} · {item.tierName}
+                  <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "#fff", alignSelf: "center" }}>
+                    <strong style={{ fontWeight: 700, color: "#fff", marginRight: 5 }}>{item.username}</strong>
+                    <span style={{ fontSize: 10, background: "rgba(0,0,0,0.35)", color: "#fff", borderRadius: 4, padding: "1px 5px", marginRight: 5, fontWeight: 700 }}>
+                      +${item.amount.toFixed(2)} MXN
                     </span>
                     {item.text}
                   </span>
@@ -221,43 +221,54 @@ export default function LiveChatViewer({
             <div ref={messagesEndRef} />
           </div>
 
-          {chatEnabled && !liveEnded && user ? (
-            <div style={{
-              paddingTop: 7,
-              paddingLeft: 14,
-              paddingRight: 14,
-              paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
-            }}>
-              {isMuted ? (
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
-                  Fuiste silenciado en este live
-                </div>
-              ) : (
-                <>
-                  {sendError && (
-                    <p style={{ margin: "0 0 5px", fontSize: 11, color: "#f87171", fontFamily: FONT, textAlign: "center" }}>{sendError}</p>
-                  )}
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    {showSuperCommentBtn && (
-                      <BillButton onClick={() => setSuperCommentOpen(true)} />
-                    )}
-                    <input
-                      value={text}
-                      onChange={(e) => setText(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      placeholder="Escribe un mensaje..."
-                      style={{
-                        flex: 1, background: "rgba(255,255,255,0.13)",
-                        border: "1px solid rgba(255,255,255,0.18)", borderRadius: 20,
-                        padding: "8px 13px", color: "#fff", fontSize: 12.5,
-                        fontFamily: FONT, outline: "none",
-                      }}
-                    />
-                    <SendButton onClick={handleSend} active={!!text.trim()} />
+          {chatEnabled && !liveEnded ? (
+            user ? (
+              <div style={{
+                paddingTop: 7,
+                paddingLeft: 14,
+                paddingRight: 14,
+                paddingBottom: "calc(10px + env(safe-area-inset-bottom))",
+              }}>
+                {isMuted ? (
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
+                    Fuiste silenciado en este live
                   </div>
-                </>
-              )}
-            </div>
+                ) : (
+                  <>
+                    {sendError && (
+                      <p style={{ margin: "0 0 5px", fontSize: 11, color: "#f87171", fontFamily: FONT, textAlign: "center" }}>{sendError}</p>
+                    )}
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      {showSuperCommentBtn && (
+                        <BillButton onClick={() => setSuperCommentOpen(true)} />
+                      )}
+                      <input
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Escribe un mensaje..."
+                        style={{
+                          flex: 1, background: "rgba(255,255,255,0.13)",
+                          border: "1px solid rgba(255,255,255,0.18)", borderRadius: 20,
+                          padding: "8px 13px", color: "#fff", fontSize: 12.5,
+                          fontFamily: FONT, outline: "none",
+                        }}
+                      />
+                      <SendButton onClick={handleSend} active={!!text.trim()} />
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div style={{
+                paddingTop: 8, paddingBottom: "calc(8px + env(safe-area-inset-bottom))",
+                textAlign: "center",
+              }}>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
+                  Inicia sesión para comentar
+                </span>
+              </div>
+            )
           ) : (
             <div style={{ height: "calc(8px + env(safe-area-inset-bottom))" }} />
           )}
@@ -289,21 +300,19 @@ export default function LiveChatViewer({
           {feed.map((item) =>
             item.kind === "sc" ? (
               <div key={item.id} style={{
-                display: "flex", gap: 6, padding: "4px 6px", alignItems: "center",
-                borderLeft: `3px solid ${item.color}`,
-                background: `${item.color}14`,
-                borderRadius: "0 6px 6px 0",
-                margin: "2px 0",
+                display: "flex", gap: 6, padding: "6px 10px", alignItems: "center",
+                margin: "2px -10px",
+                background: `${item.color}80`,
               }}>
                 <Avatar url={item.avatarUrl} name={item.username} size={22} />
                 <div style={{ minWidth: 0, flex: 1, alignSelf: "center" }}>
-                  <span style={{ fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: item.color, marginRight: 4 }}>
+                  <span style={{ fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: "#fff", marginRight: 4 }}>
                     {item.username}
                   </span>
-                  <span style={{ fontFamily: FONT, fontSize: 10, background: item.color, color: "#000", borderRadius: 4, padding: "1px 5px", marginRight: 5, fontWeight: 700, verticalAlign: "middle" }}>
-                    ${item.amount} · {item.tierName}
+                  <span style={{ fontFamily: FONT, fontSize: 10, background: "rgba(0,0,0,0.35)", color: "#fff", borderRadius: 4, padding: "1px 5px", marginRight: 5, fontWeight: 700, verticalAlign: "middle" }}>
+                    +${item.amount.toFixed(2)} MXN
                   </span>
-                  <span style={{ fontFamily: FONT, fontSize: 12, color: "rgba(255,255,255,0.85)", lineHeight: 1.4, wordBreak: "break-word" }}>
+                  <span style={{ fontFamily: FONT, fontSize: 12, color: "rgba(255,255,255,0.9)", lineHeight: 1.4, wordBreak: "break-word" }}>
                     {item.text}
                   </span>
                 </div>
