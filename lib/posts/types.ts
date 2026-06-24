@@ -273,6 +273,9 @@ export type PostLiveData = {
   superCommentConfig?: SuperCommentConfig | null;
   activeSuper?: ActiveSuperComment | null;
   streamDelay?: number | null;
+  vodHidden?: boolean | null;
+  vodPrice?: number | null;
+  vodSettingsConfirmed?: boolean | null;
 };
 
 export type PostVideoData = {

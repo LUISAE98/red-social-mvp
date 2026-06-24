@@ -4590,6 +4590,7 @@ padding: "0 0 2px 0",
       streamProvider: "mux",
     }));
   }}
+  onOpenCreatorPanel={() => { setLiveSetupOpen(false); setLiveCreatorOpen(true); }}
 />
 {liveViewerOpen && (
   <LiveViewerModal

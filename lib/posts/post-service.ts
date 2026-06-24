@@ -4607,3 +4607,31 @@ export async function saveLiveBroadcastMode(
     updatedAt: serverTimestamp(),
   });
 }
+
+export async function finalizeVodSettings(
+  postId: string,
+  opts: {
+    keepPinned: boolean;
+    vodHidden: boolean;
+    vodPrice: number | null;
+  }
+): Promise<void> {
+  const now = serverTimestamp();
+  const update: Record<string, unknown> = {
+    "liveData.vodHidden": opts.vodHidden,
+    "liveData.vodPrice": opts.vodPrice,
+    "liveData.vodSettingsConfirmed": true,
+    updatedAt: now,
+  };
+
+  if (!opts.keepPinned) {
+    update.isPinnedInGroup = false;
+    update.groupPinnedAt = null;
+    update.groupPinnedBy = null;
+    update.isPinnedOnProfile = false;
+    update.profilePinnedAt = null;
+    update.profilePinnedBy = null;
+  }
+
+  await updateDoc(doc(db, "posts", postId), update);
+}

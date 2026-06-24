@@ -171,6 +171,9 @@ export const cfWebhook = onRequest(
           const authorId = typeof result.data.authorId === "string" ? result.data.authorId : null;
           const groupId = typeof result.data.groupId === "string" ? result.data.groupId : null;
 
+          const wasPinnedInGroup = result.data.isPinnedInGroup === true;
+          const wasPinnedOnProfile = result.data.isPinnedOnProfile === true;
+
           const baseUpdate: Record<string, unknown> = {
             updatedAt: now,
           };
@@ -178,6 +181,17 @@ export const cfWebhook = onRequest(
           if (currentStatus !== "ended") {
             baseUpdate["liveData.status"] = "ended";
             baseUpdate["liveData.endedAt"] = now;
+            // CF streams always auto-unpin when the broadcast ends
+            if (wasPinnedInGroup) {
+              baseUpdate.isPinnedInGroup = false;
+              baseUpdate.groupPinnedAt = null;
+              baseUpdate.groupPinnedBy = null;
+            }
+            if (wasPinnedOnProfile) {
+              baseUpdate.isPinnedOnProfile = false;
+              baseUpdate.profilePinnedAt = null;
+              baseUpdate.profilePinnedBy = null;
+            }
           }
 
           const updates: Promise<unknown>[] = [result.ref.update(baseUpdate)];
@@ -193,10 +207,18 @@ export const cfWebhook = onRequest(
                 db.collection("groups").doc(groupId).update({ activeLivePostId: FieldValue.delete() })
               );
             }
+            if (wasPinnedOnProfile && authorId) {
+              updates.push(
+                db.collection("users").doc(authorId).collection("profileFeed").doc(postId).set(
+                  { isPinnedOnProfile: false, profilePinnedAt: null, profilePinnedBy: null, updatedAt: now, syncedAt: now },
+                  { merge: true }
+                )
+              );
+            }
           }
 
           await Promise.all(updates);
-          logger.info("cfWebhook live-finished", { liveInputId, postId, previousStatus: currentStatus });
+          logger.info("cfWebhook live-finished", { liveInputId, postId, previousStatus: currentStatus, wasPinnedInGroup, wasPinnedOnProfile });
 
           // Check immediately if a recording is already available (edge case: very short timeout)
           if (accountId && apiToken) {

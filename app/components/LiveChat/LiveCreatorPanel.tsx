@@ -27,6 +27,7 @@ import { useAuth } from "@/app/providers";
 import LiveDirectBroadcast from "@/app/components/LiveDirectBroadcast/LiveDirectBroadcast";
 import LiveStreamSetup from "@/app/components/LiveStreamSetup/LiveStreamSetup";
 import SuperCommentConfigPanel from "@/app/components/LiveChat/SuperCommentConfigPanel";
+import LiveEndSummaryPanel from "@/app/components/LiveChat/LiveEndSummaryPanel";
 import { subscribeToViewerCount, updatePeakViewers, subscribeToUniqueViewerCount } from "@/lib/liveKit/liveViewers";
 
 const FONT = 'inherit';
@@ -112,6 +113,13 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const broadcastMode = liveData?.broadcastMode ?? null;
   const showDirectBroadcast = broadcastMode === "direct" && !isEnded;
   const showVideo = (liveStatus === "live" || isEnded) && !!hlsUrl && !showDirectBroadcast;
+
+  // End-of-stream summary panel — only for OBS (rtmp) streams, until creator confirms
+  const [endPanelOpen, setEndPanelOpen] = useState(false);
+  const showEndPanel = isEnded && broadcastMode === "rtmp" && !liveData?.vodSettingsConfirmed;
+  useEffect(() => {
+    if (showEndPanel && open) setEndPanelOpen(true);
+  }, [showEndPanel, open]);
 
   useEffect(() => {
     const update = () => {
@@ -419,6 +427,13 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     setActiveSuperOverlay(sc);
     setPlayingOverlay(sc);
     playSuperComment(post.id, sc).catch(() => {});
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(sc.text);
+      utterance.lang = "es-MX";
+      utterance.rate = 1;
+      window.speechSynthesis.speak(utterance);
+    }
     window.setTimeout(() => { setActiveSuperOverlay(null); }, sc.displaySeconds * 1000);
   }
 
@@ -985,8 +1000,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                         <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
                       ) : (
                         <>
-                          <VideoPreview hlsUrl={hlsUrl!} fill showLiveBadge={liveStatus === "live"} />
-                          {isEnded && renderEndedOverlay()}
+                          <VideoPreview hlsUrl={hlsUrl!} fill showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
                         </>
                       )}
                     </div>
@@ -995,8 +1009,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
                 ) : showVideo ? (
                   <>
-                    <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} />
-                    {isEnded && renderEndedOverlay()}
+                    <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
                   </>
                 ) : (
                   <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1064,9 +1077,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               {showDirectBroadcast ? (
                 <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} />
               ) : (
-                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} />
+                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
               )}
-              {isEnded && renderEndedOverlay()}
             </div>
           )}
 
@@ -1132,8 +1144,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               </div>
             ) : showVideo ? (
               <div style={{ width: "100%", height: "100%", position: "relative" }}>
-                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} />
-                {isEnded && renderEndedOverlay()}
+                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
               </div>
             ) : (
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>Sin transmisión activa</span>
@@ -1209,8 +1220,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 </div>
               ) : (
                 <>
-                  <VideoPreview hlsUrl={hlsUrl!} showLiveBadge={liveStatus === "live"} />
-                  {isEnded && renderEndedOverlay()}
+                  <VideoPreview hlsUrl={hlsUrl!} showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
                 </>
               )}
             </div>
@@ -1233,6 +1243,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           postId={post.id}
           liveStreamId={liveData.liveStreamId}
           broadcastMode="rtmp"
+          onOpenCreatorPanel={() => setLiveSetupOpen(false)}
         />
       )}
       {broadcastMode === "direct" && (
@@ -1242,6 +1253,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           postId={post.id}
         />
       )}
+      <LiveEndSummaryPanel
+        open={endPanelOpen}
+        onClose={() => setEndPanelOpen(false)}
+        post={post}
+      />
     </div>,
     document.body
   );
@@ -1355,7 +1371,7 @@ function ModActionBtn({
 // ── VideoPreview ───────────────────────────────────────────────────────────
 // memo: evita re-renders por cambios de estado del panel (chat, viewers, etc.)
 
-const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cover", showLiveBadge }: { hlsUrl: string; fill?: boolean; objectFit?: "cover" | "contain"; showLiveBadge?: boolean }) {
+const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cover", showLiveBadge, autoPlay = true }: { hlsUrl: string; fill?: boolean; objectFit?: "cover" | "contain"; showLiveBadge?: boolean; autoPlay?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const [muted, setMuted] = useState(true);
@@ -1379,7 +1395,7 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
 
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = hlsUrl;
-      video.play().catch(() => {});
+      if (autoPlay) video.play().catch(() => {});
       return;
     }
 
@@ -1407,7 +1423,7 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
     hlsRef.current = hls;
     hls.loadSource(hlsUrl);
     hls.attachMedia(video);
-    hls.on(Hls.Events.MANIFEST_PARSED, () => { video.play().catch(() => {}); });
+    hls.on(Hls.Events.MANIFEST_PARSED, () => { if (autoPlay) video.play().catch(() => {}); });
 
     // Recuperación automática de errores — sin esto el player para silenciosamente
     hls.on(Hls.Events.ERROR, (_, data) => {
@@ -1494,11 +1510,12 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
       <>
         <video
           ref={videoRef}
-          autoPlay muted={muted} playsInline
+          autoPlay={autoPlay} muted={autoPlay ? muted : false} playsInline
+          controls={!autoPlay}
           style={{ width: "100%", height: "100%", objectFit: objectFit, display: "block" }}
         />
-        {muteBtn(13, 12, 12, true)}
-        {liveBadge}
+        {autoPlay && muteBtn(13, 12, 12, true)}
+        {autoPlay && liveBadge}
       </>
     );
   }
@@ -1508,11 +1525,12 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
     <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", maxHeight: 220, background: "#000", overflow: "hidden" }}>
       <video
         ref={videoRef}
-        autoPlay muted={muted} playsInline
+        autoPlay={autoPlay} muted={autoPlay ? muted : false} playsInline
+        controls={!autoPlay}
         style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
       />
-      {muteBtn(13, 8, 8, false)}
-      {liveBadge}
+      {autoPlay && muteBtn(13, 8, 8, false)}
+      {autoPlay && liveBadge}
     </div>
   );
 });

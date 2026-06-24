@@ -21,6 +21,7 @@ type Props = {
   liveStreamId?: string | null;
   broadcastMode?: BroadcastMode | null;
   onStreamCreated?: (liveStreamId: string, playbackId: string | null) => void;
+  onOpenCreatorPanel?: () => void;
 };
 
 type Credentials = {
@@ -122,6 +123,7 @@ export default function LiveStreamSetup({
   liveStreamId,
   broadcastMode: broadcastModeProp,
   onStreamCreated,
+  onOpenCreatorPanel,
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
@@ -303,17 +305,17 @@ export default function LiveStreamSetup({
                 width: "100%", display: "flex", alignItems: "center", gap: 14,
                 padding: "14px 16px", borderRadius: 12,
                 border: "none",
-                background: "rgba(239,68,68,0.16)",
+                background: "rgba(59,130,246,0.16)",
                 cursor: "pointer", textAlign: "left", marginBottom: 10,
                 transition: "background 0.15s",
               }}
             >
               <div style={{
                 width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-                background: "rgba(239,68,68,0.22)", border: "none",
+                background: "rgba(59,130,246,0.22)", border: "none",
                 display: "grid", placeItems: "center",
               }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
                   <path d="M19.4 14a8 8 0 1 0-14.8 0" />
                   <path d="M12 20v-4" />
@@ -384,16 +386,16 @@ export default function LiveStreamSetup({
       {showDirectReady && (
         <div style={{ animation: "lssContentReveal 340ms cubic-bezier(0.22, 1, 0.36, 1)" }}>
           <div style={{
-            background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.25)",
-            borderRadius: 12, padding: 16,
-            display: "flex", alignItems: "center", gap: 12, marginBottom: 20,
+            background: "rgba(59,130,246,0.16)", border: "none",
+            borderRadius: 12, padding: "14px 16px",
+            display: "flex", alignItems: "center", gap: 14, marginBottom: 20,
           }}>
             <div style={{
               width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-              background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.3)",
+              background: "rgba(59,130,246,0.22)", border: "none",
               display: "grid", placeItems: "center",
             }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" />
                 <path d="M19.4 14a8 8 0 1 0-14.8 0" />
                 <path d="M12 20v-4" />
@@ -404,17 +406,32 @@ export default function LiveStreamSetup({
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: fontStack, marginTop: 2 }}>Usa los controles en el panel de tu live.</div>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              width: "100%", padding: "11px 16px", borderRadius: 10, border: "none",
-              background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)",
-              fontSize: 14, fontWeight: 600, fontFamily: fontStack, cursor: "pointer",
-            }}
-          >
-            Cerrar
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {onOpenCreatorPanel && (
+              <button
+                type="button"
+                onClick={() => { onClose(); onOpenCreatorPanel(); }}
+                style={{
+                  width: "100%", padding: "11px 16px", borderRadius: 10, border: "none",
+                  background: "linear-gradient(135deg, rgba(168,85,255,0.85), rgba(124,58,237,0.85))",
+                  color: "#fff", fontSize: 14, fontWeight: 600, fontFamily: fontStack, cursor: "pointer",
+                }}
+              >
+                Abrir panel de control para iniciar transmisión
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                width: "100%", padding: "11px 16px", borderRadius: 10, border: "none",
+                background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)",
+                fontSize: 14, fontWeight: 600, fontFamily: fontStack, cursor: "pointer",
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       )}
 
@@ -487,6 +504,20 @@ export default function LiveStreamSetup({
                   </div>
                 ))}
               </div>
+              {onOpenCreatorPanel && (
+                <button
+                  type="button"
+                  onClick={() => { onClose(); onOpenCreatorPanel(); }}
+                  style={{
+                    marginTop: 20, width: "100%", padding: "11px 16px",
+                    borderRadius: 10, border: "none",
+                    background: "linear-gradient(135deg, rgba(168,85,255,0.85), rgba(124,58,237,0.85))",
+                    color: "#fff", fontSize: 14, fontWeight: 600, fontFamily: fontStack, cursor: "pointer",
+                  }}
+                >
+                  Abrir panel de control para iniciar transmisión
+                </button>
+              )}
             </>
           )}
         </div>

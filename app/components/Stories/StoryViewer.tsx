@@ -411,7 +411,7 @@ export default function StoryViewer({
     heroTimerRef.current = window.setTimeout(() => {
       heroTimerRef.current = null;
       onClose();
-    }, 230);
+    }, 190);
   }, [onClose]);
 
   useEffect(() => {
@@ -578,23 +578,23 @@ export default function StoryViewer({
     const vh = window.innerHeight;
     const r = sourceRect;
     const ease = "cubic-bezier(0.16,1,0.3,1)";
-    const dur = 260;
+    const dur = 220;
     const radius = r.width / 2;
 
     if (heroPhase === "entering") {
       return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: radius, background: "transparent" };
     }
     if (heroPhase === "exiting") {
-      const exitEase = "cubic-bezier(0.4,0,0.2,1)";
-      const exitDur = 210;
-      return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: radius, background: "transparent", transition: `left ${exitDur}ms ${exitEase}, top ${exitDur}ms ${exitEase}, width ${exitDur}ms ${exitEase}, height ${exitDur}ms ${exitEase}, border-radius ${exitDur}ms ${exitEase}, background 170ms ease` };
+      const exitEase = "cubic-bezier(0.4,0,1,1)";
+      const exitDur = 170;
+      return { left: r.left, top: r.top, width: r.width, height: r.height, borderRadius: radius, background: "transparent", transition: `left ${exitDur}ms ${exitEase}, top ${exitDur}ms ${exitEase}, width ${exitDur}ms ${exitEase}, height ${exitDur}ms ${exitEase}, border-radius ${exitDur}ms ${exitEase}, background 120ms ease` };
     }
     if (dragY > 0) {
       const t = Math.min(1, dragY / vh);
       const lerp = (a: number, b: number) => a + (b - a) * t;
       return { left: lerp(0, r.left), top: dragY, width: lerp(vw, r.width), height: lerp(vh, r.height), borderRadius: lerp(0, radius), background: `rgba(0,0,0,${1 - t * 0.85})` };
     }
-    return { left: 0, top: 0, width: vw, height: vh, borderRadius: 0, background: "#000", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 220ms ease` };
+    return { left: 0, top: 0, width: vw, height: vh, borderRadius: 0, background: "#000", transition: `left ${dur}ms ${ease}, top ${dur}ms ${ease}, width ${dur}ms ${ease}, height ${dur}ms ${ease}, border-radius ${dur}ms ${ease}, background 190ms ease` };
   }
   const heroContainerStyle = getHeroContainerStyle();
 

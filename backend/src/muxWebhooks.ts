@@ -875,24 +875,11 @@ async function handleLiveStreamIdle(event: MuxWebhookEvent) {
     updatedAt: now,
   };
 
-  const wasPinnedInGroup = result.data.isPinnedInGroup === true;
-  const wasPinnedOnProfile = result.data.isPinnedOnProfile === true;
-
-  if (wasPinnedInGroup) {
-    updateData.isPinnedInGroup = false;
-    updateData.groupPinnedAt = null;
-    updateData.groupPinnedBy = null;
-  }
-
-  if (wasPinnedOnProfile) {
-    updateData.isPinnedOnProfile = false;
-    updateData.profilePinnedAt = null;
-    updateData.profilePinnedBy = null;
-  }
-
   const authorId = typeof result.data.authorId === "string" ? result.data.authorId : null;
   const groupId = typeof result.data.groupId === "string" ? result.data.groupId : null;
 
+  // Pinning is intentionally NOT cleared here — the creator decides via the
+  // end-of-stream summary panel in the frontend (LiveEndSummaryPanel).
   const cleanupUpdates: Array<Promise<unknown>> = [result.ref.update(updateData)];
 
   if (authorId) {
@@ -908,28 +895,8 @@ async function handleLiveStreamIdle(event: MuxWebhookEvent) {
 
   await Promise.all(cleanupUpdates);
 
-  if (wasPinnedOnProfile && authorId) {
-    await db
-      .collection("users")
-      .doc(authorId)
-      .collection("profileFeed")
-      .doc(result.ref.id)
-      .set(
-        {
-          isPinnedOnProfile: false,
-          profilePinnedAt: null,
-          profilePinnedBy: null,
-          updatedAt: now,
-          syncedAt: now,
-        },
-        { merge: true }
-      );
-  }
-
-  logger.info("muxWebhook live_stream.idle → ended, unpinned", {
+  logger.info("muxWebhook live_stream.idle → ended", {
     liveStreamId: event.data?.id,
-    wasPinnedInGroup,
-    wasPinnedOnProfile,
   });
 }
 
