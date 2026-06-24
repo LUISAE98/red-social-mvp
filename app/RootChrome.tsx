@@ -5,7 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/app/providers";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
-import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
+import { buildCurrentPathWithSearch, getNextFromSearchParams } from "@/lib/auth-redirect";
 
 export default function RootChrome({
   children,
@@ -54,8 +54,11 @@ const isPublicRoute =
       // User signed out while on any page (including public routes like /u/ or /groups/)
       startAuthTransition("exiting");
       router.replace("/login");
+    } else if (user && isAuthPage) {
+      // Already authenticated — send to next param or home
+      router.replace(getNextFromSearchParams(searchParams, "/"));
     }
-  }, [loading, user, isPublicRoute, isAuthPage, router, startAuthTransition]);
+  }, [loading, user, isPublicRoute, isAuthPage, router, startAuthTransition, searchParams]);
 
   const fontStack =
     'inherit';
