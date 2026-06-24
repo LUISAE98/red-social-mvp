@@ -212,8 +212,7 @@ service cloud.firestore {
         && (docId == request.auth.uid + '_post'
             || docId == request.auth.uid + '_comment')
         && request.resource.data.keys().hasOnly(['lastAt', 'hourTimestamps'])
-        && request.resource.data.lastAt is timestamp
-        && request.resource.data.lastAt <= request.time;
+        && request.resource.data.lastAt is timestamp;
     }
 
     match /users/{uid} {

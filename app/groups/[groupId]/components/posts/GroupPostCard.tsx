@@ -935,6 +935,18 @@ const MediaGridVideoItem = forwardRef<MediaGridVideoItemHandle, MediaGridVideoIt
   }
 );
 
+function buildPremiumPreviewClips(duration: number): Array<{ start: number; end: number }> {
+  const CLIP_DURATION = 7;
+  const numClips = duration >= 120 ? 5 : 4;
+  const clips: Array<{ start: number; end: number }> = [];
+  for (let i = 0; i < numClips; i++) {
+    const start = (duration / numClips) * i;
+    const end = Math.min(start + CLIP_DURATION, duration - 0.1);
+    if (start < duration - 1) clips.push({ start, end });
+  }
+  return clips;
+}
+
 export default function GroupPostCard({
   post,
   groupId = null,
@@ -1122,6 +1134,8 @@ useEffect(() => {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const feedHlsRef = useRef<Hls | null>(null);
   const feedVideoShellRef = useRef<HTMLDivElement | null>(null);
+  const premiumClipIndexRef = useRef<number>(0);
+  const premiumClipsRef = useRef<Array<{ start: number; end: number }>>([]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2795,6 +2809,39 @@ const rootVideoShellAspectRatio =
     return () => observer.disconnect();
   }, [videoPlaybackUrl, shouldLoadFeedVideo, videoMetadataLoaded, selectedMediaUrl]);
 
+  // Premium preview clips: when blocked, cycle through short segments instead of playing the full video.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !premiumState.isBlocked || !videoMetadataLoaded || !shouldLoadFeedVideo) return;
+
+    function handleTimeUpdate() {
+      const clips = premiumClipsRef.current;
+      if (clips.length === 0) return;
+      const currentClip = clips[premiumClipIndexRef.current];
+      if (!currentClip) return;
+      if (video!.currentTime >= currentClip.end) {
+        const nextIndex = (premiumClipIndexRef.current + 1) % clips.length;
+        premiumClipIndexRef.current = nextIndex;
+        video!.currentTime = clips[nextIndex]!.start;
+      }
+    }
+
+    function handleEnded() {
+      const clips = premiumClipsRef.current;
+      if (clips.length === 0) return;
+      premiumClipIndexRef.current = 0;
+      video!.currentTime = clips[0]!.start;
+      video!.play().catch(() => undefined);
+    }
+
+    video.addEventListener("timeupdate", handleTimeUpdate);
+    video.addEventListener("ended", handleEnded);
+    return () => {
+      video.removeEventListener("timeupdate", handleTimeUpdate);
+      video.removeEventListener("ended", handleEnded);
+    };
+  }, [premiumState.isBlocked, videoMetadataLoaded, videoPlaybackUrl, shouldLoadFeedVideo]);
+
     const cleanPostText = typeof (localText ?? post.text) === "string"
       ? (localText ?? post.text).trim()
       : "";
@@ -3742,6 +3789,13 @@ style={{
 
       setVideoAspectRatio(ratio);
       setVideoMetadataLoaded(true);
+
+      if (premiumState.isBlocked && video.duration > 0) {
+        const clips = buildPremiumPreviewClips(video.duration);
+        premiumClipsRef.current = clips;
+        premiumClipIndexRef.current = 0;
+        if (clips[0]) video.currentTime = clips[0].start;
+      }
     }}
     style={{
       position: "absolute",
