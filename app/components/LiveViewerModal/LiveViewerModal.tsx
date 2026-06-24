@@ -687,6 +687,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         {/* Portada */}
         {liveData?.coverUrl && (
           <div style={{
+            position: "relative",
             width: 100, height: 100, borderRadius: 16, overflow: "hidden",
             marginBottom: 20, flexShrink: 0,
             boxShadow: "0 8px 32px rgba(168,85,255,0.3)",
