@@ -2379,6 +2379,20 @@ allow list: if canReadPost()
           && request.resource.data.updatedAt is timestamp;
       }
 
+      // Confirmar configuración de VOD tras fin de live (puede desfijar el post)
+      function canFinalizeLivePost() {
+        return signedIn()
+          && resource.data.authorId == request.auth.uid
+          && resource.data.postType == "live"
+          && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            "liveData", "updatedAt",
+            "isPinnedInGroup", "groupPinnedAt", "groupPinnedBy",
+            "isPinnedOnProfile", "profilePinnedAt", "profilePinnedBy"
+          ])
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.updatedAt is timestamp;
+      }
+
       allow update: if canSoftDeletePost()
         || canUpdateCommentCount(1)
         || canUpdateCommentCount(-1)
@@ -2386,7 +2400,8 @@ allow list: if canReadPost()
         || canEditLivePost()
         || canUnpinGroupPost()
         || canUpdateLivePeakViewers()
-        || canUpdateLiveRuntimeData();
+        || canUpdateLiveRuntimeData()
+        || canFinalizeLivePost();
 
       allow delete: if false;
 

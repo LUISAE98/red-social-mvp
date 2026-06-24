@@ -11,6 +11,7 @@ import {
 import { logger } from "firebase-functions";
 import { defineSecret } from "firebase-functions/params";
 import { onRequest } from "firebase-functions/v2/https";
+import { createMuxClient, muxTokenId, muxTokenSecret } from "./mux";
 
 if (!getApps().length) {
   initializeApp();
@@ -853,10 +854,31 @@ async function handleLiveStreamActive(event: MuxWebhookEvent) {
   }
 
   await Promise.all(updates);
+
+  // Ensure reconnect_window is 0 on every live activation so existing streams
+  // (created before this setting was added) also behave correctly.
+  const liveStreamId = event.data?.id as string | undefined;
+  if (liveStreamId) {
+    try {
+      const mux = createMuxClient();
+      await mux.video.liveStreams.update(liveStreamId, { reconnect_window: 0 });
+      logger.info("muxWebhook live_stream.active: reconnect_window set to 0", { liveStreamId });
+    } catch (err) {
+      logger.warn("muxWebhook live_stream.active: failed to update reconnect_window", { liveStreamId, err });
+    }
+  }
+
   logger.info("muxWebhook live_stream.active processed", { liveStreamId: event.data?.id, postId });
 }
 
 async function handleLiveStreamIdle(event: MuxWebhookEvent) {
+  // Wait for viewers' HLS buffers to drain before marking the stream as ended.
+  // With reconnect_window=0, Mux closes the HLS stream immediately when OBS
+  // disconnects, but viewers typically have 4-12 seconds of buffered content.
+  // Without this delay, the "ended" overlay flashes briefly while the buffer
+  // is still playing, then the live resumes until the buffer is exhausted.
+  await new Promise((resolve) => setTimeout(resolve, 15000));
+
   const result = await resolvePostRefByLiveStreamId(event);
   if (!result) {
     logger.warn("muxWebhook live_stream.idle: post not found", { liveStreamId: event.data?.id });
@@ -903,7 +925,8 @@ async function handleLiveStreamIdle(event: MuxWebhookEvent) {
 export const muxWebhook = onRequest(
   {
     region: "us-central1",
-    secrets: [muxWebhookSecret],
+    secrets: [muxWebhookSecret, muxTokenId, muxTokenSecret],
+    timeoutSeconds: 120,
   },
   async (req, res) => {
     if (req.method !== "POST") {
@@ -942,6 +965,20 @@ export const muxWebhook = onRequest(
       return;
     }
 
+    // For live_stream.idle, respond to Mux immediately (5-second timeout) then
+    // apply a delay so the HLS player buffer drains before the UI transitions
+    // to "ended". Without this, viewers see a flash: the "ended" overlay
+    // appears while the stream's latency buffer is still playing.
+    if (event.type === "video.live_stream.idle") {
+      res.status(200).json({ received: true });
+      await handleLiveStreamIdle(event).catch((err) =>
+        logger.error("muxWebhook live_stream.idle deferred error", {
+          error: err instanceof Error ? err.message : String(err),
+        })
+      );
+      return;
+    }
+
     try {
       switch (event.type) {
         case "video.asset.ready":
@@ -954,10 +991,6 @@ export const muxWebhook = onRequest(
 
         case "video.live_stream.active":
           await handleLiveStreamActive(event);
-          break;
-
-        case "video.live_stream.idle":
-          await handleLiveStreamIdle(event);
           break;
 
         default:
