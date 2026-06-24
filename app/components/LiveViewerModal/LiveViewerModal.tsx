@@ -130,14 +130,19 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return subscribeToViewerCount(post.id, setViewerCount);
   }, [open, localLiveData?.status, post.id]);
 
+  // Reset seenPlayedIds solo cuando cambia el live (post.id) o el modal se cierra,
+  // NO en cada re-run del efecto de suscripción para evitar re-disparar TTS.
+  useEffect(() => {
+    seenPlayedIdsRef.current = new Set();
+  }, [post.id]);
+
+  useEffect(() => {
+    if (!open) seenPlayedIdsRef.current = new Set();
+  }, [open]);
+
   // ── Overlay de supercomentario sincronizado con timestamp ─────────────────
-  // Cuando el creador activa un supercomentario, escribe playedAt en Firestore.
-  // Aquí cada viewer espera a que su reproducción HLS alcance ese timestamp
-  // y entonces muestra el overlay exactamente en el momento correcto del video.
   useEffect(() => {
     if (!open || !hasAccess || localLiveData?.broadcastMode !== "direct" || !post.id) return;
-
-    seenPlayedIdsRef.current = new Set();
 
     const unsub = subscribeVisibleSuperComments(post.id, (superComments) => {
       superComments.forEach((sc) => {

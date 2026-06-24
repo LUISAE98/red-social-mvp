@@ -84,6 +84,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [totalChatMessages, setTotalChatMessages] = useState(0);
   const [superComments, setSuperComments] = useState<SuperComment[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const isPlayingRef = useRef(false);
   const [activeSuperOverlay, setActiveSuperOverlay] = useState<SuperComment | null>(null);
   const [superCommentTab, setSuperCommentTab] = useState<"nuevos" | "reproducidos">("nuevos");
   const [playingOverlay, setPlayingOverlay] = useState<SuperComment | null>(null);
@@ -423,6 +424,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   }
 
   function _doPlay(sc: SuperComment) {
+    if (isPlayingRef.current) return;
+    isPlayingRef.current = true;
     setPlayingId(sc.id);
     setActiveSuperOverlay(sc);
     setPlayingOverlay(sc);
@@ -434,21 +437,25 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       utterance.rate = 1;
       window.speechSynthesis.speak(utterance);
     }
-    window.setTimeout(() => { setActiveSuperOverlay(null); }, sc.displaySeconds * 1000);
+    window.setTimeout(() => {
+      setActiveSuperOverlay(null);
+      isPlayingRef.current = false;
+    }, sc.displaySeconds * 1000);
   }
 
   function handlePlaySC(sc: SuperComment) {
-    if (playingId) return;
     _doPlay(sc);
   }
 
   function handleCloseSCOverlay() {
+    isPlayingRef.current = false;
     setPlayingOverlay(null);
     setPlayingId(null);
   }
 
   function handleNextSCOverlay() {
     const currentId = playingOverlay?.id;
+    isPlayingRef.current = false;
     setPlayingOverlay(null);
     setPlayingId(null);
     const next = superComments.find((sc) => !sc.isDeleted && !sc.played && sc.id !== currentId);
