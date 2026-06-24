@@ -1403,13 +1403,13 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
 
     const hls = new Hls({
       enableWorker: true,
-      lowLatencyMode: true,
+      lowLatencyMode: false,    // Mux usa HLS estándar, no LL-HLS
       startLevel: -1,
       autoStartLoad: true,
       liveSyncDurationCount: 1,
       liveMaxLatencyDurationCount: 3,
-      maxBufferLength: 8,
-      maxMaxBufferLength: 16,
+      maxBufferLength: 12,      // ~2 segmentos de 6s — tolerancia a hiccups de red
+      maxMaxBufferLength: 20,
       liveDurationInfinity: true,
       abrEwmaFastLive: 3.0,
       abrEwmaSlowLive: 9.0,

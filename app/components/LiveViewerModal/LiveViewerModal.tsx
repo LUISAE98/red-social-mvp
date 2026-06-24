@@ -146,66 +146,18 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
         const playedAt = sc.playedAt.toDate();
 
-        // Cancelar cualquier poll anterior
-        if (pollIntervalRef.current !== null) {
-          window.clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-
-        if (hlsRef.current) {
-          // HLS.js: poll cada 500ms hasta que la posición del video alcance playedAt
-          pollIntervalRef.current = window.setInterval(() => {
-            const hls = hlsRef.current;
-            if (!hls) {
-              if (pollIntervalRef.current !== null) window.clearInterval(pollIntervalRef.current);
-              pollIntervalRef.current = null;
-              return;
-            }
-
-            // Tiempo de video estimado del viewer = ahora - latencia HLS
-            const rawLatency = hls.latency;
-            const latencyMs = Number.isFinite(rawLatency) && rawLatency > 0 ? rawLatency * 1000 : 12000;
-            const viewerVideoTimeMs = Date.now() - latencyMs;
-
-            // Seguridad: si el supercomentario ya expiró con margen, cancelar
-            if (viewerVideoTimeMs - playedAt.getTime() > sc.displaySeconds * 1000 + 5000) {
-              if (pollIntervalRef.current !== null) window.clearInterval(pollIntervalRef.current);
-              pollIntervalRef.current = null;
-              return;
-            }
-
-            if (viewerVideoTimeMs >= playedAt.getTime()) {
-              if (pollIntervalRef.current !== null) window.clearInterval(pollIntervalRef.current);
-              pollIntervalRef.current = null;
-
-              // Calcular cuánto tiempo del overlay ya transcurrió (el viewer puede tener menos latencia)
-              const elapsedSecs = (viewerVideoTimeMs - playedAt.getTime()) / 1000;
-              const remainingSecs = sc.displaySeconds - elapsedSecs;
-              if (remainingSecs > 0.5) {
-                showSuperOverlay(sc, remainingSecs);
-              }
-            }
-          }, 500);
-        } else if (localLiveData?.streamProvider === "cloudflare") {
-          // Vibra Directo (WebRTC): delay < 1s — mostrar inmediatamente.
-          // Restar el tiempo ya transcurrido desde que el creador lo activó por si
-          // el snapshot de Firestore llega con algunos ms de retraso.
-          const elapsedMs = Date.now() - playedAt.getTime();
-          const remainingSecs = sc.displaySeconds - elapsedMs / 1000;
-          if (remainingSecs > 0.5) showSuperOverlay(sc, remainingSecs);
-        } else {
-          // iOS Safari (HLS nativo, sin HLS.js): fallback de 12 s
-          window.setTimeout(() => showSuperOverlay(sc, sc.displaySeconds), 12000);
+        // broadcastMode === "direct" garantiza CF/WebRTC — mostrar inmediatamente
+        // corrigiendo el tiempo ya transcurrido desde que el creador lo activó.
+        const elapsedMs = Date.now() - playedAt.getTime();
+        const remainingSecs = sc.displaySeconds - elapsedMs / 1000;
+        if (remainingSecs > 0.5) {
+          showSuperOverlay(sc, remainingSecs);
         }
       });
     });
 
-    return () => {
-      unsub();
-      if (pollIntervalRef.current !== null) window.clearInterval(pollIntervalRef.current);
-      pollIntervalRef.current = null;
-    };
-  }, [open, hasAccess, localLiveData?.broadcastMode, localLiveData?.streamProvider, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => { unsub(); };
+  }, [open, hasAccess, localLiveData?.broadcastMode, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup de timers al desmontar
   useEffect(() => {
@@ -306,8 +258,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   // ── Controles horizontales — computed ────────────────────────────────────
   const dvrAvailable = isLive && !cfWebRTCPlayUrl && dvrDuration >= 60;
-  const DVR_H = 52; // height in px of the DVR controls bar
-  const badgeLift = (hzControlsVisible && dvrAvailable) ? DVR_H + 8 : 0;
+  const badgeLift = (hzControlsVisible && dvrAvailable) ? 24 : 0;
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -1374,7 +1325,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   function renderDvrBar(horizontal = false) {
     if (!isLive || cfWebRTCPlayUrl || dvrDuration < 60) return null;
     const visible = !horizontal || hzControlsVisible;
-    const atLiveEdge = dvrDuration - dvrPosition < 5;
     return (
       <div style={{
         position: "absolute",
@@ -1399,23 +1349,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           }}
           style={{ width: "100%", accentColor: "#ffffff", cursor: "pointer", height: 4 }}
         />
-        {!atLiveEdge && (
-          <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                const video = videoRef.current;
-                if (!video || video.seekable.length === 0) return;
-                if (hlsRef.current) hlsRef.current.config.liveMaxLatencyDurationCount = 10;
-                video.currentTime = video.seekable.end(video.seekable.length - 1);
-              }}
-              style={{ background: "none", border: "1px solid rgba(255,255,255,0.6)", color: "#ffffff", fontSize: 10, fontWeight: 700, borderRadius: 4, padding: "1px 6px", cursor: "pointer", fontFamily: FONT }}
-            >
-              IR AL VIVO
-            </button>
-          </div>
-        )}
       </div>
     );
   }
