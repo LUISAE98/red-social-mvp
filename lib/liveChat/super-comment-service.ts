@@ -178,11 +178,10 @@ export async function playSuperComment(
   });
 }
 
-// Pushes the overlay to viewers via liveData.activeSuper.
-// Call this AFTER the stream delay so viewers see it in sync with the video.
 export async function pushActiveSuperToViewers(
   postId: string,
   superComment: SuperComment,
+  scheduledAtMs?: number,
 ): Promise<void> {
   const activeSuper: ActiveSuperComment = {
     id: superComment.id,
@@ -194,6 +193,7 @@ export async function pushActiveSuperToViewers(
     color: superComment.color,
     amount: superComment.amount,
     displaySeconds: superComment.displaySeconds,
+    ...(scheduledAtMs !== undefined ? { scheduledAt: scheduledAtMs } : {}),
   };
   await updateDoc(doc(db, "posts", postId), {
     "liveData.activeSuper": activeSuper,

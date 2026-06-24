@@ -18,6 +18,8 @@ import {
 import {
   subscribeSuperComments,
   playSuperComment,
+  pushActiveSuperToViewers,
+  clearActiveSuper,
   hideSuperComment,
   showSuperComment,
   deleteSuperComment,
@@ -434,6 +436,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
     const scheduledAtMs = Date.now() + LEAD_MS;
     playSuperComment(post.id, sc, scheduledAtMs).catch(() => {});
+    // Trigger viewers via post doc (warm subscription, ~100-300ms delivery vs superComments collection)
+    pushActiveSuperToViewers(post.id, sc, scheduledAtMs).catch(() => {});
 
     if (scheduledPlayTimeoutRef.current !== null) {
       window.clearTimeout(scheduledPlayTimeoutRef.current);
@@ -459,6 +463,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         setActiveSuperOverlay(null);
         setMicMutedForTTS(false);
         isPlayingRef.current = false;
+        clearActiveSuper(post.id).catch(() => {});
       }, sc.displaySeconds * 1000);
     }, LEAD_MS);
   }
@@ -476,6 +481,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     setMicMutedForTTS(false);
     setPlayingOverlay(null);
     setPlayingId(null);
+    clearActiveSuper(post.id).catch(() => {});
   }
 
   function handleNextSCOverlay() {
@@ -488,6 +494,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     setMicMutedForTTS(false);
     setPlayingOverlay(null);
     setPlayingId(null);
+    clearActiveSuper(post.id).catch(() => {});
     const next = superComments.find((sc) => !sc.isDeleted && !sc.played && sc.id !== currentId);
     if (next) window.setTimeout(() => _doPlay(next), 0);
   }

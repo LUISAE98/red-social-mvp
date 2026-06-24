@@ -11,6 +11,7 @@ export type ActiveSuperComment = {
   color: string;
   amount: number;
   displaySeconds: number;
+  scheduledAt?: number | null;
 };
 
 export const MAX_POST_IMAGES = 10;

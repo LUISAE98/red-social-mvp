@@ -11,8 +11,7 @@ import type { Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer } from "@/lib/liveKit/liveViewers";
-import { subscribeVisibleSuperComments } from "@/lib/liveChat/super-comment-service";
-import type { SuperComment } from "@/lib/liveChat/types";
+import type { ActiveSuperComment } from "@/lib/posts/types";
 
 const FONT =
   'inherit';
@@ -84,8 +83,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [videoPaused, setVideoPaused] = useState(false);
 
   // ── Supercomentario activo (overlay sobre el video) ────────────────────────
-  const [activeSuperComment, setActiveSuperComment] = useState<SuperComment | null>(null);
-  const seenPlayedIdsRef = useRef<Set<string>>(new Set());
+  const [activeSuperComment, setActiveSuperComment] = useState<ActiveSuperComment | null>(null);
+  const prevActiveSuperIdRef = useRef<string | null>(null);
   const pollIntervalRef = useRef<number | null>(null);
   const overlayTimerRef = useRef<number | null>(null);
 
@@ -130,48 +129,34 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return subscribeToViewerCount(post.id, setViewerCount);
   }, [open, localLiveData?.status, post.id]);
 
-  // Reset seenPlayedIds solo cuando cambia el live (post.id) o el modal se cierra,
-  // NO en cada re-run del efecto de suscripción para evitar re-disparar TTS.
+  useEffect(() => { prevActiveSuperIdRef.current = null; }, [post.id]);
+  useEffect(() => { if (!open) prevActiveSuperIdRef.current = null; }, [open]);
+
+  // ── Overlay de supercomentario via liveData.activeSuper ───────────────────
+  // El creador escribe liveData.activeSuper con scheduledAt al hacer play.
+  // El viewer ya tiene onSnapshot activo sobre el post doc, así que este cambio
+  // llega por la subscription existente (~100-300ms) en vez de una subscription
+  // separada a la subcolección superComments.
   useEffect(() => {
-    seenPlayedIdsRef.current = new Set();
-  }, [post.id]);
+    if (!open || !hasAccess) return;
+    const activeSuper = localLiveData?.activeSuper;
+    const scId = activeSuper?.id ?? null;
+    if (scId === prevActiveSuperIdRef.current) return;
+    prevActiveSuperIdRef.current = scId;
+    if (!activeSuper || !scId) return;
 
-  useEffect(() => {
-    if (!open) seenPlayedIdsRef.current = new Set();
-  }, [open]);
-
-  // ── Overlay de supercomentario sincronizado con timestamp ─────────────────
-  useEffect(() => {
-    if (!open || !hasAccess || localLiveData?.broadcastMode !== "direct" || !post.id) return;
-
-    const unsub = subscribeVisibleSuperComments(post.id, (superComments) => {
-      superComments.forEach((sc) => {
-        if (seenPlayedIdsRef.current.has(sc.id)) return;
-        if (!sc.scheduledAt && !sc.playedAt) return;
-        seenPlayedIdsRef.current.add(sc.id);
-
-        if (sc.scheduledAt) {
-          // Synchronized approach: schedule display at the exact same wall-clock
-          // time as the creator, regardless of Firestore propagation delay.
-          const delay = sc.scheduledAt.toMillis() - Date.now();
-          if (delay > 0) {
-            window.setTimeout(() => showSuperOverlay(sc, sc.displaySeconds), delay);
-          } else {
-            // Arrived late — show with remaining duration
-            const remainingSecs = sc.displaySeconds + delay / 1000;
-            if (remainingSecs > 0.5) showSuperOverlay(sc, remainingSecs);
-          }
-        } else if (sc.playedAt) {
-          // Legacy fallback for SCs without scheduledAt
-          const elapsedMs = Date.now() - sc.playedAt.toDate().getTime();
-          const remainingSecs = sc.displaySeconds - elapsedMs / 1000;
-          if (remainingSecs > 0.5) showSuperOverlay(sc, remainingSecs);
-        }
-      });
-    });
-
-    return () => { unsub(); };
-  }, [open, hasAccess, localLiveData?.broadcastMode, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (activeSuper.scheduledAt != null) {
+      const delay = activeSuper.scheduledAt - Date.now();
+      if (delay > 0) {
+        window.setTimeout(() => showSuperOverlay(activeSuper, activeSuper.displaySeconds), delay);
+      } else {
+        const remainingSecs = activeSuper.displaySeconds + delay / 1000;
+        if (remainingSecs > 0.5) showSuperOverlay(activeSuper, remainingSecs);
+      }
+    } else {
+      showSuperOverlay(activeSuper, activeSuper.displaySeconds);
+    }
+  }, [open, hasAccess, localLiveData?.activeSuper]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup de timers al desmontar
   useEffect(() => {
@@ -854,7 +839,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     } catch { /* audio no disponible */ }
   }
 
-  function showSuperOverlay(sc: SuperComment, durationSeconds: number) {
+  function showSuperOverlay(sc: ActiveSuperComment, durationSeconds: number) {
     playSuperCommentSound();
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
