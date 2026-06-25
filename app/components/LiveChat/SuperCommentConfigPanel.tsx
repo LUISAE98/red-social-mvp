@@ -10,6 +10,7 @@ import {
 } from "@/lib/liveChat/super-comment-service";
 import {
   DEFAULT_SUPER_COMMENT_CONFIG,
+  DEFAULT_SUPER_COMMENT_TIERS,
   type SuperCommentConfig,
   type SuperCommentTier,
 } from "@/lib/liveChat/types";
@@ -87,7 +88,14 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
     if (!uid) return;
     setLoadingConfig(true);
     getSuperCommentConfig(uid)
-      .then((cfg) => setScConfig(cfg))
+      .then((cfg) => {
+        // Siempre aplicar los colores actuales del default por tier ID
+        const colorMap = Object.fromEntries(DEFAULT_SUPER_COMMENT_TIERS.map((t) => [t.id, t.color]));
+        setScConfig({
+          ...cfg,
+          tiers: cfg.tiers.map((t) => ({ ...t, color: colorMap[t.id] ?? t.color })),
+        });
+      })
       .catch(() => {})
       .finally(() => setLoadingConfig(false));
   }, [open]);
@@ -116,7 +124,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
       await saveSuperCommentConfig(uid, scConfig);
       await copySuperCommentConfigToLive(postId, scConfig);
       setConfigSaved(true);
-      setTimeout(() => setConfigSaved(false), 3000);
+      setTimeout(() => onClose(), 2000);
     } catch {
       // silencioso
     } finally {
@@ -164,31 +172,50 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
       ) : (
         <>
           <div style={{ marginBottom: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px", gap: 6, marginBottom: 8, padding: "0 4px" }}>
-              {["Tier", "Caracteres", "Precio (MXN)"].map((h) => (
-                <span key={h} style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10, padding: "0 2px" }}>
+              {["Caracteres por msg.", "Fan paga (MXN)"].map((h) => (
+                <span key={h} style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT, textAlign: "center" as const }}>
                   {h}
                 </span>
               ))}
             </div>
-            {scConfig.tiers.map((tier) => (
-              <div key={tier.id} style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px", gap: 6, marginBottom: 8, alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: tier.color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 13, color: "#fff", fontFamily: FONT }}>{tier.name}</span>
+            {scConfig.tiers.map((tier) => {
+              const creatorEarns = (tier.price * 0.77).toFixed(2);
+              return (
+                <div key={tier.id} style={{ marginBottom: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "center" }}>
+                    <input
+                      type="number" min={10} max={600} value={tier.maxChars}
+                      onChange={(e) => updateTierField(tier.id, "maxChars", e.target.value)}
+                      style={{
+                        width: "100%", padding: "9px 10px", borderRadius: 8,
+                        border: "none",
+                        background: `${tier.color}66`,
+                        color: "#ffffff",
+                        fontSize: 13, fontFamily: FONT, textAlign: "center" as const, outline: "none",
+                        boxSizing: "border-box" as const,
+                      }}
+                    />
+                    <input
+                      type="number" min={1} value={tier.price}
+                      onChange={(e) => updateTierField(tier.id, "price", e.target.value)}
+                      style={{
+                        width: "100%", padding: "9px 10px", borderRadius: 8,
+                        border: "none",
+                        background: `${tier.color}66`,
+                        color: "#ffffff",
+                        fontSize: 13, fontFamily: FONT, textAlign: "center" as const, outline: "none",
+                        boxSizing: "border-box" as const,
+                      }}
+                    />
+                  </div>
+                  <p style={{ margin: "5px 0 0", fontSize: 10.5, color: tier.color, fontFamily: FONT, textAlign: "left" as const, lineHeight: 1.4 }}>
+                    Por cada comentario que un fan pague tú cobrarás{" "}
+                    <span style={{ color: "#86efac", fontWeight: 600 }}>${creatorEarns} MXN</span>
+                  </p>
                 </div>
-                <input
-                  type="number" min={10} max={600} value={tier.maxChars}
-                  onChange={(e) => updateTierField(tier.id, "maxChars", e.target.value)}
-                  style={{ width: "100%", padding: "5px 8px", borderRadius: 7, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 12, fontFamily: FONT, textAlign: "center" as const, outline: "none" }}
-                />
-                <input
-                  type="number" min={1} value={tier.price}
-                  onChange={(e) => updateTierField(tier.id, "price", e.target.value)}
-                  style={{ width: "100%", padding: "5px 8px", borderRadius: 7, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 12, fontFamily: FONT, textAlign: "center" as const, outline: "none" }}
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: FONT, marginBottom: 20, lineHeight: 1.5 }}>
             La configuración guardada se usará en todos tus próximos lives.
@@ -197,34 +224,40 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
       )}
 
       {/* Save */}
-      <div style={{ display: "flex", gap: 10 }}>
+      <style>{`
+        @keyframes scSaveCheckIn {
+          from { transform: scale(0.3); opacity: 0; }
+          to   { transform: scale(1);   opacity: 1; }
+        }
+      `}</style>
+      {savingConfig ? (
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 44 }}>
+          <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
+        </div>
+      ) : configSaved ? (
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: 44 }}>
+          <svg
+            width="36" height="36" viewBox="0 0 28 28" fill="none"
+            style={{ animation: "scSaveCheckIn 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards" }}
+          >
+            <circle cx="14" cy="14" r="14" fill="#22c55e" />
+            <path d="M8 14l4.5 4.5 7.5-8" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+      ) : (
         <button
           type="button"
           onClick={handleSaveConfig}
-          disabled={savingConfig}
           style={{
-            flex: 1, padding: "11px 16px", borderRadius: 10,
-            background: configSaved ? "rgba(34,197,94,0.2)" : savingConfig ? "rgba(168,85,255,0.2)" : "linear-gradient(135deg,rgba(168,85,255,0.9),rgba(124,58,237,0.9))",
-            color: configSaved ? "#86efac" : "#fff",
-            fontSize: 14, fontWeight: 600, fontFamily: FONT,
-            cursor: savingConfig ? "not-allowed" : "pointer",
-            border: "none", transition: "all 0.2s",
+            width: "100%", padding: "12px 16px", borderRadius: 10,
+            background: "linear-gradient(135deg,rgba(168,85,255,0.9),rgba(124,58,237,0.9))",
+            color: "#fff", fontSize: 14, fontWeight: 600, fontFamily: FONT,
+            cursor: "pointer", border: "none",
           }}
         >
-          {configSaved ? "¡Guardado!" : savingConfig ? "Guardando..." : "Guardar configuración"}
+          Guardar configuración
         </button>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            padding: "11px 20px", borderRadius: 10, border: "none",
-            background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)",
-            fontSize: 14, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-          }}
-        >
-          Cerrar
-        </button>
-      </div>
+      )}
     </div>
   );
 

@@ -24,8 +24,8 @@ type LiveComposerModalProps = {
   groupVisibility?: GroupVisibility;
 };
 
-const fontStack =
-  'inherit';
+const fontStack = "inherit";
+const PANEL_CLOSE_THRESHOLD = 130;
 
 const MONTHS_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -63,23 +63,18 @@ function buildScheduledDate(
 async function uploadLiveCover(file: File): Promise<string> {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error("Debes iniciar sesión para subir la portada.");
-
   const normalized = await normalizeImageFile(file, { maxSizeBytes: 150 * 1024 * 1024 });
-
   const ext = normalized.file.type === "image/png" ? "png" : "jpg";
   const randomId =
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
       : Math.random().toString(36).slice(2);
-
   const path = `live-covers/${uid}/${Date.now()}-${randomId}.${ext}`;
   const storageRef = ref(storage, path);
-
   await uploadBytes(storageRef, normalized.file, {
     contentType: normalized.file.type,
     customMetadata: { uploadedBy: uid, usage: "live_cover" },
   });
-
   return getDownloadURL(storageRef);
 }
 
@@ -141,40 +136,15 @@ function getVisibilityOptions(
 ): VisibilityOption[] {
   if (contextType === "profile" || groupVisibility === "public") {
     return [
-      {
-        mode: "everyone",
-        icon: "globe",
-        title: "Todos, incluyendo visitantes",
-        description: "Cualquiera puede verlo aunque no tenga cuenta en Vibra",
-      },
-      {
-        mode: "logged_in_only",
-        icon: "user",
-        title: "Solo usuarios con cuenta",
-        description: "Solo personas con cuenta en Vibra pueden verlo",
-      },
+      { mode: "everyone", icon: "globe", title: "Todos, incluyendo visitantes", description: "Cualquiera puede verlo aunque no tenga cuenta en Vibra" },
+      { mode: "logged_in_only", icon: "user", title: "Solo usuarios con cuenta", description: "Solo personas con cuenta en Vibra pueden verlo" },
     ];
   }
   if (groupVisibility === "private") {
     return [
-      {
-        mode: "members_only",
-        icon: "lock",
-        title: "Solo miembros de la comunidad",
-        description: "Solo quienes ya forman parte de esta comunidad pueden verlo",
-      },
-      {
-        mode: "logged_in_only",
-        icon: "user",
-        title: "Cualquier usuario de Vibra",
-        description: "Cualquier persona con cuenta puede verlo, aunque no sea miembro",
-      },
-      {
-        mode: "everyone",
-        icon: "globe",
-        title: "Todos, incluyendo visitantes",
-        description: "Cualquiera puede verlo aunque no tenga cuenta en Vibra",
-      },
+      { mode: "members_only", icon: "lock", title: "Solo miembros de la comunidad", description: "Solo quienes ya forman parte de esta comunidad pueden verlo" },
+      { mode: "logged_in_only", icon: "user", title: "Cualquier usuario de Vibra", description: "Cualquier persona con cuenta puede verlo, aunque no sea miembro" },
+      { mode: "everyone", icon: "globe", title: "Todos, incluyendo visitantes", description: "Cualquiera puede verlo aunque no tenga cuenta en Vibra" },
     ];
   }
   return [];
@@ -195,6 +165,7 @@ export default function LiveComposerModal({
 
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreviewUrl, setCoverPreviewUrl] = useState<string | null>(null);
@@ -220,6 +191,12 @@ export default function LiveComposerModal({
     deriveDefaultVisibility(contextType, groupVisibility ?? null)
   );
 
+  // Mobile swipe-to-close
+  const [panelOffsetY, setPanelOffsetY] = useState(0);
+  const [isPanelDragging, setIsPanelDragging] = useState(false);
+  const dragStartY = useRef(0);
+  const dragStartOffset = useRef(0);
+
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const onCloseRef = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; });
@@ -227,10 +204,35 @@ export default function LiveComposerModal({
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
-    if (open) { setShouldRender(true); return; }
-    const t = window.setTimeout(() => setShouldRender(false), 200);
+    const update = () => setIsDesktop(window.innerWidth >= 768);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  useEffect(() => {
+    if (open) {
+      setShouldRender(true);
+      if (!isDesktop) {
+        setIsPanelDragging(false);
+        const h = typeof window !== "undefined" ? window.innerHeight : 900;
+        setPanelOffsetY(h);
+        const f = window.requestAnimationFrame(() => {
+          window.requestAnimationFrame(() => setPanelOffsetY(0));
+        });
+        return () => window.cancelAnimationFrame(f);
+      }
+      return;
+    }
+    if (!isDesktop) {
+      const h = typeof window !== "undefined" ? window.innerHeight : 900;
+      setPanelOffsetY(h);
+      const t = window.setTimeout(() => setShouldRender(false), 260);
+      return () => window.clearTimeout(t);
+    }
+    const t = window.setTimeout(() => setShouldRender(false), 180);
     return () => window.clearTimeout(t);
-  }, [open]);
+  }, [open, isDesktop]);
 
   useEffect(() => {
     if (!open) return;
@@ -252,7 +254,6 @@ export default function LiveComposerModal({
     };
   }, [coverPreviewUrl, coverFile]);
 
-  // Pre-populate form when opening in edit mode
   useEffect(() => {
     if (!open || !editPost?.liveData) return;
     const ld = editPost.liveData;
@@ -328,7 +329,6 @@ export default function LiveComposerModal({
       return;
     }
 
-    // Validar ticket
     const priceNum = parseFloat(ticketPrice.replace(",", "."));
     if (accessType === "paid" && (isNaN(priceNum) || priceNum <= 0)) {
       setError("El precio del ticket debe ser mayor a 0.");
@@ -346,7 +346,6 @@ export default function LiveComposerModal({
       const cleanTitle = title.trim();
       const cleanDescription = description.trim() || null;
 
-      // paidAccessMode solo aplica en comunidad privada con live público/logged_in
       const canHaveMemberExemption =
         contextType === "group" &&
         groupVisibility === "private" &&
@@ -429,6 +428,35 @@ export default function LiveComposerModal({
     }
   }
 
+  // Mobile drag handlers
+  function handleDragStart(e: React.PointerEvent) {
+    if ((e.target as HTMLElement).closest("button")) return;
+    setIsPanelDragging(true);
+    dragStartY.current = e.clientY;
+    dragStartOffset.current = panelOffsetY;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+
+  function handleDragMove(e: React.PointerEvent) {
+    if (!isPanelDragging) return;
+    const raw = dragStartOffset.current + (e.clientY - dragStartY.current);
+    const h = typeof window !== "undefined" ? window.innerHeight : 900;
+    setPanelOffsetY(raw >= 0 ? Math.min(h, raw) : raw * 0.2);
+  }
+
+  function handleDragEnd() {
+    if (!isPanelDragging) return;
+    setIsPanelDragging(false);
+    if (panelOffsetY >= PANEL_CLOSE_THRESHOLD) {
+      if (saving) { setPanelOffsetY(0); return; }
+      const h = typeof window !== "undefined" ? window.innerHeight : 900;
+      setPanelOffsetY(h);
+      setTimeout(() => { resetForm(); onCloseRef.current(); setPanelOffsetY(0); }, 260);
+    } else {
+      setPanelOffsetY(0);
+    }
+  }
+
   if (!shouldRender || !mounted) return null;
 
   const selectStyle: CSSProperties = {
@@ -472,483 +500,543 @@ export default function LiveComposerModal({
     display: "block",
   };
 
+  const scrollContent = (
+    <div className="vibra-live-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 8px" }}>
+
+      {error && (
+        <div style={{
+          borderRadius: 10, border: "1px solid rgba(255,90,90,0.24)",
+          background: "rgba(120,18,18,0.28)", color: "#ffdada",
+          padding: "9px 12px", fontSize: 12, lineHeight: 1.4, marginBottom: 10,
+        }}>
+          {error}
+        </div>
+      )}
+
+      {/* Portada */}
+      <input
+        ref={coverInputRef}
+        type="file"
+        accept="image/*,.heic,.heif"
+        style={{ display: "none" }}
+        onChange={handleCoverFileChange}
+      />
+      <label style={labelStyle}>Portada (opcional)</label>
+      <button
+        type="button"
+        onClick={handleCoverClick}
+        disabled={saving}
+        aria-label={coverPreviewUrl ? "Cambiar portada" : "Agregar portada"}
+        style={{
+          width: "100%", aspectRatio: "16/7", borderRadius: 12,
+          border: coverPreviewUrl ? "none" : "1.5px dashed rgba(255,255,255,0.18)",
+          background: coverPreviewUrl
+            ? "transparent"
+            : "radial-gradient(ellipse at center, rgba(180,180,200,0.22) 0%, rgba(120,120,150,0.10) 60%, rgba(80,80,110,0.06) 100%)",
+          cursor: saving ? "not-allowed" : "pointer",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          marginBottom: 8, overflow: "hidden", padding: 0, position: "relative",
+        }}
+      >
+        {coverPreviewUrl ? (
+          <>
+            <Image src={coverPreviewUrl} alt="Portada del live" fill style={{ objectFit: "cover", display: "block" }} />
+            <div
+              style={{
+                position: "absolute", inset: 0, display: "flex",
+                alignItems: "center", justifyContent: "center",
+                background: "rgba(0,0,0,0.45)", opacity: 0, transition: "opacity 150ms ease",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "1"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "0"; }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>Cambiar portada</span>
+            </div>
+          </>
+        ) : (
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" style={{ pointerEvents: "none" }}>
+            <circle cx="18" cy="18" r="16" stroke="#ef4444" strokeWidth="1.8" fill="none" />
+            <circle cx="18" cy="18" r="9" fill="#ef4444" />
+          </svg>
+        )}
+      </button>
+
+      {/* Título */}
+      <label style={labelStyle}>Título *</label>
+      <input
+        type="text"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="¿De qué va a tratar tu live?"
+        disabled={saving}
+        maxLength={120}
+        style={inputStyle}
+        autoFocus={isDesktop}
+      />
+
+      {/* Descripción */}
+      <label style={labelStyle}>Descripción (opcional)</label>
+      <textarea
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Cuéntale a tu audiencia más detalles..."
+        disabled={saving}
+        maxLength={500}
+        rows={3}
+        style={{ ...inputStyle, resize: "none", minHeight: 44 }}
+      />
+
+      {/* Visibilidad */}
+      <label style={{ ...labelStyle, marginTop: 2 }}>¿Quién puede ver este live?</label>
+      {isHiddenGroup ? (
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 12px", borderRadius: 10,
+          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", marginBottom: 8,
+        }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.6)", fontFamily: fontStack }}>
+              Solo miembros de la comunidad
+            </div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: fontStack, marginTop: 1 }}>
+              Las comunidades ocultas no pueden tener lives públicos
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+          {visibilityOptions.map((opt, idx) => {
+            const active = visibilityMode === opt.mode;
+            const isLast = idx === visibilityOptions.length - 1;
+            return (
+              <div
+                key={opt.mode}
+                className="vibra-live-radio"
+                onClick={() => !saving && setVisibilityMode(opt.mode)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "10px 12px", cursor: saving ? "not-allowed" : "pointer",
+                  borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)",
+                  background: active ? "rgba(168,85,255,0.10)" : "transparent",
+                  userSelect: "none",
+                }}
+              >
+                <div style={{
+                  width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                  border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.25)",
+                  boxSizing: "border-box", transition: "border 120ms ease",
+                }} />
+                <div style={{ flexShrink: 0, color: active ? "#c084fc" : "rgba(255,255,255,0.35)" }}>
+                  {opt.icon === "globe" && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="2" y1="12" x2="22" y2="12" />
+                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                    </svg>
+                  )}
+                  {opt.icon === "user" && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                      <circle cx="12" cy="7" r="4" />
+                    </svg>
+                  )}
+                  {opt.icon === "lock" && (
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#e9d5ff" : "#fff", fontFamily: fontStack }}>{opt.title}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2, lineHeight: 1.4 }}>{opt.description}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Ticket */}
+      <label style={{ ...labelStyle, marginTop: 2 }}>Ticket de entrada</label>
+      <div style={{ marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+        {(["free", "paid"] as const).map((type, idx) => {
+          const active = accessType === type;
+          return (
+            <div
+              key={type}
+              onClick={() => !saving && setAccessType(type)}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                padding: "10px 12px", cursor: saving ? "not-allowed" : "pointer",
+                borderBottom: idx === 0 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                background: active ? "rgba(168,85,255,0.10)" : "transparent",
+                userSelect: "none",
+              }}
+            >
+              <div style={{
+                width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.25)",
+                boxSizing: "border-box" as const, transition: "border 120ms ease",
+              }} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#e9d5ff" : "#fff", fontFamily: fontStack }}>
+                  {type === "free" ? "Gratuito" : "Con ticket de entrada"}
+                </div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2 }}>
+                  {type === "free" ? "Cualquier persona con acceso puede verlo sin costo" : "Los espectadores deben pagar para acceder al live"}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {accessType === "paid" && (
+        <>
+          <label style={labelStyle}>Precio del ticket *</label>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <div style={{ flex: 1, position: "relative" as const }}>
+              <input
+                type="number"
+                min="1"
+                step="any"
+                value={ticketPrice}
+                onChange={(e) => setTicketPrice(e.target.value)}
+                placeholder="0.00"
+                disabled={saving}
+                style={{ ...inputStyle, width: "100%", boxSizing: "border-box" as const }}
+              />
+            </div>
+            <div style={{
+              width: 90, flexShrink: 0, position: "relative" as const,
+              display: "flex", alignItems: "center",
+              background: "rgba(255,255,255,0.06)", borderRadius: 10,
+              border: "1px solid rgba(255,255,255,0.1)", overflow: "hidden",
+            }}>
+              <select
+                value={currency}
+                onChange={(e) => setCurrency(e.target.value as "MXN" | "USD")}
+                disabled={saving}
+                style={{ width: "100%", background: "transparent", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: fontStack, padding: "0 10px", cursor: "pointer", appearance: "none" as const }}
+                className="vibra-live-select"
+              >
+                <option value="MXN">MXN</option>
+                <option value="USD">USD</option>
+              </select>
+            </div>
+          </div>
+
+          {contextType === "group" && groupVisibility === "private" && visibilityMode !== "members_only" && (
+            <>
+              <label style={labelStyle}>¿Quién paga?</label>
+              <div style={{ marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
+                {([
+                  { value: "everyone_pays", label: "Todos pagan", desc: "Tanto miembros como no miembros deben comprar el ticket" },
+                  { value: "members_free_non_members_pay", label: "Miembros gratis / No miembros pagan", desc: "Los miembros actuales de la comunidad entran sin costo" },
+                ] as const).map(({ value, label, desc }, idx) => {
+                  const active = paidAccessMode === value;
+                  return (
+                    <div
+                      key={value}
+                      onClick={() => !saving && setPaidAccessMode(value)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 10,
+                        padding: "10px 12px", cursor: saving ? "not-allowed" : "pointer",
+                        borderBottom: idx === 0 ? "1px solid rgba(255,255,255,0.06)" : "none",
+                        background: active ? "rgba(168,85,255,0.10)" : "transparent",
+                        userSelect: "none",
+                      }}
+                    >
+                      <div style={{
+                        width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
+                        border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.25)",
+                        boxSizing: "border-box" as const, transition: "border 120ms ease",
+                      }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#e9d5ff" : "#fff", fontFamily: fontStack }}>{label}</div>
+                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2, lineHeight: 1.4 }}>{desc}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {/* Fecha */}
+      <label style={labelStyle}>Fecha de inicio (opcional)</label>
+      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+        <SelectWrapper>
+          <select value={day} onChange={(e) => setDay(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
+            <option value="">Día</option>
+            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => (
+              <option key={d} value={String(d)}>{d}</option>
+            ))}
+          </select>
+        </SelectWrapper>
+        <SelectWrapper>
+          <select
+            value={month}
+            onChange={(e) => {
+              setMonth(e.target.value);
+              if (day && parseInt(day) > getDaysInMonth(e.target.value, year)) setDay("");
+            }}
+            disabled={saving}
+            style={selectStyle}
+            className="vibra-live-select"
+          >
+            <option value="">Mes</option>
+            {MONTHS_ES.map((name, i) => (
+              <option key={i + 1} value={String(i + 1)}>{name}</option>
+            ))}
+          </select>
+        </SelectWrapper>
+        <SelectWrapper>
+          <select value={year} onChange={(e) => setYear(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
+            <option value="">Año</option>
+            {years.map((y) => (
+              <option key={y} value={String(y)}>{y}</option>
+            ))}
+          </select>
+        </SelectWrapper>
+      </div>
+
+      {/* Hora */}
+      <label style={labelStyle}>Hora de inicio (opcional)</label>
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <SelectWrapper>
+          <select value={hour} onChange={(e) => setHour(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
+            <option value="">Hora</option>
+            {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
+              <option key={h} value={String(h)}>{h}</option>
+            ))}
+          </select>
+        </SelectWrapper>
+        <SelectWrapper>
+          <select value={minute} onChange={(e) => setMinute(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
+            <option value="">Min</option>
+            {["00","05","10","15","20","25","30","35","40","45","50","55"].map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        </SelectWrapper>
+        <SelectWrapper>
+          <select value={period} onChange={(e) => setPeriod(e.target.value as "AM" | "PM")} disabled={saving} style={selectStyle} className="vibra-live-select">
+            <option value="AM">AM</option>
+            <option value="PM">PM</option>
+          </select>
+        </SelectWrapper>
+      </div>
+
+    </div>
+  );
+
+  const footerContent = (
+    <div style={{
+      paddingTop: isDesktop ? 14 : 10,
+      paddingRight: 20,
+      paddingBottom: isDesktop ? 18 : "calc(14px + env(safe-area-inset-bottom))" as CSSProperties["paddingBottom"],
+      paddingLeft: 20,
+      borderTop: `1px solid rgba(255,255,255,${isDesktop ? "0.12" : "0.07"})`,
+      flexShrink: 0,
+    }}>
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={saving}
+        style={{
+          width: "100%", height: 42, borderRadius: 5, border: "none",
+          background: saving ? "rgba(255,255,255,0.1)" : "#a855ff",
+          color: saving ? "rgba(255,255,255,0.36)" : "rgba(255,255,255,0.98)",
+          fontSize: 17, fontWeight: 500, fontFamily: fontStack,
+          cursor: saving ? "not-allowed" : "pointer",
+          letterSpacing: "-0.02em", display: "grid", placeItems: "center",
+        }}
+      >
+        {saving
+          ? (isEditMode ? "Guardando..." : "Creando live...")
+          : (isEditMode ? "Guardar cambios" : "Programar live")
+        }
+      </button>
+    </div>
+  );
+
   return createPortal(
     <>
       <style>{`
-        @keyframes vibraLiveBackdropIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
-        @keyframes vibraLiveBackdropOut {
-          from { opacity: 1; }
-          to   { opacity: 0; }
-        }
         @keyframes vibraLiveModalIn {
           from { opacity: 0; transform: scale(0.94) translateY(10px); }
-          to   { opacity: 1; transform: scale(1)    translateY(0);    }
+          to   { opacity: 1; transform: scale(1) translateY(0); }
         }
         @keyframes vibraLiveModalOut {
-          from { opacity: 1; transform: scale(1)    translateY(0);    }
+          from { opacity: 1; transform: scale(1) translateY(0); }
           to   { opacity: 0; transform: scale(0.94) translateY(10px); }
         }
-        .vibra-live-select option {
-          background: #1a0f2e;
-          color: #fff;
-        }
+        .vibra-live-scroll::-webkit-scrollbar { width: 7px; height: 7px; }
+        .vibra-live-scroll::-webkit-scrollbar-track { background: transparent; }
+        .vibra-live-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 999px; }
+        .vibra-live-select option { background: #1a0f2e; color: #fff; }
         .vibra-live-radio:hover { background: rgba(255,255,255,0.06); }
       `}</style>
 
       {/* Backdrop */}
       <div
-        onClick={handleClose}
+        onMouseDown={(e) => { if (e.target === e.currentTarget) handleClose(); }}
         style={{
           position: "fixed",
           inset: 0,
-          zIndex: 9999,
-          background: "rgba(0,0,0,0.72)",
-          backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+          width: "100vw",
+          height: "100vh",
+          zIndex: 999999,
           display: "flex",
-          alignItems: "center",
+          alignItems: isDesktop ? "center" : "flex-end",
           justifyContent: "center",
-          paddingTop: "max(16px, env(safe-area-inset-top, 0px))",
-          paddingBottom: 16,
-          paddingLeft: 16,
-          paddingRight: 16,
-          animation: open
-            ? "vibraLiveBackdropIn 180ms ease-out"
-            : "vibraLiveBackdropOut 200ms ease-in forwards",
+          padding: isDesktop ? 24 : 0,
+          background: isDesktop ? "rgba(0,0,0,0.88)" : "rgba(0,0,0,0.52)",
+          backdropFilter: isDesktop ? undefined : "blur(10px)",
+          WebkitBackdropFilter: isDesktop ? undefined : "blur(10px)",
+          fontFamily: "inherit",
         }}
       >
-        {/* Panel */}
-        <div
-          onClick={(e) => e.stopPropagation()}
-          role="dialog"
-          aria-modal="true"
-          aria-label={isEditMode ? "Editar live" : "Programar live"}
-          style={{
-            width: "100%",
-            maxWidth: 460,
-            maxHeight: "90vh",
-            overflowY: "auto",
-            borderRadius: 16,
-            background: "rgba(15,10,28,0.97)",
-            border: "1px solid rgba(168,85,255,0.18)",
-            padding: "12px 20px 12px",
-            fontFamily: fontStack,
-            color: "#fff",
-            boxSizing: "border-box",
-            boxShadow: "0 24px 80px rgba(0,0,0,0.7)",
-            animation: open
-              ? "vibraLiveModalIn 180ms ease-out"
-              : "vibraLiveModalOut 200ms ease-in forwards",
-          }}
-        >
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
-            <span style={{ fontSize: 16, fontWeight: 600, letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 8 }}>
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <circle cx="9" cy="9" r="8" stroke="#ef4444" strokeWidth="1.2" fill="none" />
-                <circle cx="9" cy="9" r="4.5" fill="#ef4444" />
-              </svg>
-              {isEditMode ? "Editar live" : "Live programado"}
-            </span>
-            <button
-              type="button"
-              onClick={handleClose}
-              disabled={saving}
-              aria-label="Cerrar"
-              style={{
-                width: 32, height: 32, borderRadius: 999, border: "none",
-                background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.6)",
-                cursor: saving ? "not-allowed" : "pointer",
-                fontSize: 18, display: "grid", placeItems: "center", flexShrink: 0,
-              }}
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div style={{
-              borderRadius: 10, border: "1px solid rgba(255,90,90,0.24)",
-              background: "rgba(120,18,18,0.28)", color: "#ffdada",
-              padding: "9px 12px", fontSize: 12, lineHeight: 1.4, marginBottom: 10,
-            }}>
-              {error}
-            </div>
-          )}
-
-          {/* Portada */}
-          <input
-            ref={coverInputRef}
-            type="file"
-            accept="image/*,.heic,.heif"
-            style={{ display: "none" }}
-            onChange={handleCoverFileChange}
-          />
-
-          <label style={labelStyle}>Portada (opcional)</label>
-          <button
-            type="button"
-            onClick={handleCoverClick}
-            disabled={saving}
-            aria-label={coverPreviewUrl ? "Cambiar portada" : "Agregar portada"}
+        {isDesktop ? (
+          /* Desktop: panel centrado */
+          <section
+            onMouseDown={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={isEditMode ? "Editar live" : "Live programado"}
+            style={{
+              width: "min(100%, 540px)",
+              maxHeight: "min(88vh, 680px)",
+              display: "flex",
+              flexDirection: "column",
+              borderRadius: 18,
+              background: "#0a0a0a",
+              boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
+              color: "#fff",
+              overflow: "hidden",
+              animation: open
+                ? "vibraLiveModalIn 180ms ease-out"
+                : "vibraLiveModalOut 180ms ease-in forwards",
+            }}
+          >
+            <header style={{
+              height: 56,
+              display: "grid",
+              gridTemplateColumns: "48px 1fr 48px",
+              alignItems: "center",
+              padding: "0 12px",
+              borderBottom: "1px solid rgba(255,255,255,0.12)",
+              flexShrink: 0,
+            } as CSSProperties}>
+              <div />
+              <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", lineHeight: 1.2, textAlign: "center", letterSpacing: "-0.02em" }}>
+                {isEditMode ? "Editar live" : "Live programado"}
+              </span>
+              <button
+                type="button"
+                onClick={handleClose}
+                disabled={saving}
+                aria-label="Cerrar"
+                style={{
+                  border: "none", background: "none", color: "#fff",
+                  cursor: saving ? "not-allowed" : "pointer",
+                  display: "grid", placeItems: "center", justifySelf: "end", padding: 4,
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </header>
+            {scrollContent}
+            {footerContent}
+          </section>
+        ) : (
+          /* Mobile: bottom sheet 3 capas */
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={isEditMode ? "Editar live" : "Live programado"}
             style={{
               width: "100%",
-              aspectRatio: "16/7",
-              borderRadius: 12,
-              border: coverPreviewUrl
-                ? "none"
-                : "1.5px dashed rgba(255,255,255,0.18)",
-              background: coverPreviewUrl
-                ? "transparent"
-                : "radial-gradient(ellipse at center, rgba(180,180,200,0.22) 0%, rgba(120,120,150,0.10) 60%, rgba(80,80,110,0.06) 100%)",
-              cursor: saving ? "not-allowed" : "pointer",
+              maxHeight: "calc(100vh - 72px)",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 8,
-              overflow: "hidden",
-              padding: 0,
-              position: "relative",
+              flexDirection: "column",
+              background: "rgba(8,9,11,0.96)",
+              transform: open
+                ? `translateY(${Math.max(0, panelOffsetY)}px)`
+                : "translateY(100%)",
+              transition: isPanelDragging ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
+              willChange: "transform",
             }}
           >
-            {coverPreviewUrl ? (
-              <>
-                <Image
-                  src={coverPreviewUrl}
-                  alt="Portada del live"
-                  fill
-                  style={{ objectFit: "cover", display: "block" }}
-                />
-                <div style={{
-                  position: "absolute", inset: 0, display: "flex",
-                  alignItems: "center", justifyContent: "center",
-                  background: "rgba(0,0,0,0.45)", opacity: 0, transition: "opacity 150ms ease",
-                }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "1"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = "0"; }}
-                >
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack }}>
-                    Cambiar portada
-                  </span>
-                </div>
-              </>
-            ) : (
-              <svg width="36" height="36" viewBox="0 0 36 36" fill="none" style={{ pointerEvents: "none" }}>
-                <circle cx="18" cy="18" r="16" stroke="#ef4444" strokeWidth="1.8" fill="none" />
-                <circle cx="18" cy="18" r="9" fill="#ef4444" />
-              </svg>
-            )}
-          </button>
-
-          {/* Título */}
-          <label style={labelStyle}>Título *</label>
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="¿De qué va a tratar tu live?"
-            disabled={saving}
-            maxLength={120}
-            style={inputStyle}
-            autoFocus
-          />
-
-          {/* Descripción */}
-          <label style={labelStyle}>Descripción (opcional)</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Cuéntale a tu audiencia más detalles..."
-            disabled={saving}
-            maxLength={500}
-            rows={3}
-            style={{ ...inputStyle, resize: "none", minHeight: 44 }}
-          />
-
-          {/* ── VISIBILIDAD ── */}
-          <label style={{ ...labelStyle, marginTop: 2 }}>¿Quién puede ver este live?</label>
-
-          {isHiddenGroup ? (
+            {/* section-wrapper: rubber band hacia arriba */}
             <div style={{
-              display: "flex", alignItems: "center", gap: 10,
-              padding: "10px 12px", borderRadius: 10,
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              marginBottom: 8,
+              transform: `translateY(${Math.min(0, panelOffsetY)}px)`,
+              transition: isPanelDragging ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
             }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="rgba(255,255,255,0.4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-              </svg>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.6)", fontFamily: fontStack }}>
-                  Solo miembros de la comunidad
-                </div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: fontStack, marginTop: 1 }}>
-                  Las comunidades ocultas no pueden tener lives públicos
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div style={{ marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
-              {visibilityOptions.map((opt, idx) => {
-                const active = visibilityMode === opt.mode;
-                const isLast = idx === visibilityOptions.length - 1;
-                return (
-                  <div
-                    key={opt.mode}
-                    className="vibra-live-radio"
-                    onClick={() => !saving && setVisibilityMode(opt.mode)}
+              <section style={{
+                maxHeight: "calc(100vh - 140px)",
+                borderRadius: "22px 22px 0 0",
+                background: "rgba(8,9,11,0.96)",
+                boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",
+                color: "#fff",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+              }}>
+                <header
+                  onPointerDown={handleDragStart}
+                  onPointerMove={handleDragMove}
+                  onPointerUp={handleDragEnd}
+                  onPointerCancel={handleDragEnd}
+                  style={{
+                    height: 56,
+                    display: "grid",
+                    gridTemplateColumns: "72px 1fr 72px",
+                    alignItems: "center",
+                    padding: "0 12px",
+                    borderBottom: "1px solid rgba(255,255,255,0.07)",
+                    flexShrink: 0,
+                    touchAction: "none",
+                    userSelect: "none",
+                    WebkitUserSelect: "none",
+                  } as CSSProperties}
+                >
+                  <div aria-hidden="true" />
+                  <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
+                    {isEditMode ? "Editar live" : "Live programado"}
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={handleClose}
                     style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "10px 12px",
-                      cursor: saving ? "not-allowed" : "pointer",
-                      borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)",
-                      background: active ? "rgba(168,85,255,0.10)" : "transparent",
-                      userSelect: "none",
+                      width: 40, height: 40, border: "none", background: "transparent",
+                      color: "rgba(255,255,255,0.86)", cursor: "pointer",
+                      display: "grid", placeItems: "center",
+                      fontSize: 32, fontWeight: 300, lineHeight: 1, justifySelf: "end",
                     }}
                   >
-                    {/* Radio circle */}
-                    <div style={{
-                      width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
-                      border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.25)",
-                      boxSizing: "border-box", transition: "border 120ms ease",
-                    }} />
-                    {/* Icon */}
-                    <div style={{ flexShrink: 0, color: active ? "#c084fc" : "rgba(255,255,255,0.35)" }}>
-                      {opt.icon === "globe" && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10" />
-                          <line x1="2" y1="12" x2="22" y2="12" />
-                          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                        </svg>
-                      )}
-                      {opt.icon === "user" && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                          <circle cx="12" cy="7" r="4" />
-                        </svg>
-                      )}
-                      {opt.icon === "lock" && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                        </svg>
-                      )}
-                    </div>
-                    {/* Text */}
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#e9d5ff" : "#fff", fontFamily: fontStack }}>
-                        {opt.title}
-                      </div>
-                      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2, lineHeight: 1.4 }}>
-                        {opt.description}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                    ×
+                  </button>
+                </header>
+                {scrollContent}
+              </section>
             </div>
-          )}
-
-          {/* ── TICKET DE ENTRADA ── */}
-          <label style={{ ...labelStyle, marginTop: 2 }}>Ticket de entrada</label>
-          <div style={{ marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
-            {(["free", "paid"] as const).map((type, idx) => {
-              const active = accessType === type;
-              return (
-                <div
-                  key={type}
-                  onClick={() => !saving && setAccessType(type)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 10,
-                    padding: "10px 12px", cursor: saving ? "not-allowed" : "pointer",
-                    borderBottom: idx === 0 ? "1px solid rgba(255,255,255,0.06)" : "none",
-                    background: active ? "rgba(168,85,255,0.10)" : "transparent",
-                    userSelect: "none",
-                  }}
-                >
-                  <div style={{
-                    width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
-                    border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.25)",
-                    boxSizing: "border-box" as const, transition: "border 120ms ease",
-                  }} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#e9d5ff" : "#fff", fontFamily: fontStack }}>
-                      {type === "free" ? "Gratuito" : "Con ticket de entrada"}
-                    </div>
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2 }}>
-                      {type === "free" ? "Cualquier persona con acceso puede verlo sin costo" : "Los espectadores deben pagar para acceder al live"}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {/* Footer anclado fuera del rubber band */}
+            {footerContent}
           </div>
-
-          {/* Configuración de precio */}
-          {accessType === "paid" && (
-            <>
-              <label style={labelStyle}>Precio del ticket *</label>
-              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                <div style={{ flex: 1, position: "relative" as const }}>
-                  <input
-                    type="number"
-                    min="1"
-                    step="any"
-                    value={ticketPrice}
-                    onChange={(e) => setTicketPrice(e.target.value)}
-                    placeholder="0.00"
-                    disabled={saving}
-                    style={{ ...inputStyle, width: "100%", boxSizing: "border-box" as const }}
-                  />
-                </div>
-                <div style={{ width: 90, flexShrink: 0, position: "relative" as const, display: "flex", alignItems: "center", background: "rgba(255,255,255,0.06)", borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", overflow: "hidden" }}>
-                  <select
-                    value={currency}
-                    onChange={(e) => setCurrency(e.target.value as "MXN" | "USD")}
-                    disabled={saving}
-                    style={{ width: "100%", background: "transparent", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: fontStack, padding: "0 10px", cursor: "pointer", appearance: "none" as const }}
-                    className="vibra-live-select"
-                  >
-                    <option value="MXN">MXN</option>
-                    <option value="USD">USD</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Modo de pago — solo comunidad privada con live público/no-solo-miembros */}
-              {contextType === "group" && groupVisibility === "private" && visibilityMode !== "members_only" && (
-                <>
-                  <label style={labelStyle}>¿Quién paga?</label>
-                  <div style={{ marginBottom: 8, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
-                    {([
-                      { value: "everyone_pays", label: "Todos pagan", desc: "Tanto miembros como no miembros deben comprar el ticket" },
-                      { value: "members_free_non_members_pay", label: "Miembros gratis / No miembros pagan", desc: "Los miembros actuales de la comunidad entran sin costo" },
-                    ] as const).map(({ value, label, desc }, idx) => {
-                      const active = paidAccessMode === value;
-                      return (
-                        <div
-                          key={value}
-                          onClick={() => !saving && setPaidAccessMode(value)}
-                          style={{
-                            display: "flex", alignItems: "center", gap: 10,
-                            padding: "10px 12px", cursor: saving ? "not-allowed" : "pointer",
-                            borderBottom: idx === 0 ? "1px solid rgba(255,255,255,0.06)" : "none",
-                            background: active ? "rgba(168,85,255,0.10)" : "transparent",
-                            userSelect: "none",
-                          }}
-                        >
-                          <div style={{
-                            width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
-                            border: active ? "5px solid #a855f7" : "2px solid rgba(255,255,255,0.25)",
-                            boxSizing: "border-box" as const, transition: "border 120ms ease",
-                          }} />
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: active ? "#e9d5ff" : "#fff", fontFamily: fontStack }}>
-                              {label}
-                            </div>
-                            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", fontFamily: fontStack, marginTop: 2, lineHeight: 1.4 }}>
-                              {desc}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </>
-          )}
-
-          {/* Fecha */}
-          <label style={labelStyle}>Fecha de inicio (opcional)</label>
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-            <SelectWrapper>
-              <select value={day} onChange={(e) => setDay(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
-                <option value="">Día</option>
-                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((d) => (
-                  <option key={d} value={String(d)}>{d}</option>
-                ))}
-              </select>
-            </SelectWrapper>
-            <SelectWrapper>
-              <select
-                value={month}
-                onChange={(e) => {
-                  setMonth(e.target.value);
-                  if (day && parseInt(day) > getDaysInMonth(e.target.value, year)) setDay("");
-                }}
-                disabled={saving}
-                style={selectStyle}
-                className="vibra-live-select"
-              >
-                <option value="">Mes</option>
-                {MONTHS_ES.map((name, i) => (
-                  <option key={i + 1} value={String(i + 1)}>{name}</option>
-                ))}
-              </select>
-            </SelectWrapper>
-            <SelectWrapper>
-              <select value={year} onChange={(e) => setYear(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
-                <option value="">Año</option>
-                {years.map((y) => (
-                  <option key={y} value={String(y)}>{y}</option>
-                ))}
-              </select>
-            </SelectWrapper>
-          </div>
-
-          {/* Hora */}
-          <label style={labelStyle}>Hora de inicio (opcional)</label>
-          <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-            <SelectWrapper>
-              <select value={hour} onChange={(e) => setHour(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
-                <option value="">Hora</option>
-                {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
-                  <option key={h} value={String(h)}>{h}</option>
-                ))}
-              </select>
-            </SelectWrapper>
-            <SelectWrapper>
-              <select value={minute} onChange={(e) => setMinute(e.target.value)} disabled={saving} style={selectStyle} className="vibra-live-select">
-                <option value="">Min</option>
-                {["00","05","10","15","20","25","30","35","40","45","50","55"].map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </SelectWrapper>
-            <SelectWrapper>
-              <select value={period} onChange={(e) => setPeriod(e.target.value as "AM" | "PM")} disabled={saving} style={selectStyle} className="vibra-live-select">
-                <option value="AM">AM</option>
-                <option value="PM">PM</option>
-              </select>
-            </SelectWrapper>
-          </div>
-
-          {/* Botón */}
-          <button
-            type="button"
-            onClick={handleSubmit}
-            disabled={saving}
-            style={{
-              width: "100%", borderRadius: 12, border: "none",
-              background: saving ? "rgba(168,85,255,0.4)" : "linear-gradient(135deg,#a855ff,#7c3aed)",
-              color: "#fff", padding: "12px 0", fontSize: 15, fontWeight: 600,
-              fontFamily: fontStack, cursor: saving ? "not-allowed" : "pointer",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            {saving
-              ? (isEditMode ? "Guardando..." : "Creando live...")
-              : (isEditMode ? "Guardar cambios" : "Programar live")
-            }
-          </button>
-        </div>
+        )}
       </div>
     </>,
     document.body,

@@ -12,6 +12,7 @@ import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer } from "@/lib/liveKit/liveViewers";
 import type { ActiveSuperComment } from "@/lib/posts/types";
+import { initTtsCalibration, computeTtsRate, refineTtsCalibration, TTS_MIN_DURATION_SECS } from "@/lib/tts/ttsCalibration";
 
 const FONT =
   'inherit';
@@ -84,7 +85,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   // ── Supercomentario activo (overlay sobre el video) ────────────────────────
   const [activeSuperComment, setActiveSuperComment] = useState<ActiveSuperComment | null>(null);
-  const prevActiveSuperIdRef = useRef<string | null>(null);
+  // Clave compuesta id+scheduledAt — permite detectar replays del mismo SC
+  const prevActiveSuperKeyRef = useRef<string | null>(null);
   const pollIntervalRef = useRef<number | null>(null);
   const overlayTimerRef = useRef<number | null>(null);
 
@@ -129,8 +131,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return subscribeToViewerCount(post.id, setViewerCount);
   }, [open, localLiveData?.status, post.id]);
 
-  useEffect(() => { prevActiveSuperIdRef.current = null; }, [post.id]);
-  useEffect(() => { if (!open) prevActiveSuperIdRef.current = null; }, [open]);
+  useEffect(() => { prevActiveSuperKeyRef.current = null; }, [post.id]);
+  useEffect(() => { if (!open) prevActiveSuperKeyRef.current = null; }, [open]);
 
   // ── Overlay de supercomentario via liveData.activeSuper ───────────────────
   // El creador escribe liveData.activeSuper con scheduledAt al hacer play.
@@ -141,8 +143,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     if (!open || !hasAccess) return;
     const activeSuper = localLiveData?.activeSuper;
     const scId = activeSuper?.id ?? null;
-    if (scId === prevActiveSuperIdRef.current) return;
-    prevActiveSuperIdRef.current = scId;
+    // Clave compuesta: mismo SC con nuevo scheduledAt = replay, debe mostrarse
+    const scKey = scId != null ? `${scId}:${activeSuper?.scheduledAt ?? 0}` : null;
+    if (scKey === prevActiveSuperKeyRef.current) return;
+    prevActiveSuperKeyRef.current = scKey;
     if (!activeSuper || !scId) return;
 
     if (activeSuper.scheduledAt != null) {
@@ -301,13 +305,20 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       // iOS Safari bloquea speechSynthesis fuera de un gesto del usuario.
       // Primar aquí (dentro del efecto del gesto que abre el modal) desbloquea
       // llamadas futuras desde callbacks asíncronos de Firestore.
+      // La calibración silenciosa se encola justo después del primer y solo
+      // corre una vez por dispositivo (localStorage cache).
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
         const primer = new SpeechSynthesisUtterance("");
         primer.volume = 0;
         window.speechSynthesis.speak(primer);
+        initTtsCalibration();
       }
       return;
+    }
+    // Modal cerrándose — cortar cualquier TTS en curso
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
     }
     setIsFullscreen(false);
     setMobileFsHorizontal(false);
@@ -841,11 +852,17 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   function showSuperOverlay(sc: ActiveSuperComment, durationSeconds: number) {
     playSuperCommentSound();
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    // Solo reproducir TTS si queda tiempo suficiente (evita TTS fantasmas en entrada tardía)
+    if (typeof window !== "undefined" && "speechSynthesis" in window && durationSeconds >= TTS_MIN_DURATION_SECS) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(sc.text);
       utterance.lang = "es-MX";
-      utterance.rate = 1;
+      utterance.rate = computeTtsRate(sc.text, durationSeconds);
+      const capturedRate = utterance.rate;
+      const speakStart = performance.now();
+      utterance.onend = () => {
+        refineTtsCalibration(sc.text, (performance.now() - speakStart) / 1000, capturedRate);
+      };
       window.speechSynthesis.speak(utterance);
     }
     setActiveSuperComment(sc);
@@ -853,6 +870,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     overlayTimerRef.current = window.setTimeout(() => {
       setActiveSuperComment(null);
       overlayTimerRef.current = null;
+      // Cortar TTS si aún no terminó (calibración ligeramente imprecisa o entrada tardía)
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
     }, durationSeconds * 1000);
   }
 

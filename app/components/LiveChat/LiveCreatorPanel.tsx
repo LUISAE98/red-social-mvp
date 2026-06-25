@@ -31,6 +31,7 @@ import LiveStreamSetup from "@/app/components/LiveStreamSetup/LiveStreamSetup";
 import SuperCommentConfigPanel from "@/app/components/LiveChat/SuperCommentConfigPanel";
 import LiveEndSummaryPanel from "@/app/components/LiveChat/LiveEndSummaryPanel";
 import { subscribeToViewerCount, updatePeakViewers, subscribeToUniqueViewerCount } from "@/lib/liveKit/liveViewers";
+import { initTtsCalibration, computeTtsRate, refineTtsCalibration } from "@/lib/tts/ttsCalibration";
 
 const FONT = 'inherit';
 const DIV = "1px solid rgba(255,255,255,0.12)";
@@ -92,6 +93,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [activeSuperOverlay, setActiveSuperOverlay] = useState<SuperComment | null>(null);
   const [superCommentTab, setSuperCommentTab] = useState<"nuevos" | "reproducidos">("nuevos");
   const [playingOverlay, setPlayingOverlay] = useState<SuperComment | null>(null);
+  const [ttsReadIndex, setTtsReadIndex] = useState(0);
+  const scBoundaryRef = useRef<HTMLSpanElement>(null);
+  const scTextContainerRef = useRef<HTMLDivElement>(null);
+  const ttsKeepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [liveSetupOpen, setLiveSetupOpen] = useState(false);
   const [scConfigOpen, setScConfigOpen] = useState(false);
   const [headphonesDetected, setHeadphonesDetected] = useState(false);
@@ -104,6 +109,22 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   useEffect(() => {
     if (!isBroadcastingRef.current) setLayoutPortrait(portrait);
   }, [portrait]);
+
+  useEffect(() => {
+    const container = scTextContainerRef.current;
+    const cursor = scBoundaryRef.current;
+    if (!container || !cursor || ttsReadIndex === 0) return;
+    const cRect = container.getBoundingClientRect();
+    const cursorRect = cursor.getBoundingClientRect();
+    const cursorBottom = cursorRect.bottom - cRect.top + container.scrollTop;
+    const cursorTop = cursorRect.top - cRect.top + container.scrollTop;
+    if (cursorBottom > container.scrollTop + container.clientHeight) {
+      container.scrollTop = cursorBottom - container.clientHeight + 8;
+    } else if (cursorTop < container.scrollTop) {
+      container.scrollTop = cursorTop - 8;
+    }
+  }, [ttsReadIndex]);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const liveData = post.liveData;
@@ -127,6 +148,14 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   useEffect(() => {
     if (showEndPanel && open) setEndPanelOpen(true);
   }, [showEndPanel, open]);
+
+  // Calibración silenciosa del TTS al abrir el panel (una sola vez por dispositivo)
+  useEffect(() => {
+    if (!open) return;
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      initTtsCalibration();
+    }
+  }, [open]);
 
   useEffect(() => {
     const update = () => {
@@ -447,23 +476,53 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       setActiveSuperOverlay(sc);
       setPlayingOverlay(sc);
 
+      setTtsReadIndex(0);
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(sc.text);
+        if (ttsKeepAliveRef.current !== null) clearInterval(ttsKeepAliveRef.current);
+
+        const ttsText = `${sc.username} dijo: ${sc.text}`;
+        const utterance = new SpeechSynthesisUtterance(ttsText);
         utterance.lang = "es-MX";
-        utterance.rate = 1;
-        if (!headphonesDetected) {
-          setMicMutedForTTS(true);
-          utterance.onend = () => setMicMutedForTTS(false);
-        }
+        utterance.rate = computeTtsRate(ttsText, sc.displaySeconds);
+        const capturedRate = utterance.rate;
+        const speakStart = performance.now();
+        const withoutHeadphones = !headphonesDetected;
+        if (withoutHeadphones) setMicMutedForTTS(true);
+
+        // Workaround: Chrome pauses speechSynthesis silently after ~15s
+        ttsKeepAliveRef.current = setInterval(() => {
+          if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+            window.speechSynthesis.pause();
+            window.speechSynthesis.resume();
+          }
+        }, 10000);
+
+        const ttsPrefix = `${sc.username} dijo: `;
+        utterance.onboundary = (e) => {
+          if (e.name === "word") {
+            const idx = e.charIndex + (e.charLength ?? 0) - ttsPrefix.length;
+            setTtsReadIndex(Math.max(0, idx));
+          }
+        };
+        utterance.onend = () => {
+          if (ttsKeepAliveRef.current !== null) {
+            clearInterval(ttsKeepAliveRef.current);
+            ttsKeepAliveRef.current = null;
+          }
+          setTtsReadIndex(sc.text.length);
+          if (withoutHeadphones) setMicMutedForTTS(false);
+          refineTtsCalibration(sc.text, (performance.now() - speakStart) / 1000, capturedRate);
+        };
         window.speechSynthesis.speak(utterance);
       }
 
       window.setTimeout(() => {
         setActiveSuperOverlay(null);
-        setMicMutedForTTS(false);
         isPlayingRef.current = false;
         clearActiveSuper(post.id).catch(() => {});
+        // No cancelamos el TTS aquí — el creador puede seguir leyendo en el overlay
+        // El TTS termina solo vía utterance.onend
       }, sc.displaySeconds * 1000);
     }, LEAD_MS);
   }
@@ -472,16 +531,59 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     _doPlay(sc);
   }
 
-  function handleCloseSCOverlay() {
+  // Para la reproducción para todos los espectadores sin cerrar el overlay del creador
+  function handleStopForAll() {
     if (scheduledPlayTimeoutRef.current !== null) {
       window.clearTimeout(scheduledPlayTimeoutRef.current);
       scheduledPlayTimeoutRef.current = null;
     }
+    if (ttsKeepAliveRef.current !== null) {
+      clearInterval(ttsKeepAliveRef.current);
+      ttsKeepAliveRef.current = null;
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
     isPlayingRef.current = false;
     setMicMutedForTTS(false);
+    setActiveSuperOverlay(null);
+    clearActiveSuper(post.id).catch(() => {});
+    // El overlay del creador (playingOverlay) se mantiene abierto
+  }
+
+  // Para la reproducción Y cierra el overlay del creador (botón X y cierre de panel)
+  function handleCloseSCOverlay() {
+    handleStopForAll();
     setPlayingOverlay(null);
     setPlayingId(null);
-    clearActiveSuper(post.id).catch(() => {});
+    setTtsReadIndex(0);
+  }
+
+  function handlePanelClose() {
+    if (playingOverlay || isPlayingRef.current) handleCloseSCOverlay();
+    onClose();
+  }
+
+  function handleReplaySCFromOverlay() {
+    if (!playingOverlay) return;
+    const sc = playingOverlay;
+    // Cancelar estado actual del play en curso
+    if (scheduledPlayTimeoutRef.current !== null) {
+      window.clearTimeout(scheduledPlayTimeoutRef.current);
+      scheduledPlayTimeoutRef.current = null;
+    }
+    if (ttsKeepAliveRef.current !== null) {
+      clearInterval(ttsKeepAliveRef.current);
+      ttsKeepAliveRef.current = null;
+    }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    setMicMutedForTTS(false);
+    setTtsReadIndex(0);
+    isPlayingRef.current = false;
+    // Relanzar con todas las APIs (playSuperComment + pushActiveSuperToViewers)
+    _doPlay(sc);
   }
 
   function handleNextSCOverlay() {
@@ -490,10 +592,15 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       window.clearTimeout(scheduledPlayTimeoutRef.current);
       scheduledPlayTimeoutRef.current = null;
     }
+    if (ttsKeepAliveRef.current !== null) {
+      clearInterval(ttsKeepAliveRef.current);
+      ttsKeepAliveRef.current = null;
+    }
     isPlayingRef.current = false;
     setMicMutedForTTS(false);
     setPlayingOverlay(null);
     setPlayingId(null);
+    setTtsReadIndex(0);
     clearActiveSuper(post.id).catch(() => {});
     const next = superComments.find((sc) => !sc.isDeleted && !sc.played && sc.id !== currentId);
     if (next) window.setTimeout(() => _doPlay(next), 0);
@@ -619,88 +726,93 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   style={{
                     display: "flex", alignItems: "flex-start", gap: 10,
                     padding: "10px 12px",
-                    borderBottom: "1px solid rgba(255,255,255,0.04)",
-                    borderLeft: `3px solid ${sc.color}`,
+                    borderBottom: "1px solid rgba(255,255,255,0.06)",
                     opacity: sc.hidden ? 0.45 : 1,
-                    background: sc.played ? "rgba(255,255,255,0.02)" : "transparent",
+                    background: "transparent",
                   }}
                 >
-                  {/* Info principal */}
+                  <ScAvatar url={sc.avatarUrl} name={sc.username} ringColor={sc.color} />
+
+                  {/* Contenido central */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.75)", fontFamily: FONT }}>
+                    {/* Renglón 1: nombre + monto + Reproducir + spacer + acciones */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: FONT, flexShrink: 0 }}>
                         {sc.username}
                       </span>
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, color: sc.color,
-                        background: `${sc.color}22`, border: `1px solid ${sc.color}44`,
-                        borderRadius: 4, padding: "1px 5px", fontFamily: FONT,
-                      }}>
-                        ${sc.amount} MXN · {sc.tierName}
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#86efac", fontFamily: FONT, flexShrink: 0 }}>
+                        +${(sc.amount * 0.77).toFixed(2)} MXN
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => handlePlaySC(sc)}
+                        title={sc.played ? "Reproducir de nuevo" : "Reproducir"}
+                        style={{
+                          padding: "3px 10px", borderRadius: 6, border: "none",
+                          background: playingId === sc.id
+                            ? `${sc.color}55`
+                            : "linear-gradient(135deg, #a855f7, #f72fbe)",
+                          color: "#fff", fontSize: 11, fontWeight: 600, fontFamily: FONT,
+                          cursor: "pointer", flexShrink: 0,
+                        }}
+                      >
+                        Reproducir
+                      </button>
                       {sc.hidden && (
-                        <span style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", fontFamily: FONT }}>
-                          OCULTO
-                        </span>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: "#f59e0b", fontFamily: FONT, flexShrink: 0 }}>OCULTO</span>
                       )}
+                      <div style={{ flex: 1 }} />
+                      <ModActionBtn
+                        onClick={() => {
+                          if (sc.hidden) showSuperComment(post.id, sc.id);
+                          else hideSuperComment(post.id, sc.id);
+                        }}
+                        active={sc.hidden}
+                        activeColor="#f59e0b"
+                        title={sc.hidden ? "Mostrar" : "Ocultar"}
+                      >
+                        {sc.hidden ? (
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                            <line x1="1" y1="1" x2="23" y2="23" />
+                          </svg>
+                        ) : (
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        )}
+                      </ModActionBtn>
+                      <ModActionBtn
+                        onClick={() => deleteSuperComment(post.id, sc.id)}
+                        active={false}
+                        activeColor="#ef4444"
+                        title="Eliminar supercomentario"
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6l-1 14H6L5 6" />
+                          <path d="M10 11v6" /><path d="M14 11v6" />
+                          <path d="M9 6V4h6v2" />
+                        </svg>
+                      </ModActionBtn>
+                      <ModActionBtn
+                        onClick={() => handleBanToggle(sc.userId)}
+                        active={liveData?.bannedUsers?.includes(sc.userId) ?? false}
+                        activeColor="#ef4444"
+                        title={liveData?.bannedUsers?.includes(sc.userId) ? "Desbanear" : "Banear del live"}
+                      >
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                        </svg>
+                      </ModActionBtn>
                     </div>
-                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", lineHeight: 1.4, fontFamily: FONT, wordBreak: "break-word" }}>
+                    {/* Renglón 2: texto del mensaje a ancho completo */}
+                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.4, fontFamily: FONT, wordBreak: "break-word" }}>
                       {sc.text}
                     </span>
-                  </div>
-
-                  {/* Acciones */}
-                  <div style={{ display: "flex", gap: 2, flexShrink: 0, alignItems: "flex-start" }}>
-                    {/* Reproducir */}
-                    <ModActionBtn
-                      onClick={() => handlePlaySC(sc)}
-                      active={playingId === sc.id}
-                      activeColor={sc.color}
-                      title={sc.played ? "Reproducir de nuevo" : "Reproducir"}
-                    >
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill={playingId === sc.id ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polygon points="5 3 19 12 5 21 5 3" />
-                      </svg>
-                    </ModActionBtn>
-
-                    {/* Ocultar / mostrar */}
-                    <ModActionBtn
-                      onClick={() => {
-                        if (sc.hidden) showSuperComment(post.id, sc.id);
-                        else hideSuperComment(post.id, sc.id);
-                      }}
-                      active={sc.hidden}
-                      activeColor="#f59e0b"
-                      title={sc.hidden ? "Mostrar" : "Ocultar"}
-                    >
-                      {sc.hidden ? (
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                          <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                          <line x1="1" y1="1" x2="23" y2="23" />
-                        </svg>
-                      ) : (
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                      )}
-                    </ModActionBtn>
-
-                    {/* Borrar */}
-                    <ModActionBtn
-                      onClick={() => deleteSuperComment(post.id, sc.id)}
-                      active={false}
-                      activeColor="#ef4444"
-                      title="Eliminar supercomentario"
-                    >
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6" />
-                        <path d="M19 6l-1 14H6L5 6" />
-                        <path d="M10 11v6" /><path d="M14 11v6" />
-                        <path d="M9 6V4h6v2" />
-                      </svg>
-                    </ModActionBtn>
                   </div>
                 </div>
               ))}
@@ -843,51 +955,85 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         }}>
           <div style={{
             width: "min(420px, 90vw)",
-            background: "#0d0d12",
+            background: "#0a0a0a",
             borderRadius: 18,
-            border: `1px solid ${playingOverlay.color}33`,
-            borderLeft: `4px solid ${playingOverlay.color}`,
-            boxShadow: `0 0 0 1px ${playingOverlay.color}22, 0 32px 64px rgba(0,0,0,0.9)`,
-            padding: "24px 24px 20px",
+            boxShadow: "0 32px 64px rgba(0,0,0,0.9)",
+            padding: "16px",
+            position: "relative",
             animation: "scOverlaySlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "rgba(255,255,255,0.9)", fontFamily: FONT }}>
-                {playingOverlay.username}
-              </span>
-              <span style={{
-                fontSize: 11, fontWeight: 700, color: playingOverlay.color,
-                background: `${playingOverlay.color}22`, border: `1px solid ${playingOverlay.color}44`,
-                borderRadius: 5, padding: "2px 7px", fontFamily: FONT,
-              }}>
-                ${playingOverlay.amount} MXN · {playingOverlay.tierName}
-              </span>
+            {/* Tache cierre */}
+            <button
+              type="button"
+              onClick={handleCloseSCOverlay}
+              style={{
+                position: "absolute", top: 10, right: 10,
+                border: "none", background: "none", color: "rgba(255,255,255,0.7)",
+                cursor: "pointer", padding: 4, display: "grid", placeItems: "center",
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+            {/* Fila 1: avatar + nombre + monto */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8, paddingRight: 24 }}>
+              <ScAvatar url={playingOverlay.avatarUrl} name={playingOverlay.username} ringColor={playingOverlay.color} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: FONT }}>
+                    {playingOverlay.username}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#86efac", fontFamily: FONT }}>
+                    +${(playingOverlay.amount * 0.77).toFixed(2)} MXN
+                  </span>
+                </div>
+              </div>
             </div>
-            <p style={{
-              fontSize: 16, color: "#fff", lineHeight: 1.55, fontFamily: FONT,
-              margin: "0 0 24px", wordBreak: "break-word",
+            {/* Fila 2: texto — 3 líneas visibles, scroll + negritas progresivas */}
+            <div ref={scTextContainerRef} style={{
+              fontSize: 12, lineHeight: 1.55, color: "#fff", fontFamily: FONT,
+              maxHeight: `${3 * 12 * 1.55}px`, overflowY: "auto", scrollbarWidth: "none",
+              wordBreak: "break-word", marginBottom: 12,
             }}>
-              {playingOverlay.text}
-            </p>
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                onClick={handleCloseSCOverlay}
-                style={{
-                  padding: "9px 18px", borderRadius: 9,
-                  border: "1px solid rgba(255,255,255,0.15)",
-                  background: "transparent", color: "rgba(255,255,255,0.6)",
-                  fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT,
-                }}
-              >
-                Cerrar
-              </button>
+              <strong>{playingOverlay.text.slice(0, ttsReadIndex)}</strong>
+              <span ref={scBoundaryRef} />
+              {playingOverlay.text.slice(ttsReadIndex)}
+            </div>
+            {/* Botones */}
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+              {/* Izquierda: Detener + Reproducir de nuevo */}
+              <div style={{ display: "flex", gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={handleStopForAll}
+                  style={{
+                    padding: "9px 12px", borderRadius: 9, border: "none",
+                    background: "#f87171", color: "#fff",
+                    fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT,
+                  }}
+                >
+                  Detener
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReplaySCFromOverlay}
+                  style={{
+                    padding: "9px 12px", borderRadius: 9, border: "none",
+                    background: "#a855f7", color: "#fff",
+                    fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: FONT,
+                  }}
+                >
+                  Repetir
+                </button>
+              </div>
+              {/* Derecha: Siguiente */}
               <button
                 type="button"
                 onClick={handleNextSCOverlay}
                 style={{
                   padding: "9px 18px", borderRadius: 9, border: "none",
-                  background: playingOverlay.color, color: "#fff",
+                  background: "linear-gradient(135deg, #a855f7, #f72fbe)", color: "#fff",
                   fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: FONT,
                 }}
               >
@@ -912,7 +1058,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
             <button
               type="button"
-              onClick={isBroadcasting ? undefined : onClose}
+              onClick={isBroadcasting ? undefined : handlePanelClose}
               disabled={isBroadcasting}
               title={isBroadcasting ? "Detén la transmisión antes de salir" : "Cerrar"}
               style={{
@@ -996,7 +1142,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               }}>
                 <button
                   type="button"
-                  onClick={isBroadcasting ? undefined : onClose}
+                  onClick={isBroadcasting ? undefined : handlePanelClose}
                   disabled={isBroadcasting}
                   title={isBroadcasting ? "Detén la transmisión antes de salir" : "Cerrar"}
                   style={{
@@ -1378,6 +1524,33 @@ function ChatMessageRow({ msg, isMuted, isBanned, onMute, onBan, onDelete }: Mes
           </svg>
         </ModActionBtn>
       </div>
+    </div>
+  );
+}
+
+function ScAvatar({ url, name, ringColor }: { url?: string | null; name: string; ringColor?: string }) {
+  const SIZE = 36;
+  const INSET = ringColor ? 3 : 0;
+  const RING = 2;
+  return (
+    <div style={{ position: "relative", width: SIZE, height: SIZE, flexShrink: 0 }}>
+      {url ? (
+        <div style={{ position: "absolute", inset: INSET, borderRadius: "50%", overflow: "hidden" }}>
+          <Image src={url} alt="" fill style={{ objectFit: "cover" }} />
+        </div>
+      ) : (
+        <div style={{ position: "absolute", inset: INSET, borderRadius: "50%", background: "rgba(168,85,247,0.5)", display: "grid", placeItems: "center" }}>
+          <span style={{ fontSize: 15, color: "#fff", fontFamily: FONT, fontWeight: 700 }}>{name.charAt(0).toUpperCase()}</span>
+        </div>
+      )}
+      {ringColor && (
+        <div style={{
+          position: "absolute", inset: 0, borderRadius: "50%",
+          background: ringColor,
+          WebkitMaskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
+          maskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
+        }} />
+      )}
     </div>
   );
 }

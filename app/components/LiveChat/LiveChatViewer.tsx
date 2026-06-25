@@ -197,13 +197,13 @@ export default function LiveChatViewer({
                 <div key={item.id} style={{
                   display: "flex", alignItems: "center", gap: 7,
                   margin: "0 -14px 5px -14px", padding: "6px 14px",
-                  background: `${item.color}80`,
+                  background: "transparent",
                 }}>
-                  <Avatar url={item.avatarUrl} name={item.username} size={20} />
+                  <Avatar url={item.avatarUrl} name={item.username} size={20} ringColor={item.color} />
                   <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "#fff", alignSelf: "center" }}>
                     <strong style={{ fontWeight: 700, color: "#fff", marginRight: 5 }}>{item.username}</strong>
                     <span style={{ fontSize: 10, background: "rgba(0,0,0,0.35)", color: "#fff", borderRadius: 4, padding: "1px 5px", marginRight: 5, fontWeight: 700 }}>
-                      +${item.amount.toFixed(2)} MXN
+                      <span style={{ color: "rgba(255,255,255,0.55)", fontWeight: 400 }}>donó </span>${item.amount.toFixed(2)} MXN
                     </span>
                     {item.text}
                   </span>
@@ -302,15 +302,15 @@ export default function LiveChatViewer({
               <div key={item.id} style={{
                 display: "flex", gap: 6, padding: "6px 10px", alignItems: "center",
                 margin: "2px -10px",
-                background: `${item.color}80`,
+                background: "transparent",
               }}>
-                <Avatar url={item.avatarUrl} name={item.username} size={22} />
+                <Avatar url={item.avatarUrl} name={item.username} size={22} ringColor={item.color} />
                 <div style={{ minWidth: 0, flex: 1, alignSelf: "center" }}>
                   <span style={{ fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: "#fff", marginRight: 4 }}>
                     {item.username}
                   </span>
                   <span style={{ fontFamily: FONT, fontSize: 10, background: "rgba(0,0,0,0.35)", color: "#fff", borderRadius: 4, padding: "1px 5px", marginRight: 5, fontWeight: 700, verticalAlign: "middle" }}>
-                    +${item.amount.toFixed(2)} MXN
+                    <span style={{ color: "rgba(255,255,255,0.55)", fontWeight: 400 }}>donó </span>${item.amount.toFixed(2)} MXN
                   </span>
                   <span style={{ fontFamily: FONT, fontSize: 12, color: "rgba(255,255,255,0.9)", lineHeight: 1.4, wordBreak: "break-word" }}>
                     {item.text}
@@ -385,27 +385,30 @@ export default function LiveChatViewer({
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
-function Avatar({ url, name, size }: { url?: string | null; name: string; size: number }) {
-  if (url) {
-    return (
-      <div style={{ width: size, height: size, borderRadius: "50%", overflow: "hidden", flexShrink: 0, alignSelf: "center" }}>
-        <Image
-          src={url} alt=""
-          width={size} height={size}
-          style={{ display: "block", objectFit: "cover", width: "100%", height: "100%" }}
-        />
-      </div>
-    );
-  }
+function Avatar({ url, name, size, ringColor }: { url?: string | null; name: string; size: number; ringColor?: string }) {
+  const INSET = ringColor ? 3 : 0;
+  const RING = 2;
   return (
-    <div style={{
-      width: size, height: size, borderRadius: "50%",
-      background: "rgba(168,85,247,0.5)", flexShrink: 0, alignSelf: "center",
-      display: "grid", placeItems: "center",
-    }}>
-      <span style={{ fontSize: size * 0.44, color: "#fff", fontFamily: FONT, fontWeight: 700 }}>
-        {name.charAt(0).toUpperCase()}
-      </span>
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0, alignSelf: "center" }}>
+      {url ? (
+        <div style={{ position: "absolute", inset: INSET, borderRadius: "50%", overflow: "hidden" }}>
+          <Image src={url} alt="" fill style={{ objectFit: "cover" }} />
+        </div>
+      ) : (
+        <div style={{ position: "absolute", inset: INSET, borderRadius: "50%", background: "rgba(168,85,247,0.5)", display: "grid", placeItems: "center" }}>
+          <span style={{ fontSize: size * 0.44, color: "#fff", fontFamily: FONT, fontWeight: 700 }}>
+            {name.charAt(0).toUpperCase()}
+          </span>
+        </div>
+      )}
+      {ringColor && (
+        <div style={{
+          position: "absolute", inset: 0, borderRadius: "50%",
+          background: ringColor,
+          WebkitMaskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
+          maskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
+        }} />
+      )}
     </div>
   );
 }
