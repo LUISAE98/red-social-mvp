@@ -12,7 +12,7 @@ import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer } from "@/lib/liveKit/liveViewers";
 import type { ActiveSuperComment } from "@/lib/posts/types";
-import { initTtsCalibration, TTS_MIN_DURATION_SECS } from "@/lib/tts/ttsCalibration";
+import { TTS_MIN_DURATION_SECS } from "@/lib/tts/ttsCalibration";
 
 const FONT =
   'inherit';
@@ -398,7 +398,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           primer.volume = 0;
           window.speechSynthesis.speak(primer);
         }
-        initTtsCalibration();
       }
       return;
     }

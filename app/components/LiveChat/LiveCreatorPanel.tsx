@@ -97,6 +97,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const scBoundaryRef = useRef<HTMLSpanElement>(null);
   const scTextContainerRef = useRef<HTMLDivElement>(null);
   const ttsKeepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const displayEndTimerRef = useRef<number | null>(null);
   const [liveSetupOpen, setLiveSetupOpen] = useState(false);
   const [scConfigOpen, setScConfigOpen] = useState(false);
   const [headphonesDetected, setHeadphonesDetected] = useState(false);
@@ -478,8 +479,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
       setTtsReadIndex(0);
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        if (ttsKeepAliveRef.current !== null) clearInterval(ttsKeepAliveRef.current);
+        if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
 
         const ttsText = `${sc.username} dijo: ${sc.text}`;
         const utterance = new SpeechSynthesisUtterance(ttsText);
@@ -514,15 +514,22 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           if (withoutHeadphones) setMicMutedForTTS(false);
           refineTtsCalibration(sc.text, (performance.now() - speakStart) / 1000, capturedRate);
         };
-        window.speechSynthesis.speak(utterance);
+
+        const wasActive = window.speechSynthesis.speaking || window.speechSynthesis.pending;
+        window.speechSynthesis.cancel();
+        if (wasActive) {
+          window.setTimeout(() => window.speechSynthesis.speak(utterance), 100);
+        } else {
+          window.speechSynthesis.speak(utterance);
+        }
       }
 
-      window.setTimeout(() => {
+      if (displayEndTimerRef.current !== null) window.clearTimeout(displayEndTimerRef.current);
+      displayEndTimerRef.current = window.setTimeout(() => {
+        displayEndTimerRef.current = null;
         setActiveSuperOverlay(null);
         isPlayingRef.current = false;
         clearActiveSuper(post.id).catch(() => {});
-        // No cancelamos el TTS aquí — el creador puede seguir leyendo en el overlay
-        // El TTS termina solo vía utterance.onend
       }, sc.displaySeconds * 1000);
     }, LEAD_MS);
   }
@@ -536,6 +543,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     if (scheduledPlayTimeoutRef.current !== null) {
       window.clearTimeout(scheduledPlayTimeoutRef.current);
       scheduledPlayTimeoutRef.current = null;
+    }
+    if (displayEndTimerRef.current !== null) {
+      window.clearTimeout(displayEndTimerRef.current);
+      displayEndTimerRef.current = null;
     }
     if (ttsKeepAliveRef.current !== null) {
       clearInterval(ttsKeepAliveRef.current);
@@ -572,6 +583,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       window.clearTimeout(scheduledPlayTimeoutRef.current);
       scheduledPlayTimeoutRef.current = null;
     }
+    if (displayEndTimerRef.current !== null) {
+      window.clearTimeout(displayEndTimerRef.current);
+      displayEndTimerRef.current = null;
+    }
     if (ttsKeepAliveRef.current !== null) {
       clearInterval(ttsKeepAliveRef.current);
       ttsKeepAliveRef.current = null;
@@ -591,6 +606,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     if (scheduledPlayTimeoutRef.current !== null) {
       window.clearTimeout(scheduledPlayTimeoutRef.current);
       scheduledPlayTimeoutRef.current = null;
+    }
+    if (displayEndTimerRef.current !== null) {
+      window.clearTimeout(displayEndTimerRef.current);
+      displayEndTimerRef.current = null;
     }
     if (ttsKeepAliveRef.current !== null) {
       clearInterval(ttsKeepAliveRef.current);
