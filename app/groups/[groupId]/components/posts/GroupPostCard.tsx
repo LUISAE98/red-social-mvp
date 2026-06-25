@@ -3267,6 +3267,7 @@ style={{
           portrait={isLivePortrait}
           paused={liveViewerOpen || liveCreatorOpen}
           streamProvider={activeLiveData.streamProvider ?? undefined}
+          activeSuper={activeLiveData.activeSuper ?? null}
           onStreamReady={(s) => setFeedLiveStream(s)}
           onClick={() => currentUserId === post.authorId ? setLiveCreatorOpen(true) : setLiveViewerOpen(true)}
           onOrientationDetected={(p) => {

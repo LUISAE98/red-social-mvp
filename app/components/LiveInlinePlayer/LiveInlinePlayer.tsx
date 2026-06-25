@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Hls from "hls.js";
+import type { ActiveSuperComment } from "@/lib/posts/types";
 
 const fontStack = 'inherit';
 
@@ -49,6 +50,7 @@ type Props = {
   portrait?: boolean;
   paused?: boolean;
   streamProvider?: string | null;
+  activeSuper?: ActiveSuperComment | null;
   onClick?: () => void;
   onOrientationDetected?: (portrait: boolean) => void;
   onStreamReady?: (stream: MediaStream | null) => void;
@@ -63,6 +65,7 @@ export default function LiveInlinePlayer({
   portrait = false,
   paused = false,
   streamProvider,
+  activeSuper,
   onClick,
   onOrientationDetected,
   onStreamReady,
@@ -74,8 +77,11 @@ export default function LiveInlinePlayer({
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const pausedRef = useRef(paused);
   useEffect(() => { pausedRef.current = paused; }, [paused]);
+  const prevScKeyRef = useRef<string | null>(null);
 
   const [muted, setMuted] = useState(true);
+  const mutedRef = useRef(true);
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
   const [cfThumbTs, setCfThumbTs] = useState(() => Date.now());
@@ -88,6 +94,55 @@ export default function LiveInlinePlayer({
   const cfThumbnailUrl = isCfLive && hlsUrl
     ? hlsUrl.replace("/manifest/video.m3u8", "/thumbnails/thumbnail.jpg")
     : null;
+
+  // ── TTS para supercomentarios en el feed ────────────────────────────────────
+  useEffect(() => {
+    if (!activeSuper || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const scKey = `${activeSuper.id}:${activeSuper.scheduledAt ?? 0}`;
+    if (scKey === prevScKeyRef.current) return;
+    prevScKeyRef.current = scKey;
+
+    const ttsText = `${activeSuper.username} dijo: ${activeSuper.text}`;
+
+    function doSpeak(text: string) {
+      if (mutedRef.current || !text) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "es-MX";
+      window.speechSynthesis.speak(u);
+    }
+
+    if (activeSuper.scheduledAt != null) {
+      const delay = activeSuper.scheduledAt - Date.now();
+      if (delay > 0) {
+        const timer = window.setTimeout(() => doSpeak(ttsText), delay);
+        return () => window.clearTimeout(timer);
+      }
+      const remainingSecs = activeSuper.displaySeconds + delay / 1000;
+      if (remainingSecs < 2) return;
+      const progressRatio = Math.min((activeSuper.displaySeconds - remainingSecs) / activeSuper.displaySeconds, 0.95);
+      const startChar = Math.floor(progressRatio * ttsText.length);
+      doSpeak(startChar > 0 ? ttsText.slice(startChar) : ttsText);
+    } else {
+      doSpeak(ttsText);
+    }
+  }, [activeSuper]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cancelar TTS al mutear
+  useEffect(() => {
+    if (muted && typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+  }, [muted]);
+
+  // Cancelar TTS al desmontar
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
 
   // Reset visual state cuando cambia la fuente (solo para non-CF)
   useEffect(() => {
@@ -298,6 +353,9 @@ export default function LiveInlinePlayer({
           video.play().catch(() => {});
         } else {
           video.pause();
+          if (typeof window !== "undefined" && "speechSynthesis" in window) {
+            window.speechSynthesis.cancel();
+          }
         }
       },
       { threshold: 0.5 }
