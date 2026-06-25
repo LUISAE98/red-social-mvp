@@ -203,12 +203,10 @@ export default function LiveChatViewer({
                 }}>
                   <Avatar url={item.avatarUrl} name={item.username} size={34} ringColor={item.color} />
                   <div style={{ flex: 1, minWidth: 0, fontFamily: FONT }}>
-                    <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5, marginBottom: 2 }}>
-                      <span style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{item.username}</span>
-                      <span style={{ fontSize: 10, background: "rgba(0,0,0,0.35)", borderRadius: 4, padding: "1px 6px", whiteSpace: "nowrap" }}>
-                        <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
-                        <span style={{ color: "#4ade80", fontWeight: 700 }}>${item.amount.toFixed(2)} MXN</span>
-                      </span>
+                    <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4, marginBottom: 3 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{item.username}</span>
+                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>donó</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>${item.amount.toFixed(2)} MXN</span>
                     </div>
                     <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.9)", lineHeight: 1.4, wordBreak: "break-word" }}>{item.text}</span>
                   </div>
@@ -311,12 +309,10 @@ export default function LiveChatViewer({
               }}>
                 <Avatar url={item.avatarUrl} name={item.username} size={34} ringColor={item.color} />
                 <div style={{ minWidth: 0, flex: 1, fontFamily: FONT }}>
-                  <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5, marginBottom: 2 }}>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{item.username}</span>
-                    <span style={{ fontSize: 10, background: "rgba(0,0,0,0.35)", borderRadius: 4, padding: "1px 6px", whiteSpace: "nowrap" }}>
-                      <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
-                      <span style={{ color: "#4ade80", fontWeight: 700 }}>${item.amount.toFixed(2)} MXN</span>
-                    </span>
+                  <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4, marginBottom: 3 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{item.username}</span>
+                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>donó</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>${item.amount.toFixed(2)} MXN</span>
                   </div>
                   <span style={{ fontSize: 12, color: "rgba(255,255,255,0.9)", lineHeight: 1.4, wordBreak: "break-word" }}>
                     {item.text}
@@ -395,7 +391,7 @@ function Avatar({ url, name, size, ringColor }: { url?: string | null; name: str
   const INSET = ringColor ? 3 : 0;
   const RING = 2;
   return (
-    <div style={{ position: "relative", width: size, height: size, flexShrink: 0, alignSelf: "center" }}>
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
       {url ? (
         <div style={{ position: "absolute", inset: INSET, borderRadius: "50%", overflow: "hidden" }}>
           <Image src={url} alt="" fill style={{ objectFit: "cover" }} />

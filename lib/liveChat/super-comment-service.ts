@@ -7,7 +7,6 @@ import {
   query,
   orderBy,
   serverTimestamp,
-  Timestamp,
   getDoc,
   setDoc,
 } from "firebase/firestore";
@@ -169,12 +168,10 @@ export function deleteSuperComment(postId: string, superCommentId: string): Prom
 export async function playSuperComment(
   postId: string,
   superComment: SuperComment,
-  scheduledAtMs?: number,
 ): Promise<void> {
   await updateDoc(doc(db, "posts", postId, "superComments", superComment.id), {
     played: true,
     playedAt: serverTimestamp(),
-    ...(scheduledAtMs !== undefined ? { scheduledAt: Timestamp.fromMillis(scheduledAtMs) } : {}),
   });
 }
 

@@ -464,7 +464,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     setPlayingId(sc.id); // Highlight in queue immediately
 
     const scheduledAtMs = Date.now() + LEAD_MS;
-    playSuperComment(post.id, sc, scheduledAtMs).catch(() => {});
+    playSuperComment(post.id, sc).catch(() => {});
     // Trigger viewers via post doc (warm subscription, ~100-300ms delivery vs superComments collection)
     pushActiveSuperToViewers(post.id, sc, scheduledAtMs).catch(() => {});
 
@@ -602,6 +602,9 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     setPlayingId(null);
     setTtsReadIndex(0);
     clearActiveSuper(post.id).catch(() => {});
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
     const next = superComments.find((sc) => !sc.isDeleted && !sc.played && sc.id !== currentId);
     if (next) window.setTimeout(() => _doPlay(next), 0);
   }

@@ -128,10 +128,13 @@ export default function LiveInlinePlayer({
     }
   }, [activeSuper]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cancelar TTS al mutear
+  // Mute/unmute controla TTS con pause/resume (no cancel) para poder reanudar
   useEffect(() => {
-    if (muted && typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (muted) {
+      window.speechSynthesis.pause();
+    } else {
+      window.speechSynthesis.resume();
     }
   }, [muted]);
 

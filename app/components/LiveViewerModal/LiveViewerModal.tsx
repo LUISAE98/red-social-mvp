@@ -89,6 +89,17 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const prevActiveSuperKeyRef = useRef<string | null>(null);
   const pollIntervalRef = useRef<number | null>(null);
   const overlayTimerRef = useRef<number | null>(null);
+  const fadeOutTimerRef = useRef<number | null>(null);
+  const [scFadingOut, setScFadingOut] = useState(false);
+  const [ttsViewerReadIndex, setTtsViewerReadIndex] = useState(0);
+  // Refs para poder reiniciar TTS desde mute/unmute sin pausa
+  const ttsViewerReadIndexRef = useRef(0);
+  const activeSuperCommentRef = useRef<ActiveSuperComment | null>(null);
+  const ttsRateRef = useRef(1);
+  const mutedRef = useRef(false);
+  const ttsViewerGenRef = useRef(0); // evita que onend de utterance cancelada interfiera
+  const scViewerTextContainerRef = useRef<HTMLDivElement>(null);
+  const scViewerBoundaryRef = useRef<HTMLSpanElement>(null);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
   useEffect(() => {
@@ -166,17 +177,65 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   useEffect(() => {
     return () => {
       if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
+      if (fadeOutTimerRef.current !== null) window.clearTimeout(fadeOutTimerRef.current);
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
     };
   }, []);
 
-  // Mute/unmute del video también controla el TTS
+  // Auto-scroll del texto del SC mientras el TTS avanza
+  useEffect(() => {
+    const container = scViewerTextContainerRef.current;
+    const cursor = scViewerBoundaryRef.current;
+    if (!container || !cursor || ttsViewerReadIndex === 0) return;
+    const cRect = container.getBoundingClientRect();
+    const cursorRect = cursor.getBoundingClientRect();
+    const cursorBottom = cursorRect.bottom - cRect.top + container.scrollTop;
+    const cursorTop = cursorRect.top - cRect.top + container.scrollTop;
+    if (cursorBottom > container.scrollTop + container.clientHeight) {
+      container.scrollTop = cursorBottom - container.clientHeight + 8;
+    } else if (cursorTop < container.scrollTop) {
+      container.scrollTop = cursorTop - 8;
+    }
+  }, [ttsViewerReadIndex]);
+
+  // Sync refs para acceso desde closures sin re-renders
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
+  useEffect(() => { ttsViewerReadIndexRef.current = ttsViewerReadIndex; }, [ttsViewerReadIndex]);
+
+  // Mute/unmute: reinicia TTS desde posición actual con volumen correcto (no pause)
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    if (muted) window.speechSynthesis.cancel();
-  }, [muted]);
+    const sc = activeSuperCommentRef.current;
+    if (!sc || !window.speechSynthesis.speaking) return;
+    const scTextIndex = ttsViewerReadIndexRef.current;
+    const ttsText = `${sc.username} dijo: `;
+    const startInFull = ttsText.length + scTextIndex;
+    const fullText = `${sc.username} dijo: ${sc.text}`;
+    const ttsSlice = fullText.slice(startInFull);
+    if (!ttsSlice) return;
+    const gen = ++ttsViewerGenRef.current;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(ttsSlice);
+    utterance.lang = "es-MX";
+    utterance.rate = ttsRateRef.current;
+    utterance.volume = muted ? 0 : 1;
+    utterance.onboundary = (e) => {
+      if (e.name === "word" && ttsViewerGenRef.current === gen) {
+        const pos = e.charIndex + (e.charLength ?? 0) + scTextIndex;
+        const clamped = Math.max(scTextIndex, Math.min(sc.text.length, pos));
+        ttsViewerReadIndexRef.current = clamped;
+        setTtsViewerReadIndex(clamped);
+      }
+    };
+    utterance.onend = () => {
+      if (ttsViewerGenRef.current !== gen) return;
+      ttsViewerReadIndexRef.current = sc.text.length;
+      setTtsViewerReadIndex(sc.text.length);
+    };
+    window.speechSynthesis.speak(utterance);
+  }, [muted]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Verificación de acceso ─────────────────────────────────────────────────
   useEffect(() => {
@@ -861,67 +920,161 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   function showSuperOverlay(sc: ActiveSuperComment, durationSeconds: number) {
     playSuperCommentSound();
-    // Solo reproducir TTS si queda tiempo suficiente (evita TTS fantasmas en entrada tardía)
+    setScFadingOut(false);
+    if (fadeOutTimerRef.current !== null) { window.clearTimeout(fadeOutTimerRef.current); fadeOutTimerRef.current = null; }
+
+    activeSuperCommentRef.current = sc;
+    const gen = ++ttsViewerGenRef.current;
+
     if (typeof window !== "undefined" && "speechSynthesis" in window && durationSeconds >= TTS_MIN_DURATION_SECS) {
       window.speechSynthesis.cancel();
-      const ttsText = `${sc.username} dijo: ${sc.text}`;
-      // Si el espectador llega tarde, saltar la parte ya leída proporcionalmente
+      const fullText = `${sc.username} dijo: ${sc.text}`;
+      const ttsPrefix = `${sc.username} dijo: `;
       const elapsed = sc.displaySeconds - durationSeconds;
       const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
-      const startChar = Math.floor(progressRatio * ttsText.length);
-      const ttsSlice = startChar > 0 ? ttsText.slice(startChar) : ttsText;
+      const startChar = Math.floor(progressRatio * fullText.length);
+      const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
+
+      // Negritas iniciales: chars de sc.text ya leídos antes de entrar
+      const initialScIndex = Math.max(0, startChar - ttsPrefix.length);
+      ttsViewerReadIndexRef.current = initialScIndex;
+      setTtsViewerReadIndex(initialScIndex);
+
+      const rate = computeTtsRate(fullText, durationSeconds);
+      ttsRateRef.current = rate;
+      const capturedRate = rate;
+      const speakStart = performance.now();
+
       const utterance = new SpeechSynthesisUtterance(ttsSlice);
       utterance.lang = "es-MX";
-      utterance.rate = computeTtsRate(ttsText, durationSeconds);
-      const capturedRate = utterance.rate;
-      const speakStart = performance.now();
+      utterance.rate = rate;
+      utterance.volume = mutedRef.current ? 0 : 1; // respeta mute actual sin pausar
+
+      // charIndex relativo a ttsSlice → posición en sc.text
+      utterance.onboundary = (e) => {
+        if (e.name === "word" && ttsViewerGenRef.current === gen) {
+          const posInScText = e.charIndex + (e.charLength ?? 0) + startChar - ttsPrefix.length;
+          const clamped = Math.max(initialScIndex, Math.min(sc.text.length, posInScText));
+          ttsViewerReadIndexRef.current = clamped;
+          setTtsViewerReadIndex(clamped);
+        }
+      };
       utterance.onend = () => {
+        if (ttsViewerGenRef.current !== gen) return;
+        ttsViewerReadIndexRef.current = sc.text.length;
+        setTtsViewerReadIndex(sc.text.length);
         refineTtsCalibration(sc.text, (performance.now() - speakStart) / 1000, capturedRate);
       };
       window.speechSynthesis.speak(utterance);
+    } else {
+      ttsViewerReadIndexRef.current = 0;
+      setTtsViewerReadIndex(0);
     }
+
     setActiveSuperComment(sc);
     if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
     overlayTimerRef.current = window.setTimeout(() => {
-      setActiveSuperComment(null);
       overlayTimerRef.current = null;
-      // Cortar TTS si aún no terminó (calibración ligeramente imprecisa o entrada tardía)
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
+      // Fade-out antes de quitar el DOM
+      setScFadingOut(true);
+      fadeOutTimerRef.current = window.setTimeout(() => {
+        activeSuperCommentRef.current = null;
+        ttsViewerReadIndexRef.current = 0;
+        setActiveSuperComment(null);
+        setScFadingOut(false);
+        setTtsViewerReadIndex(0);
+        fadeOutTimerRef.current = null;
+      }, 700);
     }, durationSeconds * 1000);
   }
 
-  function renderSuperOverlay() {
+  function renderSuperOverlay(aboveChat = false) {
     if (!activeSuperComment) return null;
     const sc = activeSuperComment;
+    const FONT_SZ = 13;
+    const LINE_H = 1.55;
+    const MAX_H = Math.round(3 * FONT_SZ * LINE_H);
+    const RING = 2;
+    const INSET = 3;
+
     return (
-      <div style={{
-        position: "absolute", left: 0, right: 0, bottom: 0, zIndex: 6,
-        background: "rgba(5,5,5,0.88)",
-        borderTop: `3px solid ${sc.color}`,
-        padding: "10px 14px 12px",
-        animation: "lvFadeIn 0.3s ease",
-      }}>
-        <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-          <div style={{ width: 4, alignSelf: "stretch", background: sc.color, borderRadius: 2, flexShrink: 0 }} />
-          <div style={{ flex: 1, minWidth: 0 }}>
+      <div
+        style={{
+          position: "absolute", left: 0, right: 0,
+          bottom: aboveChat ? "33dvh" : 0,
+          zIndex: 6,
+          padding: "0 10px 10px",
+          pointerEvents: "none",
+          animation: scFadingOut
+            ? "lvSCOut 0.7s ease forwards"
+            : "lvSCIn 0.4s ease forwards",
+        }}
+      >
+        <style>{`
+          @keyframes lvSCIn  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+          @keyframes lvSCOut { from { opacity:1; transform:translateY(0); }   to { opacity:0; transform:translateY(6px); } }
+          .lvm-sc-scroll::-webkit-scrollbar { display: none; }
+        `}</style>
+
+        <div style={{
+          background: "#0a0a0a",
+          borderRadius: 16,
+          padding: "10px 12px 12px",
+          display: "flex", alignItems: "flex-start", gap: 10,
+          borderLeft: `3px solid ${sc.color}`,
+        }}>
+          {/* Avatar con aro de color */}
+          <div style={{ position: "relative", width: 36, height: 36, flexShrink: 0 }}>
+            {sc.avatarUrl ? (
+              <div style={{ position: "absolute", inset: INSET, borderRadius: "50%", overflow: "hidden" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={sc.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              </div>
+            ) : (
+              <div style={{ position: "absolute", inset: INSET, borderRadius: "50%", background: "rgba(168,85,247,0.5)", display: "grid", placeItems: "center" }}>
+                <span style={{ fontSize: 14, color: "#fff", fontWeight: 700, fontFamily: FONT }}>{sc.username.charAt(0).toUpperCase()}</span>
+              </div>
+            )}
             <div style={{
-              display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap",
-            }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: sc.color, fontFamily: FONT }}>
-                {sc.tierName}
+              position: "absolute", inset: 0, borderRadius: "50%",
+              background: sc.color,
+              WebkitMaskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
+              maskImage: `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`,
+            }} />
+          </div>
+
+          {/* Contenido */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Fila header: nombre + badge donó + tier */}
+            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5, marginBottom: 5 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: FONT }}>{sc.username}</span>
+              <span style={{ fontSize: 10, background: "rgba(255,255,255,0.08)", borderRadius: 4, padding: "1px 6px", whiteSpace: "nowrap" }}>
+                <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400, fontFamily: FONT }}>donó </span>
+                <span style={{ color: "#4ade80", fontWeight: 700, fontFamily: FONT }}>${sc.amount.toFixed(2)} MXN</span>
               </span>
-              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: FONT }}>
-                · ${sc.amount} MXN · {sc.username}
-              </span>
+              <span style={{ fontSize: 10, color: sc.color, fontWeight: 700, fontFamily: FONT }}>{sc.tierName}</span>
             </div>
-            <span style={{
-              fontSize: 15, fontWeight: 500, color: "#fff",
-              lineHeight: 1.4, display: "block", wordBreak: "break-word", fontFamily: FONT,
-            }}>
-              {sc.text}
-            </span>
+
+            {/* Texto con bold progresivo — 3 líneas, auto-scroll, sin interacción */}
+            <div
+              ref={scViewerTextContainerRef}
+              className="lvm-sc-scroll"
+              style={{
+                maxHeight: MAX_H,
+                overflowY: "auto",
+                scrollbarWidth: "none",
+                pointerEvents: "none",
+              }}
+            >
+              <div style={{ fontSize: FONT_SZ, lineHeight: LINE_H, color: "rgba(255,255,255,0.92)", wordBreak: "break-word", fontFamily: FONT }}>
+                <strong>{sc.text.slice(0, ttsViewerReadIndex)}</strong>
+                <span ref={scViewerBoundaryRef} />
+                {sc.text.slice(ttsViewerReadIndex)}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1738,7 +1891,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderVideo("cover")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
-            {renderSuperOverlay()}
+            {renderSuperOverlay(true)}
             {renderDvrBar()}
 
             {/* Badge siempre visible — cambia de EN VIVO a Finalizado al terminar */}
