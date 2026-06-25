@@ -152,7 +152,15 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     const scKey = scId != null ? `${scId}:${activeSuper?.scheduledAt ?? 0}` : null;
     if (scKey === prevActiveSuperKeyRef.current) return;
     prevActiveSuperKeyRef.current = scKey;
-    if (!activeSuper || !scId) return;
+    if (!activeSuper || !scId) {
+      // El creador detuvo el SC — cerrar overlay y cancelar TTS inmediatamente
+      if (activeSuperCommentRef.current) {
+        if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+        if (ttsCheckIntervalRef.current !== null) { clearInterval(ttsCheckIntervalRef.current); ttsCheckIntervalRef.current = null; }
+        triggerFadeOut();
+      }
+      return;
+    }
 
     if (activeSuper.scheduledAt != null) {
       const delay = activeSuper.scheduledAt - Date.now();
@@ -989,7 +997,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         style={{
           position: "absolute", left: 0, right: 0,
           bottom: aboveChat ? "33dvh" : 0,
-          zIndex: 6,
+          zIndex: 11,
           padding: "0 10px 10px",
           pointerEvents: "none",
           animation: scFadingOut

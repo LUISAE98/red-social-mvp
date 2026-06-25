@@ -159,7 +159,11 @@ export default function LiveInlinePlayer({
   useEffect(() => {
     if (isViewerOpenRef.current) return;
     if (!activeSuper) {
-      if (activeSCRef.current) triggerFadeOut(); // eslint-disable-line react-hooks/set-state-in-effect
+      if (activeSCRef.current) {
+        // El creador detuvo el SC — cancelar TTS y cerrar overlay
+        if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+        triggerFadeOut(); // eslint-disable-line react-hooks/set-state-in-effect
+      }
       return;
     }
     const scKey = `${activeSuper.id}:${activeSuper.scheduledAt ?? 0}`;
@@ -535,11 +539,11 @@ export default function LiveInlinePlayer({
         }}
       />
 
-      {/* SC overlay: avatar + nombre + monto + texto */}
+      {/* SC overlay: avatar + nombre + monto (sin texto) — detrás del badge En vivo y del botón mute */}
       {activeSC && (
         <div style={{
           position: "absolute", left: 0, right: 0, bottom: 0,
-          zIndex: 4, padding: "0 8px 8px",
+          zIndex: 2, padding: "0 8px 8px",
           pointerEvents: "none",
           animation: scFadingOut ? "lipSCOut 0.7s ease forwards" : "lipSCIn 0.4s ease forwards",
         }}>
@@ -547,7 +551,7 @@ export default function LiveInlinePlayer({
             background: "rgba(8,8,8,0.88)",
             borderRadius: 12,
             padding: "8px 10px",
-            display: "flex", alignItems: "flex-start", gap: 8,
+            display: "flex", alignItems: "center", gap: 8,
             borderLeft: `2px solid ${activeSC.color}`,
           }}>
             {/* Avatar con aro */}
@@ -567,17 +571,14 @@ export default function LiveInlinePlayer({
                 maskImage: `radial-gradient(farthest-side, transparent calc(100% - 2px), white calc(100% - 2px))`,
               }} />
             </div>
-            {/* Info */}
+            {/* Nombre + monto */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4, marginBottom: 3 }}>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: FONT }}>{activeSC.username}</span>
-                <span style={{ fontSize: 9, background: "rgba(255,255,255,0.08)", borderRadius: 4, padding: "1px 5px", whiteSpace: "nowrap", fontFamily: FONT }}>
-                  <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
-                  <span style={{ color: "#4ade80", fontWeight: 700 }}>${activeSC.amount.toFixed(2)} MXN</span>
-                </span>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: FONT, marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {activeSC.username}
               </div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.88)", fontFamily: FONT, wordBreak: "break-word", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
-                {activeSC.text}
+              <div style={{ fontSize: 10, fontFamily: FONT }}>
+                <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
+                <span style={{ color: "#4ade80", fontWeight: 700 }}>${activeSC.amount.toFixed(2)} MXN</span>
               </div>
             </div>
           </div>
@@ -594,6 +595,7 @@ export default function LiveInlinePlayer({
           right: 10,
           width: 32,
           height: 32,
+          zIndex: 5,
           borderRadius: "50%",
           border: "none",
           background: "rgba(0,0,0,0.55)",
