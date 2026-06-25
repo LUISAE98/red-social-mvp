@@ -305,19 +305,20 @@ export default function LiveChatViewer({
           {feed.map((item) =>
             item.kind === "sc" ? (
               <div key={item.id} style={{
-                display: "flex", gap: 6, padding: "6px 10px", alignItems: "center",
+                display: "flex", gap: 8, padding: "6px 10px", alignItems: "flex-start",
                 margin: "2px -10px",
                 background: "transparent",
               }}>
-                <Avatar url={item.avatarUrl} name={item.username} size={22} ringColor={item.color} />
-                <div style={{ minWidth: 0, flex: 1, alignSelf: "center" }}>
-                  <span style={{ fontFamily: FONT, fontSize: 11.5, fontWeight: 700, color: "#fff", marginRight: 4 }}>
-                    {item.username}
-                  </span>
-                  <span style={{ fontFamily: FONT, fontSize: 10, background: "rgba(0,0,0,0.35)", color: "#fff", borderRadius: 4, padding: "1px 5px", marginRight: 5, fontWeight: 700, verticalAlign: "middle" }}>
-                    <span style={{ color: "rgba(255,255,255,0.55)", fontWeight: 400 }}>donó </span>${item.amount.toFixed(2)} MXN
-                  </span>
-                  <span style={{ fontFamily: FONT, fontSize: 12, color: "rgba(255,255,255,0.9)", lineHeight: 1.4, wordBreak: "break-word" }}>
+                <Avatar url={item.avatarUrl} name={item.username} size={34} ringColor={item.color} />
+                <div style={{ minWidth: 0, flex: 1, fontFamily: FONT }}>
+                  <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5, marginBottom: 2 }}>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{item.username}</span>
+                    <span style={{ fontSize: 10, background: "rgba(0,0,0,0.35)", borderRadius: 4, padding: "1px 6px", whiteSpace: "nowrap" }}>
+                      <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
+                      <span style={{ color: "#4ade80", fontWeight: 700 }}>${item.amount.toFixed(2)} MXN</span>
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.9)", lineHeight: 1.4, wordBreak: "break-word" }}>
                     {item.text}
                   </span>
                 </div>
