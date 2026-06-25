@@ -146,7 +146,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // llega por la subscription existente (~100-300ms) en vez de una subscription
   // separada a la subcolección superComments.
   useEffect(() => {
-    if (!open || !hasAccess) return;
+    if (!open || !hasAccess || !isLive) return;
     const activeSuper = localLiveData?.activeSuper;
     const scId = activeSuper?.id ?? null;
     // Clave compuesta: mismo SC con nuevo scheduledAt = replay, debe mostrarse
@@ -1850,15 +1850,15 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             style={{ position: "relative", width: "100%", height: "100%" }}
             onClick={() => { if (!isEnded && dvrAvailable) setHzControlsVisible(v => !v); }}
           >
-            {renderVideo("cover", true)}
+            {renderVideo("contain", true)}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
             {renderSuperOverlay()}
             {renderPauseButton()}
             {renderDvrBar(true)}
             {renderHeader(false, false)}
-            {renderLiveBadge("top-center")}
-            {renderViewerBadge("top-left")}
+            {renderLiveBadge("bottom-right", badgeLift)}
+            {renderViewerBadge("bottom-left", badgeLift)}
 
           </div>
         </div>
@@ -1893,8 +1893,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderDvrBar()}
 
             {/* Badges — se ocultan mientras hay SC activo para que el overlay los cubra */}
-            {!activeSuperComment && renderLiveBadge("top-center")}
-            {!activeSuperComment && renderViewerBadge("top-left")}
+            {!activeSuperComment && renderLiveBadge("bottom-right", dvrAvailable ? 24 : 0)}
+            {!activeSuperComment && renderViewerBadge("bottom-left", dvrAvailable ? 24 : 0)}
 
             {/* Header y chat se ocultan con tap */}
             <div style={ctrlStyle}>{renderHeader(true, false)}</div>
