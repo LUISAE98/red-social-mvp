@@ -12,7 +12,7 @@ import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer } from "@/lib/liveKit/liveViewers";
 import type { ActiveSuperComment } from "@/lib/posts/types";
-import { TTS_MIN_DURATION_SECS } from "@/lib/tts/ttsCalibration";
+import { initTtsCalibration, computeTtsRate, TTS_MIN_DURATION_SECS } from "@/lib/tts/ttsCalibration";
 
 const FONT =
   'inherit';
@@ -206,9 +206,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     if (!ttsSlice) return;
     if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
     window.speechSynthesis.cancel();
+    const remainingSecs = sc.displaySeconds > 0 ? Math.max(sc.displaySeconds - elapsed, 0.5) : 0.5;
     const utterance = new SpeechSynthesisUtterance(ttsSlice);
     utterance.lang = "es-MX";
-    utterance.rate = 1;
+    utterance.rate = computeTtsRate(ttsSlice, remainingSecs);
     utterance.volume = muted ? 0 : 1;
     utterance.onend = () => {
       if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
@@ -398,6 +399,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           primer.volume = 0;
           window.speechSynthesis.speak(primer);
         }
+        initTtsCalibration();
       }
       return;
     }
@@ -968,7 +970,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
       const utterance = new SpeechSynthesisUtterance(ttsSlice);
       utterance.lang = "es-MX";
-      utterance.rate = 1;
+      utterance.rate = computeTtsRate(ttsSlice, durationSeconds);
       utterance.volume = mutedRef.current ? 0 : 1;
       utterance.onend = () => {
         if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
@@ -1005,29 +1007,34 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     }, durationSeconds * 1000);
   }
 
-  function renderSuperOverlay(aboveChat = false) {
+  function renderSuperOverlay(position: "bottom" | "above-chat" | "top" = "bottom") {
     if (!activeSuperComment) return null;
     const sc = activeSuperComment;
     const RING = 2;
     const INSET = 3;
     const SIZE = 40;
+    const isTop = position === "top";
 
     return (
       <div
         style={{
           position: "absolute", left: 0, right: 0,
-          bottom: aboveChat ? "33dvh" : 0,
+          ...(isTop
+            ? { top: 0, bottom: "auto" }
+            : { bottom: position === "above-chat" ? "33dvh" : 0, top: "auto" }),
           zIndex: 11,
-          padding: "0 10px 10px",
+          padding: isTop ? "10px 10px 0" : "0 10px 10px",
           pointerEvents: "none",
           animation: scFadingOut
-            ? "lvSCOut 0.7s ease forwards"
-            : "lvSCIn 0.4s ease forwards",
+            ? (isTop ? "lvSCOutTop 0.7s ease forwards" : "lvSCOut 0.7s ease forwards")
+            : (isTop ? "lvSCInTop 0.4s ease forwards" : "lvSCIn 0.4s ease forwards"),
         }}
       >
         <style>{`
-          @keyframes lvSCIn  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-          @keyframes lvSCOut { from { opacity:1; transform:translateY(0); }   to { opacity:0; transform:translateY(6px); } }
+          @keyframes lvSCIn     { from{opacity:0;transform:translateY(10px)}  to{opacity:1;transform:translateY(0)} }
+          @keyframes lvSCOut    { from{opacity:1;transform:translateY(0)}     to{opacity:0;transform:translateY(6px)} }
+          @keyframes lvSCInTop  { from{opacity:0;transform:translateY(-8px)}  to{opacity:1;transform:translateY(0)} }
+          @keyframes lvSCOutTop { from{opacity:1;transform:translateY(0)}     to{opacity:0;transform:translateY(-6px)} }
         `}</style>
 
         <div style={{
@@ -1850,8 +1857,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderPauseButton()}
             {renderDvrBar(true)}
             {renderHeader(false, false)}
-            {renderLiveBadge("bottom-right", badgeLift)}
-            {renderViewerBadge("bottom-left", badgeLift)}
+            {renderLiveBadge("top-center")}
+            {renderViewerBadge("top-left")}
 
           </div>
         </div>
@@ -1882,12 +1889,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderVideo("cover")}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
-            {renderSuperOverlay(true)}
+            {renderSuperOverlay("top")}
             {renderDvrBar()}
 
-            {/* Badge siempre visible — cambia de EN VIVO a Finalizado al terminar */}
-            {renderLiveBadge("top-center")}
-            {renderViewerBadge("top-left")}
+            {/* Badges — se ocultan mientras hay SC activo para que el overlay los cubra */}
+            {!activeSuperComment && renderLiveBadge("top-center")}
+            {!activeSuperComment && renderViewerBadge("top-left")}
 
             {/* Header y chat se ocultan con tap */}
             <div style={ctrlStyle}>{renderHeader(true, false)}</div>
