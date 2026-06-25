@@ -163,6 +163,8 @@ export default function LiveChatViewer({
     />
   ) : null;
 
+  if (liveEnded) return null;
+
   // ── Overlay mode (mobile portrait) — TikTok style, 1/3 de pantalla ─────────
   if (mode === "overlay") {
     return (
@@ -195,18 +197,21 @@ export default function LiveChatViewer({
             {feed.map((item) =>
               item.kind === "sc" ? (
                 <div key={item.id} style={{
-                  display: "flex", alignItems: "center", gap: 7,
+                  display: "flex", alignItems: "flex-start", gap: 8,
                   margin: "0 -14px 5px -14px", padding: "6px 14px",
                   background: "transparent",
                 }}>
-                  <Avatar url={item.avatarUrl} name={item.username} size={20} ringColor={item.color} />
-                  <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "#fff", alignSelf: "center" }}>
-                    <strong style={{ fontWeight: 700, color: "#fff", marginRight: 5 }}>{item.username}</strong>
-                    <span style={{ fontSize: 10, background: "rgba(0,0,0,0.35)", color: "#fff", borderRadius: 4, padding: "1px 5px", marginRight: 5, fontWeight: 700 }}>
-                      <span style={{ color: "rgba(255,255,255,0.55)", fontWeight: 400 }}>donó </span>${item.amount.toFixed(2)} MXN
-                    </span>
-                    {item.text}
-                  </span>
+                  <Avatar url={item.avatarUrl} name={item.username} size={34} ringColor={item.color} />
+                  <div style={{ flex: 1, minWidth: 0, fontFamily: FONT }}>
+                    <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5, marginBottom: 2 }}>
+                      <span style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{item.username}</span>
+                      <span style={{ fontSize: 10, background: "rgba(0,0,0,0.35)", borderRadius: 4, padding: "1px 6px", whiteSpace: "nowrap" }}>
+                        <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
+                        <span style={{ color: "#4ade80", fontWeight: 700 }}>${item.amount.toFixed(2)} MXN</span>
+                      </span>
+                    </div>
+                    <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.9)", lineHeight: 1.4, wordBreak: "break-word" }}>{item.text}</span>
+                  </div>
                 </div>
               ) : (
                 <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>

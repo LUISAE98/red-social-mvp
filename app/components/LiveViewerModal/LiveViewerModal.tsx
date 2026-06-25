@@ -855,9 +855,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     // Solo reproducir TTS si queda tiempo suficiente (evita TTS fantasmas en entrada tardía)
     if (typeof window !== "undefined" && "speechSynthesis" in window && durationSeconds >= TTS_MIN_DURATION_SECS) {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(sc.text);
+      const ttsText = `${sc.username} dijo: ${sc.text}`;
+      const utterance = new SpeechSynthesisUtterance(ttsText);
       utterance.lang = "es-MX";
-      utterance.rate = computeTtsRate(sc.text, durationSeconds);
+      utterance.rate = computeTtsRate(ttsText, durationSeconds);
       const capturedRate = utterance.rate;
       const speakStart = performance.now();
       utterance.onend = () => {
