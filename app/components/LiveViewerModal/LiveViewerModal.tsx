@@ -12,7 +12,7 @@ import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer } from "@/lib/liveKit/liveViewers";
 import type { ActiveSuperComment } from "@/lib/posts/types";
-import { initTtsCalibration, computeTtsRate, refineTtsCalibration, TTS_MIN_DURATION_SECS } from "@/lib/tts/ttsCalibration";
+import { initTtsCalibration, TTS_MIN_DURATION_SECS } from "@/lib/tts/ttsCalibration";
 
 const FONT =
   'inherit';
@@ -91,15 +91,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const overlayTimerRef = useRef<number | null>(null);
   const fadeOutTimerRef = useRef<number | null>(null);
   const [scFadingOut, setScFadingOut] = useState(false);
-  const [ttsViewerReadIndex, setTtsViewerReadIndex] = useState(0);
-  // Refs para poder reiniciar TTS desde mute/unmute sin pausa
-  const ttsViewerReadIndexRef = useRef(0);
   const activeSuperCommentRef = useRef<ActiveSuperComment | null>(null);
-  const ttsRateRef = useRef(1);
   const mutedRef = useRef(false);
-  const ttsViewerGenRef = useRef(0); // evita que onend de utterance cancelada interfiera
-  const scViewerTextContainerRef = useRef<HTMLDivElement>(null);
-  const scViewerBoundaryRef = useRef<HTMLSpanElement>(null);
+  const ttsCheckIntervalRef = useRef<number | null>(null);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
   useEffect(() => {
@@ -178,64 +172,36 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return () => {
       if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
       if (fadeOutTimerRef.current !== null) window.clearTimeout(fadeOutTimerRef.current);
+      if (ttsCheckIntervalRef.current !== null) clearInterval(ttsCheckIntervalRef.current);
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
     };
   }, []);
 
-  // Auto-scroll del texto del SC mientras el TTS avanza
-  useEffect(() => {
-    const container = scViewerTextContainerRef.current;
-    const cursor = scViewerBoundaryRef.current;
-    if (!container || !cursor || ttsViewerReadIndex === 0) return;
-    const cRect = container.getBoundingClientRect();
-    const cursorRect = cursor.getBoundingClientRect();
-    const cursorBottom = cursorRect.bottom - cRect.top + container.scrollTop;
-    const cursorTop = cursorRect.top - cRect.top + container.scrollTop;
-    if (cursorBottom > container.scrollTop + container.clientHeight) {
-      container.scrollTop = cursorBottom - container.clientHeight + 8;
-    } else if (cursorTop < container.scrollTop) {
-      container.scrollTop = cursorTop - 8;
-    }
-  }, [ttsViewerReadIndex]);
-
-  // Sync refs para acceso desde closures sin re-renders
+  // Sync mutedRef para acceso desde closures sin re-renders
   useEffect(() => { mutedRef.current = muted; }, [muted]);
-  useEffect(() => { ttsViewerReadIndexRef.current = ttsViewerReadIndex; }, [ttsViewerReadIndex]);
 
-  // Mute/unmute: reinicia TTS desde posición actual con volumen correcto (no pause)
+  // Mute/unmute: reinicia TTS desde posición estimada por scheduledAt con volumen correcto
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     const sc = activeSuperCommentRef.current;
     if (!sc || !window.speechSynthesis.speaking) return;
-    const scTextIndex = ttsViewerReadIndexRef.current;
-    const ttsText = `${sc.username} dijo: `;
-    const startInFull = ttsText.length + scTextIndex;
+    const now = Date.now();
+    const elapsed = sc.scheduledAt != null ? (now - sc.scheduledAt) / 1000 : 0;
     const fullText = `${sc.username} dijo: ${sc.text}`;
-    const ttsSlice = fullText.slice(startInFull);
+    const progressRatio = sc.displaySeconds > 0 ? Math.min(Math.max(elapsed, 0) / sc.displaySeconds, 0.95) : 0;
+    const startChar = Math.floor(progressRatio * fullText.length);
+    const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
     if (!ttsSlice) return;
-    const gen = ++ttsViewerGenRef.current;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(ttsSlice);
     utterance.lang = "es-MX";
-    utterance.rate = ttsRateRef.current;
+    utterance.rate = 1;
     utterance.volume = muted ? 0 : 1;
-    utterance.onboundary = (e) => {
-      if (e.name === "word" && ttsViewerGenRef.current === gen) {
-        const pos = e.charIndex + (e.charLength ?? 0) + scTextIndex;
-        const clamped = Math.max(scTextIndex, Math.min(sc.text.length, pos));
-        ttsViewerReadIndexRef.current = clamped;
-        setTtsViewerReadIndex(clamped);
-      }
-    };
-    utterance.onend = () => {
-      if (ttsViewerGenRef.current !== gen) return;
-      ttsViewerReadIndexRef.current = sc.text.length;
-      setTtsViewerReadIndex(sc.text.length);
-    };
+    utterance.onend = () => triggerFadeOut();
     window.speechSynthesis.speak(utterance);
-  }, [muted]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [muted]);
 
   // ── Verificación de acceso ─────────────────────────────────────────────────
   useEffect(() => {
@@ -352,11 +318,38 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return () => { video.removeEventListener("pause", onPause); video.removeEventListener("play", onPlay); };
   }, [retryKey]);
 
-  // Detecta cambio de orientación física para saber si aplicar rotación CSS o no
+  // Detecta cambio de orientación física; además reinicia TTS si el browser lo interrumpió
   useEffect(() => {
-    const handler = () => setScreenIsPortrait(window.innerHeight > window.innerWidth);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
+    const handleResize = () => setScreenIsPortrait(window.innerHeight > window.innerWidth);
+    const handleOrientationChange = () => {
+      // El browser cancela speechSynthesis durante la animación de rotación.
+      // Esperamos 400ms a que se estabilice y, si el SC sigue activo y el TTS no corre, lo relanzamos.
+      window.setTimeout(() => {
+        if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+        const sc = activeSuperCommentRef.current;
+        if (!sc || window.speechSynthesis.speaking || window.speechSynthesis.pending) return;
+        const now = Date.now();
+        const elapsed = sc.scheduledAt != null ? (now - sc.scheduledAt) / 1000 : 0;
+        const remaining = sc.displaySeconds - elapsed;
+        if (remaining < 1) return;
+        const fullText = `${sc.username} dijo: ${sc.text}`;
+        const startChar = Math.floor(Math.min(Math.max(elapsed, 0) / sc.displaySeconds, 0.95) * fullText.length);
+        const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
+        if (!ttsSlice) return;
+        const utterance = new SpeechSynthesisUtterance(ttsSlice);
+        utterance.lang = "es-MX";
+        utterance.rate = 1;
+        utterance.volume = mutedRef.current ? 0 : 1;
+        utterance.onend = () => triggerFadeOut();
+        window.speechSynthesis.speak(utterance);
+      }, 400);
+    };
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("orientationchange", handleOrientationChange);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("orientationchange", handleOrientationChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -376,10 +369,15 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       // La calibración silenciosa se encola justo después del primer y solo
       // corre una vez por dispositivo (localStorage cache).
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        const primer = new SpeechSynthesisUtterance("");
-        primer.volume = 0;
-        window.speechSynthesis.speak(primer);
+        // Si el feed ya tiene TTS sonando (transición sin corte), no interrumpir.
+        // El viewer detectará window.speechSynthesis.speaking en showSuperOverlay y
+        // continuará en modo polling sin reiniciar la voz.
+        if (!window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+          const primer = new SpeechSynthesisUtterance("");
+          primer.volume = 0;
+          window.speechSynthesis.speak(primer);
+        }
         initTtsCalibration();
       }
       return;
@@ -918,87 +916,73 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     } catch { /* audio no disponible */ }
   }
 
+  function triggerFadeOut() {
+    if (overlayTimerRef.current !== null) { window.clearTimeout(overlayTimerRef.current); overlayTimerRef.current = null; }
+    if (ttsCheckIntervalRef.current !== null) { clearInterval(ttsCheckIntervalRef.current); ttsCheckIntervalRef.current = null; }
+    if (fadeOutTimerRef.current !== null) return;
+    setScFadingOut(true);
+    fadeOutTimerRef.current = window.setTimeout(() => {
+      activeSuperCommentRef.current = null;
+      setActiveSuperComment(null);
+      setScFadingOut(false);
+      fadeOutTimerRef.current = null;
+    }, 700);
+  }
+
   function showSuperOverlay(sc: ActiveSuperComment, durationSeconds: number) {
     playSuperCommentSound();
+    // Resetear fade anterior
     setScFadingOut(false);
     if (fadeOutTimerRef.current !== null) { window.clearTimeout(fadeOutTimerRef.current); fadeOutTimerRef.current = null; }
+    if (overlayTimerRef.current !== null) { window.clearTimeout(overlayTimerRef.current); overlayTimerRef.current = null; }
 
     activeSuperCommentRef.current = sc;
-    const gen = ++ttsViewerGenRef.current;
+    setActiveSuperComment(sc);
 
     if (typeof window !== "undefined" && "speechSynthesis" in window && durationSeconds >= TTS_MIN_DURATION_SECS) {
-      window.speechSynthesis.cancel();
-      const fullText = `${sc.username} dijo: ${sc.text}`;
-      const ttsPrefix = `${sc.username} dijo: `;
-      const elapsed = sc.displaySeconds - durationSeconds;
-      const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
-      const startChar = Math.floor(progressRatio * fullText.length);
-      const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
-
-      // Negritas iniciales: chars de sc.text ya leídos antes de entrar
-      const initialScIndex = Math.max(0, startChar - ttsPrefix.length);
-      ttsViewerReadIndexRef.current = initialScIndex;
-      setTtsViewerReadIndex(initialScIndex);
-
-      const rate = computeTtsRate(fullText, durationSeconds);
-      ttsRateRef.current = rate;
-      const capturedRate = rate;
-      const speakStart = performance.now();
-
-      const utterance = new SpeechSynthesisUtterance(ttsSlice);
-      utterance.lang = "es-MX";
-      utterance.rate = rate;
-      utterance.volume = mutedRef.current ? 0 : 1; // respeta mute actual sin pausar
-
-      // charIndex relativo a ttsSlice → posición en sc.text
-      utterance.onboundary = (e) => {
-        if (e.name === "word" && ttsViewerGenRef.current === gen) {
-          const posInScText = e.charIndex + (e.charLength ?? 0) + startChar - ttsPrefix.length;
-          const clamped = Math.max(initialScIndex, Math.min(sc.text.length, posInScText));
-          ttsViewerReadIndexRef.current = clamped;
-          setTtsViewerReadIndex(clamped);
-        }
-      };
-      utterance.onend = () => {
-        if (ttsViewerGenRef.current !== gen) return;
-        ttsViewerReadIndexRef.current = sc.text.length;
-        setTtsViewerReadIndex(sc.text.length);
-        refineTtsCalibration(sc.text, (performance.now() - speakStart) / 1000, capturedRate);
-      };
-      window.speechSynthesis.speak(utterance);
-    } else {
-      ttsViewerReadIndexRef.current = 0;
-      setTtsViewerReadIndex(0);
+      if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+        // TTS ya corriendo desde el feed — continuar sin corte, solo hacer polling del fin
+        if (ttsCheckIntervalRef.current !== null) clearInterval(ttsCheckIntervalRef.current);
+        ttsCheckIntervalRef.current = window.setInterval(() => {
+          if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+            clearInterval(ttsCheckIntervalRef.current!);
+            ttsCheckIntervalRef.current = null;
+            triggerFadeOut();
+          }
+        }, 200) as unknown as number;
+      } else {
+        // Iniciar TTS fresco (entrada directa o late joiner)
+        window.speechSynthesis.cancel();
+        const fullText = `${sc.username} dijo: ${sc.text}`;
+        const elapsed = sc.displaySeconds - durationSeconds;
+        const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
+        const startChar = Math.floor(progressRatio * fullText.length);
+        const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
+        const utterance = new SpeechSynthesisUtterance(ttsSlice);
+        utterance.lang = "es-MX";
+        utterance.rate = 1;
+        utterance.volume = mutedRef.current ? 0 : 1;
+        utterance.onend = () => triggerFadeOut();
+        window.speechSynthesis.speak(utterance);
+      }
     }
 
-    setActiveSuperComment(sc);
-    if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
+    // Fallback: oculta el panel aunque onend nunca dispare (TTS no disponible, texto muy corto, etc.)
     overlayTimerRef.current = window.setTimeout(() => {
       overlayTimerRef.current = null;
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
-      // Fade-out antes de quitar el DOM
-      setScFadingOut(true);
-      fadeOutTimerRef.current = window.setTimeout(() => {
-        activeSuperCommentRef.current = null;
-        ttsViewerReadIndexRef.current = 0;
-        setActiveSuperComment(null);
-        setScFadingOut(false);
-        setTtsViewerReadIndex(0);
-        fadeOutTimerRef.current = null;
-      }, 700);
+      triggerFadeOut();
     }, durationSeconds * 1000);
   }
 
   function renderSuperOverlay(aboveChat = false) {
     if (!activeSuperComment) return null;
     const sc = activeSuperComment;
-    const FONT_SZ = 13;
-    const LINE_H = 1.55;
-    const MAX_H = Math.round(3 * FONT_SZ * LINE_H);
     const RING = 2;
     const INSET = 3;
+    const SIZE = 40;
 
     return (
       <div
@@ -1016,18 +1000,17 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         <style>{`
           @keyframes lvSCIn  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
           @keyframes lvSCOut { from { opacity:1; transform:translateY(0); }   to { opacity:0; transform:translateY(6px); } }
-          .lvm-sc-scroll::-webkit-scrollbar { display: none; }
         `}</style>
 
         <div style={{
           background: "#0a0a0a",
           borderRadius: 16,
-          padding: "10px 12px 12px",
-          display: "flex", alignItems: "flex-start", gap: 10,
+          padding: "10px 14px",
+          display: "flex", alignItems: "center", gap: 12,
           borderLeft: `3px solid ${sc.color}`,
         }}>
-          {/* Avatar con aro de color */}
-          <div style={{ position: "relative", width: 36, height: 36, flexShrink: 0 }}>
+          {/* Avatar con aro de tier */}
+          <div style={{ position: "relative", width: SIZE, height: SIZE, flexShrink: 0 }}>
             {sc.avatarUrl ? (
               <div style={{ position: "absolute", inset: INSET, borderRadius: "50%", overflow: "hidden" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1035,7 +1018,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               </div>
             ) : (
               <div style={{ position: "absolute", inset: INSET, borderRadius: "50%", background: "rgba(168,85,247,0.5)", display: "grid", placeItems: "center" }}>
-                <span style={{ fontSize: 14, color: "#fff", fontWeight: 700, fontFamily: FONT }}>{sc.username.charAt(0).toUpperCase()}</span>
+                <span style={{ fontSize: 16, color: "#fff", fontWeight: 700, fontFamily: FONT }}>{sc.username.charAt(0).toUpperCase()}</span>
               </div>
             )}
             <div style={{
@@ -1046,34 +1029,14 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             }} />
           </div>
 
-          {/* Contenido */}
+          {/* Nombre + badge donó */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Fila header: nombre + badge donó + tier */}
-            <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 5, marginBottom: 5 }}>
-              <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: FONT }}>{sc.username}</span>
-              <span style={{ fontSize: 10, background: "rgba(255,255,255,0.08)", borderRadius: 4, padding: "1px 6px", whiteSpace: "nowrap" }}>
-                <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400, fontFamily: FONT }}>donó </span>
-                <span style={{ color: "#4ade80", fontWeight: 700, fontFamily: FONT }}>${sc.amount.toFixed(2)} MXN</span>
-              </span>
-              <span style={{ fontSize: 10, color: sc.color, fontWeight: 700, fontFamily: FONT }}>{sc.tierName}</span>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", fontFamily: FONT, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {sc.username}
             </div>
-
-            {/* Texto con bold progresivo — 3 líneas, auto-scroll, sin interacción */}
-            <div
-              ref={scViewerTextContainerRef}
-              className="lvm-sc-scroll"
-              style={{
-                maxHeight: MAX_H,
-                overflowY: "auto",
-                scrollbarWidth: "none",
-                pointerEvents: "none",
-              }}
-            >
-              <div style={{ fontSize: FONT_SZ, lineHeight: LINE_H, color: "rgba(255,255,255,0.92)", wordBreak: "break-word", fontFamily: FONT }}>
-                <strong>{sc.text.slice(0, ttsViewerReadIndex)}</strong>
-                <span ref={scViewerBoundaryRef} />
-                {sc.text.slice(ttsViewerReadIndex)}
-              </div>
+            <div style={{ fontSize: 11, fontFamily: FONT }}>
+              <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
+              <span style={{ color: "#4ade80", fontWeight: 700 }}>${sc.amount.toFixed(2)} MXN</span>
             </div>
           </div>
         </div>

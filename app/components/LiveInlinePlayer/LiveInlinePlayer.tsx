@@ -41,6 +41,9 @@ function CfThumbnail({ url, ts, title }: { url: string; ts: number; title?: stri
   );
 }
 
+const FONT = 'SF Pro Text, SF Pro Display, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
+const TTS_MIN_SECS = 1.5;
+
 type Props = {
   postId?: string | null;
   playbackId?: string | null;
@@ -51,6 +54,7 @@ type Props = {
   paused?: boolean;
   streamProvider?: string | null;
   activeSuper?: ActiveSuperComment | null;
+  isViewerOpen?: boolean;
   onClick?: () => void;
   onOrientationDetected?: (portrait: boolean) => void;
   onStreamReady?: (stream: MediaStream | null) => void;
@@ -66,6 +70,7 @@ export default function LiveInlinePlayer({
   paused = false,
   streamProvider,
   activeSuper,
+  isViewerOpen = false,
   onClick,
   onOrientationDetected,
   onStreamReady,
@@ -82,6 +87,15 @@ export default function LiveInlinePlayer({
   const [muted, setMuted] = useState(true);
   const mutedRef = useRef(true);
   useEffect(() => { mutedRef.current = muted; }, [muted]);
+
+  // ── SC overlay state ───────────────────────────────────────────────────────
+  const [activeSC, setActiveSC] = useState<ActiveSuperComment | null>(null);
+  const [scFadingOut, setScFadingOut] = useState(false);
+  const activeSCRef = useRef<ActiveSuperComment | null>(null);
+  const isViewerOpenRef = useRef(isViewerOpen);
+  const overlayTimerRef = useRef<number | null>(null);
+  const fadeOutTimerRef = useRef<number | null>(null);
+
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
   const [cfThumbTs, setCfThumbTs] = useState(() => Date.now());
@@ -95,53 +109,131 @@ export default function LiveInlinePlayer({
     ? hlsUrl.replace("/manifest/video.m3u8", "/thumbnails/thumbnail.jpg")
     : null;
 
-  // ── TTS para supercomentarios en el feed ────────────────────────────────────
+  // ── SC overlay + TTS ─────────────────────────────────────────────────────────
+  function triggerFadeOut() {
+    if (overlayTimerRef.current !== null) { window.clearTimeout(overlayTimerRef.current); overlayTimerRef.current = null; }
+    if (fadeOutTimerRef.current !== null) return;
+    setScFadingOut(true);
+    fadeOutTimerRef.current = window.setTimeout(() => {
+      activeSCRef.current = null;
+      setActiveSC(null);
+      setScFadingOut(false);
+      fadeOutTimerRef.current = null;
+    }, 700);
+  }
+
+  function showOverlay(sc: ActiveSuperComment, durationSecs: number) {
+    setScFadingOut(false);
+    if (fadeOutTimerRef.current !== null) { window.clearTimeout(fadeOutTimerRef.current); fadeOutTimerRef.current = null; }
+    if (overlayTimerRef.current !== null) { window.clearTimeout(overlayTimerRef.current); overlayTimerRef.current = null; }
+
+    activeSCRef.current = sc;
+    setActiveSC(sc);
+
+    if (!isViewerOpenRef.current && typeof window !== "undefined" && "speechSynthesis" in window && durationSecs >= TTS_MIN_SECS) {
+      window.speechSynthesis.cancel();
+      const fullText = `${sc.username} dijo: ${sc.text}`;
+      const elapsed = sc.displaySeconds - durationSecs;
+      const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
+      const startChar = Math.floor(progressRatio * fullText.length);
+      const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
+      const utterance = new SpeechSynthesisUtterance(ttsSlice);
+      utterance.lang = "es-MX";
+      utterance.rate = 1;
+      utterance.volume = mutedRef.current ? 0 : 1;
+      utterance.onend = () => triggerFadeOut();
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // Fallback por si onend no dispara
+    overlayTimerRef.current = window.setTimeout(() => {
+      overlayTimerRef.current = null;
+      if (!isViewerOpenRef.current && typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      triggerFadeOut();
+    }, durationSecs * 1000);
+  }
+
+  // Nuevo SC: muestra overlay (solo si el viewer no está abierto)
   useEffect(() => {
-    if (!activeSuper || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (isViewerOpenRef.current) return;
+    if (!activeSuper) {
+      if (activeSCRef.current) triggerFadeOut(); // eslint-disable-line react-hooks/set-state-in-effect
+      return;
+    }
     const scKey = `${activeSuper.id}:${activeSuper.scheduledAt ?? 0}`;
     if (scKey === prevScKeyRef.current) return;
     prevScKeyRef.current = scKey;
 
-    const ttsText = `${activeSuper.username} dijo: ${activeSuper.text}`;
-
-    function doSpeak(text: string) {
-      if (mutedRef.current || !text) return;
-      window.speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = "es-MX";
-      window.speechSynthesis.speak(u);
-    }
-
     if (activeSuper.scheduledAt != null) {
       const delay = activeSuper.scheduledAt - Date.now();
       if (delay > 0) {
-        const timer = window.setTimeout(() => doSpeak(ttsText), delay);
+        const timer = window.setTimeout(() => {
+          if (!isViewerOpenRef.current) showOverlay(activeSuper, activeSuper.displaySeconds);
+        }, delay);
         return () => window.clearTimeout(timer);
       }
       const remainingSecs = activeSuper.displaySeconds + delay / 1000;
-      if (remainingSecs < 2) return;
-      const progressRatio = Math.min((activeSuper.displaySeconds - remainingSecs) / activeSuper.displaySeconds, 0.95);
-      const startChar = Math.floor(progressRatio * ttsText.length);
-      doSpeak(startChar > 0 ? ttsText.slice(startChar) : ttsText);
+      if (remainingSecs < 1) return;
+      showOverlay(activeSuper, remainingSecs);
     } else {
-      doSpeak(ttsText);
+      showOverlay(activeSuper, activeSuper.displaySeconds);
     }
   }, [activeSuper]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Mute/unmute controla TTS con pause/resume (no cancel) para poder reanudar
+  // Viewer abre/cierra: ceder o retomar control del overlay y TTS
+  useEffect(() => {
+    isViewerOpenRef.current = isViewerOpen;
+    if (isViewerOpen) {
+      // Viewer toma el control — parar timers del feed pero NO cancelar TTS
+      // (el viewer detectará window.speechSynthesis.speaking y continuará sin corte)
+      if (overlayTimerRef.current !== null) { window.clearTimeout(overlayTimerRef.current); overlayTimerRef.current = null; }
+      if (fadeOutTimerRef.current !== null) { window.clearTimeout(fadeOutTimerRef.current); fadeOutTimerRef.current = null; }
+      activeSCRef.current = null;
+      setActiveSC(null); // eslint-disable-line react-hooks/set-state-in-effect
+      setScFadingOut(false);
+    } else {
+      // Viewer cerró — retomar SC si sigue activo
+      const sc = activeSuper;
+      if (!sc) return;
+      const now = Date.now();
+      const elapsed = sc.scheduledAt != null ? (now - sc.scheduledAt) / 1000 : 0;
+      const remaining = sc.displaySeconds - elapsed;
+      if (remaining < 1) return;
+      const scKey = `${sc.id}:${sc.scheduledAt ?? 0}`;
+      prevScKeyRef.current = scKey;
+      showOverlay(sc, remaining);
+    }
+  }, [isViewerOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Mute/unmute: reinicia TTS con volumen correcto desde posición estimada (no pause)
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    if (muted) {
-      window.speechSynthesis.pause();
-    } else {
-      window.speechSynthesis.resume();
-    }
+    if (isViewerOpenRef.current || !activeSCRef.current || !window.speechSynthesis.speaking) return;
+    const sc = activeSCRef.current;
+    const now = Date.now();
+    const elapsed = sc.scheduledAt != null ? (now - sc.scheduledAt) / 1000 : 0;
+    const fullText = `${sc.username} dijo: ${sc.text}`;
+    const progressRatio = sc.displaySeconds > 0 ? Math.min(Math.max(elapsed, 0) / sc.displaySeconds, 0.95) : 0;
+    const startChar = Math.floor(progressRatio * fullText.length);
+    const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
+    if (!ttsSlice) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(ttsSlice);
+    utterance.lang = "es-MX";
+    utterance.rate = 1;
+    utterance.volume = muted ? 0 : 1;
+    utterance.onend = () => triggerFadeOut();
+    window.speechSynthesis.speak(utterance);
   }, [muted]);
 
-  // Cancelar TTS al desmontar
+  // Cleanup al desmontar
   useEffect(() => {
     return () => {
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
+      if (fadeOutTimerRef.current !== null) window.clearTimeout(fadeOutTimerRef.current);
+      if (!isViewerOpenRef.current && typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
     };
@@ -356,7 +448,8 @@ export default function LiveInlinePlayer({
           video.play().catch(() => {});
         } else {
           video.pause();
-          if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          // Solo cancelar TTS si el viewer no tomó el control
+          if (!isViewerOpenRef.current && typeof window !== "undefined" && "speechSynthesis" in window) {
             window.speechSynthesis.cancel();
           }
         }
@@ -442,6 +535,55 @@ export default function LiveInlinePlayer({
         }}
       />
 
+      {/* SC overlay: avatar + nombre + monto + texto */}
+      {activeSC && (
+        <div style={{
+          position: "absolute", left: 0, right: 0, bottom: 0,
+          zIndex: 4, padding: "0 8px 8px",
+          pointerEvents: "none",
+          animation: scFadingOut ? "lipSCOut 0.7s ease forwards" : "lipSCIn 0.4s ease forwards",
+        }}>
+          <div style={{
+            background: "rgba(8,8,8,0.88)",
+            borderRadius: 12,
+            padding: "8px 10px",
+            display: "flex", alignItems: "flex-start", gap: 8,
+            borderLeft: `2px solid ${activeSC.color}`,
+          }}>
+            {/* Avatar con aro */}
+            <div style={{ position: "relative", width: 32, height: 32, flexShrink: 0 }}>
+              {activeSC.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={activeSC.avatarUrl} alt="" style={{ position: "absolute", inset: 2, borderRadius: "50%", width: "calc(100% - 4px)", height: "calc(100% - 4px)", objectFit: "cover" }} />
+              ) : (
+                <div style={{ position: "absolute", inset: 2, borderRadius: "50%", background: "rgba(168,85,247,0.5)", display: "grid", placeItems: "center" }}>
+                  <span style={{ fontSize: 12, color: "#fff", fontWeight: 700, fontFamily: FONT }}>{activeSC.username.charAt(0).toUpperCase()}</span>
+                </div>
+              )}
+              <div style={{
+                position: "absolute", inset: 0, borderRadius: "50%",
+                background: activeSC.color,
+                WebkitMaskImage: `radial-gradient(farthest-side, transparent calc(100% - 2px), white calc(100% - 2px))`,
+                maskImage: `radial-gradient(farthest-side, transparent calc(100% - 2px), white calc(100% - 2px))`,
+              }} />
+            </div>
+            {/* Info */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4, marginBottom: 3 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: FONT }}>{activeSC.username}</span>
+                <span style={{ fontSize: 9, background: "rgba(255,255,255,0.08)", borderRadius: 4, padding: "1px 5px", whiteSpace: "nowrap", fontFamily: FONT }}>
+                  <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
+                  <span style={{ color: "#4ade80", fontWeight: 700 }}>${activeSC.amount.toFixed(2)} MXN</span>
+                </span>
+              </div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.88)", fontFamily: FONT, wordBreak: "break-word", lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                {activeSC.text}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Botón mute/unmute */}
       <button
         type="button"
@@ -484,6 +626,8 @@ export default function LiveInlinePlayer({
       <style>{`
         @keyframes liveInlinePulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         @keyframes liveInlineSpin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        @keyframes lipSCIn  { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes lipSCOut { from { opacity:1; transform:translateY(0); } to { opacity:0; transform:translateY(5px); } }
       `}</style>
     </div>
   );
