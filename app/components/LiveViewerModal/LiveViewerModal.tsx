@@ -94,6 +94,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const activeSuperCommentRef = useRef<ActiveSuperComment | null>(null);
   const mutedRef = useRef(false);
   const ttsCheckIntervalRef = useRef<number | null>(null);
+  const ttsKeepAliveRef = useRef<number | null>(null);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
   useEffect(() => {
@@ -181,6 +182,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
       if (fadeOutTimerRef.current !== null) window.clearTimeout(fadeOutTimerRef.current);
       if (ttsCheckIntervalRef.current !== null) clearInterval(ttsCheckIntervalRef.current);
+      if (ttsKeepAliveRef.current !== null) clearInterval(ttsKeepAliveRef.current);
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }
@@ -202,12 +204,22 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     const startChar = Math.floor(progressRatio * fullText.length);
     const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
     if (!ttsSlice) return;
+    if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(ttsSlice);
     utterance.lang = "es-MX";
     utterance.rate = 1;
     utterance.volume = muted ? 0 : 1;
-    utterance.onend = () => triggerFadeOut();
+    utterance.onend = () => {
+      if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
+      triggerFadeOut();
+    };
+    ttsKeepAliveRef.current = window.setInterval(() => {
+      if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }
+    }, 10000) as unknown as number;
     window.speechSynthesis.speak(utterance);
   }, [muted]);
 
@@ -927,6 +939,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   function triggerFadeOut() {
     if (overlayTimerRef.current !== null) { window.clearTimeout(overlayTimerRef.current); overlayTimerRef.current = null; }
     if (ttsCheckIntervalRef.current !== null) { clearInterval(ttsCheckIntervalRef.current); ttsCheckIntervalRef.current = null; }
+    if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
     if (fadeOutTimerRef.current !== null) return;
     setScFadingOut(true);
     fadeOutTimerRef.current = window.setTimeout(() => {
@@ -939,45 +952,53 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   function showSuperOverlay(sc: ActiveSuperComment, durationSeconds: number) {
     playSuperCommentSound();
-    // Resetear fade anterior
     setScFadingOut(false);
     if (fadeOutTimerRef.current !== null) { window.clearTimeout(fadeOutTimerRef.current); fadeOutTimerRef.current = null; }
     if (overlayTimerRef.current !== null) { window.clearTimeout(overlayTimerRef.current); overlayTimerRef.current = null; }
+    if (ttsCheckIntervalRef.current !== null) { clearInterval(ttsCheckIntervalRef.current); ttsCheckIntervalRef.current = null; }
+    if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
 
     activeSuperCommentRef.current = sc;
     setActiveSuperComment(sc);
 
     if (typeof window !== "undefined" && "speechSynthesis" in window && durationSeconds >= TTS_MIN_DURATION_SECS) {
-      if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
-        // TTS ya corriendo desde el feed — continuar sin corte, solo hacer polling del fin
-        if (ttsCheckIntervalRef.current !== null) clearInterval(ttsCheckIntervalRef.current);
-        ttsCheckIntervalRef.current = window.setInterval(() => {
-          if (!window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
-            clearInterval(ttsCheckIntervalRef.current!);
-            ttsCheckIntervalRef.current = null;
-            triggerFadeOut();
-          }
-        }, 200) as unknown as number;
+      const fullText = `${sc.username} dijo: ${sc.text}`;
+      const elapsed = sc.displaySeconds - durationSeconds;
+      const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
+      const startChar = Math.floor(progressRatio * fullText.length);
+      const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
+      const utterance = new SpeechSynthesisUtterance(ttsSlice);
+      utterance.lang = "es-MX";
+      utterance.rate = 1;
+      utterance.volume = mutedRef.current ? 0 : 1;
+      utterance.onend = () => {
+        if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
+        triggerFadeOut();
+      };
+
+      // Chrome puede pausar speechSynthesis silenciosamente en utterances largas
+      ttsKeepAliveRef.current = window.setInterval(() => {
+        if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+        }
+      }, 10000) as unknown as number;
+
+      // Si algo estaba corriendo (ej. calibración), esperar 80ms antes de speak()
+      // para que iOS no pierda el primer fonema tras cancel()
+      const wasActive = window.speechSynthesis.speaking || window.speechSynthesis.pending;
+      window.speechSynthesis.cancel();
+      if (wasActive) {
+        window.setTimeout(() => window.speechSynthesis.speak(utterance), 80);
       } else {
-        // Iniciar TTS fresco (entrada directa o late joiner)
-        window.speechSynthesis.cancel();
-        const fullText = `${sc.username} dijo: ${sc.text}`;
-        const elapsed = sc.displaySeconds - durationSeconds;
-        const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
-        const startChar = Math.floor(progressRatio * fullText.length);
-        const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
-        const utterance = new SpeechSynthesisUtterance(ttsSlice);
-        utterance.lang = "es-MX";
-        utterance.rate = 1;
-        utterance.volume = mutedRef.current ? 0 : 1;
-        utterance.onend = () => triggerFadeOut();
         window.speechSynthesis.speak(utterance);
       }
     }
 
-    // Fallback: oculta el panel aunque onend nunca dispare (TTS no disponible, texto muy corto, etc.)
+    // Fallback: oculta el panel aunque onend nunca dispare
     overlayTimerRef.current = window.setTimeout(() => {
       overlayTimerRef.current = null;
+      if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         window.speechSynthesis.cancel();
       }

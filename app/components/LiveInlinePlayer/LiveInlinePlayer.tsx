@@ -5,6 +5,21 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Hls from "hls.js";
 import type { ActiveSuperComment } from "@/lib/posts/types";
 
+// ── Coordinador global: solo un video activo al mismo tiempo ──────────────────
+let _activeVideo: HTMLVideoElement | null = null;
+
+function activateVideo(video: HTMLVideoElement) {
+  if (_activeVideo && _activeVideo !== video) {
+    _activeVideo.pause();
+  }
+  _activeVideo = video;
+}
+
+function deactivateVideo(video: HTMLVideoElement) {
+  if (_activeVideo === video) _activeVideo = null;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const fontStack = 'inherit';
 
 // Thumbnail en tiempo real de CF Stream mientras conecta WebRTC
@@ -82,6 +97,7 @@ export default function LiveInlinePlayer({
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const pausedRef = useRef(paused);
   useEffect(() => { pausedRef.current = paused; }, [paused]);
+  const isIntersectingRef = useRef(false);
   const prevScKeyRef = useRef<string | null>(null);
 
   const [muted, setMuted] = useState(true);
@@ -292,9 +308,11 @@ export default function LiveInlinePlayer({
           if (!cancelled) setReady(true);
         }, { once: true });
 
+        activateVideo(video);
         video.play().catch(() => {
           video.muted = true;
           setMuted(true);
+          activateVideo(video);
           video.play().catch(() => {});
         });
       }
@@ -436,11 +454,16 @@ export default function LiveInlinePlayer({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (paused) video.pause();
-    else video.play().catch(() => {});
+    if (paused) {
+      video.pause();
+    } else if (isIntersectingRef.current) {
+      activateVideo(video);
+      video.play().catch(() => {});
+    }
   }, [paused]);
 
   // Autoplay / pause on scroll via IntersectionObserver
+  // Solo un video puede estar activo globalmente (coordinador de módulo)
   useEffect(() => {
     const container = containerRef.current;
     const video = videoRef.current;
@@ -448,20 +471,26 @@ export default function LiveInlinePlayer({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && !pausedRef.current) {
+        const visible = entry.intersectionRatio >= 0.5;
+        isIntersectingRef.current = visible;
+        if (visible && !pausedRef.current) {
+          activateVideo(video);
           video.play().catch(() => {});
         } else {
+          deactivateVideo(video);
           video.pause();
-          // Solo cancelar TTS si el viewer no tomó el control
           if (!isViewerOpenRef.current && typeof window !== "undefined" && "speechSynthesis" in window) {
             window.speechSynthesis.cancel();
           }
         }
       },
-      { threshold: 0.5 }
+      { threshold: [0, 0.5] }
     );
     observer.observe(container);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      deactivateVideo(video);
+    };
   }, []);
 
   const wrapper: CSSProperties = {
@@ -527,7 +556,6 @@ export default function LiveInlinePlayer({
         ref={videoRef}
         muted={muted}
         playsInline
-        autoPlay
         style={{
           position: "absolute",
           inset: 0,
