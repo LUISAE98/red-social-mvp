@@ -162,12 +162,21 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     }
   }, [open, hasAccess, localLiveData?.activeSuper]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cleanup de timers al desmontar
+  // Cleanup de timers y TTS al desmontar
   useEffect(() => {
     return () => {
       if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
     };
   }, []);
+
+  // Mute/unmute del video también controla el TTS
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (muted) window.speechSynthesis.cancel();
+  }, [muted]);
 
   // ── Verificación de acceso ─────────────────────────────────────────────────
   useEffect(() => {
@@ -856,7 +865,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     if (typeof window !== "undefined" && "speechSynthesis" in window && durationSeconds >= TTS_MIN_DURATION_SECS) {
       window.speechSynthesis.cancel();
       const ttsText = `${sc.username} dijo: ${sc.text}`;
-      const utterance = new SpeechSynthesisUtterance(ttsText);
+      // Si el espectador llega tarde, saltar la parte ya leída proporcionalmente
+      const elapsed = sc.displaySeconds - durationSeconds;
+      const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
+      const startChar = Math.floor(progressRatio * ttsText.length);
+      const ttsSlice = startChar > 0 ? ttsText.slice(startChar) : ttsText;
+      const utterance = new SpeechSynthesisUtterance(ttsSlice);
       utterance.lang = "es-MX";
       utterance.rate = computeTtsRate(ttsText, durationSeconds);
       const capturedRate = utterance.rate;
