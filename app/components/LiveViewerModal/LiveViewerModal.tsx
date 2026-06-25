@@ -1208,7 +1208,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // ── Badge EN VIVO / Finalizado ──────────────────────────────────────────────
   // position="bottom-right" → esquina inferior derecha (desktop + mobile horizontal)
   // position="top-center"   → centrado arriba junto al header (mobile portrait)
-  function renderLiveBadge(position: "bottom-right" | "top-center" = "bottom-right", liftPx = 0) {
+  function renderLiveBadge(position: "bottom-right" | "top-center" = "bottom-right", liftPx = 0, sidePx = 0) {
     if (!isLive && !isEnded) return null;
 
     function jumpToLive(e: React.MouseEvent) {
@@ -1247,7 +1247,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           bottom: liftPx > 0
             ? `calc(max(14px, env(safe-area-inset-bottom)) + ${liftPx}px)`
             : "max(14px, env(safe-area-inset-bottom))",
-          right: "max(14px, env(safe-area-inset-right))",
+          right: sidePx > 0
+            ? `calc(max(14px, env(safe-area-inset-right)) + ${sidePx}px)`
+            : "max(14px, env(safe-area-inset-right))",
           zIndex: 10,
           transition: "bottom 0.25s ease",
         };
@@ -1293,7 +1295,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   }
 
   // ── Badge contador de espectadores ────────────────────────────────────────
-  function renderViewerBadge(position: "bottom-left" | "top-left" = "bottom-left", liftPx = 0) {
+  function renderViewerBadge(position: "bottom-left" | "top-left" = "bottom-left", liftPx = 0, sidePx = 0) {
     if (!isLive || viewerCount <= 0) return null;
 
     const posStyle: CSSProperties = position === "top-left"
@@ -1308,7 +1310,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           bottom: liftPx > 0
             ? `calc(max(14px, env(safe-area-inset-bottom)) + ${liftPx}px)`
             : "max(14px, env(safe-area-inset-bottom))",
-          left: "max(14px, env(safe-area-inset-left))",
+          left: sidePx > 0
+            ? `calc(max(14px, env(safe-area-inset-left)) + ${sidePx}px)`
+            : "max(14px, env(safe-area-inset-left))",
           zIndex: 10,
           transition: "bottom 0.25s ease",
         };
@@ -1816,38 +1820,23 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   // ══════════════════════════════════════════════════════════════════════════
   // MOBILE — horizontal fullscreen
-  // Si el teléfono está en portrait: rotamos 90deg el contenido para que el
-  // video landscape llene toda la pantalla (igual que iOS fullscreen nativo).
-  // Si ya está en landscape (orientation.lock en Android o giro manual):
-  // llenamos normal con inset: 0 sin rotación.
-  // En ambos casos: sin padding de safe area — el video invade todo.
+  // El contenedor EXTERIOR nunca se transforma (overflow:hidden es confiable).
+  // El contenedor INTERIOR se rota solo cuando el teléfono está en portrait,
+  // usando translate(-50%,-50%) rotate(90deg) centrado — más estable que el
+  // truco translateY(-100%) anterior, produce el mismo resultado visual.
   // ══════════════════════════════════════════════════════════════════════════
   if (!isDesktop && mobileFsHorizontal) {
-    const needsRotation = screenIsPortrait;
     return createPortal(
       <>
-        {/*
-          lvm-hz-rot: truco CSS para mostrar contenido landscape en pantalla portrait.
-          Matemática: element (dvh×dvw) → translateY(-100%) sube el elemento dvw px
-          → rotate(90deg) desde top-left lo mapea exactamente a la pantalla portrait.
-          Fallback vh/vw para iOS ≤ 15; dvh/dvw para iOS 16+.
-        */}
-        <style>{`${keyframes}.lvm-hz-rot{width:100vh;width:100dvh;height:100vw;height:100dvw;transform:rotate(90deg) translateY(-100%)}`}</style>
-        <div
-          className={needsRotation ? "lvm-hz-rot" : undefined}
-          style={needsRotation ? {
-            // width/height/transform vienen de .lvm-hz-rot (necesita fallback vh/vw)
-            position: "fixed", top: 0, left: 0,
-            transformOrigin: "top left",
-            zIndex: 10001, background: "#000", overflow: "hidden",
-          } : {
-            // Pantalla ya en landscape: llenar normalmente
-            position: "fixed", inset: 0,
-            zIndex: 10001, background: "#000", overflow: "hidden",
-          }}
-        >
+        {/* lvm-hz-inner: centra y rota el contenido landscape en pantalla portrait.
+            vh/vw = fallback iOS ≤ 15; dvh/dvw = iOS 16+ / Android. */}
+        <style>{`${keyframes}.lvm-hz-inner{position:absolute;top:50%;left:50%;width:100vh;width:100dvh;height:100vw;height:100dvw;transform:translate(-50%,-50%) rotate(90deg);will-change:transform;}`}</style>
+        {/* Exterior: fijo, inset 0, nunca transformado → overflow:hidden fiable */}
+        <div style={{ position: "fixed", inset: 0, background: "#000", overflow: "hidden", zIndex: 10001 }}>
+          {/* Interior: rotado en portrait, normal en landscape */}
           <div
-            style={{ position: "relative", width: "100%", height: "100%" }}
+            className={screenIsPortrait ? "lvm-hz-inner" : undefined}
+            style={screenIsPortrait ? { background: "#000" } : { position: "absolute", inset: 0 }}
             onClick={() => { if (!isEnded && dvrAvailable) setHzControlsVisible(v => !v); }}
           >
             {renderVideo("contain", true)}
@@ -1857,9 +1846,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderPauseButton()}
             {renderDvrBar(true)}
             {renderHeader(false, false)}
-            {renderLiveBadge("bottom-right", badgeLift)}
-            {renderViewerBadge("bottom-left", badgeLift)}
-
+            {renderLiveBadge("bottom-right", badgeLift, 28)}
+            {renderViewerBadge("bottom-left", badgeLift, 28)}
           </div>
         </div>
       </>,

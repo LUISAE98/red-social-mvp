@@ -465,9 +465,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     setPlayingId(sc.id); // Highlight in queue immediately
 
     const scheduledAtMs = Date.now() + LEAD_MS;
-    playSuperComment(post.id, sc).catch(() => {});
-    // Trigger viewers via post doc (warm subscription, ~100-300ms delivery vs superComments collection)
-    pushActiveSuperToViewers(post.id, sc, scheduledAtMs).catch(() => {});
+    if (!isEnded) {
+      playSuperComment(post.id, sc).catch(() => {});
+      // Trigger viewers via post doc (warm subscription, ~100-300ms delivery vs superComments collection)
+      pushActiveSuperToViewers(post.id, sc, scheduledAtMs).catch(() => {});
+    }
 
     if (scheduledPlayTimeoutRef.current !== null) {
       window.clearTimeout(scheduledPlayTimeoutRef.current);
@@ -1209,7 +1211,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <div style={{ position: "relative", height: "100%", aspectRatio: "9 / 16", overflow: "hidden", borderRadius: 10 }}>
                       {showDirectBroadcast ? (
-                        <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
+                        <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
                       ) : (
                         <>
                           <VideoPreview hlsUrl={hlsUrl!} fill showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
@@ -1218,7 +1220,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     </div>
                   </div>
                 ) : showDirectBroadcast ? (
-                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
+                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
                 ) : showVideo ? (
                   <>
                     <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
@@ -1287,7 +1289,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               position: "relative", background: "#000",
             }}>
               {showDirectBroadcast ? (
-                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
+                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
               ) : (
                 <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
               )}
@@ -1352,7 +1354,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           >
             {showDirectBroadcast ? (
               <div style={{ height: "100%", aspectRatio: "9/16", position: "relative", overflow: "hidden" }}>
-                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
+                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
               </div>
             ) : showVideo ? (
               <div style={{ width: "100%", height: "100%", position: "relative" }}>
@@ -1428,7 +1430,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             <div style={{ flexShrink: 0, background: "#000", position: "relative" }}>
               {showDirectBroadcast ? (
                 <div style={{ width: "100%", aspectRatio: "9/16", position: "relative" }}>
-                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} activeSuperOverlay={activeSuperOverlay} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
+                  <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
                 </div>
               ) : (
                 <>

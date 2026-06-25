@@ -1,10 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAuth } from "firebase/auth";
-import type { SuperComment } from "@/lib/liveChat/types";
-
 const FONT = "inherit";
-const CANVAS_FONT = "inherit";
 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.cloudflare.com:3478" },
@@ -17,7 +14,6 @@ interface Props {
   postId: string;
   onOrientationChange?: (isPortrait: boolean) => void;
   onBroadcastingChange?: (isBroadcasting: boolean) => void;
-  activeSuperOverlay?: SuperComment | null;
   onHeadphonesChange?: (hasHeadphones: boolean) => void;
   micMutedForTTS?: boolean;
 }
@@ -26,7 +22,6 @@ export default function LiveDirectBroadcast({
   postId,
   onOrientationChange,
   onBroadcastingChange,
-  activeSuperOverlay,
   onHeadphonesChange,
   micMutedForTTS,
 }: Props) {
@@ -43,9 +38,6 @@ export default function LiveDirectBroadcast({
 
   const onBroadcastingChangeRef = useRef(onBroadcastingChange);
   useEffect(() => { onBroadcastingChangeRef.current = onBroadcastingChange; }, [onBroadcastingChange]);
-
-  const activeSuperOverlayRef = useRef<SuperComment | null>(null);
-  useEffect(() => { activeSuperOverlayRef.current = activeSuperOverlay ?? null; }, [activeSuperOverlay]);
 
   const onHeadphonesChangeRef = useRef(onHeadphonesChange);
   useEffect(() => { onHeadphonesChangeRef.current = onHeadphonesChange; }, [onHeadphonesChange]);
@@ -150,9 +142,6 @@ export default function LiveDirectBroadcast({
         ctx.fillStyle = "#000";
         ctx.fillRect(0, 0, W, H);
       }
-
-      const sc = activeSuperOverlayRef.current;
-      if (sc) drawSuperCommentOverlay(ctx, sc, W, H);
 
       rafRef.current = requestAnimationFrame(draw);
     };
@@ -677,94 +666,6 @@ export default function LiveDirectBroadcast({
       </div>
     </div>
   );
-}
-
-// ── Canvas overlay drawing ─────────────────────────────────────────────────
-
-function drawSuperCommentOverlay(
-  ctx: CanvasRenderingContext2D,
-  sc: SuperComment,
-  W: number,
-  H: number,
-) {
-  const scale = H / 1080;
-  const panelH = Math.round(150 * scale);
-  const padX = Math.round(28 * scale);
-  const barW = Math.round(6 * scale);
-  const y = H - panelH;
-
-  ctx.save();
-
-  ctx.globalAlpha = 0.88;
-  ctx.fillStyle = "#050505";
-  ctx.fillRect(0, y, W, panelH);
-  ctx.globalAlpha = 1;
-
-  ctx.fillStyle = sc.color;
-  ctx.fillRect(0, y, barW, panelH);
-
-  ctx.globalAlpha = 0.5;
-  ctx.fillStyle = sc.color;
-  ctx.fillRect(0, y, W, Math.round(2 * scale));
-  ctx.globalAlpha = 1;
-
-  const rowY1 = y + Math.round(20 * scale);
-  const rowY2 = y + Math.round(62 * scale);
-
-  const badgeFontSize = Math.round(18 * scale);
-  ctx.font = `700 ${badgeFontSize}px ${CANVAS_FONT}`;
-  ctx.textBaseline = "top";
-
-  ctx.fillStyle = sc.color;
-  ctx.fillText(sc.tierName, padX + barW, rowY1);
-  const tierW = ctx.measureText(sc.tierName).width;
-
-  ctx.fillStyle = "rgba(255,255,255,0.55)";
-  const meta = `  ·  $${sc.amount} MXN  ·  ${sc.username}`;
-  ctx.fillText(meta, padX + barW + tierW, rowY1);
-
-  const textFontSize = Math.round(30 * scale);
-  ctx.font = `500 ${textFontSize}px ${CANVAS_FONT}`;
-  ctx.fillStyle = "#ffffff";
-  const maxTextW = W - (padX + barW) * 2;
-  wrapText(ctx, sc.text, padX + barW, rowY2, maxTextW, Math.round(38 * scale), 2);
-
-  ctx.restore();
-}
-
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  lineHeight: number,
-  maxLines: number,
-) {
-  const words = text.split(" ");
-  let line = "";
-  let linesDrawn = 0;
-
-  for (let i = 0; i < words.length; i++) {
-    const testLine = line + words[i] + " ";
-    if (ctx.measureText(testLine).width > maxWidth && line !== "") {
-      if (linesDrawn >= maxLines - 1) {
-        let truncated = line.trimEnd();
-        while (truncated.length > 0 && ctx.measureText(truncated + "…").width > maxWidth) {
-          truncated = truncated.slice(0, -1);
-        }
-        ctx.fillText(truncated + "…", x, y);
-        return;
-      }
-      ctx.fillText(line.trimEnd(), x, y);
-      line = words[i] + " ";
-      y += lineHeight;
-      linesDrawn++;
-    } else {
-      line = testLine;
-    }
-  }
-  ctx.fillText(line.trimEnd(), x, y);
 }
 
 // ── Sub-component ──────────────────────────────────────────────────────────

@@ -99,19 +99,41 @@ export async function DELETE(req: NextRequest) {
 
   const postData = postSnap.data();
   const stopGroupId = typeof postData?.groupId === "string" && postData.groupId ? postData.groupId : null;
+  const wasPinnedInGroup = postData?.isPinnedInGroup === true;
+  const wasPinnedOnProfile = postData?.isPinnedOnProfile === true;
   const now = FieldValue.serverTimestamp();
+
+  const postUpdate: Record<string, unknown> = {
+    "liveData.status": "ended",
+    "liveData.endedAt": now,
+    updatedAt: now,
+  };
+  if (wasPinnedInGroup) {
+    postUpdate.isPinnedInGroup = false;
+    postUpdate.groupPinnedAt = null;
+    postUpdate.groupPinnedBy = null;
+  }
+  if (wasPinnedOnProfile) {
+    postUpdate.isPinnedOnProfile = false;
+    postUpdate.profilePinnedAt = null;
+    postUpdate.profilePinnedBy = null;
+  }
 
   const clearUpdates: Promise<unknown>[] = [
     db.collection("users").doc(uid).update({ activeLivePostId: FieldValue.delete() }),
-    db.collection("posts").doc(postId).update({
-      "liveData.status": "ended",
-      "liveData.endedAt": now,
-      updatedAt: now,
-    }),
+    db.collection("posts").doc(postId).update(postUpdate),
   ];
   if (stopGroupId) {
     clearUpdates.push(
       db.collection("groups").doc(stopGroupId).update({ activeLivePostId: FieldValue.delete() })
+    );
+  }
+  if (wasPinnedOnProfile) {
+    clearUpdates.push(
+      db.collection("users").doc(uid).collection("profileFeed").doc(postId).set(
+        { isPinnedOnProfile: false, profilePinnedAt: null, profilePinnedBy: null, updatedAt: now, syncedAt: now },
+        { merge: true }
+      )
     );
   }
   await Promise.all(clearUpdates).catch((err) => {
