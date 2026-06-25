@@ -1381,7 +1381,7 @@ const avatarNode = (
           borderRadius: "50%",
           overflow: "hidden",
           border: "4px solid rgba(0,0,0,0.96)",
-          boxShadow: groupVisualUi.shadow,
+          boxShadow: "none",
           display: "grid",
           placeItems: "center",
           background: "#0c0c0c",
