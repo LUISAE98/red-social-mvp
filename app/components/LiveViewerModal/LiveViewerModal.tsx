@@ -1080,7 +1080,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   }
 
   // ── Header — siempre visible: título izquierda (solo desktop), controles derecha ──
-  function renderHeader(safeTop = false, showTitle = true) {
+  function renderHeader(safeTop = false, showTitle = true, inSafeZone = false) {
     const iconSz = isDesktop ? 20 : 24;
     return (
       <div style={{
@@ -1089,8 +1089,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         display: "flex", alignItems: "center", justifyContent: "space-between",
         paddingTop: safeTop ? "max(12px, env(safe-area-inset-top))" : 12,
         paddingBottom: 12,
-        paddingLeft: "max(14px, env(safe-area-inset-left))",
-        paddingRight: "max(14px, env(safe-area-inset-right))",
+        paddingLeft: inSafeZone ? "14px" : "max(14px, env(safe-area-inset-left))",
+        paddingRight: inSafeZone ? "14px" : "max(14px, env(safe-area-inset-right))",
       }}>
         {showTitle && liveData?.title ? (
           <span style={{
@@ -1208,7 +1208,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // ── Badge EN VIVO / Finalizado ──────────────────────────────────────────────
   // position="bottom-right" → esquina inferior derecha (desktop + mobile horizontal)
   // position="top-center"   → centrado arriba junto al header (mobile portrait)
-  function renderLiveBadge(position: "bottom-right" | "top-center" = "bottom-right", liftPx = 0, sidePx = 0) {
+  function renderLiveBadge(position: "bottom-right" | "top-center" = "bottom-right", liftPx = 0, sidePx = 0, inSafeZone = false) {
     if (!isLive && !isEnded) return null;
 
     function jumpToLive(e: React.MouseEvent) {
@@ -1244,12 +1244,16 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         }
       : {
           position: "absolute",
-          bottom: liftPx > 0
-            ? `calc(max(14px, env(safe-area-inset-bottom)) + ${liftPx}px)`
-            : "max(14px, env(safe-area-inset-bottom))",
-          right: sidePx > 0
-            ? `calc(max(14px, env(safe-area-inset-right)) + ${sidePx}px)`
-            : "max(14px, env(safe-area-inset-right))",
+          bottom: inSafeZone
+            ? (liftPx > 0 ? `${14 + liftPx}px` : "14px")
+            : (liftPx > 0
+                ? `calc(max(14px, env(safe-area-inset-bottom)) + ${liftPx}px)`
+                : "max(14px, env(safe-area-inset-bottom))"),
+          right: inSafeZone
+            ? "14px"
+            : (sidePx > 0
+                ? `calc(max(14px, env(safe-area-inset-right)) + ${sidePx}px)`
+                : "max(14px, env(safe-area-inset-right))"),
           zIndex: 10,
           transition: "bottom 0.25s ease",
         };
@@ -1295,7 +1299,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   }
 
   // ── Badge contador de espectadores ────────────────────────────────────────
-  function renderViewerBadge(position: "bottom-left" | "top-left" = "bottom-left", liftPx = 0, sidePx = 0) {
+  function renderViewerBadge(position: "bottom-left" | "top-left" = "bottom-left", liftPx = 0, sidePx = 0, inSafeZone = false) {
     if (!isLive || viewerCount <= 0) return null;
 
     const posStyle: CSSProperties = position === "top-left"
@@ -1307,12 +1311,16 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         }
       : {
           position: "absolute",
-          bottom: liftPx > 0
-            ? `calc(max(14px, env(safe-area-inset-bottom)) + ${liftPx}px)`
-            : "max(14px, env(safe-area-inset-bottom))",
-          left: sidePx > 0
-            ? `calc(max(14px, env(safe-area-inset-left)) + ${sidePx}px)`
-            : "max(14px, env(safe-area-inset-left))",
+          bottom: inSafeZone
+            ? (liftPx > 0 ? `${14 + liftPx}px` : "14px")
+            : (liftPx > 0
+                ? `calc(max(14px, env(safe-area-inset-bottom)) + ${liftPx}px)`
+                : "max(14px, env(safe-area-inset-bottom))"),
+          left: inSafeZone
+            ? "14px"
+            : (sidePx > 0
+                ? `calc(max(14px, env(safe-area-inset-left)) + ${sidePx}px)`
+                : "max(14px, env(safe-area-inset-left))"),
           zIndex: 10,
           transition: "bottom 0.25s ease",
         };
@@ -1525,13 +1533,13 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     );
   }
 
-  function renderDvrBar(horizontal = false) {
+  function renderDvrBar(horizontal = false, inSafeZone = false) {
     if (!isLive || cfWebRTCPlayUrl || dvrDuration < 120) return null;
     const visible = !horizontal || hzControlsVisible;
     return (
       <div style={{
         position: "absolute",
-        bottom: "max(14px, env(safe-area-inset-bottom))",
+        bottom: inSafeZone ? "14px" : "max(14px, env(safe-area-inset-bottom))",
         left: 14, right: 14, zIndex: 7,
         display: "flex", flexDirection: "column", gap: 4,
         opacity: visible ? 1 : 0,
@@ -1822,10 +1830,30 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // MOBILE — horizontal fullscreen
   // El contenedor EXTERIOR nunca se transforma (overflow:hidden es confiable).
   // El contenedor INTERIOR se rota solo cuando el teléfono está en portrait,
-  // usando translate(-50%,-50%) rotate(90deg) centrado — más estable que el
-  // truco translateY(-100%) anterior, produce el mismo resultado visual.
+  // usando translate(-50%,-50%) rotate(90deg) centrado.
+  //
+  // Safe zone: cuando el interior está rotado 90° CW, los ejes cambian:
+  //   content LEFT  = physical TOP  (notch)   → usa env(safe-area-inset-top)
+  //   content RIGHT = physical BOTTOM (home)  → usa env(safe-area-inset-bottom)
+  //   content TOP   = physical RIGHT (≈0)     → usa env(safe-area-inset-right)
+  //   content BOTTOM= physical LEFT  (≈0)     → usa env(safe-area-inset-left)
+  // En landscape natural los ejes coinciden con el sistema normal.
   // ══════════════════════════════════════════════════════════════════════════
   if (!isDesktop && mobileFsHorizontal) {
+    const hzSafeZone: CSSProperties = screenIsPortrait ? {
+      position: "absolute",
+      top: "env(safe-area-inset-right)",
+      bottom: "env(safe-area-inset-left)",
+      left: "env(safe-area-inset-top)",
+      right: "env(safe-area-inset-bottom)",
+    } : {
+      position: "absolute",
+      top: "env(safe-area-inset-top)",
+      bottom: "env(safe-area-inset-bottom)",
+      left: "env(safe-area-inset-left)",
+      right: "env(safe-area-inset-right)",
+    };
+
     return createPortal(
       <>
         {/* lvm-hz-inner: centra y rota el contenido landscape en pantalla portrait.
@@ -1839,15 +1867,19 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             style={screenIsPortrait ? { background: "#000" } : { position: "absolute", inset: 0 }}
             onClick={() => { if (!isEnded && dvrAvailable) setHzControlsVisible(v => !v); }}
           >
+            {/* Video y overlays de estado llenan el área completa incluyendo safe areas */}
             {renderVideo("contain", true)}
             {renderEndedOverlay()}
             {renderBannedOverlay()}
-            {renderSuperOverlay()}
-            {renderPauseButton()}
-            {renderDvrBar(true)}
-            {renderHeader(false, false)}
-            {renderLiveBadge("bottom-right", badgeLift, 28)}
-            {renderViewerBadge("bottom-left", badgeLift, 28)}
+            {/* Safe zone: todo el UI queda dentro de los límites del safe area */}
+            <div style={hzSafeZone}>
+              {renderSuperOverlay()}
+              {renderPauseButton()}
+              {renderDvrBar(true, true)}
+              {renderHeader(false, false, true)}
+              {renderLiveBadge("bottom-right", badgeLift, 0, true)}
+              {renderViewerBadge("bottom-left", badgeLift, 0, true)}
+            </div>
           </div>
         </div>
       </>,
