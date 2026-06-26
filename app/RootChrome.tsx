@@ -27,7 +27,10 @@ const isPublicRoute =
   pathname.startsWith("/search") ||
   pathname.startsWith("/groups") ||
   pathname.startsWith("/u/") ||
-  pathname.startsWith("/p/");
+  pathname.startsWith("/p/") ||
+  pathname.startsWith("/live-overlay/");
+
+const isOverlayRoute = pathname.startsWith("/live-overlay/");
 
   const isAuthPage =
     pathname === "/login" ||
@@ -73,7 +76,7 @@ if (user) {
   return <>{children}</>;
 }
 
-if (isPublicPostRoute) {
+if (isPublicPostRoute || isOverlayRoute) {
   return <>{children}</>;
 }
 

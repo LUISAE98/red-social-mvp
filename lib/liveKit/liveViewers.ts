@@ -6,6 +6,10 @@ import {
   updateDoc,
   onSnapshot,
   serverTimestamp,
+  increment,
+  query,
+  where,
+  type Timestamp,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -54,6 +58,59 @@ export function subscribeToUniqueViewerCount(
 ): () => void {
   return onSnapshot(
     collection(db, "posts", postId, "liveUniqueViewers"),
+    (snap) => onCount(snap.size),
+    (err) => onError?.(err),
+  );
+}
+
+/**
+ * Accumulates the viewer's watch time in their unique-viewer doc (idempotent, uses server increment).
+ * Safe to call even on the first join (setDoc with merge creates the doc if it doesn't exist yet).
+ */
+export function addWatchTime(postId: string, uid: string, seconds: number): Promise<void> {
+  return setDoc(
+    doc(db, "posts", postId, "liveUniqueViewers", uid),
+    { uid, watchSeconds: increment(seconds) },
+    { merge: true },
+  );
+}
+
+/** Subscribes to the average watch time (in seconds) across all unique viewers. */
+export function subscribeToAverageWatchTime(
+  postId: string,
+  onAvg: (avgSeconds: number) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    collection(db, "posts", postId, "liveUniqueViewers"),
+    (snap) => {
+      let total = 0;
+      let count = 0;
+      snap.docs.forEach((d) => {
+        const ws = d.data().watchSeconds;
+        if (typeof ws === "number" && ws > 0) { total += ws; count++; }
+      });
+      onAvg(count > 0 ? Math.round(total / count) : 0);
+    },
+    (err) => onError?.(err),
+  );
+}
+
+/**
+ * Subscribes to the count of new followers gained since the live started.
+ * Only works when called by the live's author (Firestore rules restrict followers listing to the owner).
+ */
+export function subscribeToNewFollowersDuringLive(
+  authorId: string,
+  startedAt: Timestamp,
+  onCount: (count: number) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, "users", authorId, "followers"),
+      where("createdAt", ">=", startedAt),
+    ),
     (snap) => onCount(snap.size),
     (err) => onError?.(err),
   );

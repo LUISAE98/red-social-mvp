@@ -178,9 +178,10 @@ export default function LiveInlinePlayer({
     }, durationSecs * 1000);
   }
 
-  // Nuevo SC: muestra overlay (solo si el viewer no está abierto)
+  // Nuevo SC: muestra overlay solo para CF (en Mux el SC va embebido en el video vía Browser Source)
   useEffect(() => {
     if (isViewerOpenRef.current) return;
+    if (streamProvider !== "cloudflare") return;
     if (!activeSuper) {
       if (activeSCRef.current) {
         // El creador detuvo el SC — cancelar TTS y cerrar overlay

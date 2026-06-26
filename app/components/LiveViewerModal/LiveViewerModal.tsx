@@ -10,7 +10,7 @@ import { useAuth } from "@/app/providers";
 import type { Post, PostLiveData, PostPlayback } from "@/lib/posts/types";
 import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
-import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer } from "@/lib/liveKit/liveViewers";
+import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer, addWatchTime } from "@/lib/liveKit/liveViewers";
 import type { ActiveSuperComment } from "@/lib/posts/types";
 import { initTtsCalibration, computeTtsRate, TTS_MIN_DURATION_SECS } from "@/lib/tts/ttsCalibration";
 
@@ -120,16 +120,26 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     if (!open || !hasAccess || localLiveData?.status !== "live" || !user?.uid || !post.id) return;
     const uid = user.uid;
     const postId = post.id;
+    const joinedAtMs = Date.now();
+
     joinLivePresence(postId, uid).catch(console.warn);
     registerUniqueViewer(postId, uid).catch(console.warn);
 
+    const recordWatchTime = () => {
+      const seconds = Math.round((Date.now() - joinedAtMs) / 1000);
+      if (seconds > 0) addWatchTime(postId, uid, seconds).catch(console.warn);
+    };
+
     // Best-effort cleanup cuando el usuario cierra la pestaña o navega fuera.
-    // El caso garantizado (modal cerrado normalmente) lo cubre el return cleanup de abajo.
-    const handlePageHide = () => { leaveLivePresence(postId, uid).catch(console.warn); };
+    const handlePageHide = () => {
+      recordWatchTime();
+      leaveLivePresence(postId, uid).catch(console.warn);
+    };
     window.addEventListener("pagehide", handlePageHide);
 
     return () => {
       window.removeEventListener("pagehide", handlePageHide);
+      recordWatchTime();
       leaveLivePresence(postId, uid).catch(console.warn);
     };
   }, [open, hasAccess, localLiveData?.status, user?.uid, post.id]);
@@ -149,7 +159,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // llega por la subscription existente (~100-300ms) en vez de una subscription
   // separada a la subcolección superComments.
   useEffect(() => {
-    if (!open || !hasAccess || !isLive) return;
+    // Para Mux/OBS el SC va embebido en el video vía Browser Source — no mostrar overlay aquí
+    if (!open || !hasAccess || !isLive || liveData?.streamProvider !== "cloudflare") return;
     const activeSuper = localLiveData?.activeSuper;
     const scId = activeSuper?.id ?? null;
     // Clave compuesta: mismo SC con nuevo scheduledAt = replay, debe mostrarse

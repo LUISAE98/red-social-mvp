@@ -30,6 +30,35 @@ export function subscribeToTotalChatMessages(
   );
 }
 
+/**
+ * Subscribes to message timestamps (ms) for the heatmap.
+ * Skips soft-deleted messages and pending server timestamps.
+ * The Firestore SDK deduplicates this with subscribeToTotalChatMessages
+ * (same collection, same query) into a single underlying listener.
+ */
+export function subscribeToLiveChatTimestamps(
+  liveId: string,
+  onData: (timestampsMs: number[]) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    collection(db, "liveChats", liveId, "messages"),
+    (snap) => {
+      const ts: number[] = [];
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        if (data.isDeleted) return;
+        const ca = data.createdAt;
+        if (ca && typeof ca.toMillis === "function") {
+          ts.push((ca as Timestamp).toMillis());
+        }
+      });
+      onData(ts.sort((a, b) => a - b));
+    },
+    (err) => onError?.(err),
+  );
+}
+
 export function subscribeToLiveChat(
   liveId: string,
   onMessages: (messages: LiveChatMessage[]) => void,

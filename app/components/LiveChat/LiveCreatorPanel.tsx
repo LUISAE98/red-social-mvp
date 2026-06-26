@@ -14,6 +14,7 @@ import {
   banLiveChatUser,
   unbanLiveChatUser,
   subscribeToTotalChatMessages,
+  subscribeToLiveChatTimestamps,
 } from "@/lib/liveChat/live-chat-service";
 import {
   subscribeSuperComments,
@@ -30,7 +31,13 @@ import LiveDirectBroadcast from "@/app/components/LiveDirectBroadcast/LiveDirect
 import LiveStreamSetup from "@/app/components/LiveStreamSetup/LiveStreamSetup";
 import SuperCommentConfigPanel from "@/app/components/LiveChat/SuperCommentConfigPanel";
 import LiveEndSummaryPanel from "@/app/components/LiveChat/LiveEndSummaryPanel";
-import { subscribeToViewerCount, updatePeakViewers, subscribeToUniqueViewerCount } from "@/lib/liveKit/liveViewers";
+import {
+  subscribeToViewerCount,
+  updatePeakViewers,
+  subscribeToUniqueViewerCount,
+  subscribeToAverageWatchTime,
+  subscribeToNewFollowersDuringLive,
+} from "@/lib/liveKit/liveViewers";
 import { initTtsCalibration, computeTtsRate, refineTtsCalibration } from "@/lib/tts/ttsCalibration";
 
 const FONT = 'inherit';
@@ -52,6 +59,59 @@ type Props = {
   post: Post;
   portrait?: boolean;
 };
+
+function OBSBrowserSourceBanner({ postId }: { postId: string }) {
+  const [copied, setCopied] = useState(false);
+  const url = typeof window !== "undefined"
+    ? `${window.location.origin}/live-overlay/${postId}`
+    : `/live-overlay/${postId}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
+
+  return (
+    <div style={{
+      flexShrink: 0, padding: "10px 14px",
+      borderBottom: "1px solid rgba(255,255,255,0.06)",
+      background: "rgba(168,85,255,0.06)",
+    }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: "#a855f7", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+        Browser Source — OBS
+      </div>
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+        <div style={{
+          flex: 1, fontSize: 11, color: "rgba(255,255,255,0.5)",
+          background: "rgba(0,0,0,0.3)", borderRadius: 6, padding: "5px 8px",
+          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          {url}
+        </div>
+        <button
+          type="button"
+          onClick={handleCopy}
+          style={{
+            flexShrink: 0, padding: "5px 10px", borderRadius: 6,
+            border: "1px solid rgba(168,85,255,0.4)",
+            background: copied ? "rgba(74,222,128,0.15)" : "rgba(168,85,255,0.15)",
+            color: copied ? "#4ade80" : "#a855f7",
+            fontSize: 11, fontWeight: 600, cursor: "pointer",
+            transition: "all 0.2s",
+          }}
+        >
+          {copied ? "✓ Copiado" : "Copiar"}
+        </button>
+      </div>
+      <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 5 }}>
+        En OBS: Añadir → Fuente de navegador · 1920×1080 · ✅ Permitir transparencia
+      </div>
+    </div>
+  );
+}
 
 export default function LiveCreatorPanel({ open, onClose, post, portrait = false }: Props) {
   const { user } = useAuth();
@@ -85,6 +145,12 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   peakViewerCountRef.current = peakViewerCount;
   const [uniqueViewerCount, setUniqueViewerCount] = useState(0);
   const [totalChatMessages, setTotalChatMessages] = useState(0);
+  const [avgWatchSeconds, setAvgWatchSeconds] = useState(0);
+  const [newFollowers, setNewFollowers] = useState(0);
+  const [viewerHistory, setViewerHistory] = useState<{ t: number; v: number }[]>([]);
+  const [chatTimestamps, setChatTimestamps] = useState<number[]>([]);
+  const viewerCountRef = useRef(0);
+  viewerCountRef.current = viewerCount;
   const [superComments, setSuperComments] = useState<SuperComment[]>([]);
   const [playingId, setPlayingId] = useState<string | null>(null);
   const isPlayingRef = useRef(false);
@@ -204,9 +270,39 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     return subscribeToTotalChatMessages(post.id, setTotalChatMessages);
   }, [open, post.id]);
 
-  // Supercomentarios — solo en modo directo
   useEffect(() => {
-    if (!open || !post.id || broadcastMode !== "direct") {
+    if (!open || !post.id) return;
+    return subscribeToAverageWatchTime(post.id, setAvgWatchSeconds);
+  }, [open, post.id]);
+
+  useEffect(() => {
+    if (!open || !post.authorId || !liveData?.startedAt) return;
+    return subscribeToNewFollowersDuringLive(post.authorId, liveData.startedAt, setNewFollowers);
+  }, [open, post.authorId, liveData?.startedAt]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Muestrea el viewerCount cada 30 s para la gráfica histórica.
+  // Usa ref para leer el valor más reciente sin que el intervalo se reinicie.
+  useEffect(() => {
+    if (!open || !post.id) return;
+    const addPoint = () =>
+      setViewerHistory((prev) => {
+        const point = { t: Date.now(), v: viewerCountRef.current };
+        const next = [...prev, point];
+        return next.length > 240 ? next.slice(-240) : next;
+      });
+    addPoint();
+    const id = window.setInterval(addPoint, 30_000);
+    return () => window.clearInterval(id);
+  }, [open, post.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!open || !post.id) return;
+    return subscribeToLiveChatTimestamps(post.id, setChatTimestamps);
+  }, [open, post.id]);
+
+  // Supercomentarios — disponibles en directo (CF) y RTMP (Mux/OBS)
+  useEffect(() => {
+    if (!open || !post.id || (broadcastMode !== "direct" && broadcastMode !== "rtmp")) {
       setSuperComments([]);
       return;
     }
@@ -316,6 +412,155 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   if (!open || typeof document === "undefined") return null;
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+  function formatWatchTime(seconds: number): string {
+    if (seconds < 60) return `${seconds}s`;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  }
+
+  function renderViewerChart() {
+    const W = 300; const H = 72;
+    const data = viewerHistory;
+
+    if (data.length < 2) {
+      return (
+        <div style={{ height: H, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", fontFamily: FONT }}>
+            {data.length === 0 ? "Iniciando…" : "Acumulando datos…"}
+          </span>
+        </div>
+      );
+    }
+
+    const maxV = Math.max(...data.map((d) => d.v), 1);
+    const minT = data[0].t;
+    const maxT = data[data.length - 1].t;
+    const rangeT = maxT - minT || 1;
+
+    const toX = (t: number) => ((t - minT) / rangeT) * W;
+    const toY = (v: number) => H - 4 - (v / maxV) * (H - 8);
+
+    const linePts = data.map((d) => `${toX(d.t).toFixed(1)},${toY(d.v).toFixed(1)}`).join(" ");
+    const lastX = toX(data[data.length - 1].t).toFixed(1);
+    const areaPts = `0,${H} ${linePts} ${lastX},${H}`;
+
+    // Format elapsed time label for X-axis ends
+    const elapsedMin = Math.round((maxT - minT) / 60_000);
+    const durationLabel = elapsedMin < 60
+      ? `${elapsedMin}m`
+      : `${Math.floor(elapsedMin / 60)}h ${elapsedMin % 60}m`;
+
+    return (
+      <div style={{ position: "relative" }}>
+        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: "block", overflow: "visible" }}>
+          <defs>
+            <linearGradient id="lcp-vg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.35" />
+              <stop offset="100%" stopColor="#a855f7" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+          {/* Área bajo la curva */}
+          <polygon points={areaPts} fill="url(#lcp-vg)" />
+          {/* Línea principal */}
+          <polyline points={linePts} fill="none" stroke="#a855f7" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+          {/* Punto actual */}
+          <circle cx={lastX} cy={toY(data[data.length - 1].v).toFixed(1)} r="3" fill="#a855f7" />
+        </svg>
+        {/* Etiquetas X */}
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>Inicio</span>
+          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>+{durationLabel}</span>
+        </div>
+        {/* Etiqueta Y (máximo) */}
+        <span style={{
+          position: "absolute", top: 0, right: 0,
+          fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: FONT,
+        }}>
+          máx {maxV}
+        </span>
+      </div>
+    );
+  }
+
+  function renderHeatmap() {
+    const startedAt = liveData?.startedAt;
+
+    if (!startedAt) {
+      return (
+        <div style={{ height: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", fontFamily: FONT }}>
+            El live no ha comenzado
+          </span>
+        </div>
+      );
+    }
+
+    const startMs = startedAt.toMillis();
+    const endMs = liveData?.endedAt?.toMillis() ?? Date.now();
+    const durationMs = endMs - startMs;
+
+    if (durationMs < 120_000) {
+      return (
+        <div style={{ height: 40, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", fontFamily: FONT }}>
+            Acumulando datos…
+          </span>
+        </div>
+      );
+    }
+
+    const durationMin = durationMs / 60_000;
+    const bucketMinutes = durationMin <= 40 ? 1 : durationMin <= 120 ? 2 : 5;
+    const bucketCount = Math.min(Math.ceil(durationMin / bucketMinutes), 60);
+    const bucketMs = durationMs / bucketCount;
+
+    const counts = new Array<number>(bucketCount).fill(0);
+    chatTimestamps.forEach((ts) => {
+      const idx = Math.floor((ts - startMs) / bucketMs);
+      if (idx >= 0 && idx < bucketCount) counts[idx]++;
+    });
+    const maxCount = Math.max(...counts, 1);
+
+    const fmtClock = (ms: number) => {
+      const d = new Date(ms);
+      return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+    };
+
+    return (
+      <div>
+        <div style={{ display: "flex", gap: 2, alignItems: "flex-end", height: 32 }}>
+          {counts.map((c, i) => {
+            const heat = c / maxCount;
+            const barH = Math.max(4, Math.round(4 + heat * 28));
+            const alpha = heat < 0.01 ? 0.08 : 0.15 + heat * 0.85;
+            return (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  height: barH,
+                  minWidth: 0,
+                  borderRadius: 3,
+                  background: `rgba(168,85,247,${alpha.toFixed(2)})`,
+                  alignSelf: "flex-end",
+                }}
+              />
+            );
+          })}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 5 }}>
+          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>
+            {fmtClock(startMs)}
+          </span>
+          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>
+            {fmtClock(endMs)}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   function sectionHeader(label: string, extra?: React.ReactNode) {
     return (
       <div style={{
@@ -430,6 +675,30 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           </div>
         </div>
 
+        {/* Gráfica de espectadores a lo largo del tiempo */}
+        <div style={{
+          padding: "10px 12px", borderRadius: 10,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em", marginBottom: 8 }}>
+            Espectadores en el tiempo
+          </span>
+          {renderViewerChart()}
+        </div>
+
+        {/* Heatmap de actividad del chat */}
+        <div style={{
+          padding: "10px 12px", borderRadius: 10,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em", marginBottom: 8 }}>
+            Heatmap de actividad
+          </span>
+          {renderHeatmap()}
+        </div>
+
         {/* Total comentarios del chat */}
         <div style={{
           display: "flex", alignItems: "center", gap: 10,
@@ -452,6 +721,62 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             </span>
             <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
               Mensajes en el chat
+            </span>
+          </div>
+        </div>
+
+        {/* Tiempo promedio de permanencia */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 12px", borderRadius: 10,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            background: "rgba(20,184,166,0.15)",
+            display: "grid", placeItems: "center",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
+              {avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—"}
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+              Tiempo promedio
+            </span>
+          </div>
+        </div>
+
+        {/* Seguidores nuevos durante el live */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 12px", borderRadius: 10,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            background: "rgba(236,72,153,0.12)",
+            display: "grid", placeItems: "center",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f472b6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <line x1="19" y1="8" x2="19" y2="14" />
+              <line x1="22" y1="11" x2="16" y2="11" />
+            </svg>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
+              {newFollowers.toLocaleString("es-MX")}
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+              Nuevos seguidores
             </span>
           </div>
         </div>
@@ -480,7 +805,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       setPlayingOverlay(sc);
 
       setTtsReadIndex(0);
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      // Para Mux/OBS el TTS lo reproduce el Browser Source de OBS — no localmente
+      if (broadcastMode === "direct" && typeof window !== "undefined" && "speechSynthesis" in window) {
         if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
 
         const ttsText = `${sc.username} dijo: ${sc.text}`;
@@ -638,6 +964,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
     return (
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {/* Browser Source URL para OBS (solo en streams RTMP/Mux) */}
+        {broadcastMode === "rtmp" && (
+          <OBSBrowserSourceBanner postId={post.id} />
+        )}
         {/* Toggle activar/desactivar supercomentarios */}
         <div style={{
           flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "flex-end",
