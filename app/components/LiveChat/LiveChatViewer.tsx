@@ -46,15 +46,15 @@ export default function LiveChatViewer({
   const isAtBottomRef = useRef(true);
   const sendErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Si el creador nunca guardó config, usar defaults para que el botón siempre esté disponible en direct
+  // Si el creador nunca guardó config, usar defaults para que el botón esté disponible en direct y rtmp
   const effectiveConfig: SuperCommentConfig | null =
-    broadcastMode === "direct"
+    (broadcastMode === "direct" || broadcastMode === "rtmp")
       ? (superCommentConfig ?? DEFAULT_SUPER_COMMENT_CONFIG)
       : (superCommentConfig ?? null);
 
   const showSuperCommentBtn =
     !!user &&
-    broadcastMode === "direct" &&
+    (broadcastMode === "direct" || broadcastMode === "rtmp") &&
     effectiveConfig?.enabled === true &&
     (effectiveConfig?.tiers?.length ?? 0) > 0 &&
     chatEnabled &&
@@ -81,7 +81,7 @@ export default function LiveChatViewer({
   }, [user?.uid]);
 
   useEffect(() => {
-    if (broadcastMode !== "direct" || !liveId) return;
+    if ((broadcastMode !== "direct" && broadcastMode !== "rtmp") || !liveId) return;
     const unsub = subscribeVisibleSuperComments(liveId, setVisibleSuperComments);
     return unsub;
   }, [liveId, broadcastMode]);
