@@ -24,10 +24,18 @@ const fontStack = 'inherit';
 
 // Thumbnail en tiempo real de CF Stream mientras conecta WebRTC
 function CfThumbnail({ url, ts, title }: { url: string; ts: number; title?: string | null }) {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => { setFailed(false); }, [ts]); // eslint-disable-line react-hooks/set-state-in-effect
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
 
-  if (failed) {
+  useEffect(() => {
+    const src = `${url}?_t=${ts}`;
+    let cancelled = false;
+    const img = new window.Image();
+    img.onload = () => { if (!cancelled) setLoadedSrc(src); };
+    img.src = src;
+    return () => { cancelled = true; img.onload = null; };
+  }, [url, ts]);
+
+  if (!loadedSrc) {
     return (
       <div style={{
         position: "absolute", inset: 0, display: "flex", flexDirection: "column",
@@ -48,9 +56,8 @@ function CfThumbnail({ url, ts, title }: { url: string; ts: number; title?: stri
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      src={`${url}?_t=${ts}`}
+      src={loadedSrc}
       alt={title ?? "En vivo"}
-      onError={() => setFailed(true)}
       style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
     />
   );

@@ -56,7 +56,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [error, setError] = useState(false);
   const [muted, setMuted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const [isPortrait, setIsPortrait] = useState(initialPortrait);
+  // CF direct broadcast (phone) es casi siempre portrait — evita el layout flip al cargar
+  const [isPortrait, setIsPortrait] = useState(
+    initialPortrait || post.liveData?.broadcastMode === "direct"
+  );
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mobileFsHorizontal, setMobileFsHorizontal] = useState(false);
@@ -1420,6 +1423,21 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             style={{ objectFit: "cover", opacity: 0.3 }}
           />
         )}
+        {!ready && !error && cfWebRTCPlayUrl && (
+          <div style={{
+            position: "absolute", inset: 0, display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center", gap: 10,
+            color: "rgba(255,255,255,0.55)", fontFamily: FONT, fontSize: 13,
+            textAlign: "center", padding: "0 20px", zIndex: 1,
+          }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"
+              style={{ animation: "lvSpin 1s linear infinite", flexShrink: 0 }}>
+              <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
+              <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.7)" />
+            </svg>
+            Conectando al en vivo...
+          </div>
+        )}
         {error && (
           <div style={{
             position: "absolute", inset: 0, display: "flex", flexDirection: "column",
@@ -1611,12 +1629,15 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             }}>
               {name}
             </span>
-            <span style={{
-              fontSize: 12, fontWeight: 500,
-              color: "rgba(255,255,255,0.55)", fontFamily: FONT,
-              lineHeight: "1.2",
-            }}>
-              En vivo
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, lineHeight: "1.2" }}>
+              <span style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14 }}>
+                <span style={{ position: "absolute", width: 14, height: 14, borderRadius: "50%", background: "#ef4444", animation: "lvmDotOuter 1.6s ease-in-out infinite" }} />
+                <span style={{ position: "absolute", width: 7, height: 7, borderRadius: "50%", background: "#ef4444", animation: "lvmDotInner 1.6s ease-in-out infinite" }} />
+              </span>
+              <style>{`
+                @keyframes lvmDotOuter { 0%,100%{transform:scale(1);opacity:0.5} 50%{transform:scale(1.5);opacity:0.15} }
+                @keyframes lvmDotInner { 0%,100%{transform:scale(1)} 50%{transform:scale(0.8)} }
+              `}</style>
             </span>
           </div>
         </div>

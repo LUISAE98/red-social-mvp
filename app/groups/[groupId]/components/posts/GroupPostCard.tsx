@@ -3208,7 +3208,7 @@ style={{
         }}
       >
         <svg
-          width={isLivePlayer ? 13 : 11} height={isLivePlayer ? 13 : 11} viewBox="0 0 22 22" fill="none"
+          width={isLivePlayer ? 15 : 12} height={isLivePlayer ? 15 : 12} viewBox="0 0 22 22" fill="none"
           style={{ animation: isLiveActive ? "livePulseIcon 1.4s ease-in-out infinite" : undefined }}
         >
           <circle cx="11" cy="11" r="10" stroke="#fff" strokeWidth="1.4" fill="none" />

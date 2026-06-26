@@ -359,9 +359,9 @@ const [isProfileLiveModalOpen, setIsProfileLiveModalOpen] = useState(false);
 const [profilePostsRefreshKey, setProfilePostsRefreshKey] = useState(0);
 const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
 const avatarSz = mobileRefreshEnabled ? "clamp(146px, 31.2vw, 286px)" : "clamp(112px, 24vw, 220px)";
-const liveBadgeFontSz = mobileRefreshEnabled ? "clamp(15px, 3vw, 24px)" : "clamp(12px, 2.4vw, 19px)";
-const liveBadgeRadius = mobileRefreshEnabled ? "clamp(4px, 0.8vw, 7px)" : "clamp(3px, 0.6vw, 6px)";
-const liveBadgeBottom = mobileRefreshEnabled ? "clamp(6px, 1.2vw, 10px)" : "clamp(5px, 1vw, 8px)";
+const liveDotOuter = mobileRefreshEnabled ? "clamp(18px, 3.8vw, 30px)" : "clamp(14px, 2.8vw, 24px)";
+const liveDotInner = mobileRefreshEnabled ? "clamp(10px, 2.1vw, 16px)" : "clamp(8px, 1.6vw, 13px)";
+const liveDotShell = mobileRefreshEnabled ? "clamp(22px, 4.8vw, 34px)" : "clamp(18px, 3.6vw, 28px)";
 const avatarOffsetTopSz = mobileRefreshEnabled ? "calc(clamp(146px, 31.2vw, 286px) / -2)" : "calc(clamp(112px, 24vw, 220px) / -2)";
 const contentTopPaddingSz = mobileRefreshEnabled ? "calc((clamp(146px, 31.2vw, 286px) / 2) + 22px)" : "calc((clamp(112px, 24vw, 220px) / 2) + 22px)";
 const [profileVideoUploadProgress, setProfileVideoUploadProgress] = useState<number | null>(null);
@@ -1893,30 +1893,48 @@ await createExclusiveSessionRequest({
                       }}
                     />
                   )}
-                  {/* LIVE badge — etiqueta proporcional, dentro del anillo sin tocar el borde */}
+                  {/* Dot pulsante de live — centro del aro en la parte inferior (6 en punto) */}
                   {profileIsLive && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: liveBadgeBottom,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        background: "#ef4444",
-                        color: "#fff",
-                        fontSize: liveBadgeFontSz,
-                        fontWeight: 700,
-                        letterSpacing: "0.07em",
-                        padding: "0.38em 0.75em",
-                        borderRadius: liveBadgeRadius,
-                        lineHeight: 1,
-                        whiteSpace: "nowrap",
-                        zIndex: 2,
-                        pointerEvents: "none",
-                        fontFamily: fontStack,
-                      }}
-                    >
-                      LIVE
-                    </div>
+                    <>
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          left: "50%",
+                          transform: "translate(-50%, calc(50% + 3px))",
+                          width: liveDotShell,
+                          height: liveDotShell,
+                          borderRadius: "50%",
+                          background: "rgb(10,10,14)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          pointerEvents: "none",
+                          zIndex: 2,
+                        }}
+                      >
+                        <div style={{
+                          position: "absolute",
+                          width: liveDotOuter,
+                          height: liveDotOuter,
+                          borderRadius: "50%",
+                          background: "#ef4444",
+                          animation: "profLiveOuter 1.6s ease-in-out infinite",
+                        }} />
+                        <div style={{
+                          position: "absolute",
+                          width: liveDotInner,
+                          height: liveDotInner,
+                          borderRadius: "50%",
+                          background: "#ef4444",
+                          animation: "profLiveInner 1.6s ease-in-out infinite",
+                        }} />
+                      </div>
+                      <style>{`
+                        @keyframes profLiveOuter { 0%,100%{transform:scale(1);opacity:0.5} 50%{transform:scale(1.5);opacity:0.15} }
+                        @keyframes profLiveInner { 0%,100%{transform:scale(1)} 50%{transform:scale(0.8)} }
+                      `}</style>
+                    </>
                   )}
                   <button
                     ref={profileAvatarBtnRef}

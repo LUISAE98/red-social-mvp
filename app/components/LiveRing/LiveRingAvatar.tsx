@@ -81,18 +81,19 @@ export default function LiveRingAvatar({
     );
   }
 
-  const padding = 2.5;
+  const ringPad = 2.5;
   const initials = (() => {
     const parts = displayName.trim().split(/\s+/).filter(Boolean);
     return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
   })();
 
-  const badgeSize = Math.max(7, Math.round(size * 0.13));
-  const badgePad = `1px ${Math.max(3, Math.round(badgeSize * 0.5))}px`;
+  // Dot pulsante: tamaño proporcional al avatar
+  const outerDot = Math.max(10, Math.round(size * 0.28));
+  const innerDot = Math.round(outerDot * 0.54);
+  const dotShell = outerDot + 4; // borde oscuro para contraste
 
   return (
     <>
-      {/* Wrapper con overflow visible para que el badge no se corte */}
       <div
         style={{
           position: "relative",
@@ -102,6 +103,8 @@ export default function LiveRingAvatar({
           flexShrink: 0,
           width: size,
           height: size,
+          paddingBottom: Math.round(outerDot / 2),
+          boxSizing: "content-box",
           ...style,
         }}
       >
@@ -118,6 +121,7 @@ export default function LiveRingAvatar({
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "center",
+            position: "relative",
             width: size,
             height: size,
             WebkitTapHighlightColor: "transparent",
@@ -135,7 +139,7 @@ export default function LiveRingAvatar({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              padding,
+              padding: ringPad,
               boxSizing: "border-box",
             }}
           >
@@ -177,33 +181,54 @@ export default function LiveRingAvatar({
               )}
             </div>
           </div>
+
+          {/* Dot pulsante — centro del aro en la parte inferior (6 en punto) */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: "50%",
+              transform: `translate(-50%, calc(50% - ${ringPad / 2}px))`,
+              width: dotShell,
+              height: dotShell,
+              borderRadius: "50%",
+              background: GAP_COLOR,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
+              zIndex: 2,
+            }}
+          >
+            <div style={{
+              position: "absolute",
+              width: outerDot,
+              height: outerDot,
+              borderRadius: "50%",
+              background: LIVE_RED,
+              animation: "lraOuter 1.6s ease-in-out infinite",
+            }} />
+            <div style={{
+              position: "absolute",
+              width: innerDot,
+              height: innerDot,
+              borderRadius: "50%",
+              background: LIVE_RED,
+              animation: "lraInner 1.6s ease-in-out infinite",
+            }} />
+          </div>
         </button>
 
-        {/* Badge LIVE — etiqueta con esquinas redondeadas, dentro del anillo */}
-        <div
-          onClick={handleLiveClick}
-          style={{
-            position: "absolute",
-            bottom: Math.max(2, Math.round(size * 0.05)),
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: LIVE_RED,
-            color: "#fff",
-            fontSize: badgeSize,
-            fontWeight: 700,
-            letterSpacing: "0.06em",
-            padding: badgePad,
-            borderRadius: Math.max(2, Math.round(badgeSize * 0.35)),
-            lineHeight: 1,
-            whiteSpace: "nowrap",
-            cursor: fetching ? "wait" : "pointer",
-            zIndex: 2,
-            fontFamily: FONT,
-            pointerEvents: "auto",
-          }}
-        >
-          LIVE
-        </div>
+        <style>{`
+          @keyframes lraOuter {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.5); opacity: 0.15; }
+          }
+          @keyframes lraInner {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(0.8); }
+          }
+        `}</style>
       </div>
 
       {viewerOpen && livePost && (

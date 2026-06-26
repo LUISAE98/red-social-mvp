@@ -3,9 +3,26 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  documentId,
+  getDoc,
+  getDocs,
+  limit,
+  onSnapshot,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import type { Post } from "@/lib/posts/types";
+
+const LiveViewerModal = dynamic(
+  () => import("@/app/components/LiveViewerModal/LiveViewerModal"),
+  { ssr: false }
+);
 import { joinGroup } from "@/lib/groups/membership";
 import { requestToJoin } from "@/lib/groups/joinRequests";
 import { followUser } from "@/lib/social/social-service";
@@ -671,6 +688,259 @@ function GroupCard({
   );
 }
 
+// ─── Live Recommendations ────────────────────────────────────────────────────
+
+type LiveRec = {
+  postId: string;
+  authorId: string;
+  groupId: string | null;
+  liveCoverUrl: string | null;
+  liveTitle: string | null;
+  displayName: string;
+  avatarUrl: string | null;
+  coverUrl: string | null;
+  handle?: string | null;
+  groupVisibility?: string | null;
+  subscriptionEnabled?: boolean;
+};
+
+type LiveActionState = "none" | "following" | "joined" | "pending";
+
+function LiveCTAButton({
+  rec,
+  state,
+  loading,
+  onClick,
+}: {
+  rec: LiveRec;
+  state: LiveActionState;
+  loading: boolean;
+  onClick: () => void;
+}) {
+  let label = "Ver en vivo";
+  if (rec.groupId) {
+    if (state === "joined") label = "Unido";
+    else if (state === "pending") label = "Solicitud enviada";
+    else if (rec.groupVisibility === "private" && rec.subscriptionEnabled) label = "Suscribirme";
+    else if (rec.groupVisibility === "private") label = "Solicitar";
+    else label = "Unirme";
+  } else {
+    label = state === "following" ? "Siguiendo" : "Seguir";
+  }
+
+  const inactive = loading || state === "joined" || state === "pending" || state === "following";
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={inactive}
+      style={{
+        width: "100%",
+        borderRadius: 12,
+        padding: "10px 12px",
+        border: inactive ? "1px solid rgba(255,255,255,0.18)" : "none",
+        fontWeight: 700,
+        fontSize: 12,
+        letterSpacing: "-0.01em",
+        cursor: inactive ? "default" : "pointer",
+        background: inactive ? "rgba(255,255,255,0.14)" : "#ffffff",
+        color: inactive ? "rgba(255,255,255,0.70)" : "#08111d",
+        fontFamily: fontStack,
+        backdropFilter: inactive ? "blur(12px)" : "none",
+        WebkitBackdropFilter: inactive ? "blur(12px)" : "none",
+        transition: "background 0.18s ease, color 0.18s ease",
+      }}
+    >
+      {loading ? "Procesando..." : label}
+    </button>
+  );
+}
+
+function LiveRecommendationCard({
+  rec,
+  currentUserId,
+  actionState,
+  actionLoading,
+  onOpenViewer,
+  onAction,
+}: {
+  rec: LiveRec;
+  currentUserId: string;
+  actionState: LiveActionState;
+  actionLoading: boolean;
+  onOpenViewer: () => void;
+  onAction: () => void;
+}) {
+  const coverImage = rec.liveCoverUrl ?? rec.coverUrl;
+  return (
+    <div style={cardStyles}>
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          aspectRatio: "9 / 11",
+          borderRadius: 20,
+          overflow: "hidden",
+          background: "#0d0d0f",
+          boxShadow: "0 24px 52px rgba(0,0,0,0.42), 0 6px 16px rgba(0,0,0,0.28)",
+          transform: "translateZ(0)",
+        }}
+      >
+        {/* Cover — live cover preferido, fallback perfil/comunidad */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: coverImage
+              ? `url(${coverImage}) center / cover no-repeat`
+              : "linear-gradient(135deg, #3b1010 0%, #1a0808 55%, #0d0505 100%)",
+            transform: "scale(1.01)",
+          }}
+        />
+        {/* Gradient */}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background:
+              "linear-gradient(180deg, rgba(239,68,68,0.10) 0%, rgba(0,0,0,0.20) 30%, rgba(0,0,0,0.65) 58%, rgba(0,0,0,0.92) 82%, rgba(0,0,0,0.98) 100%)",
+          }}
+        />
+
+        {/* Avatar con aro de live */}
+        <div
+          style={{
+            position: "absolute",
+            top: 14,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 2,
+            filter: "drop-shadow(0 8px 22px rgba(0,0,0,0.50))",
+          }}
+        >
+          <LiveRingAvatar
+            entityId={rec.groupId ?? rec.authorId}
+            entityType={rec.groupId ? "group" : "profile"}
+            currentUserId={currentUserId}
+            photoURL={rec.avatarUrl}
+            displayName={rec.displayName}
+            size={68}
+            onClick={onOpenViewer}
+          />
+        </div>
+
+        {/* Clickable body — opens viewer */}
+        <button
+          type="button"
+          onClick={onOpenViewer}
+          style={{
+            position: "absolute",
+            inset: 0,
+            bottom: 60,
+            zIndex: 1,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            padding: "14px 12px 0",
+            WebkitTapHighlightColor: "transparent",
+          }}
+        >
+          <div style={{ width: 68, height: 68, flexShrink: 0 }} />
+          <div
+            style={{
+              marginTop: 10,
+              width: "100%",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              paddingBottom: 6,
+            }}
+          >
+            <strong
+              style={{
+                fontSize: 14,
+                lineHeight: 1.18,
+                color: "#fff",
+                maxWidth: "100%",
+                wordBreak: "break-word",
+                display: "-webkit-box",
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: "vertical",
+                overflow: "hidden",
+                textAlign: "center",
+                fontFamily: fontStack,
+                fontWeight: 700,
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {rec.displayName}
+            </strong>
+            {rec.liveTitle && (
+              <div
+                style={{
+                  marginTop: 5,
+                  fontSize: 11,
+                  lineHeight: "14px",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  maxWidth: "100%",
+                  color: "rgba(255,255,255,0.65)",
+                  fontFamily: fontStack,
+                  fontWeight: 400,
+                }}
+              >
+                {rec.liveTitle}
+              </div>
+            )}
+            <div
+              style={{
+                marginTop: 7,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                background: "#ef4444",
+                padding: "4px 8px 4px 6px",
+                borderRadius: 6,
+                fontSize: 10,
+                fontWeight: 700,
+                color: "#fff",
+                letterSpacing: "0.06em",
+                fontFamily: fontStack,
+              }}
+            >
+              <svg
+                width="10" height="10" viewBox="0 0 22 22" fill="none"
+                style={{ animation: "lrRecPulse 1.4s ease-in-out infinite" }}
+              >
+                <circle cx="11" cy="11" r="10" stroke="#fff" strokeWidth="1.4" fill="none" />
+                <circle cx="11" cy="11" r="6" fill="#fff" />
+              </svg>
+              En vivo
+              <style>{`@keyframes lrRecPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.7;transform:scale(.88)}}`}</style>
+            </div>
+          </div>
+        </button>
+
+        {/* CTA */}
+        <div style={{ position: "absolute", bottom: 10, left: 10, right: 10, zIndex: 2 }}>
+          <LiveCTAButton
+            rec={rec}
+            state={actionState}
+            loading={actionLoading}
+            onClick={onAction}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function GroupRecommendationsRail({
   currentUserId,
   onCreateGroup,
@@ -695,6 +965,14 @@ export default function GroupRecommendationsRail({
   const [followLoadingByProfile, setFollowLoadingByProfile] = useState<
     Record<string, boolean>
   >({});
+
+  // Live recommendations
+  const [liveRecs, setLiveRecs] = useState<LiveRec[]>([]);
+  const [viewingPost, setViewingPost] = useState<Post | null>(null);
+  const [liveActionStates, setLiveActionStates] = useState<Record<string, LiveActionState>>({});
+  const [liveActionLoading, setLiveActionLoading] = useState<Record<string, boolean>>({});
+  const followingIdsRef = useRef<Set<string>>(new Set());
+  const memberGroupIdsRef = useRef<Set<string>>(new Set());
 
   const minCategories = recommendationEngineConstants.MIN_ONBOARDING_CATEGORIES;
 
@@ -765,6 +1043,128 @@ export default function GroupRecommendationsRail({
       void loadRecommendationsRef.current();
     });
   }, []);
+
+  // Suscripción en tiempo real a lives públicos activos no seguidos/miembros
+  useEffect(() => {
+    if (!currentUserId) return;
+    let unsubLives: (() => void) | null = null;
+    let cancelled = false;
+    let snapGen = 0;
+
+    async function init() {
+      try {
+        const [followSnap, memberSnap] = await Promise.all([
+          getDocs(query(collection(db, "users", currentUserId, "following"), limit(100))),
+          getDocs(collection(db, "users", currentUserId, "groupMemberships")),
+        ]);
+        if (cancelled) return;
+
+        followingIdsRef.current = new Set(
+          followSnap.docs.map((d) => (d.data().targetUserId as string) ?? d.id),
+        );
+        memberGroupIdsRef.current = new Set(
+          memberSnap.docs
+            .filter((d) => ["active", "subscribed"].includes(d.data().status as string))
+            .map((d) => d.id),
+        );
+      } catch {
+        // non-fatal
+      }
+      if (cancelled) return;
+
+      const q = query(
+        collection(db, "posts"),
+        where("liveData.status", "==", "live"),
+        limit(20),
+      );
+
+      unsubLives = onSnapshot(q, async (snap) => {
+        if (cancelled) return;
+        const myGen = ++snapGen;
+
+        const filtered = snap.docs
+          .map((d): Record<string, unknown> => ({ id: d.id, ...(d.data() as Record<string, unknown>) }))
+          .filter((post) => {
+            const ld = post.liveData as Record<string, unknown> | null;
+            if (!ld || ld.visibilityMode !== "everyone") return false;
+            if (post.authorId === currentUserId) return false;
+            const gid = post.groupId as string | undefined;
+            if (!gid && followingIdsRef.current.has(post.authorId as string)) return false;
+            if (gid && memberGroupIdsRef.current.has(gid)) return false;
+            return true;
+          });
+
+        if (filtered.length === 0) { setLiveRecs([]); return; }
+
+        const authorIds = [...new Set(
+          filtered.filter((p) => !p.groupId).map((p) => p.authorId as string),
+        )];
+        const gids = [...new Set(
+          filtered.filter((p) => !!p.groupId).map((p) => p.groupId as string),
+        )];
+
+        const [authorDocs, groupDocs] = await Promise.all([
+          authorIds.length > 0
+            ? getDocs(query(collection(db, "users"), where(documentId(), "in", authorIds.slice(0, 30))))
+            : Promise.resolve({ docs: [] as typeof snap.docs }),
+          gids.length > 0
+            ? getDocs(query(collection(db, "groups"), where(documentId(), "in", gids.slice(0, 30))))
+            : Promise.resolve({ docs: [] as typeof snap.docs }),
+        ]);
+        if (cancelled || myGen !== snapGen) return;
+
+        const userMap = new Map(authorDocs.docs.map((d) => [d.id, d.data()]));
+        const groupMap = new Map(groupDocs.docs.map((d) => [d.id, d.data()]));
+
+        const recs: LiveRec[] = filtered.map((post) => {
+          const ld = post.liveData as Record<string, unknown>;
+          const gid = post.groupId as string | undefined;
+          if (gid) {
+            const g = (groupMap.get(gid) ?? {}) as Record<string, unknown>;
+            const mon = (g.monetization ?? {}) as Record<string, unknown>;
+            return {
+              postId: post.id as string,
+              authorId: post.authorId as string,
+              groupId: gid,
+              liveCoverUrl: (ld.coverUrl as string | null) ?? null,
+              liveTitle: (ld.title as string | null) ?? null,
+              displayName: (g.name as string) ?? "Comunidad",
+              avatarUrl: (g.avatarUrl as string | null) ?? null,
+              coverUrl: (g.coverUrl as string | null) ?? null,
+              groupVisibility: (g.visibility as string | null) ?? null,
+              subscriptionEnabled: mon.subscriptionsEnabled === true || mon.isPaid === true,
+            };
+          } else {
+            const u = (userMap.get(post.authorId as string) ?? {}) as Record<string, unknown>;
+            return {
+              postId: post.id as string,
+              authorId: post.authorId as string,
+              groupId: null,
+              liveCoverUrl: (ld.coverUrl as string | null) ?? null,
+              liveTitle: (ld.title as string | null) ?? null,
+              displayName: (u.displayName as string) ?? (u.username as string) ?? "Usuario",
+              avatarUrl: (u.photoURL as string | null) ?? null,
+              coverUrl: (u.coverPhotoURL as string | null) ?? null,
+              handle: (u.handle as string | null) ?? null,
+            };
+          }
+        });
+
+        setLiveRecs(recs);
+        setLiveActionStates((prev) => {
+          const next = { ...prev };
+          for (const r of recs) if (!next[r.postId]) next[r.postId] = "none";
+          return next;
+        });
+      });
+    }
+
+    void init();
+    return () => {
+      cancelled = true;
+      if (unsubLives) unsubLives();
+    };
+  }, [currentUserId]);
 
   const toggleCategory = (category: CanonicalGroupCategory) => {
     setSelectedCategories((prev) =>
@@ -837,6 +1237,39 @@ export default function GroupRecommendationsRail({
       setError(message);
     } finally {
       setJoinLoadingByGroup((prev) => ({ ...prev, [group.id]: false }));
+    }
+  };
+
+  const handleOpenLiveViewer = async (postId: string) => {
+    try {
+      const snap = await getDoc(doc(db, "posts", postId));
+      if (snap.exists()) setViewingPost({ id: snap.id, ...snap.data() } as Post);
+    } catch { /* silencioso */ }
+  };
+
+  const handleLiveAction = async (rec: LiveRec) => {
+    if (!currentUserId) return;
+    setLiveActionLoading((prev) => ({ ...prev, [rec.postId]: true }));
+    try {
+      if (rec.groupId) {
+        const isPaidPrivate = rec.groupVisibility === "private" && rec.subscriptionEnabled;
+        if (isPaidPrivate) {
+          router.push(`/groups/${rec.groupId}?service=suscripcion`);
+          return;
+        } else if (rec.groupVisibility === "public") {
+          await joinGroup(rec.groupId, currentUserId);
+          setLiveActionStates((prev) => ({ ...prev, [rec.postId]: "joined" }));
+        } else {
+          await requestToJoin(rec.groupId, currentUserId);
+          setLiveActionStates((prev) => ({ ...prev, [rec.postId]: "pending" }));
+        }
+      } else {
+        await followUser({ currentUserId, targetUserId: rec.authorId });
+        setLiveActionStates((prev) => ({ ...prev, [rec.postId]: "following" }));
+        followingIdsRef.current.add(rec.authorId);
+      }
+    } catch { /* silencioso */ } finally {
+      setLiveActionLoading((prev) => ({ ...prev, [rec.postId]: false }));
     }
   };
 
@@ -994,7 +1427,7 @@ export default function GroupRecommendationsRail({
         </div>
       ) : null}
 
-      {!loading && result?.onboardingCompleted && result.groups.length > 0 ? (
+      {(!loading && result?.onboardingCompleted && result.groups.length > 0) || liveRecs.length > 0 ? (
         <div
           style={{
             display: "flex",
@@ -1007,7 +1440,20 @@ export default function GroupRecommendationsRail({
             willChange: "transform",
           }}
         >
-          {mergedRailItems.map((item) =>
+          {/* Lives públicos activos — siempre primero */}
+          {liveRecs.map((rec) => (
+            <LiveRecommendationCard
+              key={`live-${rec.postId}`}
+              rec={rec}
+              currentUserId={currentUserId}
+              actionState={liveActionStates[rec.postId] ?? "none"}
+              actionLoading={Boolean(liveActionLoading[rec.postId])}
+              onOpenViewer={() => void handleOpenLiveViewer(rec.postId)}
+              onAction={() => void handleLiveAction(rec)}
+            />
+          ))}
+
+          {!loading && result?.onboardingCompleted && mergedRailItems.map((item) =>
             item.type === "group" ? (
               <GroupCard
                 key={`group-${item.data.id}`}
@@ -1030,6 +1476,14 @@ export default function GroupRecommendationsRail({
           )}
         </div>
       ) : null}
+
+      {viewingPost && (
+        <LiveViewerModal
+          open={!!viewingPost}
+          onClose={() => setViewingPost(null)}
+          post={viewingPost}
+        />
+      )}
 
       {!loading && result?.onboardingCompleted && result.groups.length === 0 ? (
         <div

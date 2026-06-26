@@ -7,6 +7,7 @@ import {
   documentId,
   getDocs,
   limit,
+  onSnapshot,
   query,
   where,
 } from "firebase/firestore";
@@ -22,6 +23,7 @@ import { fetchRecommendedProfilesForUser } from "@/app/components/GroupRecommend
 import type { StoryDoc } from "@/lib/stories/types";
 import StoryViewer from "./StoryViewer";
 import HomeStoryCarouselDesktop, { type CarouselGroup } from "./HomeStoryCarouselDesktop";
+import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
@@ -53,6 +55,9 @@ const fontStack =
 export default function HomeStoriesRow({ currentUserId }: Props) {
   const [creatorIds, setCreatorIds] = useState<string[]>([]);
   const [groupIds, setGroupIds] = useState<string[]>([]);
+  // entityId → livePostId, real-time
+  const [profileLives, setProfileLives] = useState<Map<string, string>>(new Map());
+  const [groupLives, setGroupLives] = useState<Map<string, string>>(new Map());
   const [profileStories, setProfileStories] = useState<StoryDoc[]>([]);
   const [groupStories, setGroupStories] = useState<StoryDoc[]>([]);
   const [recommendedStories, setRecommendedStories] = useState<StoryDoc[]>([]);
@@ -149,6 +154,89 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     return () => { cancelled = true; };
   }, [currentUserId]);
 
+  // 5a. Subscribe to live status of followed profiles (real-time)
+  useEffect(() => {
+    const others = creatorIds.filter((id) => id !== currentUserId);
+    if (others.length === 0) { setProfileLives(new Map()); return; }
+    const localMap = new Map<string, string>();
+    const batches = chunk(others, 30);
+    const unsubs = batches.map((batch) => {
+      const q = query(collection(db, "users"), where(documentId(), "in", batch));
+      return onSnapshot(q, (snap) => {
+        for (const d of snap.docs) {
+          const lid = d.data().activeLivePostId as string | undefined;
+          if (lid) localMap.set(d.id, lid);
+          else localMap.delete(d.id);
+        }
+        setProfileLives(new Map(localMap));
+      });
+    });
+    return () => unsubs.forEach((u) => u());
+  }, [creatorIds, currentUserId]);
+
+  // 5b. Subscribe to live status of member groups (real-time)
+  useEffect(() => {
+    if (groupIds.length === 0) { setGroupLives(new Map()); return; }
+    const localMap = new Map<string, string>();
+    const batches = chunk(groupIds, 30);
+    const unsubs = batches.map((batch) => {
+      const q = query(collection(db, "groups"), where(documentId(), "in", batch));
+      return onSnapshot(q, (snap) => {
+        for (const d of snap.docs) {
+          const lid = d.data().activeLivePostId as string | undefined;
+          if (lid) localMap.set(d.id, lid);
+          else localMap.delete(d.id);
+        }
+        setGroupLives(new Map(localMap));
+      });
+    });
+    return () => unsubs.forEach((u) => u());
+  }, [groupIds]);
+
+  // 5c. Fetch display info for live entities not yet in the map
+  useEffect(() => {
+    const missingProfiles = [...profileLives.keys()].filter((id) => !fetchedInfoKeys.current.has(id));
+    const missingGroups = [...groupLives.keys()].filter((id) => !fetchedInfoKeys.current.has(id));
+    if (missingProfiles.length === 0 && missingGroups.length === 0) return;
+    async function fetchLiveInfo() {
+      const updates = new Map<string, DisplayInfo>();
+      for (const batch of chunk(missingProfiles, 30)) {
+        try {
+          const snap = await getDocs(query(collection(db, "users"), where(documentId(), "in", batch)));
+          for (const d of snap.docs) {
+            const data = d.data();
+            updates.set(d.id, {
+              displayName: (data.displayName as string | null) ?? (data.username as string | null) ?? null,
+              photoURL: (data.photoURL as string | null) ?? null,
+            });
+            fetchedInfoKeys.current.add(d.id);
+          }
+        } catch (err) { console.error("[HomeStoriesRow] fetchLiveUsers", err); }
+      }
+      for (const batch of chunk(missingGroups, 30)) {
+        try {
+          const snap = await getDocs(query(collection(db, "groups"), where(documentId(), "in", batch)));
+          for (const d of snap.docs) {
+            const data = d.data();
+            updates.set(d.id, {
+              displayName: (data.name as string | null) ?? null,
+              photoURL: (data.avatarUrl as string | null) ?? (data.imageUrl as string | null) ?? null,
+            });
+            fetchedInfoKeys.current.add(d.id);
+          }
+        } catch (err) { console.error("[HomeStoriesRow] fetchLiveGroups", err); }
+      }
+      if (updates.size > 0) {
+        setDisplayInfoMap((prev) => {
+          const next = new Map(prev);
+          for (const [k, v] of updates) next.set(k, v);
+          return next;
+        });
+      }
+    }
+    void fetchLiveInfo();
+  }, [profileLives, groupLives]);
+
   // 5. Batch-fetch display info for creators/groups (including recommended)
   useEffect(() => {
     const newCreatorIds = [...new Set(
@@ -236,6 +324,17 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     activeGroupRef.current = activeGroup;
   });
 
+  // Lives: profiles + groups currently broadcasting (excluding self)
+  type LiveEntity = { entityId: string; entityType: "profile" | "group" };
+  const liveEntities: LiveEntity[] = [
+    ...[...profileLives.keys()].map((id) => ({ entityId: id, entityType: "profile" as const })),
+    ...[...groupLives.keys()].map((id) => ({ entityId: id, entityType: "group" as const })),
+  ];
+
+  // Current user's story goes first; live entities second; others third
+  const myStoryGroup = storyGroups.find((g) => g.key === currentUserId);
+  const otherStoryGroups = storyGroups.filter((g) => g.key !== currentUserId);
+
   // Mobile: when the last story in a group is exhausted (or swipe-left), advance to next unread group
   function handleMobileGroupFinished() {
     const groups = storyGroupsRef.current;
@@ -255,7 +354,49 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     }
   }
 
-  if (allGroups.length === 0) return null;
+  if (allGroups.length === 0 && liveEntities.length === 0) return null;
+
+  function renderLiveBubble({ entityId, entityType }: LiveEntity) {
+    const info = displayInfoMap.get(entityId);
+    const name = info?.displayName ?? (entityType === "group" ? "Comunidad" : "Usuario");
+    return (
+      <div
+        key={`live-${entityId}`}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 5,
+          flexShrink: 0,
+        }}
+      >
+        <LiveRingAvatar
+          entityId={entityId}
+          entityType={entityType}
+          size={80}
+          photoURL={info?.photoURL ?? null}
+          displayName={name}
+          currentUserId={currentUserId}
+        />
+        <span
+          style={{
+            color: "rgba(255,255,255,0.72)",
+            fontSize: 11,
+            fontWeight: 500,
+            lineHeight: 1.4,
+            letterSpacing: "-0.01em",
+            fontFamily: fontStack,
+            maxWidth: 88,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {name}
+        </span>
+      </div>
+    );
+  }
 
   function renderBubble(group: StoryGroup) {
     const isGrp = group.source === "group";
@@ -361,10 +502,12 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
           scrollbarWidth: "none",
           WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"],
           marginBottom: 14,
-          alignItems: "flex-end",
+          alignItems: "flex-start",
         }}
       >
-        {storyGroups.map((group) => renderBubble(group))}
+        {myStoryGroup && renderBubble(myStoryGroup)}
+        {liveEntities.map((e) => renderLiveBubble(e))}
+        {otherStoryGroups.map((group) => renderBubble(group))}
 
         {recommendedStoryGroups.length > 0 && (
           <div
