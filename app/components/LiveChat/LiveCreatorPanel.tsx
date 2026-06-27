@@ -809,9 +809,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         const prefixLen = `${sc.username} dijo: `.length;
         const totalLen = ttsText.length;
         ttsAudioRef.current = playEdgeTTS(ttsText, {
-          // Para Mux/OBS: silencioso — el OBS Browser Source maneja el audio en el stream.
-          // Reproducir en volumen 0 para obtener timing de onProgress y onEnded (mic mute).
-          volume: broadcastMode === "direct" ? 1 : 0,
+          volume: 1,
           onProgress: (ratio) => {
             const charPos = Math.floor(ratio * totalLen);
             setTtsReadIndex(Math.max(0, Math.min(charPos - prefixLen, sc.text.length)));
