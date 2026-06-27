@@ -345,9 +345,14 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       // Pre-calentar el elemento de audio en el contexto del gesto del usuario.
       // iOS Safari bloquea audio.play() desde callbacks async (Firestore onSnapshot),
       // pero permite reutilizar un elemento que fue desbloqueado durante un gesto.
+      // IMPORTANTE: se necesita un src válido (audio silencioso) — play() sin src
+      // no cuenta como "unlock" en iOS Safari.
       if (!prewarmAudioRef.current) {
         prewarmAudioRef.current = document.createElement("audio");
       }
+      // WAV silencioso mínimo en base64 — garantiza el unlock sin sonido perceptible
+      prewarmAudioRef.current.src =
+        "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
       prewarmAudioRef.current.play().catch(() => {});
       return;
     }

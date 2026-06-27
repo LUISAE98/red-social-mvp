@@ -799,8 +799,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       setPlayingOverlay(sc);
 
       setTtsReadIndex(0);
-      // Para Mux/OBS el TTS lo reproduce el Browser Source de OBS — no localmente
-      if (broadcastMode === "direct" && sc.displaySeconds >= TTS_MIN_DURATION_SECS) {
+      if (sc.displaySeconds >= TTS_MIN_DURATION_SECS) {
         if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
         const withoutHeadphones = !headphonesDetected;
         if (withoutHeadphones) setMicMutedForTTS(true);
