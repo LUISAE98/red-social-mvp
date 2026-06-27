@@ -57,10 +57,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [error, setError] = useState(false);
   const [muted, setMuted] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  // CF direct broadcast (phone) es casi siempre portrait — evita el layout flip al cargar
-  const [isPortrait, setIsPortrait] = useState(
-    initialPortrait || post.liveData?.broadcastMode === "direct"
-  );
+  // Usar la orientación detectada por el feed. El modal la corrige en el evento canplay
+  // si el video aún no había cargado cuando el usuario abrió el modal.
+  const [isPortrait, setIsPortrait] = useState(initialPortrait);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mobileFsHorizontal, setMobileFsHorizontal] = useState(false);
@@ -404,7 +403,17 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         video.srcObject = initialStream;
         setReady(true);
         setError(false);
-        if (video.videoWidth > 0 && video.videoHeight > 0) setIsPortrait(video.videoHeight > video.videoWidth);
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
+          setIsPortrait(video.videoHeight > video.videoWidth);
+        } else {
+          // Las dimensiones del MediaStream pueden no estar disponibles de inmediato
+          // al reasignar srcObject — escuchar loadedmetadata para corregir orientación.
+          video.addEventListener("loadedmetadata", () => {
+            if (video.videoWidth > 0 && video.videoHeight > 0) {
+              setIsPortrait(video.videoHeight > video.videoWidth);
+            }
+          }, { once: true });
+        }
         video.play().catch(() => {
           video.muted = true;
           setMuted(true);

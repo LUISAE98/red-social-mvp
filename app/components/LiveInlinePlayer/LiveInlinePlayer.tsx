@@ -4,8 +4,10 @@ import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Hls from "hls.js";
 import type { ActiveSuperComment } from "@/lib/posts/types";
-import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
+import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
+
+const SILENT_WAV = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
 
 // ── Coordinador global: solo un video activo al mismo tiempo ──────────────────
 let _activeVideo: HTMLVideoElement | null = null;
@@ -119,7 +121,9 @@ export default function LiveInlinePlayer({
   const isViewerOpenRef = useRef(isViewerOpen);
   const overlayTimerRef = useRef<number | null>(null);
   const fadeOutTimerRef = useRef<number | null>(null);
+  const scDelayTimerRef = useRef<number | null>(null);
   const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
+  const prewarmAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
@@ -162,7 +166,24 @@ export default function LiveInlinePlayer({
       const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
       const startChar = Math.floor(progressRatio * fullText.length);
       const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
-      ttsAudioRef.current = playEdgeTTS(ttsSlice, { volume: mutedRef.current ? 0 : 1 });
+      // iOS-safe: reutilizar elemento prewarmed (desbloqueado en gesto del usuario)
+      const audio = prewarmAudioRef.current ?? document.createElement("audio");
+      audio.pause();
+      audio.src = `/api/tts?text=${encodeURIComponent(ttsSlice)}&voice=es-MX-DaliaNeural`;
+      audio.volume = mutedRef.current ? 0 : 1;
+      if (!mutedRef.current) audio.play().catch(() => {});
+      ttsAudioRef.current = {
+        audio,
+        stop: () => { audio.pause(); audio.src = ""; },
+        setVolume: (v: number) => {
+          audio.volume = v;
+          if (v === 0) {
+            audio.pause();
+          } else if (audio.paused && activeSCRef.current) {
+            audio.play().catch(() => {});
+          }
+        },
+      };
     }
 
     overlayTimerRef.current = window.setTimeout(() => {
@@ -188,13 +209,19 @@ export default function LiveInlinePlayer({
     if (scKey === prevScKeyRef.current) return;
     prevScKeyRef.current = scKey;
 
+    // Cancelar timer pendiente de un SC anterior (no usar cleanup del efecto:
+    // el cleanup cancela el timer cuando Firestore reenvía el mismo SC con nueva
+    // referencia de objeto, y el dedup impediría crear uno nuevo → SC perdido)
+    if (scDelayTimerRef.current !== null) { window.clearTimeout(scDelayTimerRef.current); scDelayTimerRef.current = null; }
+
     if (activeSuper.scheduledAt != null) {
       const delay = activeSuper.scheduledAt - Date.now();
       if (delay > 0) {
-        const timer = window.setTimeout(() => {
+        scDelayTimerRef.current = window.setTimeout(() => {
+          scDelayTimerRef.current = null;
           if (!isViewerOpenRef.current) showOverlay(activeSuper, activeSuper.displaySeconds);
         }, delay);
-        return () => window.clearTimeout(timer);
+        return;
       }
       const remainingSecs = activeSuper.displaySeconds + delay / 1000;
       if (remainingSecs < 1) return;
@@ -239,6 +266,7 @@ export default function LiveInlinePlayer({
     return () => {
       if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
       if (fadeOutTimerRef.current !== null) window.clearTimeout(fadeOutTimerRef.current);
+      if (scDelayTimerRef.current !== null) window.clearTimeout(scDelayTimerRef.current);
       if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     };
   }, []);
@@ -601,7 +629,16 @@ export default function LiveInlinePlayer({
       {/* Botón mute/unmute */}
       <button
         type="button"
-        onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          // Desbloquear audio en iOS durante el gesto del usuario
+          if (!prewarmAudioRef.current) {
+            prewarmAudioRef.current = document.createElement("audio");
+          }
+          prewarmAudioRef.current.src = SILENT_WAV;
+          prewarmAudioRef.current.play().catch(() => {});
+          setMuted((m) => !m);
+        }}
         style={{
           position: "absolute",
           bottom: 10,
