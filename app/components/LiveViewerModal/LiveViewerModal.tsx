@@ -676,23 +676,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     if (isEnded) setControlsVisible(true);
   }, [isEnded]);
 
-  // ── DVR tick — actualiza barra de seek cada segundo mientras el live está activo ──
+  // ── DVR tick — DESACTIVADO TEMPORALMENTE ────────────────────────────────
+  // Reactivar cuando los supercomentarios estén estables:
+  // dvrTickRef + setInterval con seekable, setDvrDuration, setDvrPosition
   useEffect(() => {
-    if (!isLive || cfWebRTCPlayUrl) { setDvrDuration(0); return; }
-    dvrTickRef.current = window.setInterval(() => {
-      const video = videoRef.current;
-      if (!video || video.seekable.length === 0) return;
-      const start = video.seekable.start(0);
-      const end = video.seekable.end(0);
-      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return;
-      setDvrDuration(end - start);
-      setDvrPosition(video.currentTime - start);
-    }, 1000);
-    return () => {
-      if (dvrTickRef.current !== null) window.clearInterval(dvrTickRef.current);
-      dvrTickRef.current = null;
-      setDvrDuration(0);
-    };
+    setDvrDuration(0);
+    setDvrPosition(0);
   }, [isLive, cfWebRTCPlayUrl]);
 
   // Bloquear orientación landscape al entrar en fullscreen horizontal mobile (Android Chrome)
@@ -1461,7 +1450,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           onClick={(e) => {
             if (horizontal) {
               e.stopPropagation();
-              if (dvrAvailable) setHzControlsVisible(v => !v);
+              setHzControlsVisible(v => !v);
             } else {
               const video = videoRef.current;
               if (!video || (isEnded && vodReady)) return;
