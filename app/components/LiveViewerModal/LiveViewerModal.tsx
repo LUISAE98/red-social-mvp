@@ -92,6 +92,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // Clave compuesta id+scheduledAt — permite detectar replays del mismo SC
   const prevActiveSuperKeyRef = useRef<string | null>(null);
   const pollIntervalRef = useRef<number | null>(null);
+  // Timer del delay scheduledAt — guardado en ref para cancelarlo si el efecto re-corre
+  // antes de que dispare (evita el doble showSuperOverlay por múltiples effect runs)
+  const scDelayTimerRef = useRef<number | null>(null);
   const overlayTimerRef = useRef<number | null>(null);
   const fadeOutTimerRef = useRef<number | null>(null);
   const [scFadingOut, setScFadingOut] = useState(false);
@@ -163,14 +166,24 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // llega por la subscription existente (~100-300ms) en vez de una subscription
   // separada a la subcolección superComments.
   useEffect(() => {
-    // Para Mux/OBS el SC va embebido en el video vía Browser Source — no mostrar overlay aquí
-    if (!open || !hasAccess || !isLive || liveData?.streamProvider !== "cloudflare") return;
+    // Para Mux/OBS el SC va embebido en el video vía Browser Source — no mostrar overlay aquí.
+    // Usamos broadcastMode (no streamProvider) para evitar falsos positivos por datos cacheados
+    // de un live de CF anterior que tendrían streamProvider:"cloudflare" como valor stale.
+    if (!open || !hasAccess || !isLive || liveData?.broadcastMode !== "direct") return;
     const activeSuper = localLiveData?.activeSuper;
     const scId = activeSuper?.id ?? null;
     // Clave compuesta: mismo SC con nuevo scheduledAt = replay, debe mostrarse
     const scKey = scId != null ? `${scId}:${activeSuper?.scheduledAt ?? 0}` : null;
     if (scKey === prevActiveSuperKeyRef.current) return;
     prevActiveSuperKeyRef.current = scKey;
+
+    // Cancelar cualquier timer de delay pendiente para este SC — si el efecto re-corre
+    // antes de que dispare (por hasAccess o localLiveData cambiando), evita doble play.
+    if (scDelayTimerRef.current !== null) {
+      window.clearTimeout(scDelayTimerRef.current);
+      scDelayTimerRef.current = null;
+    }
+
     if (!activeSuper || !scId) {
       // El creador detuvo el SC — cerrar overlay y cancelar TTS inmediatamente
       if (activeSuperCommentRef.current) {
@@ -183,7 +196,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     if (activeSuper.scheduledAt != null) {
       const delay = activeSuper.scheduledAt - Date.now();
       if (delay > 0) {
-        window.setTimeout(() => showSuperOverlay(activeSuper, activeSuper.displaySeconds), delay);
+        scDelayTimerRef.current = window.setTimeout(() => {
+          scDelayTimerRef.current = null;
+          showSuperOverlay(activeSuper, activeSuper.displaySeconds);
+        }, delay);
       } else {
         const remainingSecs = activeSuper.displaySeconds + delay / 1000;
         if (remainingSecs > 0.5) showSuperOverlay(activeSuper, remainingSecs);
@@ -196,6 +212,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // Cleanup de timers y TTS al desmontar
   useEffect(() => {
     return () => {
+      if (scDelayTimerRef.current !== null) window.clearTimeout(scDelayTimerRef.current);
       if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
       if (fadeOutTimerRef.current !== null) window.clearTimeout(fadeOutTimerRef.current);
       if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
