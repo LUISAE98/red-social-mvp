@@ -16,15 +16,15 @@ import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 const FONT = 'inherit';
 
 function SCCard({ sc, fadingOut }: { sc: ActiveSuperComment; fadingOut: boolean }) {
-  // Dimensiones calibradas para canvas OBS 1920×1080 — se ve ~35% del ancho inferior
-  const SIZE = 80;
-  const RING = 4;
-  const INSET = 5;
+  // Widget autónomo — diseñado para un Browser Source de ~700×160 en OBS.
+  // El creador lo posiciona libremente en su escena; no depende de un canvas 1920×1080.
+  const SIZE = 56;
+  const RING = 3;
+  const INSET = 4;
   return (
     <div style={{
-      position: "absolute", left: 0, bottom: 0,
-      width: "100%", maxWidth: 680,
-      padding: "0 24px 24px",
+      width: "100%",
+      padding: "0 12px 12px",
       pointerEvents: "none",
       animation: fadingOut
         ? "obsScOut 0.7s ease forwards"
@@ -32,10 +32,10 @@ function SCCard({ sc, fadingOut }: { sc: ActiveSuperComment; fadingOut: boolean 
     }}>
       <div style={{
         background: "#0a0a0a",
-        borderRadius: 22,
-        padding: "18px 24px",
-        display: "flex", alignItems: "center", gap: 18,
-        borderLeft: `5px solid ${sc.color}`,
+        borderRadius: 14,
+        padding: "14px 18px",
+        display: "flex", alignItems: "center", gap: 12,
+        borderLeft: `4px solid ${sc.color}`,
         fontFamily: FONT,
       }}>
         {/* Avatar con aro de tier */}
@@ -47,7 +47,7 @@ function SCCard({ sc, fadingOut }: { sc: ActiveSuperComment; fadingOut: boolean 
             </div>
           ) : (
             <div style={{ position: "absolute", inset: INSET, borderRadius: "50%", background: "rgba(168,85,247,0.5)", display: "grid", placeItems: "center" }}>
-              <span style={{ fontSize: 28, color: "#fff", fontWeight: 700 }}>{sc.username.charAt(0).toUpperCase()}</span>
+              <span style={{ fontSize: 22, color: "#fff", fontWeight: 700 }}>{sc.username.charAt(0).toUpperCase()}</span>
             </div>
           )}
           <div style={{
@@ -59,10 +59,10 @@ function SCCard({ sc, fadingOut }: { sc: ActiveSuperComment; fadingOut: boolean 
         </div>
         {/* Nombre + donó */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 26, fontWeight: 700, color: "#fff", fontFamily: FONT, marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#fff", fontFamily: FONT, marginBottom: 4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {sc.username}
           </div>
-          <div style={{ fontSize: 20, fontFamily: FONT }}>
+          <div style={{ fontSize: 15, fontFamily: FONT }}>
             <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
             <span style={{ color: "#4ade80", fontWeight: 700 }}>${sc.amount.toFixed(2)} MXN</span>
           </div>
@@ -188,11 +188,7 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
         @keyframes obsScOut { from{opacity:1;transform:translateY(0)}     to{opacity:0;transform:translateY(6px)} }
       `}</style>
 
-      <div style={{
-        position: "fixed", inset: 0,
-        background: "transparent",
-        pointerEvents: "none",
-      }}>
+      <div style={{ background: "transparent", pointerEvents: "none" }}>
         {activeSC && <SCCard sc={activeSC} fadingOut={fadingOut} />}
       </div>
     </>

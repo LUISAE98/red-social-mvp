@@ -108,7 +108,7 @@ function OBSBrowserSourceBanner({ postId }: { postId: string }) {
         </button>
       </div>
       <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 5 }}>
-        En OBS: Añadir → Fuente de navegador · 1920×1080 · ✅ Permitir transparencia
+        En OBS: Añadir → Fuente de navegador · 700×160 · ✅ Permitir transparencia · Posiciona libremente en tu escena
       </div>
     </div>
   );
