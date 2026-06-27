@@ -1640,15 +1640,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             }}>
               {name}
             </span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, lineHeight: "1.2" }}>
-              <span style={{ position: "relative", display: "inline-flex", alignItems: "center", justifyContent: "center", width: 14, height: 14 }}>
-                <span style={{ position: "absolute", width: 14, height: 14, borderRadius: "50%", background: "#ef4444", animation: "lvmDotOuter 1.6s ease-in-out infinite" }} />
-                <span style={{ position: "absolute", width: 7, height: 7, borderRadius: "50%", background: "#ef4444", animation: "lvmDotInner 1.6s ease-in-out infinite" }} />
-              </span>
-              <style>{`
-                @keyframes lvmDotOuter { 0%,100%{transform:scale(1);opacity:0.5} 50%{transform:scale(1.5);opacity:0.15} }
-                @keyframes lvmDotInner { 0%,100%{transform:scale(1)} 50%{transform:scale(0.8)} }
-              `}</style>
+            <span style={{ fontSize: 12, color: "#ef4444", fontWeight: 600, lineHeight: "1.2" }}>
+              En vivo
             </span>
           </div>
         </div>

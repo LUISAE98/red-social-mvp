@@ -113,10 +113,12 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
 
   function unlockAudio() {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    // Chrome requiere un gesto del usuario para habilitar speechSynthesis
-    const silent = new SpeechSynthesisUtterance("");
-    silent.volume = 0;
-    window.speechSynthesis.speak(silent);
+    // Chrome requiere un gesto del usuario — texto no vacío para que el engine lo procese
+    const unlock = new SpeechSynthesisUtterance(" ");
+    unlock.volume = 0;
+    unlock.lang = "es-MX";
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(unlock);
     setAudioUnlocked(true);
   }
 
@@ -133,6 +135,17 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
     }, 600);
   }
 
+  function _speakUtterance(utterance: SpeechSynthesisUtterance) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const wasActive = window.speechSynthesis.speaking || window.speechSynthesis.pending;
+    window.speechSynthesis.cancel();
+    if (wasActive) {
+      setTimeout(() => window.speechSynthesis.speak(utterance), 80);
+    } else {
+      window.speechSynthesis.speak(utterance);
+    }
+  }
+
   function playTTS(sc: ActiveSuperComment, durationSecs: number) {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     if (durationSecs < TTS_MIN_DURATION_SECS) return;
@@ -147,9 +160,11 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
     utterance.lang = "es-MX";
     utterance.rate = computeTtsRate(ttsSlice, durationSecs);
     utterance.volume = 1;
+    // onend solo cancela el keep-alive — NO cierra el overlay.
+    // El overlay se cierra mediante overlayTimerRef o el snapshot null de Firestore.
+    // Si onend cerrara el overlay, un TTS fallido (voces no cargadas) haría desaparecer la card al instante.
     utterance.onend = () => {
       if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
-      triggerFadeOut();
     };
 
     // Chrome puede pausar speechSynthesis silenciosamente en utterances largas
@@ -160,12 +175,16 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
       }
     }, 10000);
 
-    const wasActive = window.speechSynthesis.speaking || window.speechSynthesis.pending;
-    window.speechSynthesis.cancel();
-    if (wasActive) {
-      setTimeout(() => window.speechSynthesis.speak(utterance), 80);
+    // Las voces se cargan de forma asíncrona — si no están listas aún, esperar voiceschanged
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length > 0) {
+      _speakUtterance(utterance);
     } else {
-      window.speechSynthesis.speak(utterance);
+      const onVoicesChanged = () => {
+        window.speechSynthesis.removeEventListener("voiceschanged", onVoicesChanged);
+        _speakUtterance(utterance);
+      };
+      window.speechSynthesis.addEventListener("voiceschanged", onVoicesChanged);
     }
   }
 
