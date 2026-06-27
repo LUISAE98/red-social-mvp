@@ -80,6 +80,7 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
   const prevKeyRef = useRef<string | null>(null);
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeOutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ttsHandleRef = useRef<EdgeTTSHandle | null>(null);
   const activeSCRef = useRef<ActiveSuperComment | null>(null);
 
@@ -151,10 +152,16 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
           return;
         }
 
+        // Cancelar timer de delay previo antes de programar el nuevo
+        if (scDelayTimerRef.current !== null) { clearTimeout(scDelayTimerRef.current); scDelayTimerRef.current = null; }
+
         if (activeSuper.scheduledAt != null) {
           const delay = activeSuper.scheduledAt - Date.now();
           if (delay > 0) {
-            setTimeout(() => showOverlay(activeSuper, activeSuper.displaySeconds), delay);
+            scDelayTimerRef.current = setTimeout(() => {
+              scDelayTimerRef.current = null;
+              showOverlay(activeSuper, activeSuper.displaySeconds);
+            }, delay);
           } else {
             const remaining = activeSuper.displaySeconds + delay / 1000;
             if (remaining > 0.5) showOverlay(activeSuper, remaining);
@@ -170,6 +177,7 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
 
   useEffect(() => {
     return () => {
+      if (scDelayTimerRef.current !== null) clearTimeout(scDelayTimerRef.current);
       if (overlayTimerRef.current !== null) clearTimeout(overlayTimerRef.current);
       if (fadeOutTimerRef.current !== null) clearTimeout(fadeOutTimerRef.current);
       stopTTS();

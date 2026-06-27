@@ -833,6 +833,21 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   }
 
   function handlePlaySC(sc: SuperComment) {
+    // Igual que handleReplaySCFromOverlay: limpia estado residual antes de _doPlay
+    // para que el botón "Reproducir" funcione siempre, aunque el SC anterior no haya
+    // limpiado correctamente isPlayingRef.
+    if (scheduledPlayTimeoutRef.current !== null) {
+      window.clearTimeout(scheduledPlayTimeoutRef.current);
+      scheduledPlayTimeoutRef.current = null;
+    }
+    if (displayEndTimerRef.current !== null) {
+      window.clearTimeout(displayEndTimerRef.current);
+      displayEndTimerRef.current = null;
+    }
+    if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
+    setMicMutedForTTS(false);
+    setTtsReadIndex(0);
+    isPlayingRef.current = false;
     _doPlay(sc);
   }
 
