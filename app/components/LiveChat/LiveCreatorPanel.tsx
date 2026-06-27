@@ -1916,10 +1916,40 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
     const video = videoRef.current;
     if (!video || !hlsUrl) return;
 
+    // Recupera el video si se congela: salta al live edge tras 3s sin progreso
+    let stallTimer: number | null = null;
+    const handleStall = () => {
+      if (stallTimer !== null) return;
+      stallTimer = window.setTimeout(() => {
+        stallTimer = null;
+        if (video.paused || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
+          try {
+            if (video.seekable.length > 0) {
+              const end = video.seekable.end(video.seekable.length - 1);
+              if (Number.isFinite(end)) video.currentTime = end;
+            }
+          } catch {}
+          if (hlsRef.current) hlsRef.current.startLoad();
+          video.play().catch(() => {});
+        }
+      }, 3000);
+    };
+    const cancelStall = () => {
+      if (stallTimer !== null) { window.clearTimeout(stallTimer); stallTimer = null; }
+    };
+
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = hlsUrl;
+      video.addEventListener("stalled", handleStall);
+      video.addEventListener("waiting", handleStall);
+      video.addEventListener("playing", cancelStall);
       if (autoPlay) video.play().catch(() => {});
-      return;
+      return () => {
+        video.removeEventListener("stalled", handleStall);
+        video.removeEventListener("waiting", handleStall);
+        video.removeEventListener("playing", cancelStall);
+        cancelStall();
+      };
     }
 
     if (!Hls.isSupported()) return;
@@ -1948,6 +1978,10 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
     hls.attachMedia(video);
     hls.on(Hls.Events.MANIFEST_PARSED, () => { if (autoPlay) video.play().catch(() => {}); });
 
+    video.addEventListener("stalled", handleStall);
+    video.addEventListener("waiting", handleStall);
+    video.addEventListener("playing", cancelStall);
+
     // Recuperación automática de errores — sin esto el player para silenciosamente
     hls.on(Hls.Events.ERROR, (_, data) => {
       if (!data.fatal) return;
@@ -1961,7 +1995,14 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
       }
     });
 
-    return () => { hls.destroy(); hlsRef.current = null; };
+    return () => {
+      video.removeEventListener("stalled", handleStall);
+      video.removeEventListener("waiting", handleStall);
+      video.removeEventListener("playing", cancelStall);
+      cancelStall();
+      hls.destroy();
+      hlsRef.current = null;
+    };
   }, [hlsUrl]);
 
   const muteBtn = (size: number, bottom: number, right: number, bordered: boolean) => (

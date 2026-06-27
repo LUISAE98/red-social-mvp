@@ -3267,6 +3267,7 @@ style={{
           portrait={isLivePortrait}
           paused={liveViewerOpen || liveCreatorOpen}
           streamProvider={activeLiveData.streamProvider ?? undefined}
+          broadcastMode={activeLiveData.broadcastMode ?? undefined}
           activeSuper={activeLiveData.activeSuper ?? null}
           isViewerOpen={liveViewerOpen}
           onStreamReady={(s) => setFeedLiveStream(s)}

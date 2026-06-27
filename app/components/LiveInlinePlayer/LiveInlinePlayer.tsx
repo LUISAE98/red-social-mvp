@@ -78,6 +78,7 @@ type Props = {
   portrait?: boolean;
   paused?: boolean;
   streamProvider?: string | null;
+  broadcastMode?: string | null;
   activeSuper?: ActiveSuperComment | null;
   isViewerOpen?: boolean;
   onClick?: () => void;
@@ -94,6 +95,7 @@ export default function LiveInlinePlayer({
   portrait = false,
   paused = false,
   streamProvider,
+  broadcastMode,
   activeSuper,
   isViewerOpen = false,
   onClick,
@@ -132,7 +134,8 @@ export default function LiveInlinePlayer({
   const rawHlsUrl = hlsUrlProp ?? (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : "");
   const hlsUrl = rawHlsUrl ? rawHlsUrl.split("?")[0] : "";
 
-  const isCfLive = streamProvider === "cloudflare";
+  // broadcastMode es más confiable que streamProvider (evita datos stale de lives anteriores)
+  const isCfLive = broadcastMode != null ? broadcastMode === "direct" : streamProvider === "cloudflare";
   // CF thumbnail para mostrar mientras conecta WebRTC (puede fallar → spinner)
   const cfThumbnailUrl = isCfLive && hlsUrl
     ? hlsUrl.replace("/manifest/video.m3u8", "/thumbnails/thumbnail.jpg")
@@ -196,7 +199,8 @@ export default function LiveInlinePlayer({
   // Nuevo SC: muestra overlay solo para CF (en Mux el SC va embebido en el video vía Browser Source)
   useEffect(() => {
     if (isViewerOpenRef.current) return;
-    if (streamProvider !== "cloudflare") return;
+    // Usar broadcastMode (confiable) en vez de streamProvider (puede llegar stale de un live anterior de CF)
+    if (broadcastMode !== "direct") return;
     if (!activeSuper) {
       if (activeSCRef.current) {
         // El creador detuvo el SC — cancelar TTS y cerrar overlay
