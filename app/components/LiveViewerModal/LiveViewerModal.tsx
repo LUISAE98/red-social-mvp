@@ -12,7 +12,7 @@ import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer, addWatchTime } from "@/lib/liveKit/liveViewers";
 import type { ActiveSuperComment } from "@/lib/posts/types";
-import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
+import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 
 const FONT =
@@ -98,6 +98,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const activeSuperCommentRef = useRef<ActiveSuperComment | null>(null);
   const mutedRef = useRef(false);
   const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
+  // Elemento de audio persistente pre-calentado en el gesto de apertura del modal.
+  // iOS bloquea audio.play() desde callbacks async — reutilizar el mismo elemento
+  // que fue "unlocked" durante el gesto resuelve este problema.
+  const prewarmAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
   useEffect(() => {
@@ -338,6 +342,13 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   useEffect(() => {
     if (open) {
       setShouldRender(true);
+      // Pre-calentar el elemento de audio en el contexto del gesto del usuario.
+      // iOS Safari bloquea audio.play() desde callbacks async (Firestore onSnapshot),
+      // pero permite reutilizar un elemento que fue desbloqueado durante un gesto.
+      if (!prewarmAudioRef.current) {
+        prewarmAudioRef.current = document.createElement("audio");
+      }
+      prewarmAudioRef.current.play().catch(() => {});
       return;
     }
     // Modal cerrándose — cortar cualquier TTS en curso
@@ -900,7 +911,19 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       const fullText = `${sc.username} dijo: ${sc.text}`;
       const startChar = Math.floor(progressRatio * fullText.length);
       const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
-      ttsAudioRef.current = playEdgeTTS(ttsSlice, { volume: mutedRef.current ? 0 : 1 });
+      // Reutilizar el elemento pre-calentado en el gesto de apertura del modal.
+      // En iOS Safari, reusar el mismo <audio> que fue .play()'ed durante un gesto
+      // permite reproducirlo desde callbacks async sin bloqueo.
+      const audio = prewarmAudioRef.current ?? document.createElement("audio");
+      audio.pause();
+      audio.src = `/api/tts?text=${encodeURIComponent(ttsSlice)}&voice=es-MX-DaliaNeural`;
+      audio.volume = mutedRef.current ? 0 : 1;
+      audio.play().catch(() => {});
+      ttsAudioRef.current = {
+        audio,
+        stop: () => { audio.pause(); audio.currentTime = 0; },
+        setVolume: (v) => { audio.volume = v; },
+      };
     }
 
     overlayTimerRef.current = window.setTimeout(() => {

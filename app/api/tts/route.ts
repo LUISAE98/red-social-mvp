@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     return new Response(buffer, {
       headers: {
         "Content-Type": "audio/mpeg",
+        "Content-Length": buffer.byteLength.toString(),
         "Cache-Control": "no-store",
       },
     });

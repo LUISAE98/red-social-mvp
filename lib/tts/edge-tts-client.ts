@@ -41,7 +41,10 @@ export function playEdgeTTS(
 
   if (onProgress) {
     audio.addEventListener("timeupdate", () => {
-      if (audio.duration > 0) onProgress(audio.currentTime / audio.duration);
+      // isFinite guard: iOS Safari devuelve Infinity cuando no hay Content-Length.
+      if (audio.duration > 0 && isFinite(audio.duration)) {
+        onProgress(audio.currentTime / audio.duration);
+      }
     });
   }
   if (onEnded) audio.addEventListener("ended", onEnded);
