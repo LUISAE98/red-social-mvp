@@ -10,6 +10,8 @@ import { createGreetingMuxUpload } from "@/lib/greetings/greetingRequests";
 import { addStoryFromGreeting, deleteStory, subscribeToStoryByGreeting } from "@/lib/stories/storyService";
 import type { StoryDoc } from "@/lib/stories/types";
 import type { GreetingRequestDoc, UserMini } from "./OwnerSidebar";
+import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
+import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 
 const fontStack =
   'inherit';
@@ -227,6 +229,7 @@ export default function GreetingReviewOverlay({
   const speechRateRef = useRef<number>(1);
   const speechOffsetRef = useRef(0);
   const speechGenRef = useRef(0);
+  const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
   const speechTextRef = useRef<HTMLParagraphElement>(null);
   const speechCursorRef = useRef<HTMLSpanElement>(null);
 
@@ -341,7 +344,7 @@ export default function GreetingReviewOverlay({
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
       // eslint-disable-next-line react-hooks/exhaustive-deps
       speechGenRef.current++;
-      window.speechSynthesis?.cancel();
+      if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     };
   }, []);
 
@@ -653,7 +656,7 @@ export default function GreetingReviewOverlay({
     setStoryError(null);
     setExistingStory(null);
     setRemovingStory(false);
-    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     speechGenRef.current++;
     setSpeechState("idle");
     setSpeechHighlight(null);
@@ -926,43 +929,44 @@ export default function GreetingReviewOverlay({
 
   // ─── TTS functions — must be before any early return ────────────────────────
   const startSpeechFrom = useCallback((charIndex: number) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
     const text = (items[currentIndex] ?? items[0])?.data.instructions ?? "";
     if (!text) return;
-    window.speechSynthesis.cancel();
+    if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     speechOffsetRef.current = charIndex;
     const gen = ++speechGenRef.current;
+    const sliceText = text.slice(charIndex);
+    if (!sliceText.trim()) return;
     setSpeechHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
-    const utterance = new SpeechSynthesisUtterance(text.slice(charIndex));
-    utterance.lang = "es-MX";
-    utterance.rate = speechRateRef.current;
-    utterance.pitch = 1;
-    utterance.onboundary = (e) => {
-      if (speechGenRef.current !== gen || e.name !== "word") return;
-      const absIndex = charIndex + e.charIndex;
-      const fromIndex = text.slice(absIndex);
-      const spaceAt = fromIndex.search(/[\s\n]/);
-      const length = e.charLength ?? (spaceAt === -1 ? fromIndex.length : spaceAt);
-      setSpeechHighlight({ start: absIndex, length });
-    };
-    utterance.onend = () => {
-      if (speechGenRef.current !== gen) return;
-      setSpeechState("idle");
-      setSpeechHighlight(null);
-    };
-    utterance.onerror = () => {
-      if (speechGenRef.current !== gen) return;
-      setSpeechState("idle");
-      setSpeechHighlight(null);
-    };
-    window.speechSynthesis.speak(utterance);
+    ttsAudioRef.current = playEdgeTTS(sliceText, {
+      playbackRate: speechRateRef.current,
+      onProgress: (ratio) => {
+        if (speechGenRef.current !== gen) return;
+        const posInSlice = Math.floor(ratio * sliceText.length);
+        const absPos = charIndex + posInSlice;
+        const ahead = sliceText.slice(posInSlice);
+        const spaceAt = ahead.search(/[\s\n]/);
+        const length = spaceAt === -1 ? Math.min(ahead.length, 8) : spaceAt;
+        setSpeechHighlight({ start: absPos, length: Math.max(1, length) });
+      },
+      onEnded: () => {
+        if (speechGenRef.current !== gen) return;
+        ttsAudioRef.current = null;
+        setSpeechState("idle");
+        setSpeechHighlight(null);
+      },
+      onError: () => {
+        if (speechGenRef.current !== gen) return;
+        ttsAudioRef.current = null;
+        setSpeechState("idle");
+        setSpeechHighlight(null);
+      },
+    });
     setSpeechState("playing");
   }, [items, currentIndex]);
 
   const handleToggleSpeech = useCallback(() => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    if (speechState === "playing") { window.speechSynthesis.pause(); setSpeechState("paused"); return; }
-    if (speechState === "paused") { window.speechSynthesis.resume(); setSpeechState("playing"); return; }
+    if (speechState === "playing") { ttsAudioRef.current?.audio.pause(); setSpeechState("paused"); return; }
+    if (speechState === "paused") { ttsAudioRef.current?.audio.play().catch(() => {}); setSpeechState("playing"); return; }
     startSpeechFrom(0);
   }, [speechState, startSpeechFrom]);
 
@@ -970,10 +974,8 @@ export default function GreetingReviewOverlay({
     const next: 1 | 1.4 | 1.8 = speechRate === 1 ? 1.4 : speechRate === 1.4 ? 1.8 : 1;
     speechRateRef.current = next;
     setSpeechRate(next);
-    if (speechState !== "idle") {
-      startSpeechFrom(speechHighlight?.start ?? speechOffsetRef.current);
-    }
-  }, [speechRate, speechState, startSpeechFrom, speechHighlight]);
+    if (ttsAudioRef.current) ttsAudioRef.current.audio.playbackRate = next;
+  }, [speechRate]);
 
   const handleTextSeek = useCallback((e: React.MouseEvent<HTMLParagraphElement>) => {
     e.stopPropagation();

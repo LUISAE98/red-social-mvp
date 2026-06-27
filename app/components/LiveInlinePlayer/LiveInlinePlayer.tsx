@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Hls from "hls.js";
 import type { ActiveSuperComment } from "@/lib/posts/types";
+import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
+import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 
 // ── Coordinador global: solo un video activo al mismo tiempo ──────────────────
 let _activeVideo: HTMLVideoElement | null = null;
@@ -64,7 +66,6 @@ function CfThumbnail({ url, ts, title }: { url: string; ts: number; title?: stri
 }
 
 const FONT = 'SF Pro Text, SF Pro Display, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif';
-const TTS_MIN_SECS = 1.5;
 
 type Props = {
   postId?: string | null;
@@ -118,6 +119,7 @@ export default function LiveInlinePlayer({
   const isViewerOpenRef = useRef(isViewerOpen);
   const overlayTimerRef = useRef<number | null>(null);
   const fadeOutTimerRef = useRef<number | null>(null);
+  const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
 
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(false);
@@ -153,27 +155,19 @@ export default function LiveInlinePlayer({
     activeSCRef.current = sc;
     setActiveSC(sc);
 
-    if (!isViewerOpenRef.current && typeof window !== "undefined" && "speechSynthesis" in window && durationSecs >= TTS_MIN_SECS) {
-      window.speechSynthesis.cancel();
+    if (!isViewerOpenRef.current && durationSecs >= TTS_MIN_DURATION_SECS) {
+      if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
       const fullText = `${sc.username} dijo: ${sc.text}`;
       const elapsed = sc.displaySeconds - durationSecs;
       const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
       const startChar = Math.floor(progressRatio * fullText.length);
       const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
-      const utterance = new SpeechSynthesisUtterance(ttsSlice);
-      utterance.lang = "es-MX";
-      utterance.rate = 1;
-      utterance.volume = mutedRef.current ? 0 : 1;
-      utterance.onend = () => triggerFadeOut();
-      window.speechSynthesis.speak(utterance);
+      ttsAudioRef.current = playEdgeTTS(ttsSlice, { volume: mutedRef.current ? 0 : 1 });
     }
 
-    // Fallback por si onend no dispara
     overlayTimerRef.current = window.setTimeout(() => {
       overlayTimerRef.current = null;
-      if (!isViewerOpenRef.current && typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
       triggerFadeOut();
     }, durationSecs * 1000);
   }
@@ -185,7 +179,7 @@ export default function LiveInlinePlayer({
     if (!activeSuper) {
       if (activeSCRef.current) {
         // El creador detuvo el SC — cancelar TTS y cerrar overlay
-        if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
+        if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
         triggerFadeOut(); // eslint-disable-line react-hooks/set-state-in-effect
       }
       return;
@@ -214,10 +208,10 @@ export default function LiveInlinePlayer({
   useEffect(() => {
     isViewerOpenRef.current = isViewerOpen;
     if (isViewerOpen) {
-      // Viewer toma el control — parar timers del feed pero NO cancelar TTS
-      // (el viewer detectará window.speechSynthesis.speaking y continuará sin corte)
+      // Viewer toma el control — parar timers y TTS del feed
       if (overlayTimerRef.current !== null) { window.clearTimeout(overlayTimerRef.current); overlayTimerRef.current = null; }
       if (fadeOutTimerRef.current !== null) { window.clearTimeout(fadeOutTimerRef.current); fadeOutTimerRef.current = null; }
+      if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
       activeSCRef.current = null;
       setActiveSC(null); // eslint-disable-line react-hooks/set-state-in-effect
       setScFadingOut(false);
@@ -235,25 +229,9 @@ export default function LiveInlinePlayer({
     }
   }, [isViewerOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Mute/unmute: reinicia TTS con volumen correcto desde posición estimada (no pause)
+  // Mute/unmute: ajuste de volumen en tiempo real
   useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    if (isViewerOpenRef.current || !activeSCRef.current || !window.speechSynthesis.speaking) return;
-    const sc = activeSCRef.current;
-    const now = Date.now();
-    const elapsed = sc.scheduledAt != null ? (now - sc.scheduledAt) / 1000 : 0;
-    const fullText = `${sc.username} dijo: ${sc.text}`;
-    const progressRatio = sc.displaySeconds > 0 ? Math.min(Math.max(elapsed, 0) / sc.displaySeconds, 0.95) : 0;
-    const startChar = Math.floor(progressRatio * fullText.length);
-    const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
-    if (!ttsSlice) return;
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(ttsSlice);
-    utterance.lang = "es-MX";
-    utterance.rate = 1;
-    utterance.volume = muted ? 0 : 1;
-    utterance.onend = () => triggerFadeOut();
-    window.speechSynthesis.speak(utterance);
+    if (ttsAudioRef.current) ttsAudioRef.current.setVolume(muted ? 0 : 1);
   }, [muted]);
 
   // Cleanup al desmontar
@@ -261,9 +239,7 @@ export default function LiveInlinePlayer({
     return () => {
       if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
       if (fadeOutTimerRef.current !== null) window.clearTimeout(fadeOutTimerRef.current);
-      if (!isViewerOpenRef.current && typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     };
   }, []);
 
@@ -487,8 +463,9 @@ export default function LiveInlinePlayer({
         } else {
           deactivateVideo(video);
           video.pause();
-          if (!isViewerOpenRef.current && typeof window !== "undefined" && "speechSynthesis" in window) {
-            window.speechSynthesis.cancel();
+          if (!isViewerOpenRef.current && ttsAudioRef.current) {
+            ttsAudioRef.current.stop();
+            ttsAudioRef.current = null;
           }
         }
       },

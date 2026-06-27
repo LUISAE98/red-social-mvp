@@ -10,6 +10,8 @@ import type { StoryDoc, StoryType } from "@/lib/stories/types";
 import { createGreetingRequest } from "@/lib/greetings/greetingRequests";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
+import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
+import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 
 const LABELS: Record<StoryType, string> = {
   saludo: "Saludo",
@@ -77,11 +79,7 @@ export default function StoryViewer({
   const [muted, setMuted] = useState(() =>
     typeof window !== "undefined" && getMutePreference()
   );
-  const [hasSpeechSupport] = useState(() =>
-    typeof window !== "undefined" &&
-    "speechSynthesis" in window &&
-    "SpeechSynthesisUtterance" in window
-  );
+  const [hasSpeechSupport] = useState(true);
   const [dragY, setDragY] = useState(0);
   const [heroPhase, setHeroPhase] = useState<"entering" | "open" | "exiting" | null>(null);
   const heroTimerRef = useRef<number | null>(null);
@@ -92,6 +90,7 @@ export default function StoryViewer({
   const [speechHighlight, setSpeechHighlight] = useState<{ start: number; length: number } | null>(null);
   const [speechRate, setSpeechRate] = useState<1 | 1.4 | 1.8>(1);
   const speechRateRef = useRef<number>(1);
+  const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
   const contextDragStartY = useRef<number | null>(null);
   const speechOffsetRef = useRef(0);
   const speechGenRef = useRef(0);
@@ -219,50 +218,49 @@ export default function StoryViewer({
   }, [story?.greetingCreatorId, story?.creatorId]);
 
   const startSpeechFrom = useCallback((charIndex: number) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
     const text = instructions ?? "Sin contexto disponible.";
-    window.speechSynthesis.cancel();
+    if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     speechOffsetRef.current = charIndex;
     const gen = ++speechGenRef.current;
-    // Pre-bold everything before the seek point
+    const sliceText = text.slice(charIndex);
+    if (!sliceText.trim()) return;
     setSpeechHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
-    const utterance = new SpeechSynthesisUtterance(text.slice(charIndex));
-    utterance.lang = "es-MX";
-    utterance.rate = speechRateRef.current;
-    utterance.pitch = 1;
-    utterance.onboundary = (e) => {
-      if (speechGenRef.current !== gen) return;
-      if (e.name !== "word") return;
-      const absIndex = charIndex + e.charIndex;
-      const fromIndex = text.slice(absIndex);
-      const spaceAt = fromIndex.search(/[\s\n]/);
-      const length = e.charLength ?? (spaceAt === -1 ? fromIndex.length : spaceAt);
-      setSpeechHighlight({ start: absIndex, length });
-    };
-    utterance.onend = () => {
-      if (speechGenRef.current !== gen) return;
-      setSpeechState("idle");
-      setSpeechHighlight(null);
-      setContextOpen(false);
-    };
-    utterance.onerror = () => {
-      if (speechGenRef.current !== gen) return;
-      setSpeechState("idle");
-      setSpeechHighlight(null);
-    };
-    window.speechSynthesis.speak(utterance);
+    ttsAudioRef.current = playEdgeTTS(sliceText, {
+      playbackRate: speechRateRef.current,
+      onProgress: (ratio) => {
+        if (speechGenRef.current !== gen) return;
+        const posInSlice = Math.floor(ratio * sliceText.length);
+        const absPos = charIndex + posInSlice;
+        const ahead = sliceText.slice(posInSlice);
+        const spaceAt = ahead.search(/[\s\n]/);
+        const length = spaceAt === -1 ? Math.min(ahead.length, 8) : spaceAt;
+        setSpeechHighlight({ start: absPos, length: Math.max(1, length) });
+      },
+      onEnded: () => {
+        if (speechGenRef.current !== gen) return;
+        ttsAudioRef.current = null;
+        setSpeechState("idle");
+        setSpeechHighlight(null);
+        setContextOpen(false);
+      },
+      onError: () => {
+        if (speechGenRef.current !== gen) return;
+        ttsAudioRef.current = null;
+        setSpeechState("idle");
+        setSpeechHighlight(null);
+      },
+    });
     setSpeechState("playing");
   }, [instructions]);
 
   const handleToggleSpeech = useCallback(() => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
     if (speechState === "playing") {
-      window.speechSynthesis.pause();
+      ttsAudioRef.current?.audio.pause();
       setSpeechState("paused");
       return;
     }
     if (speechState === "paused") {
-      window.speechSynthesis.resume();
+      ttsAudioRef.current?.audio.play().catch(() => {});
       setSpeechState("playing");
       return;
     }
@@ -273,10 +271,9 @@ export default function StoryViewer({
     const next: 1 | 1.4 | 1.8 = speechRate === 1 ? 1.4 : speechRate === 1.4 ? 1.8 : 1;
     speechRateRef.current = next;
     setSpeechRate(next);
-    if (speechState !== "idle") {
-      startSpeechFrom(speechHighlight?.start ?? speechOffsetRef.current);
-    }
-  }, [speechRate, speechState, startSpeechFrom, speechHighlight]);
+    // Cambiar playbackRate en tiempo real sin reiniciar el audio
+    if (ttsAudioRef.current) ttsAudioRef.current.audio.playbackRate = next;
+  }, [speechRate]);
 
   const handleTextSeek = useCallback((e: React.MouseEvent<HTMLParagraphElement>) => {
     e.stopPropagation();
@@ -323,7 +320,7 @@ export default function StoryViewer({
     setProgress(0);
     setVideoReady(false);
     setContextOpen(false);
-    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
+    if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     speechGenRef.current++;
     setSpeechState("idle");
     setSpeechHighlight(null);
@@ -332,14 +329,17 @@ export default function StoryViewer({
 
   // Cancel speech when panel closes or component unmounts
   useEffect(() => {
-    if (!contextOpen && typeof window !== "undefined") {
-      window.speechSynthesis?.cancel();
+    if (!contextOpen) {
+      if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
       speechGenRef.current++;
       setSpeechState("idle");
       setSpeechHighlight(null);
     }
   }, [contextOpen]);
-  useEffect(() => () => { speechGenRef.current++; window.speechSynthesis?.cancel(); }, []);
+  useEffect(() => () => {
+    speechGenRef.current++;
+    if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
+  }, []);
 
   useEffect(() => {
     const cursor = speechCursorRef.current;

@@ -38,7 +38,8 @@ import {
   subscribeToAverageWatchTime,
   subscribeToNewFollowersDuringLive,
 } from "@/lib/liveKit/liveViewers";
-import { initTtsCalibration, computeTtsRate, refineTtsCalibration } from "@/lib/tts/ttsCalibration";
+import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
+import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 
 const FONT = 'inherit';
 const DIV = "1px solid rgba(255,255,255,0.12)";
@@ -162,7 +163,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [ttsReadIndex, setTtsReadIndex] = useState(0);
   const scBoundaryRef = useRef<HTMLSpanElement>(null);
   const scTextContainerRef = useRef<HTMLDivElement>(null);
-  const ttsKeepAliveRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
   const displayEndTimerRef = useRef<number | null>(null);
   const [liveSetupOpen, setLiveSetupOpen] = useState(false);
   const [scConfigOpen, setScConfigOpen] = useState(false);
@@ -216,13 +217,6 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     if (showEndPanel && open) setEndPanelOpen(true);
   }, [showEndPanel, open]);
 
-  // Calibración silenciosa del TTS al abrir el panel (una sola vez por dispositivo)
-  useEffect(() => {
-    if (!open) return;
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      initTtsCalibration();
-    }
-  }, [open]);
 
   useEffect(() => {
     const update = () => {
@@ -806,50 +800,25 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
       setTtsReadIndex(0);
       // Para Mux/OBS el TTS lo reproduce el Browser Source de OBS — no localmente
-      if (broadcastMode === "direct" && typeof window !== "undefined" && "speechSynthesis" in window) {
-        if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
-
-        const ttsText = `${sc.username} dijo: ${sc.text}`;
-        const utterance = new SpeechSynthesisUtterance(ttsText);
-        utterance.lang = "es-MX";
-        utterance.rate = computeTtsRate(ttsText, sc.displaySeconds);
-        const capturedRate = utterance.rate;
-        const speakStart = performance.now();
+      if (broadcastMode === "direct" && sc.displaySeconds >= TTS_MIN_DURATION_SECS) {
+        if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
         const withoutHeadphones = !headphonesDetected;
         if (withoutHeadphones) setMicMutedForTTS(true);
-
-        // Workaround: Chrome pauses speechSynthesis silently after ~15s
-        ttsKeepAliveRef.current = setInterval(() => {
-          if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-            window.speechSynthesis.pause();
-            window.speechSynthesis.resume();
-          }
-        }, 10000);
-
-        const ttsPrefix = `${sc.username} dijo: `;
-        utterance.onboundary = (e) => {
-          if (e.name === "word") {
-            const idx = e.charIndex + (e.charLength ?? 0) - ttsPrefix.length;
-            setTtsReadIndex(Math.max(0, idx));
-          }
-        };
-        utterance.onend = () => {
-          if (ttsKeepAliveRef.current !== null) {
-            clearInterval(ttsKeepAliveRef.current);
-            ttsKeepAliveRef.current = null;
-          }
-          setTtsReadIndex(sc.text.length);
-          if (withoutHeadphones) setMicMutedForTTS(false);
-          refineTtsCalibration(sc.text, (performance.now() - speakStart) / 1000, capturedRate);
-        };
-
-        const wasActive = window.speechSynthesis.speaking || window.speechSynthesis.pending;
-        window.speechSynthesis.cancel();
-        if (wasActive) {
-          window.setTimeout(() => window.speechSynthesis.speak(utterance), 100);
-        } else {
-          window.speechSynthesis.speak(utterance);
-        }
+        const ttsText = `${sc.username} dijo: ${sc.text}`;
+        const prefixLen = `${sc.username} dijo: `.length;
+        const totalLen = ttsText.length;
+        ttsAudioRef.current = playEdgeTTS(ttsText, {
+          volume: 1,
+          onProgress: (ratio) => {
+            const charPos = Math.floor(ratio * totalLen);
+            setTtsReadIndex(Math.max(0, Math.min(charPos - prefixLen, sc.text.length)));
+          },
+          onEnded: () => {
+            ttsAudioRef.current = null;
+            setTtsReadIndex(sc.text.length);
+            if (withoutHeadphones) setMicMutedForTTS(false);
+          },
+        });
       }
 
       if (displayEndTimerRef.current !== null) window.clearTimeout(displayEndTimerRef.current);
@@ -876,13 +845,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       window.clearTimeout(displayEndTimerRef.current);
       displayEndTimerRef.current = null;
     }
-    if (ttsKeepAliveRef.current !== null) {
-      clearInterval(ttsKeepAliveRef.current);
-      ttsKeepAliveRef.current = null;
-    }
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+    if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     isPlayingRef.current = false;
     setMicMutedForTTS(false);
     setActiveSuperOverlay(null);
@@ -915,13 +878,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       window.clearTimeout(displayEndTimerRef.current);
       displayEndTimerRef.current = null;
     }
-    if (ttsKeepAliveRef.current !== null) {
-      clearInterval(ttsKeepAliveRef.current);
-      ttsKeepAliveRef.current = null;
-    }
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+    if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     setMicMutedForTTS(false);
     setTtsReadIndex(0);
     isPlayingRef.current = false;
@@ -939,19 +896,13 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       window.clearTimeout(displayEndTimerRef.current);
       displayEndTimerRef.current = null;
     }
-    if (ttsKeepAliveRef.current !== null) {
-      clearInterval(ttsKeepAliveRef.current);
-      ttsKeepAliveRef.current = null;
-    }
+    if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     isPlayingRef.current = false;
     setMicMutedForTTS(false);
     setPlayingOverlay(null);
     setPlayingId(null);
     setTtsReadIndex(0);
     clearActiveSuper(post.id).catch(() => {});
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
     const next = superComments.find((sc) => !sc.isDeleted && !sc.played && sc.id !== currentId);
     if (next) window.setTimeout(() => _doPlay(next), 0);
   }

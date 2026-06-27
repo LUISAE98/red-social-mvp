@@ -12,7 +12,8 @@ import LiveChatViewer from "@/app/components/LiveChat/LiveChatViewer";
 import { checkLiveAccess, grantSimulatedLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUniqueViewer, addWatchTime } from "@/lib/liveKit/liveViewers";
 import type { ActiveSuperComment } from "@/lib/posts/types";
-import { initTtsCalibration, computeTtsRate, TTS_MIN_DURATION_SECS } from "@/lib/tts/ttsCalibration";
+import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
+import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 
 const FONT =
   'inherit';
@@ -96,8 +97,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [scFadingOut, setScFadingOut] = useState(false);
   const activeSuperCommentRef = useRef<ActiveSuperComment | null>(null);
   const mutedRef = useRef(false);
-  const ttsCheckIntervalRef = useRef<number | null>(null);
-  const ttsKeepAliveRef = useRef<number | null>(null);
+  const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
 
   // Subscripción propia: no depende de que el padre pase el prop a tiempo
   useEffect(() => {
@@ -170,8 +170,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     if (!activeSuper || !scId) {
       // El creador detuvo el SC — cerrar overlay y cancelar TTS inmediatamente
       if (activeSuperCommentRef.current) {
-        if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
-        if (ttsCheckIntervalRef.current !== null) { clearInterval(ttsCheckIntervalRef.current); ttsCheckIntervalRef.current = null; }
+        if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
         triggerFadeOut();
       }
       return;
@@ -195,47 +194,16 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return () => {
       if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
       if (fadeOutTimerRef.current !== null) window.clearTimeout(fadeOutTimerRef.current);
-      if (ttsCheckIntervalRef.current !== null) clearInterval(ttsCheckIntervalRef.current);
-      if (ttsKeepAliveRef.current !== null) clearInterval(ttsKeepAliveRef.current);
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     };
   }, []);
 
   // Sync mutedRef para acceso desde closures sin re-renders
   useEffect(() => { mutedRef.current = muted; }, [muted]);
 
-  // Mute/unmute: reinicia TTS desde posición estimada por scheduledAt con volumen correcto
+  // Mute/unmute: ajuste de volumen en tiempo real
   useEffect(() => {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const sc = activeSuperCommentRef.current;
-    if (!sc || !window.speechSynthesis.speaking) return;
-    const now = Date.now();
-    const elapsed = sc.scheduledAt != null ? (now - sc.scheduledAt) / 1000 : 0;
-    const fullText = `${sc.username} dijo: ${sc.text}`;
-    const progressRatio = sc.displaySeconds > 0 ? Math.min(Math.max(elapsed, 0) / sc.displaySeconds, 0.95) : 0;
-    const startChar = Math.floor(progressRatio * fullText.length);
-    const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
-    if (!ttsSlice) return;
-    if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
-    window.speechSynthesis.cancel();
-    const remainingSecs = sc.displaySeconds > 0 ? Math.max(sc.displaySeconds - elapsed, 0.5) : 0.5;
-    const utterance = new SpeechSynthesisUtterance(ttsSlice);
-    utterance.lang = "es-MX";
-    utterance.rate = computeTtsRate(ttsSlice, remainingSecs);
-    utterance.volume = muted ? 0 : 1;
-    utterance.onend = () => {
-      if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
-      triggerFadeOut();
-    };
-    ttsKeepAliveRef.current = window.setInterval(() => {
-      if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-        window.speechSynthesis.pause();
-        window.speechSynthesis.resume();
-      }
-    }, 10000) as unknown as number;
-    window.speechSynthesis.speak(utterance);
+    if (ttsAudioRef.current) ttsAudioRef.current.setVolume(muted ? 0 : 1);
   }, [muted]);
 
   // ── Verificación de acceso ─────────────────────────────────────────────────
@@ -353,38 +321,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     return () => { video.removeEventListener("pause", onPause); video.removeEventListener("play", onPlay); };
   }, [retryKey]);
 
-  // Detecta cambio de orientación física; además reinicia TTS si el browser lo interrumpió
   useEffect(() => {
     const handleResize = () => setScreenIsPortrait(window.innerHeight > window.innerWidth);
-    const handleOrientationChange = () => {
-      // El browser cancela speechSynthesis durante la animación de rotación.
-      // Esperamos 400ms a que se estabilice y, si el SC sigue activo y el TTS no corre, lo relanzamos.
-      window.setTimeout(() => {
-        if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
-        const sc = activeSuperCommentRef.current;
-        if (!sc || window.speechSynthesis.speaking || window.speechSynthesis.pending) return;
-        const now = Date.now();
-        const elapsed = sc.scheduledAt != null ? (now - sc.scheduledAt) / 1000 : 0;
-        const remaining = sc.displaySeconds - elapsed;
-        if (remaining < 1) return;
-        const fullText = `${sc.username} dijo: ${sc.text}`;
-        const startChar = Math.floor(Math.min(Math.max(elapsed, 0) / sc.displaySeconds, 0.95) * fullText.length);
-        const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
-        if (!ttsSlice) return;
-        const utterance = new SpeechSynthesisUtterance(ttsSlice);
-        utterance.lang = "es-MX";
-        utterance.rate = 1;
-        utterance.volume = mutedRef.current ? 0 : 1;
-        utterance.onend = () => triggerFadeOut();
-        window.speechSynthesis.speak(utterance);
-      }, 400);
-    };
     window.addEventListener("resize", handleResize);
-    window.addEventListener("orientationchange", handleOrientationChange);
-    return () => {
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("orientationchange", handleOrientationChange);
-    };
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   useEffect(() => {
@@ -398,29 +338,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   useEffect(() => {
     if (open) {
       setShouldRender(true);
-      // iOS Safari bloquea speechSynthesis fuera de un gesto del usuario.
-      // Primar aquí (dentro del efecto del gesto que abre el modal) desbloquea
-      // llamadas futuras desde callbacks asíncronos de Firestore.
-      // La calibración silenciosa se encola justo después del primer y solo
-      // corre una vez por dispositivo (localStorage cache).
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        // Si el feed ya tiene TTS sonando (transición sin corte), no interrumpir.
-        // El viewer detectará window.speechSynthesis.speaking en showSuperOverlay y
-        // continuará en modo polling sin reiniciar la voz.
-        if (!window.speechSynthesis.speaking) {
-          window.speechSynthesis.cancel();
-          const primer = new SpeechSynthesisUtterance("");
-          primer.volume = 0;
-          window.speechSynthesis.speak(primer);
-        }
-        initTtsCalibration();
-      }
       return;
     }
     // Modal cerrándose — cortar cualquier TTS en curso
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
+    if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     setIsFullscreen(false);
     setMobileFsHorizontal(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -953,8 +874,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   function triggerFadeOut() {
     if (overlayTimerRef.current !== null) { window.clearTimeout(overlayTimerRef.current); overlayTimerRef.current = null; }
-    if (ttsCheckIntervalRef.current !== null) { clearInterval(ttsCheckIntervalRef.current); ttsCheckIntervalRef.current = null; }
-    if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
     if (fadeOutTimerRef.current !== null) return;
     setScFadingOut(true);
     fadeOutTimerRef.current = window.setTimeout(() => {
@@ -970,53 +889,23 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     setScFadingOut(false);
     if (fadeOutTimerRef.current !== null) { window.clearTimeout(fadeOutTimerRef.current); fadeOutTimerRef.current = null; }
     if (overlayTimerRef.current !== null) { window.clearTimeout(overlayTimerRef.current); overlayTimerRef.current = null; }
-    if (ttsCheckIntervalRef.current !== null) { clearInterval(ttsCheckIntervalRef.current); ttsCheckIntervalRef.current = null; }
-    if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
 
     activeSuperCommentRef.current = sc;
     setActiveSuperComment(sc);
 
-    if (typeof window !== "undefined" && "speechSynthesis" in window && durationSeconds >= TTS_MIN_DURATION_SECS) {
-      const fullText = `${sc.username} dijo: ${sc.text}`;
+    if (durationSeconds >= TTS_MIN_DURATION_SECS) {
+      if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
       const elapsed = sc.displaySeconds - durationSeconds;
       const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
+      const fullText = `${sc.username} dijo: ${sc.text}`;
       const startChar = Math.floor(progressRatio * fullText.length);
       const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
-      const utterance = new SpeechSynthesisUtterance(ttsSlice);
-      utterance.lang = "es-MX";
-      utterance.rate = computeTtsRate(ttsSlice, durationSeconds);
-      utterance.volume = mutedRef.current ? 0 : 1;
-      utterance.onend = () => {
-        if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
-        triggerFadeOut();
-      };
-
-      // Chrome puede pausar speechSynthesis silenciosamente en utterances largas
-      ttsKeepAliveRef.current = window.setInterval(() => {
-        if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-          window.speechSynthesis.pause();
-          window.speechSynthesis.resume();
-        }
-      }, 10000) as unknown as number;
-
-      // Si algo estaba corriendo (ej. calibración), esperar 80ms antes de speak()
-      // para que iOS no pierda el primer fonema tras cancel()
-      const wasActive = window.speechSynthesis.speaking || window.speechSynthesis.pending;
-      window.speechSynthesis.cancel();
-      if (wasActive) {
-        window.setTimeout(() => window.speechSynthesis.speak(utterance), 80);
-      } else {
-        window.speechSynthesis.speak(utterance);
-      }
+      ttsAudioRef.current = playEdgeTTS(ttsSlice, { volume: mutedRef.current ? 0 : 1 });
     }
 
-    // Fallback: oculta el panel aunque onend nunca dispare
     overlayTimerRef.current = window.setTimeout(() => {
       overlayTimerRef.current = null;
-      if (ttsKeepAliveRef.current !== null) { clearInterval(ttsKeepAliveRef.current); ttsKeepAliveRef.current = null; }
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
+      if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
       triggerFadeOut();
     }, durationSeconds * 1000);
   }
@@ -1640,7 +1529,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             }}>
               {name}
             </span>
-            <span style={{ fontSize: 12, color: "#ef4444", fontWeight: 600, lineHeight: "1.2" }}>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontWeight: 400, lineHeight: "1.2" }}>
               En vivo
             </span>
           </div>
