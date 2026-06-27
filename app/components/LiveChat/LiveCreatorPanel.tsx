@@ -156,7 +156,9 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [playingId, setPlayingId] = useState<string | null>(null);
   const isPlayingRef = useRef(false);
   const scheduledPlayTimeoutRef = useRef<number | null>(null);
-  const LEAD_MS = 800;
+  // Ventana para que Firestore entregue el snapshot a los viewers antes de scheduledAt.
+  // 800ms era insuficiente en redes lentas — 1500ms cubre la gran mayoría de los casos.
+  const LEAD_MS = 1500;
   const [activeSuperOverlay, setActiveSuperOverlay] = useState<SuperComment | null>(null);
   const [superCommentTab, setSuperCommentTab] = useState<"nuevos" | "reproducidos">("nuevos");
   const [playingOverlay, setPlayingOverlay] = useState<SuperComment | null>(null);

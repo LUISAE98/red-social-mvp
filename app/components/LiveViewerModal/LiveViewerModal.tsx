@@ -940,11 +940,23 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       audio.pause();
       audio.src = `/api/tts?text=${encodeURIComponent(ttsSlice)}&voice=es-MX-DaliaNeural`;
       audio.volume = mutedRef.current ? 0 : 1;
-      audio.play().catch(() => {});
+      // Solo reproducir si no está muteado — en iOS no iniciamos el audio si está muted
+      // para que no lo capture el sistema como audio activo aunque volume=0 sea ignorado.
+      if (!mutedRef.current) audio.play().catch(() => {});
       ttsAudioRef.current = {
         audio,
         stop: () => { audio.pause(); audio.currentTime = 0; },
-        setVolume: (v) => { audio.volume = v; },
+        // iOS Safari ignora audio.volume — usamos pause/play para emular mute/unmute.
+        // El elemento prewarm ya está "unlocked" así que play() funciona desde useEffect.
+        setVolume: (v) => {
+          audio.volume = v;
+          if (v === 0) {
+            audio.pause();
+          } else if (audio.paused && activeSuperCommentRef.current) {
+            // Solo retomar si el SC overlay sigue activo (no si terminó mientras estaba muteado)
+            audio.play().catch(() => {});
+          }
+        },
       };
     }
 
