@@ -192,15 +192,28 @@ export async function pushActiveSuperToViewers(
     displaySeconds: superComment.displaySeconds,
     ...(scheduledAtMs !== undefined ? { scheduledAt: scheduledAtMs } : {}),
   };
-  await updateDoc(doc(db, "posts", postId), {
-    "liveData.activeSuper": activeSuper,
-    updatedAt: serverTimestamp(),
-  });
+  await Promise.all([
+    updateDoc(doc(db, "posts", postId), {
+      "liveData.activeSuper": activeSuper,
+      updatedAt: serverTimestamp(),
+    }),
+    // liveOverlays es legible sin auth — permite el Browser Source de OBS en grupos privados
+    setDoc(doc(db, "liveOverlays", postId), {
+      activeSuper,
+      updatedAt: serverTimestamp(),
+    }, { merge: true }),
+  ]);
 }
 
-export function clearActiveSuper(postId: string): Promise<void> {
-  return updateDoc(doc(db, "posts", postId), {
-    "liveData.activeSuper": null,
-    updatedAt: serverTimestamp(),
-  });
+export async function clearActiveSuper(postId: string): Promise<void> {
+  await Promise.all([
+    updateDoc(doc(db, "posts", postId), {
+      "liveData.activeSuper": null,
+      updatedAt: serverTimestamp(),
+    }),
+    setDoc(doc(db, "liveOverlays", postId), {
+      activeSuper: null,
+      updatedAt: serverTimestamp(),
+    }, { merge: true }),
+  ]);
 }

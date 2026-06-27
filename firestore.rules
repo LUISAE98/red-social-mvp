@@ -1786,6 +1786,16 @@ function isProfilePostData(data) {
 }
 
     // ==========================
+    // LIVE OVERLAYS (OBS Browser Source)
+    // ==========================
+    // Colección pública: solo contiene activeSuper para el overlay de OBS.
+    // No requiere auth para leer — necesario porque OBS no tiene sesión de Firebase.
+    match /liveOverlays/{postId} {
+      allow get: if true;
+      allow write: if signedIn();
+    }
+
+    // ==========================
     // POSTS
     // ==========================
 match /posts/{postId} {

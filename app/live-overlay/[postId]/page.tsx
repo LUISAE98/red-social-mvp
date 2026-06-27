@@ -97,6 +97,8 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
   const [postId, setPostId] = useState<string | null>(null);
   const [activeSC, setActiveSC] = useState<ActiveSuperComment | null>(null);
   const [fadingOut, setFadingOut] = useState(false);
+  const [audioUnlocked, setAudioUnlocked] = useState(false);
+  const [connected, setConnected] = useState(false);
 
   const prevKeyRef = useRef<string | null>(null);
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -108,6 +110,15 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
   useEffect(() => {
     params.then((p) => setPostId(p.postId));
   }, [params]);
+
+  function unlockAudio() {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    // Chrome requiere un gesto del usuario para habilitar speechSynthesis
+    const silent = new SpeechSynthesisUtterance("");
+    silent.volume = 0;
+    window.speechSynthesis.speak(silent);
+    setAudioUnlocked(true);
+  }
 
   function triggerFadeOut() {
     if (overlayTimerRef.current !== null) { clearTimeout(overlayTimerRef.current); overlayTimerRef.current = null; }
@@ -177,15 +188,15 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
     }, durationSecs * 1000);
   }
 
-  // Suscribir a Firestore
+  // Suscribir a liveOverlays (legible sin auth, funciona en grupos privados)
   useEffect(() => {
     if (!postId) return;
     const unsub = onSnapshot(
-      doc(db, "posts", postId),
+      doc(db, "liveOverlays", postId),
       (snap) => {
+        setConnected(true);
         if (!snap.exists()) return;
-        const liveData = snap.data()?.liveData;
-        const activeSuper: ActiveSuperComment | null = liveData?.activeSuper ?? null;
+        const activeSuper: ActiveSuperComment | null = snap.data()?.activeSuper ?? null;
 
         const scKey = activeSuper?.id != null
           ? `${activeSuper.id}:${activeSuper.scheduledAt ?? 0}`
@@ -245,6 +256,53 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
           to   { opacity: 0; transform: translateY(8px); }
         }
       `}</style>
+
+      {/* Botón de activación de audio — visible hasta que se hace click (fuera del pointerEvents:none) */}
+      {!audioUnlocked && (
+        <div style={{
+          position: "fixed", top: 12, left: 12, zIndex: 9999,
+          pointerEvents: "auto",
+        }}>
+          <button
+            onClick={unlockAudio}
+            style={{
+              background: "rgba(0,0,0,0.75)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: 8,
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 600,
+              padding: "6px 14px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            🔊 Activar audio
+          </button>
+        </div>
+      )}
+
+      {/* Indicador de conexión */}
+      <div style={{
+        position: "fixed", top: audioUnlocked ? 12 : 48, left: 12, zIndex: 9998,
+        pointerEvents: "none",
+        display: "flex", alignItems: "center", gap: 5,
+        background: "rgba(0,0,0,0.55)",
+        borderRadius: 6,
+        padding: "3px 8px",
+      }}>
+        <div style={{
+          width: 7, height: 7, borderRadius: "50%",
+          background: connected ? "#4ade80" : "#ef4444",
+        }} />
+        <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: 500 }}>
+          {connected ? "Conectado" : "Conectando…"}
+        </span>
+      </div>
+
+      {/* Overlay transparente (sin pointerEvents para no bloquear el video) */}
       <div style={{
         position: "fixed", inset: 0,
         background: "transparent",

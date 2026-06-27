@@ -1027,7 +1027,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           </div>
         )}
 
-        {broadcastMode !== "direct" ? (
+        {broadcastMode !== "direct" && broadcastMode !== "rtmp" ? (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT, textAlign: "center", padding: "0 16px" }}>
               Los supercomentarios solo están disponibles en transmisión directa
@@ -1977,8 +1977,8 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
       lowLatencyMode: false,    // Mux usa HLS estándar, no LL-HLS
       startLevel: -1,
       autoStartLoad: true,
-      liveSyncDurationCount: 1,
-      liveMaxLatencyDurationCount: 3,
+      liveSyncDurationCount: 2,
+      liveMaxLatencyDurationCount: 8,
       maxBufferLength: 12,      // ~2 segmentos de 6s — tolerancia a hiccups de red
       maxMaxBufferLength: 20,
       liveDurationInfinity: true,
