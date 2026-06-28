@@ -198,8 +198,10 @@ export async function pushActiveSuperToViewers(
       updatedAt: serverTimestamp(),
     }),
     // liveOverlays es legible sin auth — permite el Browser Source de OBS en grupos privados
+    // obsReady: null limpia la señal anterior para que el handshake funcione correctamente
     setDoc(doc(db, "liveOverlays", postId), {
       activeSuper,
+      obsReady: null,
       updatedAt: serverTimestamp(),
     }, { merge: true }),
   ]);

@@ -187,6 +187,15 @@ export default function LiveInlinePlayer({
           }
         },
       };
+      // Hide overlay as soon as TTS finishes — don't wait for the full display timer
+      audio.addEventListener("ended", () => {
+        if (overlayTimerRef.current !== null) { window.clearTimeout(overlayTimerRef.current); overlayTimerRef.current = null; }
+        ttsAudioRef.current = null;
+        overlayTimerRef.current = window.setTimeout(() => {
+          overlayTimerRef.current = null;
+          triggerFadeOut();
+        }, 500);
+      }, { once: true });
     }
 
     overlayTimerRef.current = window.setTimeout(() => {

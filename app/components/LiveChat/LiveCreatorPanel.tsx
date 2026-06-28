@@ -41,6 +41,8 @@ import {
 import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import { subscribeToTicketRevenue } from "@/lib/liveAccess/live-access-service";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 const FONT = 'inherit';
 const DIV = "1px solid rgba(255,255,255,0.12)";
@@ -170,6 +172,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const scTextContainerRef = useRef<HTMLDivElement>(null);
   const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
   const displayEndTimerRef = useRef<number | null>(null);
+  const obsReadyCallbackRef = useRef<((scheduledAt: number) => void) | null>(null);
   const [liveSetupOpen, setLiveSetupOpen] = useState(false);
   const [scConfigOpen, setScConfigOpen] = useState(false);
   const [headphonesDetected, setHeadphonesDetected] = useState(false);
@@ -314,6 +317,18 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       return;
     }
     return subscribeSuperComments(post.id, setSuperComments);
+  }, [open, post.id, broadcastMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // OBS handshake: escucha cuando OBS confirma que ya está mostrando el SC
+  useEffect(() => {
+    if (!open || !post.id || broadcastMode !== "rtmp") return;
+    const unsub = onSnapshot(doc(db, "liveOverlays", post.id), (snap) => {
+      const obsReady = snap.data()?.obsReady as number | null;
+      if (obsReady != null && obsReadyCallbackRef.current) {
+        obsReadyCallbackRef.current(obsReady);
+      }
+    });
+    return () => unsub();
   }, [open, post.id, broadcastMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleToggleChat = useCallback(async () => {
@@ -884,23 +899,24 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   function _doPlay(sc: SuperComment) {
     if (isPlayingRef.current) return;
     isPlayingRef.current = true;
-    setPlayingId(sc.id); // Highlight in queue immediately
+    setPlayingId(sc.id);
 
     const scheduledAtMs = Date.now() + LEAD_MS;
     if (!isEnded) {
       playSuperComment(post.id, sc).catch(() => {});
-      // Trigger viewers via post doc (warm subscription, ~100-300ms delivery vs superComments collection)
       pushActiveSuperToViewers(post.id, sc, scheduledAtMs).catch(() => {});
     }
 
-    if (scheduledPlayTimeoutRef.current !== null) {
-      window.clearTimeout(scheduledPlayTimeoutRef.current);
-    }
-    scheduledPlayTimeoutRef.current = window.setTimeout(() => {
-      scheduledPlayTimeoutRef.current = null;
+    // Lógica de mostrar overlay — llamada desde handshake OBS o desde timeout
+    function activateCreatorOverlay() {
+      if (scheduledPlayTimeoutRef.current !== null) {
+        window.clearTimeout(scheduledPlayTimeoutRef.current);
+        scheduledPlayTimeoutRef.current = null;
+      }
+      obsReadyCallbackRef.current = null;
+
       setActiveSuperOverlay(sc);
       setPlayingOverlay(sc);
-
       setTtsReadIndex(0);
       if (sc.displaySeconds >= TTS_MIN_DURATION_SECS) {
         if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
@@ -922,7 +938,6 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           },
         });
       }
-
       if (displayEndTimerRef.current !== null) window.clearTimeout(displayEndTimerRef.current);
       displayEndTimerRef.current = window.setTimeout(() => {
         displayEndTimerRef.current = null;
@@ -930,7 +945,32 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         isPlayingRef.current = false;
         clearActiveSuper(post.id).catch(() => {});
       }, sc.displaySeconds * 1000);
-    }, LEAD_MS);
+    }
+
+    if (scheduledPlayTimeoutRef.current !== null) window.clearTimeout(scheduledPlayTimeoutRef.current);
+
+    if (broadcastMode === "rtmp") {
+      // RTMP/OBS: esperar confirmación de OBS antes de mostrar overlay del creador.
+      // OBS llama a /api/live-overlay-ready cuando ya está mostrando el SC.
+      // Si OBS no confirma en 1.5s, mostrar igual (fallback).
+      obsReadyCallbackRef.current = (readyScheduledAt: number) => {
+        if (readyScheduledAt !== scheduledAtMs) return;
+        activateCreatorOverlay();
+      };
+      scheduledPlayTimeoutRef.current = window.setTimeout(() => {
+        scheduledPlayTimeoutRef.current = null;
+        if (obsReadyCallbackRef.current) {
+          obsReadyCallbackRef.current = null;
+          activateCreatorOverlay();
+        }
+      }, 1500);
+    } else {
+      // CF/directo: mostrar overlay tras LEAD_MS (sin OBS involucrado)
+      scheduledPlayTimeoutRef.current = window.setTimeout(() => {
+        scheduledPlayTimeoutRef.current = null;
+        activateCreatorOverlay();
+      }, LEAD_MS);
+    }
   }
 
   function handlePlaySC(sc: SuperComment) {
@@ -963,6 +1003,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       displayEndTimerRef.current = null;
     }
     if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
+    obsReadyCallbackRef.current = null;
     isPlayingRef.current = false;
     setMicMutedForTTS(false);
     setActiveSuperOverlay(null);

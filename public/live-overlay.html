@@ -139,6 +139,12 @@
 
       if (!sc) { fadeOutCard(); return; }
       showCard(sc);
+      // Señalar al panel del creador que OBS ya está mostrando el SC
+      fetch("/api/live-overlay-ready", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId, scheduledAt: sc.scheduledAt ?? Date.now() }),
+      }).catch(() => {});
     });
   </script>
 </body>
