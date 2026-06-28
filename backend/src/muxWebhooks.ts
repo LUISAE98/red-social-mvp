@@ -842,6 +842,14 @@ async function handleLiveStreamActive(event: MuxWebhookEvent) {
     }),
   ];
 
+  const broadcastGroupIds: string[] = Array.isArray(
+    (result.data.liveData as Record<string, unknown> | undefined)?.broadcastGroupIds
+  )
+    ? ((result.data.liveData as Record<string, unknown>).broadcastGroupIds as string[]).filter(
+        (id) => typeof id === "string" && id && id !== groupId
+      )
+    : [];
+
   if (authorId) {
     updates.push(
       db.collection("users").doc(authorId).update({ activeLivePostId: postId })
@@ -851,6 +859,9 @@ async function handleLiveStreamActive(event: MuxWebhookEvent) {
     updates.push(
       db.collection("groups").doc(groupId).update({ activeLivePostId: postId })
     );
+  }
+  for (const gid of broadcastGroupIds) {
+    updates.push(db.collection("groups").doc(gid).update({ activeLivePostId: postId }));
   }
 
   await Promise.all(updates);
@@ -900,6 +911,14 @@ async function handleLiveStreamIdle(event: MuxWebhookEvent) {
   const authorId = typeof result.data.authorId === "string" ? result.data.authorId : null;
   const groupId = typeof result.data.groupId === "string" ? result.data.groupId : null;
 
+  const stopBroadcastGroupIds: string[] = Array.isArray(
+    (result.data.liveData as Record<string, unknown> | undefined)?.broadcastGroupIds
+  )
+    ? ((result.data.liveData as Record<string, unknown>).broadcastGroupIds as string[]).filter(
+        (id) => typeof id === "string" && id && id !== groupId
+      )
+    : [];
+
   // Pinning is intentionally NOT cleared here — the creator decides via the
   // end-of-stream summary panel in the frontend (LiveEndSummaryPanel).
   const cleanupUpdates: Array<Promise<unknown>> = [result.ref.update(updateData)];
@@ -913,6 +932,9 @@ async function handleLiveStreamIdle(event: MuxWebhookEvent) {
     cleanupUpdates.push(
       db.collection("groups").doc(groupId).update({ activeLivePostId: FieldValue.delete() })
     );
+  }
+  for (const gid of stopBroadcastGroupIds) {
+    cleanupUpdates.push(db.collection("groups").doc(gid).update({ activeLivePostId: FieldValue.delete() }));
   }
 
   await Promise.all(cleanupUpdates);

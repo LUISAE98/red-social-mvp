@@ -76,6 +76,7 @@ import {
 } from "@/lib/groups/groupAdapters";
 
 import { useGroupRealtime } from "@/lib/groups/useGroupRealtime";
+import { useLiveRingState } from "@/lib/live/useLiveRingState";
 import { setLastVisitTimestamp } from "@/lib/utils/visitTimestamps";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
@@ -236,6 +237,8 @@ export default function GroupPage() {
     groupId,
     userId: user?.uid ?? null,
   });
+
+const { isLive: groupIsLive } = useLiveRingState(groupId, "group");
 
 const [joining, setJoining] = useState(false);
 const [actionError, setActionError] = useState<string | null>(null);
@@ -1367,6 +1370,18 @@ const avatarNode = (
     }}
   >
     <div style={{ position: "relative" }}>
+      {groupIsLive && (
+        <div
+          style={{
+            position: "absolute",
+            inset: -6,
+            borderRadius: "50%",
+            background: "#ef4444",
+            zIndex: 0,
+            pointerEvents: "none",
+          }}
+        />
+      )}
       <button
         type="button"
         onClick={(e) => {
@@ -1380,7 +1395,7 @@ const avatarNode = (
           height: groupVisualUi.avatarSize,
           borderRadius: "50%",
           overflow: "hidden",
-          border: "4px solid rgba(0,0,0,0.96)",
+          border: groupIsLive ? "4px solid #ef4444" : "4px solid rgba(0,0,0,0.96)",
           boxShadow: "none",
           display: "grid",
           placeItems: "center",
@@ -2375,7 +2390,7 @@ const avatarNode = (
           )}
 
           <div className="group-tab-content" style={{ width: "100%", minWidth: 0 }}>
-            {canViewPublicFeed && activeTab === "feed" && (
+            {activeTab === "feed" && (
               <section className="group-tab-panel group-feed-wrap" style={{ marginTop: 12 }}>
                 <div className="group-feed-item">
 <GroupPostsFeed
@@ -2389,6 +2404,7 @@ const avatarNode = (
   canCommentOnPosts={canCommentOnPosts}
   postBlockedReason={postBlockedReason}
   commentBlockedReason={commentBlockedReason}
+  broadcastLiveOnly={!canViewPublicFeed}
 />
                 </div>
 

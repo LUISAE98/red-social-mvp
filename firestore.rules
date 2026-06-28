@@ -1868,6 +1868,12 @@ function canListPublicPremiumGroupPost() {
     && resource.data.premium.accessMode == "public";
 }
 
+function canListBroadcastPublicLivePost() {
+  return resource.data.isDeleted == false
+    && resource.data.liveData.status == "live"
+    && resource.data.liveData.allowLoggedOutViewers == true;
+}
+
 function canReadPublicShareableGroupPost() {
   return resource.data.isDeleted == false
     && resource.data.groupId is string
@@ -2321,7 +2327,8 @@ allow list: if canReadPost()
   || canListPublicSearchablePost()
   || canListReadableGroupSearchablePost()
   || canListPublicPremiumGroupPost()
-  || canListPublicShareableGroupPost();
+  || canListPublicShareableGroupPost()
+  || canListBroadcastPublicLivePost();
 
       allow create: if validCreatePost();
 

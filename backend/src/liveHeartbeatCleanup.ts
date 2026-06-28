@@ -40,6 +40,11 @@ export const liveHeartbeatCleanup = onSchedule(
       if (heartbeatAt.seconds < staleThreshold.seconds) {
         const authorId = data.authorId as string;
         const groupId = typeof data.groupId === "string" && data.groupId ? data.groupId : null;
+        const broadcastGroupIds: string[] = Array.isArray(data.liveData?.broadcastGroupIds)
+          ? (data.liveData.broadcastGroupIds as string[]).filter(
+              (id) => typeof id === "string" && id && id !== groupId
+            )
+          : [];
         const endedAt = FieldValue.serverTimestamp();
 
         batch.update(doc.ref, {
@@ -54,6 +59,12 @@ export const liveHeartbeatCleanup = onSchedule(
 
         if (groupId) {
           batch.update(db.collection("groups").doc(groupId), {
+            activeLivePostId: FieldValue.delete(),
+          });
+        }
+
+        for (const gid of broadcastGroupIds) {
+          batch.update(db.collection("groups").doc(gid), {
             activeLivePostId: FieldValue.delete(),
           });
         }

@@ -2696,6 +2696,7 @@ export async function createLivePost(params: {
   ticketPrice?: number | null;
   currency?: "MXN" | "USD" | null;
   paidAccessMode?: "everyone_pays" | "members_free_non_members_pay" | null;
+  broadcastGroupIds?: string[] | null;
 }): Promise<string>;
 export async function createLivePost(params: {
   contextType: "profile";
@@ -2710,6 +2711,7 @@ export async function createLivePost(params: {
   ticketPrice?: number | null;
   currency?: "MXN" | "USD" | null;
   paidAccessMode?: "everyone_pays" | "members_free_non_members_pay" | null;
+  broadcastGroupIds?: string[] | null;
 }): Promise<string>;
 export async function createLivePost(params: {
   contextType?: PostContextType;
@@ -2725,6 +2727,7 @@ export async function createLivePost(params: {
   ticketPrice?: number | null;
   currency?: "MXN" | "USD" | null;
   paidAccessMode?: "everyone_pays" | "members_free_non_members_pay" | null;
+  broadcastGroupIds?: string[] | null;
 }): Promise<string> {
   const cleanTitle = params.title.trim();
   if (!cleanTitle) {
@@ -2754,6 +2757,10 @@ export async function createLivePost(params: {
   const effectiveAccessType = params.accessType ?? "free";
   const isPaidLive = effectiveAccessType === "paid";
 
+  const cleanBroadcastIds = (params.broadcastGroupIds ?? []).filter(
+    (id) => typeof id === "string" && id.trim().length > 0 && id !== (params.groupId ?? ""),
+  );
+
   const liveData: PostLiveData = {
     status: "upcoming",
     title: cleanTitle,
@@ -2774,6 +2781,7 @@ export async function createLivePost(params: {
     ticketPrice: isPaidLive ? (params.ticketPrice ?? null) : null,
     currency: isPaidLive ? (params.currency ?? "MXN") : null,
     paidAccessMode: isPaidLive ? (params.paidAccessMode ?? "everyone_pays") : null,
+    broadcastGroupIds: cleanBroadcastIds.length > 0 ? cleanBroadcastIds : null,
   };
 
   const isGroupLive = context.contextType !== "profile";
@@ -4406,6 +4414,7 @@ export async function updateLivePost(params: {
   ticketPrice?: number | null;
   currency?: "MXN" | "USD" | null;
   paidAccessMode?: "everyone_pays" | "members_free_non_members_pay" | null;
+  broadcastGroupIds?: string[] | null;
 }): Promise<void> {
   const author = auth.currentUser;
   if (!author) throw new Error("Debes iniciar sesión para editar el live.");
@@ -4449,6 +4458,9 @@ export async function updateLivePost(params: {
     "liveData.ticketPrice": isPaidLive ? (params.ticketPrice ?? null) : null,
     "liveData.currency": isPaidLive ? (params.currency ?? "MXN") : null,
     "liveData.paidAccessMode": isPaidLive ? (params.paidAccessMode ?? "everyone_pays") : null,
+    "liveData.broadcastGroupIds": params.broadcastGroupIds?.length
+      ? params.broadcastGroupIds.filter((id) => typeof id === "string" && id.trim().length > 0)
+      : null,
     editedAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });

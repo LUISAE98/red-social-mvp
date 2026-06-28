@@ -233,6 +233,25 @@
       ]
     },
     {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "liveData.broadcastGroupIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "liveData.status", "order": "ASCENDING" },
+        { "fieldPath": "liveData.allowLoggedOutViewers", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "posts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "liveData.broadcastGroupIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "liveData.status", "order": "ASCENDING" },
+        { "fieldPath": "isDeleted", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "homeFeed",
       "queryScope": "COLLECTION",
       "fields": [

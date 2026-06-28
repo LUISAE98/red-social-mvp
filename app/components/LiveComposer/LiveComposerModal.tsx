@@ -3,12 +3,19 @@
 import Image from "next/image";
 import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { Timestamp } from "firebase/firestore";
+import { Timestamp, collection, getDocs, query, where } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { auth, storage } from "@/lib/firebase";
+import { auth, db, storage } from "@/lib/firebase";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import { createLivePost, updateLivePost } from "@/lib/posts/post-service";
 import type { LiveVisibilityMode, Post, PostLiveData } from "@/lib/posts/types";
+
+type GroupForBroadcast = {
+  id: string;
+  name: string | null;
+  visibility: "public" | "private" | "hidden" | null;
+  avatarUrl: string | null;
+};
 
 type GroupVisibility = "public" | "private" | "hidden" | null;
 
@@ -191,6 +198,11 @@ export default function LiveComposerModal({
     deriveDefaultVisibility(contextType, groupVisibility ?? null)
   );
 
+  // Broadcast to other communities
+  const [userGroups, setUserGroups] = useState<GroupForBroadcast[]>([]);
+  const [broadcastGroupIds, setBroadcastGroupIds] = useState<string[]>([]);
+  const isPrivateGroupOrigin = contextType === "group" && groupVisibility === "private";
+
   // Mobile swipe-to-close
   const [panelOffsetY, setPanelOffsetY] = useState(0);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
@@ -267,6 +279,7 @@ export default function LiveComposerModal({
     setTicketPrice(ld.ticketPrice != null ? String(ld.ticketPrice) : "");
     setCurrency(ld.currency ?? "MXN");
     setPaidAccessMode(ld.paidAccessMode ?? "everyone_pays");
+    setBroadcastGroupIds(ld.broadcastGroupIds ?? []);
     const parsed = parseScheduledTimestamp(ld.scheduledStartAt);
     setDay(parsed.day);
     setMonth(parsed.month);
@@ -277,6 +290,45 @@ export default function LiveComposerModal({
     setError(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editPost?.id]);
+
+  // Fetch user's group memberships for the broadcast selector
+  useEffect(() => {
+    if (!open || isHiddenGroup) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    getDocs(query(
+      collection(db, "groups"),
+      where("ownerId", "==", uid),
+    )).then((snap) => {
+      const groups: GroupForBroadcast[] = snap.docs
+        .map((d) => {
+          const data = d.data() as Record<string, unknown>;
+          if (data.isDeleted === true) return null;
+          const vis = typeof data.visibility === "string" ? data.visibility : null;
+          if (vis === "hidden") return null;
+          if (d.id === groupId) return null; // exclude current group
+          return {
+            id: d.id,
+            name: typeof data.name === "string" ? data.name : null,
+            visibility: (vis === "public" || vis === "private") ? vis : null,
+            avatarUrl: typeof data.avatarUrl === "string" ? data.avatarUrl : null,
+          } as GroupForBroadcast;
+        })
+        .filter((g): g is GroupForBroadcast => g !== null);
+      setUserGroups(groups);
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, isHiddenGroup, groupId]);
+
+  // Auto-force visibility to "everyone" when broadcasting to a public destination from a private group
+  useEffect(() => {
+    if (!isPrivateGroupOrigin) return;
+    const hasPublicDest = broadcastGroupIds.some((id) => {
+      if (id === "__profile__") return true;
+      return userGroups.find((g) => g.id === id)?.visibility === "public";
+    });
+    if (hasPublicDest) setVisibilityMode("everyone");
+  }, [broadcastGroupIds, isPrivateGroupOrigin, userGroups]);
 
   const daysInMonth = getDaysInMonth(month, year);
   const years = buildCurrentYears();
@@ -293,6 +345,7 @@ export default function LiveComposerModal({
     setTicketPrice("");
     setCurrency("MXN");
     setPaidAccessMode("everyone_pays");
+    setBroadcastGroupIds([]);
     setError(null);
   }
 
@@ -355,6 +408,9 @@ export default function LiveComposerModal({
       const finalCurrency = accessType === "paid" ? currency : null;
       const finalPaidAccessMode = accessType === "paid" ? effectivePaidAccessMode : null;
 
+      // Strip "__profile__" from community IDs before saving; it's stored separately as broadcast sentinel
+      const finalBroadcastGroupIds = broadcastGroupIds.filter((id) => id !== "__profile__");
+
       if (isEditMode && editPost) {
         await updateLivePost({
           postId: editPost.id,
@@ -367,6 +423,7 @@ export default function LiveComposerModal({
           ticketPrice: finalTicketPrice,
           currency: finalCurrency,
           paidAccessMode: finalPaidAccessMode,
+          broadcastGroupIds: finalBroadcastGroupIds,
         });
         const newLiveData: PostLiveData = {
           ...editPost.liveData,
@@ -380,6 +437,7 @@ export default function LiveComposerModal({
           ticketPrice: finalTicketPrice,
           currency: finalCurrency,
           paidAccessMode: finalPaidAccessMode,
+          broadcastGroupIds: finalBroadcastGroupIds.length > 0 ? finalBroadcastGroupIds : null,
         };
         onEdited?.(newLiveData);
         resetForm();
@@ -400,6 +458,7 @@ export default function LiveComposerModal({
           ticketPrice: finalTicketPrice,
           currency: finalCurrency,
           paidAccessMode: finalPaidAccessMode,
+          broadcastGroupIds: finalBroadcastGroupIds,
         });
       } else if (groupId) {
         await createLivePost({
@@ -413,6 +472,7 @@ export default function LiveComposerModal({
           ticketPrice: finalTicketPrice,
           currency: finalCurrency,
           paidAccessMode: finalPaidAccessMode,
+          broadcastGroupIds: finalBroadcastGroupIds,
         });
       } else {
         throw new Error("Contexto inválido para crear el live.");
@@ -835,6 +895,131 @@ export default function LiveComposerModal({
           </select>
         </SelectWrapper>
       </div>
+
+      {/* Broadcast a otras comunidades */}
+      {!isHiddenGroup && (() => {
+        // Build the list of destinations to show
+        const destinations: Array<{ id: string; name: string; visibility: "public" | "private" | null; avatarUrl: string | null; isProfile: boolean }> = [];
+
+        // When creating from a community: offer the creator's profile + other communities
+        if (contextType === "group") {
+          destinations.push({ id: "__profile__", name: "Tu perfil", visibility: "public", avatarUrl: null, isProfile: true });
+        }
+
+        // Non-hidden communities (excluding origin group)
+        userGroups.forEach((g) => {
+          if (g.visibility !== "hidden") {
+            destinations.push({ id: g.id, name: g.name ?? "Comunidad", visibility: g.visibility ?? null, avatarUrl: g.avatarUrl, isProfile: false });
+          }
+        });
+
+        if (destinations.length === 0) return null;
+
+        const broadcastHasPublicDest = isPrivateGroupOrigin && broadcastGroupIds.some((id) => {
+          if (id === "__profile__") return true;
+          return userGroups.find((g) => g.id === id)?.visibility === "public";
+        });
+
+        return (
+          <>
+            <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "14px 0 14px" }} />
+            <label style={labelStyle}>Transmitir también en</label>
+
+            {broadcastHasPublicDest && (
+              <div style={{
+                display: "flex", alignItems: "flex-start", gap: 9,
+                padding: "9px 12px", borderRadius: 10, marginBottom: 10,
+                background: "rgba(234,179,8,0.08)", border: "1px solid rgba(234,179,8,0.22)",
+              }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#eab308" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                  <line x1="12" y1="9" x2="12" y2="13" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
+                </svg>
+                <span style={{ fontSize: 11, color: "#eab308", lineHeight: 1.5, fontFamily: fontStack }}>
+                  Al transmitir en un perfil o comunidad pública, tu live será visible para todos. La visibilidad se ha actualizado automáticamente.
+                </span>
+              </div>
+            )}
+
+            <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden", marginBottom: 10 }}>
+              {destinations.map((dest, idx) => {
+                const isSelected = broadcastGroupIds.includes(dest.id);
+                const visLabel = dest.visibility === "public" ? "Público" : dest.visibility === "private" ? "Privado" : "";
+                const isLast = idx === destinations.length - 1;
+                return (
+                  <div
+                    key={dest.id}
+                    onClick={() => {
+                      if (saving) return;
+                      setBroadcastGroupIds((prev) =>
+                        prev.includes(dest.id) ? prev.filter((x) => x !== dest.id) : [...prev, dest.id]
+                      );
+                    }}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "9px 12px",
+                      borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.06)",
+                      cursor: saving ? "not-allowed" : "pointer",
+                      userSelect: "none",
+                    }}
+                    className="vibra-live-radio"
+                  >
+                    {/* Avatar */}
+                    <div style={{
+                      width: 30, height: 30, borderRadius: "50%", flexShrink: 0, overflow: "hidden",
+                      background: "linear-gradient(135deg, #ec4899 0%, #9333ea 100%)",
+                      display: "grid", placeItems: "center", position: "relative",
+                    }}>
+                      {dest.isProfile ? (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                          <circle cx="12" cy="7" r="4" />
+                        </svg>
+                      ) : dest.avatarUrl ? (
+                        <img src={dest.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      ) : (
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#fff", fontFamily: fontStack }}>
+                          {(dest.name ?? "C").charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Name + visibility */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "#fff", fontFamily: fontStack, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {dest.name}
+                      </span>
+                      {visLabel && (
+                        <span style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", fontFamily: fontStack }}>
+                          {visLabel}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Toggle */}
+                    <div
+                      style={{
+                        width: 38, height: 22, borderRadius: 11, flexShrink: 0,
+                        background: isSelected ? "#a855f7" : "rgba(255,255,255,0.12)",
+                        position: "relative", transition: "background 0.18s ease",
+                      }}
+                    >
+                      <div style={{
+                        position: "absolute", top: 3, left: isSelected ? 18 : 3,
+                        width: 16, height: 16, borderRadius: "50%",
+                        background: "#fff",
+                        transition: "left 0.18s ease",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                      }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        );
+      })()}
 
     </div>
   );

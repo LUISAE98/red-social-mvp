@@ -33,6 +33,9 @@ export async function POST(req: NextRequest) {
 
   const postData = postSnap.data();
   const liveGroupId = typeof postData?.groupId === "string" && postData.groupId ? postData.groupId : null;
+  const broadcastGroupIds: string[] = Array.isArray(postData?.liveData?.broadcastGroupIds)
+    ? (postData.liveData.broadcastGroupIds as string[]).filter((id) => typeof id === "string" && id && id !== liveGroupId)
+    : [];
   const setLive = body?.setLive === true;
 
   const updates: Promise<unknown>[] = [
@@ -40,6 +43,9 @@ export async function POST(req: NextRequest) {
   ];
   if (liveGroupId) {
     updates.push(db.collection("groups").doc(liveGroupId).update({ activeLivePostId: postId }));
+  }
+  for (const gid of broadcastGroupIds) {
+    updates.push(db.collection("groups").doc(gid).update({ activeLivePostId: postId }));
   }
   if (setLive) {
     const now = FieldValue.serverTimestamp();
@@ -99,6 +105,9 @@ export async function DELETE(req: NextRequest) {
 
   const postData = postSnap.data();
   const stopGroupId = typeof postData?.groupId === "string" && postData.groupId ? postData.groupId : null;
+  const stopBroadcastGroupIds: string[] = Array.isArray(postData?.liveData?.broadcastGroupIds)
+    ? (postData.liveData.broadcastGroupIds as string[]).filter((id) => typeof id === "string" && id && id !== stopGroupId)
+    : [];
   const wasPinnedInGroup = postData?.isPinnedInGroup === true;
   const wasPinnedOnProfile = postData?.isPinnedOnProfile === true;
   const now = FieldValue.serverTimestamp();
@@ -127,6 +136,9 @@ export async function DELETE(req: NextRequest) {
     clearUpdates.push(
       db.collection("groups").doc(stopGroupId).update({ activeLivePostId: FieldValue.delete() })
     );
+  }
+  for (const gid of stopBroadcastGroupIds) {
+    clearUpdates.push(db.collection("groups").doc(gid).update({ activeLivePostId: FieldValue.delete() }));
   }
   if (wasPinnedOnProfile) {
     clearUpdates.push(

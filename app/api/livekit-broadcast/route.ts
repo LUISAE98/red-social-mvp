@@ -122,11 +122,17 @@ export async function POST(req: NextRequest) {
   // Set activeLivePostId immediately so the live ring shows without waiting for the Mux webhook
   const postData = postSnap.data();
   const liveGroupId = typeof postData?.groupId === "string" && postData.groupId ? postData.groupId : null;
+  const broadcastGroupIds: string[] = Array.isArray(postData?.liveData?.broadcastGroupIds)
+    ? (postData.liveData.broadcastGroupIds as string[]).filter((id) => typeof id === "string" && id && id !== liveGroupId)
+    : [];
   const setLiveUpdates: Promise<unknown>[] = [
     db.collection("users").doc(uid).update({ activeLivePostId: postId }),
   ];
   if (liveGroupId) {
     setLiveUpdates.push(db.collection("groups").doc(liveGroupId).update({ activeLivePostId: postId }));
+  }
+  for (const gid of broadcastGroupIds) {
+    setLiveUpdates.push(db.collection("groups").doc(gid).update({ activeLivePostId: postId }));
   }
   await Promise.all(setLiveUpdates).catch((err) => {
     console.error("[livekit-broadcast] Failed to set activeLivePostId:", err);
@@ -172,9 +178,10 @@ export async function DELETE(req: NextRequest) {
     return new NextResponse(null, { status: 204 });
   }
 
-  // Verify ownership and read groupId for live ring cleanup
+  // Verify ownership and read groupId + broadcastGroupIds for live ring cleanup
   const postId = req.nextUrl.searchParams.get("postId");
   let stopGroupId: string | null = null;
+  let stopBroadcastGroupIds: string[] = [];
   if (postId) {
     const db = getAdminFirestore();
     const postSnap = await db.collection("posts").doc(postId).get();
@@ -184,6 +191,11 @@ export async function DELETE(req: NextRequest) {
     if (postSnap.exists) {
       const g = postSnap.data()?.groupId;
       if (typeof g === "string" && g) stopGroupId = g;
+      stopBroadcastGroupIds = Array.isArray(postSnap.data()?.liveData?.broadcastGroupIds)
+        ? (postSnap.data()!.liveData.broadcastGroupIds as string[]).filter(
+            (id) => typeof id === "string" && id && id !== stopGroupId
+          )
+        : [];
     }
   }
 
@@ -222,6 +234,9 @@ export async function DELETE(req: NextRequest) {
     ];
     if (stopGroupId) {
       clearUpdates.push(db.collection("groups").doc(stopGroupId).update({ activeLivePostId: FieldValue.delete() }));
+    }
+    for (const gid of stopBroadcastGroupIds) {
+      clearUpdates.push(db.collection("groups").doc(gid).update({ activeLivePostId: FieldValue.delete() }));
     }
     await Promise.all(clearUpdates).catch((err) => {
       console.error("[livekit-broadcast] Failed to clear live state:", err);

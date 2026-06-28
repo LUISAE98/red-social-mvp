@@ -277,6 +277,7 @@ export type PostLiveData = {
   vodHidden?: boolean | null;
   vodPrice?: number | null;
   vodSettingsConfirmed?: boolean | null;
+  broadcastGroupIds?: string[] | null;
 };
 
 export type PostVideoData = {

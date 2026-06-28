@@ -140,6 +140,14 @@ export const cfWebhook = onRequest(
           const authorId = typeof result.data.authorId === "string" ? result.data.authorId : null;
           const groupId = typeof result.data.groupId === "string" ? result.data.groupId : null;
 
+          const broadcastGroupIds: string[] = Array.isArray(
+            (result.data.liveData as Record<string, unknown> | undefined)?.broadcastGroupIds
+          )
+            ? ((result.data.liveData as Record<string, unknown>).broadcastGroupIds as string[]).filter(
+                (id) => typeof id === "string" && id && id !== groupId
+              )
+            : [];
+
           const updates: Promise<unknown>[] = [
             result.ref.update({
               "liveData.status": "live",
@@ -156,6 +164,9 @@ export const cfWebhook = onRequest(
             updates.push(
               db.collection("groups").doc(groupId).update({ activeLivePostId: postId })
             );
+          }
+          for (const gid of broadcastGroupIds) {
+            updates.push(db.collection("groups").doc(gid).update({ activeLivePostId: postId }));
           }
           await Promise.all(updates);
           logger.info("cfWebhook live-inprogress", { liveInputId, postId });
@@ -197,6 +208,14 @@ export const cfWebhook = onRequest(
           const updates: Promise<unknown>[] = [result.ref.update(baseUpdate)];
 
           if (currentStatus !== "ended") {
+            const stopBroadcastGroupIds: string[] = Array.isArray(
+              (result.data.liveData as Record<string, unknown> | undefined)?.broadcastGroupIds
+            )
+              ? ((result.data.liveData as Record<string, unknown>).broadcastGroupIds as string[]).filter(
+                  (id) => typeof id === "string" && id && id !== groupId
+                )
+              : [];
+
             if (authorId) {
               updates.push(
                 db.collection("users").doc(authorId).update({ activeLivePostId: FieldValue.delete() })
@@ -206,6 +225,9 @@ export const cfWebhook = onRequest(
               updates.push(
                 db.collection("groups").doc(groupId).update({ activeLivePostId: FieldValue.delete() })
               );
+            }
+            for (const gid of stopBroadcastGroupIds) {
+              updates.push(db.collection("groups").doc(gid).update({ activeLivePostId: FieldValue.delete() }));
             }
             if (wasPinnedOnProfile && authorId) {
               updates.push(

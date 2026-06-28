@@ -47,6 +47,8 @@ import {
   setExclusiveSessionPreparing,
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 
+import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
+
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 
@@ -1320,39 +1322,15 @@ boxShadow:
                         textDecoration: "none",
                       }}
                     >
-                      {g.avatarUrl ? (
-                        <Image
-                          src={g.avatarUrl}
-                          alt={communityName}
-                          width={isMobile ? 43 : 36}
-                          height={isMobile ? 43 : 36}
-                          style={{
-                            borderRadius: "50%",
-                            objectFit: "cover",
-                            border: "1px solid rgba(255,255,255,0.10)",
-                            flexShrink: 0,
-                          }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            width: isMobile ? 43 : 36,
-                            height: isMobile ? 43 : 36,
-                            borderRadius: "50%",
-                            background: "rgba(255,255,255,0.06)",
-                            border: "1px solid rgba(255,255,255,0.10)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: isMobile ? 15 : 13,
-                            fontWeight: 700,
-                            color: "#fff",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {avatarFallback}
-                        </div>
-                      )}
+                      <LiveRingAvatar
+                        entityId={g.visibility === "profile" ? (g.ownerId ?? g.id) : g.id}
+                        entityType={g.visibility === "profile" ? "profile" : "group"}
+                        currentUserId={null}
+                        photoURL={g.avatarUrl ?? null}
+                        displayName={communityName}
+                        size={isMobile ? 43 : 36}
+                        style={{ flexShrink: 0 }}
+                      />
                                             <div
                         style={{
                           minWidth: 0,

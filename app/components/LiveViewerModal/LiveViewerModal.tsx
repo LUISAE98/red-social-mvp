@@ -14,8 +14,8 @@ import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUn
 import type { ActiveSuperComment } from "@/lib/posts/types";
 import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
-import { getOrCreateGuestId } from "@/lib/guest-id";
-import { submitSuperComment } from "@/lib/liveChat/super-comment-service";
+import { getOrCreateGuestId, getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
+import { submitSuperComment, submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
 
 const FONT =
   'inherit';
@@ -54,19 +54,35 @@ const DONATE_PRESETS = [20, 50, 100, 200, 500];
 type DonationPanelProps = {
   onClose: () => void;
   postId: string;
-  userId: string;
-  username: string;
-  avatarUrl: string | null;
+  /** undefined = modo invitado */
+  userId?: string;
+  username?: string;
+  avatarUrl?: string | null;
+  guestId?: string;
 };
 
-function DonationPanel({ onClose, postId, userId, username, avatarUrl }: DonationPanelProps) {
+function DonationPanel({ onClose, postId, userId, username, avatarUrl, guestId }: DonationPanelProps) {
+  const isGuest = !userId;
+  const [step, setStep] = useState<"nickname" | "amount">("amount");
+  const [guestNickname, setGuestNickname] = useState("");
   const [amount, setAmount] = useState<number | null>(null);
   const [custom, setCustom] = useState("");
   const [paying, setPaying] = useState(false);
-  const [resolvedAvatar, setResolvedAvatar] = useState<string | null>(avatarUrl);
-  const [resolvedUsername, setResolvedUsername] = useState(username);
+  const [resolvedAvatar, setResolvedAvatar] = useState<string | null>(avatarUrl ?? null);
+  const [resolvedUsername, setResolvedUsername] = useState(username ?? "");
 
+  // Para invitados: cargar apodo guardado
   useEffect(() => {
+    if (isGuest) {
+      const saved = getSavedGuestNickname();
+      setGuestNickname(saved);
+      setStep(saved.length >= 2 ? "amount" : "nickname");
+    }
+  }, [isGuest]);
+
+  // Para usuarios logueados: cargar datos de Firestore
+  useEffect(() => {
+    if (!userId) return;
     getDoc(doc(db, "users", userId)).then((snap) => {
       if (!snap.exists()) return;
       const d = snap.data();
@@ -77,26 +93,46 @@ function DonationPanel({ onClose, postId, userId, username, avatarUrl }: Donatio
 
   const finalAmount = amount ?? (custom ? parseFloat(custom) || null : null);
   const valid = !!finalAmount && finalAmount >= 10;
+  const nicknameOk = guestNickname.trim().length >= 2;
+
+  function handleNicknameContinue() {
+    const trimmed = guestNickname.trim();
+    if (trimmed.length < 2) return;
+    saveGuestNickname(trimmed);
+    setGuestNickname(trimmed);
+    setStep("amount");
+  }
 
   async function handlePay() {
     if (!valid || paying) return;
     setPaying(true);
     try {
-      await submitSuperComment({
-        postId,
-        userId,
-        username: resolvedUsername,
-        avatarUrl: resolvedAvatar,
-        text: "",
-        tier: {
-          id: "donation",
-          name: "Donación",
-          maxChars: 0,
-          price: finalAmount!,
-          color: DONATE_BLUE,
-          displaySeconds: 15,
-        },
-      });
+      const tier = {
+        id: "donation",
+        name: "Donación",
+        maxChars: 0,
+        price: finalAmount!,
+        color: DONATE_BLUE,
+        displaySeconds: 15,
+      };
+      if (isGuest && guestId) {
+        await submitSuperCommentAsGuest({
+          postId,
+          guestId,
+          username: guestNickname.trim(),
+          text: "",
+          tier,
+        });
+      } else if (userId) {
+        await submitSuperComment({
+          postId,
+          userId,
+          username: resolvedUsername,
+          avatarUrl: resolvedAvatar,
+          text: "",
+          tier,
+        });
+      }
     } finally {
       setPaying(false);
       onClose();
@@ -131,54 +167,110 @@ function DonationPanel({ onClose, postId, userId, username, avatarUrl }: Donatio
           <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.45)", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 4 }}>✕</button>
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-          {DONATE_PRESETS.map((p) => (
-            <button
-              key={p}
-              onClick={() => { setAmount(p); setCustom(""); }}
+        {/* ── Paso apodo (solo invitados sin apodo guardado) ── */}
+        {isGuest && step === "nickname" ? (
+          <>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", fontFamily: FONT, marginBottom: 12 }}>
+              Tu apodo aparecerá en la donación
+            </p>
+            <input
+              autoFocus
+              type="text"
+              maxLength={30}
+              placeholder="Tu apodo (mín. 2 caracteres)"
+              value={guestNickname}
+              onChange={(e) => setGuestNickname(e.target.value.slice(0, 30))}
+              onKeyDown={(e) => { if (e.key === "Enter") handleNicknameContinue(); }}
               style={{
-                padding: "8px 16px", borderRadius: 20, border: "none", cursor: "pointer",
-                background: amount === p ? DONATE_BLUE : "rgba(255,255,255,0.1)",
-                color: "#fff", fontSize: 14, fontWeight: 600, fontFamily: FONT,
-                transition: "background 0.15s",
+                display: "block", width: "100%",
+                background: "rgba(255,255,255,0.08)",
+                border: `1px solid ${nicknameOk ? "rgba(59,130,246,0.5)" : "rgba(255,255,255,0.1)"}`,
+                borderRadius: 12, padding: "10px 14px",
+                color: "#fff", fontSize: 14, fontFamily: FONT, outline: "none",
+                marginBottom: 16, boxSizing: "border-box",
+              }}
+            />
+            <button
+              onClick={handleNicknameContinue}
+              disabled={!nicknameOk}
+              style={{
+                display: "block", width: "100%", padding: "13px 0",
+                borderRadius: 14, border: "none",
+                background: nicknameOk ? DONATE_BLUE : "rgba(255,255,255,0.07)",
+                color: nicknameOk ? "#fff" : "rgba(255,255,255,0.25)",
+                fontSize: 15, fontWeight: 700, fontFamily: FONT,
+                cursor: nicknameOk ? "pointer" : "not-allowed",
+                transition: "all 0.2s",
               }}
             >
-              ${p}
+              Continuar
             </button>
-          ))}
-        </div>
+          </>
+        ) : (
+          <>
+            {/* Badge apodo invitado */}
+            {isGuest && (
+              <div style={{ marginBottom: 14, fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: FONT }}>
+                Donando como <strong style={{ color: "#fff" }}>{guestNickname}</strong>
+                <button
+                  onClick={() => setStep("nickname")}
+                  style={{ marginLeft: 8, background: "none", border: "none", color: DONATE_BLUE, fontSize: 12, cursor: "pointer", padding: 0, fontFamily: FONT }}
+                >
+                  Cambiar
+                </button>
+              </div>
+            )}
 
-        <input
-          type="number"
-          min={10}
-          placeholder="Otro monto (mínimo $10)..."
-          value={custom}
-          onChange={(e) => { setCustom(e.target.value); setAmount(null); }}
-          style={{
-            display: "block", width: "100%",
-            background: "rgba(255,255,255,0.08)",
-            border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12,
-            padding: "10px 14px", color: "#fff", fontSize: 14,
-            fontFamily: FONT, outline: "none", marginBottom: 16,
-            boxSizing: "border-box",
-          }}
-        />
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+              {DONATE_PRESETS.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => { setAmount(p); setCustom(""); }}
+                  style={{
+                    padding: "8px 16px", borderRadius: 20, border: "none", cursor: "pointer",
+                    background: amount === p ? DONATE_BLUE : "rgba(255,255,255,0.1)",
+                    color: "#fff", fontSize: 14, fontWeight: 600, fontFamily: FONT,
+                    transition: "background 0.15s",
+                  }}
+                >
+                  ${p}
+                </button>
+              ))}
+            </div>
 
-        <button
-          onClick={handlePay}
-          disabled={!valid || paying}
-          style={{
-            display: "block", width: "100%", padding: "13px 0",
-            borderRadius: 14, border: "none",
-            background: valid ? DONATE_BLUE : "rgba(255,255,255,0.08)",
-            color: valid ? "#fff" : "rgba(255,255,255,0.25)",
-            fontSize: 15, fontWeight: 700, fontFamily: FONT,
-            cursor: valid && !paying ? "pointer" : "not-allowed",
-            transition: "all 0.2s",
-          }}
-        >
-          {paying ? "Procesando..." : valid ? `Donar $${finalAmount} MXN` : "Selecciona un monto"}
-        </button>
+            <input
+              type="number"
+              min={10}
+              placeholder="Otro monto (mínimo $10)..."
+              value={custom}
+              onChange={(e) => { setCustom(e.target.value); setAmount(null); }}
+              style={{
+                display: "block", width: "100%",
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12,
+                padding: "10px 14px", color: "#fff", fontSize: 14,
+                fontFamily: FONT, outline: "none", marginBottom: 16,
+                boxSizing: "border-box",
+              }}
+            />
+
+            <button
+              onClick={handlePay}
+              disabled={!valid || paying}
+              style={{
+                display: "block", width: "100%", padding: "13px 0",
+                borderRadius: 14, border: "none",
+                background: valid ? DONATE_BLUE : "rgba(255,255,255,0.08)",
+                color: valid ? "#fff" : "rgba(255,255,255,0.25)",
+                fontSize: 15, fontWeight: 700, fontFamily: FONT,
+                cursor: valid && !paying ? "pointer" : "not-allowed",
+                transition: "all 0.2s",
+              }}
+            >
+              {paying ? "Procesando..." : valid ? `Donar $${finalAmount} MXN` : "Selecciona un monto"}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1749,14 +1841,22 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   const floatCardShadow = "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)";
 
-  const donationPanel = donationOpen && user ? (
-    <DonationPanel
-      onClose={() => setDonationOpen(false)}
-      postId={post.id}
-      userId={user.uid}
-      username={user.displayName ?? user.email?.split("@")[0] ?? "Usuario"}
-      avatarUrl={user.photoURL ?? null}
-    />
+  const donationPanel = donationOpen ? (
+    user ? (
+      <DonationPanel
+        onClose={() => setDonationOpen(false)}
+        postId={post.id}
+        userId={user.uid}
+        username={user.displayName ?? user.email?.split("@")[0] ?? "Usuario"}
+        avatarUrl={user.photoURL ?? null}
+      />
+    ) : (
+      <DonationPanel
+        onClose={() => setDonationOpen(false)}
+        postId={post.id}
+        guestId={guestId || undefined}
+      />
+    )
   ) : null;
 
   // ── Info del creador + título + descripción — aparece en el panel del chat ──
@@ -1801,7 +1901,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               En vivo
             </span>
           </div>
-          {user && hasAccess && !isEnded && post.authorId !== user.uid && (
+          {!isEnded && (!user || post.authorId !== user.uid) && (
             <button
               onClick={() => setDonationOpen(true)}
               style={{
@@ -2121,7 +2221,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               <LiveChatViewer
                 liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted}
                 mode="overlay" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig}
-                onDonate={user && !isEnded && post.authorId !== user.uid ? () => setDonationOpen(true) : undefined}
+                onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined}
               />
             </div>
           </div>

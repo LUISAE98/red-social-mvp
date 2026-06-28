@@ -31,6 +31,7 @@ import {
 } from "@/lib/groups/joinRequests.admin";
 import { subscribeToMySidebarGroups } from "@/lib/groups/sidebarGroups";
 import { respondGreetingRequest } from "@/lib/greetings/greetingRequests";
+import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 import OwnerSidebarTabNav from "./OwnerSidebarTabNav";
 import OwnerSidebarMyGroups from "./OwnerSidebarMyGroups";
 import OwnerSidebarOtherGroups from "./OwnerSidebarOtherGroups";
@@ -2388,39 +2389,15 @@ WebkitBackdropFilter: "none",
             width: "100%",
           }}
         >
-          {g.avatarUrl ? (
-            <Image
-              src={g.avatarUrl}
-              alt={communityName}
-              width={isMobile ? 43 : 36}
-              height={isMobile ? 43 : 36}
-              style={{
-                borderRadius: "50%",
-                objectFit: "cover",
-                border: "1px solid rgba(255,255,255,0.10)",
-                flexShrink: 0,
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                width: isMobile ? 43 : 36,
-                height: isMobile ? 43 : 36,
-                borderRadius: "50%",
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.10)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: isMobile ? 15 : 13,
-                fontWeight: 700,
-                color: "#fff",
-                flexShrink: 0,
-              }}
-            >
-              {avatarFallback}
-            </div>
-          )}
+          <LiveRingAvatar
+            entityId={isProfileCard ? (g.ownerId ?? g.id) : g.id}
+            entityType={isProfileCard ? "profile" : "group"}
+            currentUserId={null}
+            photoURL={g.avatarUrl ?? null}
+            displayName={communityName}
+            size={isMobile ? 43 : 36}
+            style={{ flexShrink: 0 }}
+          />
 
           <div style={{ minWidth: 0, flex: 1 }}>
             <div

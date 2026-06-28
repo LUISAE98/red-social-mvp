@@ -4,7 +4,7 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { doc, getDoc, Timestamp } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, query, Timestamp, where } from "firebase/firestore";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { auth, db, functions } from "@/lib/firebase";
 import type {
@@ -68,6 +68,7 @@ type GroupPostsFeedProps = {
   postBlockedReason?: InteractionBlockedReason;
   commentBlockedReason?: InteractionBlockedReason;
   publicPremiumOnly?: boolean;
+  broadcastLiveOnly?: boolean;
 };
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
@@ -419,11 +420,13 @@ export default function GroupPostsFeed({
   postBlockedReason = null,
   commentBlockedReason = null,
   publicPremiumOnly = false,
+  broadcastLiveOnly = false,
 }: GroupPostsFeedProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const [broadcastLive, setBroadcastLive] = useState<Post | null>(null);
   const [posts, setPosts] = useState<PostWithAuthorState[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [composerError, setComposerError] = useState<string | null>(null);
@@ -530,6 +533,46 @@ export default function GroupPostsFeed({
 
     return () => unsub();
   }, []);
+
+  // Subscribe to the group document to detect broadcast lives.
+  // When activeLivePostId is set on this group and the post originates from a different
+  // community, it means a live is being broadcast here from elsewhere.
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "groups", groupId), (snap) => {
+      if (!snap.exists()) {
+        setBroadcastLive(null);
+        return;
+      }
+      const activeLivePostId = snap.data().activeLivePostId as string | undefined;
+      if (!activeLivePostId) {
+        setBroadcastLive(null);
+        return;
+      }
+      getDoc(doc(db, "posts", activeLivePostId))
+        .then((postSnap) => {
+          if (!postSnap.exists()) {
+            setBroadcastLive(null);
+            return;
+          }
+          const post = { id: postSnap.id, ...postSnap.data() } as Post;
+          // Only show as broadcast live if the post is native to a DIFFERENT community.
+          // Native lives from this same community already appear in the regular feed.
+          if (post.groupId !== groupId) {
+            setBroadcastLive(post);
+          } else {
+            setBroadcastLive(null);
+          }
+        })
+        .catch((err) => {
+          console.error("[broadcastLive] getDoc error:", err.code, err.message);
+          setBroadcastLive(null);
+        });
+    }, (err) => {
+      console.error("[broadcastLive] group snapshot error:", err.code, err.message);
+      setBroadcastLive(null);
+    });
+    return () => unsub();
+  }, [groupId]);
 
   useEffect(() => {
     if (!composerError) return;
@@ -669,6 +712,11 @@ export default function GroupPostsFeed({
   }, [cacheKey, loadPostsPage]);
 
   useEffect(() => {
+    if (broadcastLiveOnly) {
+      setLoadingInitial(false);
+      return;
+    }
+
     let active = true;
 
     async function run() {
@@ -699,7 +747,7 @@ export default function GroupPostsFeed({
     return () => {
       active = false;
     };
-  }, [groupId, currentUid, cacheKey, loadPostsPage]);
+  }, [groupId, currentUid, cacheKey, loadPostsPage, broadcastLiveOnly]);
 
   const infiniteScrollTriggerIndex = useMemo(() => {
     if (posts.length <= 5) return posts.length - 1;
@@ -1530,7 +1578,30 @@ const shellStyle: CSSProperties = {
         <div style={noticeStyle}>Cargando publicaciones...</div>
       )}
 
-      {!loadingInitial && posts.length === 0 && (
+      {/* Live broadcasting into this community from another context */}
+      {broadcastLive && (
+        <div style={postShellStyle}>
+          <GroupPostCard
+            post={broadcastLive}
+            groupId={groupId}
+            canDelete={false}
+            onLoadComments={handleLoadComments}
+            onCreateComment={handleCreateComment}
+            onDeleteComment={handleDeleteComment}
+            onLoadReplies={handleLoadReplies}
+            onCreateReply={handleCreateReply}
+            onDeleteReply={handleDeleteReply}
+            canCommentOnPosts={canCommentOnPosts}
+            commentBlockedReason={commentBlockedReason}
+            currentUserId={currentUid}
+            isOwner={isOwner}
+            isModerator={isModerator}
+            viewerIsMember={viewerIsMember}
+          />
+        </div>
+      )}
+
+      {!broadcastLiveOnly && !loadingInitial && posts.length === 0 && !broadcastLive && (
         <div style={noticeStyle}>
           Todavía no hay publicaciones en esta comunidad.
         </div>
