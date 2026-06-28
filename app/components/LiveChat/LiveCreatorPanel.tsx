@@ -922,18 +922,23 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
         const withoutHeadphones = !headphonesDetected;
         if (withoutHeadphones) setMicMutedForTTS(true);
-        const ttsText = `${sc.username} dijo: ${sc.text}`;
-        const prefixLen = `${sc.username} dijo: `.length;
+        const isDonation = !sc.text;
+        const ttsText = isDonation
+          ? `${sc.username} donó ${sc.amount} pesos`
+          : `${sc.username} dijo: ${sc.text}`;
+        const prefixLen = isDonation ? 0 : `${sc.username} dijo: `.length;
         const totalLen = ttsText.length;
         ttsAudioRef.current = playEdgeTTS(ttsText, {
           volume: 1,
           onProgress: (ratio) => {
-            const charPos = Math.floor(ratio * totalLen);
-            setTtsReadIndex(Math.max(0, Math.min(charPos - prefixLen, sc.text.length)));
+            if (!isDonation) {
+              const charPos = Math.floor(ratio * totalLen);
+              setTtsReadIndex(Math.max(0, Math.min(charPos - prefixLen, sc.text.length)));
+            }
           },
           onEnded: () => {
             ttsAudioRef.current = null;
-            setTtsReadIndex(sc.text.length);
+            if (!isDonation) setTtsReadIndex(sc.text.length);
             if (withoutHeadphones) setMicMutedForTTS(false);
           },
         });
@@ -1278,9 +1283,15 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                       </ModActionBtn>
                     </div>
                     {/* Renglón 2: texto del mensaje a ancho completo */}
-                    <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.4, fontFamily: FONT, wordBreak: "break-word" }}>
-                      {sc.text}
-                    </span>
+                    {sc.text ? (
+                      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", lineHeight: 1.4, fontFamily: FONT, wordBreak: "break-word" }}>
+                        {sc.text}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontStyle: "italic", fontFamily: FONT }}>
+                        Donación
+                      </span>
+                    )}
                   </div>
                 </div>
                 );
@@ -1465,9 +1476,15 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               maxHeight: `${3 * 12 * 1.55}px`, overflowY: "auto", scrollbarWidth: "none",
               wordBreak: "break-word", marginBottom: 12,
             }}>
-              <strong>{playingOverlay.text.slice(0, ttsReadIndex)}</strong>
-              <span ref={scBoundaryRef} />
-              {playingOverlay.text.slice(ttsReadIndex)}
+              {playingOverlay.text ? (
+                <>
+                  <strong>{playingOverlay.text.slice(0, ttsReadIndex)}</strong>
+                  <span ref={scBoundaryRef} />
+                  {playingOverlay.text.slice(ttsReadIndex)}
+                </>
+              ) : (
+                <span style={{ color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>Donación</span>
+              )}
             </div>
             {/* Botones */}
             <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>

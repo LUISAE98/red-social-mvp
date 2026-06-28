@@ -831,6 +831,54 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   if (!mounted || !shouldRender) return null;
 
+  // ── Banned gate — full-screen block, no video/chat/SC rendered ────────────
+  if (isBanned) {
+    return createPortal(
+      <div
+        style={{
+          position: "fixed", inset: 0, zIndex: 10000,
+          background: "#000",
+          display: "flex", flexDirection: "column",
+          alignItems: "center", justifyContent: "center",
+          gap: 16, fontFamily: FONT,
+        }}
+        onClick={onClose}
+      >
+        <svg width="52" height="52" viewBox="0 0 24 24" fill="none"
+          stroke="rgba(239,68,68,0.65)" strokeWidth="1.5"
+          strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+        </svg>
+        <span style={{
+          fontSize: 17, fontWeight: 700,
+          color: "rgba(255,255,255,0.9)",
+          letterSpacing: "0.01em", textAlign: "center", padding: "0 32px",
+        }}>
+          Fuiste baneado de este live
+        </span>
+        <span style={{
+          fontSize: 13, color: "rgba(255,255,255,0.4)",
+          textAlign: "center", padding: "0 40px", lineHeight: 1.5,
+        }}>
+          Ya no puedes acceder a esta transmisión
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            marginTop: 8, padding: "10px 24px", borderRadius: 10, border: "none",
+            background: "rgba(255,255,255,0.1)", color: "#fff", fontSize: 14,
+            fontWeight: 600, cursor: "pointer", fontFamily: FONT,
+          }}
+        >
+          Cerrar
+        </button>
+      </div>,
+      document.body
+    );
+  }
+
   // ── Paywall ────────────────────────────────────────────────────────────────
   const isPaidLive = (liveData?.accessType ?? "free") === "paid";
 

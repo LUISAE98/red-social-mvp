@@ -53,6 +53,7 @@ import {
   type PostPremiumStateResult,
 } from "@/lib/posts/post-premium-state";
 import type { PostAccess } from "@/lib/posts/post-access-types";
+import { getOrCreateGuestId } from "@/lib/guest-id";
 
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 
@@ -2324,6 +2325,15 @@ function renderBlurredMediaBackdrop(
 
   const activeLiveData = localLiveData ?? post.liveData;
 
+  const viewerGuestId = !currentUserId && typeof window !== "undefined" ? getOrCreateGuestId() : "";
+  const isViewerBanned = !!(
+    activeLiveData?.bannedUsers?.length &&
+    (
+      (currentUserId && activeLiveData.bannedUsers.includes(currentUserId)) ||
+      (!currentUserId && viewerGuestId && activeLiveData.bannedUsers.includes(viewerGuestId))
+    )
+  );
+
   // VOD URL: Mux saves it in post.playback after stream ends; CF reuses liveData.hlsUrl when vodStatus=ready
   const effectivePlayback = localPlayback ?? post.playback;
   const liveVodUrl = activeLiveData?.status === "ended"
@@ -3258,26 +3268,55 @@ style={{
 
       {/* Área de media — player activo, finalizado, o programado */}
       {isLivePlayer && (activeLiveData?.playbackId || activeLiveData?.hlsUrl) ? (
-        <LiveInlinePlayer
-          postId={post.id}
-          playbackId={activeLiveData.playbackId ?? undefined}
-          hlsUrl={activeLiveData.hlsUrl ?? undefined}
-          title={activeLiveData.title}
-          coverUrl={activeLiveData.coverUrl}
-          portrait={isLivePortrait}
-          paused={liveViewerOpen || liveCreatorOpen}
-          streamProvider={activeLiveData.streamProvider ?? undefined}
-          broadcastMode={activeLiveData.broadcastMode ?? undefined}
-          activeSuper={activeLiveData.activeSuper ?? null}
-          isViewerOpen={liveViewerOpen}
-          onStreamReady={(s) => setFeedLiveStream(s)}
-          onClick={() => currentUserId === post.authorId ? setLiveCreatorOpen(true) : setLiveViewerOpen(true)}
-          onOrientationDetected={(p) => {
-            // Don't change portrait while the creator panel is open — it would
-            // switch layout branches and unmount LiveDirectBroadcast mid-broadcast.
-            if (!liveCreatorOpen) setIsLivePortrait(p);
-          }}
-        />
+        <div style={{ position: "relative" }}>
+          <LiveInlinePlayer
+            postId={post.id}
+            playbackId={activeLiveData.playbackId ?? undefined}
+            hlsUrl={activeLiveData.hlsUrl ?? undefined}
+            title={activeLiveData.title}
+            coverUrl={activeLiveData.coverUrl}
+            portrait={isLivePortrait}
+            paused={liveViewerOpen || liveCreatorOpen || isViewerBanned}
+            streamProvider={activeLiveData.streamProvider ?? undefined}
+            broadcastMode={activeLiveData.broadcastMode ?? undefined}
+            activeSuper={activeLiveData.activeSuper ?? null}
+            isViewerOpen={liveViewerOpen}
+            onStreamReady={(s) => setFeedLiveStream(s)}
+            onClick={() => {
+              if (currentUserId === post.authorId) { setLiveCreatorOpen(true); return; }
+              if (isViewerBanned) return;
+              setLiveViewerOpen(true);
+            }}
+            onOrientationDetected={(p) => {
+              // Don't change portrait while the creator panel is open — it would
+              // switch layout branches and unmount LiveDirectBroadcast mid-broadcast.
+              if (!liveCreatorOpen) setIsLivePortrait(p);
+            }}
+          />
+          {isViewerBanned && (
+            <div style={{
+              position: "absolute", inset: 0, zIndex: 2,
+              background: "rgba(0,0,0,0.82)",
+              display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center", gap: 10,
+              pointerEvents: "none",
+            }}>
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none"
+                stroke="rgba(239,68,68,0.8)" strokeWidth="1.5"
+                strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+              </svg>
+              <span style={{
+                fontSize: 12, fontWeight: 600,
+                color: "rgba(255,255,255,0.7)",
+                textAlign: "center", padding: "0 20px",
+              }}>
+                Has sido baneado de este live
+              </span>
+            </div>
+          )}
+        </div>
       ) : activeLiveData?.status === "ended" ? (
         liveVodReady ? (
           <LiveInlinePlayer
