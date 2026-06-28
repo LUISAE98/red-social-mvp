@@ -2416,10 +2416,8 @@ allow list: if canReadPost()
 
       // Supercomentarios del live
       match /superComments/{superCommentId} {
-        // Lista abierta a usuarios autenticados; filtros de visibilidad en cliente
-        allow list: if signedIn();
-
-        allow get: if signedIn();
+        // Lectura pública — el live ya controla quién puede verlo
+        allow list, get: if true;
 
         // Viewers crean supercomentarios (pago simulado → status: "paid")
         allow create: if signedIn()
@@ -2737,7 +2735,7 @@ function canUpdateReplyCount(delta) {
           );
       }
 
-      allow get, list: if signedIn();
+      allow get, list: if true;
 
       allow create: if signedIn()
         && liveChatEnabled()

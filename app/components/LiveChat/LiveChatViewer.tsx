@@ -1,13 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import { useLiveChat } from "@/lib/hooks/useLiveChat";
 import SuperCommentModal from "./SuperCommentModal";
 import { subscribeVisibleSuperComments } from "@/lib/liveChat/super-comment-service";
+import { getOrCreateGuestId } from "@/lib/guest-id";
 import type { SuperCommentConfig, SuperComment } from "@/lib/liveChat/types";
 import { DEFAULT_SUPER_COMMENT_CONFIG } from "@/lib/liveChat/types";
 
@@ -22,6 +23,7 @@ type Props = {
   mode?: "panel" | "overlay";
   broadcastMode?: "direct" | "rtmp" | null;
   superCommentConfig?: SuperCommentConfig | null;
+  onDonate?: () => void;
 };
 
 type SenderInfo = { username: string; avatarUrl: string | null };
@@ -34,6 +36,7 @@ export default function LiveChatViewer({
   mode = "panel",
   broadcastMode,
   superCommentConfig,
+  onDonate,
 }: Props) {
   const { user } = useAuth();
   const { messages, send } = useLiveChat(liveId);
@@ -46,20 +49,31 @@ export default function LiveChatViewer({
   const isAtBottomRef = useRef(true);
   const sendErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // ID de invitado — solo se genera si no hay sesión activa
+  const guestId = useMemo<string>(() => {
+    if (user) return "";
+    if (typeof window === "undefined") return "";
+    return getOrCreateGuestId();
+  }, [user]);
+
   // Si el creador nunca guardó config, usar defaults para que el botón esté disponible en direct y rtmp
   const effectiveConfig: SuperCommentConfig | null =
     (broadcastMode === "direct" || broadcastMode === "rtmp")
       ? (superCommentConfig ?? DEFAULT_SUPER_COMMENT_CONFIG)
       : (superCommentConfig ?? null);
 
-  const showSuperCommentBtn =
-    !!user &&
+  const scAvailable =
     (broadcastMode === "direct" || broadcastMode === "rtmp") &&
     effectiveConfig?.enabled === true &&
     (effectiveConfig?.tiers?.length ?? 0) > 0 &&
     chatEnabled &&
-    !liveEnded &&
-    !isMuted;
+    !liveEnded;
+
+  // Botón SC para usuarios autenticados (no muteados)
+  const showSuperCommentBtn = !!user && scAvailable && !isMuted;
+
+  // Botón SC para invitados (sin auth)
+  const showGuestSCBtn = !user && scAvailable;
 
   useEffect(() => {
     if (!user?.uid) { setSenderInfo(null); return; }
@@ -151,13 +165,14 @@ export default function LiveChatViewer({
     })),
   ].sort((a, b) => a.ts - b.ts);
 
-  const superCommentModal = showSuperCommentBtn && effectiveConfig ? (
+  const superCommentModal = (showSuperCommentBtn || showGuestSCBtn) && effectiveConfig ? (
     <SuperCommentModal
       open={superCommentOpen}
       onClose={() => setSuperCommentOpen(false)}
       postId={liveId}
-      userId={user!.uid}
-      username={senderInfo?.username ?? user?.displayName ?? "Espectador"}
+      userId={user?.uid}
+      guestId={!user ? guestId : undefined}
+      username={senderInfo?.username ?? user?.displayName ?? undefined}
       avatarUrl={senderInfo?.avatarUrl ?? user?.photoURL ?? null}
       config={effectiveConfig}
     />
@@ -257,6 +272,17 @@ export default function LiveChatViewer({
                           fontFamily: FONT, outline: "none",
                         }}
                       />
+                      {onDonate && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDonate(); }}
+                          style={{
+                            width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                            background: "#3b82f6", border: "none", color: "#fff",
+                            fontSize: 20, fontWeight: 700, cursor: "pointer",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}
+                        >+</button>
+                      )}
                       <SendButton onClick={handleSend} active={!!text.trim()} />
                     </div>
                   </>
@@ -265,8 +291,12 @@ export default function LiveChatViewer({
             ) : (
               <div style={{
                 paddingTop: 8, paddingBottom: "calc(8px + env(safe-area-inset-bottom))",
-                textAlign: "center",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                paddingLeft: 14, paddingRight: 14,
               }}>
+                {showGuestSCBtn && (
+                  <BillButton onClick={() => setSuperCommentOpen(true)} />
+                )}
                 <span style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
                   Inicia sesión para comentar
                 </span>
@@ -346,8 +376,13 @@ export default function LiveChatViewer({
               El chat está cerrado
             </div>
           ) : !user ? (
-            <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>
-              Inicia sesión para participar
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "4px 0" }}>
+              {showGuestSCBtn && (
+                <BillButton onClick={() => setSuperCommentOpen(true)} />
+              )}
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>
+                Inicia sesión para comentar
+              </span>
             </div>
           ) : isMuted ? (
             <div style={{ textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)", fontFamily: FONT, padding: "4px 0" }}>

@@ -1183,14 +1183,16 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           <div style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
             <style>{`.lcp-sc::-webkit-scrollbar{display:none}`}</style>
             <div className="lcp-sc">
-              {tabItems.map((sc) => (
+              {tabItems.map((sc) => {
+                const scIsBanned = liveData?.bannedUsers?.includes(sc.userId) ?? false;
+                return (
                 <div
                   key={sc.id}
                   style={{
                     display: "flex", alignItems: "flex-start", gap: 10,
                     padding: "10px 12px",
                     borderBottom: "1px solid rgba(255,255,255,0.06)",
-                    opacity: sc.hidden ? 0.45 : 1,
+                    opacity: scIsBanned ? 0.38 : sc.hidden ? 0.45 : 1,
                     background: "transparent",
                   }}
                 >
@@ -1203,6 +1205,9 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                       <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", fontFamily: FONT, flexShrink: 0 }}>
                         {sc.username}
                       </span>
+                      {scIsBanned && (
+                        <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 3, padding: "0px 4px", flexShrink: 0 }}>BAN</span>
+                      )}
                       <span style={{ fontSize: 12, fontWeight: 700, color: "#86efac", fontFamily: FONT, flexShrink: 0 }}>
                         +${(sc.amount * 0.77).toFixed(2)} MXN
                       </span>
@@ -1278,7 +1283,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     </span>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}

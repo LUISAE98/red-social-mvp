@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { submitSuperComment } from "@/lib/liveChat/super-comment-service";
+import { submitSuperComment, submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
+import { getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
 import type { SuperCommentConfig, SuperCommentTier } from "@/lib/liveChat/types";
 
 const FONT = 'inherit';
@@ -11,9 +12,12 @@ type Props = {
   open: boolean;
   onClose: () => void;
   postId: string;
-  userId: string;
-  username: string;
-  avatarUrl: string | null;
+  /** undefined = modo invitado */
+  userId?: string;
+  username?: string;
+  avatarUrl?: string | null;
+  /** Solo cuando userId es undefined */
+  guestId?: string;
   config: SuperCommentConfig;
 };
 
@@ -24,10 +28,15 @@ export default function SuperCommentModal({
   userId,
   username,
   avatarUrl,
+  guestId,
   config,
 }: Props) {
+  const isGuest = !userId;
+
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(open);
+  const [step, setStep] = useState<"nickname" | "compose">("compose");
+  const [guestNickname, setGuestNickname] = useState("");
   const [selectedTier, setSelectedTier] = useState<SuperCommentTier | null>(null);
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -41,20 +50,23 @@ export default function SuperCommentModal({
       setShouldRender(true);
       setSent(false);
       setError(null);
+      if (isGuest) {
+        const saved = getSavedGuestNickname();
+        setGuestNickname(saved);
+        setStep(saved.length >= 2 ? "compose" : "nickname");
+      }
     } else {
       const t = window.setTimeout(() => setShouldRender(false), 200);
       return () => window.clearTimeout(t);
     }
-  }, [open]);
+  }, [open, isGuest]);
 
-  // Reset al cambiar tier
   useEffect(() => {
     if (selectedTier) {
       setText((prev) => prev.slice(0, selectedTier.maxChars));
     }
   }, [selectedTier]);
 
-  // Pre-seleccionar tier más barato al abrir
   useEffect(() => {
     if (open && config.tiers.length > 0 && !selectedTier) {
       setSelectedTier(config.tiers[0]);
@@ -71,14 +83,24 @@ export default function SuperCommentModal({
     setSubmitting(true);
     setError(null);
     try {
-      await submitSuperComment({
-        postId,
-        userId,
-        username,
-        avatarUrl,
-        text: text.trim(),
-        tier: selectedTier,
-      });
+      if (isGuest && guestId) {
+        await submitSuperCommentAsGuest({
+          postId,
+          guestId,
+          username: guestNickname.trim(),
+          text: text.trim(),
+          tier: selectedTier,
+        });
+      } else if (userId) {
+        await submitSuperComment({
+          postId,
+          userId,
+          username: username ?? "Espectador",
+          avatarUrl: avatarUrl ?? null,
+          text: text.trim(),
+          tier: selectedTier,
+        });
+      }
       setSent(true);
       setTimeout(() => {
         onClose();
@@ -93,17 +115,26 @@ export default function SuperCommentModal({
     }
   }
 
+  function handleNicknameContinue() {
+    const trimmed = guestNickname.trim();
+    if (trimmed.length < 2) return;
+    saveGuestNickname(trimmed);
+    setGuestNickname(trimmed);
+    setStep("compose");
+  }
+
   if (!shouldRender || !mounted) return null;
 
   const maxChars = selectedTier?.maxChars ?? 120;
   const remaining = maxChars - text.length;
+  const nicknameOk = guestNickname.trim().length >= 2;
 
   return createPortal(
     <>
       <style>{`
-        @keyframes scFadeIn { from { opacity:0 } to { opacity:1 } }
+        @keyframes scFadeIn  { from { opacity:0 } to { opacity:1 } }
         @keyframes scFadeOut { from { opacity:1 } to { opacity:0 } }
-        @keyframes scSlideUp { from { transform:translateY(100%) } to { transform:translateY(0) } }
+        @keyframes scSlideUp   { from { transform:translateY(100%) } to { transform:translateY(0) } }
         @keyframes scSlideDown { from { transform:translateY(0) } to { transform:translateY(100%) } }
       `}</style>
 
@@ -164,136 +195,208 @@ export default function SuperCommentModal({
             </button>
           </div>
 
-          {sent ? (
-            <div style={{ textAlign: "center", padding: "32px 0" }}>
-              <div style={{
-                width: 52, height: 52, borderRadius: "50%",
-                background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)",
-                display: "grid", placeItems: "center", margin: "0 auto 16px",
-              }}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              </div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
-                ¡Supercomentario enviado!
-              </div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: FONT, marginTop: 6 }}>
-                El creador lo leerá en cualquier momento.
-              </div>
-            </div>
-          ) : (
+          {/* ── Step: nickname (invitados sin apodo guardado) ─────────────────── */}
+          {isGuest && step === "nickname" ? (
             <>
-              {/* Selección de tier */}
-              <div style={{ marginBottom: 18 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT, marginBottom: 10 }}>
-                  Elige tu nivel
+              <div style={{ textAlign: "center", marginBottom: 20 }}>
+                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", fontFamily: FONT, marginBottom: 4 }}>
+                  ¿Cómo quieres que te llamen?
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                  {config.tiers.map((tier) => {
-                    const isSelected = selectedTier?.id === tier.id;
-                    return (
-                      <button
-                        key={tier.id}
-                        type="button"
-                        onClick={() => setSelectedTier(tier)}
-                        style={{
-                          display: "flex", alignItems: "center", gap: 12,
-                          padding: "10px 14px", borderRadius: 10,
-                          border: `1px solid ${isSelected ? tier.color + "80" : "rgba(255,255,255,0.08)"}`,
-                          background: isSelected ? tier.color + "18" : "rgba(255,255,255,0.03)",
-                          cursor: "pointer", textAlign: "left",
-                          transition: "all 0.15s",
-                        }}
-                      >
-                        <div style={{
-                          width: 10, height: 10, borderRadius: "50%",
-                          background: tier.color, flexShrink: 0,
-                          boxShadow: isSelected ? `0 0 8px ${tier.color}` : "none",
-                        }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ fontSize: 13, fontWeight: 600, color: isSelected ? "#fff" : "rgba(255,255,255,0.7)", fontFamily: FONT }}>
-                            {tier.name}
-                          </span>
-                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: FONT, marginLeft: 8 }}>
-                            hasta {tier.maxChars} caracteres
-                          </span>
-                        </div>
-                        <span style={{
-                          fontSize: 14, fontWeight: 700,
-                          color: isSelected ? tier.color : "rgba(255,255,255,0.5)",
-                          fontFamily: FONT, flexShrink: 0,
-                        }}>
-                          ${tier.price} MXN
-                        </span>
-                      </button>
-                    );
-                  })}
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.3)", fontFamily: FONT }}>
+                  Tu apodo aparecerá en el supercomentario
                 </div>
               </div>
 
-              {/* Input de texto */}
-              {selectedTier && (
-                <div style={{ marginBottom: 18 }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
-                      Tu mensaje
-                    </div>
-                    <span style={{ fontSize: 11, fontFamily: FONT, color: remaining < 20 ? "#f87171" : "rgba(255,255,255,0.3)" }}>
-                      {remaining} restantes
-                    </span>
-                  </div>
-                  <textarea
-                    value={text}
-                    onChange={(e) => setText(e.target.value.slice(0, maxChars))}
-                    placeholder={`Escribe tu supercomentario (máx. ${maxChars} caracteres)...`}
-                    rows={3}
-                    style={{
-                      width: "100%", boxSizing: "border-box",
-                      background: "rgba(255,255,255,0.05)",
-                      border: `1px solid ${text.trim() ? selectedTier.color + "50" : "rgba(255,255,255,0.1)"}`,
-                      borderRadius: 10, padding: "10px 12px",
-                      color: "#fff", fontSize: 13, fontFamily: FONT,
-                      resize: "none", outline: "none", lineHeight: 1.5,
-                      transition: "border-color 0.15s",
-                    }}
-                  />
-                </div>
-              )}
+              <div style={{ marginBottom: 16 }}>
+                <input
+                  type="text"
+                  value={guestNickname}
+                  onChange={(e) => setGuestNickname(e.target.value.slice(0, 30))}
+                  placeholder="Tu apodo (mín. 2 caracteres)"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === "Enter") handleNicknameContinue(); }}
+                  style={{
+                    width: "100%", boxSizing: "border-box",
+                    background: "rgba(255,255,255,0.05)",
+                    border: `1px solid ${nicknameOk ? "rgba(168,85,247,0.5)" : "rgba(255,255,255,0.1)"}`,
+                    borderRadius: 10, padding: "11px 14px",
+                    color: "#fff", fontSize: 14, fontFamily: FONT,
+                    outline: "none", transition: "border-color 0.15s",
+                  }}
+                />
+              </div>
 
-              {/* Error */}
-              {error && (
-                <p style={{ margin: "0 0 12px", fontSize: 12, color: "#f87171", fontFamily: FONT }}>
-                  {error}
-                </p>
-              )}
-
-              {/* Botón de pago */}
               <button
                 type="button"
-                onClick={handleSubmit}
-                disabled={submitting || !text.trim() || !selectedTier}
+                onClick={handleNicknameContinue}
+                disabled={!nicknameOk}
                 style={{
                   width: "100%", padding: "12px 20px", borderRadius: 10, border: "none",
-                  background: selectedTier && text.trim() && !submitting
-                    ? "#a855f7"
-                    : "rgba(255,255,255,0.07)",
-                  color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em", fontFamily: FONT,
-                  cursor: submitting || !text.trim() || !selectedTier ? "not-allowed" : "pointer",
-                  transition: "opacity 150ms ease",
-                  WebkitTapHighlightColor: "transparent",
+                  background: nicknameOk ? "#a855f7" : "rgba(255,255,255,0.07)",
+                  color: "#fff", fontSize: 14, fontWeight: 600, fontFamily: FONT,
+                  cursor: nicknameOk ? "pointer" : "not-allowed",
+                  transition: "background 0.15s",
                 }}
               >
-                {submitting
-                  ? "Enviando..."
-                  : selectedTier
-                  ? `Pagar $${selectedTier.price} MXN y enviar`
-                  : "Selecciona un nivel"}
+                Continuar
               </button>
+            </>
+          ) : (
+            /* ── Step: compose (mismo panel original) ──────────────────────── */
+            <>
+              {/* Badge de apodo para invitados */}
+              {isGuest && (
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  marginBottom: 16, padding: "7px 12px", borderRadius: 8,
+                  background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.15)",
+                }}>
+                  <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontFamily: FONT }}>
+                    Enviando como <strong style={{ color: "#fff" }}>{guestNickname}</strong>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setStep("nickname")}
+                    style={{
+                      fontSize: 11, color: "#a855f7", background: "none",
+                      border: "none", cursor: "pointer", fontFamily: FONT, padding: 0,
+                    }}
+                  >
+                    Cambiar
+                  </button>
+                </div>
+              )}
 
-              <p style={{ margin: "10px 0 0", fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: FONT, textAlign: "center" }}>
-                El creador recibirá el 77% del monto.
-              </p>
+              {sent ? (
+                <div style={{ textAlign: "center", padding: "32px 0" }}>
+                  <div style={{
+                    width: 52, height: 52, borderRadius: "50%",
+                    background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)",
+                    display: "grid", placeItems: "center", margin: "0 auto 16px",
+                  }}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", fontFamily: FONT }}>
+                    ¡Supercomentario enviado!
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", fontFamily: FONT, marginTop: 6 }}>
+                    El creador lo leerá en cualquier momento.
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Selección de tier */}
+                  <div style={{ marginBottom: 18 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT, marginBottom: 10 }}>
+                      Elige tu nivel
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                      {config.tiers.map((tier) => {
+                        const isSelected = selectedTier?.id === tier.id;
+                        return (
+                          <button
+                            key={tier.id}
+                            type="button"
+                            onClick={() => setSelectedTier(tier)}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 12,
+                              padding: "10px 14px", borderRadius: 10,
+                              border: `1px solid ${isSelected ? tier.color + "80" : "rgba(255,255,255,0.08)"}`,
+                              background: isSelected ? tier.color + "18" : "rgba(255,255,255,0.03)",
+                              cursor: "pointer", textAlign: "left",
+                              transition: "all 0.15s",
+                            }}
+                          >
+                            <div style={{
+                              width: 10, height: 10, borderRadius: "50%",
+                              background: tier.color, flexShrink: 0,
+                              boxShadow: isSelected ? `0 0 8px ${tier.color}` : "none",
+                            }} />
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <span style={{ fontSize: 13, fontWeight: 600, color: isSelected ? "#fff" : "rgba(255,255,255,0.7)", fontFamily: FONT }}>
+                                {tier.name}
+                              </span>
+                              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: FONT, marginLeft: 8 }}>
+                                hasta {tier.maxChars} caracteres
+                              </span>
+                            </div>
+                            <span style={{
+                              fontSize: 14, fontWeight: 700,
+                              color: isSelected ? tier.color : "rgba(255,255,255,0.5)",
+                              fontFamily: FONT, flexShrink: 0,
+                            }}>
+                              ${tier.price} MXN
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Input de texto */}
+                  {selectedTier && (
+                    <div style={{ marginBottom: 18 }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "rgba(255,255,255,0.35)", fontFamily: FONT }}>
+                          Tu mensaje
+                        </div>
+                        <span style={{ fontSize: 11, fontFamily: FONT, color: remaining < 20 ? "#f87171" : "rgba(255,255,255,0.3)" }}>
+                          {remaining} restantes
+                        </span>
+                      </div>
+                      <textarea
+                        value={text}
+                        onChange={(e) => setText(e.target.value.slice(0, maxChars))}
+                        placeholder={`Escribe tu supercomentario (máx. ${maxChars} caracteres)...`}
+                        rows={3}
+                        style={{
+                          width: "100%", boxSizing: "border-box",
+                          background: "rgba(255,255,255,0.05)",
+                          border: `1px solid ${text.trim() ? selectedTier.color + "50" : "rgba(255,255,255,0.1)"}`,
+                          borderRadius: 10, padding: "10px 12px",
+                          color: "#fff", fontSize: 13, fontFamily: FONT,
+                          resize: "none", outline: "none", lineHeight: 1.5,
+                          transition: "border-color 0.15s",
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {error && (
+                    <p style={{ margin: "0 0 12px", fontSize: 12, color: "#f87171", fontFamily: FONT }}>
+                      {error}
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={submitting || !text.trim() || !selectedTier}
+                    style={{
+                      width: "100%", padding: "12px 20px", borderRadius: 10, border: "none",
+                      background: selectedTier && text.trim() && !submitting
+                        ? "#a855f7"
+                        : "rgba(255,255,255,0.07)",
+                      color: "#fff", fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em", fontFamily: FONT,
+                      cursor: submitting || !text.trim() || !selectedTier ? "not-allowed" : "pointer",
+                      transition: "opacity 150ms ease",
+                      WebkitTapHighlightColor: "transparent",
+                    }}
+                  >
+                    {submitting
+                      ? "Enviando..."
+                      : selectedTier
+                      ? `Pagar $${selectedTier.price} MXN y enviar`
+                      : "Selecciona un nivel"}
+                  </button>
+
+                  <p style={{ margin: "10px 0 0", fontSize: 11, color: "rgba(255,255,255,0.25)", fontFamily: FONT, textAlign: "center" }}>
+                    El creador recibirá el 77% del monto.
+                  </p>
+                </>
+              )}
             </>
           )}
         </div>

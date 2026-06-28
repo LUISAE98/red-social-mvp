@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import Hls from "hls.js";
 import { doc, getDoc, onSnapshot } from "firebase/firestore";
@@ -14,6 +14,8 @@ import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUn
 import type { ActiveSuperComment } from "@/lib/posts/types";
 import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
+import { getOrCreateGuestId } from "@/lib/guest-id";
+import { submitSuperComment } from "@/lib/liveChat/super-comment-service";
 
 const FONT =
   'inherit';
@@ -44,6 +46,132 @@ function desktopHorizontalSize(): { width: number; height: number } {
 }
 
 const CHAT_FLOAT_W = 300;
+
+// ── DonationPanel ────────────────────────────────────────────────────────────
+const DONATE_BLUE = "#3b82f6";
+const DONATE_PRESETS = [20, 50, 100, 200, 500];
+
+type DonationPanelProps = {
+  onClose: () => void;
+  postId: string;
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+};
+
+function DonationPanel({ onClose, postId, userId, username, avatarUrl }: DonationPanelProps) {
+  const [amount, setAmount] = useState<number | null>(null);
+  const [custom, setCustom] = useState("");
+  const [paying, setPaying] = useState(false);
+
+  const finalAmount = amount ?? (custom ? parseFloat(custom) || null : null);
+  const valid = !!finalAmount && finalAmount >= 10;
+
+  async function handlePay() {
+    if (!valid || paying) return;
+    setPaying(true);
+    try {
+      await submitSuperComment({
+        postId,
+        userId,
+        username,
+        avatarUrl,
+        text: "",
+        tier: {
+          id: "donation",
+          name: "Donación",
+          maxChars: 0,
+          price: finalAmount!,
+          color: DONATE_BLUE,
+          displaySeconds: 15,
+        },
+      });
+    } finally {
+      setPaying(false);
+      onClose();
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 10200,
+        background: "rgba(0,0,0,0.65)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#111827",
+          borderRadius: "20px 20px 0 0",
+          padding: "24px 20px",
+          paddingBottom: "calc(24px + env(safe-area-inset-bottom))",
+          width: "100%", maxWidth: 480,
+          boxShadow: "0 -20px 60px rgba(0,0,0,0.8)",
+          animation: "dpIn 0.25s ease",
+        }}
+      >
+        <style>{`@keyframes dpIn{from{transform:translateY(100%)}to{transform:translateY(0)}}`}</style>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <span style={{ fontSize: 16, fontWeight: 700, color: "#fff", fontFamily: FONT }}>Donar</span>
+          <button onClick={onClose} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.45)", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 4 }}>✕</button>
+        </div>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+          {DONATE_PRESETS.map((p) => (
+            <button
+              key={p}
+              onClick={() => { setAmount(p); setCustom(""); }}
+              style={{
+                padding: "8px 16px", borderRadius: 20, border: "none", cursor: "pointer",
+                background: amount === p ? DONATE_BLUE : "rgba(255,255,255,0.1)",
+                color: "#fff", fontSize: 14, fontWeight: 600, fontFamily: FONT,
+                transition: "background 0.15s",
+              }}
+            >
+              ${p}
+            </button>
+          ))}
+        </div>
+
+        <input
+          type="number"
+          min={10}
+          placeholder="Otro monto (mínimo $10)..."
+          value={custom}
+          onChange={(e) => { setCustom(e.target.value); setAmount(null); }}
+          style={{
+            display: "block", width: "100%",
+            background: "rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12,
+            padding: "10px 14px", color: "#fff", fontSize: 14,
+            fontFamily: FONT, outline: "none", marginBottom: 16,
+            boxSizing: "border-box",
+          }}
+        />
+
+        <button
+          onClick={handlePay}
+          disabled={!valid || paying}
+          style={{
+            display: "block", width: "100%", padding: "13px 0",
+            borderRadius: 14, border: "none",
+            background: valid ? DONATE_BLUE : "rgba(255,255,255,0.08)",
+            color: valid ? "#fff" : "rgba(255,255,255,0.25)",
+            fontSize: 15, fontWeight: 700, fontFamily: FONT,
+            cursor: valid && !paying ? "pointer" : "not-allowed",
+            transition: "all 0.2s",
+          }}
+        >
+          {paying ? "Procesando..." : valid ? `Donar $${finalAmount} MXN` : "Selecciona un monto"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function LiveViewerModal({ open, onClose, post, onManage, initialPortrait = false, initialStream }: Props) {
   const { user } = useAuth();
@@ -85,6 +213,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // ── Controles horizontales (desktop + mobile fs horizontal) ───────────────
   const [hzControlsVisible, setHzControlsVisible] = useState(false);
   const [videoPaused, setVideoPaused] = useState(false);
+  const [donationOpen, setDonationOpen] = useState(false);
 
   // ── Supercomentario activo (overlay sobre el video) ────────────────────────
   const [activeSuperComment, setActiveSuperComment] = useState<ActiveSuperComment | null>(null);
@@ -312,8 +441,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const cfWebRTCPlayUrl = (liveData?.streamProvider === "cloudflare" && isLive && hlsUrl)
     ? hlsUrl.replace("/manifest/video.m3u8", "/webRTC/play")
     : null;
+  const guestId = useMemo(() => !user && typeof window !== "undefined" ? getOrCreateGuestId() : "", [user]);
   const isMuted = !!(user?.uid && liveData?.mutedUsers?.includes(user.uid));
-  const isBanned = !!(user?.uid && liveData?.bannedUsers?.includes(user.uid));
+  const isBanned = !!(
+    (user?.uid && liveData?.bannedUsers?.includes(user.uid)) ||
+    (!user && guestId && liveData?.bannedUsers?.includes(guestId))
+  );
   const chatEnabled = !isEnded && !isBanned && liveData?.chatEnabled !== false;
 
   // ── Controles horizontales — computed ────────────────────────────────────
@@ -928,7 +1061,9 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
       const elapsed = sc.displaySeconds - durationSeconds;
       const progressRatio = elapsed > 0 ? Math.min(elapsed / sc.displaySeconds, 0.95) : 0;
-      const fullText = `${sc.username} dijo: ${sc.text}`;
+      const fullText = sc.text
+        ? `${sc.username} dijo: ${sc.text}`
+        : `${sc.username} donó ${sc.amount} pesos`;
       const startChar = Math.floor(progressRatio * fullText.length);
       const ttsSlice = startChar > 0 ? fullText.slice(startChar) : fullText;
       // Reutilizar el elemento pre-calentado en el gesto de apertura del modal.
@@ -956,6 +1091,15 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           }
         },
       };
+      // Cerrar overlay en cuanto termina el TTS — no esperar el timer completo
+      audio.addEventListener("ended", () => {
+        if (overlayTimerRef.current !== null) { window.clearTimeout(overlayTimerRef.current); overlayTimerRef.current = null; }
+        ttsAudioRef.current = null;
+        overlayTimerRef.current = window.setTimeout(() => {
+          overlayTimerRef.current = null;
+          triggerFadeOut();
+        }, 500);
+      }, { once: true });
     }
 
     overlayTimerRef.current = window.setTimeout(() => {
@@ -1546,6 +1690,16 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
   const floatCardShadow = "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)";
 
+  const donationPanel = donationOpen && user ? (
+    <DonationPanel
+      onClose={() => setDonationOpen(false)}
+      postId={post.id}
+      userId={user.uid}
+      username={user.displayName ?? user.email?.split("@")[0] ?? "Usuario"}
+      avatarUrl={user.photoURL ?? null}
+    />
+  ) : null;
+
   // ── Info del creador + título + descripción — aparece en el panel del chat ──
   function renderCreatorInfo() {
     const name = post.authorName ?? post.authorUsername ?? "Creador";
@@ -1588,6 +1742,19 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               En vivo
             </span>
           </div>
+          {user && hasAccess && !isEnded && post.authorId !== user.uid && (
+            <button
+              onClick={() => setDonationOpen(true)}
+              style={{
+                flexShrink: 0, background: DONATE_BLUE, border: "none",
+                color: "#fff", borderRadius: 20, padding: "6px 13px",
+                fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
+                letterSpacing: "0.01em",
+              }}
+            >
+              Donar +
+            </button>
+          )}
         </div>
 
         {/* Título + descripción — agrupados para reducir separación entre ellos */}
@@ -1673,6 +1840,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
 
           </div>
         </div>
+        {donationPanel}
       </>,
       document.body
     );
@@ -1731,6 +1899,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             </div>
           </div>
         </div>
+        {donationPanel}
       </>,
       document.body
     );
@@ -1790,6 +1959,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             </div>
           </div>
         </div>
+        {donationPanel}
       </>,
       document.body
     );
@@ -1851,6 +2021,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             </div>
           </div>
         </div>
+        {donationPanel}
       </>,
       document.body
     );
@@ -1888,10 +2059,15 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {/* Header y chat se ocultan con tap */}
             <div style={ctrlStyle}>{renderHeader(true, false)}</div>
             <div style={ctrlStyle}>
-              <LiveChatViewer liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted} mode="overlay" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig} />
+              <LiveChatViewer
+                liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted}
+                mode="overlay" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig}
+                onDonate={user && !isEnded && post.authorId !== user.uid ? () => setDonationOpen(true) : undefined}
+              />
             </div>
           </div>
         </div>
+        {donationPanel}
       </>,
       document.body
     );
@@ -1937,6 +2113,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           </div>
         </div>
       </div>
+      {donationPanel}
     </>,
     document.body
   );

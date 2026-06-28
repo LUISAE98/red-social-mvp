@@ -67,6 +67,36 @@ export async function updateLiveSuperCommentEnabled(
 
 // ── Submit (pago simulado) ──────────────────────────────────────────────────
 
+export async function submitSuperCommentAsGuest(params: {
+  postId: string;
+  guestId: string;
+  username: string;
+  text: string;
+  tier: SuperCommentTier;
+}): Promise<string> {
+  const res = await fetch("/api/super-comment-submit", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      postId: params.postId,
+      guestId: params.guestId,
+      username: params.username,
+      text: params.text,
+      tierId: params.tier.id,
+      tierName: params.tier.name,
+      color: params.tier.color,
+      displaySeconds: params.tier.displaySeconds,
+      amount: params.tier.price,
+    }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { error?: string }).error ?? "Error al enviar supercomentario");
+  }
+  const data = await res.json() as { id: string };
+  return data.id;
+}
+
 export async function submitSuperComment(params: {
   postId: string;
   userId: string;
