@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Live Overlay</title>
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      background: transparent !important;
+      overflow: hidden;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+
+    #root { padding: 0 12px 12px; }
+
+    #card {
+      background: #0a0a0a;
+      border-radius: 14px;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar-wrap {
+      position: relative;
+      width: 56px;
+      height: 56px;
+      flex-shrink: 0;
+    }
+    .avatar-img {
+      position: absolute;
+      inset: 4px;
+      border-radius: 50%;
+      overflow: hidden;
+      background: rgba(168,85,247,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .avatar-img img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar-initial { font-size: 22px; color: #fff; font-weight: 700; }
+    .avatar-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+    }
+
+    .info { flex: 1; min-width: 0; }
+    .username {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-bottom: 4px;
+    }
+    .amount { font-size: 15px; }
+    .amount .label { color: rgba(255,255,255,0.5); font-weight: 400; }
+    .amount .value { color: #4ade80; font-weight: 700; }
+
+    .sc-in  { animation: obsScIn  0.4s ease forwards; }
+    .sc-out { animation: obsScOut 0.7s ease forwards; }
+
+    @keyframes obsScIn  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes obsScOut { from{opacity:1;transform:translateY(0)}     to{opacity:0;transform:translateY(6px)} }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+    const postId = new URLSearchParams(location.search).get('postId');
+    if (!postId) { console.error('[overlay] falta postId'); }
+
+    const RING = 3;
+    const VOICE = 'es-MX-DaliaNeural';
+    const POLL_MS = 500;
+
+    let prevKey = null;
+    let ttsAudio = null;
+    let overlayTimer = null;
+    let fadeTimer = null;
+
+    function stopTTS() {
+      if (!ttsAudio) return;
+      ttsAudio.pause();
+      ttsAudio.src = '';
+      ttsAudio = null;
+    }
+
+    function clearCard() {
+      stopTTS();
+      clearTimeout(overlayTimer);
+      clearTimeout(fadeTimer);
+      document.getElementById('root').innerHTML = '';
+    }
+
+    function fadeOutCard() {
+      const card = document.getElementById('card');
+      if (!card) return;
+      card.classList.replace('sc-in', 'sc-out');
+      fadeTimer = setTimeout(() => {
+        stopTTS();
+        document.getElementById('root').innerHTML = '';
+      }, 700);
+    }
+
+    function showCard(sc, durationSecs) {
+      stopTTS();
+      clearTimeout(overlayTimer);
+      clearTimeout(fadeTimer);
+
+      const root = document.getElementById('root');
+
+      const color = sc.color || '#a855f7';
+      const amount = ((sc.amount || 0) * 1).toFixed(2);
+
+      // Build avatar HTML
+      let avatarInner = '';
+      if (sc.avatarUrl) {
+        avatarInner = `<img src="${escHtml(sc.avatarUrl)}" alt="">`;
+      } else {
+        const initial = (sc.username || '?').charAt(0).toUpperCase();
+        avatarInner = `<span class="avatar-initial">${escHtml(initial)}</span>`;
+      }
+
+      // Ring via CSS mask
+      const maskVal = `radial-gradient(farthest-side, transparent calc(100% - ${RING}px), white calc(100% - ${RING}px))`;
+
+      root.innerHTML = `
+        <div id="card" class="sc-in" style="border-left:4px solid ${escHtml(color)}">
+          <div class="avatar-wrap">
+            <div class="avatar-img">${avatarInner}</div>
+            <div class="avatar-ring" style="background:${escHtml(color)};-webkit-mask-image:${maskVal};mask-image:${maskVal}"></div>
+          </div>
+          <div class="info">
+            <div class="username">${escHtml(sc.username || '')}</div>
+            <div class="amount">
+              <span class="label">donó </span>
+              <span class="value">$${escHtml(amount)} MXN</span>
+            </div>
+          </div>
+        </div>`;
+
+      // TTS
+      if (durationSecs >= 4) {
+        const ttsText = `${sc.username} dijo: ${sc.text}`;
+        ttsAudio = new Audio('/api/tts?text=' + encodeURIComponent(ttsText) + '&voice=' + encodeURIComponent(VOICE));
+        ttsAudio.volume = 1;
+        ttsAudio.play().catch(() => {});
+      }
+
+      // Auto-hide after displaySeconds
+      overlayTimer = setTimeout(fadeOutCard, durationSecs * 1000);
+    }
+
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g,'&amp;')
+        .replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;')
+        .replace(/'/g,'&#39;');
+    }
+
+    async function poll() {
+      if (!postId) return;
+      try {
+        const r = await fetch('/api/live-overlay-poll?postId=' + encodeURIComponent(postId), { cache: 'no-store' });
+        if (!r.ok) return;
+        const data = await r.json();
+        const sc = data.activeSuper || null;
+
+        const key = sc ? (sc.id + ':' + (sc.scheduledAt || 0)) : null;
+        if (key === prevKey) return;
+        prevKey = key;
+
+        if (!sc) { fadeOutCard(); return; }
+        showCard(sc, sc.displaySeconds || 10);
+      } catch (_) {}
+    }
+
+    poll();
+    setInterval(poll, POLL_MS);
+  </script>
+</body>
+</html>

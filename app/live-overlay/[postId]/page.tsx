@@ -80,7 +80,6 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
   const prevKeyRef = useRef<string | null>(null);
   const overlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fadeOutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scDelayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ttsHandleRef = useRef<EdgeTTSHandle | null>(null);
   const activeSCRef = useRef<ActiveSuperComment | null>(null);
 
@@ -152,23 +151,11 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
           return;
         }
 
-        // Cancelar timer de delay previo antes de programar el nuevo
-        if (scDelayTimerRef.current !== null) { clearTimeout(scDelayTimerRef.current); scDelayTimerRef.current = null; }
-
-        if (activeSuper.scheduledAt != null) {
-          const delay = activeSuper.scheduledAt - Date.now();
-          if (delay > 0) {
-            scDelayTimerRef.current = setTimeout(() => {
-              scDelayTimerRef.current = null;
-              showOverlay(activeSuper, activeSuper.displaySeconds);
-            }, delay);
-          } else {
-            const remaining = activeSuper.displaySeconds + delay / 1000;
-            if (remaining > 0.5) showOverlay(activeSuper, remaining);
-          }
-        } else {
-          showOverlay(activeSuper, activeSuper.displaySeconds);
-        }
+        // Mostrar inmediatamente — sin esperar scheduledAt.
+        // El LEAD_MS del panel del creador (300ms) da tiempo suficiente para que
+        // Firestore entregue el snapshot antes de que el panel muestre el overlay,
+        // logrando sincronía sin delay artificial en el browser source.
+        showOverlay(activeSuper, activeSuper.displaySeconds);
       },
       (err) => console.warn("[LiveOverlay] Firestore error:", err),
     );
@@ -177,7 +164,6 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
 
   useEffect(() => {
     return () => {
-      if (scDelayTimerRef.current !== null) clearTimeout(scDelayTimerRef.current);
       if (overlayTimerRef.current !== null) clearTimeout(overlayTimerRef.current);
       if (fadeOutTimerRef.current !== null) clearTimeout(fadeOutTimerRef.current);
       stopTTS();
@@ -192,6 +178,7 @@ export default function LiveOverlayPage({ params }: { params: Promise<{ postId: 
           margin: 0 !important;
           padding: 0 !important;
         }
+        #desktop-refresh-splash { display: none !important; }
         @keyframes obsScIn  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
         @keyframes obsScOut { from{opacity:1;transform:translateY(0)}     to{opacity:0;transform:translateY(6px)} }
       `}</style>

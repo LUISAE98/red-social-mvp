@@ -2768,8 +2768,11 @@ function canUpdateReplyCount(delta) {
     // LIVE ACCESS (tickets)
     // ==========================
     match /liveAccess/{liveId}/users/{userId} {
-      // Solo el propio usuario puede leer su acceso
-      allow read: if signedIn() && request.auth.uid == userId;
+      // El propio usuario puede leer su acceso
+      allow get: if signedIn() && request.auth.uid == userId;
+      // El autor del live puede listar todos los accesos para ver ingresos por tickets
+      allow list: if signedIn()
+        && get(/databases/$(database)/documents/posts/$(liveId)).data.authorId == request.auth.uid;
 
       // El usuario solo puede crear su propio acceso simulado
       allow create: if signedIn()

@@ -40,6 +40,7 @@ import {
 } from "@/lib/liveKit/liveViewers";
 import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
+import { subscribeToTicketRevenue } from "@/lib/liveAccess/live-access-service";
 
 const FONT = 'inherit';
 const DIV = "1px solid rgba(255,255,255,0.12)";
@@ -64,8 +65,8 @@ type Props = {
 function OBSBrowserSourceBanner({ postId }: { postId: string }) {
   const [copied, setCopied] = useState(false);
   const url = typeof window !== "undefined"
-    ? `${window.location.origin}/live-overlay/${postId}`
-    : `/live-overlay/${postId}`;
+    ? `${window.location.origin}/live-overlay.html?postId=${postId}`
+    : `/live-overlay.html?postId=${postId}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(url).then(() => {
@@ -150,6 +151,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [newFollowers, setNewFollowers] = useState(0);
   const [viewerHistory, setViewerHistory] = useState<{ t: number; v: number }[]>([]);
   const [chatTimestamps, setChatTimestamps] = useState<number[]>([]);
+  const [ticketRevenue, setTicketRevenue] = useState(0);
+  const [ticketCount, setTicketCount] = useState(0);
   const viewerCountRef = useRef(0);
   viewerCountRef.current = viewerCount;
   const [superComments, setSuperComments] = useState<SuperComment[]>([]);
@@ -158,7 +161,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const scheduledPlayTimeoutRef = useRef<number | null>(null);
   // Ventana para que Firestore entregue el snapshot a los viewers antes de scheduledAt.
   // 800ms era insuficiente en redes lentas — 1500ms cubre la gran mayoría de los casos.
-  const LEAD_MS = 1500;
+  const LEAD_MS = 300;
   const [activeSuperOverlay, setActiveSuperOverlay] = useState<SuperComment | null>(null);
   const [superCommentTab, setSuperCommentTab] = useState<"nuevos" | "reproducidos">("nuevos");
   const [playingOverlay, setPlayingOverlay] = useState<SuperComment | null>(null);
@@ -295,6 +298,14 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     if (!open || !post.id) return;
     return subscribeToLiveChatTimestamps(post.id, setChatTimestamps);
   }, [open, post.id]);
+
+  useEffect(() => {
+    if (!open || !post.id || liveData?.accessType !== "paid") return;
+    return subscribeToTicketRevenue(post.id, (amount, count) => {
+      setTicketRevenue(amount);
+      setTicketCount(count);
+    });
+  }, [open, post.id, liveData?.accessType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Supercomentarios — disponibles en directo (CF) y RTMP (Mux/OBS)
   useEffect(() => {
@@ -584,6 +595,15 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   }
 
   function renderStatsSection() {
+    const paidSuperComments = superComments.filter((sc) => sc.status === "paid" && !sc.isDeleted);
+    const superCount = paidSuperComments.length;
+    const superRevenue = paidSuperComments.reduce((sum, sc) => sum + sc.amount, 0);
+    const isPaidLive = liveData?.accessType === "paid";
+    const currency = liveData?.currency ?? "MXN";
+
+    const fmtMoney = (amount: number) =>
+      amount.toLocaleString("es-MX", { style: "currency", currency, maximumFractionDigits: 0 });
+
     return (
       <div style={{ flex: 1, overflow: "auto", scrollbarWidth: "none", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
         {/* Espectadores actuales */}
@@ -776,6 +796,87 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             </span>
           </div>
         </div>
+
+        {/* Total supercomentarios */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 12px", borderRadius: 10,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            background: "rgba(250,204,21,0.12)",
+            display: "grid", placeItems: "center",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            </svg>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
+              {superCount.toLocaleString("es-MX")}
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+              Supercomentarios
+            </span>
+          </div>
+        </div>
+
+        {/* Ingresos por supercomentarios */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 10,
+          padding: "10px 12px", borderRadius: 10,
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(255,255,255,0.08)",
+        }}>
+          <div style={{
+            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+            background: "rgba(250,204,21,0.12)",
+            display: "grid", placeItems: "center",
+          }}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23" />
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
+              {superRevenue > 0 ? fmtMoney(superRevenue) : "—"}
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+              Por supercomentarios
+            </span>
+          </div>
+        </div>
+
+        {/* Ingresos por tickets — solo si el live es de pago */}
+        {isPaidLive && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 10,
+            padding: "10px 12px", borderRadius: 10,
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.08)",
+          }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+              background: "rgba(74,222,128,0.12)",
+              display: "grid", placeItems: "center",
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" />
+              </svg>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
+                {ticketRevenue > 0 ? fmtMoney(ticketRevenue) : "—"}
+              </span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
+                Tickets · {ticketCount} {ticketCount === 1 ? "comprador" : "compradores"}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -1509,10 +1610,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     <div style={{ position: "relative", height: "100%", aspectRatio: "9 / 16", overflow: "hidden", borderRadius: 10 }}>
                       {showDirectBroadcast ? (
                         <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
+                      ) : isEnded ? (
+                        <VideoPreview hlsUrl={hlsUrl!} fill showLiveBadge={false} autoPlay={false} />
                       ) : (
-                        <>
-                          <VideoPreview hlsUrl={hlsUrl!} fill showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
-                        </>
+                        <MuxLivePlaceholder />
                       )}
                     </div>
                   </div>
@@ -1520,7 +1621,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
                 ) : showVideo ? (
                   <>
-                    <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
+                    {isEnded ? (
+                      <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={false} autoPlay={false} />
+                    ) : (
+                      <MuxLivePlaceholder />
+                    )}
                   </>
                 ) : (
                   <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1587,8 +1692,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             }}>
               {showDirectBroadcast ? (
                 <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
+              ) : isEnded ? (
+                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={false} autoPlay={false} />
               ) : (
-                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
+                <MuxLivePlaceholder />
               )}
             </div>
           )}
@@ -1655,7 +1762,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               </div>
             ) : showVideo ? (
               <div style={{ width: "100%", height: "100%", position: "relative" }}>
-                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={liveStatus === "live"} autoPlay={!isEnded} />
+                {isEnded ? (
+                  <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={false} autoPlay={false} />
+                ) : (
+                  <MuxLivePlaceholder />
+                )}
               </div>
             ) : (
               <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>Sin transmisión activa</span>
@@ -1906,6 +2017,39 @@ function ModActionBtn({
   );
 }
 
+// ── MuxLivePlaceholder ────────────────────────────────────────────────────
+// Muestra mientras el creador transmite vía software externo (OBS/RTMP).
+// No intenta reproducir HLS — evita el freeze permanente del VideoPreview.
+
+function MuxLivePlaceholder() {
+  return (
+    <div style={{
+      width: "100%", height: "100%",
+      display: "flex", flexDirection: "column",
+      alignItems: "center", justifyContent: "center",
+      gap: 14, background: "#000",
+    }}>
+      <style>{`@keyframes muxSpinRing{to{transform:rotate(360deg)}}`}</style>
+      <div style={{
+        width: 38, height: 38,
+        border: "3px solid rgba(168,85,247,0.18)",
+        borderTopColor: "#a855f7",
+        borderRadius: "50%",
+        animation: "muxSpinRing 0.9s linear infinite",
+        flexShrink: 0,
+      }} />
+      <span style={{
+        fontSize: 11, fontWeight: 500,
+        color: "rgba(255,255,255,0.3)",
+        fontFamily: FONT, textAlign: "center",
+        maxWidth: 180, lineHeight: 1.5,
+      }}>
+        Transmitiendo a través de software externo
+      </span>
+    </div>
+  );
+}
+
 // ── VideoPreview ───────────────────────────────────────────────────────────
 // memo: evita re-renders por cambios de estado del panel (chat, viewers, etc.)
 
@@ -1931,93 +2075,53 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
     const video = videoRef.current;
     if (!video || !hlsUrl) return;
 
-    // Recupera el video si se congela: salta al live edge tras 3s sin progreso
-    let stallTimer: number | null = null;
-    const handleStall = () => {
-      if (stallTimer !== null) return;
-      stallTimer = window.setTimeout(() => {
-        stallTimer = null;
-        if (video.paused || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
-          try {
-            if (video.seekable.length > 0) {
-              const end = video.seekable.end(video.seekable.length - 1);
-              if (Number.isFinite(end)) video.currentTime = end;
-            }
-          } catch {}
-          if (hlsRef.current) hlsRef.current.startLoad();
-          video.play().catch(() => {});
-        }
-      }, 3000);
-    };
-    const cancelStall = () => {
-      if (stallTimer !== null) { window.clearTimeout(stallTimer); stallTimer = null; }
-    };
-
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = hlsUrl;
-      video.addEventListener("stalled", handleStall);
-      video.addEventListener("waiting", handleStall);
-      video.addEventListener("playing", cancelStall);
       if (autoPlay) video.play().catch(() => {});
-      return () => {
-        video.removeEventListener("stalled", handleStall);
-        video.removeEventListener("waiting", handleStall);
-        video.removeEventListener("playing", cancelStall);
-        cancelStall();
-      };
+      return;
     }
 
     if (!Hls.isSupported()) return;
 
+    // Config idéntica al LiveViewerModal para que el creador vea exactamente
+    // lo que el espectador ve, sin divergencias de buffering que causen freeze.
     const hls = new Hls({
       enableWorker: true,
-      lowLatencyMode: false,    // Mux usa HLS estándar, no LL-HLS
+      lowLatencyMode: false,
       startLevel: -1,
       autoStartLoad: true,
-      liveSyncDurationCount: 2,
-      liveMaxLatencyDurationCount: 8,
-      maxBufferLength: 12,      // ~2 segmentos de 6s — tolerancia a hiccups de red
-      maxMaxBufferLength: 20,
+      liveSyncDurationCount: 3,
+      liveMaxLatencyDurationCount: 10,
+      maxBufferLength: 30,
+      maxMaxBufferLength: 60,
       liveDurationInfinity: true,
-      abrEwmaFastLive: 3.0,
-      abrEwmaSlowLive: 9.0,
-      nudgeOffset: 0.1,
-      nudgeMaxRetry: 5,
-      fragLoadingMaxRetry: 8,
-      manifestLoadingMaxRetry: 6,
-      levelLoadingMaxRetry: 6,
-      backBufferLength: 0,
+      fragLoadingMaxRetry: 6,
+      manifestLoadingMaxRetry: 4,
+      levelLoadingMaxRetry: 4,
+      backBufferLength: 3600,
     });
     hlsRef.current = hls;
     hls.loadSource(hlsUrl);
     hls.attachMedia(video);
-    hls.on(Hls.Events.MANIFEST_PARSED, () => { if (autoPlay) video.play().catch(() => {}); });
-
-    video.addEventListener("stalled", handleStall);
-    video.addEventListener("waiting", handleStall);
-    video.addEventListener("playing", cancelStall);
-
-    // Recuperación automática de errores — sin esto el player para silenciosamente
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      if (autoPlay) video.play().catch(() => {});
+    });
     hls.on(Hls.Events.ERROR, (_, data) => {
-      if (!data.fatal) return;
-      if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-        hls.startLoad();
-      } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-        hls.recoverMediaError();
-      } else {
-        hls.destroy();
-        hlsRef.current = null;
+      if (data.fatal) {
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+          hls.startLoad();
+        } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+          hls.recoverMediaError();
+        } else {
+          hls.destroy();
+          hlsRef.current = null;
+        }
+      } else if (data.details === Hls.ErrorDetails.BUFFER_STALLED_ERROR) {
+        video.play().catch(() => {});
       }
     });
 
-    return () => {
-      video.removeEventListener("stalled", handleStall);
-      video.removeEventListener("waiting", handleStall);
-      video.removeEventListener("playing", cancelStall);
-      cancelStall();
-      hls.destroy();
-      hlsRef.current = null;
-    };
+    return () => { hls.destroy(); hlsRef.current = null; };
   }, [hlsUrl]);
 
   const muteBtn = (size: number, bottom: number, right: number, bordered: boolean) => (

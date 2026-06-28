@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, onSnapshot, serverTimestamp, type Unsubscribe } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export type LiveAccess = {
@@ -44,4 +44,27 @@ export async function grantSimulatedLiveAccess(params: {
     paymentMode: "simulated",
     createdAt: serverTimestamp(),
   });
+}
+
+/**
+ * Subscribes to total ticket revenue for a live (creator-only).
+ * Requires the caller to be the live's author (enforced by Firestore rules via allow list).
+ */
+export function subscribeToTicketRevenue(
+  postId: string,
+  onData: (totalAmount: number, ticketCount: number) => void,
+  onError?: (err: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    collection(db, "liveAccess", postId, "users"),
+    (snap) => {
+      let total = 0;
+      snap.docs.forEach((d) => {
+        const amt = d.data().amount;
+        if (typeof amt === "number") total += amt;
+      });
+      onData(total, snap.size);
+    },
+    (err) => onError?.(err),
+  );
 }
