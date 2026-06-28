@@ -1411,9 +1411,6 @@ const previewUrl = media.url;
           event.currentTarget.dataset.startX = String(touch.clientX);
           event.currentTarget.dataset.startY = String(touch.clientY);
 
-          if (isCurrentVideo) {
-            startMobileVideoSpeedHold(touch.clientY);
-          }
           event.currentTarget.dataset.gestureAxis = "";
           setMobileGestureAxis(null);
           setMobileDragOffsetX(0);
@@ -1450,19 +1447,6 @@ const previewUrl = media.url;
 
           const diffX = touch.clientX - startX;
           const diffY = touch.clientY - startY;
-
-          if (isCurrentVideo) {
-            updateMobileVideoSpeedHold(touch.clientY);
-
-            if (mobileSpeedHoldActiveRef.current) {
-              event.preventDefault();
-              event.currentTarget.dataset.gestureAxis = "speed";
-              setMobileGestureAxis(null);
-              setMobileDragOffsetX(0);
-              setMobileDragOffsetY(0);
-              return;
-            }
-          }
 
           const absX = Math.abs(diffX);
           const absY = Math.abs(diffY);
@@ -1526,9 +1510,6 @@ const previewUrl = media.url;
           event.currentTarget.dataset.gestureAxis = "";
           setMobileGestureAxis(null);
 
-          const wasSpeedGestureActive = mobileSpeedHoldActiveRef.current;
-          resetMobileVideoSpeed();
-
           if (!touch || !startX) {
             setMobileDragOffsetX(0);
             setMobileDragOffsetY(0);
@@ -1537,12 +1518,6 @@ const previewUrl = media.url;
 
           const diffX = touch.clientX - startX;
           const diffY = touch.clientY - startY;
-
-          if (wasSpeedGestureActive || axis === "speed") {
-            setMobileDragOffsetX(0);
-            setMobileDragOffsetY(0);
-            return;
-          }
 
           if (axis === "vertical" && diffY > 120) {
             if (heroActive) {
@@ -1582,7 +1557,13 @@ const previewUrl = media.url;
 
           if (!axis && Math.abs(diffX) < 10 && Math.abs(diffY) < 10) {
             if (isCurrentVideo) {
-              handleVideoPlayPause();
+              if (mobileChromeVisible) {
+                clearChromeTimer();
+                setMobileChromeVisible(false);
+              } else {
+                setMobileChromeVisible(true);
+                scheduleChromeHide();
+              }
             }
             setMobileDragOffsetX(0);
             setMobileDragOffsetY(0);
@@ -1652,7 +1633,7 @@ const previewUrl = media.url;
         >
           {/* PiP · AirPlay — izquierda (video only) */}
           {isCurrentVideo && !mobileVideoTrueFullscreen ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, opacity: mobileChromeVisible ? 1 : 0, transition: "opacity 220ms ease", pointerEvents: mobileChromeVisible ? "auto" : "none" }}>
               <button
                 type="button"
                 onTouchEnd={(e) => { e.preventDefault(); const v = videoRef.current; if (!v) return; if (document.pictureInPictureElement) { void document.exitPictureInPicture(); } else if (document.pictureInPictureEnabled) { void v.requestPictureInPicture(); } }}
@@ -1660,7 +1641,7 @@ const previewUrl = media.url;
                 aria-label="Picture in Picture"
                 style={liveBtnStyle}
               >
-                <VideoPipIcon size={22} />
+                <VideoPipIcon size={25} />
               </button>
               {typeof window !== "undefined" && "WebKitPlaybackTargetAvailabilityEvent" in window && (
                 <button
@@ -1670,7 +1651,7 @@ const previewUrl = media.url;
                   aria-label="AirPlay"
                   style={liveBtnStyle}
                 >
-                  <VideoAirPlayIcon size={22} />
+                  <VideoAirPlayIcon size={25} />
                 </button>
               )}
             </div>
@@ -1681,7 +1662,7 @@ const previewUrl = media.url;
           {/* Derecha: mute + expand + × */}
           <div style={{ display: "flex", alignItems: "center" }}>
             {isCurrentVideo && !mobileVideoTrueFullscreen && (
-              <>
+              <div style={{ display: "flex", alignItems: "center", opacity: mobileChromeVisible ? 1 : 0, transition: "opacity 220ms ease", pointerEvents: mobileChromeVisible ? "auto" : "none" }}>
                 {/* Mute */}
                 <button
                   type="button"
@@ -1725,7 +1706,7 @@ const previewUrl = media.url;
                     <line x1="3" y1="21" x2="10" y2="14" />
                   </svg>
                 </button>
-              </>
+              </div>
             )}
             {/* Cerrar × */}
             <button
@@ -1747,30 +1728,6 @@ const previewUrl = media.url;
         {renderCurrentMedia()}
         {renderMediaPreview(nextMedia, "Siguiente")}
 
-        {/* Speed indicator */}
-        {isCurrentVideo && mobileSpeedGestureActive && (
-          <div
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: "calc(54px + env(safe-area-inset-top))",
-              transform: "translateX(-50%)",
-              zIndex: 20,
-              minHeight: 30,
-              padding: "7px 12px",
-              borderRadius: 999,
-              background: "rgba(0,0,0,0.66)",
-              border: "1px solid rgba(255,255,255,0.18)",
-              color: "#fff",
-              fontSize: 12,
-              fontWeight: 800,
-              lineHeight: 1,
-              pointerEvents: "none",
-            }}
-          >
-            {videoPlaybackRate.toFixed(videoPlaybackRate % 1 === 0 ? 0 : 1)}x
-          </div>
-        )}
 
         {/* ── Center: Skip-10 · Play/Pause · Skip+10 ── */}
         {isCurrentVideo && !mobileVideoTrueFullscreen && (
@@ -1791,7 +1748,7 @@ const previewUrl = media.url;
               onClick={(e) => { e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10); }}
               style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto", WebkitTapHighlightColor: "transparent" }}
             >
-              <VideoSkipBackIcon size={31} />
+              <VideoSkipBackIcon size={40} />
             </button>
             <button
               type="button"
@@ -1800,7 +1757,7 @@ const previewUrl = media.url;
               aria-label={videoPlaying ? "Pausar video" : "Reproducir video"}
               style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto", WebkitTapHighlightColor: "transparent" }}
             >
-              {videoPlaying ? <VideoPauseIcon size={34} /> : <VideoPlayIcon size={34} />}
+              {videoPlaying ? <VideoPauseIcon size={44} /> : <VideoPlayIcon size={44} />}
             </button>
             <button
               type="button"
@@ -1808,7 +1765,7 @@ const previewUrl = media.url;
               onClick={(e) => { e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.min(v.duration, v.currentTime + 10); }}
               style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto", WebkitTapHighlightColor: "transparent" }}
             >
-              <VideoSkipForwardIcon size={31} />
+              <VideoSkipForwardIcon size={40} />
             </button>
           </div>
         )}
@@ -1906,7 +1863,7 @@ const previewUrl = media.url;
                       type="button"
                       onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); const idx = playbackRates.indexOf(videoPlaybackRate); setVideoPlaybackRate(playbackRates[(idx + 1) % playbackRates.length]); }}
                       onClick={(e) => { e.stopPropagation(); const idx = playbackRates.indexOf(videoPlaybackRate); setVideoPlaybackRate(playbackRates[(idx + 1) % playbackRates.length]); }}
-                      style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, fontSize: 11, fontWeight: 700, fontFamily: fontStack, lineHeight: 1, WebkitTapHighlightColor: "transparent" }}
+                      style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, fontSize: 14, fontWeight: 700, fontFamily: fontStack, lineHeight: 1, WebkitTapHighlightColor: "transparent" }}
                     >
                       ×{videoPlaybackRate}
                     </button>

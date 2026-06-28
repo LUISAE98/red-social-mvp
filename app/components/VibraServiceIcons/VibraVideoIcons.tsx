@@ -198,7 +198,7 @@ export function VideoPipIcon({ size = 20, color = "currentColor", strokeWidth = 
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="2" y="3" width="20" height="14" rx="2" />
-      <rect x="12" y="10" width="8" height="5" rx="1" />
+      <rect x="12" y="10" width="8" height="5" rx="1" fill={color} stroke="none" />
     </svg>
   );
 }
@@ -208,7 +208,7 @@ export function VideoAirPlayIcon({ size = 20, color = "currentColor", strokeWidt
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M5 17H3a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2" />
-      <polygon points="12 15 17 21 7 21 12 15" />
+      <polygon points="12 15 17 21 7 21 12 15" fill={color} stroke="none" />
     </svg>
   );
 }
