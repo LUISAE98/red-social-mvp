@@ -63,6 +63,17 @@ function DonationPanel({ onClose, postId, userId, username, avatarUrl }: Donatio
   const [amount, setAmount] = useState<number | null>(null);
   const [custom, setCustom] = useState("");
   const [paying, setPaying] = useState(false);
+  const [resolvedAvatar, setResolvedAvatar] = useState<string | null>(avatarUrl);
+  const [resolvedUsername, setResolvedUsername] = useState(username);
+
+  useEffect(() => {
+    getDoc(doc(db, "users", userId)).then((snap) => {
+      if (!snap.exists()) return;
+      const d = snap.data();
+      if (d?.photoURL) setResolvedAvatar(d.photoURL as string);
+      if (d?.displayName ?? d?.handle) setResolvedUsername((d.displayName ?? d.handle) as string);
+    }).catch(() => {});
+  }, [userId]);
 
   const finalAmount = amount ?? (custom ? parseFloat(custom) || null : null);
   const valid = !!finalAmount && finalAmount >= 10;
@@ -74,8 +85,8 @@ function DonationPanel({ onClose, postId, userId, username, avatarUrl }: Donatio
       await submitSuperComment({
         postId,
         userId,
-        username,
-        avatarUrl,
+        username: resolvedUsername,
+        avatarUrl: resolvedAvatar,
         text: "",
         tier: {
           id: "donation",

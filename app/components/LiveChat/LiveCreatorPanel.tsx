@@ -1289,7 +1289,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                       </span>
                     ) : (
                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontStyle: "italic", fontFamily: FONT }}>
-                        Donación
+                        Donación ${sc.amount.toFixed(2)} MXN
                       </span>
                     )}
                   </div>
@@ -1483,7 +1483,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   {playingOverlay.text.slice(ttsReadIndex)}
                 </>
               ) : (
-                <span style={{ color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>Donación</span>
+                <span style={{ color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>Donación ${playingOverlay.amount.toFixed(2)} MXN</span>
               )}
             </div>
             {/* Botones */}

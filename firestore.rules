@@ -2420,11 +2420,14 @@ allow list: if canReadPost()
         allow list, get: if true;
 
         // Viewers crean supercomentarios (pago simulado → status: "paid")
+        // tierId == "donation" permite text vacío (donaciones sin mensaje)
         allow create: if signedIn()
           && request.resource.data.userId == request.auth.uid
           && request.resource.data.text is string
-          && request.resource.data.text.size() > 0
-          && request.resource.data.text.size() <= 600
+          && (
+            request.resource.data.tierId == "donation"
+            || (request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 600)
+          )
           && request.resource.data.status == "paid"
           && request.resource.data.hidden == false
           && request.resource.data.isDeleted == false
