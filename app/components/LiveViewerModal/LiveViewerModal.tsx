@@ -2255,8 +2255,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           {renderSuperOverlay()}
           {renderDvrBar()}
           {renderHeader(false, false)}
-          {renderLiveBadge()}
-          {renderViewerBadge()}
+          {renderLiveBadge("bottom-right", 0, 0, true)}
+          {renderViewerBadge("bottom-left", 0, 0, true)}
         </div>
 
         {/* Panel: creator info + chat */}

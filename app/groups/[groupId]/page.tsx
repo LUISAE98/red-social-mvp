@@ -1308,6 +1308,9 @@ const groupVisualUi = {
   avatarSize: mobileRefreshEnabled ? "clamp(146px, 31.2vw, 286px)" : "clamp(112px, 24vw, 220px)",
   avatarOffsetTop: mobileRefreshEnabled ? "calc(clamp(146px, 31.2vw, 286px) / -2)" : "calc(clamp(112px, 24vw, 220px) / -2)",
   contentTopPadding: mobileRefreshEnabled ? "calc((clamp(146px, 31.2vw, 286px) / 2) + 22px)" : "calc((clamp(112px, 24vw, 220px) / 2) + 22px)",
+  liveDotOuter: mobileRefreshEnabled ? "clamp(18px, 3.8vw, 30px)" : "clamp(14px, 2.8vw, 24px)",
+  liveDotInner: mobileRefreshEnabled ? "clamp(10px, 2.1vw, 16px)" : "clamp(8px, 1.6vw, 13px)",
+  liveDotShell: mobileRefreshEnabled ? "clamp(22px, 4.8vw, 34px)" : "clamp(18px, 3.6vw, 28px)",
 };
 
 const groupHeaderCardStyle = {
@@ -1371,16 +1374,42 @@ const avatarNode = (
   >
     <div style={{ position: "relative" }}>
       {groupIsLive && (
-        <div
-          style={{
-            position: "absolute",
-            inset: -6,
-            borderRadius: "50%",
-            background: "#ef4444",
-            zIndex: 0,
-            pointerEvents: "none",
-          }}
-        />
+        <>
+          <div
+            style={{
+              position: "absolute",
+              inset: -6,
+              borderRadius: "50%",
+              background: "#ef4444",
+              zIndex: 0,
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: "50%",
+              transform: "translate(-50%, calc(50% + 3px))",
+              width: groupVisualUi.liveDotShell,
+              height: groupVisualUi.liveDotShell,
+              borderRadius: "50%",
+              background: "rgb(10,10,14)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
+              zIndex: 2,
+            }}
+          >
+            <div style={{ position: "absolute", width: groupVisualUi.liveDotOuter, height: groupVisualUi.liveDotOuter, borderRadius: "50%", background: "#ef4444", animation: "grpLiveOuter 1.6s ease-in-out infinite" }} />
+            <div style={{ position: "absolute", width: groupVisualUi.liveDotInner, height: groupVisualUi.liveDotInner, borderRadius: "50%", background: "#ef4444", animation: "grpLiveInner 1.6s ease-in-out infinite" }} />
+          </div>
+          <style>{`
+            @keyframes grpLiveOuter { 0%,100%{transform:scale(1);opacity:0.5} 50%{transform:scale(1.5);opacity:0.15} }
+            @keyframes grpLiveInner { 0%,100%{transform:scale(1)} 50%{transform:scale(0.8)} }
+          `}</style>
+        </>
       )}
       <button
         type="button"
@@ -1395,7 +1424,7 @@ const avatarNode = (
           height: groupVisualUi.avatarSize,
           borderRadius: "50%",
           overflow: "hidden",
-          border: groupIsLive ? "4px solid #ef4444" : "4px solid rgba(0,0,0,0.96)",
+          border: "4px solid rgba(0,0,0,0.96)",
           boxShadow: "none",
           display: "grid",
           placeItems: "center",
