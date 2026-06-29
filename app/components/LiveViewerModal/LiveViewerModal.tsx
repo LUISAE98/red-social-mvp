@@ -1452,7 +1452,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   }
 
   // ── renderVodControls — overlay personalizado para el VOD post-live ────────
-  function renderVodControls(inSafeZone = false) {
+  function renderVodControls(inSafeZone = false, showGradient = true) {
     if (!isEnded || !vodReady) return null;
 
     const skipSz = isDesktop ? 32 : 36;
@@ -1504,12 +1504,14 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         transition: "opacity 0.3s ease",
         pointerEvents: "none",
       }}>
-        {/* Gradient bottom */}
-        <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0, height: 110,
-          background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)",
-          pointerEvents: "none",
-        }} />
+        {/* Gradient bottom — oculto en portrait para consistencia visual con DVR */}
+        {showGradient && (
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0, height: 110,
+            background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)",
+            pointerEvents: "none",
+          }} />
+        )}
 
         {/* Center: skip-10 · play/pause · skip+10 */}
         <div style={{
@@ -1661,8 +1663,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             </button>
           )}
 
-          {/* Expand/compress — solo celular horizontal (no portrait, no desktop) */}
-          {!isDesktop && !isPortrait && (
+          {/* Expand/compress — todos los celulares (portrait y horizontal) */}
+          {!isDesktop && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setMobileFsHorizontal(f => !f); }}
@@ -2089,7 +2091,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   }
 
   // ── Controles DVR — overlay de play/pausa + scrubber para live Mux ────────
-  function renderDvrControls(inSafeZone = false) {
+  function renderDvrControls(inSafeZone = false, showGradient = true) {
     if (!dvrAvailable || isEnded) return null;
 
     const skipSz = isDesktop ? 32 : 36;
@@ -2138,12 +2140,14 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         transition: "opacity 0.3s ease",
         pointerEvents: "none",
       }}>
-        {/* Gradient bottom */}
-        <div style={{
-          position: "absolute", bottom: 0, left: 0, right: 0, height: 110,
-          background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)",
-          pointerEvents: "none",
-        }} />
+        {/* Gradient bottom — solo en layouts no-portrait */}
+        {showGradient && (
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0, height: 110,
+            background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)",
+            pointerEvents: "none",
+          }} />
+        )}
 
         {/* Center: skip-10 · play/pause · skip+10 */}
         <div style={{
@@ -2616,42 +2620,62 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       pointerEvents: controlsVisible ? "auto" : "none",
       transition: "opacity 0.25s ease",
     };
+    // El chat sube cuando aparecen los controles DVR
+    const chatLift = (vodControlsVisible && dvrAvailable) ? 80 : 0;
+
     return createPortal(
       <>
         <style>{keyframes}</style>
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 10000, background: "#000", display: "flex", flexDirection: "column" }}
-        >
-          <div
-            style={{ position: "relative", flex: 1, minHeight: 0, height: "100%" }}
-            onClick={() => {
-              if (isEnded && vodReady) toggleVodControls();
-              else if (!isEnded && dvrAvailable) toggleVodControls();
-              else if (!isEnded) setControlsVisible(v => !v);
-            }}
-          >
-            {renderVideo(isEnded ? "contain" : "cover")}
-            {renderEndedOverlay()}
-            {renderVodControls(false)}
-            {renderBannedOverlay()}
-            {renderSuperOverlay("top")}
-            {renderDvrControls(false)}
+        {/* Fondo negro full-screen */}
+        <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "#000" }}>
+          {/* Área de contenido dentro de safe areas (respeta notch/DI arriba, home indicator abajo) */}
+          <div style={{
+            position: "absolute",
+            top: "env(safe-area-inset-top, 0px)",
+            bottom: 0,
+            left: "env(safe-area-inset-left, 0px)",
+            right: "env(safe-area-inset-right, 0px)",
+          }}>
+            <div
+              style={{ position: "relative", width: "100%", height: "100%" }}
+              onClick={() => {
+                if (isEnded && vodReady) toggleVodControls();
+                else if (!isEnded && dvrAvailable) toggleVodControls();
+                else if (!isEnded) setControlsVisible(v => !v);
+              }}
+            >
+              {renderVideo(isEnded ? "contain" : "cover")}
+              {renderEndedOverlay()}
+              {/* Sin gradiente en portrait — barra limpia igual que el DVR */}
+              {renderVodControls(false, false)}
+              {renderBannedOverlay()}
+              {renderSuperOverlay("top")}
+              {/* Sin gradiente en portrait para que el scrubber no tape los comentarios */}
+              {renderDvrControls(false, false)}
 
-            {/* Badges — debajo del notch/Dynamic Island con env() */}
-            {!activeSuperComment && renderLiveBadge("top-center", 0, 0, false)}
-            {!activeSuperComment && renderViewerBadge("top-left", 0, 0, false)}
+              {/* Badges — inSafeZone=true: el wrapper ya posicionó el área por debajo del notch */}
+              {!activeSuperComment && renderLiveBadge("top-center", 0, 0, true)}
+              {!activeSuperComment && renderViewerBadge("top-left", 0, 0, true)}
 
-            {/* Chat overlay — siempre visible durante live; se desmonta al terminar */}
-            {!isEnded && (
-              <LiveChatViewer
-                liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted}
-                mode="overlay" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig}
-                onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined}
-              />
-            )}
+              {/* Chat overlay — siempre visible durante live; sube suavemente cuando aparece el DVR */}
+              {!isEnded && (
+                <div style={{
+                  position: "absolute",
+                  bottom: chatLift,
+                  left: 0, right: 0,
+                  transition: "bottom 0.3s ease",
+                }}>
+                  <LiveChatViewer
+                    liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted}
+                    mode="overlay" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig}
+                    onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined}
+                  />
+                </div>
+              )}
 
-            {/* Header — se muestra/oculta con tap */}
-            <div style={ctrlStyle}>{renderHeader(true, false)}</div>
+              {/* Header (mute/close) — se muestra/oculta con tap; safeTop=false porque el wrapper ya maneja env() */}
+              <div style={ctrlStyle}>{renderHeader(false, false)}</div>
+            </div>
           </div>
         </div>
         {donationPanel}

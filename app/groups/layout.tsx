@@ -97,10 +97,19 @@ const isGroupDetailPage = /^\/groups\/[^/]+/.test(pathname) && !pathname.startsW
     if (!dir) return;
     const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
     window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
-    const el = mainInnerRef.current;
-    if (el) {
-      el.setAttribute("data-nav-enter", dir);
+
+    function animateEl(el: HTMLElement) {
+      el.setAttribute("data-nav-enter", dir!);
       el.addEventListener("animationend", () => el.removeAttribute("data-nav-enter"), { once: true });
+    }
+
+    const mainEl = mainInnerRef.current;
+    if (mainEl) {
+      animateEl(mainEl);
+      // On iOS, position:fixed children don't move with a parent transform.
+      // Animate the OwnerSidebar <aside> directly so it slides in on iPhone.
+      const fixedSidebar = mainEl.querySelector<HTMLElement>(".profile-owner-sidebar-fixed");
+      if (fixedSidebar) animateEl(fixedSidebar);
     }
   }, [pathname]);
 

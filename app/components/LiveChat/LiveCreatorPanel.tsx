@@ -2,8 +2,12 @@
 
 import Image from "next/image";
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useRef, useState, memo } from "react";
+import { useCallback, useEffect, useRef, useState, memo, type CSSProperties } from "react";
 import Hls from "hls.js";
+import {
+  VideoPlayIcon, VideoPauseIcon,
+  VideoSkipBackIcon, VideoSkipForwardIcon,
+} from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import type { Post } from "@/lib/posts/types";
 import type { LiveChatMessage, SuperComment } from "@/lib/liveChat/types";
 import { useLiveChat } from "@/lib/hooks/useLiveChat";
@@ -2117,10 +2121,82 @@ function MuxLivePlaceholder() {
 // ── VideoPreview ───────────────────────────────────────────────────────────
 // memo: evita re-renders por cambios de estado del panel (chat, viewers, etc.)
 
+const VOD_PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
 const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cover", showLiveBadge, autoPlay = true }: { hlsUrl: string; fill?: boolean; objectFit?: "cover" | "contain"; showLiveBadge?: boolean; autoPlay?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const [muted, setMuted] = useState(true);
+
+  // ── VOD controls (cuando autoPlay=false → el live ya terminó) ─────────────
+  const isVod = !autoPlay;
+  const [vodMuted, setVodMuted] = useState(false);
+  const [vodPlaying, setVodPlaying] = useState(false);
+  const [vodDuration, setVodDuration] = useState(0);
+  const [vodCurrentTime, setVodCurrentTime] = useState(0);
+  const [vodPlaybackRate, setVodPlaybackRate] = useState(1);
+  const [vodControlsVisible, setVodControlsVisible] = useState(true);
+  const scrubberRef = useRef<HTMLInputElement>(null);
+  const isDraggingRef = useRef(false);
+  const vodTimerRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  function fmtTime(sec: number) {
+    if (!isFinite(sec) || sec < 0) return "0:00";
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
+  function scheduleHide() {
+    if (vodTimerRef.current !== null) window.clearTimeout(vodTimerRef.current);
+    vodTimerRef.current = window.setTimeout(() => setVodControlsVisible(false), 3500);
+  }
+
+  function clearHideTimer() {
+    if (vodTimerRef.current !== null) { window.clearTimeout(vodTimerRef.current); vodTimerRef.current = null; }
+  }
+
+  // RAF: actualiza scrubber y tiempo sin re-renders de React
+  useEffect(() => {
+    if (!isVod) return;
+    function tick() {
+      const v = videoRef.current;
+      const el = scrubberRef.current;
+      if (v && el && !isDraggingRef.current) {
+        const cur = isFinite(v.currentTime) ? v.currentTime : 0;
+        const dur = isFinite(v.duration) && v.duration > 0 ? v.duration : 0;
+        el.value = String(cur);
+        if (dur > 0) el.max = String(dur);
+        const pct = dur > 0 ? (cur / dur) * 100 : 0;
+        el.style.setProperty("--pct", `${pct}%`);
+        setVodCurrentTime(cur);
+        if (dur > 0) setVodDuration(dur);
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current !== null) cancelAnimationFrame(rafRef.current); };
+  }, [isVod]);
+
+  // Sync play/pause state
+  useEffect(() => {
+    if (!isVod) return;
+    const v = videoRef.current;
+    if (!v) return;
+    const onPlay = () => setVodPlaying(true);
+    const onPause = () => setVodPlaying(false);
+    v.addEventListener("play", onPlay);
+    v.addEventListener("pause", onPause);
+    return () => { v.removeEventListener("play", onPlay); v.removeEventListener("pause", onPause); };
+  }, [isVod]);
+
+  // Sync playback rate
+  useEffect(() => {
+    if (!isVod) return;
+    const v = videoRef.current;
+    if (v) v.playbackRate = vodPlaybackRate;
+  }, [vodPlaybackRate, isVod]);
 
   function jumpToLive() {
     const video = videoRef.current;
@@ -2141,14 +2217,19 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
 
     if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = hlsUrl;
-      if (autoPlay) video.play().catch(() => {});
+      if (autoPlay) {
+        video.play().catch(() => {});
+      } else {
+        // VOD en Safari/iOS: mostrar primer frame sin sonido
+        video.addEventListener("loadeddata", () => {
+          video.currentTime = 0;
+        }, { once: true });
+      }
       return;
     }
 
     if (!Hls.isSupported()) return;
 
-    // Config idéntica al LiveViewerModal para que el creador vea exactamente
-    // lo que el espectador ve, sin divergencias de buffering que causen freeze.
     const hls = new Hls({
       enableWorker: true,
       lowLatencyMode: false,
@@ -2168,7 +2249,16 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
     hls.loadSource(hlsUrl);
     hls.attachMedia(video);
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      if (autoPlay) video.play().catch(() => {});
+      if (autoPlay) {
+        video.play().catch(() => {});
+      } else {
+        // VOD: play silencioso → pause para pintar primer frame
+        const wasMuted = video.muted;
+        video.muted = true;
+        video.play()
+          .then(() => { video.pause(); video.currentTime = 0; video.muted = wasMuted; })
+          .catch(() => {});
+      }
     });
     hls.on(Hls.Events.ERROR, (_, data) => {
       if (data.fatal) {
@@ -2186,7 +2276,7 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
     });
 
     return () => { hls.destroy(); hlsRef.current = null; };
-  }, [hlsUrl]);
+  }, [hlsUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const muteBtn = (size: number, bottom: number, right: number, bordered: boolean) => (
     <button
@@ -2251,33 +2341,209 @@ const VideoPreview = memo(function VideoPreview({ hlsUrl, fill, objectFit = "cov
     </>
   ) : null;
 
-  // fill mode: parent provides container size (portrait story card or landscape rounded card)
-  if (fill) {
+  // ── Controles VOD custom (reemplaza los nativos del browser) ──────────────
+  function renderVodControls() {
+    if (!isVod) return null;
+
+    const btnBase: CSSProperties = {
+      background: "none", border: "none", color: "#fff",
+      cursor: "pointer", padding: 0,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      WebkitTapHighlightColor: "transparent",
+      outline: "none", pointerEvents: "auto",
+    };
+
+    const handlePlayPause = () => {
+      const v = videoRef.current;
+      if (!v) return;
+      if (v.paused) { v.play().catch(() => {}); setVodPlaying(true); }
+      else { v.pause(); setVodPlaying(false); }
+      scheduleHide();
+    };
+
+    const handleSkip = (delta: number) => {
+      const v = videoRef.current;
+      if (!v) return;
+      const dur = isFinite(v.duration) && v.duration > 0 ? v.duration : vodDuration;
+      v.currentTime = Math.max(0, Math.min(dur, v.currentTime + delta));
+      setVodControlsVisible(true);
+      scheduleHide();
+    };
+
+    const handleSpeedCycle = () => {
+      const idx = VOD_PLAYBACK_RATES.indexOf(vodPlaybackRate);
+      setVodPlaybackRate(VOD_PLAYBACK_RATES[(idx + 1) % VOD_PLAYBACK_RATES.length]);
+      scheduleHide();
+    };
+
     return (
       <>
-        <video
-          ref={videoRef}
-          autoPlay={autoPlay} muted={autoPlay ? muted : false} playsInline
-          controls={!autoPlay}
-          style={{ width: "100%", height: "100%", objectFit: objectFit, display: "block" }}
+        <style>{`
+          .vp-vod-range{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:rgba(255,255,255,0.28);border-radius:2px;outline:none;cursor:pointer;display:block}
+          .vp-vod-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;cursor:pointer;margin-top:-5px}
+          .vp-vod-range::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;cursor:pointer;border:none}
+          .vp-vod-range::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(to right,#fff var(--pct,0%),rgba(255,255,255,0.28) var(--pct,0%))}
+          .vp-vod-range::-moz-range-track{height:4px;border-radius:2px;background:rgba(255,255,255,0.28)}
+          .vp-vod-range::-moz-range-progress{height:4px;border-radius:2px;background:#fff}
+          .vp-vod-btn{outline:none!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent}
+          .vp-vod-btn:focus,.vp-vod-btn:focus-visible,.vp-vod-btn:active{outline:none!important;box-shadow:none!important}
+        `}</style>
+
+        {/* Tap area para mostrar/ocultar controles */}
+        <div
+          onClick={() => {
+            if (vodControlsVisible) { clearHideTimer(); setVodControlsVisible(false); }
+            else { setVodControlsVisible(true); scheduleHide(); }
+          }}
+          style={{ position: "absolute", inset: 0, zIndex: 6, cursor: "pointer" }}
         />
-        {autoPlay && muteBtn(13, 12, 12, true)}
-        {autoPlay && liveBadge}
+
+        {/* Overlay de controles */}
+        <div style={{
+          position: "absolute", inset: 0, zIndex: 7,
+          opacity: vodControlsVisible ? 1 : 0,
+          transition: "opacity 0.3s ease",
+          pointerEvents: "none",
+        }}>
+          {/* Gradiente bottom */}
+          <div style={{
+            position: "absolute", bottom: 0, left: 0, right: 0, height: 110,
+            background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)",
+            pointerEvents: "none",
+          }} />
+
+          {/* Mute — esquina superior derecha, respeta safe area */}
+          <button type="button" className="vp-vod-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              const v = videoRef.current;
+              const next = !vodMuted;
+              setVodMuted(next);
+              if (v) v.muted = next;
+              scheduleHide();
+            }}
+            style={{
+              ...btnBase,
+              position: "absolute",
+              top: "max(14px, env(safe-area-inset-top))",
+              right: "max(14px, env(safe-area-inset-right))",
+              pointerEvents: "auto",
+            }}>
+            {vodMuted ? (
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <line x1="23" y1="9" x2="17" y2="15" /><line x1="17" y1="9" x2="23" y2="15" />
+              </svg>
+            ) : (
+              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+              </svg>
+            )}
+          </button>
+
+          {/* Centro: skip -10 · play/pause · skip +10 */}
+          <div style={{
+            position: "absolute", inset: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 32, pointerEvents: "none",
+          }}>
+            <button type="button" className="vp-vod-btn"
+              onClick={(e) => { e.stopPropagation(); handleSkip(-10); }}
+              style={{ ...btnBase, pointerEvents: "auto" }}>
+              <VideoSkipBackIcon size={32} color="#fff" />
+            </button>
+            <button type="button" className="vp-vod-btn"
+              onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}
+              style={{ ...btnBase, pointerEvents: "auto" }}>
+              {vodPlaying
+                ? <VideoPauseIcon size={38} color="#fff" />
+                : <VideoPlayIcon size={38} color="#fff" />}
+            </button>
+            <button type="button" className="vp-vod-btn"
+              onClick={(e) => { e.stopPropagation(); handleSkip(10); }}
+              style={{ ...btnBase, pointerEvents: "auto" }}>
+              <VideoSkipForwardIcon size={32} color="#fff" />
+            </button>
+          </div>
+
+          {/* Bottom bar: tiempo + scrubber + velocidad — respeta safe area */}
+          <div style={{
+            position: "absolute",
+            bottom: 0,
+            left: 0, right: 0,
+            padding: "0 14px",
+            paddingBottom: "max(14px, env(safe-area-inset-bottom))",
+            paddingLeft: "max(14px, env(safe-area-inset-left))",
+            paddingRight: "max(14px, env(safe-area-inset-right))",
+            pointerEvents: "auto",
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+              <span style={{
+                color: "rgba(255,255,255,0.85)", fontSize: 12, fontWeight: 600,
+                fontFamily: "inherit", fontVariantNumeric: "tabular-nums",
+              }}>
+                {fmtTime(vodCurrentTime)}
+                {vodDuration > 0 && <span style={{ color: "rgba(255,255,255,0.4)", fontWeight: 400 }}> / {fmtTime(vodDuration)}</span>}
+              </span>
+              <button type="button" className="vp-vod-btn"
+                onClick={(e) => { e.stopPropagation(); handleSpeedCycle(); }}
+                style={{ ...btnBase, fontSize: 16, fontWeight: 700, lineHeight: 1, pointerEvents: "auto" }}>
+                ×{vodPlaybackRate}
+              </button>
+            </div>
+            <input
+              ref={scrubberRef}
+              type="range"
+              className="vp-vod-range"
+              min={0}
+              max={vodDuration > 0 ? vodDuration : 100}
+              step="any"
+              defaultValue={0}
+              onInput={(e) => {
+                const v = videoRef.current;
+                if (v) v.currentTime = Number((e.target as HTMLInputElement).value);
+              }}
+              onMouseDown={(e) => { e.stopPropagation(); isDraggingRef.current = true; clearHideTimer(); }}
+              onMouseUp={() => { isDraggingRef.current = false; scheduleHide(); }}
+              onTouchStart={(e) => { e.stopPropagation(); isDraggingRef.current = true; clearHideTimer(); }}
+              onTouchEnd={(e) => { e.stopPropagation(); isDraggingRef.current = false; scheduleHide(); }}
+              style={{ width: "100%" }}
+            />
+          </div>
+        </div>
       </>
     );
   }
 
-  // compact mode: self-contained with maxHeight 220 (mobile fallback)
+  // fill mode: parent provides container size
+  if (fill) {
+    return (
+      <div style={{ position: "relative", width: "100%", height: "100%" }}>
+        <video
+          ref={videoRef}
+          autoPlay={autoPlay} muted={autoPlay ? muted : vodMuted} playsInline
+          style={{ width: "100%", height: "100%", objectFit: objectFit, display: "block" }}
+        />
+        {autoPlay && muteBtn(13, 12, 12, true)}
+        {autoPlay && liveBadge}
+        {renderVodControls()}
+      </div>
+    );
+  }
+
+  // compact mode: self-contained with aspectRatio 16/9
   return (
     <div style={{ position: "relative", width: "100%", aspectRatio: "16/9", maxHeight: 220, background: "#000", overflow: "hidden" }}>
       <video
         ref={videoRef}
-        autoPlay={autoPlay} muted={autoPlay ? muted : false} playsInline
-        controls={!autoPlay}
+        autoPlay={autoPlay} muted={autoPlay ? muted : vodMuted} playsInline
         style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
       />
       {autoPlay && muteBtn(13, 8, 8, false)}
       {autoPlay && liveBadge}
+      {renderVodControls()}
     </div>
   );
 });

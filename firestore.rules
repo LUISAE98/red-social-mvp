@@ -1864,6 +1864,8 @@ function canListPublicPremiumGroupPost() {
   return resource.data.isDeleted == false
     && resource.data.groupId is string
     && resource.data.isShareable == true
+    && "premium" in resource.data
+    && resource.data.premium is map
     && resource.data.premium.enabled == true
     && resource.data.premium.accessMode == "public";
 }
