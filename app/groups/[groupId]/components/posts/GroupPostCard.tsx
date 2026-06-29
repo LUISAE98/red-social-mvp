@@ -22,6 +22,7 @@ import { doc, onSnapshot } from "firebase/firestore";
 import LiveInlinePlayer from "@/app/components/LiveInlinePlayer/LiveInlinePlayer";
 import LiveViewerModal from "@/app/components/LiveViewerModal/LiveViewerModal";
 import LiveCreatorPanel from "@/app/components/LiveChat/LiveCreatorPanel";
+import LiveCFOrientationPicker from "@/app/components/LiveChat/LiveCFOrientationPicker";
 import PostFlamesPanel, { type PostFlameUser } from "./PostFlamesPanel";
 import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
 import LiveStreamSetup from "@/app/components/LiveStreamSetup/LiveStreamSetup";
@@ -1061,6 +1062,7 @@ onToggleProfilePin,
   const [liveSetupOpen, setLiveSetupOpen] = useState(false);
   const [liveViewerOpen, setLiveViewerOpen] = useState(false);
   const [liveCreatorOpen, setLiveCreatorOpen] = useState(false);
+  const [cfOrientationPickerOpen, setCFOrientationPickerOpen] = useState(false);
   const [liveTicketShake, setLiveTicketShake] = useState(false);
   const [hasLiveTicketAccess, setHasLiveTicketAccess] = useState(false);
 
@@ -1092,7 +1094,7 @@ onToggleProfilePin,
   }, [localLiveData?.status, hasLiveTicketAccess]);
   const [localText, setLocalText] = useState<string | null>(null);
   const [localMedia, setLocalMedia] = useState<import("@/lib/posts/types").PostMedia[] | null>(null);
-  const { isTempUnlocked, unlock: applyTempUnlock } = usePostTempUnlock(post.id, currentUserId);
+  const { isTempUnlocked, unlock: applyTempUnlock } = usePostTempUnlock(post.id, currentUserId, post.authorId, post.oneTimePrice);
   const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | null>(null);
   const [viewerSourceRect, setViewerSourceRect] = useState<DOMRect | null>(null);
   const [viewerInitialVideoTime, setViewerInitialVideoTime] = useState(0);
@@ -2410,6 +2412,16 @@ function renderBlurredMediaBackdrop(
   const isLivePlayer = isLiveActive && !isLiveBlockedByTicket;
   const liveVisibilityMode = activeLiveData?.visibilityMode ?? null;
 
+  function openCreatorPanelMaybePickOrientation(mode?: "direct" | "rtmp") {
+    const isCF = mode === "direct" || activeLiveData?.broadcastMode === "direct";
+    const alreadyLive = activeLiveData?.status === "live";
+    if (isCF && isMobile && !alreadyLive) {
+      setCFOrientationPickerOpen(true);
+    } else {
+      setLiveCreatorOpen(true);
+    }
+  }
+
   const liveVisibilityBadge: { label: string; icon: "lock" | "globe" | "user" } | null =
     liveVisibilityMode === "members_only"
       ? { label: "Solo miembros", icon: "lock" }
@@ -3198,7 +3210,7 @@ style={{
       </span>
     )}
 
-    {cleanPostText.length > 0 && post.postType !== "live" && (
+    {cleanPostText.length > 0 && (post.postType !== "live" || liveVodReady) && (
       <span>
 {postTextExpanded || !shouldClampFeedPostText
   ? cleanPostText
@@ -3252,40 +3264,45 @@ style={{
       {premiumState.isBlocked ? (
         <div style={{
           position: "relative", width: "100%", aspectRatio: "16 / 9",
-          background: "#111", borderRadius: 14, overflow: "hidden", cursor: "default",
+          background: "#000", borderRadius: 12, overflow: "hidden",
         }}>
+          {/* Cover image — blurred, same style as regular premium blocked video */}
           {activeLiveData?.coverUrl && (
-            <Image
-              src={activeLiveData.coverUrl}
-              alt={activeLiveData.title ?? ""}
-              fill
-              style={{ objectFit: "cover", opacity: 0.25, filter: "blur(8px)" }}
-            />
-          )}
-          {/* Play icon centered — same as regular premium blocked video */}
-          <div style={{
-            position: "absolute", inset: 0, display: "flex",
-            alignItems: "center", justifyContent: "center", zIndex: 2,
-          }}>
             <div style={{
-              width: 52, height: 52, borderRadius: "50%",
-              background: "rgba(0,0,0,0.55)", display: "flex",
-              alignItems: "center", justifyContent: "center",
-              backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+              position: "absolute", inset: 0,
+              filter: "blur(10px)", opacity: 0.72,
             }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
-                <path d="M8 5v14l11-7z" />
-              </svg>
+              <Image
+                src={activeLiveData.coverUrl}
+                alt={activeLiveData.title ?? ""}
+                fill
+                style={{ objectFit: "cover" }}
+              />
             </div>
+          )}
+          {/* Play icon — sibling of blurred image, not affected by filter */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute", inset: 0, zIndex: 5,
+              display: "grid", placeItems: "center", pointerEvents: "none",
+            }}
+          >
+            <VideoPlayIcon size={50} color="#fff" />
           </div>
-          {/* Duration bottom-right */}
+          {/* Duration badge — identical to regular premium blocked video */}
           {formatMediaDuration(post.playback?.duration ?? post.videoData?.duration) && (
-            <span style={{
-              position: "absolute", right: 8, bottom: 8, zIndex: 3,
-              color: "#fff", fontSize: 13, fontWeight: 700, lineHeight: 1,
-              letterSpacing: "-0.01em", textShadow: "0 1px 4px rgba(0,0,0,0.5)",
-              pointerEvents: "none",
-            }}>
+            <span
+              aria-hidden="true"
+              style={{
+                position: "absolute", right: 8, bottom: 8, zIndex: 5,
+                minHeight: 20, padding: "3px 7px", borderRadius: 6,
+                background: "rgba(0,0,0,0.52)",
+                backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+                color: "#fff", fontSize: 11, fontWeight: 700,
+                lineHeight: 1, letterSpacing: "-0.01em",
+              }}
+            >
               {formatMediaDuration(post.playback?.duration ?? post.videoData?.duration)}
             </span>
           )}
@@ -3599,7 +3616,7 @@ style={{
                     <>
                       <button
                         type="button"
-                        onClick={() => setLiveCreatorOpen(true)}
+                        onClick={() => openCreatorPanelMaybePickOrientation()}
                         style={{
                           height: 36,
                           padding: "0 18px",
@@ -4860,7 +4877,7 @@ padding: "0 0 2px 0",
       streamProvider: "mux",
     }));
   }}
-  onOpenCreatorPanel={() => { setLiveSetupOpen(false); setLiveCreatorOpen(true); }}
+  onOpenCreatorPanel={(mode) => { setLiveSetupOpen(false); openCreatorPanelMaybePickOrientation(mode); }}
 />
 {liveViewerOpen && (
   <LiveViewerModal
@@ -4878,6 +4895,17 @@ padding: "0 0 2px 0",
     onClose={() => setLiveCreatorOpen(false)}
     post={{ ...post, liveData: activeLiveData ?? post.liveData }}
     portrait={isLivePortrait}
+  />
+)}
+{cfOrientationPickerOpen && (
+  <LiveCFOrientationPicker
+    open={cfOrientationPickerOpen}
+    onSelect={(portrait) => {
+      setIsLivePortrait(portrait);
+      setCFOrientationPickerOpen(false);
+      setLiveCreatorOpen(true);
+    }}
+    onClose={() => setCFOrientationPickerOpen(false)}
   />
 )}
 <div style={interactionRowStyle}>

@@ -14,7 +14,12 @@ const STORAGE_PREFIX = "vibra_post_unlocked_";
  *
  * Replace the Firestore write with the real Mercado Pago confirmation when integrated.
  */
-export function usePostTempUnlock(postId: string, currentUserId?: string | null) {
+export function usePostTempUnlock(
+  postId: string,
+  currentUserId?: string | null,
+  creatorId?: string | null,
+  price?: number | null,
+) {
   const key = `${STORAGE_PREFIX}${postId}`;
 
   const [isTempUnlocked, setIsTempUnlocked] = useState(false);
@@ -37,11 +42,13 @@ export function usePostTempUnlock(postId: string, currentUserId?: string | null)
       await setDoc(doc(db, "postAccess", accessId), {
         postId,
         buyerId: currentUserId,
+        ...(creatorId ? { creatorId } : {}),
+        ...(typeof price === "number" ? { price } : {}),
         status: "active",
         createdAt: serverTimestamp(),
       });
     }
-  }, [key, postId, currentUserId]);
+  }, [key, postId, currentUserId, creatorId, price]);
 
   return { isTempUnlocked, unlock };
 }

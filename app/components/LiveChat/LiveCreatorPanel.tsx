@@ -47,6 +47,7 @@ import {
 import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import { subscribeToTicketRevenue } from "@/lib/liveAccess/live-access-service";
+import { subscribeToVodRevenue } from "@/lib/posts/post-access-service";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -161,6 +162,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [chatTimestamps, setChatTimestamps] = useState<number[]>([]);
   const [ticketRevenue, setTicketRevenue] = useState(0);
   const [ticketCount, setTicketCount] = useState(0);
+  const [vodRevenue, setVodRevenue] = useState(0);
+  const [vodBuyerCount, setVodBuyerCount] = useState(0);
   const viewerCountRef = useRef(0);
   viewerCountRef.current = viewerCount;
   const [superComments, setSuperComments] = useState<SuperComment[]>([]);
@@ -317,6 +320,14 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       setTicketCount(count);
     });
   }, [open, post.id, liveData?.accessType]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!open || !post.id || !post.authorId || !post.requiresPayment) return;
+    return subscribeToVodRevenue(post.id, post.authorId, (amount, count) => {
+      setVodRevenue(amount);
+      setVodBuyerCount(count);
+    });
+  }, [open, post.id, post.authorId, post.requiresPayment]);
 
   // Supercomentarios — disponibles en directo (CF) y RTMP (Mux/OBS)
   useEffect(() => {
@@ -636,281 +647,234 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const superCount = paidSuperComments.length;
     const superRevenue = paidSuperComments.reduce((sum, sc) => sum + sc.amount, 0);
     const isPaidLive = liveData?.accessType === "paid";
+    const hasVod = post.requiresPayment === true;
     const currency = liveData?.currency ?? "MXN";
+
+    const totalRevenue = superRevenue + ticketRevenue + vodRevenue;
+    const avgRevenuePerViewer = uniqueViewerCount > 0 ? totalRevenue / uniqueViewerCount : 0;
+
+    const revenueSources = [
+      { label: "Supercomentarios", amount: superRevenue, color: "#facc15" },
+      { label: "Tickets live", amount: ticketRevenue, color: "#4ade80" },
+      { label: "VOD", amount: vodRevenue, color: "#60a5fa" },
+    ].filter((s) => s.amount > 0);
 
     const fmtMoney = (amount: number) =>
       amount.toLocaleString("es-MX", { style: "currency", currency, maximumFractionDigits: 0 });
 
+    const card: React.CSSProperties = {
+      display: "flex", alignItems: "center", gap: 10,
+      padding: "10px 12px", borderRadius: 10,
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(255,255,255,0.08)",
+    };
+    const wideCard: React.CSSProperties = {
+      padding: "10px 12px", borderRadius: 10,
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(255,255,255,0.08)",
+    };
+    const iconBox = (bg: string): React.CSSProperties => ({
+      width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+      background: bg, display: "grid", placeItems: "center",
+    });
+    const lbl: React.CSSProperties = {
+      fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)",
+      textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: FONT,
+    };
+    const val: React.CSSProperties = { fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1, fontFamily: FONT };
+
     return (
       <div style={{ flex: 1, overflow: "auto", scrollbarWidth: "none", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-        {/* Espectadores actuales */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "10px 12px", borderRadius: 10,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: "rgba(168,85,247,0.15)",
-            display: "grid", placeItems: "center",
-          }}>
+
+        {/* ── Audiencia base (siempre visible) ──────────────── */}
+
+        <div style={card}>
+          <div style={iconBox("rgba(168,85,247,0.15)")}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
-              {viewerCount.toLocaleString("es-MX")}
-            </span>
-            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
-              Espectadores ahora
-            </span>
+            <span style={val}>{viewerCount.toLocaleString("es-MX")}</span>
+            <span style={lbl}>Espectadores ahora</span>
           </div>
         </div>
 
-        {/* Pico de espectadores */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "10px 12px", borderRadius: 10,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: "rgba(251,146,60,0.15)",
-            display: "grid", placeItems: "center",
-          }}>
+        <div style={card}>
+          <div style={iconBox("rgba(251,146,60,0.15)")}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fb923c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-              <polyline points="16 7 22 7 22 13" />
+              <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" />
             </svg>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
-              {peakViewerCount.toLocaleString("es-MX")}
-            </span>
-            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
-              Pico máximo simultáneo
-            </span>
+            <span style={val}>{peakViewerCount.toLocaleString("es-MX")}</span>
+            <span style={lbl}>Pico máximo simultáneo</span>
           </div>
         </div>
 
-        {/* Total espectadores únicos */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "10px 12px", borderRadius: 10,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: "rgba(34,197,94,0.12)",
-            display: "grid", placeItems: "center",
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
+        {uniqueViewerCount > 0 && (
+          <div style={card}>
+            <div style={iconBox("rgba(34,197,94,0.12)")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={val}>{uniqueViewerCount.toLocaleString("es-MX")}</span>
+              <span style={lbl}>Espectadores únicos</span>
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
-              {uniqueViewerCount.toLocaleString("es-MX")}
-            </span>
-            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
-              Espectadores únicos
-            </span>
-          </div>
-        </div>
+        )}
 
-        {/* Gráfica de espectadores a lo largo del tiempo */}
-        <div style={{
-          padding: "10px 12px", borderRadius: 10,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}>
-          <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em", marginBottom: 8 }}>
-            Espectadores en el tiempo
-          </span>
+        <div style={wideCard}>
+          <span style={{ display: "block", ...lbl, marginBottom: 8 }}>Espectadores en el tiempo</span>
           {renderViewerChart()}
         </div>
 
-        {/* Heatmap de actividad del chat */}
-        <div style={{
-          padding: "10px 12px", borderRadius: 10,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}>
-          <span style={{ display: "block", fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em", marginBottom: 8 }}>
-            Heatmap de actividad
-          </span>
+        <div style={wideCard}>
+          <span style={{ display: "block", ...lbl, marginBottom: 8 }}>Heatmap de actividad</span>
           {renderHeatmap()}
         </div>
 
-        {/* Total comentarios del chat */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "10px 12px", borderRadius: 10,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: "rgba(99,102,241,0.15)",
-            display: "grid", placeItems: "center",
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
-              {totalChatMessages.toLocaleString("es-MX")}
-            </span>
-            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
-              Mensajes en el chat
-            </span>
-          </div>
-        </div>
+        {/* ── Engagement (solo cuando hay datos) ────────────── */}
 
-        {/* Tiempo promedio de permanencia */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "10px 12px", borderRadius: 10,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: "rgba(20,184,166,0.15)",
-            display: "grid", placeItems: "center",
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
+        {totalChatMessages > 0 && (
+          <div style={card}>
+            <div style={iconBox("rgba(99,102,241,0.15)")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={val}>{totalChatMessages.toLocaleString("es-MX")}</span>
+              <span style={lbl}>Mensajes en el chat</span>
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
-              {avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—"}
-            </span>
-            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
-              Tiempo promedio
-            </span>
-          </div>
-        </div>
+        )}
 
-        {/* Seguidores nuevos durante el live */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "10px 12px", borderRadius: 10,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: "rgba(236,72,153,0.12)",
-            display: "grid", placeItems: "center",
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f472b6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <line x1="19" y1="8" x2="19" y2="14" />
-              <line x1="22" y1="11" x2="16" y2="11" />
-            </svg>
+        {avgWatchSeconds > 0 && (
+          <div style={card}>
+            <div style={iconBox("rgba(20,184,166,0.15)")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+              </svg>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={val}>{formatWatchTime(avgWatchSeconds)}</span>
+              <span style={lbl}>Tiempo promedio</span>
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
-              {newFollowers.toLocaleString("es-MX")}
-            </span>
-            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
-              Nuevos seguidores
-            </span>
-          </div>
-        </div>
+        )}
 
-        {/* Total supercomentarios */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "10px 12px", borderRadius: 10,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: "rgba(250,204,21,0.12)",
-            display: "grid", placeItems: "center",
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
+        {newFollowers > 0 && (
+          <div style={card}>
+            <div style={iconBox("rgba(236,72,153,0.12)")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f472b6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                <line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" />
+              </svg>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={val}>{newFollowers.toLocaleString("es-MX")}</span>
+              <span style={lbl}>Nuevos seguidores</span>
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
-              {superCount.toLocaleString("es-MX")}
-            </span>
-            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
-              Supercomentarios
-            </span>
-          </div>
-        </div>
+        )}
 
-        {/* Ingresos por supercomentarios */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 10,
-          padding: "10px 12px", borderRadius: 10,
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-            background: "rgba(250,204,21,0.12)",
-            display: "grid", placeItems: "center",
-          }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-            </svg>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
-              {superRevenue > 0 ? fmtMoney(superRevenue) : "—"}
-            </span>
-            <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
-              Por supercomentarios
-            </span>
-          </div>
-        </div>
+        {/* ── Monetización (solo cuando hay datos) ─────────── */}
 
-        {/* Ingresos por tickets — solo si el live es de pago */}
-        {isPaidLive && (
-          <div style={{
-            display: "flex", alignItems: "center", gap: 10,
-            padding: "10px 12px", borderRadius: 10,
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}>
-            <div style={{
-              width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-              background: "rgba(74,222,128,0.12)",
-              display: "grid", placeItems: "center",
-            }}>
+        {superCount > 0 && (
+          <div style={card}>
+            <div style={iconBox("rgba(250,204,21,0.12)")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={val}>{superCount.toLocaleString("es-MX")}</span>
+              <span style={lbl}>Supercomentarios · {fmtMoney(superRevenue)}</span>
+            </div>
+          </div>
+        )}
+
+        {isPaidLive && ticketCount > 0 && (
+          <div style={card}>
+            <div style={iconBox("rgba(74,222,128,0.12)")}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" />
               </svg>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1 }}>
-                {ticketRevenue > 0 ? fmtMoney(ticketRevenue) : "—"}
-              </span>
-              <span style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>
-                Tickets · {ticketCount} {ticketCount === 1 ? "comprador" : "compradores"}
-              </span>
+              <span style={val}>{fmtMoney(ticketRevenue)}</span>
+              <span style={lbl}>Tickets live · {ticketCount} {ticketCount === 1 ? "comprador" : "compradores"}</span>
+            </div>
+          </div>
+        )}
+
+        {hasVod && vodBuyerCount > 0 && (
+          <div style={card}>
+            <div style={iconBox("rgba(96,165,250,0.12)")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+              </svg>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={val}>{fmtMoney(vodRevenue)}</span>
+              <span style={lbl}>VOD · {vodBuyerCount} {vodBuyerCount === 1 ? "comprador" : "compradores"}</span>
+            </div>
+          </div>
+        )}
+
+        {totalRevenue > 0 && (
+          <div style={{ ...card, background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)" }}>
+            <div style={iconBox("rgba(168,85,247,0.2)")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c084fc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="1" x2="12" y2="23" />
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={{ ...val, color: "#c084fc" }}>{fmtMoney(totalRevenue)}</span>
+              <span style={lbl}>Ingreso total del live</span>
+            </div>
+          </div>
+        )}
+
+        {totalRevenue > 0 && uniqueViewerCount > 0 && (
+          <div style={card}>
+            <div style={iconBox("rgba(168,85,247,0.12)")}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                <line x1="17" y1="1" x2="17" y2="7" /><line x1="14" y1="4" x2="20" y2="4" />
+              </svg>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <span style={val}>{fmtMoney(avgRevenuePerViewer)}</span>
+              <span style={lbl}>Promedio por espectador</span>
+            </div>
+          </div>
+        )}
+
+        {revenueSources.length >= 2 && (
+          <div style={wideCard}>
+            <span style={{ display: "block", ...lbl, marginBottom: 10 }}>Desglose de ingresos</span>
+            <div style={{ display: "flex", height: 8, borderRadius: 6, overflow: "hidden", gap: 2, marginBottom: 10 }}>
+              {revenueSources.map((s) => (
+                <div key={s.label} style={{ flex: s.amount, background: s.color, borderRadius: 4 }} />
+              ))}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {revenueSources.map((s) => (
+                <div key={s.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 2, background: s.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: FONT }}>{s.label}</span>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{fmtMoney(s.amount)}</span>
+                </div>
+              ))}
             </div>
           </div>
         )}

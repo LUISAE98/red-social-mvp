@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "postAccess",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "postId", "order": "ASCENDING" },
+        { "fieldPath": "creatorId", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "stories",
       "queryScope": "COLLECTION",
       "fields": [

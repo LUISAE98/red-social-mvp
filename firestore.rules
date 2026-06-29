@@ -1956,120 +1956,21 @@ function canReadPostFromOwnSavedPosts() {
     && exists(/databases/$(database)/documents/users/$(request.auth.uid)/savedPosts/$(postId));
 }
 
-function validPostCommonCreateShape() {
+function validCreateGroupPost() {
   return signedIn()
     && request.resource.data.authorId == request.auth.uid
-    && request.resource.data.text is string
-    && request.resource.data.text.size() <= 5000
-    && (
-      request.resource.data.text.size() >= 1
-      || (
-        "media" in request.resource.data
-        && request.resource.data.media is list
-        && request.resource.data.media.size() > 0
-      )
-    )
     && request.resource.data.isDeleted == false
-    && (!("isShareable" in request.resource.data) || request.resource.data.isShareable is bool)
-    && (!("publicSlug" in request.resource.data) || request.resource.data.publicSlug == null || request.resource.data.publicSlug is string)
-    && (!("shareTitle" in request.resource.data) || request.resource.data.shareTitle == null || request.resource.data.shareTitle is string)
-    && (!("shareDescription" in request.resource.data) || request.resource.data.shareDescription == null || request.resource.data.shareDescription is string)
-    && (!("shareImageUrl" in request.resource.data) || request.resource.data.shareImageUrl == null || request.resource.data.shareImageUrl is string)
-    && (!("access" in request.resource.data) || request.resource.data.access in ["free", "paid"])
-    && (
-      !("media" in request.resource.data)
-      || (
-        request.resource.data.media is list
-        && request.resource.data.media.size() <= 10
-      )
-    )
-    && (
-      !("counts" in request.resource.data)
-      || (
-        request.resource.data.counts is map
-        && (
-          !("comments" in request.resource.data.counts)
-          || (
-            request.resource.data.counts.comments is int
-            && request.resource.data.counts.comments >= 0
-          )
-        )
-        && (
-          !("likes" in request.resource.data.counts)
-          || (
-            request.resource.data.counts.likes is int
-            && request.resource.data.counts.likes >= 0
-          )
-        )
-        && (
-          !("saves" in request.resource.data.counts)
-          || (
-            request.resource.data.counts.saves is int
-            && request.resource.data.counts.saves >= 0
-          )
-        )
-      )
-    )
-&& (
-  !("search" in request.resource.data)
-  || request.resource.data.search is map
-)
-&& (!("requiresPayment" in request.resource.data) || request.resource.data.requiresPayment is bool)
-&& (!("accessModel" in request.resource.data) || request.resource.data.accessModel in ["free", "paid", "one_time_purchase"])
-&& (
-  !("oneTimePrice" in request.resource.data)
-  || request.resource.data.oneTimePrice == null
-  || (request.resource.data.oneTimePrice is number && request.resource.data.oneTimePrice > 0)
-)
-&& (
-  !("currency" in request.resource.data)
-  || request.resource.data.currency == null
-  || request.resource.data.currency in ["MXN", "USD"]
-)
-&& (!("purchaseType" in request.resource.data) || request.resource.data.purchaseType == null || request.resource.data.purchaseType is string);
-}
-
-function validCreateGroupPost() {
-  return validPostCommonCreateShape()
-    && (
-      !("contextType" in request.resource.data)
-      || request.resource.data.contextType == "group"
-    )
     && request.resource.data.groupId is string
-    && canPostInGroup(request.resource.data.groupId)
-    && (
-      !("profileId" in request.resource.data)
-      || request.resource.data.profileId == null
-    )
-    && (
-      !("accessScope" in request.resource.data)
-      || request.resource.data.accessScope == "group"
-    );
+    && canPostInGroup(request.resource.data.groupId);
 }
 
 function validCreateProfilePost() {
-  return validPostCommonCreateShape()
-    && request.resource.data.contextType == "profile"
+  return signedIn()
+    && request.resource.data.authorId == request.auth.uid
+    && request.resource.data.isDeleted == false
     && request.resource.data.profileId is string
     && request.resource.data.profileId == request.auth.uid
-    && request.resource.data.authorId == request.resource.data.profileId
-    && userExists(request.resource.data.profileId)
-    && (
-      !("groupId" in request.resource.data)
-      || request.resource.data.groupId == null
-    )
-    && (
-      !("groupVisibility" in request.resource.data)
-      || request.resource.data.groupVisibility == null
-    )
-    && (
-      !("accessScope" in request.resource.data)
-      || request.resource.data.accessScope == "profile"
-    )
-    && (
-      !("profileRestricted" in request.resource.data)
-      || request.resource.data.profileRestricted is bool
-    );
+    && userExists(request.resource.data.profileId);
 }
 
 function validCreatePost() {
@@ -2679,8 +2580,12 @@ function canUpdateReplyCount(delta) {
     }
 
     match /postAccess/{accessId} {
-      allow read: if signedIn()
+      // El comprador puede leer su propio acceso
+      allow get: if signedIn()
         && resource.data.buyerId == request.auth.uid;
+      // El creador del post puede listar todos los accesos (para estadísticas de ingresos VOD)
+      allow list: if signedIn()
+        && resource.data.creatorId == request.auth.uid;
 
       allow create: if signedIn()
         && request.resource.data.buyerId == request.auth.uid
