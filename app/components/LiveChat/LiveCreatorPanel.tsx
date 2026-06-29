@@ -29,6 +29,8 @@ import {
   showSuperComment,
   deleteSuperComment,
   updateLiveSuperCommentEnabled,
+  getSuperCommentConfig,
+  copySuperCommentConfigToLive,
 } from "@/lib/liveChat/super-comment-service";
 import { useAuth } from "@/app/providers";
 import LiveDirectBroadcast from "@/app/components/LiveDirectBroadcast/LiveDirectBroadcast";
@@ -364,14 +366,28 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     setTogglingScEnabled(true);
     setOptimisticScEnabled(newValue);
     try {
-      await updateLiveSuperCommentEnabled(post.id, newValue);
+      const currentConfig = liveData?.superCommentConfig;
+      if (newValue && (!currentConfig?.tiers?.length)) {
+        // Al activar sin tiers en el live, cargar config guardada del usuario
+        // (o defaults) para que los viewers vean el botón de supercomentarios
+        const savedConfig = await getSuperCommentConfig(user.uid);
+        await copySuperCommentConfigToLive(post.id, { ...savedConfig, enabled: true });
+      } else if (currentConfig?.tiers?.length) {
+        // Ya hay tiers → solo actualizar el flag enabled
+        await updateLiveSuperCommentEnabled(post.id, newValue);
+      } else {
+        // Desactivando sin tiers: escribir config completa con enabled: false
+        const savedConfig = await getSuperCommentConfig(user.uid);
+        await copySuperCommentConfigToLive(post.id, { ...savedConfig, enabled: false });
+      }
       setOptimisticScEnabled(newValue);
-    } catch {
+    } catch (err) {
+      console.error("[LiveCreatorPanel] toggle supercomentarios falló:", err);
       setOptimisticScEnabled(null);
     } finally {
       setTogglingScEnabled(false);
     }
-  }, [togglingScEnabled, user, post.id, scEnabled]);
+  }, [togglingScEnabled, user, post.id, scEnabled, liveData?.superCommentConfig]);
 
   const handleMuteToggle = useCallback(async (userId: string) => {
     const isMuted = liveData?.mutedUsers?.includes(userId) ?? false;
@@ -1128,22 +1144,20 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           </button>
         </div>
 
-        {/* Botón config — solo antes de iniciar el live */}
-        {!isBroadcasting && (
-          <div style={{ flexShrink: 0, padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-            <button
-              type="button"
-              onClick={() => setScConfigOpen(true)}
-              style={{
-                width: "100%", padding: "10px 0", borderRadius: 10, border: "none",
-                background: "linear-gradient(135deg, rgba(168,85,255,0.85), rgba(124,58,237,0.85))",
-                color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-              }}
-            >
-              Configuración de supercomentarios
-            </button>
-          </div>
-        )}
+        {/* Botón config */}
+        <div style={{ flexShrink: 0, padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+          <button
+            type="button"
+            onClick={() => setScConfigOpen(true)}
+            style={{
+              width: "100%", padding: "10px 0", borderRadius: 10, border: "none",
+              background: "linear-gradient(135deg, rgba(168,85,255,0.85), rgba(124,58,237,0.85))",
+              color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+            }}
+          >
+            Configuración de supercomentarios
+          </button>
+        </div>
 
         {broadcastMode !== "direct" && broadcastMode !== "rtmp" ? (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -1752,11 +1766,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         /* ── Mobile + Horizontal live ─────────────────────────────────────── */
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
-          {/* Video 16:9 — debajo del header que ya respeta safe-area-top */}
+          {/* Video — debajo del header que ya respeta safe-area-top */}
           {(showVideo || showDirectBroadcast) && (
             <div style={{
-              flexShrink: 0, width: "100%", aspectRatio: "16/9",
-              position: "relative", background: "#000",
+              flexShrink: 0, width: "100%", height: "38%",
+              position: "relative", background: "#000", overflow: "hidden",
             }}>
               {showDirectBroadcast ? (
                 <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
@@ -1936,13 +1950,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           onOpenCreatorPanel={() => setLiveSetupOpen(false)}
         />
       )}
-      {broadcastMode === "direct" && (
-        <SuperCommentConfigPanel
-          open={scConfigOpen}
-          onClose={() => setScConfigOpen(false)}
-          postId={post.id}
-        />
-      )}
+      <SuperCommentConfigPanel
+        open={scConfigOpen}
+        onClose={() => setScConfigOpen(false)}
+        postId={post.id}
+      />
       <LiveEndSummaryPanel
         open={endPanelOpen}
         onClose={() => setEndPanelOpen(false)}

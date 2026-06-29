@@ -159,18 +159,34 @@ function mergeUniquePosts(
 
   return Array.from(map.values());
 }
+
+function peekFreshCache(uid: string | null): HomeFeedCacheEntry | null {
+  if (!uid) return null;
+  const cached = homeFeedMemoryCache.get(getHomeFeedCacheKey(uid));
+  if (
+    !cached ||
+    Date.now() - cached.updatedAt > HOME_FEED_CACHE_TTL_MS ||
+    cached.posts.some(isVideoPostStillProcessing) ||
+    cached.posts.length === 0
+  ) return null;
+  return cached;
+}
+
 export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFeedProps) {
-  const [posts, setPosts] = useState<PostWithFlags[]>([]);
+  const [posts, setPosts] = useState<PostWithFlags[]>(() => {
+    const c = peekFreshCache(currentUserId);
+    return c ? c.posts.filter((p) => p.isDeleted !== true) : [];
+  });
   const [error, setError] = useState<string | null>(null);
-  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingInitial, setLoadingInitial] = useState<boolean>(() => !peekFreshCache(currentUserId));
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
-  const [pageCursor, setPageCursor] = useState<HomePostsPageCursor | null>(null);
+  const [hasMore, setHasMore] = useState<boolean>(() => peekFreshCache(currentUserId)?.hasMore ?? false);
+  const [pageCursor, setPageCursor] = useState<HomePostsPageCursor | null>(() => peekFreshCache(currentUserId)?.cursor ?? null);
   const [, setIsMobile] = useState(false);
   const infiniteScrollTargetRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
-  const hasMoreRef = useRef(false);
-  const pageCursorRef = useRef<HomePostsPageCursor | null>(null);
+  const hasMoreRef = useRef(peekFreshCache(currentUserId)?.hasMore ?? false);
+  const pageCursorRef = useRef<HomePostsPageCursor | null>(peekFreshCache(currentUserId)?.cursor ?? null);
   const videoProcessingPollsRef = useRef<Record<string, number>>({});
   const feedRequestIdRef = useRef(0);
 

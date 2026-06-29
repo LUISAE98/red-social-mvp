@@ -3134,7 +3134,6 @@ export async function createMediaPost(params: {
   }
 
   const author = await getCurrentAuthorSnapshot();
-  console.log("[createMediaPost] starting", { postId: params.postId, hasPremium: !!params.premium?.enabled, groupId: params.groupId });
   const [context] = await Promise.all([
     resolvePostCreationContext({
       contextType: params.contextType,
@@ -3144,7 +3143,6 @@ export async function createMediaPost(params: {
     }),
     enforcePostRateLimit(),
   ]);
-  console.log("[createMediaPost] context resolved", { contextType: context.contextType, groupVisibility: context.groupVisibility, groupId: context.groupId });
 
   const videoMedia: PostMedia[] = cleanVideoUploads.map((item) => ({
     type: "video",
@@ -3300,35 +3298,11 @@ export async function createMediaPost(params: {
   };
 
   if (params.postId) {
-    try {
-      await setDoc(doc(db, "posts", params.postId), postPayload);
-    } catch (err: unknown) {
-      const code = (err as { code?: string })?.code;
-      const msg = (err as { message?: string })?.message;
-      console.error("[createMediaPost] setDoc FAILED", { postId: params.postId, code, msg });
-      console.error("[createMediaPost] payload keys:", Object.keys(postPayload));
-      console.error("[createMediaPost] premium fields:", {
-        access: postPayload.access,
-        accessModel: postPayload.accessModel,
-        requiresPayment: postPayload.requiresPayment,
-        oneTimePrice: postPayload.oneTimePrice,
-        currency: postPayload.currency,
-        purchaseType: postPayload.purchaseType,
-        premiumEnabled: (postPayload as { premium?: { enabled?: boolean } }).premium?.enabled,
-      });
-      throw err;
-    }
+    await setDoc(doc(db, "posts", params.postId), postPayload);
     return;
   }
 
-  try {
-    await addDoc(collection(db, "posts"), postPayload);
-  } catch (err: unknown) {
-    const code = (err as { code?: string })?.code;
-    const msg = (err as { message?: string })?.message;
-    console.error("[createMediaPost] addDoc FAILED", { code, msg });
-    throw err;
-  }
+  await addDoc(collection(db, "posts"), postPayload);
 }
 export async function createVideoPost(params: {
   groupId: string;

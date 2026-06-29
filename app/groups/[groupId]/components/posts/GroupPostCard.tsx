@@ -398,18 +398,28 @@ function PremiumPostPanel({
   state,
   onOpenPayment,
   overlay = false,
+  oneTimePrice,
+  currency,
 }: {
   state: PostPremiumStateResult;
   onOpenPayment?: () => void;
   overlay?: boolean;
+  oneTimePrice?: number | null;
+  currency?: string | null;
 }) {
   const isUnlocked = !state.isBlocked;
+  const isAuthor = state.state === "unlocked_author";
 
   let statusText: string | null = null;
-  if (state.state === "unlocked_author") statusText = "Esta publicación te pertenece";
+  if (isAuthor) statusText = "Esta publicación te pertenece";
   else if (state.hasAccessByMembership) statusText = "Acceso incluido por tu membresía";
   else if (state.hasAccessBySubscription) statusText = "Acceso incluido por tu suscripción";
   else if (state.hasAccessByPurchase) statusText = "Ya tienes acceso a este contenido";
+
+  const netEarnings =
+    isAuthor && typeof oneTimePrice === "number" && oneTimePrice > 0
+      ? Math.floor(oneTimePrice * 0.77)
+      : null;
 
   return (
     <div
@@ -459,6 +469,39 @@ function PremiumPostPanel({
             : (state.panelMessage ?? "Desbloquea este contenido para verlo")}
         </div>
       </div>
+
+      {netEarnings !== null && (
+        <div
+          style={{
+            flexShrink: 0,
+            textAlign: "right",
+            marginRight: 4,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10,
+              color: "rgba(255,255,255,0.7)",
+              fontFamily: fontStack,
+              lineHeight: 1.3,
+            }}
+          >
+            Por cada ticket ganas
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: "#4ade80",
+              fontFamily: fontStack,
+              lineHeight: 1.3,
+              marginTop: 1,
+            }}
+          >
+            ${netEarnings} {currency ?? "MXN"}
+          </div>
+        </div>
+      )}
 
       {state.isBlocked && (
         <button
@@ -3326,6 +3369,7 @@ style={{
             title={activeLiveData?.title}
             coverUrl={activeLiveData?.coverUrl}
             portrait={isLivePortrait}
+            isVod
             paused={liveViewerOpen || liveCreatorOpen}
             streamProvider="mux"
             onClick={() => setLiveViewerOpen(true)}
@@ -4616,6 +4660,8 @@ padding: "0 0 2px 0",
   <PremiumPostPanel
     state={premiumState}
     onOpenPayment={() => setPaymentPanelOpen(true)}
+    oneTimePrice={post.oneTimePrice}
+    currency={post.currency}
   />
 )}
 <PostPaymentPanel

@@ -1663,8 +1663,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             </button>
           )}
 
-          {/* Expand/compress — todos los celulares (portrait y horizontal) */}
-          {!isDesktop && (
+          {/* Expand/compress — solo celular horizontal (no portrait) */}
+          {!isDesktop && !isPortrait && (
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setMobileFsHorizontal(f => !f); }}
@@ -2620,8 +2620,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       pointerEvents: controlsVisible ? "auto" : "none",
       transition: "opacity 0.25s ease",
     };
-    // El chat sube cuando aparecen los controles DVR
-    const chatLift = (vodControlsVisible && dvrAvailable) ? 80 : 0;
+    // Chat y controles DVR son mutuamente excluyentes: cuando uno se ve, el otro se oculta
+    const dvrActive = vodControlsVisible && dvrAvailable;
 
     return createPortal(
       <>
@@ -2657,13 +2657,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               {!activeSuperComment && renderLiveBadge("top-center", 0, 0, true)}
               {!activeSuperComment && renderViewerBadge("top-left", 0, 0, true)}
 
-              {/* Chat overlay — siempre visible durante live; sube suavemente cuando aparece el DVR */}
+              {/* Chat — visible cuando NO hay DVR activo; fade out cuando aparecen los controles */}
               {!isEnded && (
                 <div style={{
-                  position: "absolute",
-                  bottom: chatLift,
-                  left: 0, right: 0,
-                  transition: "bottom 0.3s ease",
+                  opacity: dvrActive ? 0 : 1,
+                  pointerEvents: dvrActive ? "none" : "auto",
+                  transition: "opacity 0.3s ease",
                 }}>
                   <LiveChatViewer
                     liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted}

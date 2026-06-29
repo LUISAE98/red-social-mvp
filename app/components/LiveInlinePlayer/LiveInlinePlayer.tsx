@@ -76,6 +76,7 @@ type Props = {
   title?: string | null;
   coverUrl?: string | null;
   portrait?: boolean;
+  isVod?: boolean;
   paused?: boolean;
   streamProvider?: string | null;
   broadcastMode?: string | null;
@@ -93,6 +94,7 @@ export default function LiveInlinePlayer({
   title,
   coverUrl,
   portrait = false,
+  isVod = false,
   paused = false,
   streamProvider,
   broadcastMode,
@@ -522,7 +524,7 @@ export default function LiveInlinePlayer({
   const wrapper: CSSProperties = {
     position: "relative",
     width: "100%",
-    aspectRatio: "16 / 9",
+    aspectRatio: (portrait && !isVod) ? "9 / 16" : "16 / 9",
     background: "#000",
     borderRadius: 12,
     overflow: "hidden",
@@ -587,7 +589,7 @@ export default function LiveInlinePlayer({
           inset: 0,
           width: "100%",
           height: "100%",
-          objectFit: portrait ? "contain" : "cover",
+          objectFit: (portrait && isVod) ? "contain" : "cover",
           opacity: ready ? 1 : 0,
           transition: "opacity 0.3s ease",
         }}
