@@ -1,21 +1,35 @@
 "use client";
 
 import type { CSSProperties } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import HomePostsFeed from "./HomePostsFeed";
 import HomeStoriesRow from "@/app/components/Stories/HomeStoriesRow";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 
+const SESSION_UID_KEY = "vibra:uid";
+
 export default function GroupsHome() {
   const { user, loading, startAuthTransition } = useAuth();
   const router = useRouter();
 
+  // Read cached UID from sessionStorage so the feed renders immediately on
+  // return visits, without waiting for Firebase's onAuthStateChanged (~100ms).
+  const [cachedUid, setCachedUid] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return sessionStorage.getItem(SESSION_UID_KEY);
+  });
+
   useEffect(() => {
     if (loading) return;
 
-    if (!user) {
+    if (user) {
+      sessionStorage.setItem(SESSION_UID_KEY, user.uid);
+      setCachedUid(user.uid);
+    } else {
+      sessionStorage.removeItem(SESSION_UID_KEY);
+      setCachedUid(null);
       startAuthTransition("exiting");
       router.replace("/login?next=%2F");
     }
@@ -53,17 +67,21 @@ const pageWrap: CSSProperties = {
 
   const refreshRef = useRef<() => Promise<void>>(async () => {});
 
-  if (loading || !user) {
-    return null;
-  }
+  // Use confirmed user UID first, fall back to cached UID from sessionStorage.
+  // This means the feed renders immediately on return visits even while Firebase
+  // confirms the session (which takes ~100ms).
+  const effectiveUid = user?.uid ?? cachedUid;
+
+  // Nothing to show: no cached session and still loading, or confirmed logged out
+  if (!effectiveUid) return null;
 
   return (
     <main style={pageWrap}>
       <div style={container}>
         <div style={feedWrap}>
           <RefreshableArea onRefresh={() => refreshRef.current()}>
-            <HomeStoriesRow currentUserId={user.uid} />
-            <HomePostsFeed currentUserId={user.uid} refreshRef={refreshRef} />
+            <HomeStoriesRow currentUserId={effectiveUid} />
+            <HomePostsFeed currentUserId={effectiveUid} refreshRef={refreshRef} />
           </RefreshableArea>
         </div>
       </div>

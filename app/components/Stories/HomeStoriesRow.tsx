@@ -53,6 +53,7 @@ const fontStack =
   'inherit';
 
 export default function HomeStoriesRow({ currentUserId }: Props) {
+  const [loaded, setLoaded] = useState(false);
   const [creatorIds, setCreatorIds] = useState<string[]>([]);
   const [groupIds, setGroupIds] = useState<string[]>([]);
   // entityId → livePostId, real-time
@@ -111,6 +112,8 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
         setGroupIds(gids);
       } catch (err) {
         console.error("[HomeStoriesRow] load", err);
+      } finally {
+        setLoaded(true);
       }
     }
     void load();
@@ -352,6 +355,50 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     if (currentIdx > 0) {
       setActiveGroup(groups[currentIdx - 1]);
     }
+  }
+
+  if (!loaded) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          gap: 16,
+          padding: "12px 16px 8px",
+          marginBottom: 14,
+          overflowX: "hidden",
+        }}
+      >
+        {[0, 1, 2, 3, 4].map((i) => (
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 5,
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: "50%",
+                background: "rgba(255,255,255,0.07)",
+              }}
+            />
+            <div
+              style={{
+                width: 52,
+                height: 11,
+                borderRadius: 6,
+                background: "rgba(255,255,255,0.07)",
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    );
   }
 
   if (allGroups.length === 0 && liveEntities.length === 0) return null;

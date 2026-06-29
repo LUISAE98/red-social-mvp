@@ -122,7 +122,7 @@ function buildStableFeedSeed(
 }
 
 const HOME_FEED_PAGE_SIZE = 10;
-const HOME_FEED_CACHE_TTL_MS = 1000 * 60 * 5;
+const HOME_FEED_CACHE_TTL_MS = 1000 * 60 * 30;
 const VIDEO_PROCESSING_POLL_MS = 15_000;
 const VIDEO_PROCESSING_MAX_POLLS = 20;
 
