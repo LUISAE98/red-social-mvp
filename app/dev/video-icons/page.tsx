@@ -19,6 +19,101 @@ import {
   VideoCastIcon,
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 
+// ── Subnav mobile icons (copias locales para preview) ────────────────────────
+
+function NavHomeIcon() {
+  return (
+    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 11.2 12 4l8.5 7.2" />
+      <path d="M5.8 10.2V20h12.4v-9.8" />
+      <path d="M9.5 20v-5.8h5V20" />
+    </svg>
+  );
+}
+
+function NavHomeIconFilled() {
+  return (
+    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path fill="white" d="M3.5 11.2 12 4l8.5 7.2" />
+      <path fill="white" d="M5.8 10.2V20h12.4v-9.8" />
+      <path fill="#000000" d="M9.5 20v-5.8h5V20" />
+    </svg>
+  );
+}
+
+function NavBellIcon() {
+  return (
+    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 8a6 6 0 0 1 12 0c0 6 3 8 3 8H3s3-2 3-8" />
+      <path d="M10.3 20a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  );
+}
+
+function NavBellIconFilled() {
+  return (
+    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path fill="white" d="M6 8a6 6 0 0 1 12 0c0 6 3 8 3 8H3s3-2 3-8Z" />
+      <path d="M10.3 20a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  );
+}
+
+function NavGroupsIcon() {
+  return (
+    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="6.5" r="3.2" />
+      <circle cx="6.5" cy="16" r="3.2" />
+      <circle cx="17.5" cy="16" r="3.2" />
+      <path d="M9.4 8.8L8.8 13" strokeWidth={1.5} />
+      <path d="M14.6 8.8L15.2 13" strokeWidth={1.5} />
+      <path d="M9.7 16H14.3" strokeWidth={1.5} />
+    </svg>
+  );
+}
+
+function NavGroupsIconFilled() {
+  return (
+    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="6.5" r="3.2" fill="white" />
+      <circle cx="6.5" cy="16" r="3.2" fill="white" />
+      <circle cx="17.5" cy="16" r="3.2" fill="white" />
+      <path d="M9.4 8.8L8.8 13" strokeWidth={1.5} />
+      <path d="M14.6 8.8L15.2 13" strokeWidth={1.5} />
+      <path d="M9.7 16H14.3" strokeWidth={1.5} />
+    </svg>
+  );
+}
+
+function NavWalletIcon() {
+  return (
+    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 12V7H5a2 2 0 0 1 0-4h13v4" />
+      <path d="M3 5v13a2 2 0 0 0 2 2h15v-5" />
+      <path d="M17 12a2 2 0 0 0 0 4h3v-4Z" />
+    </svg>
+  );
+}
+
+function NavWalletIconFilled() {
+  return (
+    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path fill="white" stroke="none" d="M3 6v12a2 2 0 0 0 2 2h15V6H3Z" />
+      <path fill="#000000" stroke="none" d="M16.4 11.5a2.55 2.55 0 0 0 0 5.1h3.6v-5.1Z" />
+      <path d="M20 12V7H5a2 2 0 0 1 0-4h13v4" />
+      <path d="M3 5v13a2 2 0 0 0 2 2h15v-5" />
+      <path d="M17 12a2 2 0 0 0 0 4h3v-4Z" />
+    </svg>
+  );
+}
+
+const SUBNAV_ITEMS = [
+  { label: "Home",           name: "NavHomeIcon",    icon: NavHomeIcon,    filled: NavHomeIconFilled },
+  { label: "Comunidades",    name: "NavGroupsIcon",  icon: NavGroupsIcon,  filled: NavGroupsIconFilled },
+  { label: "Notificaciones", name: "NavBellIcon",    icon: NavBellIcon,    filled: NavBellIconFilled },
+  { label: "Wallet",         name: "NavWalletIcon",  icon: NavWalletIcon,  filled: NavWalletIconFilled },
+];
+
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
 const ICONS: { name: string; label: string; component: React.ComponentType<{ size?: number }>; size?: number }[] = [
@@ -333,6 +428,43 @@ export default function VideoIconsPreview() {
 
   return (
     <div style={{ background: "#0a0a0a", minHeight: "100vh", padding: "40px 32px", fontFamily: "inherit" }}>
+
+      {/* ── Subnav mobile actual ── */}
+      <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Subnav Mobile — Iconos actuales</h1>
+      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 20 }}>
+        MobileBottomNav · 3 ítems fijos · 26×26px stroke blanco
+      </p>
+
+      {/* Inactivo */}
+      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Inactivo</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 2, maxWidth: 440, marginBottom: 16 }}>
+        {SUBNAV_ITEMS.map(({ label, name, icon: Icon }) => (
+          <div key={name} style={{
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            gap: 12, padding: "28px 12px",
+            borderRadius: 12, background: "rgba(255,255,255,0.04)",
+          }}>
+            <Icon />
+            <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, fontWeight: 600 }}>{label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Activo */}
+      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Activo</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 2, maxWidth: 440, marginBottom: 56 }}>
+        {SUBNAV_ITEMS.map(({ label, name, filled: FilledIcon }) => (
+          <div key={`${name}-filled`} style={{
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            gap: 12, padding: "28px 12px",
+            borderRadius: 12, background: "rgba(255,255,255,0.04)",
+          }}>
+            <FilledIcon />
+            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600 }}>{label}</span>
+          </div>
+        ))}
+      </div>
+
       <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 8 }}>VibraVideoIcons — Preview</h1>
       <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 32 }}>
         20px estándar · skip 24px · play/pausa 26px · sin contenedor

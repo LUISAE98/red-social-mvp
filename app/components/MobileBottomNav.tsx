@@ -2,14 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 
 import { useAuth } from "@/app/providers";
 import { db } from "@/lib/firebase";
 
-type NavIconKey = "home" | "groups" | "wallet";
+type NavIconKey = "home" | "groups" | "notifications" | "wallet";
 
 type MobileNavItem = {
   key: string;
@@ -22,7 +22,7 @@ type MobileNavItem = {
 
 function NavHomeIcon() {
   return (
-    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M3.5 11.2 12 4l8.5 7.2" />
       <path d="M5.8 10.2V20h12.4v-9.8" />
       <path d="M9.5 20v-5.8h5V20" />
@@ -30,24 +30,75 @@ function NavHomeIcon() {
   );
 }
 
+function NavHomeIconFilled() {
+  return (
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path fill="white" d="M3.5 11.2 12 4l8.5 7.2" />
+      <path fill="white" d="M5.8 10.2V20h12.4v-9.8" />
+      <path fill="#000000" d="M9.5 20v-5.8h5V20" />
+    </svg>
+  );
+}
+
 function NavWalletIcon() {
   return (
-    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M4 9C4 7.3 5.3 6 7 6H17C18.7 6 20 7.3 20 9V16C20 17.7 18.7 19 17 19H7C5.3 19 4 17.7 4 16V9Z" />
-      <path d="M4 11.5H20" />
-      <path d="M6.5 14.5H11" strokeWidth={1.6} />
-      <path d="M6.5 16.5H10" strokeWidth={1.6} />
-      <circle cx="15.5" cy="15.2" r="2.2" />
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 12V7H5a2 2 0 0 1 0-4h13v4" />
+      <path d="M3 5v13a2 2 0 0 0 2 2h15v-5" />
+      <path d="M17 12a2 2 0 0 0 0 4h3v-4Z" />
+    </svg>
+  );
+}
+
+function NavWalletIconFilled() {
+  return (
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path fill="white" stroke="none" d="M3 6v12a2 2 0 0 0 2 2h15V6H3Z" />
+      <path fill="#000000" stroke="none" d="M16.4 11.5a2.55 2.55 0 0 0 0 5.1h3.6v-5.1Z" />
+      <path d="M20 12V7H5a2 2 0 0 1 0-4h13v4" />
+      <path d="M3 5v13a2 2 0 0 0 2 2h15v-5" />
+      <path d="M17 12a2 2 0 0 0 0 4h3v-4Z" />
+    </svg>
+  );
+}
+
+function NavBellIcon() {
+  return (
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 8a6 6 0 0 1 12 0c0 6 3 8 3 8H3s3-2 3-8" />
+      <path d="M10.3 20a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  );
+}
+
+function NavBellIconFilled() {
+  return (
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path fill="white" d="M6 8a6 6 0 0 1 12 0c0 6 3 8 3 8H3s3-2 3-8Z" />
+      <path d="M10.3 20a1.94 1.94 0 0 0 3.4 0" />
     </svg>
   );
 }
 
 function NavGroupsIcon() {
   return (
-    <svg width={26} height={26} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <circle cx="12" cy="6.5" r="3.2" />
       <circle cx="6.5" cy="16" r="3.2" />
       <circle cx="17.5" cy="16" r="3.2" />
+      <path d="M9.4 8.8L8.8 13" strokeWidth={1.5} />
+      <path d="M14.6 8.8L15.2 13" strokeWidth={1.5} />
+      <path d="M9.7 16H14.3" strokeWidth={1.5} />
+    </svg>
+  );
+}
+
+function NavGroupsIconFilled() {
+  return (
+    <svg width={30} height={30} viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="6.5" r="3.2" fill="white" />
+      <circle cx="6.5" cy="16" r="3.2" fill="white" />
+      <circle cx="17.5" cy="16" r="3.2" fill="white" />
       <path d="M9.4 8.8L8.8 13" strokeWidth={1.5} />
       <path d="M14.6 8.8L15.2 13" strokeWidth={1.5} />
       <path d="M9.7 16H14.3" strokeWidth={1.5} />
@@ -62,7 +113,7 @@ function ProfileAvatarIcon({
   src: string | null;
   active: boolean;
 }) {
-  const size = 28;
+  const size = 32;
 
   return (
     <span
@@ -113,16 +164,61 @@ export default function MobileBottomNav({
   const [handle, setHandle] = useState<string | null>(null);
   const [photoURL, setPhotoURL] = useState<string | null>(null);
 
+  // ── Nav scale (shrink on scroll-down / idle) ───────────────────────────────
+  const [navScale, setNavScale] = useState(1);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastScrollYRef = useRef(0);
+
+  const cancelIdleTimer = useCallback(() => {
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+  }, []);
+
+  const startIdleTimer = useCallback(() => {
+    cancelIdleTimer();
+    idleTimerRef.current = setTimeout(() => setNavScale(0.75), 5000);
+  }, [cancelIdleTimer]);
+
+  const expandNav = useCallback(() => {
+    setNavScale(1);
+    startIdleTimer();
+  }, [startIdleTimer]);
+
   useEffect(() => {
-    if (!user) {
-      setHandle(null);
-      setPhotoURL(null);
-      return;
+    startIdleTimer();
+
+    function onScroll() {
+      const y = window.scrollY;
+      const dy = y - lastScrollYRef.current;
+      lastScrollYRef.current = y;
+      if (Math.abs(dy) < 2) return;
+      if (dy > 0) {
+        cancelIdleTimer();
+        setNavScale(0.75);
+      } else {
+        setNavScale(1);
+        startIdleTimer();
+      }
     }
 
-    const uid = user.uid;
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelIdleTimer();
+    };
+  }, [startIdleTimer, cancelIdleTimer]);
 
+  useEffect(() => {
     async function loadProfileData() {
+      if (!user) {
+        setHandle(null);
+        setPhotoURL(null);
+        return;
+      }
+
+      const uid = user.uid;
       try {
         const snap = await getDoc(doc(db, "users", uid));
         if (snap.exists()) {
@@ -168,6 +264,15 @@ export default function MobileBottomNav({
         iconKey: "groups",
       },
     ];
+
+    items.push({
+      key: "notifications",
+      href: "/notifications",
+      active: pathname.startsWith("/notifications"),
+      label: "Notificaciones",
+      type: "icon",
+      iconKey: "notifications",
+    });
 
     if (showWallet) {
       items.push({
@@ -256,11 +361,24 @@ export default function MobileBottomNav({
         }
       `}</style>
 
-      <nav className="wrap" aria-label="Navegación móvil inferior">
+      <nav
+        className="wrap"
+        aria-label="Navegación móvil inferior"
+        style={{
+          transform: `translateZ(0) scaleY(${navScale})`,
+          transformOrigin: "bottom center",
+          transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
+      >
         <div className="navShell">
           <div
             className="nav"
-            style={{ "--mobile-nav-count": nav.length } as React.CSSProperties}
+            style={{
+              "--mobile-nav-count": nav.length,
+              transform: `translateZ(0) scaleX(${Math.sqrt(navScale)})`,
+              transformOrigin: "center",
+              transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
+            } as React.CSSProperties}
           >
             {nav.map((item) => (
               <Link
@@ -270,16 +388,25 @@ export default function MobileBottomNav({
                 aria-label={item.label}
                 title={item.label}
                 aria-current={item.active ? "page" : undefined}
+                onClick={expandNav}
               >
-                <div className="itemInner">
+                <div
+                  className="itemInner"
+                  style={{
+                    transform: `scaleX(${Math.sqrt(navScale)})`,
+                    transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}
+                >
                   {item.type === "avatar" ? (
                     <ProfileAvatarIcon src={photoURL} active={item.active} />
                   ) : item.iconKey === "home" ? (
-                    <NavHomeIcon />
+                    item.active ? <NavHomeIconFilled /> : <NavHomeIcon />
+                  ) : item.iconKey === "notifications" ? (
+                    item.active ? <NavBellIconFilled /> : <NavBellIcon />
                   ) : item.iconKey === "wallet" ? (
-                    <NavWalletIcon />
+                    item.active ? <NavWalletIconFilled /> : <NavWalletIcon />
                   ) : (
-                    <NavGroupsIcon />
+                    item.active ? <NavGroupsIconFilled /> : <NavGroupsIcon />
                   )}
                 </div>
               </Link>

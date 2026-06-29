@@ -29,6 +29,7 @@ import PostCommentsPanel from "./PostCommentsPanel";
 import GroupPostComposer, { type GroupPostComposerSubmitPayload } from "./GroupPostComposer";
 import PostImageViewer from "./PostImageViewer";
 import PostPaymentPanel from "./PostPaymentPanel";
+import { VideoPlayIcon } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import { usePostTempUnlock } from "@/lib/posts/usePostTempUnlock";
 import { checkLiveAccess } from "@/lib/liveAccess/live-access-service";
 import { fetchPostFlameUsers, updatePost } from "@/lib/posts/post-service";
@@ -4315,21 +4316,7 @@ style={{
                   pointerEvents: "none",
                 }}
               >
-                <span
-                  style={{
-                    width: 50,
-                    height: 50,
-                    borderRadius: 999,
-                    display: "grid",
-                    placeItems: "center",
-                    background: "#7c3aed",
-                    boxShadow: "0 8px 24px rgba(0,0,0,0.32)",
-                  }}
-                >
-                  <svg viewBox="0 0 24 24" fill="white" width="22" height="22" style={{ marginLeft: 2 }}>
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </span>
+                <VideoPlayIcon size={50} color="#fff" />
               </div>
               {durationLabel && (
                 <span
@@ -4342,7 +4329,9 @@ style={{
                     minHeight: 20,
                     padding: "3px 7px",
                     borderRadius: 6,
-                    background: "#7c3aed",
+                    background: "rgba(0,0,0,0.52)",
+                    backdropFilter: "blur(4px)",
+                    WebkitBackdropFilter: "blur(4px)",
                     color: "#fff",
                     fontSize: 11,
                     fontWeight: 700,
@@ -4517,21 +4506,7 @@ padding: "0 0 2px 0",
                       pointerEvents: "none",
                     }}
                   >
-                    <span
-                      style={{
-                        width: 50,
-                        height: 50,
-                        borderRadius: 999,
-                        display: "grid",
-                        placeItems: "center",
-                        background: "#7c3aed",
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.32)",
-                      }}
-                    >
-                      <svg viewBox="0 0 24 24" fill="white" width="22" height="22" style={{ marginLeft: 2 }}>
-                        <path d="M8 5v14l11-7z" />
-                      </svg>
-                    </span>
+                    <VideoPlayIcon size={50} color="#fff" />
                   </div>
                   {durationLabel && (
                     <span
@@ -4544,7 +4519,9 @@ padding: "0 0 2px 0",
                         minHeight: 20,
                         padding: "3px 7px",
                         borderRadius: 6,
-                        background: "#7c3aed",
+                        background: "rgba(0,0,0,0.52)",
+                        backdropFilter: "blur(4px)",
+                        WebkitBackdropFilter: "blur(4px)",
                         color: "#fff",
                         fontSize: 11,
                         fontWeight: 700,

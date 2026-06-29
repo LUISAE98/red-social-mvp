@@ -2512,28 +2512,42 @@ async function enforcePostRateLimit(): Promise<void> {
   const docRef = doc(db, "rateLimits", `${user.uid}_post`);
   const nowMs = Date.now();
   const oneHourAgoMs = nowMs - 60 * 60 * 1000;
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(docRef);
-    let lastAtMs = 0;
-    let hourTimestamps: Timestamp[] = [];
-    if (snap.exists()) {
-      const data = snap.data()!;
-      const lastAt = data.lastAt as Timestamp | undefined;
-      lastAtMs = lastAt ? lastAt.toMillis() : 0;
-      hourTimestamps = ((data.hourTimestamps as Timestamp[]) ?? []).filter(
-        (ts: Timestamp) => ts.toMillis() > oneHourAgoMs
-      );
+  try {
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(docRef);
+      let lastAtMs = 0;
+      let hourTimestamps: Timestamp[] = [];
+      if (snap.exists()) {
+        const data = snap.data()!;
+        const lastAt = data.lastAt as Timestamp | undefined;
+        lastAtMs = lastAt ? lastAt.toMillis() : 0;
+        hourTimestamps = ((data.hourTimestamps as Timestamp[]) ?? []).filter(
+          (ts: Timestamp) => ts.toMillis() > oneHourAgoMs
+        );
+      }
+      if (nowMs - lastAtMs < INTERVAL_MS) {
+        const waitSec = Math.ceil((INTERVAL_MS - (nowMs - lastAtMs)) / 1000);
+        throw new Error(`Espera ${waitSec}s antes de publicar de nuevo.`);
+      }
+      if (hourTimestamps.length >= MAX_PER_HOUR) {
+        throw new Error(`Alcanzaste el límite de ${MAX_PER_HOUR} publicaciones por hora.`);
+      }
+      const nowTs = Timestamp.fromMillis(nowMs);
+      tx.set(docRef, { lastAt: nowTs, hourTimestamps: [...hourTimestamps, nowTs] });
+    });
+  } catch (err: unknown) {
+    const isFirestorePermissionError =
+      err != null &&
+      typeof err === "object" &&
+      "code" in err &&
+      (err as { code: string }).code === "permission-denied";
+    if (isFirestorePermissionError) {
+      console.error("[enforcePostRateLimit] Firestore permission denied on rateLimits write:", err);
+      // Regla de rate limit bloqueada — no interrumpir la publicación por esto
+      return;
     }
-    if (nowMs - lastAtMs < INTERVAL_MS) {
-      const waitSec = Math.ceil((INTERVAL_MS - (nowMs - lastAtMs)) / 1000);
-      throw new Error(`Espera ${waitSec}s antes de publicar de nuevo.`);
-    }
-    if (hourTimestamps.length >= MAX_PER_HOUR) {
-      throw new Error(`Alcanzaste el límite de ${MAX_PER_HOUR} publicaciones por hora.`);
-    }
-    const nowTs = Timestamp.fromMillis(nowMs);
-    tx.set(docRef, { lastAt: nowTs, hourTimestamps: [...hourTimestamps, nowTs] });
-  });
+    throw err;
+  }
 }
 
 async function enforceCommentRateLimit(): Promise<void> {
@@ -3280,7 +3294,35 @@ export async function createMediaPost(params: {
   };
 
   if (params.postId) {
-    await setDoc(doc(db, "posts", params.postId), postPayload, { merge: true });
+    // Diagnostic: detect if doc already exists (author can read own existing posts)
+    try {
+      const existingSnap = await getDoc(doc(db, "posts", params.postId));
+      if (existingSnap.exists()) {
+        console.warn("[createMediaPost] post doc already exists before setDoc!", {
+          postId: params.postId,
+          existingFields: Object.keys(existingSnap.data() ?? {}),
+        });
+      }
+    } catch {
+      // Expected: permission-denied means doc does NOT exist (allow get is false for non-existing docs)
+    }
+
+    try {
+      await setDoc(doc(db, "posts", params.postId), postPayload);
+    } catch (err: unknown) {
+      console.error("[createMediaPost] setDoc failed", {
+        postId: params.postId,
+        authUid: auth.currentUser?.uid,
+        authorId: postPayload.authorId,
+        accessModel: premiumAccessFields.accessModel,
+        access: premiumAccessFields.access,
+        requiresPayment: premiumAccessFields.requiresPayment,
+        contextType: params.contextType,
+        profileId: (postPayload as Record<string, unknown>).profileId,
+        err,
+      });
+      throw err;
+    }
     return;
   }
 

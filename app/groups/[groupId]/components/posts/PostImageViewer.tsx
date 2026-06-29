@@ -268,6 +268,8 @@ export default function PostImageViewer({
   const [mediaAspectRatio, setMediaAspectRatio] = useState<number | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const pivRef1 = useRef<HTMLDivElement>(null);
+  const pivRef2 = useRef<HTMLDivElement>(null);
   const externalVideoSlotRef = useRef<HTMLDivElement | null>(null);
   const desktopVideoShellRef = useRef<HTMLDivElement | null>(null);
   const chromeHideTimerRef = useRef<number | null>(null);
@@ -881,6 +883,28 @@ const previousMedia =
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalVideoElement]);
 
+  // ── RAF: scrubber suave a 60fps — actualiza --pct directo al DOM ──────────
+  useEffect(() => {
+    if (!videoReady) return;
+    let rafId: number;
+    const tick = () => {
+      const v = videoRef.current;
+      if (v && isFinite(v.currentTime) && isFinite(v.duration) && v.duration > 0) {
+        const pct = `${Math.min(100, v.currentTime / v.duration * 100).toFixed(2)}%`;
+        if (pivRef1.current) pivRef1.current.style.setProperty("--pct", pct);
+        if (pivRef2.current) pivRef2.current.style.setProperty("--pct", pct);
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(rafId);
+      if (pivRef1.current) pivRef1.current.style.setProperty("--pct", "0%");
+      if (pivRef2.current) pivRef2.current.style.setProperty("--pct", "0%");
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoReady]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -1027,6 +1051,8 @@ const previousMedia =
     display: "grid",
     placeItems: "center",
     WebkitTapHighlightColor: "transparent",
+    outline: "none",
+    boxShadow: "none",
   };
 
   const actionButtonStyle: CSSProperties = {
@@ -1042,6 +1068,8 @@ const previousMedia =
     fontFamily: fontStack,
     cursor: "pointer",
     WebkitTapHighlightColor: "transparent",
+    outline: "none",
+    boxShadow: "none",
   };
 
   const actionGroupStyle: CSSProperties = {
@@ -1067,6 +1095,8 @@ const topBtnStyle: CSSProperties = {
   display: "grid", placeItems: "center",
   cursor: "pointer",
   WebkitTapHighlightColor: "transparent",
+  outline: "none",
+  boxShadow: "none",
   flexShrink: 0,
 };
 
@@ -1080,6 +1110,8 @@ const liveBtnStyle: CSSProperties = {
   alignItems: "center",
   justifyContent: "center",
   WebkitTapHighlightColor: "transparent",
+  outline: "none",
+  boxShadow: "none",
   flexShrink: 0,
 };
 
@@ -1746,7 +1778,7 @@ const previewUrl = media.url;
               type="button"
               onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10); }}
               onClick={(e) => { e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10); }}
-              style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto", WebkitTapHighlightColor: "transparent" }}
+              style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto", WebkitTapHighlightColor: "transparent", outline: "none", boxShadow: "none" }}
             >
               <VideoSkipBackIcon size={40} />
             </button>
@@ -1755,7 +1787,7 @@ const previewUrl = media.url;
               onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); handleVideoPlayPause(); }}
               onClick={(e) => { e.stopPropagation(); handleVideoPlayPause(); }}
               aria-label={videoPlaying ? "Pausar video" : "Reproducir video"}
-              style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto", WebkitTapHighlightColor: "transparent" }}
+              style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto", WebkitTapHighlightColor: "transparent", outline: "none", boxShadow: "none" }}
             >
               {videoPlaying ? <VideoPauseIcon size={44} /> : <VideoPlayIcon size={44} />}
             </button>
@@ -1763,7 +1795,7 @@ const previewUrl = media.url;
               type="button"
               onTouchEnd={(e) => { e.preventDefault(); e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.min(v.duration, v.currentTime + 10); }}
               onClick={(e) => { e.stopPropagation(); const v = videoRef.current; if (v) v.currentTime = Math.min(v.duration, v.currentTime + 10); }}
-              style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto", WebkitTapHighlightColor: "transparent" }}
+              style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", pointerEvents: "auto", WebkitTapHighlightColor: "transparent", outline: "none", boxShadow: "none" }}
             >
               <VideoSkipForwardIcon size={40} />
             </button>
@@ -1868,14 +1900,14 @@ const previewUrl = media.url;
                       ×{videoPlaybackRate}
                     </button>
                   </div>
-                  <div style={{ position: "relative", height: 20, display: "flex", alignItems: "center" }}>
+                  <div ref={pivRef1} style={{ position: "relative", height: 20, display: "flex", alignItems: "center" }}>
                     <div style={{ position: "absolute", left: 0, right: 0, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.28)" }}>
-                      <div style={{ height: "100%", width: `${videoDuration > 0 ? Math.min(100, (videoCurrentTime / videoDuration) * 100) : 0}%`, background: "#fff", borderRadius: 2 }} />
+                      <div style={{ height: "100%", width: "var(--pct, 0%)", background: "#fff", borderRadius: 2 }} />
                     </div>
                     <div
                       style={{
                         position: "absolute",
-                        left: `${videoDuration > 0 ? Math.min(100, (videoCurrentTime / videoDuration) * 100) : 0}%`,
+                        left: "var(--pct, 0%)",
                         transform: "translate(-50%, 0)",
                         width: 14, height: 14, borderRadius: "50%",
                         background: "#fff", boxShadow: "0 1px 5px rgba(0,0,0,0.55)",
@@ -2323,12 +2355,12 @@ const previewUrl = media.url;
                       ×{videoPlaybackRate}
                     </button>
                   </div>
-                  <div style={{ position: "relative", height: 28, display: "flex", alignItems: "center" }}>
+                  <div ref={pivRef2} style={{ position: "relative", height: 28, display: "flex", alignItems: "center" }}>
                     <div style={{ position: "absolute", left: 0, right: 0, height: 4, borderRadius: 99, background: "rgba(255,255,255,0.25)" }} />
-                    <div style={{ position: "absolute", left: 0, width: `${videoDuration > 0 ? Math.min(100, (videoCurrentTime / videoDuration) * 100) : 0}%`, height: 4, borderRadius: 99, background: "#fff" }} />
+                    <div style={{ position: "absolute", left: 0, width: "var(--pct, 0%)", height: 4, borderRadius: 99, background: "#fff" }} />
                     <div style={{
                       position: "absolute",
-                      left: `${videoDuration > 0 ? Math.min(100, (videoCurrentTime / videoDuration) * 100) : 0}%`,
+                      left: "var(--pct, 0%)",
                       transform: "translateX(-50%)",
                       width: 11, height: 11, borderRadius: "50%", background: "#fff",
                       pointerEvents: "none",

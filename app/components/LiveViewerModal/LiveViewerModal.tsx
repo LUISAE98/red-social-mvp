@@ -14,6 +14,9 @@ import { joinLivePresence, leaveLivePresence, subscribeToViewerCount, registerUn
 import type { ActiveSuperComment } from "@/lib/posts/types";
 import { TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
+import {
+  VideoPlayIcon, VideoPauseIcon, VideoSkipBackIcon, VideoSkipForwardIcon,
+} from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import { getOrCreateGuestId, getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
 import { submitSuperComment, submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
 
@@ -276,6 +279,8 @@ function DonationPanel({ onClose, postId, userId, username, avatarUrl, guestId }
   );
 }
 
+const VOD_PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
 export default function LiveViewerModal({ open, onClose, post, onManage, initialPortrait = false, initialStream }: Props) {
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
@@ -317,6 +322,16 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const [hzControlsVisible, setHzControlsVisible] = useState(false);
   const [videoPaused, setVideoPaused] = useState(false);
   const [donationOpen, setDonationOpen] = useState(false);
+
+  // ── VOD playback controls ──────────────────────────────────────────────────
+  const [vodCurrentTime, setVodCurrentTime] = useState(0);
+  const [vodDuration, setVodDuration] = useState(0);
+  const [vodPlaying, setVodPlaying] = useState(false);
+  const [vodPlaybackRate, setVodPlaybackRate] = useState(1);
+  const [vodControlsVisible, setVodControlsVisible] = useState(true);
+  const vodControlsTimerRef = useRef<number | null>(null);
+  const scrubberRef = useRef<HTMLInputElement>(null);
+  const isDraggingRef = useRef(false);
 
   // ── Supercomentario activo (overlay sobre el video) ────────────────────────
   const [activeSuperComment, setActiveSuperComment] = useState<ActiveSuperComment | null>(null);
@@ -446,6 +461,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       if (scDelayTimerRef.current !== null) window.clearTimeout(scDelayTimerRef.current);
       if (overlayTimerRef.current !== null) window.clearTimeout(overlayTimerRef.current);
       if (fadeOutTimerRef.current !== null) window.clearTimeout(fadeOutTimerRef.current);
+      if (vodControlsTimerRef.current !== null) window.clearTimeout(vodControlsTimerRef.current);
+      setVodPlaying(false);
       if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     };
   }, []);
@@ -557,6 +574,33 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const badgeLift = (hzControlsVisible && dvrAvailable) ? 24 : 0;
 
   useEffect(() => { setMounted(true); }, []);
+
+
+  // ── RAF: actualiza scrubber a 60fps sin re-renders de React ─────────────
+  useEffect(() => {
+    if (!isEnded || !vodReady) return;
+    let rafId: number;
+    const tick = () => {
+      const v = videoRef.current;
+      const el = scrubberRef.current;
+      if (v && el && !isDraggingRef.current) {
+        const cur = isFinite(v.currentTime) ? v.currentTime : 0;
+        const dur = isFinite(v.duration) && v.duration > 0 ? v.duration : 0;
+        el.value = String(cur);
+        if (dur > 0) el.style.setProperty("--pct", `${Math.min(100, cur / dur * 100).toFixed(2)}%`);
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [isEnded, vodReady]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Sync VOD playback rate → video element ────────────────────────────────
+  useEffect(() => {
+    if (!isEnded || !vodReady) return;
+    const video = videoRef.current;
+    if (video) video.playbackRate = vodPlaybackRate;
+  }, [vodPlaybackRate, isEnded, vodReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Resetear contador de reintentos cada vez que se abre el modal o cambia la URL
   useEffect(() => {
@@ -1332,6 +1376,179 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     );
   }
 
+  // ── VOD helpers ────────────────────────────────────────────────────────────
+  function formatVodTime(sec: number): string {
+    if (!isFinite(sec) || sec < 0) return "0:00";
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
+  function scheduleVodControlsHide() {
+    if (vodControlsTimerRef.current !== null) window.clearTimeout(vodControlsTimerRef.current);
+    vodControlsTimerRef.current = window.setTimeout(() => setVodControlsVisible(false), 3500);
+  }
+
+  function clearVodControlsTimer() {
+    if (vodControlsTimerRef.current !== null) {
+      window.clearTimeout(vodControlsTimerRef.current);
+      vodControlsTimerRef.current = null;
+    }
+  }
+
+  function toggleVodControls() {
+    if (vodControlsVisible) {
+      clearVodControlsTimer();
+      setVodControlsVisible(false);
+    } else {
+      setVodControlsVisible(true);
+      scheduleVodControlsHide();
+    }
+  }
+
+  // ── renderVodControls — overlay personalizado para el VOD post-live ────────
+  function renderVodControls(inSafeZone = false) {
+    if (!isEnded || !vodReady) return null;
+
+    const skipSz = isDesktop ? 32 : 36;
+    const playSz = isDesktop ? 36 : 40;
+    const fontSz = isDesktop ? 12 : 14;
+
+    const handleSkip = (delta: number) => {
+      const v = videoRef.current;
+      if (!v) return;
+      const dur = isFinite(v.duration) && v.duration > 0 ? v.duration : vodDuration;
+      v.currentTime = Math.max(0, Math.min(dur, v.currentTime + delta));
+      setVodControlsVisible(true);
+      scheduleVodControlsHide();
+    };
+
+    const handlePlayPause = () => {
+      const v = videoRef.current;
+      if (!v) return;
+      if (v.paused) {
+        v.play().catch(() => {});
+        setVodPlaying(true); // optimistic — el polling confirmará en 200ms
+      } else {
+        v.pause();
+        setVodPlaying(false);
+      }
+      scheduleVodControlsHide();
+    };
+
+    const handleSpeedCycle = () => {
+      const idx = VOD_PLAYBACK_RATES.indexOf(vodPlaybackRate);
+      setVodPlaybackRate(VOD_PLAYBACK_RATES[(idx + 1) % VOD_PLAYBACK_RATES.length]);
+      scheduleVodControlsHide();
+    };
+
+    const btnBase: CSSProperties = {
+      background: "none", border: "none", color: "#fff",
+      cursor: "pointer", padding: 0,
+      display: "flex", alignItems: "center", justifyContent: "center",
+      WebkitTapHighlightColor: "transparent",
+      outline: "none",
+      boxShadow: "none",
+      pointerEvents: "auto",
+    };
+
+    return (
+      <div style={{
+        position: "absolute", inset: 0, zIndex: 7,
+        opacity: vodControlsVisible ? 1 : 0,
+        transition: "opacity 0.3s ease",
+        pointerEvents: "none",
+      }}>
+        {/* Gradient bottom */}
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0, height: 110,
+          background: "linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)",
+          pointerEvents: "none",
+        }} />
+
+        {/* Center: skip-10 · play/pause · skip+10 */}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          gap: isDesktop ? 50 : 36,
+          pointerEvents: "none",
+        }}>
+          <button
+            type="button"
+            className="lvm-vod-btn"
+            onClick={(e) => { e.stopPropagation(); handleSkip(-10); }}
+            style={{ ...btnBase, pointerEvents: "auto" }}
+          >
+            <VideoSkipBackIcon size={skipSz} color="#fff" />
+          </button>
+          <button
+            type="button"
+            className="lvm-vod-btn"
+            onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}
+            style={{ ...btnBase, pointerEvents: "auto" }}
+          >
+            {vodPlaying
+              ? <VideoPauseIcon size={playSz} color="#fff" />
+              : <VideoPlayIcon size={playSz} color="#fff" />}
+          </button>
+          <button
+            type="button"
+            className="lvm-vod-btn"
+            onClick={(e) => { e.stopPropagation(); handleSkip(10); }}
+            style={{ ...btnBase, pointerEvents: "auto" }}
+          >
+            <VideoSkipForwardIcon size={skipSz} color="#fff" />
+          </button>
+        </div>
+
+        {/* Bottom bar: time + scrubber + speed */}
+        <div style={{
+          position: "absolute",
+          bottom: inSafeZone ? 14 : 0,
+          left: inSafeZone ? 14 : 14,
+          right: inSafeZone ? 14 : 14,
+          paddingBottom: inSafeZone ? 0 : "max(14px, env(safe-area-inset-bottom))",
+          pointerEvents: "auto",
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+            <span style={{
+              color: "rgba(255,255,255,0.8)", fontSize: fontSz, fontWeight: 600,
+              fontFamily: FONT, fontVariantNumeric: "tabular-nums",
+            }}>
+              {formatVodTime(vodCurrentTime)}
+            </span>
+            <button
+              type="button"
+              className="lvm-vod-btn"
+              onClick={(e) => { e.stopPropagation(); handleSpeedCycle(); }}
+              style={{ ...btnBase, fontSize: fontSz, fontWeight: 700, lineHeight: 1 }}
+            >
+              ×{vodPlaybackRate}
+            </button>
+          </div>
+          <input
+            ref={scrubberRef}
+            type="range"
+            className="lvm-vod-range"
+            min={0}
+            max={vodDuration > 0 ? vodDuration : 100}
+            step="any"
+            defaultValue={0}
+            onInput={(e) => {
+              const v = videoRef.current;
+              if (v) v.currentTime = Number((e.target as HTMLInputElement).value);
+            }}
+            onMouseDown={(e) => { e.stopPropagation(); isDraggingRef.current = true; clearVodControlsTimer(); }}
+            onMouseUp={() => { isDraggingRef.current = false; scheduleVodControlsHide(); }}
+            onTouchStart={(e) => { e.stopPropagation(); isDraggingRef.current = true; clearVodControlsTimer(); }}
+            onTouchEnd={(e) => { e.stopPropagation(); isDraggingRef.current = false; scheduleVodControlsHide(); }}
+            style={{ width: "100%" }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   // ── Header — siempre visible: título izquierda (solo desktop), controles derecha ──
   function renderHeader(safeTop = false, showTitle = true, inSafeZone = false) {
     const iconSz = isDesktop ? 20 : 24;
@@ -1376,26 +1593,6 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             )}
           </button>
 
-          {onManage && (
-            <button
-              type="button"
-              onClick={onManage}
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 5,
-                padding: "5px 10px", borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.22)",
-                background: "rgba(0,0,0,0.45)",
-                color: "#fff", fontSize: 11, fontWeight: 600, fontFamily: FONT,
-                cursor: "pointer",
-                backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
-              }}
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-              </svg>
-              Gestionar
-            </button>
-          )}
 
           {/* Fullscreen toggle — solo desktop */}
           {isDesktop && (
@@ -1462,7 +1659,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // position="bottom-right" → esquina inferior derecha (desktop + mobile horizontal)
   // position="top-center"   → centrado arriba junto al header (mobile portrait)
   function renderLiveBadge(position: "bottom-right" | "top-center" = "bottom-right", liftPx = 0, sidePx = 0, inSafeZone = false) {
-    if (!isLive && !isEnded) return null;
+    if (!isLive) return null;
 
     function jumpToLive(e: React.MouseEvent) {
       e.stopPropagation();
@@ -1490,7 +1687,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     const posStyle: CSSProperties = position === "top-center"
       ? {
           position: "absolute",
-          top: "max(12px, env(safe-area-inset-top))",
+          top: inSafeZone ? "12px" : "max(12px, env(safe-area-inset-top))",
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 10,
@@ -1558,8 +1755,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     const posStyle: CSSProperties = position === "top-left"
       ? {
           position: "absolute",
-          top: "max(12px, env(safe-area-inset-top))",
-          left: "max(14px, env(safe-area-inset-left))",
+          top: inSafeZone ? "12px" : "max(12px, env(safe-area-inset-top))",
+          left: inSafeZone ? "14px" : "max(14px, env(safe-area-inset-left))",
           zIndex: 10,
         }
       : {
@@ -1741,11 +1938,27 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           ref={videoRef}
           muted={muted}
           playsInline
-          controls={isEnded && vodReady}
+          onTimeUpdate={() => {
+            const v = videoRef.current;
+            if (!v || !isEnded || !vodReady) return;
+            if (isFinite(v.currentTime)) setVodCurrentTime(v.currentTime);
+          }}
+          onDurationChange={() => {
+            const v = videoRef.current;
+            if (!v || !isEnded || !vodReady) return;
+            if (isFinite(v.duration) && v.duration > 0) setVodDuration(v.duration);
+          }}
+          onPlay={() => { if (isEnded && vodReady) setVodPlaying(true); }}
+          onPause={() => { if (isEnded && vodReady) setVodPlaying(false); }}
+          onEnded={() => { if (isEnded && vodReady) setVodPlaying(false); }}
           onClick={(e) => {
             if (horizontal) {
               e.stopPropagation();
-              setHzControlsVisible(v => !v);
+              if (isEnded && vodReady) {
+                toggleVodControls();
+              } else {
+                setHzControlsVisible(v => !v);
+              }
             } else {
               const video = videoRef.current;
               if (!video || (isEnded && vodReady)) return;
@@ -1756,7 +1969,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           style={{
             position: "absolute", inset: 0, width: "100%", height: "100%",
             objectFit: fit, opacity: ready ? 1 : 0, transition: "opacity 0.3s ease",
-            cursor: (horizontal || !isEnded || !vodReady) ? "pointer" : "default",
+            cursor: "pointer",
           }}
         />
       </>
@@ -1837,6 +2050,14 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     @keyframes lvFadeIn { from{opacity:0}to{opacity:1} }
     @keyframes lvFadeOut { from{opacity:1}to{opacity:0} }
     @keyframes lvSpin { from{transform:rotate(0deg)}to{transform:rotate(360deg)} }
+    .lvm-vod-range{-webkit-appearance:none;appearance:none;width:100%;height:4px;background:rgba(255,255,255,0.28);border-radius:2px;outline:none;cursor:pointer;display:block}
+    .lvm-vod-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;cursor:pointer;margin-top:-5px}
+    .lvm-vod-range::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#fff;cursor:pointer;border:none}
+    .lvm-vod-range::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:linear-gradient(to right,#fff var(--pct,0%),rgba(255,255,255,0.28) var(--pct,0%))}
+    .lvm-vod-range::-moz-range-track{height:4px;border-radius:2px;background:rgba(255,255,255,0.28)}
+    .lvm-vod-range::-moz-range-progress{height:4px;border-radius:2px;background:#fff}
+    .lvm-vod-btn{outline:none!important;box-shadow:none!important;-webkit-tap-highlight-color:transparent}
+    .lvm-vod-btn:focus,.lvm-vod-btn:focus-visible,.lvm-vod-btn:active{outline:none!important;box-shadow:none!important}
   `;
 
   const floatCardShadow = "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)";
@@ -1901,7 +2122,18 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               En vivo
             </span>
           </div>
-          {!isEnded && (!user || post.authorId !== user.uid) && (
+          {onManage ? (
+            <button
+              onClick={onManage}
+              style={{
+                flexShrink: 0, background: "#7c3aed", border: "none",
+                color: "#fff", borderRadius: 20, padding: "6px 14px",
+                fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
+              }}
+            >
+              Gestionar
+            </button>
+          ) : (!isEnded && (!user || post.authorId !== user.uid) && (
             <button
               onClick={() => setDonationOpen(true)}
               style={{
@@ -1913,7 +2145,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             >
               Donar +
             </button>
-          )}
+          ))}
         </div>
 
         {/* Título + descripción — agrupados para reducir separación entre ellos */}
@@ -1985,10 +2217,15 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         >
           <div
             style={{ position: "relative", width: "100%", height: "100%" }}
-            onClick={(e) => { e.stopPropagation(); if (!isEnded && dvrAvailable) setHzControlsVisible(v => !v); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isEnded && vodReady) toggleVodControls();
+              else if (!isEnded && dvrAvailable) setHzControlsVisible(v => !v);
+            }}
           >
             {renderVideo("contain", true)}
             {renderEndedOverlay()}
+            {renderVodControls(true)}
             {renderBannedOverlay()}
             {renderSuperOverlay()}
             {renderPauseButton()}
@@ -2029,10 +2266,14 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               borderRadius: 18, overflow: "hidden", flexShrink: 0,
               boxShadow: floatCardShadow,
             }}
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isEnded && vodReady) toggleVodControls();
+            }}
           >
             {renderVideo("cover")}
             {renderEndedOverlay()}
+            {renderVodControls(true)}
             {renderBannedOverlay()}
             {renderSuperOverlay()}
             {renderDvrBar()}
@@ -2088,10 +2329,15 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               borderRadius: 18, overflow: "hidden", flexShrink: 0,
               boxShadow: floatCardShadow,
             }}
-            onClick={(e) => { e.stopPropagation(); if (!isEnded && dvrAvailable) setHzControlsVisible(v => !v); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isEnded && vodReady) toggleVodControls();
+              else if (!isEnded && dvrAvailable) setHzControlsVisible(v => !v);
+            }}
           >
             {renderVideo("contain", true)}
             {renderEndedOverlay()}
+            {renderVodControls(true)}
             {renderBannedOverlay()}
             {renderSuperOverlay()}
             {renderPauseButton()}
@@ -2163,7 +2409,10 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           <div
             className={screenIsPortrait ? "lvm-hz-inner" : undefined}
             style={screenIsPortrait ? { background: "#000" } : { position: "absolute", inset: 0 }}
-            onClick={() => { if (!isEnded && dvrAvailable) setHzControlsVisible(v => !v); }}
+            onClick={() => {
+              if (isEnded && vodReady) toggleVodControls();
+              else if (!isEnded && dvrAvailable) setHzControlsVisible(v => !v);
+            }}
           >
             {/* Video y overlays de estado llenan el área completa incluyendo safe areas */}
             {renderVideo("contain", true)}
@@ -2171,6 +2420,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderBannedOverlay()}
             {/* Safe zone: todo el UI queda dentro de los límites del safe area */}
             <div style={hzSafeZone}>
+              {renderVodControls(true)}
               {renderSuperOverlay()}
               {renderPauseButton()}
               {renderDvrBar(true, true)}
@@ -2203,17 +2453,21 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         >
           <div
             style={{ position: "relative", flex: 1, minHeight: 0, height: "100%" }}
-            onClick={() => { if (!isEnded) setControlsVisible(v => !v); }}
+            onClick={() => {
+              if (isEnded && vodReady) toggleVodControls();
+              else if (!isEnded) setControlsVisible(v => !v);
+            }}
           >
             {renderVideo("cover")}
             {renderEndedOverlay()}
+            {renderVodControls(false)}
             {renderBannedOverlay()}
             {renderSuperOverlay("top")}
             {renderDvrBar()}
 
             {/* Badges — se ocultan mientras hay SC activo para que el overlay los cubra */}
-            {!activeSuperComment && renderLiveBadge("bottom-right", dvrAvailable ? 24 : 0)}
-            {!activeSuperComment && renderViewerBadge("bottom-left", dvrAvailable ? 24 : 0)}
+            {!activeSuperComment && renderLiveBadge("top-center", 0, 0, true)}
+            {!activeSuperComment && renderViewerBadge("top-left", 0, 0, true)}
 
             {/* Header y chat se ocultan con tap */}
             <div style={ctrlStyle}>{renderHeader(true, false)}</div>
@@ -2248,9 +2502,11 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         {/* Video */}
         <div
           style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", background: "#000", flexShrink: 0 }}
+          onClick={() => { if (isEnded && vodReady) toggleVodControls(); }}
         >
           {renderVideo("cover")}
           {renderEndedOverlay()}
+          {renderVodControls(true)}
           {renderBannedOverlay()}
           {renderSuperOverlay()}
           {renderDvrBar()}
