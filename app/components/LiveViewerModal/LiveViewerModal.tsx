@@ -885,6 +885,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   useEffect(() => {
     if (!open || !shouldRender || !hlsUrl || !hasAccess) return;
     if (cfWebRTCPlayUrl) return; // CF live uses WebRTC playback above
+    // When ended but VOD not yet available: destroy any existing HLS and show cover
+    if (isEnded && !vodReady) { setReady(false); return; }
     const video = videoRef.current;
     if (!video) return;
 
@@ -958,6 +960,16 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
       setError(true);
     }
   }, [open, shouldRender, hlsUrl, isLive, hasAccess, retryKey, cfWebRTCPlayUrl, vodReady]);
+
+  // Cerrar el viewer automáticamente si el creador publica el VOD con costo
+  // (el espectador que estaba adentro no puede verlo gratis)
+  useEffect(() => {
+    if (!isEnded) return;
+    if (!liveData?.vodSettingsConfirmed) return;
+    if ((liveData?.vodPrice ?? 0) <= 0) return;
+    if (user?.uid === post.authorId) return; // El autor siempre puede verlo
+    onClose();
+  }, [isEnded, liveData?.vodSettingsConfirmed, liveData?.vodPrice]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-reintento mientras el live esté activo — sin límite de intentos (el viewer se bloqueaba
   // cuando agotaba los 8 reintentos antes de que CF produjera segmentos HLS)
@@ -1854,10 +1866,11 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     if (!isEnded) return null;
     if (vodReady) return null;
 
-    const confirmed = liveData?.vodSettingsConfirmed === true;
-    const hidden = liveData?.vodHidden === true;
+    const isCF = liveData?.streamProvider === "cloudflare";
+    const confirmed = !isCF && liveData?.vodSettingsConfirmed === true;
+    const hidden = !isCF && liveData?.vodHidden === true;
 
-    const overlayInner = (
+    return (
       <div style={{
         position: "absolute", inset: 0, zIndex: 8,
         background: "rgba(0,0,0,0.72)",
@@ -1865,7 +1878,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         alignItems: "center", justifyContent: "center", gap: 12,
         fontFamily: FONT,
       }}>
-        {confirmed && hidden ? (
+        {!isCF && confirmed && hidden ? (
           <>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="10" />
@@ -1876,7 +1889,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               El creador decidió no subir el video
             </span>
           </>
-        ) : !confirmed ? (
+        ) : !isCF && !confirmed ? (
           <>
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"
               style={{ animation: "lvSpin 1s linear infinite" }}>
@@ -1895,14 +1908,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.65)" />
             </svg>
             <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.72)", textAlign: "center", padding: "0 28px" }}>
-              Preparando grabación…
+              {isCF ? "La transmisión ha finalizado" : "Preparando grabación…"}
             </span>
           </>
         )}
       </div>
     );
-
-    return overlayInner;
   }
 
   // ── Overlay "Fuiste baneado" — cubre el video, el usuario no puede interactuar ─

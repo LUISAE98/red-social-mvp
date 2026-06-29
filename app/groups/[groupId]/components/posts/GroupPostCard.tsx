@@ -2385,10 +2385,13 @@ function renderBlurredMediaBackdrop(
   const liveVodUrl = activeLiveData?.status === "ended"
     ? (effectivePlayback?.hlsUrl ?? (activeLiveData?.vodStatus === "ready" ? (activeLiveData?.hlsUrl ?? null) : null))
     : null;
-  // Visible to viewers only after creator confirms and hasn't hidden it
-  const liveVodReady = !!liveVodUrl &&
-    activeLiveData?.vodSettingsConfirmed === true &&
-    !activeLiveData?.vodHidden;
+  const isCFLive = activeLiveData?.streamProvider === "cloudflare";
+  // CF streams: VOD visible as soon as URL is ready. Mux: requires creator confirmation.
+  const liveVodReady = !!liveVodUrl && (
+    isCFLive
+      ? true
+      : activeLiveData?.vodSettingsConfirmed === true && !activeLiveData?.vodHidden
+  );
 
   const isLiveActive = post.postType === "live" && activeLiveData?.status === "live";
   const livePaidAccessMode = activeLiveData?.paidAccessMode ?? "everyone_pays";
@@ -3368,7 +3371,22 @@ style={{
         </div>
       ) : activeLiveData?.status === "ended" ? (
         liveVodReady ? (
-          <div style={{ position: "relative", ...(premiumState.isBlocked ? { filter: "blur(10px)", opacity: 0.72, pointerEvents: "none" } : {}) }}>
+          premiumState.isBlocked ? (
+            // Blocked by premium: show blurred cover — PremiumPostPanel handles unlock UI
+            <div style={{
+              position: "relative", width: "100%", aspectRatio: "16 / 9",
+              background: "#000", borderRadius: 12, overflow: "hidden",
+            }}>
+              {activeLiveData?.coverUrl && (
+                <Image
+                  src={activeLiveData.coverUrl}
+                  alt={activeLiveData.title ?? ""}
+                  fill
+                  style={{ objectFit: "cover", opacity: 0.25, filter: "blur(8px)" }}
+                />
+              )}
+            </div>
+          ) : (
             <LiveInlinePlayer
               postId={post.id}
               hlsUrl={liveVodUrl!}
@@ -3378,10 +3396,10 @@ style={{
               isVod
               paused={liveViewerOpen || liveCreatorOpen}
               streamProvider="mux"
-              onClick={premiumState.isBlocked ? undefined : () => setLiveViewerOpen(true)}
+              onClick={() => setLiveViewerOpen(true)}
               onOrientationDetected={(p) => { if (!liveCreatorOpen) setIsLivePortrait(p); }}
             />
-          </div>
+          )
         ) : (
           <div
             style={{
@@ -3408,8 +3426,8 @@ style={{
               alignItems: "center", gap: 8, color: "rgba(255,255,255,0.45)",
               fontFamily: fontStack, textAlign: "center",
             }}>
-              {activeLiveData?.vodSettingsConfirmed && activeLiveData?.vodHidden ? (
-                // Creator decided not to publish the VOD
+              {/* CF streams: no VOD management — simple ended state */}
+              {!isCFLive && activeLiveData?.vodSettingsConfirmed && activeLiveData?.vodHidden ? (
                 <>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />
@@ -3418,8 +3436,7 @@ style={{
                   </svg>
                   <span style={{ fontSize: 12, fontWeight: 500 }}>El creador decidió no subir el video</span>
                 </>
-              ) : !activeLiveData?.vodSettingsConfirmed ? (
-                // Creator hasn't made a decision yet
+              ) : !isCFLive && !activeLiveData?.vodSettingsConfirmed ? (
                 <>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"
                     style={{ animation: "vbMenuSpinner 1s linear infinite" }}>
@@ -3429,7 +3446,6 @@ style={{
                   <span style={{ fontSize: 12, fontWeight: 500 }}>El creador aún no sube el video</span>
                 </>
               ) : activeLiveData?.vodStatus === "processing" ? (
-                // Creator said yes, Mux still processing
                 <>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"
                     style={{ animation: "vbMenuSpinner 1s linear infinite" }}>
@@ -4037,7 +4053,7 @@ cursor: isMobile ? "pointer" : "default",
   </div>
 )}
 
-{isMobile && premiumState.isBlocked && hasMediaGrid && (
+{isMobile && premiumState.isBlocked && (hasMediaGrid || liveVodReady) && (
   <button
     type="button"
     onClick={() => setPaymentPanelOpen(true)}

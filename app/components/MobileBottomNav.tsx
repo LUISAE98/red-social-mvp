@@ -296,7 +296,7 @@ export default function MobileBottomNav({
     items.push({
       key: "profile",
       href: profileHref,
-      active: pathname.startsWith("/u/") || pathname.startsWith("/profile"),
+      active: handle ? (pathname === `/u/${handle}` || pathname.startsWith(`/u/${handle}/`)) : false,
       label: "Mi perfil",
       type: "avatar",
     });

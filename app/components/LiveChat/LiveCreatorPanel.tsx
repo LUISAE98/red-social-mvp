@@ -221,12 +221,14 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     (liveData?.playbackId ? `https://stream.mux.com/${liveData.playbackId}.m3u8` : null);
   const isEnded = liveStatus === "ended";
   const broadcastMode = liveData?.broadcastMode ?? null;
+  const streamProvider = liveData?.streamProvider ?? null;
+  const isCFStream = streamProvider === "cloudflare";
   const showDirectBroadcast = broadcastMode === "direct" && !isEnded;
   const showVideo = (liveStatus === "live" || isEnded) && !!hlsUrl && !showDirectBroadcast;
 
-  // End-of-stream summary panel — all stream types, until creator confirms
+  // End-of-stream summary panel — only for Mux streams (CF lives have no recordable VOD)
   const [endPanelOpen, setEndPanelOpen] = useState(false);
-  const showEndPanel = isEnded && !liveData?.vodSettingsConfirmed;
+  const showEndPanel = isEnded && !liveData?.vodSettingsConfirmed && !isCFStream;
   useEffect(() => {
     if (showEndPanel && open) setEndPanelOpen(true);
   }, [showEndPanel, open]);
@@ -1593,7 +1595,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {isEnded ? (
+          {isEnded && !isCFStream ? (
             <button
               type="button"
               onClick={() => setEndPanelOpen(true)}
@@ -1606,7 +1608,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             >
               Gestionar resumen de la transmisión
             </button>
-          ) : broadcastMode === "rtmp" && liveData?.liveStreamId && (
+          ) : !isEnded && broadcastMode === "rtmp" && liveData?.liveStreamId && (
             <button
               type="button"
               onClick={() => setLiveSetupOpen(true)}
@@ -1686,7 +1688,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     </span>
                   )}
                 </div>
-                {isEnded ? (
+                {isEnded && !isCFStream ? (
                   <button
                     type="button"
                     onClick={() => setEndPanelOpen(true)}
@@ -1699,7 +1701,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   >
                     Gestionar resumen de la transmisión
                   </button>
-                ) : broadcastMode === "rtmp" && liveData?.liveStreamId && (
+                ) : !isEnded && broadcastMode === "rtmp" && liveData?.liveStreamId && (
                   <button
                     type="button"
                     onClick={() => setLiveSetupOpen(true)}
