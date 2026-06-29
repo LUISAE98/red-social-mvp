@@ -3230,6 +3230,39 @@ style={{
 )}
 
 {post.postType === "live" && (
+  post.premium?.enabled && liveVodReady ? (
+    // Premium VOD: render as plain video post — no live chrome, no badge, no panel buttons
+    <div style={{ marginTop: 10 }}>
+      {premiumState.isBlocked ? (
+        <div style={{
+          position: "relative", width: "100%", aspectRatio: "16 / 9",
+          background: "#111", borderRadius: 14, overflow: "hidden",
+        }}>
+          {activeLiveData?.coverUrl && (
+            <Image
+              src={activeLiveData.coverUrl}
+              alt={activeLiveData.title ?? ""}
+              fill
+              style={{ objectFit: "cover", opacity: 0.25, filter: "blur(8px)" }}
+            />
+          )}
+        </div>
+      ) : (
+        <LiveInlinePlayer
+          postId={post.id}
+          hlsUrl={liveVodUrl!}
+          title={activeLiveData?.title}
+          coverUrl={activeLiveData?.coverUrl}
+          portrait={isLivePortrait}
+          isVod
+          paused={liveViewerOpen || liveCreatorOpen}
+          streamProvider={activeLiveData?.streamProvider ?? "mux"}
+          onClick={() => setLiveViewerOpen(true)}
+          onOrientationDetected={(p) => { if (!liveCreatorOpen) setIsLivePortrait(p); }}
+        />
+      )}
+    </div>
+  ) : (
   // Portrait solo aplica cuando el live está activo/reproduciéndose
   <div style={(isLivePlayer && isLivePortrait) ? { display: "flex", justifyContent: "center", marginTop: 10 } : { marginTop: 10 }}>
     <div
@@ -3828,6 +3861,7 @@ style={{
       </div>
     )}
   </div>
+  )
 )}
 
 {isVideoPost && !hasMediaGrid && (

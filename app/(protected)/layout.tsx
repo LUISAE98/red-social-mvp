@@ -35,7 +35,7 @@ function PublicProfileShell({
           min-height: auto;
           background: transparent;
           color: #fff;
-          overflow-x: hidden;
+          overflow-x: clip;
         }
 
         .contentArea {
@@ -653,7 +653,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           .mainCol {
             width: 100%;
             min-width: 0;
-            overflow-x: hidden;
+            overflow-x: clip;
             padding-bottom: calc(100px + env(safe-area-inset-bottom));
           }
 

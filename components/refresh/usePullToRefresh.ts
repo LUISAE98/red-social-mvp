@@ -104,14 +104,20 @@ const canStartPull = () => {
       const currentY = event.touches[0]?.clientY ?? 0;
       const rawDistance = currentY - startYRef.current;
 
-if (rawDistance <= 0) return;
+      if (rawDistance <= 0) return;
 
-if (getScrollTop() > TOP_TOLERANCE) {
-  reset();
-  return;
-}
+      if (getScrollTop() > TOP_TOLERANCE) {
+        reset();
+        return;
+      }
 
-event.preventDefault();
+      // Don't block scroll until the user has clearly committed to a pull gesture.
+      // Android touch has more jitter than iOS — a 1-2px upward wobble at the
+      // start of a downward scroll fires rawDistance > 0 and would otherwise
+      // call preventDefault(), killing the entire scroll gesture.
+      if (rawDistance < 8) return;
+
+      event.preventDefault();
 
       const elasticDistance = getElasticPullDistance(
         rawDistance,
