@@ -78,25 +78,28 @@ const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
 const mainInnerRef = useRef<HTMLDivElement>(null);
-const prevPathnameRef = useRef(pathname);
 
   const fontStack =
     'inherit';
 
+  // Disable browser scroll restoration so our manual restore doesn't conflict
   useEffect(() => {
-    if (prevPathnameRef.current === pathname) return;
-    prevPathnameRef.current = pathname;
+    history.scrollRestoration = "manual";
+  }, []);
+
+  useEffect(() => {
     setMobileSearchOpen(false);
 
-    // Restore saved scroll or reset to top
+    const dir = consumeNavSlideDir();
+    if (!dir) return;
+
     const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
     requestAnimationFrame(() => {
       window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
     });
 
-    const dir = consumeNavSlideDir();
     const el = mainInnerRef.current;
-    if (dir && el) {
+    if (el) {
       el.setAttribute("data-nav-enter", dir);
       el.addEventListener("animationend", () => el.removeAttribute("data-nav-enter"), { once: true });
     }
