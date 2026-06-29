@@ -2630,26 +2630,28 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               else if (!isEnded) setControlsVisible(v => !v);
             }}
           >
-            {renderVideo("cover")}
+            {renderVideo(isEnded ? "contain" : "cover")}
             {renderEndedOverlay()}
             {renderVodControls(false)}
             {renderBannedOverlay()}
             {renderSuperOverlay("top")}
             {renderDvrControls(false)}
 
-            {/* Badges — se ocultan mientras hay SC activo para que el overlay los cubra */}
-            {!activeSuperComment && renderLiveBadge("top-center", 0, 0, true)}
-            {!activeSuperComment && renderViewerBadge("top-left", 0, 0, true)}
+            {/* Badges — debajo del notch/Dynamic Island con env() */}
+            {!activeSuperComment && renderLiveBadge("top-center", 0, 0, false)}
+            {!activeSuperComment && renderViewerBadge("top-left", 0, 0, false)}
 
-            {/* Header y chat se ocultan con tap */}
-            <div style={ctrlStyle}>{renderHeader(true, false)}</div>
-            <div style={ctrlStyle}>
+            {/* Chat overlay — siempre visible durante live; se desmonta al terminar */}
+            {!isEnded && (
               <LiveChatViewer
                 liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted}
                 mode="overlay" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig}
                 onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined}
               />
-            </div>
+            )}
+
+            {/* Header — se muestra/oculta con tap */}
+            <div style={ctrlStyle}>{renderHeader(true, false)}</div>
           </div>
         </div>
         {donationPanel}
