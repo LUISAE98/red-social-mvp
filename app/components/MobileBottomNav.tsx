@@ -448,6 +448,9 @@ export default function MobileBottomNav({
                     return;
                   }
 
+                  // Save current scroll before leaving
+                  sessionStorage.setItem(`nav:scroll:${pathname}`, String(window.scrollY));
+
                   setPoppingKey(item.key);
                   setPendingHref(item.href);
 
@@ -456,7 +459,7 @@ export default function MobileBottomNav({
                     : nav.findIndex(n => n.active);
                   const direction = idx >= currentIdx ? "right" : "left";
                   setNavSlideDir(direction);
-                  router.push(item.href);
+                  router.push(item.href, { scroll: false });
                 }}
               >
                 <div

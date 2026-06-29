@@ -2330,15 +2330,7 @@ allow list: if canReadPost()
   || canListPublicShareableGroupPost()
   || canListBroadcastPublicLivePost();
 
-      // DIAGNÓSTICO TEMPORAL — se eliminará después de confirmar el problema
-      allow create: if validCreatePost()
-        || (
-          signedIn()
-          && request.resource.data.authorId == request.auth.uid
-          && request.resource.data.contextType == "profile"
-          && request.resource.data.profileId == request.auth.uid
-          && request.resource.data.isDeleted == false
-        );
+      allow create: if validCreatePost();
 
       function canEditPost() {
         return signedIn()
@@ -2417,7 +2409,6 @@ allow list: if canReadPost()
           && request.resource.data.updatedAt is timestamp;
       }
 
-      // DIAGNÓSTICO TEMPORAL — si el doc ya existe y el autor intenta sobreescribirlo durante creación
       allow update: if canSoftDeletePost()
         || canUpdateCommentCount(1)
         || canUpdateCommentCount(-1)
@@ -2426,17 +2417,7 @@ allow list: if canReadPost()
         || canUnpinGroupPost()
         || canUpdateLivePeakViewers()
         || canUpdateLiveRuntimeData()
-        || canFinalizeLivePost()
-        || (
-          signedIn()
-          && resource.data.authorId == request.auth.uid
-          && resource.data.isDeleted == false
-          && (validCreatePost() || (
-            request.resource.data.contextType == "profile"
-            && request.resource.data.profileId == request.auth.uid
-            && request.resource.data.isDeleted == false
-          ))
-        );
+        || canFinalizeLivePost();
 
       allow delete: if false;
 

@@ -2007,6 +2007,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             } else {
               const video = videoRef.current;
               if (!video || (isEnded && vodReady)) return;
+              if (!isEnded && dvrAvailable) return; // el contenedor maneja los controles DVR
               if (video.paused) video.play().catch(() => {});
               else video.pause();
             }
@@ -2099,12 +2100,20 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     const playSz = isDesktop ? 36 : 40;
     const fontSz = isDesktop ? 12 : 14;
 
+    const disableLiveSync = () => {
+      if (hlsRef.current) {
+        hlsRef.current.config.liveMaxLatencyDurationCount = Infinity;
+        hlsRef.current.config.liveSyncDurationCount = Infinity;
+      }
+    };
+
     const handleSkip = (delta: number) => {
       const v = videoRef.current;
       if (!v || v.seekable.length === 0) return;
       const start = v.seekable.start(0);
       const end = v.seekable.end(0);
       v.currentTime = Math.max(start, Math.min(end, v.currentTime + delta));
+      disableLiveSync();
       setVodControlsVisible(true);
       scheduleVodControlsHide();
     };
@@ -2200,6 +2209,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               const v = videoRef.current;
               if (!v || v.seekable.length === 0) return;
               v.currentTime = v.seekable.start(0) + Number((e.target as HTMLInputElement).value);
+              disableLiveSync();
             }}
             onMouseDown={(e) => { e.stopPropagation(); isDraggingRef.current = true; clearVodControlsTimer(); }}
             onMouseUp={() => { isDraggingRef.current = false; scheduleVodControlsHide(); }}
@@ -2445,8 +2455,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             {renderSuperOverlay()}
             {renderDvrControls(true)}
             {renderHeader(false, false)}
-            {renderLiveBadge()}
-            {renderViewerBadge()}
+            {renderLiveBadge("bottom-right", badgeLift)}
+            {renderViewerBadge("bottom-left", badgeLift)}
 
           </div>
           {/* Card de chat */}
@@ -2620,6 +2630,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             style={{ position: "relative", flex: 1, minHeight: 0, height: "100%" }}
             onClick={() => {
               if (isEnded && vodReady) toggleVodControls();
+              else if (!isEnded && dvrAvailable) toggleVodControls();
               else if (!isEnded) setControlsVisible(v => !v);
             }}
           >
@@ -2679,8 +2690,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
           {renderSuperOverlay()}
           {renderDvrControls(true)}
           {renderHeader(false, false)}
-          {renderLiveBadge("bottom-right", 0, 0, true)}
-          {renderViewerBadge("bottom-left", 0, 0, true)}
+          {renderLiveBadge("bottom-right", badgeLift, 0, true)}
+          {renderViewerBadge("bottom-left", badgeLift, 0, true)}
         </div>
 
         {/* Panel: creator info + chat */}

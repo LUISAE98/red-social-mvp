@@ -4,7 +4,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { consumeNavSlideDir } from "@/lib/nav-slide";
 import { usePathname, useRouter } from "next/navigation";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
@@ -73,12 +74,29 @@ function AuthenticatedGroupsShell({
 const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
+const mainInnerRef = useRef<HTMLDivElement>(null);
+const prevPathnameRef = useRef(pathname);
 
   const fontStack =
     'inherit';
 
 useEffect(() => {
+  if (prevPathnameRef.current === pathname) return;
+  prevPathnameRef.current = pathname;
   setMobileSearchOpen(false);
+
+  // Restore saved scroll or reset to top
+  const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
+  });
+
+  const dir = consumeNavSlideDir();
+  const el = mainInnerRef.current;
+  if (dir && el) {
+    el.setAttribute("data-nav-enter", dir);
+    el.addEventListener("animationend", () => el.removeAttribute("data-nav-enter"), { once: true });
+  }
 }, [pathname]);
 
 
@@ -487,6 +505,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           .mainCol {
             width: 100%;
             min-width: 0;
+            overflow-x: hidden;
             padding-bottom: calc(100px + env(safe-area-inset-bottom));
           }
 
@@ -606,7 +625,7 @@ onClick={() => setMobileSearchOpen(true)}
           </div>
 
           <main className="mainCol">
-            <div className="mainInner">{children}</div>
+            <div className="mainInner" ref={mainInnerRef}>{children}</div>
           </main>
 
 <div className="walletCol">

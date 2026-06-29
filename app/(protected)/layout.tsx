@@ -88,6 +88,12 @@ const prevPathnameRef = useRef(pathname);
     prevPathnameRef.current = pathname;
     setMobileSearchOpen(false);
 
+    // Restore saved scroll or reset to top
+    const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
+    });
+
     const dir = consumeNavSlideDir();
     const el = mainInnerRef.current;
     if (dir && el) {

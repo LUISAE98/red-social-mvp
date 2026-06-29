@@ -776,6 +776,10 @@ function resolveEffectiveMembershipStatus(
 let _authorCache: { uid: string; data: AuthorSnapshot; expiresAt: number } | null = null;
 
 async function getCurrentAuthorSnapshot(): Promise<AuthorSnapshot> {
+  // Esperar a que Auth complete su check inicial (carga desde IndexedDB).
+  // Evita la carrera donde Firestore envía el request antes de que el token esté disponible.
+  await auth.authStateReady();
+
   const user = auth.currentUser;
   if (!user?.uid) {
     throw new Error("Debes iniciar sesión para realizar esta acción.");
@@ -3294,40 +3298,7 @@ export async function createMediaPost(params: {
   };
 
   if (params.postId) {
-    // Diagnostic: detect if doc already exists (author can read own existing posts)
-    try {
-      const existingSnap = await getDoc(doc(db, "posts", params.postId));
-      if (existingSnap.exists()) {
-        console.warn("[createMediaPost] post doc already exists before setDoc!", {
-          postId: params.postId,
-          existingFields: Object.keys(existingSnap.data() ?? {}),
-        });
-      }
-    } catch (getErr: unknown) {
-      const getErrCode = (getErr as { code?: string })?.code ?? "unknown";
-      // permission-denied means either: doc doesn't exist (allow get=false) OR doc exists but read is blocked
-      console.warn("[createMediaPost] getDoc threw — doc may or may not exist", {
-        postId: params.postId,
-        errorCode: getErrCode,
-      });
-    }
-
-    try {
-      await setDoc(doc(db, "posts", params.postId), postPayload);
-    } catch (err: unknown) {
-      console.error("[createMediaPost] setDoc failed", {
-        postId: params.postId,
-        authUid: auth.currentUser?.uid,
-        authorId: postPayload.authorId,
-        accessModel: premiumAccessFields.accessModel,
-        access: premiumAccessFields.access,
-        requiresPayment: premiumAccessFields.requiresPayment,
-        contextType: params.contextType,
-        profileId: (postPayload as Record<string, unknown>).profileId,
-        err,
-      });
-      throw err;
-    }
+    await setDoc(doc(db, "posts", params.postId), postPayload);
     return;
   }
 
