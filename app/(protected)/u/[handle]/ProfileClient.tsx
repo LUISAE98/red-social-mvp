@@ -284,6 +284,17 @@ xhr.onerror = () => {
   });
 }
 
+// ─── Module-level profile cache ───────────────────────────────────────────────
+const PROFILE_CACHE_TTL = 1000 * 60 * 30; // 30 minutes
+
+type ProfileCacheEntry = {
+  userDoc: UserDoc;
+  updatedAt: number;
+};
+
+const profileCache = new Map<string, ProfileCacheEntry>();
+// ──────────────────────────────────────────────────────────────────────────────
+
 export default function ProfileClient() {
   const params = useParams<{ handle: string }>();
   const pathname = usePathname();
@@ -298,8 +309,17 @@ export default function ProfileClient() {
   const [viewer, setViewer] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
 
-  const [userDoc, setUserDoc] = useState<UserDoc | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [userDoc, setUserDoc] = useState<UserDoc | null>(() => {
+    const cached = profileCache.get(handle);
+    if (cached && Date.now() - cached.updatedAt < PROFILE_CACHE_TTL) {
+      return cached.userDoc;
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState(() => {
+    const cached = profileCache.get(handle);
+    return !(cached && Date.now() - cached.updatedAt < PROFILE_CACHE_TTL);
+  });
   const [msg, setMsg] = useState<string | null>(null);
   const { toast: profileToast, showToast: showProfileToast } = useVibraToast();
 
@@ -804,11 +824,14 @@ function resetExclusiveSessionModal() {
             return;
           }
 
-          setUserDoc({
+          const nextUserDoc: UserDoc = {
             uid,
             ...(usnap.data() as Omit<UserDoc, "uid">),
-          });
+          };
 
+          profileCache.set(handle, { userDoc: nextUserDoc, updatedAt: Date.now() });
+
+          setUserDoc(nextUserDoc);
           setMsg(null);
           setLoading(false);
         },

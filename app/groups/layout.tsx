@@ -4,7 +4,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
@@ -17,6 +17,7 @@ import { useMobileHeaderFade } from "@/app/hooks/useMobileHeaderFade";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import WalletDesktopRail from "@/app/components/WalletDesktopRail/WalletDesktopRail";
 import { MobileHeaderCtx, type MobileHeaderData } from "@/app/contexts/MobileHeaderContext";
+import { consumeNavSlideDir } from "@/lib/nav-slide";
 
 
 function PublicGroupsShell({
@@ -74,6 +75,7 @@ function AuthenticatedGroupsShell({
 const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
+const mainInnerRef = useRef<HTMLDivElement>(null);
 
 // Estado para header contextual (avatar + nombre del grupo)
 const [headerData, setHeaderData] = useState<MobileHeaderData>({ avatarUrl: null, name: null });
@@ -89,6 +91,18 @@ const isGroupDetailPage = /^\/groups\/[^/]+/.test(pathname) && !pathname.startsW
   useEffect(() => {
     history.scrollRestoration = "manual";
   }, []);
+
+  useLayoutEffect(() => {
+    const dir = consumeNavSlideDir();
+    if (!dir) return;
+    const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
+    window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
+    const el = mainInnerRef.current;
+    if (el) {
+      el.setAttribute("data-nav-enter", dir);
+      el.addEventListener("animationend", () => el.removeAttribute("data-nav-enter"), { once: true });
+    }
+  }, [pathname]);
 
 useEffect(() => {
   setMobileSearchOpen(false);
@@ -740,7 +754,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
           </div>
 
           <main className="mainCol">
-            <div className="mainInner">{children}</div>
+            <div className="mainInner" ref={mainInnerRef}>{children}</div>
           </main>
 
 <div className="walletCol">
