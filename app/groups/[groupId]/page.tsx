@@ -78,6 +78,7 @@ import {
 import { useGroupRealtime } from "@/lib/groups/useGroupRealtime";
 import { useLiveRingState } from "@/lib/live/useLiveRingState";
 import { setLastVisitTimestamp } from "@/lib/utils/visitTimestamps";
+import { useSetMobileHeader } from "@/app/contexts/MobileHeaderContext";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import { normalizeImageFile } from "@/lib/uploads/image-normalizer";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
@@ -239,6 +240,9 @@ export default function GroupPage() {
   });
 
 const { isLive: groupIsLive } = useLiveRingState(groupId, "group");
+
+// Alimentar el header contextual del layout con avatar y nombre del grupo
+useSetMobileHeader(group?.avatarUrl ?? null, group?.name ?? null);
 
 const [joining, setJoining] = useState(false);
 const [actionError, setActionError] = useState<string | null>(null);

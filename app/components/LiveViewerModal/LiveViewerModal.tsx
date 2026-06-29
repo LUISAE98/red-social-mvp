@@ -570,8 +570,8 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const chatEnabled = !isEnded && !isBanned && liveData?.chatEnabled !== false;
 
   // ── Controles horizontales — computed ────────────────────────────────────
-  const dvrAvailable = isLive && !cfWebRTCPlayUrl && dvrDuration >= 60;
-  const badgeLift = (vodControlsVisible && dvrAvailable) ? 56 : 0;
+  const dvrAvailable = isLive && !cfWebRTCPlayUrl && dvrDuration >= 15;
+  const badgeLift = (vodControlsVisible && dvrAvailable) ? 44 : 0;
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -2005,11 +2005,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 toggleVodControls();
               }
             } else {
-              const video = videoRef.current;
-              if (!video || (isEnded && vodReady)) return;
-              if (!isEnded && dvrAvailable) return; // el contenedor maneja los controles DVR
-              if (video.paused) video.play().catch(() => {});
-              else video.pause();
+              // Portrait: el contenedor maneja todos los estados (live, dvr, vod)
             }
           }}
           style={{

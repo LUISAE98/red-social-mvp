@@ -75,6 +75,7 @@ import { recordStoryView } from "@/lib/stories/storyService";
 import StoryViewer from "@/app/components/Stories/StoryViewer";
 import { setLastVisitTimestamp } from "@/lib/utils/visitTimestamps";
 import { useLiveRingState } from "@/lib/live/useLiveRingState";
+import { useSetMobileHeader } from "@/app/contexts/MobileHeaderContext";
 
 const LiveViewerModal = dynamic(
   () => import("@/app/components/LiveViewerModal/LiveViewerModal"),
@@ -317,6 +318,15 @@ export default function ProfileClient() {
 
   const [avatarRenderUrl, setAvatarRenderUrl] = useState<string | null>(null);
   const [coverRenderUrl, setCoverRenderUrl] = useState<string | null>(null);
+
+  // Alimentar el header contextual del layout con avatar y nombre del perfil
+  const mobileHeaderAvatar = avatarRenderUrl || userDoc?.photoURL || null;
+  const mobileHeaderName = userDoc
+    ? userDoc.displayName ||
+      `${userDoc.firstName ?? ""} ${userDoc.lastName ?? ""}`.trim() ||
+      null
+    : null;
+  useSetMobileHeader(mobileHeaderAvatar, mobileHeaderName);
 
   const [activeTab, setActiveTab] = useState<ProfileTabKey>("posts");
   const tabSwitchScrollY = useRef<number | null>(null);

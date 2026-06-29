@@ -4,8 +4,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { consumeNavSlideDir } from "@/lib/nav-slide";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
@@ -17,6 +16,7 @@ import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { useMobileHeaderFade } from "@/app/hooks/useMobileHeaderFade";
 import { VibraNavigationIcon } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
 import WalletDesktopRail from "@/app/components/WalletDesktopRail/WalletDesktopRail";
+import { MobileHeaderCtx, type MobileHeaderData } from "@/app/contexts/MobileHeaderContext";
 
 
 function PublicGroupsShell({
@@ -74,7 +74,13 @@ function AuthenticatedGroupsShell({
 const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
-const mainInnerRef = useRef<HTMLDivElement>(null);
+
+// Estado para header contextual (avatar + nombre del grupo)
+const [headerData, setHeaderData] = useState<MobileHeaderData>({ avatarUrl: null, name: null });
+const [contextScrolled, setContextScrolled] = useState(false);
+
+// Páginas de grupo específico: /groups/[groupId]/... (excluyendo /groups/new)
+const isGroupDetailPage = /^\/groups\/[^/]+/.test(pathname) && !pathname.startsWith("/groups/new");
 
   const fontStack =
     'inherit';
@@ -86,21 +92,20 @@ const mainInnerRef = useRef<HTMLDivElement>(null);
 
 useEffect(() => {
   setMobileSearchOpen(false);
-
-  const dir = consumeNavSlideDir();
-  if (!dir) return;
-
-  const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
-  requestAnimationFrame(() => {
-    window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
-  });
-
-  const el = mainInnerRef.current;
-  if (el) {
-    el.setAttribute("data-nav-enter", dir);
-    el.addEventListener("animationend", () => el.removeAttribute("data-nav-enter"), { once: true });
-  }
+  setContextScrolled(false);
 }, [pathname]);
+
+// Scroll listener: context shrink solo en páginas de grupo específico
+useEffect(() => {
+  if (!isGroupDetailPage) return;
+
+  const handler = () => {
+    setContextScrolled(window.scrollY > 80);
+  };
+
+  window.addEventListener("scroll", handler, { passive: true });
+  return () => window.removeEventListener("scroll", handler);
+}, [pathname, isGroupDetailPage]);
 
 
 const contentAreaClassName = "contentArea contentAreaWithWallet";
@@ -240,6 +245,81 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   min-height: 40px;
   width: 100%;
   pointer-events: none;
+  position: relative;
+}
+
+.mobileHeaderDefault {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  transition: opacity 220ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mobileHeaderContext {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transform: translateY(5px);
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.mobileHeaderScrolled .mobileHeaderDefault {
+  opacity: 0;
+  transform: translateY(-5px);
+  pointer-events: none;
+}
+
+.mobileHeaderScrolled .mobileHeaderContext {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.mobileHeaderScrolled .mobileHeaderDefault a,
+.mobileHeaderScrolled .mobileHeaderDefault button {
+  pointer-events: none;
+}
+
+.mobileContextAvatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #1a0a2e;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #a855ff;
+  border: 1.5px solid rgba(168, 85, 255, 0.3);
+}
+
+.mobileContextAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.mobileContextName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100vw - 110px);
+  letter-spacing: -0.01em;
 }
 
 .mobileBrand {
@@ -435,6 +515,14 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 .header {
   position: sticky;
   background: transparent;
+  transition: opacity 220ms ease;
+}
+
+/* Grupo: header se comprime al hacer scroll en página de detalle */
+.headerContextScrolled .headerInner {
+  padding-top: 2px;
+  padding-bottom: 2px;
+  min-height: 40px;
 }
 
 .headerMobileSearchOpen {
@@ -446,6 +534,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   min-height: 48px;
   padding-top: 4px;
   padding-bottom: 4px;
+  transition: padding-top 220ms ease, padding-bottom 220ms ease, min-height 220ms ease;
   box-sizing: border-box;
   overflow: visible;
 }
@@ -538,19 +627,23 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         }
       `}</style>
 
+<MobileHeaderCtx.Provider value={{ ...headerData, setMobileHeader: setHeaderData }}>
 <div className="layout">
 <div ref={safeAreaRef} className="safeAreaHeaderBackdrop" />
 
 <header
   ref={headerRef}
-  className={`header ${
-    mobileSearchOpen ? "headerMobileSearchOpen" : ""
-  }`}
+  className={[
+    "header",
+    mobileSearchOpen ? "headerMobileSearchOpen" : "",
+    isGroupDetailPage && contextScrolled ? "headerContextScrolled" : "",
+  ].filter(Boolean).join(" ")}
 >
           <div
-  className={`headerInner ${
-    mobileSearchOpen ? "headerInnerMobileSearchOpen" : ""
-  }`}
+  className={[
+    "headerInner",
+    mobileSearchOpen ? "headerInnerMobileSearchOpen" : "",
+  ].filter(Boolean).join(" ")}
 >
             <div className="desktopHeader">
               <div className="brandCol">
@@ -588,35 +681,54 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
     </div>
   </div>
 ) : (
-  <div className="mobileHeaderRow">
-<Link
-  href="/"
-  className={`mobileBrand ${mobileSearchOpen ? "mobileBrandHidden" : "mobileBrandVisible"}`}
-  aria-label="Ir al inicio"
->
-  <Image src="/logotipo.png" alt="Vibra" width={86} height={25} className="mobileBrandLogo" />
-</Link>
-
-    <div className="mobileActions">
-      <button
-        type="button"
-        onClick={() => router.push("/saved")}
-        title="Guardados"
-        aria-label="Ver guardados"
-        className="mobileSearchIconButton"
+  <div className={`mobileHeaderRow${isGroupDetailPage && contextScrolled ? " mobileHeaderScrolled" : ""}`}>
+    {/* Contenido por defecto: logo + acciones */}
+    <div className="mobileHeaderDefault">
+      <Link
+        href="/"
+        className="mobileBrand mobileBrandVisible"
+        aria-label="Ir al inicio"
       >
-        <VibraSavedPostIcon size={22} color="#a855ff" />
-      </button>
-<button
-  type="button"
-onClick={() => setMobileSearchOpen(true)}
-  title="Buscar comunidad"
-  aria-label="Buscar comunidad"
-  className="mobileSearchIconButton"
->
-        <VibraNavigationIcon type="search" size={24} strokeWidth={2.2} />
-      </button>
+        <Image src="/logotipo.png" alt="Vibra" width={86} height={25} className="mobileBrandLogo" />
+      </Link>
+      <div className="mobileActions">
+        <button
+          type="button"
+          onClick={() => router.push("/saved")}
+          title="Guardados"
+          aria-label="Ver guardados"
+          className="mobileSearchIconButton"
+        >
+          <VibraSavedPostIcon size={22} color="#a855ff" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileSearchOpen(true)}
+          title="Buscar comunidad"
+          aria-label="Buscar comunidad"
+          className="mobileSearchIconButton"
+        >
+          <VibraNavigationIcon type="search" size={24} strokeWidth={2.2} />
+        </button>
+      </div>
     </div>
+
+    {/* Barra contextual: avatar + nombre (solo en páginas de grupo específico) */}
+    {isGroupDetailPage && (
+      <div className="mobileHeaderContext">
+        <div className="mobileContextAvatar">
+          {headerData.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={headerData.avatarUrl} alt="" />
+          ) : (
+            <span>{headerData.name?.slice(0, 2).toUpperCase() ?? ""}</span>
+          )}
+        </div>
+        {headerData.name && (
+          <span className="mobileContextName">{headerData.name}</span>
+        )}
+      </div>
+    )}
   </div>
 )}
           </div>
@@ -628,7 +740,7 @@ onClick={() => setMobileSearchOpen(true)}
           </div>
 
           <main className="mainCol">
-            <div className="mainInner" ref={mainInnerRef}>{children}</div>
+            <div className="mainInner">{children}</div>
           </main>
 
 <div className="walletCol">
@@ -642,6 +754,7 @@ onClick={() => setMobileSearchOpen(true)}
 
        <MobileBottomNav showWallet={showWalletRail} />
       </div>
+      </MobileHeaderCtx.Provider>
     </>
   );
 }
