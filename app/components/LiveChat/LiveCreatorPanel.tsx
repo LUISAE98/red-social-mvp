@@ -1144,20 +1144,22 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           </button>
         </div>
 
-        {/* Botón config */}
-        <div style={{ flexShrink: 0, padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-          <button
-            type="button"
-            onClick={() => setScConfigOpen(true)}
-            style={{
-              width: "100%", padding: "10px 0", borderRadius: 10, border: "none",
-              background: "linear-gradient(135deg, rgba(168,85,255,0.85), rgba(124,58,237,0.85))",
-              color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
-            }}
-          >
-            Configuración de supercomentarios
-          </button>
-        </div>
+        {/* Botón config — solo disponible antes de iniciar el live */}
+        {!isBroadcasting && liveStatus !== "live" && liveStatus !== "ended" && (
+          <div style={{ flexShrink: 0, padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+            <button
+              type="button"
+              onClick={() => setScConfigOpen(true)}
+              style={{
+                width: "100%", padding: "10px 0", borderRadius: 10, border: "none",
+                background: "linear-gradient(135deg, rgba(168,85,255,0.85), rgba(124,58,237,0.85))",
+                color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: FONT, cursor: "pointer",
+              }}
+            >
+              Configuración de supercomentarios
+            </button>
+          </div>
+        )}
 
         {broadcastMode !== "direct" && broadcastMode !== "rtmp" ? (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>

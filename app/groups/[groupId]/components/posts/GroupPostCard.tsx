@@ -400,12 +400,14 @@ function PremiumPostPanel({
   overlay = false,
   oneTimePrice,
   currency,
+  isMobile = false,
 }: {
   state: PostPremiumStateResult;
   onOpenPayment?: () => void;
   overlay?: boolean;
   oneTimePrice?: number | null;
   currency?: string | null;
+  isMobile?: boolean;
 }) {
   const isUnlocked = !state.isBlocked;
   const isAuthor = state.state === "unlocked_author";
@@ -503,7 +505,7 @@ function PremiumPostPanel({
         </div>
       )}
 
-      {state.isBlocked && (
+      {state.isBlocked && !isMobile && (
         <button
           type="button"
           onClick={onOpenPayment}
@@ -4009,6 +4011,35 @@ cursor: isMobile ? "pointer" : "default",
   </div>
 )}
 
+{isMobile && premiumState.isBlocked && hasMediaGrid && (
+  <button
+    type="button"
+    onClick={() => setPaymentPanelOpen(true)}
+    aria-label="Desbloquear contenido premium"
+    style={{
+      width: "100%",
+      height: 42,
+      border: "none",
+      borderRadius: 10,
+      background: "linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3)",
+      color: "#fff",
+      fontSize: 13,
+      fontWeight: 700,
+      fontFamily: fontStack,
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      marginBottom: 8,
+      WebkitTapHighlightColor: "transparent",
+    }}
+  >
+    <VibraNavigationIcon type="premiumCrown" size={18} />
+    Desbloquear Contenido
+  </button>
+)}
+
 {hasMediaGrid && (
   <div style={imageGridStyle}>
     {(() => {
@@ -4662,6 +4693,7 @@ padding: "0 0 2px 0",
     onOpenPayment={() => setPaymentPanelOpen(true)}
     oneTimePrice={post.oneTimePrice}
     currency={post.currency}
+    isMobile={isMobile}
   />
 )}
 <PostPaymentPanel

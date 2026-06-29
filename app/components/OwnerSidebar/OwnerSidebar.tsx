@@ -2561,8 +2561,14 @@ color: "rgba(255,255,255,0.94)",
   // Callback ref fires when the <aside> first mounts in the DOM (after auth
   // resolves). At that moment we apply the slide-in animation directly to the
   // fixed element — no parent transform needed, so it works on iOS Safari.
+  //
+  // There are TWO OwnerSidebar instances: one in .sidebarCol (hidden via
+  // display:none on mobile) and one in the page content (visible). We skip
+  // the hidden one so it doesn't consume _overlayDir before the visible one.
   const asideCallbackRef = useCallback((el: HTMLElement | null) => {
     if (!el) return;
+    // Skip if element has no rendered size (e.g. inside a display:none parent)
+    if (el.offsetWidth === 0 && el.offsetHeight === 0) return;
     const dir = consumeNavOverlayDir();
     if (!dir) return;
     el.setAttribute("data-nav-enter", dir);

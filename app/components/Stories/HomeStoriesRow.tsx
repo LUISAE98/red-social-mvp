@@ -390,7 +390,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
             <div
               style={{
                 width: 52,
-                height: 11,
+                height: 16,
                 borderRadius: 6,
                 background: "rgba(255,255,255,0.07)",
               }}
