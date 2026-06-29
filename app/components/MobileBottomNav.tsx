@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { doc, getDoc } from "firebase/firestore";
 
 import { useAuth } from "@/app/providers";
@@ -159,13 +159,19 @@ export default function MobileBottomNav({
   showWallet?: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuth();
 
   const [handle, setHandle] = useState<string | null>(null);
   const [photoURL, setPhotoURL] = useState<string | null>(null);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+
+  // Clear pending when real navigation completes
+  useEffect(() => { setPendingHref(null); }, [pathname]);
 
   // ── Nav scale (shrink on scroll-down / idle) ───────────────────────────────
   const [navScale, setNavScale] = useState(1);
+  const [poppingKey, setPoppingKey] = useState<string | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastScrollYRef = useRef(0);
 
@@ -312,13 +318,19 @@ export default function MobileBottomNav({
           backface-visibility: hidden;
           -webkit-backface-visibility: hidden;
           pointer-events: none;
-          background: #000000;
-          padding-bottom: env(safe-area-inset-bottom, 0px);
+          view-transition-name: mobile-nav;
         }
 
         .navShell {
           width: 100%;
           pointer-events: auto;
+          background: #000000;
+        }
+
+        .safeArea {
+          width: 100%;
+          background: #000000;
+          height: env(safe-area-inset-bottom, 0px);
         }
 
         .nav {
@@ -354,6 +366,23 @@ export default function MobileBottomNav({
           place-items: center;
         }
 
+        .iconPop {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        @keyframes navPop {
+          0%   { transform: scale(1); }
+          40%  { transform: scale(1.26); }
+          70%  { transform: scale(0.93); }
+          100% { transform: scale(1); }
+        }
+
+        .popping {
+          animation: navPop 0.38s ease-out both;
+        }
+
         @media (max-width: 768px) {
           .wrap {
             display: block;
@@ -361,16 +390,15 @@ export default function MobileBottomNav({
         }
       `}</style>
 
-      <nav
-        className="wrap"
-        aria-label="Navegación móvil inferior"
-        style={{
-          transform: `translateZ(0) scaleY(${navScale})`,
-          transformOrigin: "bottom center",
-          transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
-        }}
-      >
-        <div className="navShell">
+      <nav className="wrap" aria-label="Navegación móvil inferior">
+        <div
+          className="navShell"
+          style={{
+            transform: `scaleY(${navScale})`,
+            transformOrigin: "bottom center",
+            transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
+        >
           <div
             className="nav"
             style={{
@@ -380,15 +408,38 @@ export default function MobileBottomNav({
               transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
             } as React.CSSProperties}
           >
-            {nav.map((item) => (
+            {nav.map((item, idx) => {
+              const isActive = pendingHref !== null
+                ? item.href === pendingHref
+                : item.active;
+              return (
               <Link
                 key={item.key}
                 href={item.href}
                 className="item"
                 aria-label={item.label}
                 title={item.label}
-                aria-current={item.active ? "page" : undefined}
-                onClick={expandNav}
+                aria-current={isActive ? "page" : undefined}
+                onClick={(e) => {
+                  e.preventDefault();
+                  expandNav();
+                  setPoppingKey(item.key);
+                  setPendingHref(item.href);
+
+                  const currentIdx = pendingHref !== null
+                    ? nav.findIndex(n => n.href === pendingHref)
+                    : nav.findIndex(n => n.active);
+                  const direction = idx >= currentIdx ? "right" : "left";
+
+                  if (typeof document !== "undefined" && "startViewTransition" in document) {
+                    document.documentElement.classList.remove("nav-slide-left", "nav-slide-right");
+                    document.documentElement.classList.add(`nav-slide-${direction}`);
+                    (document as Document & { startViewTransition(cb: () => void): void })
+                      .startViewTransition(() => router.push(item.href));
+                  } else {
+                    router.push(item.href);
+                  }
+                }}
               >
                 <div
                   className="itemInner"
@@ -397,22 +448,29 @@ export default function MobileBottomNav({
                     transition: "transform 350ms cubic-bezier(0.4, 0, 0.2, 1)",
                   }}
                 >
-                  {item.type === "avatar" ? (
-                    <ProfileAvatarIcon src={photoURL} active={item.active} />
-                  ) : item.iconKey === "home" ? (
-                    item.active ? <NavHomeIconFilled /> : <NavHomeIcon />
-                  ) : item.iconKey === "notifications" ? (
-                    item.active ? <NavBellIconFilled /> : <NavBellIcon />
-                  ) : item.iconKey === "wallet" ? (
-                    item.active ? <NavWalletIconFilled /> : <NavWalletIcon />
-                  ) : (
-                    item.active ? <NavGroupsIconFilled /> : <NavGroupsIcon />
-                  )}
+                  <span
+                    className={poppingKey === item.key ? "iconPop popping" : "iconPop"}
+                    onAnimationEnd={() => setPoppingKey(null)}
+                  >
+                    {item.type === "avatar" ? (
+                      <ProfileAvatarIcon src={photoURL} active={isActive} />
+                    ) : item.iconKey === "home" ? (
+                      isActive ? <NavHomeIconFilled /> : <NavHomeIcon />
+                    ) : item.iconKey === "notifications" ? (
+                      isActive ? <NavBellIconFilled /> : <NavBellIcon />
+                    ) : item.iconKey === "wallet" ? (
+                      isActive ? <NavWalletIconFilled /> : <NavWalletIcon />
+                    ) : (
+                      isActive ? <NavGroupsIconFilled /> : <NavGroupsIcon />
+                    )}
+                  </span>
                 </div>
               </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
+        <div className="safeArea" />
       </nav>
     </>
   );

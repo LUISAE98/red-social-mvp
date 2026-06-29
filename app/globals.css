@@ -291,3 +291,44 @@ body::-webkit-scrollbar-button {
     transform: translateY(0) !important;
   }
 }
+
+/* ── View Transitions: nav slide ── */
+@keyframes vt-slide-in-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes vt-slide-out-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-28%); }
+}
+@keyframes vt-slide-in-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes vt-slide-out-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(28%); }
+}
+
+/* Nav bar stays anchored during transitions */
+::view-transition-old(mobile-nav),
+::view-transition-new(mobile-nav) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* Slide right (going to higher-index item) */
+html.nav-slide-right::view-transition-old(root) {
+  animation: 300ms ease-in-out vt-slide-out-left both;
+}
+html.nav-slide-right::view-transition-new(root) {
+  animation: 300ms ease-in-out vt-slide-in-right both;
+}
+
+/* Slide left (going to lower-index item) */
+html.nav-slide-left::view-transition-old(root) {
+  animation: 300ms ease-in-out vt-slide-out-right both;
+}
+html.nav-slide-left::view-transition-new(root) {
+  animation: 300ms ease-in-out vt-slide-in-left both;
+}

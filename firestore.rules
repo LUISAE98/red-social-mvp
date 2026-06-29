@@ -2330,7 +2330,15 @@ allow list: if canReadPost()
   || canListPublicShareableGroupPost()
   || canListBroadcastPublicLivePost();
 
-      allow create: if validCreatePost();
+      // DIAGNÓSTICO TEMPORAL — se eliminará después de confirmar el problema
+      allow create: if validCreatePost()
+        || (
+          signedIn()
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.contextType == "profile"
+          && request.resource.data.profileId == request.auth.uid
+          && request.resource.data.isDeleted == false
+        );
 
       function canEditPost() {
         return signedIn()

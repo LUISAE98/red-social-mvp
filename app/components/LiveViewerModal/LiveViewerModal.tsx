@@ -1870,7 +1870,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             style={{ objectFit: "cover", opacity: 0.3 }}
           />
         )}
-        {!ready && !error && cfWebRTCPlayUrl && (
+        {!ready && !error && (cfWebRTCPlayUrl || (hlsUrl && isLive)) && (
           <div style={{
             position: "absolute", inset: 0, display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "center", gap: 10,
@@ -1977,7 +1977,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   }
 
   function renderPauseButton() {
-    if (!isLive || !hzControlsVisible || cfWebRTCPlayUrl || isEnded) return null;
+    if (!isLive || !hzControlsVisible || !dvrAvailable || isEnded) return null;
     return (
       <button
         type="button"
