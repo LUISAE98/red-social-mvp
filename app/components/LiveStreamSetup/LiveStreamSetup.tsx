@@ -21,7 +21,7 @@ type Props = {
   liveStreamId?: string | null;
   broadcastMode?: BroadcastMode | null;
   onStreamCreated?: (liveStreamId: string, playbackId: string | null) => void;
-  onOpenCreatorPanel?: (mode: "direct" | "rtmp") => void;
+  onOpenCreatorPanel?: () => void;
 };
 
 type Credentials = {
@@ -410,7 +410,7 @@ export default function LiveStreamSetup({
             {onOpenCreatorPanel && (
               <button
                 type="button"
-                onClick={() => { onClose(); onOpenCreatorPanel("direct"); }}
+                onClick={() => { onClose(); onOpenCreatorPanel(); }}
                 style={{
                   width: "100%", padding: "11px 16px", borderRadius: 10, border: "none",
                   background: "linear-gradient(135deg, rgba(168,85,255,0.85), rgba(124,58,237,0.85))",
@@ -507,7 +507,7 @@ export default function LiveStreamSetup({
               {onOpenCreatorPanel && (
                 <button
                   type="button"
-                  onClick={() => { onClose(); onOpenCreatorPanel("rtmp"); }}
+                  onClick={() => { onClose(); onOpenCreatorPanel(); }}
                   style={{
                     marginTop: 20, width: "100%", padding: "11px 16px",
                     borderRadius: 10, border: "none",

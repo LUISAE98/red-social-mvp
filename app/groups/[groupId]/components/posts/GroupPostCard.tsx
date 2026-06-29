@@ -22,7 +22,6 @@ import { doc, onSnapshot } from "firebase/firestore";
 import LiveInlinePlayer from "@/app/components/LiveInlinePlayer/LiveInlinePlayer";
 import LiveViewerModal from "@/app/components/LiveViewerModal/LiveViewerModal";
 import LiveCreatorPanel from "@/app/components/LiveChat/LiveCreatorPanel";
-import LiveCFOrientationPicker from "@/app/components/LiveChat/LiveCFOrientationPicker";
 import PostFlamesPanel, { type PostFlameUser } from "./PostFlamesPanel";
 import LiveComposerModal from "@/app/components/LiveComposer/LiveComposerModal";
 import LiveStreamSetup from "@/app/components/LiveStreamSetup/LiveStreamSetup";
@@ -1062,7 +1061,6 @@ onToggleProfilePin,
   const [liveSetupOpen, setLiveSetupOpen] = useState(false);
   const [liveViewerOpen, setLiveViewerOpen] = useState(false);
   const [liveCreatorOpen, setLiveCreatorOpen] = useState(false);
-  const [cfOrientationPickerOpen, setCFOrientationPickerOpen] = useState(false);
   const [liveTicketShake, setLiveTicketShake] = useState(false);
   const [hasLiveTicketAccess, setHasLiveTicketAccess] = useState(false);
 
@@ -2412,16 +2410,6 @@ function renderBlurredMediaBackdrop(
   const isLivePlayer = isLiveActive && !isLiveBlockedByTicket;
   const liveVisibilityMode = activeLiveData?.visibilityMode ?? null;
 
-  function openCreatorPanelMaybePickOrientation(mode?: "direct" | "rtmp") {
-    const isCF = mode === "direct" || activeLiveData?.broadcastMode === "direct";
-    const alreadyLive = activeLiveData?.status === "live";
-    if (isCF && isMobile && !alreadyLive) {
-      setCFOrientationPickerOpen(true);
-    } else {
-      setLiveCreatorOpen(true);
-    }
-  }
-
   const liveVisibilityBadge: { label: string; icon: "lock" | "globe" | "user" } | null =
     liveVisibilityMode === "members_only"
       ? { label: "Solo miembros", icon: "lock" }
@@ -3616,7 +3604,7 @@ style={{
                     <>
                       <button
                         type="button"
-                        onClick={() => openCreatorPanelMaybePickOrientation()}
+                        onClick={() => setLiveCreatorOpen(true)}
                         style={{
                           height: 36,
                           padding: "0 18px",
@@ -4877,7 +4865,7 @@ padding: "0 0 2px 0",
       streamProvider: "mux",
     }));
   }}
-  onOpenCreatorPanel={(mode) => { setLiveSetupOpen(false); openCreatorPanelMaybePickOrientation(mode); }}
+  onOpenCreatorPanel={() => { setLiveSetupOpen(false); setLiveCreatorOpen(true); }}
 />
 {liveViewerOpen && (
   <LiveViewerModal
@@ -4895,17 +4883,6 @@ padding: "0 0 2px 0",
     onClose={() => setLiveCreatorOpen(false)}
     post={{ ...post, liveData: activeLiveData ?? post.liveData }}
     portrait={isLivePortrait}
-  />
-)}
-{cfOrientationPickerOpen && (
-  <LiveCFOrientationPicker
-    open={cfOrientationPickerOpen}
-    onSelect={(portrait) => {
-      setIsLivePortrait(portrait);
-      setCFOrientationPickerOpen(false);
-      setLiveCreatorOpen(true);
-    }}
-    onClose={() => setCFOrientationPickerOpen(false)}
   />
 )}
 <div style={interactionRowStyle}>
