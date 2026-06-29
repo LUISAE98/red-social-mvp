@@ -451,6 +451,11 @@ export default function MobileBottomNav({
                   // Save current scroll before leaving
                   sessionStorage.setItem(`nav:scroll:${pathname}`, String(window.scrollY));
 
+                  // Pre-seed lastScrollYRef with the destination's saved scroll so
+                  // the programmatic scroll restoration doesn't trigger a shrink.
+                  const destSaved = sessionStorage.getItem(`nav:scroll:${item.href}`);
+                  lastScrollYRef.current = destSaved !== null ? parseInt(destSaved) : 0;
+
                   setPoppingKey(item.key);
                   setPendingHref(item.href);
 
