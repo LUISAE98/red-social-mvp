@@ -168,8 +168,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const isPlayingRef = useRef(false);
   const scheduledPlayTimeoutRef = useRef<number | null>(null);
   // Ventana para que Firestore entregue el snapshot a los viewers antes de scheduledAt.
-  // 800ms era insuficiente en redes lentas — 1500ms cubre la gran mayoría de los casos.
-  const LEAD_MS = 300;
+  // 1500ms cubre la gran mayoría de los casos, incluyendo redes lentas.
+  const LEAD_MS = 1500;
   const [activeSuperOverlay, setActiveSuperOverlay] = useState<SuperComment | null>(null);
   const [superCommentTab, setSuperCommentTab] = useState<"nuevos" | "reproducidos">("nuevos");
   const [playingOverlay, setPlayingOverlay] = useState<SuperComment | null>(null);
@@ -1236,7 +1236,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                         <span style={{ fontSize: 9, fontWeight: 700, color: "#ef4444", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 3, padding: "0px 4px", flexShrink: 0 }}>BAN</span>
                       )}
                       <span style={{ fontSize: 12, fontWeight: 700, color: "#86efac", fontFamily: FONT, flexShrink: 0 }}>
-                        +${(sc.amount * 0.77).toFixed(2)} MXN
+                        +${(sc.amount * 0.77).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN
                       </span>
                       <button
                         type="button"
@@ -1311,7 +1311,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                       </span>
                     ) : (
                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontStyle: "italic", fontFamily: FONT }}>
-                        Donación ${sc.amount.toFixed(2)} MXN
+                        Donación ${sc.amount.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN
                       </span>
                     )}
                   </div>
@@ -1487,7 +1487,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     {playingOverlay.username}
                   </span>
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#86efac", fontFamily: FONT }}>
-                    +${(playingOverlay.amount * 0.77).toFixed(2)} MXN
+                    +${(playingOverlay.amount * 0.77).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN
                   </span>
                 </div>
               </div>
@@ -1505,7 +1505,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                   {playingOverlay.text.slice(ttsReadIndex)}
                 </>
               ) : (
-                <span style={{ color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>Donación ${playingOverlay.amount.toFixed(2)} MXN</span>
+                <span style={{ color: "rgba(255,255,255,0.35)", fontStyle: "italic" }}>Donación ${playingOverlay.amount.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN</span>
               )}
             </div>
             {/* Botones */}

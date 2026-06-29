@@ -500,7 +500,7 @@ function PremiumPostPanel({
               marginTop: 1,
             }}
           >
-            ${netEarnings} {currency ?? "MXN"}
+            ${netEarnings.toLocaleString("es-MX")} {currency ?? "MXN"}
           </div>
         </div>
       )}
@@ -3230,13 +3230,29 @@ style={{
 )}
 
 {post.postType === "live" && (
-  post.premium?.enabled && liveVodReady ? (
-    // Premium VOD: render as plain video post — no live chrome, no badge, no panel buttons
-    <div style={{ marginTop: 10 }}>
+  liveVodReady ? (
+    // VOD listo: render as plain video post — no live chrome, no badge, no panel buttons
+    <div style={{ marginTop: 10, position: "relative" }}>
+      {/* Botón estadísticas — solo visible para el creador */}
+      {currentUserId === post.authorId && (
+        <button
+          type="button"
+          onClick={() => setLiveCreatorOpen(true)}
+          style={{
+            position: "absolute", top: 8, left: 8, zIndex: 10,
+            height: 32, padding: "0 14px", borderRadius: 10, border: "none",
+            background: "linear-gradient(135deg, #a855f7 0%, #d946b8 100%)",
+            color: "#fff", fontWeight: 600, fontSize: 12,
+            fontFamily: fontStack, cursor: "pointer", whiteSpace: "nowrap",
+          }}
+        >
+          Abrir panel para ver estadísticas
+        </button>
+      )}
       {premiumState.isBlocked ? (
         <div style={{
           position: "relative", width: "100%", aspectRatio: "16 / 9",
-          background: "#111", borderRadius: 14, overflow: "hidden",
+          background: "#111", borderRadius: 14, overflow: "hidden", cursor: "default",
         }}>
           {activeLiveData?.coverUrl && (
             <Image
@@ -3245,6 +3261,33 @@ style={{
               fill
               style={{ objectFit: "cover", opacity: 0.25, filter: "blur(8px)" }}
             />
+          )}
+          {/* Play icon centered — same as regular premium blocked video */}
+          <div style={{
+            position: "absolute", inset: 0, display: "flex",
+            alignItems: "center", justifyContent: "center", zIndex: 2,
+          }}>
+            <div style={{
+              width: 52, height: 52, borderRadius: "50%",
+              background: "rgba(0,0,0,0.55)", display: "flex",
+              alignItems: "center", justifyContent: "center",
+              backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
+            }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </div>
+          </div>
+          {/* Duration bottom-right */}
+          {formatMediaDuration(post.playback?.duration ?? post.videoData?.duration) && (
+            <span style={{
+              position: "absolute", right: 8, bottom: 8, zIndex: 3,
+              color: "#fff", fontSize: 13, fontWeight: 700, lineHeight: 1,
+              letterSpacing: "-0.01em", textShadow: "0 1px 4px rgba(0,0,0,0.5)",
+              pointerEvents: "none",
+            }}>
+              {formatMediaDuration(post.playback?.duration ?? post.videoData?.duration)}
+            </span>
           )}
         </div>
       ) : (
@@ -3257,7 +3300,7 @@ style={{
           isVod
           paused={liveViewerOpen || liveCreatorOpen}
           streamProvider={activeLiveData?.streamProvider ?? "mux"}
-          onClick={() => setLiveViewerOpen(true)}
+          onClick={() => openMediaViewer(liveVodUrl)}
           onOrientationDetected={(p) => { if (!liveCreatorOpen) setIsLivePortrait(p); }}
         />
       )}

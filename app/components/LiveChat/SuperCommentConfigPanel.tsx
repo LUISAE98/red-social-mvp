@@ -180,7 +180,7 @@ export default function SuperCommentConfigPanel({ open, onClose, postId }: Props
               ))}
             </div>
             {scConfig.tiers.map((tier) => {
-              const creatorEarns = (tier.price * 0.77).toFixed(2);
+              const creatorEarns = (tier.price * 0.77).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               return (
                 <div key={tier.id} style={{ marginBottom: 14 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, alignItems: "center" }}>

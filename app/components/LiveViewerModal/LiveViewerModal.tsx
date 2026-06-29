@@ -573,7 +573,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const chatEnabled = !isEnded && !isBanned && liveData?.chatEnabled !== false;
 
   // ── Controles horizontales — computed ────────────────────────────────────
-  const dvrAvailable = isLive && !cfWebRTCPlayUrl && dvrDuration >= 15;
+  const dvrAvailable = isLive && !cfWebRTCPlayUrl && liveData?.broadcastMode !== "direct" && dvrDuration >= 15;
   const badgeLift = (vodControlsVisible && dvrAvailable) ? 44 : 0;
 
   useEffect(() => { setMounted(true); }, []);
@@ -1428,7 +1428,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
             </div>
             <div style={{ fontSize: 11, fontFamily: FONT }}>
               <span style={{ color: "rgba(255,255,255,0.5)", fontWeight: 400 }}>donó </span>
-              <span style={{ color: "#4ade80", fontWeight: 700 }}>${sc.amount.toFixed(2)} MXN</span>
+              <span style={{ color: "#4ade80", fontWeight: 700 }}>${sc.amount.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN</span>
             </div>
           </div>
         </div>

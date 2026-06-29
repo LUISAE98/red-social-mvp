@@ -217,7 +217,7 @@ export default function ComposerPremiumPanel({
   const parsedPrice = parseFloat(priceInput);
   const creatorEarnings =
     priceInput !== "" && Number.isFinite(parsedPrice) && parsedPrice > 0
-      ? (parsedPrice * 0.77).toFixed(2)
+      ? (parsedPrice * 0.77).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : null;
 
   return (
@@ -512,7 +512,7 @@ export default function ComposerPremiumPanel({
             >
               Por cada desbloqueo de tu publicación premium cobrarás{" "}
               <strong style={{ color: "#a855ff", fontWeight: 600 }}>
-                ${formatThousands(creatorEarnings)} MXN
+                ${creatorEarnings} MXN
               </strong>
             </span>
           ) : null}

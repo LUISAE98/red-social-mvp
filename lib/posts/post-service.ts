@@ -4646,6 +4646,7 @@ export async function finalizeVodSettings(
     vodPaid: boolean;
     vodPrice: number | null;
     vodTitle: string | null;
+    vodDescription?: string | null;
   }
 ): Promise<void> {
   const now = serverTimestamp();
@@ -4663,6 +4664,12 @@ export async function finalizeVodSettings(
     update.isPinnedOnProfile = false;
     update.profilePinnedAt = null;
     update.profilePinnedBy = null;
+  }
+
+  // Always set post text for visible VODs
+  if (!opts.vodHidden && opts.vodTitle) {
+    const prefix = `EN VIVO - ${opts.vodTitle}`;
+    update.text = opts.vodDescription ? `${prefix}\n${opts.vodDescription}` : prefix;
   }
 
   // Convert to premium video post when creator sets a ticket price
@@ -4683,7 +4690,6 @@ export async function finalizeVodSettings(
     update.oneTimePrice = opts.vodPrice;
     update.currency = "MXN";
     update.purchaseType = "video";
-    if (opts.vodTitle) update.text = opts.vodTitle;
   } else {
     // Free or hidden VOD: clear any existing premium config
     update.premium = null;

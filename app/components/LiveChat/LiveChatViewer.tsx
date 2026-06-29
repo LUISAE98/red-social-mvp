@@ -240,7 +240,7 @@ export default function LiveChatViewer({
                     <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4, marginBottom: 3 }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{item.username}</span>
                       <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>donó</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>${item.amount.toFixed(2)} MXN</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>${item.amount.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN</span>
                     </div>
                     {item.text ? (
                       <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.9)", lineHeight: 1.4, wordBreak: "break-word" }}>{item.text}</span>
@@ -363,7 +363,7 @@ export default function LiveChatViewer({
                   <div style={{ display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 4, marginBottom: 3 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{item.username}</span>
                     <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", fontWeight: 400 }}>donó</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>${item.amount.toFixed(2)} MXN</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#4ade80" }}>${item.amount.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MXN</span>
                   </div>
                   {item.text ? (
                     <span style={{ fontSize: 12, color: "rgba(255,255,255,0.9)", lineHeight: 1.4, wordBreak: "break-word" }}>

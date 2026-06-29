@@ -108,25 +108,20 @@ export async function DELETE(req: NextRequest) {
   const stopBroadcastGroupIds: string[] = Array.isArray(postData?.liveData?.broadcastGroupIds)
     ? (postData.liveData.broadcastGroupIds as string[]).filter((id) => typeof id === "string" && id && id !== stopGroupId)
     : [];
-  const wasPinnedInGroup = postData?.isPinnedInGroup === true;
-  const wasPinnedOnProfile = postData?.isPinnedOnProfile === true;
   const now = FieldValue.serverTimestamp();
 
+  // CF (broadcastMode: "direct") → siempre desfijar al terminar, sin VOD no tiene sentido mantener el pin
   const postUpdate: Record<string, unknown> = {
     "liveData.status": "ended",
     "liveData.endedAt": now,
     updatedAt: now,
+    isPinnedInGroup: false,
+    groupPinnedAt: null,
+    groupPinnedBy: null,
+    isPinnedOnProfile: false,
+    profilePinnedAt: null,
+    profilePinnedBy: null,
   };
-  if (wasPinnedInGroup) {
-    postUpdate.isPinnedInGroup = false;
-    postUpdate.groupPinnedAt = null;
-    postUpdate.groupPinnedBy = null;
-  }
-  if (wasPinnedOnProfile) {
-    postUpdate.isPinnedOnProfile = false;
-    postUpdate.profilePinnedAt = null;
-    postUpdate.profilePinnedBy = null;
-  }
 
   const clearUpdates: Promise<unknown>[] = [
     db.collection("users").doc(uid).update({ activeLivePostId: FieldValue.delete() }),
@@ -140,14 +135,13 @@ export async function DELETE(req: NextRequest) {
   for (const gid of stopBroadcastGroupIds) {
     clearUpdates.push(db.collection("groups").doc(gid).update({ activeLivePostId: FieldValue.delete() }));
   }
-  if (wasPinnedOnProfile) {
-    clearUpdates.push(
-      db.collection("users").doc(uid).collection("profileFeed").doc(postId).set(
-        { isPinnedOnProfile: false, profilePinnedAt: null, profilePinnedBy: null, updatedAt: now, syncedAt: now },
-        { merge: true }
-      )
-    );
-  }
+  // Siempre sincronizar profileFeed para garantizar el estado desfijado
+  clearUpdates.push(
+    db.collection("users").doc(uid).collection("profileFeed").doc(postId).set(
+      { isPinnedOnProfile: false, profilePinnedAt: null, profilePinnedBy: null, updatedAt: now, syncedAt: now },
+      { merge: true }
+    )
+  );
   await Promise.all(clearUpdates).catch((err) => {
     console.error("[cf-broadcast] Failed to clear live state:", err);
   });

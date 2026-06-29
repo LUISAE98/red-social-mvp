@@ -149,7 +149,7 @@ function formatSubscriptionPrice(group: RecommendationGroupCard) {
       maximumFractionDigits: 2,
     }).format(price);
   } catch {
-    return `${currency} ${price.toFixed(2)}`;
+    return `${currency} ${price.toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
 }
 

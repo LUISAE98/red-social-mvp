@@ -107,6 +107,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
         vodPaid: vodAvailable ? vodPaid : false,
         vodPrice: price,
         vodTitle: liveData?.title ?? null,
+        vodDescription: liveData?.description ?? null,
       });
       onClose();
     } catch {
