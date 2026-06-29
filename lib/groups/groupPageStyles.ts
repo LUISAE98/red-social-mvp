@@ -165,13 +165,10 @@ export const tinyGhostButton: CSSProperties = {
 };
 
 export const coverDonationButton: CSSProperties = {
-  ...tinyGhostButton,
   position: "absolute",
   left: 12,
   top: 12,
   zIndex: 3,
-  background: "rgba(0,0,0,0.92)",
-  border: "1px solid rgba(255,255,255,0.18)",
 };
 
 export const inputStyle: CSSProperties = {

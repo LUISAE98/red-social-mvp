@@ -611,6 +611,7 @@ async function markAssetReady(event: MuxWebhookEvent) {
     try {
       await postRef.update({
         "liveData.vodStatus": "ready",
+        createdAt: now,
         updatedAt: now,
       });
       logger.info("muxWebhook live recording ready → vodStatus=ready", { postId, assetId, playbackId });
@@ -838,6 +839,7 @@ async function handleLiveStreamActive(event: MuxWebhookEvent) {
     result.ref.update({
       "liveData.status": "live",
       "liveData.startedAt": now,
+      createdAt: now,
       updatedAt: now,
     }),
   ];

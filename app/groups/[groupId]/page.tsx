@@ -32,7 +32,7 @@ import GroupStoryCircles from "@/app/components/Stories/GroupStoryCircles";
 import GroupMembersTab from "./components/GroupMembersTab";
 import GroupPostsFeed from "./components/posts/GroupPostsFeed";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
-import CreatorServicesMenu from "@/components/services/CreatorServicesMenu";
+import CreatorExperiencesSection from "@/components/services/CreatorExperiencesSection";
 import DonationEntryPoint from "@/components/services/DonationEntryPoint";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import {
@@ -2226,18 +2226,6 @@ const avatarNode = (
   />
 )}
 
-              <DonationEntryPoint
-  donation={groupIsPaused ? null : normalizedCurrentDonation}
-  isLoggedIn={!!user}
-  onRequireLogin={redirectToLogin}
-  viewerCanDonate={!isOwner && !groupIsPaused}
-  videoEnabled={false}
-  videoUrl={null}
-  buttonStyle={coverDonationButton}
-  onDonateIntent={(payload) => {
-    console.log("donation_intent", payload);
-  }}
-/>
 
               {isOwner && (
                 <button
@@ -2320,17 +2308,31 @@ const avatarNode = (
   )}
 </div>
 
+                  <div style={{ marginTop: 10, width: "100%", display: "flex", justifyContent: "center" }}>
+                    <DonationEntryPoint
+                      donation={groupIsPaused ? null : normalizedCurrentDonation}
+                      isLoggedIn={!!user}
+                      onRequireLogin={redirectToLogin}
+                      viewerCanDonate={!isOwner && !groupIsPaused}
+                      videoEnabled={false}
+                      videoUrl={null}
+                      name={group?.name ?? null}
+                      onDonateIntent={(payload) => {
+                        console.log("donation_intent", payload);
+                      }}
+                    />
+                  </div>
+
                   {canRequestCreatorServices &&
   normalizedCurrentOfferings.length > 0 && (
-    <div className="group-services-wrap">
-      <CreatorServicesMenu
-        services={normalizedCurrentOfferings}
-        contextType="group"
-        groupId={groupId}
-        viewerMembershipStatus={isOwner ? "active" : memberStatus}
-        viewerCanRequest={canRequestCreatorServices}
-      />
-    </div>
+    <CreatorExperiencesSection
+      services={normalizedCurrentOfferings}
+      creatorName={group.name ?? ""}
+      contextType="group"
+      groupId={groupId}
+      viewerMembershipStatus={isOwner ? "active" : memberStatus}
+      viewerCanRequest={canRequestCreatorServices}
+    />
   )}
                 </div>
               </div>

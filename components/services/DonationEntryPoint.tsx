@@ -23,6 +23,7 @@ type Props = {
   viewerCanDonate?: boolean;
   videoEnabled?: boolean;
   videoUrl?: string | null;
+  name?: string | null;
   onDonateIntent?: (payload: {
     mode: DonationMode;
     amount: number;
@@ -69,6 +70,7 @@ export default function DonationEntryPoint({
   viewerCanDonate = true,
   videoEnabled = false,
   videoUrl = null,
+  name = null,
   onDonateIntent,
   buttonStyle,
 }: Props) {
@@ -133,12 +135,13 @@ export default function DonationEntryPoint({
   const resolvedMinimumAmount = minimumAmount;
 
   const buttonLabel =
-    resolvedNormalized.mode === "wedding" ? "Apoyar boda" : "Apoyar";
-
-  const buttonEmoji = resolvedNormalized.mode === "wedding" ? "💍" : "💗";
-
-  const buttonAccent =
-    resolvedNormalized.mode === "wedding" ? "#C084FC" : "#FB7185";
+    resolvedNormalized.mode === "wedding"
+      ? name
+        ? `Apoya en su boda a ${name}`
+        : "Apoyar boda"
+      : name
+        ? `Apoya a ${name}`
+        : "Apoyar";
 
   function closePanel() {
     setOpen(false);
@@ -472,63 +475,48 @@ export default function DonationEntryPoint({
       <button
         type="button"
         onClick={handleOpen}
-        disabled={!viewerCanDonate}
-        title={
-          viewerCanDonate
-            ? buttonLabel
-            : "No puedes apoyar tu propia comunidad"
-        }
         aria-label={buttonLabel}
         style={{
-          width: 74,
-          color: "#fff",
-          textDecoration: "none",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 6,
-          textAlign: "center",
+          width: 220,
+          height: 40,
+          borderRadius: 10,
           border: "none",
-          background: "transparent",
-          padding: 0,
-          margin: 0,
-          cursor: viewerCanDonate ? "pointer" : "default",
-          opacity: 1,
-          fontFamily:
-            'inherit',
+          background: "#60a5fa",
+          color: "#fff",
+          fontFamily: "inherit",
+          fontWeight: 600,
+          fontSize: 14,
+          letterSpacing: "-0.01em",
+          whiteSpace: "nowrap",
+          cursor: "pointer",
+          WebkitTapHighlightColor: "transparent",
+          transition: "opacity 150ms ease",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 7,
           ...buttonStyle,
         }}
       >
-        <span
-          aria-hidden="true"
-          style={{
-            width: 52,
-            height: 52,
-            borderRadius: 999,
-            display: "grid",
-            placeItems: "center",
-            background: "#000",
-            border: `2.5px solid ${buttonAccent}`,
-            fontSize: 23,
-            lineHeight: 1,
-            boxShadow: `0 8px 24px rgba(0,0,0,0.32), 0 0 18px ${buttonAccent}33`,
-          }}
-        >
-          {buttonEmoji}
-        </span>
-
-        <span
-          style={{
-            maxWidth: "100%",
-            fontSize: 11,
-            fontWeight: 700,
-            lineHeight: 1.12,
-            color: "rgba(255,255,255,0.92)",
-            textWrap: "balance",
-          }}
-        >
-          {buttonLabel}
-        </span>
+        <span>{buttonLabel}</span>
+        <svg width="28" height="28" viewBox="0 0 64 64" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+          <path
+            d="M39 24C36 21 27 17.5 27 12C27 7.5 31 5.5 35 7.5C37 8.5 38.5 10.5 39 12C39.5 10.5 41 8.5 43 7.5C47 5.5 51 7.5 51 12C51 17.5 42 21 39 24Z"
+            fill="currentColor"
+          />
+          <path
+            d="M8.5 39.5L17 35L25 50.5L16.5 55Z"
+            fill="currentColor" stroke="currentColor" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round"
+          />
+          <path
+            d="M18 36.5L27.5 31.5C30 30.2 32.1 30.4 34.7 31.3L43.8 34.5C46.1 35.3 46.9 37.8 45.6 39.5C44.7 40.7 43.1 41.2 41.5 40.8L33.5 38.7"
+            stroke="currentColor" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round"
+          />
+          <path
+            d="M28.5 48.5H38.5C40.2 48.5 41.6 48.1 43 47.2L56 38.7C58.1 37.3 58.7 34.9 57.5 33.2C56.3 31.6 54 31.3 51.9 32.5L43.5 37.4"
+            stroke="currentColor" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round"
+          />
+        </svg>
       </button>
 
       {open && mounted ? createPortal(modal, document.body) : null}

@@ -34,7 +34,7 @@ import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { onAuthStateChanged, sendPasswordResetEmail, type User } from "firebase/auth";
 import { httpsCallable } from "firebase/functions";
 import { updateProfileDisplayName } from "@/lib/profile/updateProfileDisplayName";
-import CreatorServicesMenu from "@/components/services/CreatorServicesMenu";
+import CreatorExperiencesSection from "@/components/services/CreatorExperiencesSection";
 import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { buildCurrentPathWithSearch } from "@/lib/auth-redirect";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
@@ -2174,27 +2174,13 @@ await createExclusiveSessionRequest({
                   ) : null}
 
                   {!isProfileRestrictedForVisitor && !shouldHideProfileSocialContent ? (
-  <div
-    className="profile-services-menu"
-    style={{
-      width: "100%",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "flex-start",
-      gap: "clamp(14px, 4vw, 28px)",
-      flexWrap: "wrap",
-    }}
-  >
-
-    <CreatorServicesMenu
-      services={(userDoc.offerings ?? []) as import("@/types/group").CreatorService[]}
-      contextType="profile"
-      profileUid={userDoc.uid}
-      creatorHandle={userDoc.handle}
-      viewerCanRequest={true}
-      className="profile-services-menu-inline"
-    />
-  </div>
+  <CreatorExperiencesSection
+    services={(userDoc.offerings ?? []) as import("@/types/group").CreatorService[]}
+    creatorName={userDoc.firstName || fullName.split(" ")[0] || fullName}
+    contextType="profile"
+    creatorHandle={userDoc.handle}
+    viewerCanRequest={true}
+  />
 ) : null}
                 </div>
               </div>

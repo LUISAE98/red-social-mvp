@@ -864,6 +864,7 @@ function handleCloseSearch() {
 
   function handleNavigateAndClose(href: string) {
     setSearch("");
+    setIsFocused(false);
     onCloseSearch?.();
     router.push(href);
   }

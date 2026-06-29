@@ -84,6 +84,13 @@ type DonationModeButtonProps = {
   onClick: () => void;
 };
 
+type SwitchProps = {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  disabled?: boolean;
+  label?: string;
+};
+
 type Props = {
   draft: ServiceDraft;
   savedDraft: ServiceDraft;
@@ -103,6 +110,7 @@ type Props = {
 
   OverlayModalComponent: React.ComponentType<OverlayModalProps>;
   DonationModeButtonComponent: React.ComponentType<DonationModeButtonProps>;
+  SwitchComponent: React.ComponentType<SwitchProps>;
 
   onSaveDraft: (nextDraft: ServiceDraft) => Promise<void>;
 };
@@ -111,7 +119,6 @@ type OverlayMode = null | "activate" | "edit";
 
 export default function Donation({
   draft,
-  savedDraft,
   saving,
   removingLegacyMembers,
   donationEmoji,
@@ -124,10 +131,14 @@ export default function Donation({
   formatMoney,
   OverlayModalComponent,
   DonationModeButtonComponent,
+  SwitchComponent,
   onSaveDraft,
 }: Props) {
+  const isEnabled = draft.donationMode !== "none";
+
   const [overlayMode, setOverlayMode] = useState<OverlayMode>(null);
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
 
   const isBusy = saving || removingLegacyMembers;
 
@@ -137,15 +148,16 @@ export default function Donation({
       : null;
   }, [draft.donationMode, draft.donationMinimumAmount, calcNetAmount]);
 
-  const hasUnsavedDonationChanges =
-    draft.donationMode !== savedDraft.donationMode ||
-    draft.donationCurrency !== savedDraft.donationCurrency ||
-    draft.donationMinimumAmount !== savedDraft.donationMinimumAmount ||
-    draft.donationGoalLabel !== savedDraft.donationGoalLabel;
-
-  function buildDisabledDraft(baseDraft: ServiceDraft): ServiceDraft {
+  function buildEnabledDraft(base: ServiceDraft): ServiceDraft {
     return {
-      ...baseDraft,
+      ...base,
+      donationMode: base.donationMode === "none" ? "general" : base.donationMode,
+    };
+  }
+
+  function buildDisabledDraft(base: ServiceDraft): ServiceDraft {
+    return {
+      ...base,
       donationMode: "none",
       donationCurrency: "MXN",
       donationMinimumAmount: "",
@@ -156,39 +168,44 @@ export default function Donation({
   function openOverlay(mode: OverlayMode, nextDraft?: ServiceDraft) {
     setOverlayMode(mode);
     setOverlayDraft(nextDraft ?? draft);
+    setSaveErr(null);
   }
 
   function closeOverlay() {
     if (isBusy) return;
     setOverlayMode(null);
     setOverlayDraft(draft);
+    setSaveErr(null);
   }
 
   async function confirmOverlaySave() {
+    if (isBusy) return;
+    setSaveErr(null);
+
+    const amount = parseFloat(overlayDraft.donationMinimumAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setSaveErr("Debes definir un monto mínimo válido.");
+      return;
+    }
+
+    if (overlayDraft.donationMode === "wedding" && !overlayDraft.donationGoalLabel.trim()) {
+      setSaveErr("Debes escribir el texto del botón para boda.");
+      return;
+    }
+
     await onSaveDraft(overlayDraft);
     setOverlayMode(null);
   }
 
-  function handleSelectMode(nextMode: DonationMode) {
+  async function handleToggle(next: boolean) {
     if (isBusy) return;
-
-    if (nextMode === "none") {
-      void onSaveDraft(buildDisabledDraft(draft));
+    if (!isEnabled && next) {
+      openOverlay("activate", buildEnabledDraft(draft));
       return;
     }
-
-    const nextDraft: ServiceDraft = {
-      ...draft,
-      donationMode: nextMode,
-      donationCurrency:
-        draft.donationMode === "none" ? "MXN" : draft.donationCurrency,
-      donationMinimumAmount:
-        draft.donationMode === "none" ? "" : draft.donationMinimumAmount,
-      donationGoalLabel:
-        nextMode === "wedding" ? draft.donationGoalLabel : "",
-    };
-
-    openOverlay(draft.donationMode === "none" ? "activate" : "edit", nextDraft);
+    if (isEnabled && !next) {
+      await onSaveDraft(buildDisabledDraft(draft));
+    }
   }
 
   function handleModify() {
@@ -200,9 +217,7 @@ export default function Donation({
     if (draft.donationMode === "none") return null;
 
     const donationModeLabel =
-      draft.donationMode === "general"
-        ? "Donación"
-        : "Donación para boda";
+      draft.donationMode === "general" ? "Donación" : "Donación para boda";
 
     return (
       <div
@@ -216,7 +231,7 @@ export default function Donation({
         }}
       >
         <div style={{ display: "grid", gap: 4 }}>
-          <div style={subtleStyle}>Modo configurado</div>
+          <div style={subtleStyle}>Tipo</div>
           <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
             {donationModeLabel}
           </div>
@@ -226,30 +241,23 @@ export default function Donation({
           <div style={subtleStyle}>Monto mínimo</div>
           <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
             {draft.donationMinimumAmount
-              ? formatMoney(
-                  Number(draft.donationMinimumAmount),
-                  draft.donationCurrency
-                )
+              ? formatMoney(Number(draft.donationMinimumAmount), draft.donationCurrency)
               : `0 ${draft.donationCurrency}`}
           </div>
         </div>
 
-        {draft.donationMode === "wedding" && (
+        {draft.donationMode === "wedding" && draft.donationGoalLabel && (
           <div style={{ display: "grid", gap: 4 }}>
-            <div style={subtleStyle}>Texto visible</div>
-            <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>
-              {draft.donationGoalLabel || "Sin texto"}
-            </div>
+            <div style={subtleStyle}>Texto del botón</div>
+            <div style={{ color: "#fff", fontSize: 14 }}>{draft.donationGoalLabel}</div>
           </div>
         )}
 
         {donationMinimumCalc ? (
           <div style={subtleStyle}>
             Monto mínimo configurado:{" "}
-            {formatMoney(
-              donationMinimumCalc.gross,
-              draft.donationCurrency
-            )}. El usuario podrá donar ese monto o uno mayor.
+            {formatMoney(donationMinimumCalc.gross, draft.donationCurrency)}. El
+            usuario podrá donar ese monto o uno mayor.
           </div>
         ) : null}
 
@@ -274,58 +282,27 @@ export default function Donation({
   return (
     <>
       <div style={panelStyle}>
-        <div style={{ display: "grid", gap: 2 }}>
-          <span style={titleStyle}>{donationEmoji} Donación</span>
-          <span style={subtleStyle}>
-            Elige una sola modalidad. Si activas donación o donación para boda,
-            se mostrará el monto mínimo. Si eliges sin donación, debe quedar
-            totalmente desactivada.
-          </span>
-        </div>
-
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: 8,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
           }}
         >
-          <DonationModeButtonComponent
-            active={draft.donationMode === "none"}
+          <div style={{ display: "grid", gap: 2, minWidth: 0 }}>
+            <span style={titleStyle}>{donationEmoji} Donación / Apoyo</span>
+          </div>
+          <SwitchComponent
+            checked={isEnabled}
             disabled={isBusy}
-            label="Sin donación"
-            onClick={() => handleSelectMode("none")}
-          />
-
-          <DonationModeButtonComponent
-            active={draft.donationMode === "general"}
-            disabled={isBusy}
-            label="Donación"
-            onClick={() => handleSelectMode("general")}
-          />
-
-          <DonationModeButtonComponent
-            active={draft.donationMode === "wedding"}
-            disabled={isBusy}
-            label="Donación para boda"
-            onClick={() => handleSelectMode("wedding")}
+            onChange={(next) => {
+              void handleToggle(next);
+            }}
+            label="Activar donaciones"
           />
         </div>
-
         {renderSummary()}
-
-        {draft.donationMode !== "none" && (
-          <div style={subtleStyle}>
-            El video de agradecimiento o presentación de la donación queda
-            pendiente para el hito donde integremos video/live.
-          </div>
-        )}
-
-        {hasUnsavedDonationChanges && draft.donationMode !== "none" && (
-          <div style={subtleStyle}>
-            Hay cambios de donación pendientes por guardar.
-          </div>
-        )}
       </div>
 
       <OverlayModalComponent
@@ -335,102 +312,98 @@ export default function Donation({
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
       >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: 8,
-          }}
-        >
-          <DonationModeButtonComponent
-            active={overlayDraft.donationMode === "none"}
-            disabled={isBusy}
-            label="Sin donación"
-            onClick={() =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                donationMode: "none",
-                donationCurrency: "MXN",
-                donationMinimumAmount: "",
-                donationGoalLabel: "",
-              }))
-            }
-          />
-
-          <DonationModeButtonComponent
-            active={overlayDraft.donationMode === "general"}
-            disabled={isBusy}
-            label="Donación"
-            onClick={() =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                donationMode: "general",
-                donationGoalLabel: "",
-              }))
-            }
-          />
-
-          <DonationModeButtonComponent
-            active={overlayDraft.donationMode === "wedding"}
-            disabled={isBusy}
-            label="Donación para boda"
-            onClick={() =>
-              setOverlayDraft((prev) => ({
-                ...prev,
-                donationMode: "wedding",
-              }))
-            }
-          />
+        <div>
+          <div style={{ ...subtleStyle, marginBottom: 8 }}>Tipo de donación</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <DonationModeButtonComponent
+              active={overlayDraft.donationMode === "general"}
+              disabled={isBusy}
+              label="Donación"
+              onClick={() =>
+                setOverlayDraft((p) => ({
+                  ...p,
+                  donationMode: "general",
+                  donationGoalLabel: "",
+                }))
+              }
+            />
+            <DonationModeButtonComponent
+              active={overlayDraft.donationMode === "wedding"}
+              disabled={isBusy}
+              label="Para boda"
+              onClick={() =>
+                setOverlayDraft((p) => ({ ...p, donationMode: "wedding" }))
+              }
+            />
+          </div>
         </div>
 
-        {overlayDraft.donationMode !== "none" && (
-          <>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              <input
-                type="number"
-                min="1"
-                step="0.01"
-                value={overlayDraft.donationMinimumAmount}
-                onChange={(e) =>
-                  setOverlayDraft((prev) => ({
-                    ...prev,
-                    donationMinimumAmount: e.target.value,
-                  }))
-                }
-                placeholder="Monto mínimo"
-                style={{ ...inputStyle, width: 130 }}
-              />
+        <div>
+          <div style={{ ...subtleStyle, marginBottom: 8 }}>Monto mínimo</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={overlayDraft.donationMinimumAmount}
+              onChange={(e) =>
+                setOverlayDraft((p) => ({
+                  ...p,
+                  donationMinimumAmount: e.target.value,
+                }))
+              }
+              placeholder="Ej. 50"
+              disabled={isBusy}
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <select
+              value={overlayDraft.donationCurrency}
+              onChange={(e) =>
+                setOverlayDraft((p) => ({
+                  ...p,
+                  donationCurrency: e.target.value as Currency,
+                }))
+              }
+              disabled={isBusy}
+              style={{ ...inputStyle, width: 90 }}
+            >
+              <option value="MXN">MXN</option>
+              <option value="USD">USD</option>
+            </select>
+          </div>
+        </div>
 
-              <select
-                value={overlayDraft.donationCurrency}
-                onChange={(e) =>
-                  setOverlayDraft((prev) => ({
-                    ...prev,
-                    donationCurrency: e.target.value as Currency,
-                  }))
-                }
-                style={{ ...inputStyle, flex: 1, minWidth: 82 }}
-              >
-                <option value="MXN">MXN</option>
-                <option value="USD">USD</option>
-              </select>
+        {overlayDraft.donationMode === "wedding" && (
+          <div>
+            <div style={{ ...subtleStyle, marginBottom: 8 }}>
+              Texto visible en el botón
             </div>
+            <input
+              type="text"
+              value={overlayDraft.donationGoalLabel}
+              onChange={(e) =>
+                setOverlayDraft((p) => ({
+                  ...p,
+                  donationGoalLabel: e.target.value,
+                }))
+              }
+              placeholder="Ej. Apoyo para nuestra boda"
+              disabled={isBusy}
+              style={{ ...inputStyle, width: "100%" }}
+            />
+          </div>
+        )}
 
-            {overlayDraft.donationMode === "wedding" && (
-              <input
-                type="text"
-                value={overlayDraft.donationGoalLabel}
-                onChange={(e) =>
-                  setOverlayDraft((prev) => ({
-                    ...prev,
-                    donationGoalLabel: e.target.value,
-                  }))
-                }
-                placeholder="Texto visible (ej. Apoyo para nuestra boda)"
-                style={{ ...inputStyle, width: "100%" }}
-              />
-            )}
-          </>
+        {saveErr && (
+          <div
+            style={{
+              color: "rgba(255,120,120,0.95)",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            {saveErr}
+          </div>
         )}
       </OverlayModalComponent>
     </>

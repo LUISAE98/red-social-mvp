@@ -27,11 +27,9 @@ const SERVICE_CONFIG: Record<
     rgb: "125, 211, 252",
     animationClass: "vibraServiceIconWave",
     icon: (
-      <svg viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M20 36V24c0-3 2-5 5-5s5 2 5 5v12" />
-        <path d="M30 36V20c0-3 2-5 5-5s5 2 5 5v16" />
-        <path d="M40 36V24c0-3 2-5 5-5s5 2 5 5v13" />
-        <path d="M50 37v-8c0-3 2-5 5-4s4 4 3 8l-2 8c-2 9-9 14-19 14h-3c-8 0-14-4-18-11l-4-8c-2-4-1-7 2-8 3-1 5 1 7 4l3 6" />
+      <svg viewBox="0 0 512 512" fill="none" aria-hidden="true">
+        <path d="M188 56c39 5 70 35 86 71M151 91c37 8 66 37 80 70M83 276c-34-15-57-45-65-81M119 238c-29-10-51-33-61-63" stroke="currentColor" strokeWidth="28" strokeLinecap="round"/>
+        <path d="M157 143l144 144M105 196l144 144M84 267l139 139c58 58 152 58 210 0 35-35 47-87 31-134l-48-143c-9-27-47-24-52 4l-16 97-129-129c-18-18-48-18-66 0l-7 7c-18-18-48-18-66 0s-18 48 0 66l25 25" stroke="currentColor" strokeWidth="32" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     ),
   },
@@ -42,15 +40,11 @@ const SERVICE_CONFIG: Record<
     rgb: "250, 204, 21",
     animationClass: "vibraServiceIconBulb",
     icon: (
-      <svg viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M22 30c0-7 5-13 10-13s10 6 10 13c0 5-3 8-6 12-2 2-3 4-3 7h-2c0-3-1-5-3-7-3-4-6-7-6-12Z" />
-        <path d="M27 50h10" />
-        <path d="M28 56h8" />
-        <path d="M32 6v5" />
-        <path d="M16 12l4 4" />
-        <path d="M48 12l-4 4" />
-        <path d="M10 30h6" />
-        <path d="M48 30h6" />
+      <svg viewBox="0 0 512 512" fill="none" aria-hidden="true">
+        <path d="M256 103c-69 0-125 54-125 121 0 45 24 78 54 104 15 13 22 31 22 50h98c0-19 7-37 22-50 30-26 54-59 54-104 0-67-56-121-125-121z" stroke="currentColor" strokeWidth="24" strokeLinejoin="round"/>
+        <path d="M207 379h98M211 418h90M224 455h64" stroke="currentColor" strokeWidth="24" strokeLinecap="round"/>
+        <path d="M256 48v35M365 79l-18 31M433 188h-36M147 79l18 31M79 188h36" stroke="currentColor" strokeWidth="24" strokeLinecap="round"/>
+        <path d="M228 293v-38c0-16 24-16 24 0v38M252 255c0-16 24-16 24 0v38" stroke="currentColor" strokeWidth="18" strokeLinecap="round"/>
       </svg>
     ),
   },
@@ -61,13 +55,11 @@ const SERVICE_CONFIG: Record<
     rgb: "167, 139, 250",
     animationClass: "vibraServiceIconPulse",
     icon: (
-      <svg viewBox="0 0 64 64" aria-hidden="true">
-        <circle cx="32" cy="22" r="8" />
-        <path d="M18 52c2-10 7-16 14-16s12 6 14 16" />
-        <path d="M14 20c0-5 4-9 9-9" />
-        <path d="M50 20c0-5-4-9-9-9" />
-        <path d="M10 29c-2-7 0-14 5-19" />
-        <path d="M54 29c2-7 0-14-5-19" />
+      <svg viewBox="0 0 512 512" fill="none" aria-hidden="true">
+        <path d="M69 232l59 45 53-83M443 232l-59 45-53-83M181 194l61-35c25-14 55-14 80 0l47 27" stroke="currentColor" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M165 276l-26 31c-13 16-10 39 6 52 16 13 39 10 52-6l10-12M207 341l-17 21c-13 16-10 39 6 52 16 13 39 10 52-6l13-16M261 392l-4 5c-13 16-10 39 6 52 16 13 39 10 52-6l12-15" stroke="currentColor" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M201 194l-54 72c22 13 49 7 65-14l16-21 122 99c16 13 39 10 52-6s10-39-6-52l-74-60" stroke="currentColor" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M351 330l-35 44M316 374l-37 47M279 421l-19 24" stroke="currentColor" strokeWidth="24" strokeLinecap="round"/>
       </svg>
     ),
   },
@@ -78,12 +70,12 @@ const SERVICE_CONFIG: Record<
     rgb: "244, 114, 182",
     animationClass: "vibraServiceIconCrown",
     icon: (
-      <svg viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M13 47l4-25 10 12 5-18 5 18 10-12 4 25H13Z" />
-        <path d="M17 53h30" />
-        <circle cx="17" cy="21" r="2.5" />
-        <circle cx="32" cy="14" r="2.5" />
-        <circle cx="47" cy="21" r="2.5" />
+      <svg viewBox="0 0 512 512" fill="none" aria-hidden="true">
+        <path d="M72 413h368v51H72z" fill="currentColor"/>
+        <path d="M91 198l105 70 60-151 60 151 105-70-32 215H123L91 198z" stroke="currentColor" strokeWidth="42" strokeLinejoin="round"/>
+        <circle cx="91" cy="198" r="35" stroke="currentColor" strokeWidth="34"/>
+        <circle cx="256" cy="117" r="35" stroke="currentColor" strokeWidth="34"/>
+        <circle cx="421" cy="198" r="35" stroke="currentColor" strokeWidth="34"/>
       </svg>
     ),
   },
@@ -160,15 +152,10 @@ export function VibraServiceIcon({
       }
     >
       <div
-        className="vibraServiceIconCircle"
-        style={{
-          width: size,
-          height: size,
-        }}
+        className={`vibraServiceIconSvg ${config.animationClass}`}
+        style={{ width: size, height: size }}
       >
-        <div className={`vibraServiceIconSvg ${config.animationClass}`}>
-          {config.icon}
-        </div>
+        {config.icon}
       </div>
 
       {showLabel ? (
@@ -255,44 +242,11 @@ export function VibraServiceIconsStyles() {
         flex: 0 0 auto;
       }
 
-      .vibraServiceIconCircle {
-        position: relative;
-        border-radius: 999px;
-        border: 1px solid rgba(var(--service-rgb), 0.46);
-        display: grid;
-        place-items: center;
-        background:
-          radial-gradient(
-            circle at 50% 38%,
-            rgba(var(--service-rgb), 0.24) 0%,
-            rgba(var(--service-rgb), 0.13) 38%,
-            rgba(18, 9, 45, 0.72) 100%
-          );
-        box-shadow:
-          inset 0 1px 0 rgba(255, 255, 255, 0.08),
-          inset 0 0 18px rgba(var(--service-rgb), 0.08);
-        overflow: hidden;
-      }
-
-      .vibraServiceIconCircle::before {
-        content: "";
-        position: absolute;
-        inset: 1px;
-        border-radius: inherit;
-        background: linear-gradient(
-          145deg,
-          rgba(255, 255, 255, 0.08),
-          transparent 45%,
-          rgba(0, 0, 0, 0.18)
-        );
-        pointer-events: none;
-      }
-
       .vibraServiceIconSvg {
-        position: relative;
-        z-index: 1;
-        width: 46%;
-        height: 46%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
         color: var(--service-color);
         transform-origin: center center;
       }
@@ -301,11 +255,6 @@ export function VibraServiceIconsStyles() {
         width: 100%;
         height: 100%;
         display: block;
-        fill: none;
-        stroke: currentColor;
-        stroke-width: 4.5;
-        stroke-linecap: round;
-        stroke-linejoin: round;
       }
 
       .vibraServiceIconLabel {

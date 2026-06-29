@@ -29,6 +29,7 @@ import PostCommentsPanel from "./PostCommentsPanel";
 import GroupPostComposer, { type GroupPostComposerSubmitPayload } from "./GroupPostComposer";
 import PostImageViewer from "./PostImageViewer";
 import PostPaymentPanel from "./PostPaymentPanel";
+import PremiumVideoTeaser from "./PremiumVideoTeaser";
 import { VideoPlayIcon } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import { usePostTempUnlock } from "@/lib/posts/usePostTempUnlock";
 import { checkLiveAccess } from "@/lib/liveAccess/live-access-service";
@@ -983,8 +984,8 @@ const MediaGridVideoItem = forwardRef<MediaGridVideoItemHandle, MediaGridVideoIt
 );
 
 function buildPremiumPreviewClips(duration: number): Array<{ start: number; end: number }> {
-  const CLIP_DURATION = 7;
-  const numClips = duration >= 120 ? 5 : 4;
+  const CLIP_DURATION = 20;
+  const numClips = Math.max(1, Math.min(Math.floor(duration / 60), 10));
   const clips: Array<{ start: number; end: number }> = [];
   for (let i = 0; i < numClips; i++) {
     const start = (duration / numClips) * i;
@@ -3254,21 +3255,17 @@ style={{
           position: "relative", width: "100%", aspectRatio: "16 / 9",
           background: "#000", borderRadius: 12, overflow: "hidden",
         }}>
-          {/* Cover image — blurred, same style as regular premium blocked video */}
-          {activeLiveData?.coverUrl && (
-            <div style={{
-              position: "absolute", inset: 0,
-              filter: "blur(10px)", opacity: 0.72,
-            }}>
-              <Image
-                src={activeLiveData.coverUrl}
-                alt={activeLiveData.title ?? ""}
-                fill
-                style={{ objectFit: "cover" }}
-              />
-            </div>
-          )}
-          {/* Play icon — sibling of blurred image, not affected by filter */}
+          {/* Clips playing under blur — same visual as before */}
+          <div style={{
+            position: "absolute", inset: 0,
+            filter: "blur(10px)", opacity: 0.72,
+          }}>
+            <PremiumVideoTeaser
+              hlsUrl={liveVodUrl}
+              thumbnailUrl={activeLiveData?.coverUrl ?? null}
+            />
+          </div>
+          {/* Play icon — not affected by blur */}
           <div
             aria-hidden="true"
             style={{
@@ -3278,7 +3275,7 @@ style={{
           >
             <VideoPlayIcon size={50} color="#fff" />
           </div>
-          {/* Duration badge — identical to regular premium blocked video */}
+          {/* Duration badge */}
           {formatMediaDuration(post.playback?.duration ?? post.videoData?.duration) && (
             <span
               aria-hidden="true"

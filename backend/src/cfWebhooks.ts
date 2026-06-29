@@ -152,6 +152,7 @@ export const cfWebhook = onRequest(
             result.ref.update({
               "liveData.status": "live",
               "liveData.startedAt": now,
+              createdAt: now,
               updatedAt: now,
             }),
           ];

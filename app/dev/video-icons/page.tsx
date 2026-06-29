@@ -18,6 +18,10 @@ import {
   VideoAirPlayIcon,
   VideoCastIcon,
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
+import {
+  VibraServiceIcon,
+  VibraServiceIconsStyles,
+} from "@/app/components/VibraServiceIcons/VibraServiceIcons";
 
 // ── Subnav mobile icons (copias locales para preview) ────────────────────────
 
@@ -428,6 +432,39 @@ export default function VideoIconsPreview() {
 
   return (
     <div style={{ background: "#0a0a0a", minHeight: "100vh", padding: "40px 32px", fontFamily: "inherit" }}>
+
+      <VibraServiceIconsStyles />
+
+      {/* ── Iconos de servicios ── */}
+      <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Iconos de Servicios</h1>
+      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 28 }}>
+        VibraServiceIcon · Saludos / Consejos / Sesión Exclusiva / Meet &amp; Greet
+      </p>
+
+      {/* Fila principal con label */}
+      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Con etiqueta — 92px</p>
+      <div style={{ display: "flex", gap: 32, flexWrap: "wrap", marginBottom: 40 }}>
+        <VibraServiceIcon type="saludo" size={92} showLabel />
+        <VibraServiceIcon type="consejo" size={92} showLabel />
+        <VibraServiceIcon type="exclusiveSession" size={92} showLabel />
+        <VibraServiceIcon type="meetGreet" size={92} showLabel />
+      </div>
+
+      {/* Sin label, tamaños varios */}
+      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Sin etiqueta — comparativa de tamaños</p>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 20, flexWrap: "wrap", marginBottom: 56 }}>
+        {([56, 72, 92] as const).map((sz) => (
+          <div key={sz} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 10, fontWeight: 600 }}>{sz}px</span>
+            <div style={{ display: "flex", gap: 12 }}>
+              <VibraServiceIcon type="saludo" size={sz} showLabel={false} />
+              <VibraServiceIcon type="consejo" size={sz} showLabel={false} />
+              <VibraServiceIcon type="exclusiveSession" size={sz} showLabel={false} />
+              <VibraServiceIcon type="meetGreet" size={sz} showLabel={false} />
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* ── Subnav mobile actual ── */}
       <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Subnav Mobile — Iconos actuales</h1>

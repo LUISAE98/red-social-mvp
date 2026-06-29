@@ -2067,6 +2067,7 @@ export default function OwnerAdminServices({
         formatMoney={formatMoney}
         OverlayModalComponent={OverlayModal}
         DonationModeButtonComponent={DonationModeButton}
+        SwitchComponent={Switch}
         onSaveDraft={saveServicesFromDraft}
       />
 
