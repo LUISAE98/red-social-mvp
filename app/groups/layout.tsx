@@ -76,6 +76,7 @@ const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
 const mainInnerRef = useRef<HTMLDivElement>(null);
+const pendingAnimDirRef = useRef<"left" | "right" | null>(null);
 
 // Estado para header contextual (avatar + nombre del grupo)
 const [headerData, setHeaderData] = useState<MobileHeaderData>({ avatarUrl: null, name: null });
@@ -92,12 +93,21 @@ const isGroupDetailPage = /^\/groups\/[^/]+/.test(pathname) && !pathname.startsW
     history.scrollRestoration = "manual";
   }, []);
 
+  // Restore scroll before paint so there's no visible jump
   useLayoutEffect(() => {
     const dir = consumeNavSlideDir();
     if (!dir) return;
     const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
     window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
+    pendingAnimDirRef.current = dir;
+  }, [pathname]);
 
+  // Animate after paint so position:fixed children are in the DOM when iOS
+  // creates the transform stacking context.
+  useEffect(() => {
+    const dir = pendingAnimDirRef.current;
+    pendingAnimDirRef.current = null;
+    if (!dir) return;
     const mainEl = mainInnerRef.current;
     if (mainEl) {
       mainEl.setAttribute("data-nav-enter", dir);

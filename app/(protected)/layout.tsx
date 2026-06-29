@@ -79,6 +79,7 @@ const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
 const mainInnerRef = useRef<HTMLDivElement>(null);
+const pendingAnimDirRef = useRef<"left" | "right" | null>(null);
 
 // Estado para header contextual (avatar + nombre que pasan las páginas hijas)
 const [headerData, setHeaderData] = useState<MobileHeaderData>({ avatarUrl: null, name: null });
@@ -103,14 +104,21 @@ const isProfilePage = /^\/u\/[^/]+/.test(pathname);
     setContextScrolled(false);
   }, [pathname]);
 
-  // useLayoutEffect fires before paint → animation starts from translateX(100%) on first frame
+  // Restore scroll before paint so there's no visible jump
   useLayoutEffect(() => {
     const dir = consumeNavSlideDir();
     if (!dir) return;
-
     const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
     window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
+    pendingAnimDirRef.current = dir;
+  }, [pathname]);
 
+  // Animate after paint so position:fixed children (e.g. OwnerSidebar) are
+  // already in the DOM when iOS creates the transform stacking context.
+  useEffect(() => {
+    const dir = pendingAnimDirRef.current;
+    pendingAnimDirRef.current = null;
+    if (!dir) return;
     const el = mainInnerRef.current;
     if (el) {
       el.setAttribute("data-nav-enter", dir);

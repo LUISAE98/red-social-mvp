@@ -2657,7 +2657,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               DVR sin gradiente, scrubber subido 80px, delay de 0.25s al aparecer
               (espera a que el chat termine de desvanecerse antes de mostrarse)
             */}
-            {renderDvrControls(false, false, "0.25s", 80)}
+            {renderDvrControls(false, false, "0.25s", 20)}
 
             {/* Badges — 12px desde el flex child top (= debajo del notch) */}
             {!activeSuperComment && renderLiveBadge("top-center", 0, 0, true)}
