@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { setNavSlideDir } from "@/lib/nav-slide";
 import { doc, getDoc } from "firebase/firestore";
 
 import { useAuth } from "@/app/providers";
@@ -172,6 +173,7 @@ export default function MobileBottomNav({
   // ── Nav scale (shrink on scroll-down / idle) ───────────────────────────────
   const [navScale, setNavScale] = useState(1);
   const [poppingKey, setPoppingKey] = useState<string | null>(null);
+  const [shakingKey, setShakingKey] = useState<string | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastScrollYRef = useRef(0);
 
@@ -379,8 +381,21 @@ export default function MobileBottomNav({
           100% { transform: scale(1); }
         }
 
+        @keyframes navShake {
+          0%   { transform: translateX(0); }
+          18%  { transform: translateX(-5px); }
+          42%  { transform: translateX(5px); }
+          63%  { transform: translateX(-3px); }
+          82%  { transform: translateX(3px); }
+          100% { transform: translateX(0); }
+        }
+
         .popping {
           animation: navPop 0.38s ease-out both;
+        }
+
+        .shaking {
+          animation: navShake 0.36s ease-out both;
         }
 
         @media (max-width: 768px) {
@@ -423,6 +438,16 @@ export default function MobileBottomNav({
                 onClick={(e) => {
                   e.preventDefault();
                   expandNav();
+
+                  const alreadyHere = pendingHref !== null
+                    ? item.href === pendingHref
+                    : item.active;
+
+                  if (alreadyHere) {
+                    setShakingKey(item.key);
+                    return;
+                  }
+
                   setPoppingKey(item.key);
                   setPendingHref(item.href);
 
@@ -430,15 +455,8 @@ export default function MobileBottomNav({
                     ? nav.findIndex(n => n.href === pendingHref)
                     : nav.findIndex(n => n.active);
                   const direction = idx >= currentIdx ? "right" : "left";
-
-                  if (typeof document !== "undefined" && "startViewTransition" in document) {
-                    document.documentElement.classList.remove("nav-slide-left", "nav-slide-right");
-                    document.documentElement.classList.add(`nav-slide-${direction}`);
-                    (document as Document & { startViewTransition(cb: () => void): void })
-                      .startViewTransition(() => router.push(item.href));
-                  } else {
-                    router.push(item.href);
-                  }
+                  setNavSlideDir(direction);
+                  router.push(item.href);
                 }}
               >
                 <div
@@ -449,8 +467,12 @@ export default function MobileBottomNav({
                   }}
                 >
                   <span
-                    className={poppingKey === item.key ? "iconPop popping" : "iconPop"}
-                    onAnimationEnd={() => setPoppingKey(null)}
+                    className={
+                      poppingKey === item.key ? "iconPop popping" :
+                      shakingKey === item.key ? "iconPop shaking" :
+                      "iconPop"
+                    }
+                    onAnimationEnd={() => { setPoppingKey(null); setShakingKey(null); }}
                   >
                     {item.type === "avatar" ? (
                       <ProfileAvatarIcon src={photoURL} active={isActive} />

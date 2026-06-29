@@ -3303,8 +3303,13 @@ export async function createMediaPost(params: {
           existingFields: Object.keys(existingSnap.data() ?? {}),
         });
       }
-    } catch {
-      // Expected: permission-denied means doc does NOT exist (allow get is false for non-existing docs)
+    } catch (getErr: unknown) {
+      const getErrCode = (getErr as { code?: string })?.code ?? "unknown";
+      // permission-denied means either: doc doesn't exist (allow get=false) OR doc exists but read is blocked
+      console.warn("[createMediaPost] getDoc threw — doc may or may not exist", {
+        postId: params.postId,
+        errorCode: getErrCode,
+      });
     }
 
     try {
