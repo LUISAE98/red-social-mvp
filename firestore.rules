@@ -2397,7 +2397,7 @@ allow list: if canReadPost()
           && request.resource.data.updatedAt is timestamp;
       }
 
-      // Confirmar configuración de VOD tras fin de live (puede desfijar el post)
+      // Confirmar configuración de VOD tras fin de live (puede convertir a post premium y desfijar)
       function canFinalizeLivePost() {
         return signedIn()
           && resource.data.authorId == request.auth.uid
@@ -2405,7 +2405,9 @@ allow list: if canReadPost()
           && request.resource.data.diff(resource.data).changedKeys().hasOnly([
             "liveData", "updatedAt",
             "isPinnedInGroup", "groupPinnedAt", "groupPinnedBy",
-            "isPinnedOnProfile", "profilePinnedAt", "profilePinnedBy"
+            "isPinnedOnProfile", "profilePinnedAt", "profilePinnedBy",
+            "premium", "text",
+            "access", "accessModel", "requiresPayment", "oneTimePrice", "currency", "purchaseType"
           ])
           && request.resource.data.authorId == resource.data.authorId
           && request.resource.data.updatedAt is timestamp;

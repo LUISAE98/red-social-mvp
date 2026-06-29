@@ -12,6 +12,15 @@ import type { StoryDoc } from "@/lib/stories/types";
 import type { GreetingRequestDoc, UserMini } from "./OwnerSidebar";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
+import {
+  VideoMuteIcon,
+  VideoUnmuteIcon,
+  VideoExpandIcon,
+  VideoPlayIcon,
+  VideoPauseIcon,
+  VideoSkipBackIcon,
+  VideoSkipForwardIcon,
+} from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 
 const fontStack =
   'inherit';
@@ -258,6 +267,17 @@ export default function GreetingReviewOverlay({
 
   const overlayAvatarRef = useRef<HTMLImageElement | null>(null);
 
+  // ─── Playback video custom controls ──────────────────────────────────────────
+  const playbackVideoRef = useRef<HTMLVideoElement | null>(null);
+  const vpScrubberRef = useRef<HTMLDivElement | null>(null);
+  const vpChromeTimerRef = useRef<number | null>(null);
+  const [vpPlaying, setVpPlaying] = useState(false);
+  const [vpCurrentTime, setVpCurrentTime] = useState(0);
+  const [vpDuration, setVpDuration] = useState(0);
+  const [vpMuted, setVpMuted] = useState(false);
+  const [vpReady, setVpReady] = useState(false);
+  const [vpChromeVisible, setVpChromeVisible] = useState(true);
+
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -364,6 +384,67 @@ export default function GreetingReviewOverlay({
 
   const formatTime = (s: number) =>
     `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+  function handleVPPlayPause() {
+    const v = playbackVideoRef.current;
+    if (!v) return;
+    if (v.paused) {
+      v.play().catch(() => {});
+      showVPChrome();
+      scheduleVPChromeHide();
+    } else {
+      v.pause();
+    }
+  }
+
+  function handleVPSeek(value: number) {
+    const v = playbackVideoRef.current;
+    if (!v || !Number.isFinite(value)) return;
+    v.currentTime = Math.min(Math.max(0, value), Number.isFinite(v.duration) && v.duration > 0 ? v.duration : value);
+    setVpCurrentTime(v.currentTime);
+    showVPChrome();
+  }
+
+  function scheduleVPChromeHide() {
+    if (vpChromeTimerRef.current !== null) window.clearTimeout(vpChromeTimerRef.current);
+    vpChromeTimerRef.current = window.setTimeout(() => setVpChromeVisible(false), 1000);
+  }
+
+  function showVPChrome() {
+    setVpChromeVisible(true);
+    if (vpChromeTimerRef.current !== null) window.clearTimeout(vpChromeTimerRef.current);
+  }
+
+  useEffect(() => {
+    if (!vpReady) return;
+    let rafId: number;
+    const tick = () => {
+      const v = playbackVideoRef.current;
+      if (v && isFinite(v.currentTime) && isFinite(v.duration) && v.duration > 0) {
+        const pct = `${Math.min(100, (v.currentTime / v.duration) * 100).toFixed(2)}%`;
+        if (vpScrubberRef.current) vpScrubberRef.current.style.setProperty("--pct", pct);
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(rafId);
+      if (vpScrubberRef.current) vpScrubberRef.current.style.setProperty("--pct", "0%");
+    };
+  }, [vpReady]);
+
+  useEffect(() => {
+    const v = playbackVideoRef.current;
+    if (v) v.muted = vpMuted;
+  }, [vpMuted]);
+
+  useEffect(() => {
+    setVpPlaying(false);
+    setVpCurrentTime(0);
+    setVpDuration(0);
+    setVpReady(false);
+  }, [currentIndex, recordedBlobUrl]);
+
 
   function getRecordingMessage(seconds: number, type: string): string | null {
     if (type === "saludo") {
@@ -1430,6 +1511,141 @@ export default function GreetingReviewOverlay({
     fontFamily: fontStack,
   };
 
+  // ─── Custom video playback controls overlay ──────────────────────────────────
+  const vpBtnStyle: React.CSSProperties = {
+    background: "none", border: "none", boxShadow: "none", color: "#fff", cursor: "pointer",
+    padding: 0, display: "flex", alignItems: "center",
+    WebkitTapHighlightColor: "transparent", outline: "none",
+  };
+  const vpControlsOverlay = (
+    <div style={{ position: "absolute", inset: 0, zIndex: 5, pointerEvents: "none" }}>
+      {/* Click catcher — toggle chrome */}
+      <div
+        style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "auto", cursor: "pointer" }}
+        onClick={() => {
+          if (vpChromeVisible) {
+            if (vpChromeTimerRef.current !== null) window.clearTimeout(vpChromeTimerRef.current);
+            setVpChromeVisible(false);
+          } else {
+            setVpChromeVisible(true);
+            scheduleVPChromeHide();
+          }
+        }}
+      />
+
+      {/* Controls wrapper — fades in/out */}
+      <div style={{
+        position: "absolute", inset: 0, zIndex: 1,
+        opacity: vpChromeVisible ? 1 : 0,
+        transition: "opacity 220ms ease",
+        pointerEvents: "none",
+      }}>
+        {/* Top-right: fullscreen + mute */}
+        <div style={{
+          position: "absolute", top: 0, right: 0,
+          padding: "10px 12px",
+          display: "flex", alignItems: "center", gap: 10,
+          pointerEvents: "auto",
+        }}>
+          <button
+            type="button"
+            onClick={async (e) => {
+              e.stopPropagation();
+              const v = playbackVideoRef.current;
+              if (!v) return;
+              try {
+                if (typeof v.requestFullscreen === "function") await v.requestFullscreen();
+                else if (typeof (v as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen === "function")
+                  (v as HTMLVideoElement & { webkitEnterFullscreen: () => void }).webkitEnterFullscreen();
+              } catch { /* ignored */ }
+            }}
+            aria-label="Pantalla completa"
+            style={vpBtnStyle}
+          >
+            <VideoExpandIcon size={22} />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setVpMuted((m) => !m); showVPChrome(); scheduleVPChromeHide(); }}
+            aria-label={vpMuted ? "Activar sonido" : "Silenciar"}
+            style={vpBtnStyle}
+          >
+            {vpMuted ? <VideoMuteIcon size={22} /> : <VideoUnmuteIcon size={22} />}
+          </button>
+        </div>
+
+        {/* Center: skip-10 | play/pause | skip+10 */}
+        <div style={{
+          position: "absolute", inset: 0,
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 36,
+          pointerEvents: "none",
+        }}>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); const v = playbackVideoRef.current; if (v) v.currentTime = Math.max(0, v.currentTime - 10); showVPChrome(); scheduleVPChromeHide(); }}
+            style={{ ...vpBtnStyle, pointerEvents: "auto" }}
+          >
+            <VideoSkipBackIcon size={38} />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleVPPlayPause(); }}
+            aria-label={vpPlaying ? "Pausar" : "Reproducir"}
+            style={{ ...vpBtnStyle, pointerEvents: "auto" }}
+          >
+            {vpPlaying ? <VideoPauseIcon size={46} /> : <VideoPlayIcon size={46} />}
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); const v = playbackVideoRef.current; if (v) v.currentTime = Math.min(v.duration, v.currentTime + 10); showVPChrome(); scheduleVPChromeHide(); }}
+            style={{ ...vpBtnStyle, pointerEvents: "auto" }}
+          >
+            <VideoSkipForwardIcon size={38} />
+          </button>
+        </div>
+
+        {/* Bottom: time + scrubber */}
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0,
+          background: "linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)",
+          padding: "0 12px 10px",
+          pointerEvents: "auto",
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.72)", fontVariantNumeric: "tabular-nums", fontFamily: fontStack }}>
+              {formatTime(Math.floor(vpCurrentTime))}
+            </span>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.42)", fontVariantNumeric: "tabular-nums", fontFamily: fontStack }}>
+              {vpDuration > 0 ? formatTime(Math.floor(vpDuration)) : "--:--"}
+            </span>
+          </div>
+          <div ref={vpScrubberRef} style={{ position: "relative", height: 20, display: "flex", alignItems: "center" }}>
+            <div style={{ position: "absolute", left: 0, right: 0, height: 3, borderRadius: 2, background: "rgba(255,255,255,0.28)" }}>
+              <div style={{ height: "100%", width: "var(--pct, 0%)", background: "#fff", borderRadius: 2 }} />
+            </div>
+            <div style={{
+              position: "absolute", left: "var(--pct, 0%)", transform: "translate(-50%, 0)",
+              width: 13, height: 13, borderRadius: "50%", background: "#fff",
+              pointerEvents: "none",
+            }} />
+            <input
+              type="range"
+              min={0}
+              max={vpDuration > 0 ? vpDuration : 0}
+              step={0.1}
+              value={Math.min(vpCurrentTime, vpDuration > 0 ? vpDuration : vpCurrentTime)}
+              aria-label="Progreso del video"
+              onChange={(e) => handleVPSeek(Number(e.currentTarget.value))}
+              onMouseDown={() => showVPChrome()}
+              onTouchStart={() => showVPChrome()}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0, cursor: "pointer", margin: 0 }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   // ─── MOBILE CAMERA VIEW ──────────────────────────────────────────────────────
   if (viewState === "camera" && isMobile) {
     const MIN_H = 130;
@@ -1461,14 +1677,24 @@ export default function GreetingReviewOverlay({
         }}>
           {(viewMode || buyerViewMode) ? (
             viewMp4Url ? (
-              <video
-                src={viewMp4Url}
-                poster={viewThumbnailUrl ?? undefined}
-                autoPlay controls playsInline
-                disablePictureInPicture
-                onContextMenu={(e) => e.preventDefault()}
-                style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
-              />
+              <div style={{ position: "relative", width: "100%", height: "100%" }}>
+                <video
+                  ref={playbackVideoRef}
+                  src={viewMp4Url}
+                  poster={viewThumbnailUrl ?? undefined}
+                  autoPlay playsInline
+                  disablePictureInPicture
+                  onContextMenu={(e) => e.preventDefault()}
+                  onLoadedMetadata={(e) => { const d = e.currentTarget.duration; setVpDuration(Number.isFinite(d) && d > 0 ? d : 0); setVpReady(true); }}
+                  onLoadedData={() => setVpReady(true)}
+                  onTimeUpdate={(e) => setVpCurrentTime(e.currentTarget.currentTime)}
+                  onPlay={() => { setVpPlaying(true); scheduleVPChromeHide(); }}
+                  onPause={() => { setVpPlaying(false); showVPChrome(); }}
+                  onEnded={() => { setVpPlaying(false); showVPChrome(); }}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
+                />
+                {vpControlsOverlay}
+              </div>
             ) : (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.3)", fontSize: 13, height: "100%" }}>
                 Video no disponible
@@ -1486,13 +1712,23 @@ export default function GreetingReviewOverlay({
               />
               {/* Playback */}
               {recordPhase === "done" && recordedBlobUrl && (
-                <video
-                  src={recordedBlobUrl}
-                  controls playsInline
-                  disablePictureInPicture
-                  onContextMenu={(e) => e.preventDefault()}
-                  style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
-                />
+                <div style={{ position: "relative", width: "100%", height: "100%" }}>
+                  <video
+                    ref={playbackVideoRef}
+                    src={recordedBlobUrl}
+                    playsInline
+                    disablePictureInPicture
+                    onContextMenu={(e) => e.preventDefault()}
+                    onLoadedMetadata={(e) => { const d = e.currentTarget.duration; setVpDuration(Number.isFinite(d) && d > 0 ? d : 0); setVpReady(true); }}
+                    onLoadedData={() => setVpReady(true)}
+                    onTimeUpdate={(e) => setVpCurrentTime(e.currentTarget.currentTime)}
+                    onPlay={() => setVpPlaying(true)}
+                    onPause={() => setVpPlaying(false)}
+                    onEnded={() => setVpPlaying(false)}
+                    style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000", display: "block" }}
+                  />
+                  {vpControlsOverlay}
+                </div>
               )}
               {/* Timer */}
               {recordPhase === "recording" && (
@@ -1888,18 +2124,28 @@ export default function GreetingReviewOverlay({
             <div style={{ position: "relative", height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {(viewMode || buyerViewMode) ? (
                 viewMp4Url ? (
-                  <video
-                    src={viewMp4Url}
-                    poster={viewThumbnailUrl ?? undefined}
-                    autoPlay controls playsInline
-                    disablePictureInPicture
-                    onContextMenu={(e) => e.preventDefault()}
-                    style={{
-                      height: "100%", width: "auto", maxWidth: "100%",
-                      borderRadius: 14, objectFit: "contain", background: "#000",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                    }}
-                  />
+                  <div style={{ position: "relative", height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <video
+                      ref={playbackVideoRef}
+                      src={viewMp4Url}
+                      poster={viewThumbnailUrl ?? undefined}
+                      autoPlay playsInline
+                      disablePictureInPicture
+                      onContextMenu={(e) => e.preventDefault()}
+                      onLoadedMetadata={(e) => { const d = e.currentTarget.duration; setVpDuration(Number.isFinite(d) && d > 0 ? d : 0); setVpReady(true); }}
+                      onLoadedData={() => setVpReady(true)}
+                      onTimeUpdate={(e) => setVpCurrentTime(e.currentTarget.currentTime)}
+                      onPlay={() => setVpPlaying(true)}
+                      onPause={() => setVpPlaying(false)}
+                      onEnded={() => setVpPlaying(false)}
+                      style={{
+                        height: "100%", width: "auto", maxWidth: "100%",
+                        borderRadius: 14, objectFit: "contain", background: "#000",
+                        border: "1px solid rgba(255,255,255,0.08)",
+                      }}
+                    />
+                    {vpControlsOverlay}
+                  </div>
                 ) : (
                   <div style={{ color: "rgba(255,255,255,0.3)", fontSize: 13 }}>
                     Video no disponible
@@ -1921,17 +2167,27 @@ export default function GreetingReviewOverlay({
                     }}
                   />
                   {recordPhase === "done" && recordedBlobUrl && (
+                    <div style={{ position: "relative", height: "100%", width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <video
+                      ref={playbackVideoRef}
                       src={recordedBlobUrl}
-                      controls playsInline
+                      playsInline
                       disablePictureInPicture
                       onContextMenu={(e) => e.preventDefault()}
+                      onLoadedMetadata={(e) => { const d = e.currentTarget.duration; setVpDuration(Number.isFinite(d) && d > 0 ? d : 0); setVpReady(true); }}
+                      onLoadedData={() => setVpReady(true)}
+                      onTimeUpdate={(e) => setVpCurrentTime(e.currentTarget.currentTime)}
+                      onPlay={() => setVpPlaying(true)}
+                      onPause={() => setVpPlaying(false)}
+                      onEnded={() => setVpPlaying(false)}
                       style={{
                         height: "100%", width: "auto", maxWidth: "100%",
                         borderRadius: 14, objectFit: "contain", background: "#000",
                         display: "block", border: "1px solid rgba(255,255,255,0.08)",
                       }}
                     />
+                    {vpControlsOverlay}
+                    </div>
                   )}
                   {recordPhase === "recording" && (
                     <div style={{

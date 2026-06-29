@@ -19,6 +19,7 @@ import {
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
 import { getOrCreateGuestId, getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
 import { submitSuperComment, submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
+import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 
 const FONT =
   'inherit';
@@ -283,6 +284,8 @@ const VOD_PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export default function LiveViewerModal({ open, onClose, post, onManage, initialPortrait = false, initialStream }: Props) {
   const { user } = useAuth();
+  const { relationship, follow } = useSocialRelationship(user?.uid ?? null, post.authorId ?? null);
+  const showFollowBtn = !!user && !!post.authorId && user.uid !== post.authorId && !relationship.isFollowing;
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -548,12 +551,12 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   // Strip query params defensively — older code stored ?dvrEnabled=true which causes Cloudflare to return 204.
   const rawHlsUrl = vodHlsUrl ?? cfVodHlsUrl ?? (!isEnded ? (liveData?.hlsUrl ?? (playbackId ? `https://stream.mux.com/${playbackId}.m3u8` : null)) : null);
   const hlsUrl = rawHlsUrl ? rawHlsUrl.split("?")[0] : null;
-  // vodReady: when true the HLS URL is a playable recording — no "processing" overlay shown
+  // vodReady: HLS URL exists AND creator confirmed VOD availability AND didn't hide it
   // CF direct live: no recording → vodReady=true when vodStatus absent (skip spinner, just show ended state)
   const vodReady = !isEnded || (
     liveData?.streamProvider === "cloudflare"
       ? (liveData?.vodStatus === "ready" || !liveData?.vodStatus)
-      : !!vodHlsUrl
+      : !!vodHlsUrl && liveData?.vodSettingsConfirmed === true && !liveData?.vodHidden
   );
 
   // For Cloudflare WHIP streams, HLS (204) only becomes available after transcoding warms up.
@@ -1846,13 +1849,15 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
     );
   }
 
-  // ── Overlay "Preparando grabación" / sin overlay cuando el VOD ya está listo ──
+  // ── Overlay cuando el live terminó pero el VOD no está disponible aún ──
   function renderEndedOverlay() {
     if (!isEnded) return null;
-    // VOD is ready — let the video play as a recording with no blocking overlay
     if (vodReady) return null;
-    // VOD is still processing — show a spinner
-    return (
+
+    const confirmed = liveData?.vodSettingsConfirmed === true;
+    const hidden = liveData?.vodHidden === true;
+
+    const overlayInner = (
       <div style={{
         position: "absolute", inset: 0, zIndex: 8,
         background: "rgba(0,0,0,0.72)",
@@ -1860,16 +1865,44 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         alignItems: "center", justifyContent: "center", gap: 12,
         fontFamily: FONT,
       }}>
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"
-          style={{ animation: "lvSpin 1s linear infinite" }}>
-          <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
-          <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.65)" />
-        </svg>
-        <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.72)", textAlign: "center", padding: "0 28px" }}>
-          Preparando grabación…
-        </span>
+        {confirmed && hidden ? (
+          <>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="15" y1="9" x2="9" y2="15" />
+              <line x1="9" y1="9" x2="15" y2="15" />
+            </svg>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.72)", textAlign: "center", padding: "0 28px" }}>
+              El creador decidió no subir el video
+            </span>
+          </>
+        ) : !confirmed ? (
+          <>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"
+              style={{ animation: "lvSpin 1s linear infinite" }}>
+              <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
+              <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.65)" />
+            </svg>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.72)", textAlign: "center", padding: "0 28px" }}>
+              El creador aún no sube el video
+            </span>
+          </>
+        ) : (
+          <>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"
+              style={{ animation: "lvSpin 1s linear infinite" }}>
+              <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
+              <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.65)" />
+            </svg>
+            <span style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.72)", textAlign: "center", padding: "0 28px" }}>
+              Preparando grabación…
+            </span>
+          </>
+        )}
       </div>
     );
+
+    return overlayInner;
   }
 
   // ── Overlay "Fuiste baneado" — cubre el video, el usuario no puede interactuar ─
@@ -2300,30 +2333,45 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
               En vivo
             </span>
           </div>
-          {onManage ? (
-            <button
-              onClick={onManage}
-              style={{
-                flexShrink: 0, background: "#7c3aed", border: "none",
-                color: "#fff", borderRadius: 20, padding: "6px 14px",
-                fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
-              }}
-            >
-              Gestionar
-            </button>
-          ) : (!isEnded && (!user || post.authorId !== user.uid) && (
-            <button
-              onClick={() => setDonationOpen(true)}
-              style={{
-                flexShrink: 0, background: DONATE_BLUE, border: "none",
-                color: "#fff", borderRadius: 20, padding: "6px 13px",
-                fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
-                letterSpacing: "0.01em",
-              }}
-            >
-              Donar +
-            </button>
-          ))}
+          <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5 }}>
+            {showFollowBtn && (
+              <button
+                onClick={follow}
+                style={{
+                  background: "#fff", border: "none",
+                  color: "#000", borderRadius: 20, padding: "5px 14px",
+                  fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
+                  letterSpacing: "0.01em",
+                }}
+              >
+                Seguir
+              </button>
+            )}
+            {onManage ? (
+              <button
+                onClick={onManage}
+                style={{
+                  background: "#7c3aed", border: "none",
+                  color: "#fff", borderRadius: 20, padding: "6px 14px",
+                  fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
+                }}
+              >
+                Gestionar
+              </button>
+            ) : (!isEnded && (!user || post.authorId !== user.uid) && (
+              <button
+                onClick={() => setDonationOpen(true)}
+                style={{
+                  background: DONATE_BLUE, border: "none",
+                  color: "#fff", borderRadius: 20, padding: "6px 13px",
+                  fontSize: 12, fontWeight: 700, fontFamily: FONT, cursor: "pointer",
+                  letterSpacing: "0.01em",
+                }}
+              >
+                Donar +
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Título + descripción — agrupados para reducir separación entre ellos */}
@@ -2678,6 +2726,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                   liveId={post.id} chatEnabled={chatEnabled} liveEnded={isEnded} isMuted={isMuted}
                   mode="overlay" broadcastMode={liveData?.broadcastMode} superCommentConfig={liveData?.superCommentConfig}
                   onDonate={!isEnded && (!user || post.authorId !== user.uid) ? () => setDonationOpen(true) : undefined}
+                  onFollow={showFollowBtn ? follow : undefined}
                 />
               </div>
             )}

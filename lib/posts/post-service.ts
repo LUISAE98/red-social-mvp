@@ -4643,24 +4643,54 @@ export async function finalizeVodSettings(
   opts: {
     keepPinned: boolean;
     vodHidden: boolean;
+    vodPaid: boolean;
     vodPrice: number | null;
+    vodTitle: string | null;
   }
 ): Promise<void> {
   const now = serverTimestamp();
   const update: Record<string, unknown> = {
     "liveData.vodHidden": opts.vodHidden,
-    "liveData.vodPrice": opts.vodPrice,
+    "liveData.vodPrice": opts.vodPaid ? opts.vodPrice : null,
     "liveData.vodSettingsConfirmed": true,
     updatedAt: now,
   };
 
-  if (!opts.keepPinned) {
+  if (!opts.keepPinned || opts.vodHidden) {
     update.isPinnedInGroup = false;
     update.groupPinnedAt = null;
     update.groupPinnedBy = null;
     update.isPinnedOnProfile = false;
     update.profilePinnedAt = null;
     update.profilePinnedBy = null;
+  }
+
+  // Convert to premium video post when creator sets a ticket price
+  if (!opts.vodHidden && opts.vodPaid && opts.vodPrice && opts.vodPrice > 0) {
+    const premium: PostPremium = {
+      enabled: true,
+      kind: "video",
+      accessMode: "public",
+      freeFor: "none",
+      price: opts.vodPrice,
+      currency: "MXN",
+      purchaseType: "one_time",
+    };
+    update.premium = premium;
+    update.access = "paid";
+    update.accessModel = "one_time_purchase";
+    update.requiresPayment = true;
+    update.oneTimePrice = opts.vodPrice;
+    update.currency = "MXN";
+    update.purchaseType = "video";
+    if (opts.vodTitle) update.text = opts.vodTitle;
+  } else {
+    // Free or hidden VOD: clear any existing premium config
+    update.premium = null;
+    update.access = "free";
+    update.accessModel = "free";
+    update.requiresPayment = false;
+    update.oneTimePrice = null;
   }
 
   await updateDoc(doc(db, "posts", postId), update);

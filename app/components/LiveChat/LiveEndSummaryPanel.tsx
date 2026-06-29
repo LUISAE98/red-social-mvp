@@ -93,8 +93,8 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
 
   async function handleConfirm() {
     if (saving) return;
-    const price = vodPaid ? (parseFloat(priceInput) || null) : null;
-    if (vodPaid && (!price || price <= 0)) {
+    const price = vodAvailable && vodPaid ? (parseFloat(priceInput) || null) : null;
+    if (vodAvailable && vodPaid && (!price || price <= 0)) {
       setError("Ingresa un precio válido mayor a 0.");
       return;
     }
@@ -102,9 +102,11 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
     setError(null);
     try {
       await finalizeVodSettings(post.id, {
-        keepPinned,
+        keepPinned: vodAvailable ? keepPinned : false,
         vodHidden: !vodAvailable,
+        vodPaid: vodAvailable ? vodPaid : false,
         vodPrice: price,
+        vodTitle: liveData?.title ?? null,
       });
       onClose();
     } catch {
@@ -115,8 +117,6 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
   }
 
   if (!mounted) return null;
-
-  const currency = liveData?.currency ?? "MXN";
 
   // ── Toggle helper ──────────────────────────────────────────────────────────
   function Toggle({ value, onChange, labelOn, labelOff }: { value: boolean; onChange: (v: boolean) => void; labelOn: string; labelOff: string }) {
@@ -170,47 +170,48 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
         .vibra-lep-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.18); border-radius:999px; }
       `}</style>
 
-      {/* Row: fijar */}
-      <Row label="Fijar VOD en el feed" description="El post seguirá fijado al inicio del feed mientras esté disponible.">
-        <Toggle value={keepPinned} onChange={setKeepPinned} labelOn="Sí" labelOff="No" />
-      </Row>
-
-      {/* Row: disponible */}
+      {/* Row: disponible — primera decisión */}
       <Row label="Dejar disponible el VOD" description="Si eliges No, el VOD no será visible para tu audiencia.">
         <Toggle value={vodAvailable} onChange={setVodAvailable} labelOn="Sí" labelOff="No" />
       </Row>
 
-      {/* Row: cobrar */}
+      {/* Las opciones de fijar y ticket solo aparecen si el VOD quedará disponible */}
       {vodAvailable && (
-        <Row label="Cobrar por el VOD" description="Permite a tu audiencia acceder al VOD pagando un precio.">
-          <Toggle value={vodPaid} onChange={(v) => { setVodPaid(v); if (!v) setError(null); }} labelOn="Cobrar" labelOff="Gratis" />
-        </Row>
-      )}
+        <>
+          <Row label="Fijar VOD en el feed" description="El post seguirá fijado al inicio del feed mientras esté disponible.">
+            <Toggle value={keepPinned} onChange={setKeepPinned} labelOn="Sí" labelOff="No" />
+          </Row>
 
-      {/* Precio */}
-      {vodAvailable && vodPaid && (
-        <div style={{ paddingTop: 14 }}>
-          <label style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontFamily: FONT, display: "block", marginBottom: 8 }}>
-            Precio de acceso al VOD ({currency})
-          </label>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontFamily: FONT }}>$</span>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              value={priceInput}
-              onChange={(e) => { setPriceInput(e.target.value); setError(null); }}
-              placeholder="0"
-              style={{
-                flex: 1, padding: "10px 12px", borderRadius: 10,
-                border: "1px solid rgba(255,255,255,0.18)",
-                background: "rgba(255,255,255,0.06)", color: "#fff",
-                fontSize: 15, fontFamily: FONT, outline: "none",
-              }}
-            />
-          </div>
-        </div>
+          <Row label="Ticket de entrada" description="Cobra un precio por ver el VOD. El contenido queda bloqueado para quienes no paguen.">
+            <Toggle value={vodPaid} onChange={(v) => { setVodPaid(v); if (!v) setError(null); }} labelOn="Cobrar" labelOff="Gratis" />
+          </Row>
+
+          {vodPaid && (
+            <div style={{ paddingTop: 2, paddingBottom: 14 }}>
+              <label style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", fontFamily: FONT, display: "block", marginBottom: 8 }}>
+                Precio del ticket (MXN)
+              </label>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", fontFamily: FONT }}>$</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={priceInput}
+                  onChange={(e) => { setPriceInput(e.target.value); setError(null); }}
+                  placeholder={defaultPrice || "0"}
+                  style={{
+                    flex: 1, padding: "10px 12px", borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    background: "rgba(255,255,255,0.06)", color: "#fff",
+                    fontSize: 15, fontFamily: FONT, outline: "none",
+                  }}
+                />
+                <span style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", fontFamily: FONT }}>MXN</span>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {error && (

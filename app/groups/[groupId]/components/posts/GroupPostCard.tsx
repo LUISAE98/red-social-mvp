@@ -2385,7 +2385,10 @@ function renderBlurredMediaBackdrop(
   const liveVodUrl = activeLiveData?.status === "ended"
     ? (effectivePlayback?.hlsUrl ?? (activeLiveData?.vodStatus === "ready" ? (activeLiveData?.hlsUrl ?? null) : null))
     : null;
-  const liveVodReady = !!liveVodUrl;
+  // Visible to viewers only after creator confirms and hasn't hidden it
+  const liveVodReady = !!liveVodUrl &&
+    activeLiveData?.vodSettingsConfirmed === true &&
+    !activeLiveData?.vodHidden;
 
   const isLiveActive = post.postType === "live" && activeLiveData?.status === "live";
   const livePaidAccessMode = activeLiveData?.paidAccessMode ?? "everyone_pays";
@@ -3365,18 +3368,20 @@ style={{
         </div>
       ) : activeLiveData?.status === "ended" ? (
         liveVodReady ? (
-          <LiveInlinePlayer
-            postId={post.id}
-            hlsUrl={liveVodUrl!}
-            title={activeLiveData?.title}
-            coverUrl={activeLiveData?.coverUrl}
-            portrait={isLivePortrait}
-            isVod
-            paused={liveViewerOpen || liveCreatorOpen}
-            streamProvider="mux"
-            onClick={() => setLiveViewerOpen(true)}
-            onOrientationDetected={(p) => { if (!liveCreatorOpen) setIsLivePortrait(p); }}
-          />
+          <div style={{ position: "relative", ...(premiumState.isBlocked ? { filter: "blur(10px)", opacity: 0.72, pointerEvents: "none" } : {}) }}>
+            <LiveInlinePlayer
+              postId={post.id}
+              hlsUrl={liveVodUrl!}
+              title={activeLiveData?.title}
+              coverUrl={activeLiveData?.coverUrl}
+              portrait={isLivePortrait}
+              isVod
+              paused={liveViewerOpen || liveCreatorOpen}
+              streamProvider="mux"
+              onClick={premiumState.isBlocked ? undefined : () => setLiveViewerOpen(true)}
+              onOrientationDetected={(p) => { if (!liveCreatorOpen) setIsLivePortrait(p); }}
+            />
+          </div>
         ) : (
           <div
             style={{
@@ -3403,7 +3408,28 @@ style={{
               alignItems: "center", gap: 8, color: "rgba(255,255,255,0.45)",
               fontFamily: fontStack, textAlign: "center",
             }}>
-              {activeLiveData?.vodStatus === "processing" ? (
+              {activeLiveData?.vodSettingsConfirmed && activeLiveData?.vodHidden ? (
+                // Creator decided not to publish the VOD
+                <>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="15" y1="9" x2="9" y2="15" />
+                    <line x1="9" y1="9" x2="15" y2="15" />
+                  </svg>
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>El creador decidió no subir el video</span>
+                </>
+              ) : !activeLiveData?.vodSettingsConfirmed ? (
+                // Creator hasn't made a decision yet
+                <>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"
+                    style={{ animation: "vbMenuSpinner 1s linear infinite" }}>
+                    <circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,0.15)" />
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke="rgba(255,255,255,0.55)" />
+                  </svg>
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>El creador aún no sube el video</span>
+                </>
+              ) : activeLiveData?.vodStatus === "processing" ? (
+                // Creator said yes, Mux still processing
                 <>
                   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round"
                     style={{ animation: "vbMenuSpinner 1s linear infinite" }}>

@@ -24,6 +24,8 @@ type Props = {
   broadcastMode?: "direct" | "rtmp" | null;
   superCommentConfig?: SuperCommentConfig | null;
   onDonate?: () => void;
+  /** Solo overlay mode: llamado al presionar "Seguir". Si undefined, no se muestra el botón. */
+  onFollow?: () => void;
 };
 
 type SenderInfo = { username: string; avatarUrl: string | null };
@@ -37,6 +39,7 @@ export default function LiveChatViewer({
   broadcastMode,
   superCommentConfig,
   onDonate,
+  onFollow,
 }: Props) {
   const { user } = useAuth();
   const { messages, send } = useLiveChat(liveId);
@@ -209,6 +212,22 @@ export default function LiveChatViewer({
             }}
           >
             <div style={{ flex: 1 }} />
+            {onFollow && (
+              <div style={{ display: "flex", justifyContent: "flex-end", paddingBottom: 8 }}>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onFollow(); }}
+                  style={{
+                    background: "rgba(255,255,255,0.92)", border: "none",
+                    color: "#000", borderRadius: 20, padding: "5px 16px",
+                    fontSize: 12, fontWeight: 700, cursor: "pointer",
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  Seguir
+                </button>
+              </div>
+            )}
             {feed.map((item) =>
               item.kind === "sc" ? (
                 <div key={item.id} style={{

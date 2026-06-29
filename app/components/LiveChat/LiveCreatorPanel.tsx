@@ -224,9 +224,9 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const showDirectBroadcast = broadcastMode === "direct" && !isEnded;
   const showVideo = (liveStatus === "live" || isEnded) && !!hlsUrl && !showDirectBroadcast;
 
-  // End-of-stream summary panel — only for OBS (rtmp) streams, until creator confirms
+  // End-of-stream summary panel — all stream types, until creator confirms
   const [endPanelOpen, setEndPanelOpen] = useState(false);
-  const showEndPanel = isEnded && broadcastMode === "rtmp" && !liveData?.vodSettingsConfirmed;
+  const showEndPanel = isEnded && !liveData?.vodSettingsConfirmed;
   useEffect(() => {
     if (showEndPanel && open) setEndPanelOpen(true);
   }, [showEndPanel, open]);
@@ -1593,7 +1593,20 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {broadcastMode === "rtmp" && liveData?.liveStreamId && (
+          {isEnded ? (
+            <button
+              type="button"
+              onClick={() => setEndPanelOpen(true)}
+              style={{
+                height: 26, padding: "0 10px", borderRadius: 7, border: "none",
+                background: "linear-gradient(135deg, #a855f7 0%, #d946b8 100%)", color: "#fff", fontWeight: 600,
+                fontSize: 11, fontFamily: FONT, cursor: "pointer",
+                whiteSpace: "nowrap", flexShrink: 0,
+              }}
+            >
+              Gestionar resumen de la transmisión
+            </button>
+          ) : broadcastMode === "rtmp" && liveData?.liveStreamId && (
             <button
               type="button"
               onClick={() => setLiveSetupOpen(true)}
@@ -1673,7 +1686,20 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                     </span>
                   )}
                 </div>
-                {broadcastMode === "rtmp" && liveData?.liveStreamId && (
+                {isEnded ? (
+                  <button
+                    type="button"
+                    onClick={() => setEndPanelOpen(true)}
+                    style={{
+                      height: 26, padding: "0 10px", borderRadius: 7, border: "none",
+                      background: "linear-gradient(135deg, #a855f7 0%, #d946b8 100%)", color: "#fff", fontWeight: 600,
+                      fontSize: 11, fontFamily: FONT, cursor: "pointer",
+                      whiteSpace: "nowrap", flexShrink: 0,
+                    }}
+                  >
+                    Gestionar resumen de la transmisión
+                  </button>
+                ) : broadcastMode === "rtmp" && liveData?.liveStreamId && (
                   <button
                     type="button"
                     onClick={() => setLiveSetupOpen(true)}
