@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { Timestamp, collection, getDocs, query, where } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { auth, db, storage } from "@/lib/firebase";
@@ -186,7 +188,7 @@ export default function LiveComposerModal({
   const [minute, setMinute] = useState("");
   const [period, setPeriod] = useState<"AM" | "PM">("AM");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { toast: liveComposerToast, showToast: showLiveComposerToast } = useVibraToast();
   const [accessType, setAccessType] = useState<"free" | "paid">("free");
   const [ticketPrice, setTicketPrice] = useState("");
   const [currency, setCurrency] = useState<"MXN" | "USD">("MXN");
@@ -287,8 +289,7 @@ export default function LiveComposerModal({
     setHour(parsed.hour);
     setMinute(parsed.minute);
     setPeriod(parsed.period);
-    setError(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, editPost?.id]);
 
   // Fetch user's group memberships for the broadcast selector
@@ -346,8 +347,7 @@ export default function LiveComposerModal({
     setCurrency("MXN");
     setPaidAccessMode("everyone_pays");
     setBroadcastGroupIds([]);
-    setError(null);
-  }
+      }
 
   function handleClose() {
     if (saving) return;
@@ -372,24 +372,23 @@ export default function LiveComposerModal({
 
   async function handleSubmit() {
     if (saving) return;
-    if (!title.trim()) { setError("El título es obligatorio."); return; }
+    if (!title.trim()) { showLiveComposerToast("El título es obligatorio.", "error"); return; }
 
     let scheduledDate: Date | null = null;
     try {
       scheduledDate = buildScheduledDate(day, month, year, hour, minute, period);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Fecha u hora inválida.");
+      showLiveComposerToast(e instanceof Error ? e.message : "Fecha u hora inválida.", "error");
       return;
     }
 
     const priceNum = parseFloat(ticketPrice.replace(",", "."));
     if (accessType === "paid" && (isNaN(priceNum) || priceNum <= 0)) {
-      setError("El precio del ticket debe ser mayor a 0.");
+      showLiveComposerToast("El precio del ticket debe ser mayor a 0.", "error");
       return;
     }
 
-    setError(null);
-    setSaving(true);
+        setSaving(true);
 
     try {
       let finalCoverUrl: string | null = existingCoverUrl;
@@ -482,7 +481,7 @@ export default function LiveComposerModal({
       onSuccess?.();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : isEditMode ? "No se pudo guardar el live." : "No se pudo crear el live.");
+      showLiveComposerToast(e instanceof Error ? e.message : isEditMode ? "No se pudo guardar el live." : "No se pudo crear el live.", "error");
     } finally {
       setSaving(false);
     }
@@ -562,16 +561,6 @@ export default function LiveComposerModal({
 
   const scrollContent = (
     <div className="vibra-live-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 8px" }}>
-
-      {error && (
-        <div style={{
-          borderRadius: 10, border: "1px solid rgba(255,90,90,0.24)",
-          background: "rgba(120,18,18,0.28)", color: "#ffdada",
-          padding: "9px 12px", fontSize: 12, lineHeight: 1.4, marginBottom: 10,
-        }}>
-          {error}
-        </div>
-      )}
 
       {/* Portada */}
       <input
@@ -1056,6 +1045,7 @@ export default function LiveComposerModal({
 
   return createPortal(
     <>
+      <VibraToast toast={liveComposerToast} />
       <style>{`
         @keyframes vibraLiveModalIn {
           from { opacity: 0; transform: scale(0.94) translateY(10px); }

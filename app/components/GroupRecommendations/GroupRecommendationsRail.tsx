@@ -209,6 +209,7 @@ function JoinButton({
           : "Unirme";
 
   const isInactive = loading || state === "joined" || state === "pending";
+  const isPaid = !isInactive && state === "request" && isPaidSubscriptionPrivate;
 
   return (
     <button
@@ -217,23 +218,23 @@ function JoinButton({
       disabled={isInactive}
       style={{
         width: "100%",
-        borderRadius: 12,
+        borderRadius: 10,
         padding: "10px 12px",
-        border: isInactive
-          ? "1px solid rgba(255,255,255,0.18)"
-          : "none",
-        fontWeight: 700,
-        fontSize: 12,
+        border: isInactive ? "1px solid rgba(255,255,255,0.18)" : "none",
+        fontWeight: 600,
+        fontSize: 13,
         letterSpacing: "-0.01em",
         cursor: isInactive ? "default" : "pointer",
         background: isInactive
           ? "rgba(255,255,255,0.14)"
-          : "#ffffff",
-        color: isInactive ? "rgba(255,255,255,0.70)" : "#08111d",
+          : isPaid
+            ? "#70aefb"
+            : "linear-gradient(135deg, #ec4899, #9333ea)",
+        color: isInactive ? "rgba(255,255,255,0.70)" : "#fff",
         fontFamily: fontStack,
         backdropFilter: isInactive ? "blur(12px)" : "none",
         WebkitBackdropFilter: isInactive ? "blur(12px)" : "none",
-        transition: "background 0.18s ease, color 0.18s ease",
+        transition: "opacity 150ms ease",
       }}
     >
       {loading ? "Procesando..." : label}
@@ -259,19 +260,21 @@ function FollowButton({
       disabled={isInactive}
       style={{
         width: "100%",
-        borderRadius: 12,
+        borderRadius: 10,
         padding: "10px 12px",
         border: isInactive ? "1px solid rgba(255,255,255,0.18)" : "none",
-        fontWeight: 700,
-        fontSize: 12,
+        fontWeight: 600,
+        fontSize: 13,
         letterSpacing: "-0.01em",
         cursor: isInactive ? "default" : "pointer",
-        background: isInactive ? "rgba(255,255,255,0.14)" : "#ffffff",
-        color: isInactive ? "rgba(255,255,255,0.70)" : "#08111d",
+        background: isInactive
+          ? "rgba(255,255,255,0.14)"
+          : "linear-gradient(135deg, #ec4899, #9333ea)",
+        color: isInactive ? "rgba(255,255,255,0.70)" : "#fff",
         fontFamily: fontStack,
         backdropFilter: isInactive ? "blur(12px)" : "none",
         WebkitBackdropFilter: isInactive ? "blur(12px)" : "none",
-        transition: "background 0.18s ease, color 0.18s ease",
+        transition: "opacity 150ms ease",
       }}
     >
       {loading ? "Procesando..." : isFollowing ? "Siguiendo" : "Seguir"}
@@ -729,6 +732,8 @@ function LiveCTAButton({
   }
 
   const inactive = loading || state === "joined" || state === "pending" || state === "following";
+  const isPaidSub = !inactive && rec.groupId && rec.groupVisibility === "private" && rec.subscriptionEnabled;
+
   return (
     <button
       type="button"
@@ -736,19 +741,23 @@ function LiveCTAButton({
       disabled={inactive}
       style={{
         width: "100%",
-        borderRadius: 12,
+        borderRadius: 10,
         padding: "10px 12px",
         border: inactive ? "1px solid rgba(255,255,255,0.18)" : "none",
-        fontWeight: 700,
-        fontSize: 12,
+        fontWeight: 600,
+        fontSize: 13,
         letterSpacing: "-0.01em",
         cursor: inactive ? "default" : "pointer",
-        background: inactive ? "rgba(255,255,255,0.14)" : "#ffffff",
-        color: inactive ? "rgba(255,255,255,0.70)" : "#08111d",
+        background: inactive
+          ? "rgba(255,255,255,0.14)"
+          : isPaidSub
+            ? "#70aefb"
+            : "linear-gradient(135deg, #ec4899, #9333ea)",
+        color: inactive ? "rgba(255,255,255,0.70)" : "#fff",
         fontFamily: fontStack,
         backdropFilter: inactive ? "blur(12px)" : "none",
         WebkitBackdropFilter: inactive ? "blur(12px)" : "none",
-        transition: "background 0.18s ease, color 0.18s ease",
+        transition: "opacity 150ms ease",
       }}
     >
       {loading ? "Procesando..." : label}
@@ -1428,18 +1437,30 @@ export default function GroupRecommendationsRail({
       ) : null}
 
       {(!loading && result?.onboardingCompleted && result.groups.length > 0) || liveRecs.length > 0 ? (
-        <div
-          style={{
-            display: "flex",
-            gap: 12,
-            overflowX: "auto",
-            scrollSnapType: "x mandatory",
-            paddingBottom: 4,
-            paddingLeft: 12,
-            paddingRight: 12,
-            willChange: "transform",
-          }}
-        >
+        <>
+          <style>{`
+            .vibraRecsRail {
+              scrollbar-width: thin;
+              scrollbar-color: rgba(255,255,255,0.20) transparent;
+            }
+            .vibraRecsRail::-webkit-scrollbar { height: 3px; }
+            .vibraRecsRail::-webkit-scrollbar-track { background: transparent; }
+            .vibraRecsRail::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.20); border-radius: 99px; }
+            .vibraRecsRail::-webkit-scrollbar-button { display: none; }
+          `}</style>
+          <div
+            className="vibraRecsRail"
+            style={{
+              display: "flex",
+              gap: 12,
+              overflowX: "auto",
+              scrollSnapType: "x mandatory",
+              paddingBottom: 6,
+              paddingLeft: 12,
+              paddingRight: 12,
+              willChange: "transform",
+            }}
+          >
           {/* Lives públicos activos — siempre primero */}
           {liveRecs.map((rec) => (
             <LiveRecommendationCard
@@ -1474,7 +1495,8 @@ export default function GroupRecommendationsRail({
               />
             )
           )}
-        </div>
+          </div>
+        </>
       ) : null}
 
       {viewingPost && (

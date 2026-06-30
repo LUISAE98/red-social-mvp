@@ -369,7 +369,7 @@ const [greetSubmitting, setGreetSubmitting] = useState(false);
 const [greetType, setGreetType] = useState<GreetingType>("saludo");
 const [toName, setToName] = useState("");
 const [instructions, setInstructions] = useState("");
-const [allowCreatorStory, setAllowCreatorStory] = useState(false);
+const [allowCreatorStory, setAllowCreatorStory] = useState(true);
 const [greetError, setGreetError] = useState<string | null>(null);
 const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
 
@@ -749,7 +749,7 @@ function resetGreetingModal() {
   setGreetSuccess(null);
   setToName("");
   setInstructions("");
-  setAllowCreatorStory(false);
+  setAllowCreatorStory(true);
 }
 
 function resetMeetGreetModal() {
@@ -2471,6 +2471,12 @@ await createExclusiveSessionRequest({
   onChangeInstructions={setInstructions}
   allowCreatorStory={allowCreatorStory}
   onChangeAllowCreatorStory={setAllowCreatorStory}
+  greetPriceLabel={(() => {
+    const s = getProfileService(greetType);
+    const price = s?.publicPrice ?? s?.memberPrice ?? null;
+    const currency = s?.currency ?? "MXN";
+    return typeof price === "number" ? `${formatMoney(price, currency)} ${currency}` : undefined;
+  })()}
   meetGreetOpen={meetGreetOpen}
   meetGreetSubmitting={meetGreetSubmitting}
   meetGreetMessage={meetGreetMessage}

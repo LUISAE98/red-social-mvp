@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import type {
   PostPremiumAccessMode,
   PostPremiumFreeFor,
@@ -9,6 +10,8 @@ import type {
   PremiumCapabilities,
   PremiumValidationResult,
 } from "@/lib/posts/premium";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type ComposerPremiumPanelProps = {
   hasVideos: boolean;
@@ -197,6 +200,18 @@ export default function ComposerPremiumPanel({
   disabled = false,
   isEditMode = false,
 }: ComposerPremiumPanelProps) {
+  const { toast: premiumToast, showToast: showPremiumToast } = useVibraToast();
+
+  useEffect(() => {
+    if (premiumErrorMessage) showPremiumToast(premiumErrorMessage, "error");
+  }, [premiumErrorMessage]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!capabilities.canEnablePremium && capabilities.disabledReason) {
+      showPremiumToast(capabilities.disabledReason, "warning");
+    }
+  }, [capabilities.canEnablePremium, capabilities.disabledReason]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (!hasVideos || !premiumEnabled) return null;
 
   const showAccessModeOptions = !isEditMode && capabilities.allowedAccessModes.length > 1;
@@ -428,18 +443,6 @@ export default function ComposerPremiumPanel({
             >
               Precio
             </span>
-            {priceError ? (
-              <span
-                style={{
-                  color: "rgba(255,90,90,0.9)",
-                  fontSize: 10.5,
-                  fontWeight: 500,
-                  lineHeight: 1.3,
-                }}
-              >
-                {priceError}
-              </span>
-            ) : null}
           </span>
 
           <div
@@ -519,20 +522,7 @@ export default function ComposerPremiumPanel({
         </div>
       ) : null}
 
-      {capabilityError ? (
-        <p
-          role="alert"
-          style={{
-            margin: 0,
-            color: "rgba(255,90,90,0.88)",
-            fontSize: 11.5,
-            lineHeight: 1.35,
-            fontFamily: fontStack,
-          }}
-        >
-          {capabilityError}
-        </p>
-      ) : null}
+      <VibraToast toast={premiumToast} />
     </section>
   );
 }

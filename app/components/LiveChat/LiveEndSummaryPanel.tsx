@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import type { Post } from "@/lib/posts/types";
 import { finalizeVodSettings } from "@/lib/posts/post-service";
 
@@ -33,7 +35,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
   const [vodPaid, setVodPaid] = useState(defaultPaid);
   const [priceInput, setPriceInput] = useState(defaultPrice);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { toast: summaryToast, showToast: showSummaryToast } = useVibraToast();
 
   // Mobile swipe state
   const [panelOffsetY, setPanelOffsetY] = useState(0);
@@ -95,11 +97,10 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
     if (saving) return;
     const price = vodAvailable && vodPaid ? (parseFloat(priceInput) || null) : null;
     if (vodAvailable && vodPaid && (!price || price <= 0)) {
-      setError("Ingresa un precio válido mayor a 0.");
+      showSummaryToast("Ingresa un precio válido mayor a 0.", "error");
       return;
     }
     setSaving(true);
-    setError(null);
     try {
       await finalizeVodSettings(post.id, {
         keepPinned: vodAvailable ? keepPinned : false,
@@ -111,7 +112,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
       });
       onClose();
     } catch {
-      setError("No se pudo guardar. Intenta de nuevo.");
+      showSummaryToast("No se pudo guardar. Intenta de nuevo.", "error");
     } finally {
       setSaving(false);
     }
@@ -184,7 +185,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
           </Row>
 
           <Row label="Ticket de entrada" description="Cobra un precio por ver el VOD. El contenido queda bloqueado para quienes no paguen.">
-            <Toggle value={vodPaid} onChange={(v) => { setVodPaid(v); if (!v) setError(null); }} labelOn="Cobrar" labelOff="Gratis" />
+            <Toggle value={vodPaid} onChange={setVodPaid} labelOn="Cobrar" labelOff="Gratis" />
           </Row>
 
           {vodPaid && (
@@ -199,7 +200,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
                   min="1"
                   step="1"
                   value={priceInput}
-                  onChange={(e) => { setPriceInput(e.target.value); setError(null); }}
+                  onChange={(e) => setPriceInput(e.target.value)}
                   placeholder={defaultPrice || "0"}
                   style={{
                     flex: 1, padding: "10px 12px", borderRadius: 10,
@@ -215,17 +216,7 @@ export default function LiveEndSummaryPanel({ open, onClose, post }: Props) {
         </>
       )}
 
-      {error && (
-        <div style={{
-          marginTop: 14, borderRadius: 13,
-          border: "1px solid rgba(255,90,90,0.24)",
-          background: "rgba(120,18,18,0.28)",
-          color: "#ffdada", padding: "10px 12px",
-          fontSize: 13, lineHeight: 1.4, fontFamily: FONT,
-        }}>
-          {error}
-        </div>
-      )}
+      <VibraToast toast={summaryToast} />
     </>
   );
 

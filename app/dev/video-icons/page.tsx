@@ -18,12 +18,10 @@ import {
   VideoAirPlayIcon,
   VideoCastIcon,
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
-import {
-  VibraServiceIcon,
-  VibraServiceIconsStyles,
-} from "@/app/components/VibraServiceIcons/VibraServiceIcons";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
-// ── Subnav mobile icons (copias locales para preview) ────────────────────────
+// ── Subnav mobile icons ────────────────────────────────────────────────────────
 
 function NavHomeIcon() {
   return (
@@ -118,8 +116,6 @@ const SUBNAV_ITEMS = [
   { label: "Wallet",         name: "NavWalletIcon",  icon: NavWalletIcon,  filled: NavWalletIconFilled },
 ];
 
-// ── Tipos ─────────────────────────────────────────────────────────────────────
-
 const ICONS: { name: string; label: string; component: React.ComponentType<{ size?: number }>; size?: number }[] = [
   { name: "VideoCloseIcon",       label: "Cerrar",             component: VideoCloseIcon },
   { name: "VideoMuteIcon",        label: "Silenciar",          component: VideoMuteIcon },
@@ -205,13 +201,11 @@ function VideoPlayer({ orientation, label }: { orientation: "horizontal" | "vert
     if (videoRef.current) videoRef.current.muted = muted;
   }, [muted]);
 
-  // Muestra controles sin iniciar timer (mientras el mouse está dentro)
   const revealControls = useCallback(() => {
     setControls(true);
     if (hideTimer.current) { clearTimeout(hideTimer.current); hideTimer.current = null; }
   }, []);
 
-  // Inicia el timer para ocultar (al salir el mouse o al dar play sin mouse)
   const scheduleHide = useCallback(() => {
     if (hideTimer.current) clearTimeout(hideTimer.current);
     hideTimer.current = setTimeout(() => {
@@ -287,14 +281,12 @@ function VideoPlayer({ orientation, label }: { orientation: "horizontal" | "vert
           playsInline
         />
 
-        {/* ── Top bar (se desvanece al reproducir) ── */}
         <div style={{
           ...fade, position: "absolute", top: 0, left: 0, right: 0,
           padding: "12px 48px 12px 14px",
           background: "linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, transparent 100%)",
           display: "flex", alignItems: "center", justifyContent: "space-between",
         }}>
-          {/* Izquierda: menú 3 puntos + PiP + AirPlay */}
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button
               style={btnStyle}
@@ -362,7 +354,6 @@ function VideoPlayer({ orientation, label }: { orientation: "horizontal" | "vert
             </button>
           </div>
 
-          {/* Derecha: Expand + Mute */}
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <button style={btnStyle} onClick={(e) => { e.stopPropagation(); setFullscreen(f => !f); }}>
               {fullscreen ? <VideoCompressIcon /> : <VideoExpandIcon />}
@@ -373,7 +364,6 @@ function VideoPlayer({ orientation, label }: { orientation: "horizontal" | "vert
           </div>
         </div>
 
-        {/* ── Cerrar — siempre visible ── */}
         <button
           style={{ ...btnStyle, position: "absolute", top: 12, right: 14, zIndex: 10 }}
           onClick={(e) => e.stopPropagation()}
@@ -381,7 +371,6 @@ function VideoPlayer({ orientation, label }: { orientation: "horizontal" | "vert
           <VideoCloseIcon />
         </button>
 
-        {/* ── Centro: skip + play/pause ── */}
         <div style={{
           ...fade, position: "absolute", inset: 0,
           display: "flex", alignItems: "center", justifyContent: "center", gap: 36,
@@ -397,12 +386,10 @@ function VideoPlayer({ orientation, label }: { orientation: "horizontal" | "vert
           </button>
         </div>
 
-        {/* ── Bottom bar ── */}
         <div style={{
           ...fade, position: "absolute", bottom: 0, left: 0, right: 0,
           padding: "0 14px 10px",
         }}>
-          {/* Fila superior: tiempo + tiempo */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
             <span style={{ color: "rgba(255,255,255,0.8)", fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
               {formatTime(Math.round(currentTime))}
@@ -411,11 +398,95 @@ function VideoPlayer({ orientation, label }: { orientation: "horizontal" | "vert
               {formatTime(Math.round(duration))}
             </span>
           </div>
-          {/* Barra de progreso al fondo */}
           <Scrubber current={currentTime} duration={duration || 1} onChange={seek} />
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Helpers visuales ──────────────────────────────────────────────────────────
+
+function SectionLabel({ number, title, tag }: { number: number; title: string; tag?: "ok" | "warn" }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+      <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 11, fontWeight: 700 }}>{number}</span>
+      <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        {title}
+      </span>
+      {tag === "ok" && (
+        <span style={{ fontSize: 10, background: "rgba(34,197,94,0.12)", border: "1px solid rgba(34,197,94,0.28)", color: "#4ade80", padding: "2px 8px", borderRadius: 99, fontWeight: 700, letterSpacing: "0.06em" }}>
+          ESTÁNDAR
+        </span>
+      )}
+      {tag === "warn" && (
+        <span style={{ fontSize: 10, background: "rgba(234,179,8,0.10)", border: "1px solid rgba(234,179,8,0.25)", color: "#fbbf24", padding: "2px 8px", borderRadius: 99, fontWeight: 700, letterSpacing: "0.06em" }}>
+          FUERA DE ESTÁNDAR
+        </span>
+      )}
+    </div>
+  );
+}
+
+function Meta({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ color: "rgba(255,255,255,0.28)", fontSize: 11.5, marginBottom: 18, lineHeight: 1.5 }}>
+      {children}
+    </p>
+  );
+}
+
+function VibraToastMockup({ type, message }: { type: "success" | "error" | "warning"; message: string }) {
+  const border =
+    type === "success" ? "rgba(34,197,94,0.35)"
+    : type === "error" ? "rgba(239,68,68,0.35)"
+    : "rgba(255,255,255,0.14)";
+  const iconBg =
+    type === "success" ? "#22c55e"
+    : type === "error" ? "#ef4444"
+    : "#6b7280";
+  return (
+    <div style={{
+      display: "inline-flex", alignItems: "center", gap: 10,
+      padding: "10px 18px 10px 10px", borderRadius: 40,
+      background: "#0a0a0a", border: `1.5px solid ${border}`,
+      boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
+      color: "#fff", fontSize: 14, fontWeight: 500, whiteSpace: "nowrap",
+    }}>
+      <span style={{
+        width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        background: iconBg,
+      }}>
+        {type === "success" ? (
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+            <path d="M2.5 7L5 9.5L10.5 3.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : type === "error" ? (
+          <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+            <path d="M2 2L9 9M9 2L2 9" stroke="#fff" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        ) : (
+          <span style={{ fontSize: 13, fontWeight: 800, lineHeight: 1, color: "#fff" }}>!</span>
+        )}
+      </span>
+      <span>{message}</span>
+    </div>
+  );
+}
+
+function TriggerBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+        color: "rgba(255,255,255,0.8)", borderRadius: 8, padding: "7px 14px",
+        fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -429,50 +500,261 @@ export default function VideoIconsPreview() {
   }, []);
 
   const [scrubPos, setScrubPos] = useState(37);
+  const { toast, showToast } = useVibraToast();
+  const { toast: demoToast, showToast: showDemoToast } = useVibraToast(1400);
 
   return (
     <div style={{ background: "#0a0a0a", minHeight: "100vh", padding: "40px 32px", fontFamily: "inherit" }}>
 
-      <VibraServiceIconsStyles />
+      <VibraToast toast={toast} />
+      <VibraToast toast={demoToast} />
 
-      {/* ── Iconos de servicios ── */}
-      <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Iconos de Servicios</h1>
-      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 28 }}>
-        VibraServiceIcon · Saludos / Consejos / Sesión Exclusiva / Meet &amp; Greet
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* AVISOS Y NOTIFICACIONES                                               */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+
+      <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 6 }}>
+        Estilos de Avisos — Inventario Actual
+      </h1>
+      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, marginBottom: 48 }}>
+        Todos los patrones de notificación conviviendo en la plataforma. El objetivo es unificarlos.
       </p>
 
-      {/* Fila principal con label */}
-      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Con etiqueta — 92px</p>
-      <div style={{ display: "flex", gap: 32, flexWrap: "wrap", marginBottom: 40 }}>
-        <VibraServiceIcon type="saludo" size={92} showLabel />
-        <VibraServiceIcon type="consejo" size={92} showLabel />
-        <VibraServiceIcon type="exclusiveSession" size={92} showLabel />
-        <VibraServiceIcon type="meetGreet" size={92} showLabel />
+      {/* ── 1. VibraToast ─────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 52 }}>
+        <SectionLabel number={1} title="VibraToast" tag="ok" />
+        <Meta>
+          Fijo · abajo al centro · 88px sobre el nav · animación expand + pop icon · z-index 11500 · 3500ms auto-dismiss{"\n"}
+          Usado en: PostEditModal · disponible via useVibraToast()
+        </Meta>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+          <VibraToastMockup type="success" message="Suscripción aprobada" />
+          <VibraToastMockup type="error" message="No se pudo completar la acción" />
+          <VibraToastMockup type="warning" message="Revisa los datos antes de continuar" />
+        </div>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <TriggerBtn label="Disparar éxito" onClick={() => showToast("Suscripción aprobada", "success")} />
+          <TriggerBtn label="Disparar error" onClick={() => showToast("No se pudo completar la acción", "error")} />
+          <TriggerBtn label="Disparar warning" onClick={() => showToast("Revisa los datos antes de continuar", "warning")} />
+        </div>
+
+        <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}>
+          <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 11, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.05em", fontWeight: 600 }}>
+            Demo animación de salida — ciclo completo en 1.4s
+          </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <TriggerBtn label="⚡ Ver entrada + salida (éxito)" onClick={() => showDemoToast("Toast de prueba — mira la salida", "success")} />
+            <TriggerBtn label="⚡ Ver entrada + salida (error)" onClick={() => showDemoToast("Error de prueba", "error")} />
+          </div>
+        </div>
       </div>
 
-      {/* Sin label, tamaños varios */}
-      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 16 }}>Sin etiqueta — comparativa de tamaños</p>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 20, flexWrap: "wrap", marginBottom: 56 }}>
-        {([56, 72, 92] as const).map((sz) => (
-          <div key={sz} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-            <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 10, fontWeight: 600 }}>{sz}px</span>
-            <div style={{ display: "flex", gap: 12 }}>
-              <VibraServiceIcon type="saludo" size={sz} showLabel={false} />
-              <VibraServiceIcon type="consejo" size={sz} showLabel={false} />
-              <VibraServiceIcon type="exclusiveSession" size={sz} showLabel={false} />
-              <VibraServiceIcon type="meetGreet" size={sz} showLabel={false} />
+      {/* ── 2. CopyLinkButton Toast ───────────────────────────────────────── */}
+      <div style={{ marginBottom: 52 }}>
+        <SectionLabel number={2} title="CopyLinkButton Toast (implementación propia)" tag="warn" />
+        <Meta>
+          Fijo · abajo al centro · 24px del bottom (no 88px) · blur backdrop · sin ícono · pill · z-index 11000 · 2400ms{"\n"}
+          Diferencias vs VibraToast: posición distinta, sin ícono, blur, border 1px (no 1.5px), fondo con opacidad
+        </Meta>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* Success */}
+          <div style={{
+            display: "inline-block",
+            padding: "10px 12px", borderRadius: 999,
+            border: "1px solid rgba(255,255,255,0.16)",
+            background: "rgba(12,12,12,0.94)",
+            color: "#fff", fontSize: 13, fontWeight: 600,
+            boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
+            backdropFilter: "blur(10px)",
+          }}>
+            Link copiado correctamente
+          </div>
+          {/* Error */}
+          <div style={{
+            display: "inline-block",
+            padding: "10px 12px", borderRadius: 999,
+            border: "1px solid rgba(255,90,90,0.30)",
+            background: "rgba(80,12,12,0.94)",
+            color: "#fff", fontSize: 13, fontWeight: 600,
+            boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
+            backdropFilter: "blur(10px)",
+          }}>
+            No se pudo copiar el link.
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3. messageBox (inline neutral) ───────────────────────────────── */}
+      <div style={{ marginBottom: 52 }}>
+        <SectionLabel number={3} title="messageBox — inline en modales de servicios" tag="warn" />
+        <Meta>
+          Inline · dentro del modal · mismo estilo para éxito Y error · sin color semántico · sin ícono{"\n"}
+          Usado en: GroupServiceModals, CreatorServiceModals, ProfileClient — para greetError, greetSuccess, subscriptionError, params.error
+        </Meta>
+
+        <div style={{ maxWidth: 480, display: "flex", flexDirection: "column", gap: 10 }}>
+          {/* Éxito — mismo estilo que error */}
+          <div style={{
+            padding: "10px 12px", borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.14)",
+            background: "rgba(255,255,255,0.05)",
+            fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.92)", lineHeight: 1.45,
+          }}>
+            Suscripción aprobada — (éxito, mismo estilo que error)
+          </div>
+          {/* Error — mismo estilo que éxito */}
+          <div style={{
+            padding: "10px 12px", borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.14)",
+            background: "rgba(255,255,255,0.05)",
+            fontSize: 12, fontWeight: 400, color: "rgba(255,255,255,0.92)", lineHeight: 1.45,
+          }}>
+            No se pudo procesar tu solicitud — (error, mismo estilo que éxito)
+          </div>
+        </div>
+      </div>
+
+      {/* ── 4. InviteLinkModal noticeStyle ───────────────────────────────── */}
+      <div style={{ marginBottom: 52 }}>
+        <SectionLabel number={4} title="InviteLinkModal — noticeStyle (info/neutro)" tag="warn" />
+        <Meta>
+          Inline · dentro del modal · para confirmaciones neutras{"\n"}
+          Usado en: "Link generado. Ya puedes copiarlo." · "Link copiado al portapapeles."
+        </Meta>
+
+        <div style={{ maxWidth: 480, display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{
+            borderRadius: 9,
+            border: "1px solid rgba(255,255,255,0.08)",
+            background: "rgba(255,255,255,0.035)",
+            padding: "7px 9px",
+            fontSize: 11.5, lineHeight: 1.35, color: "rgba(255,255,255,0.84)",
+          }}>
+            Link generado. Ya puedes copiarlo y compartirlo.
+          </div>
+          <div style={{
+            borderRadius: 9,
+            border: "1px solid rgba(255,255,255,0.08)",
+            background: "rgba(255,255,255,0.035)",
+            padding: "7px 9px",
+            fontSize: 11.5, lineHeight: 1.35, color: "rgba(255,255,255,0.84)",
+          }}>
+            Link copiado al portapapeles.
+          </div>
+        </div>
+      </div>
+
+      {/* ── 5. InviteLinkModal errorStyle ────────────────────────────────── */}
+      <div style={{ marginBottom: 52 }}>
+        <SectionLabel number={5} title="InviteLinkModal — errorStyle (error rojo suave)" tag="warn" />
+        <Meta>
+          Inline · dentro del modal · para errores de validación de forma de invitación{"\n"}
+          Usado en: "La duración debe ser mayor a 0." · "Los días deben estar entre 1 y 30." · "Los usos deben estar entre 1 y 1000."
+        </Meta>
+
+        <div style={{ maxWidth: 480 }}>
+          <div style={{
+            borderRadius: 9,
+            border: "1px solid rgba(248,113,113,0.22)",
+            background: "rgba(239,68,68,0.12)",
+            padding: "7px 9px",
+            fontSize: 11.5, lineHeight: 1.35, color: "#fecaca",
+          }}>
+            La duración debe ser mayor a 0.
+          </div>
+        </div>
+      </div>
+
+      {/* ── 6. LiveComposerModal error ────────────────────────────────────── */}
+      <div style={{ marginBottom: 52 }}>
+        <SectionLabel number={6} title="LiveComposerModal — error (rojo más oscuro)" tag="warn" />
+        <Meta>
+          Inline · dentro del modal de crear live · fondo más oscuro/saturado que errorStyle{"\n"}
+          Usado en: errores de validación de título, fecha, precio del ticket
+        </Meta>
+
+        <div style={{ maxWidth: 480 }}>
+          <div style={{
+            borderRadius: 10,
+            border: "1px solid rgba(255,90,90,0.24)",
+            background: "rgba(120,18,18,0.28)",
+            padding: "9px 12px",
+            fontSize: 12, lineHeight: 1.4, color: "#ffdada",
+          }}>
+            El título es obligatorio.
+          </div>
+        </div>
+      </div>
+
+      {/* ── 7. serviceToastStyle (inline toast en modales) ───────────────── */}
+      <div style={{ marginBottom: 52 }}>
+        <SectionLabel number={7} title="serviceToastStyle — toast inline dentro de modales" tag="warn" />
+        <Meta>
+          Fijo · bottom 24px · pero renderizado dentro del contexto del modal · sin ícono · pill · blur{"\n"}
+          Pasado como prop a CreatorServiceModals / GroupServiceModals / StoryViewer
+        </Meta>
+
+        <div style={{ position: "relative", height: 80, background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ position: "absolute", left: "50%", bottom: 12, transform: "translateX(-50%)" }}>
+            <div style={{
+              padding: "10px 12px", borderRadius: 999,
+              border: "1px solid rgba(255,255,255,0.16)",
+              background: "rgba(12,12,12,0.94)",
+              color: "#fff", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap",
+              backdropFilter: "blur(10px)",
+            }}>
+              Solicitud enviada correctamente
             </div>
           </div>
-        ))}
+          <span style={{ position: "absolute", top: 10, left: 12, color: "rgba(255,255,255,0.2)", fontSize: 10 }}>— modal container —</span>
+        </div>
       </div>
 
-      {/* ── Subnav mobile actual ── */}
+      {/* ── Tabla resumen ─────────────────────────────────────────────────── */}
+      <div style={{ marginBottom: 64 }}>
+        <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 16 }}>
+          Resumen de diferencias
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 1, fontSize: 11, borderRadius: 10, overflow: "hidden" }}>
+          {[
+            ["Estilo", "Posición", "Ícono", "Variantes"],
+            ["VibraToast ✅", "Fijo bottom 88px", "Sí (círculo color)", "success / error / warning"],
+            ["CopyLinkButton", "Fijo bottom 24px", "No", "success / error"],
+            ["messageBox", "Inline en modal", "No", "solo neutro (éxito=error)"],
+            ["noticeStyle", "Inline en modal", "No", "solo neutro"],
+            ["errorStyle", "Inline en modal", "No", "solo error (rosa suave)"],
+            ["LiveComposer err", "Inline en modal", "No", "solo error (rojo oscuro)"],
+            ["serviceToastStyle", "Fijo bottom 24px*", "No", "solo neutro"],
+          ].map((row, ri) => (
+            row.map((cell, ci) => (
+              <div key={`${ri}-${ci}`} style={{
+                padding: "8px 12px",
+                background: ri === 0 ? "rgba(255,255,255,0.06)" : ri === 1 ? "rgba(34,197,94,0.06)" : "rgba(255,255,255,0.025)",
+                color: ri === 0 ? "rgba(255,255,255,0.5)" : ci === 0 ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.4)",
+                fontWeight: ri === 0 || ci === 0 ? 600 : 400,
+                lineHeight: 1.4,
+              }}>
+                {cell}
+              </div>
+            ))
+          ))}
+        </div>
+      </div>
+
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", marginBottom: 56 }} />
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* SUBNAV MOBILE                                                         */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+
       <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 8 }}>Subnav Mobile — Iconos actuales</h1>
       <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 20 }}>
         MobileBottomNav · 3 ítems fijos · 26×26px stroke blanco
       </p>
 
-      {/* Inactivo */}
       <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Inactivo</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 2, maxWidth: 440, marginBottom: 16 }}>
         {SUBNAV_ITEMS.map(({ label, name, icon: Icon }) => (
@@ -487,7 +769,6 @@ export default function VideoIconsPreview() {
         ))}
       </div>
 
-      {/* Activo */}
       <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Activo</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 2, maxWidth: 440, marginBottom: 56 }}>
         {SUBNAV_ITEMS.map(({ label, name, filled: FilledIcon }) => (
@@ -502,12 +783,15 @@ export default function VideoIconsPreview() {
         ))}
       </div>
 
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* VIDEO ICONS                                                            */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+
       <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 8 }}>VibraVideoIcons — Preview</h1>
       <p style={{ color: "rgba(255,255,255,0.4)", fontSize: 13, marginBottom: 32 }}>
         20px estándar · skip 24px · play/pausa 26px · sin contenedor
       </p>
 
-      {/* Grid de íconos */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 2, marginBottom: 48 }}>
         {ICONS.map(({ name, label, component: Icon, size }) => (
           <div key={name} style={{
@@ -526,7 +810,6 @@ export default function VideoIconsPreview() {
         ))}
       </div>
 
-      {/* Badge EN VIVO + Espectadores */}
       <h2 style={{ color: "#fff", fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Badge EN VIVO + Espectadores</h2>
       <div style={{ marginBottom: 40, display: "flex", alignItems: "center", gap: 12 }}>
         <VideoLiveBadge />
@@ -538,7 +821,6 @@ export default function VideoIconsPreview() {
         <VideoViewerBadge count={1200000} />
       </div>
 
-      {/* Velocidad */}
       <h2 style={{ color: "#fff", fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Velocidad de reproducción</h2>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 40 }}>
         {[0.5, 1, 1.25, 1.5, 1.75, 2].map((speed) => (
@@ -549,7 +831,6 @@ export default function VideoIconsPreview() {
         ))}
       </div>
 
-      {/* Contador */}
       <h2 style={{ color: "#fff", fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Contador de tiempo</h2>
       <div style={{ marginBottom: 40, display: "flex", alignItems: "center", gap: 24 }}>
         <div style={{ padding: "16px 20px", borderRadius: 10, background: "rgba(255,255,255,0.04)", display: "inline-flex" }}>
@@ -564,7 +845,6 @@ export default function VideoIconsPreview() {
         </div>
       </div>
 
-      {/* Barra de progreso */}
       <h2 style={{ color: "#fff", fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Barra de progreso</h2>
       <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 12, padding: "24px 20px", maxWidth: 600, marginBottom: 48 }}>
         <Scrubber current={scrubPos} duration={DURATION} onChange={setScrubPos} />
@@ -574,12 +854,12 @@ export default function VideoIconsPreview() {
         </div>
       </div>
 
-      {/* Video players */}
       <h2 style={{ color: "#fff", fontSize: 16, fontWeight: 700, marginBottom: 24 }}>Players con controles</h2>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 32, flexWrap: "wrap" }}>
         <VideoPlayer orientation="horizontal" label="Horizontal 16:9" />
         <VideoPlayer orientation="vertical" label="Vertical 9:16" />
       </div>
+
     </div>
   );
 }

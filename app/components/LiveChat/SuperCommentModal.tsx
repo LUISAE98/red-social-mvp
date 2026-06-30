@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { submitSuperComment, submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
 import { getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
 import type { SuperCommentConfig, SuperCommentTier } from "@/lib/liveChat/types";
@@ -41,7 +43,7 @@ export default function SuperCommentModal({
   const [text, setText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { toast: scToast, showToast: showScToast } = useVibraToast();
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -49,7 +51,6 @@ export default function SuperCommentModal({
     if (open) {
       setShouldRender(true);
       setSent(false);
-      setError(null);
       if (isGuest) {
         const saved = getSavedGuestNickname();
         setGuestNickname(saved);
@@ -81,7 +82,6 @@ export default function SuperCommentModal({
   async function handleSubmit() {
     if (!selectedTier || !text.trim()) return;
     setSubmitting(true);
-    setError(null);
     try {
       if (isGuest && guestId) {
         await submitSuperCommentAsGuest({
@@ -109,7 +109,7 @@ export default function SuperCommentModal({
         setSelectedTier(null);
       }, 1800);
     } catch {
-      setError("No se pudo enviar el supercomentario. Intenta de nuevo.");
+      showScToast("No se pudo enviar el supercomentario. Intenta de nuevo.", "error");
     } finally {
       setSubmitting(false);
     }
@@ -364,11 +364,7 @@ export default function SuperCommentModal({
                     </div>
                   )}
 
-                  {error && (
-                    <p style={{ margin: "0 0 12px", fontSize: 12, color: "#f87171", fontFamily: FONT }}>
-                      {error}
-                    </p>
-                  )}
+                  <VibraToast toast={scToast} />
 
                   <button
                     type="button"

@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { createInviteLink } from "@/lib/groups/inviteLinks";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type Props = {
   groupId: string;
@@ -70,10 +72,9 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
   const [loading, setLoading] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [unit, setUnit] = useState<Unit>("days");
+  const { toast: inviteToast, showToast: showInviteToast } = useVibraToast();
   const [durationValue, setDurationValue] = useState("7");
   const [maxUsesValue, setMaxUsesValue] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const durationLabel = useMemo(() => {
     if (unit === "days") return "Días";
@@ -116,8 +117,6 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
   async function handleCreate() {
     try {
       setLoading(true);
-      setError(null);
-      setCopied(false);
 
       const parsedDuration = Number(durationValue.trim());
       const parsedMaxUses =
@@ -125,7 +124,7 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
 
       const durationError = validateDuration(parsedDuration, unit);
       if (durationError) {
-        setError(durationError);
+        showInviteToast(durationError, "error");
         return;
       }
 
@@ -135,7 +134,7 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
           parsedMaxUses < 1 ||
           parsedMaxUses > 1000)
       ) {
-        setError("Los usos máximos deben estar entre 1 y 1000.");
+        showInviteToast("Los usos máximos deben estar entre 1 y 1000.", "error");
         return;
       }
 
@@ -148,9 +147,10 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
       });
 
       setLink(`${window.location.origin}/invite/${res.token}`);
+      showInviteToast("Link generado. Ya puedes copiarlo y compartirlo.", "success");
     } catch (e: unknown) {
       console.error(e);
-      setError((e instanceof Error ? e.message : null) ?? "Error creando link.");
+      showInviteToast((e instanceof Error ? e.message : null) ?? "Error creando link.", "error");
     } finally {
       setLoading(false);
     }
@@ -163,20 +163,19 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
       const ok = await copyToClipboardWithFallback(link);
 
       if (!ok) {
-        setError(
-          "No se pudo copiar automáticamente. Mantén presionado el link y cópialo manualmente."
+        showInviteToast(
+          "No se pudo copiar automáticamente. Mantén presionado el link y cópialo manualmente.",
+          "error"
         );
-        setCopied(false);
         return;
       }
 
-      setCopied(true);
-      setError(null);
+      showInviteToast("Link copiado al portapapeles.", "success");
     } catch {
-      setError(
-        "No se pudo copiar automáticamente. Mantén presionado el link y cópialo manualmente."
+      showInviteToast(
+        "No se pudo copiar automáticamente. Mantén presionado el link y cópialo manualmente.",
+        "error"
       );
-      setCopied(false);
     }
   }
 
@@ -285,12 +284,6 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
     color: "rgba(255,255,255,0.84)",
   };
 
-  const errorStyle: React.CSSProperties = {
-    ...noticeStyle,
-    border: "1px solid rgba(248,113,113,0.22)",
-    background: "rgba(239,68,68,0.12)",
-    color: "#fecaca",
-  };
 
   const primaryButtonStyle: React.CSSProperties = {
     width: "100%",
@@ -329,6 +322,8 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
 
   if (!mounted) return null;
     return createPortal(
+    <>
+    <VibraToast toast={inviteToast} />
     <div
       style={overlayStyle}
       onClick={() => {
@@ -432,8 +427,6 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
                 {friendlyUnitLabel(unit, parsedDuration || 0)}.
               </div>
 
-              {error && <div style={errorStyle}>{error}</div>}
-
               <div style={{ display: "grid", gap: 8, marginTop: 2 }}>
                 <button
                   type="button"
@@ -464,10 +457,6 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
             </>
           ) : (
             <>
-              <div style={noticeStyle}>
-                Link generado. Ya puedes copiarlo y compartirlo.
-              </div>
-
               <div
                 style={{
                   ...inputStyle,
@@ -482,11 +471,6 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
                 {link}
               </div>
 
-              {error && <div style={errorStyle}>{error}</div>}
-
-              {copied && (
-                <div style={noticeStyle}>Link copiado al portapapeles.</div>
-              )}
 
               <div style={{ display: "grid", gap: 8, marginTop: 2 }}>
                 <button
@@ -501,8 +485,6 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
                   type="button"
                   onClick={() => {
                     setLink(null);
-                    setCopied(false);
-                    setError(null);
                   }}
                   style={secondaryButtonStyle}
                 >
@@ -521,7 +503,8 @@ export default function InviteLinkModal({ groupId, onClose }: Props) {
           )}
         </div>
       </div>
-     </div>,
+     </div>
+    </>,
     document.body
   );
 }

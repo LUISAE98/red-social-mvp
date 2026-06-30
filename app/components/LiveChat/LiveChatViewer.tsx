@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
@@ -44,13 +46,12 @@ export default function LiveChatViewer({
   const { user } = useAuth();
   const { messages, send } = useLiveChat(liveId);
   const [text, setText] = useState("");
-  const [sendError, setSendError] = useState<string | null>(null);
   const [senderInfo, setSenderInfo] = useState<SenderInfo | null>(null);
   const [superCommentOpen, setSuperCommentOpen] = useState(false);
   const [visibleSuperComments, setVisibleSuperComments] = useState<SuperComment[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
-  const sendErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { toast: chatToast, showToast: showChatToast } = useVibraToast();
 
   // ID de invitado — solo se genera si no hay sesión activa
   const guestId = useMemo<string>(() => {
@@ -116,13 +117,10 @@ export default function LiveChatViewer({
     if (!user || !senderInfo || !text.trim()) return;
     const messageText = text.trim();
     if (messageText.length > 50) {
-      if (sendErrorTimerRef.current) clearTimeout(sendErrorTimerRef.current);
-      setSendError("El mensaje no puede exceder 50 caracteres.");
-      sendErrorTimerRef.current = setTimeout(() => setSendError(null), 3500);
+      showChatToast("El mensaje no puede exceder 50 caracteres.", "error");
       return;
     }
     setText("");
-    setSendError(null);
     isAtBottomRef.current = true;
     try {
       await send({
@@ -132,7 +130,7 @@ export default function LiveChatViewer({
         text: messageText,
       });
     } catch {
-      setSendError("No se pudo enviar.");
+      showChatToast("No se pudo enviar.", "error");
       setText(messageText);
     }
   }, [user, senderInfo, text, send]);
@@ -187,6 +185,7 @@ export default function LiveChatViewer({
   if (mode === "overlay") {
     return (
       <>
+        <VibraToast toast={chatToast} />
         <div
           className="lvc-overlay"
           onClick={(e) => e.stopPropagation()}
@@ -274,9 +273,6 @@ export default function LiveChatViewer({
                   </div>
                 ) : (
                   <>
-                    {sendError && (
-                      <p style={{ margin: "0 0 5px", fontSize: 11, color: "#f87171", fontFamily: FONT, textAlign: "center" }}>{sendError}</p>
-                    )}
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                       {showSuperCommentBtn && (
                         <BillButton onClick={() => setSuperCommentOpen(true)} />
@@ -335,6 +331,7 @@ export default function LiveChatViewer({
   // ── Panel mode (mobile horizontal, desktop sidebar) ───────────────────────
   return (
     <>
+      <VibraToast toast={chatToast} />
       <style>{`.lvc-panel::-webkit-scrollbar{display:none}`}</style>
       <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
 
@@ -413,9 +410,6 @@ export default function LiveChatViewer({
             </div>
           ) : (
             <>
-              {sendError && (
-                <p style={{ margin: "0 0 5px", fontSize: 11, color: "#f87171", fontFamily: FONT, textAlign: "center" }}>{sendError}</p>
-              )}
               <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 {showSuperCommentBtn && (
                   <BillButton onClick={() => setSuperCommentOpen(true)} />

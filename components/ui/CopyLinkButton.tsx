@@ -5,6 +5,8 @@ import {
   VibraNavigationIcon,
   VibraNavigationIconsStyles,
 } from "@/app/components/VibraServiceIcons/VibraNavigationIcons";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type CopyLinkButtonProps = {
   href: string;
@@ -38,8 +40,8 @@ export default function CopyLinkButton({
   iconOnly = true,
 }: CopyLinkButtonProps) {
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const { toast: copyToast, showToast: showCopyToast } = useVibraToast(2400);
 
 useEffect(() => {
   if (typeof window === "undefined") return;
@@ -57,15 +59,10 @@ useEffect(() => {
   const absoluteUrl = useMemo(() => getAbsoluteUrl(href), [href]);
 
   useEffect(() => {
-    if (!copied && !error) return;
-
-    const timeout = window.setTimeout(() => {
-      setCopied(false);
-      setError(null);
-    }, 2400);
-
+    if (!copied) return;
+    const timeout = window.setTimeout(() => setCopied(false), 2400);
     return () => window.clearTimeout(timeout);
-  }, [copied, error]);
+  }, [copied]);
 
   async function handleCopy(e: React.MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
@@ -73,11 +70,10 @@ useEffect(() => {
 
     if (disabled) return;
 
-    setError(null);
-
     try {
       await navigator.clipboard.writeText(absoluteUrl);
       setCopied(true);
+      showCopyToast("Link copiado correctamente", "success");
     } catch {
       try {
         const textarea = document.createElement("textarea");
@@ -93,8 +89,9 @@ useEffect(() => {
         document.body.removeChild(textarea);
 
         setCopied(true);
+        showCopyToast("Link copiado correctamente", "success");
       } catch {
-        setError("No se pudo copiar el link.");
+        showCopyToast("No se pudo copiar el link.", "error");
       }
     }
   }
@@ -160,29 +157,6 @@ const copiedCircleStyle: CSSProperties = {
   pointerEvents: "none",
 };
 
-  const toastStyle: CSSProperties = {
-    position: "fixed",
-    left: "50%",
-    bottom: "calc(24px + env(safe-area-inset-bottom))",
-    transform: "translateX(-50%)",
-    zIndex: 11000,
-    maxWidth: "min(520px, calc(100vw - 28px))",
-    padding: "10px 12px",
-    borderRadius: 999,
-    border: error
-      ? "1px solid rgba(255,90,90,0.30)"
-      : "1px solid rgba(255,255,255,0.16)",
-    background: error ? "rgba(80,12,12,0.94)" : "rgba(12,12,12,0.94)",
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: 600,
-    lineHeight: 1.25,
-    textAlign: "center",
-    boxShadow: "0 18px 48px rgba(0,0,0,0.55)",
-    backdropFilter: "blur(10px)",
-    WebkitBackdropFilter: "blur(10px)",
-    pointerEvents: "none",
-  };
 
   return (
     <>
@@ -217,11 +191,7 @@ const copiedCircleStyle: CSSProperties = {
 {!iconOnly ? <span>{copied ? copiedLabel : label}</span> : null}
       </button>
 
-      {error && (
-        <div role="status" aria-live="polite" style={toastStyle}>
-          {error}
-        </div>
-      )}
+      <VibraToast toast={copyToast} />
     </>
   );
 }

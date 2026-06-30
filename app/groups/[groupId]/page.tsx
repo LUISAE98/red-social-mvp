@@ -563,7 +563,7 @@ const canRequestMeetGreet =
   const [greetType, setGreetType] = useState<GreetingType>("saludo");
   const [toName, setToName] = useState("");
   const [instructions, setInstructions] = useState("");
-  const [allowCreatorStory, setAllowCreatorStory] = useState(false);
+  const [allowCreatorStory, setAllowCreatorStory] = useState(true);
   const [greetSubmitting, setGreetSubmitting] = useState(false);
   const [greetError, setGreetError] = useState<string | null>(null);
   const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
@@ -577,6 +577,16 @@ const canRequestMeetGreet =
   const [exclusiveSessionMessage, setExclusiveSessionMessage] = useState("");
   const [exclusiveSessionSubmitting, setExclusiveSessionSubmitting] = useState(false);
   const [exclusiveSessionError, setExclusiveSessionError] = useState<string | null>(null);
+
+  const greetOffering = useMemo(() => {
+    return normalizedCurrentOfferings.find((o) => o.type === greetType) ?? null;
+  }, [normalizedCurrentOfferings, greetType]);
+
+  const greetPriceLabel = useMemo(() => {
+    const price = greetOffering?.memberPrice ?? greetOffering?.publicPrice ?? (greetOffering as { price?: number } | null)?.price ?? null;
+    const currency = greetOffering?.currency ?? "MXN";
+    return typeof price === "number" ? `${formatMoney(price, currency)} ${currency}` : undefined;
+  }, [greetOffering]);
 
   const [serviceToast, setServiceToast] = useState<string | null>(null);
 
@@ -793,7 +803,7 @@ function redirectToLogin() {
     setGreetSuccess(null);
     setToName("");
     setInstructions("");
-    setAllowCreatorStory(false);
+    setAllowCreatorStory(true);
     clearServiceQuery();
   }
 
@@ -1920,6 +1930,7 @@ const avatarNode = (
           onChangeInstructions={setInstructions}
           allowCreatorStory={allowCreatorStory}
           onChangeAllowCreatorStory={setAllowCreatorStory}
+          greetPriceLabel={greetPriceLabel}
           subscriptionOpen={subscriptionOpen}
           subscriptionSubmitting={subscriptionSubmitting}
           subscriptionError={subscriptionError}
@@ -2572,6 +2583,7 @@ const avatarNode = (
         onChangeInstructions={setInstructions}
         allowCreatorStory={allowCreatorStory}
         onChangeAllowCreatorStory={setAllowCreatorStory}
+        greetPriceLabel={greetPriceLabel}
         subscriptionOpen={subscriptionOpen}
         subscriptionSubmitting={subscriptionSubmitting}
         subscriptionError={subscriptionError}

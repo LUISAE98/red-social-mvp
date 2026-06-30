@@ -3,6 +3,8 @@
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import type { GreetingType } from "@/lib/greetings/greetingRequests";
 import type { Currency } from "@/types/group";
 
@@ -21,6 +23,7 @@ type GroupServiceModalsProps = {
   onChangeInstructions: (value: string) => void;
   allowCreatorStory: boolean;
   onChangeAllowCreatorStory: (value: boolean) => void;
+  greetPriceLabel?: string;
 
   subscriptionOpen: boolean;
   subscriptionSubmitting: boolean;
@@ -131,6 +134,7 @@ export default function GroupServiceModals({
   onChangeInstructions,
   allowCreatorStory,
   onChangeAllowCreatorStory,
+  greetPriceLabel,
 
   subscriptionOpen,
   subscriptionSubmitting,
@@ -177,10 +181,15 @@ export default function GroupServiceModals({
   formatMoney,
 }: GroupServiceModalsProps) {
   const [mounted, setMounted] = useState(false);
+  const { toast: serviceModalToast, showToast: showServiceModalToast } = useVibraToast();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => { if (greetError) showServiceModalToast(greetError, "error"); }, [greetError]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (greetSuccess) showServiceModalToast(greetSuccess, "success"); }, [greetSuccess]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (subscriptionError) showServiceModalToast(subscriptionError, "error"); }, [subscriptionError]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (meetGreetError) showServiceModalToast(meetGreetError, "error"); }, [meetGreetError]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (exclusiveSessionError) showServiceModalToast(exclusiveSessionError, "error"); }, [exclusiveSessionError]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const anyOpen =
@@ -374,8 +383,6 @@ export default function GroupServiceModals({
                   </div>
                 )}
 
-                {greetError && <div style={messageBox}>{greetError}</div>}
-                {greetSuccess && <div style={messageBox}>{greetSuccess}</div>}
 
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <button
@@ -388,7 +395,7 @@ export default function GroupServiceModals({
                       cursor: greetSubmitting ? "not-allowed" : "pointer",
                     }}
                   >
-                    {greetSubmitting ? "Enviando..." : greetingUi.submitLabel}
+                    {greetSubmitting ? "Enviando..." : greetPriceLabel ? `Continuar al pago ${greetPriceLabel}` : "Continuar al pago"}
                   </button>
 
                   <button
@@ -482,9 +489,6 @@ export default function GroupServiceModals({
                   </div>
                 </div>
 
-                {subscriptionError && (
-                  <div style={messageBox}>{subscriptionError}</div>
-                )}
 
                 <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                   <button
@@ -620,7 +624,6 @@ export default function GroupServiceModals({
               </span>
             </label>
 
-            {params.error && <div style={messageBox}>{params.error}</div>}
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button
@@ -719,6 +722,7 @@ export default function GroupServiceModals({
       {meetGreetModal}
       {exclusiveSessionModal}
       {toastNode}
+      <VibraToast toast={serviceModalToast} />
     </>
   );
 }

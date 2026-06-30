@@ -256,6 +256,7 @@ export default function CreatorExperiencesSection({
             <Link
               key={type}
               href={href}
+              scroll={false}
               style={{
                 display: "flex",
                 alignItems: "center",
