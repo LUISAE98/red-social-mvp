@@ -108,24 +108,27 @@ export const labelStyle: CSSProperties = {
 };
 
 export const primaryButton: CSSProperties = {
-  padding: groupPageUi.buttonPadding,
+  flex: "1 1 140px",
+  maxWidth: 260,
+  minWidth: 120,
+  minHeight: 40,
   borderRadius: groupPageUi.buttonRadius,
   border: "none",
-  background: "linear-gradient(135deg, #f472b6, #a855f7)",
+  background: "linear-gradient(135deg, #ec4899, #9333ea)",
   color: "#fff",
   fontWeight: 600,
-  fontSize: groupPageUi.body,
+  fontSize: 14,
   lineHeight: 1.2,
+  letterSpacing: "-0.01em",
   cursor: "pointer",
   fontFamily: groupPageFontStack,
-  letterSpacing: "-0.01em",
-  minHeight: 42,
+  WebkitTapHighlightColor: "transparent",
+  transition: "opacity 150ms ease",
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
   textAlign: "center",
-  transition: "opacity 150ms ease",
-  WebkitTapHighlightColor: "transparent",
+  padding: "0 14px",
 };
 
 export const secondaryButton: CSSProperties = {

@@ -57,14 +57,14 @@ const CONFIG: Record<string, ServiceConfig> = {
   },
   meet_greet_digital: {
     title: "Encuentro en vivo",
-    description: "Videollamada privada uno a uno.",
+    description: "Encuentro en vivo uno a uno especialmente para ti.",
     meta1Fallback: "Duración 30 minutos",
     meta2: "Plataforma Google Meet",
     color: "#45b8ff",
   },
   clase_personalizada: {
     title: "Sesión exclusiva",
-    description: "Experiencia 1 a 1 diseñada especialmente para ti.",
+    description: "Experiencia privada y duradera uno a uno.",
     meta1Fallback: "Duración 60 minutos",
     meta2: "Totalmente personalizada",
     color: "#f472b6",
@@ -197,6 +197,9 @@ export default function CreatorExperiencesSection({
           .exp-description { display: none; }
           .exp-chevron { display: none; }
         }
+        @media (min-width: 560px) {
+          .exp-avatar { width: 56px; height: 56px; }
+        }
       `}</style>
 
       {/* Section header */}
@@ -265,9 +268,7 @@ export default function CreatorExperiencesSection({
                   ? "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/sesionexclusiva.png') center 75%/cover no-repeat"
                   : type === "meet_greet_digital"
                   ? "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/encuentroenvivo.png') center 60%/cover no-repeat"
-                  : type === "saludo"
-                  ? "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/saludo.png') center 32%/cover no-repeat"
-                  : "linear-gradient(135deg, #0f0f13 0%, #0b0b0f 100%)",
+                  : "linear-gradient(rgba(11,11,15,0.80), rgba(11,11,15,0.80)), url('/saludo.png') center 32%/cover no-repeat",
                 border: "none",
                 boxShadow: `0 2px 20px rgba(0,0,0,0.38), 0 0 0 1px ${conf.color}10`,
                 textDecoration: "none",
@@ -276,6 +277,7 @@ export default function CreatorExperiencesSection({
             >
               {/* Icon circle placeholder */}
               <img
+                className="exp-avatar"
                 src={
                   type === "saludo" ? "/avatarsaludo.png"
                   : type === "consejo" ? "/avatarconsejo.png"
@@ -284,12 +286,11 @@ export default function CreatorExperiencesSection({
                 }
                 alt=""
                 style={{
-                  width: 46,
-                  height: 46,
+                  width: 48,
+                  height: 48,
                   borderRadius: "50%",
                   flexShrink: 0,
                   objectFit: "cover",
-                  border: `1.5px solid ${conf.color}`,
                   boxShadow: `0 0 14px ${conf.color}2e`,
                 }}
               />

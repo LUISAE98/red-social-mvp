@@ -514,7 +514,7 @@ export default function DonationEntryPoint({
           height: 40,
           borderRadius: 10,
           border: "none",
-          background: "#70aefb",
+          background: "#3b82f6",
           color: "#fff",
           fontFamily: "inherit",
           fontWeight: 600,

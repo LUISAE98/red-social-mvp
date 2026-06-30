@@ -13,6 +13,7 @@ import {
   useState,
   useCallback,
 } from "react";
+import { createPortal } from "react-dom";
 import {
   useParams,
   usePathname,
@@ -24,6 +25,7 @@ import { useAuth } from "@/app/providers";
 import {
   joinGroup,
   joinGroupWithSubscription,
+  leaveGroup,
 } from "@/lib/groups/membership";
 import { requestToJoin, cancelJoinRequest } from "@/lib/groups/joinRequests";
 import OwnerAdminPanel from "./components/OwnerAdminPanel";
@@ -246,6 +248,9 @@ useSetMobileHeader(group?.avatarUrl ?? null, group?.name ?? null);
 
 const [joining, setJoining] = useState(false);
 const [actionError, setActionError] = useState<string | null>(null);
+const [leaveOverlayOpen, setLeaveOverlayOpen] = useState(false);
+const [leaving, setLeaving] = useState(false);
+const [leaveError, setLeaveError] = useState<string | null>(null);
 const [mobileRefreshEnabled, setMobileRefreshEnabled] = useState(false);
 const [groupPageRefreshKey, setGroupPageRefreshKey] = useState(0);
   const [memberCount, setMemberCount] = useState<number | null>(null);
@@ -705,6 +710,20 @@ function redirectToLogin() {
       setActionError((e instanceof Error ? e.message : null) ?? "No se pudo unir");
     } finally {
       setJoining(false);
+    }
+  }
+
+  async function handleLeave() {
+    if (!user || leaving) return;
+    setLeaving(true);
+    setLeaveError(null);
+    try {
+      await leaveGroup(groupId, user.uid);
+      setLeaveOverlayOpen(false);
+    } catch (e: unknown) {
+      setLeaveError((e instanceof Error ? e.message : null) ?? "No se pudo salir de la comunidad.");
+    } finally {
+      setLeaving(false);
     }
   }
 
@@ -1806,11 +1825,16 @@ const avatarNode = (
                             disabled={joining}
                             style={{
                               ...primaryButton,
+                              background: "#3b82f6",
                               opacity: joining ? 0.75 : 1,
                               cursor: joining ? "not-allowed" : "pointer",
                             }}
                           >
-                            {user ? "Suscribirme" : "Iniciar sesión para suscribirme"}
+                            {user
+                              ? subscriptionPrice != null
+                                ? `Suscribirme por $${subscriptionPrice} ${subscriptionCurrency}`
+                                : "Suscribirme"
+                              : "Iniciar sesión para suscribirme"}
                           </button>
                         </div>
                       )}
@@ -2308,7 +2332,42 @@ const avatarNode = (
   )}
 </div>
 
-                  <div style={{ marginTop: 10, width: "100%", display: "flex", justifyContent: "center" }}>
+                  <div style={{
+                    marginTop: 10,
+                    width: "100%",
+                    display: "flex",
+                    flexDirection: "row",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 14,
+                  }}>
+                    {!isOwner && (
+                      effectiveIsMember ? (
+                        <button
+                          type="button"
+                          onClick={() => setLeaveOverlayOpen(true)}
+                          style={{ ...primaryButton }}
+                        >
+                          {membershipRequiresSubscription ? "Ya estás suscrito" : "Ya eres miembro"}
+                        </button>
+                      ) : (
+                        group.visibility === "public" && memberStatus !== "banned" ? (
+                          <button
+                            type="button"
+                            onClick={handleJoinPublic}
+                            disabled={joining}
+                            style={{
+                              ...primaryButton,
+                              opacity: joining ? 0.75 : 1,
+                              cursor: joining ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {joining ? "Uniéndote..." : user ? "Unirme" : "Iniciar sesión para unirme"}
+                          </button>
+                        ) : null
+                      )
+                    )}
                     <DonationEntryPoint
                       donation={groupIsPaused ? null : normalizedCurrentDonation}
                       isLoggedIn={!!user}
@@ -2338,51 +2397,23 @@ const avatarNode = (
               </div>
 
               <div className="group-actions-wrap">
-                <div className="group-actions-row">
-                  {!isOwner && !effectiveIsMember && group.visibility === "public" && (
-                    <>
-                      {memberStatus === "banned" ? (
-                        <div
-                          style={{
-                            ...messageBox,
-                            textAlign: "center",
-                            border: "1px solid rgba(255,80,80,0.4)",
-                            background: "rgba(255,80,80,0.08)",
-                            color: "#ffb3b3",
-                            fontWeight: 500,
-                          }}
-                        >
-                          🚫 Estás baneado de esta comunidad
-                        </div>
-                      ) : (
-                        <button
-                          onClick={handleJoinPublic}
-                          disabled={joining}
-                          style={{
-                            ...primaryButton,
-                            opacity: joining ? 0.75 : 1,
-                            cursor: joining ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          {joining
-                            ? "Uniéndote..."
-                            : user
-                            ? "Unirme"
-                            : "Iniciar sesión para unirme"}
-                        </button>
-                      )}
-                    </>
-                  )}
-                  
-                </div>
-
-                {error && (
+                {!isOwner && !effectiveIsMember && group.visibility === "public" && memberStatus === "banned" && (
                   <div
                     style={{
                       ...messageBox,
                       textAlign: "center",
+                      border: "1px solid rgba(255,80,80,0.4)",
+                      background: "rgba(255,80,80,0.08)",
+                      color: "#ffb3b3",
+                      fontWeight: 500,
                     }}
                   >
+                    🚫 Estás baneado de esta comunidad
+                  </div>
+                )}
+
+                {error && (
+                  <div style={{ ...messageBox, textAlign: "center" }}>
                     {error}
                   </div>
                 )}
@@ -2619,6 +2650,90 @@ const avatarNode = (
         onCropComplete={onCropComplete}
         onSave={() => uploadCropped(cropMode)}
       />
+
+      {leaveOverlayOpen && typeof window !== "undefined" && createPortal(
+        <div
+          style={serviceModalBackdropStyle}
+          onClick={() => !leaving && setLeaveOverlayOpen(false)}
+        >
+          <div
+            style={{ ...serviceModalCardStyle, maxWidth: 400 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: "4px 0 16px", display: "grid", gap: 14 }}>
+              <p style={{ fontSize: 17, fontWeight: 700, lineHeight: 1.25, margin: 0 }}>
+                {membershipRequiresSubscription
+                  ? "¿Cancelar suscripción?"
+                  : "¿Salir de la comunidad?"}
+              </p>
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.75)", lineHeight: 1.5, margin: 0 }}>
+                {membershipRequiresSubscription
+                  ? "Perderás el acceso a los contenidos exclusivos de esta comunidad."
+                  : "Podrás volver a unirte si la comunidad es pública."}
+              </p>
+
+              {leaveError && (
+                <div style={{
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: "rgba(239,68,68,0.10)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                  color: "#fca5a5",
+                  fontSize: 13,
+                }}>
+                  {leaveError}
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => setLeaveOverlayOpen(false)}
+                  disabled={leaving}
+                  style={{
+                    flex: "1 1 120px",
+                    minHeight: 40,
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.16)",
+                    background: "rgba(255,255,255,0.06)",
+                    color: "#fff",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    cursor: leaving ? "not-allowed" : "pointer",
+                    opacity: leaving ? 0.6 : 1,
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLeave}
+                  disabled={leaving}
+                  style={{
+                    flex: "1 1 120px",
+                    minHeight: 40,
+                    borderRadius: 10,
+                    border: "none",
+                    background: "rgba(239,68,68,0.85)",
+                    color: "#fff",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    cursor: leaving ? "not-allowed" : "pointer",
+                    opacity: leaving ? 0.75 : 1,
+                  }}
+                >
+                  {leaving
+                    ? "Procesando..."
+                    : membershipRequiresSubscription
+                    ? "Cancelar suscripción"
+                    : "Salir"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }
