@@ -159,6 +159,25 @@ const PANEL_CSS = `
   .vibra-svc-panel { position: relative; }
   .vibra-svc-handle, .vibra-svc-header, .vibra-svc-body, .vibra-svc-footer { position: relative; z-index: 1; }
 
+  .vibra-svc-bg-img {
+    position: absolute; inset: 0; z-index: 0;
+    background-size: 100% auto;
+    background-position: center bottom;
+    background-repeat: no-repeat;
+    opacity: 0.35;
+  }
+  .vibra-svc-bg-grad {
+    position: absolute; inset: 0; z-index: 0;
+    background: linear-gradient(to bottom, #0a0a0a 50%, rgba(10,10,10,0.85) 68%, rgba(10,10,10,0.4) 85%, transparent 100%);
+  }
+
+  @media (max-width: 559px) {
+    .vibra-svc-bg-img { opacity: 0.35; }
+    .vibra-svc-bg-grad {
+      background: linear-gradient(to bottom, #0a0a0a 55%, rgba(10,10,10,0.88) 72%, rgba(10,10,10,0.55) 87%, rgba(10,10,10,0.25) 100%);
+    }
+  }
+
   @media (max-width: 559px) {
     .vibra-svc-handle {
       display: flex; justify-content: center; padding-top: 10px; flex-shrink: 0;
@@ -277,18 +296,8 @@ function Panel({
           {/* Background image — subtle, bottom-anchored */}
           {bgImage && (
             <>
-              <div style={{
-                position: "absolute", inset: 0, zIndex: 0,
-                backgroundImage: `url('${bgImage}')`,
-                backgroundSize: "100% auto",
-                backgroundPosition: "center bottom",
-                backgroundRepeat: "no-repeat",
-                opacity: 0.35,
-              }} />
-              <div style={{
-                position: "absolute", inset: 0, zIndex: 0,
-                background: "linear-gradient(to bottom, #0a0a0a 50%, rgba(10,10,10,0.85) 68%, rgba(10,10,10,0.4) 85%, transparent 100%)",
-              }} />
+              <div className="vibra-svc-bg-img" style={{ backgroundImage: `url('${bgImage}')` }} />
+              <div className="vibra-svc-bg-grad" />
             </>
           )}
 
