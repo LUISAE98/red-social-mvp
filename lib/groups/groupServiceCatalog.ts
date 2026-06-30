@@ -611,6 +611,7 @@ export function normalizeDonationSettings(
       description: null,
       suggestedAmounts: [],
       goalLabel: null,
+      message: null,
       videoUrl: null,
       playbackId: null,
     };
@@ -632,10 +633,12 @@ export function normalizeDonationSettings(
         : null,
     suggestedAmounts,
     goalLabel:
-      mode === "wedding" &&
-      typeof donation?.goalLabel === "string" &&
-      donation.goalLabel.trim()
+      typeof donation?.goalLabel === "string" && donation.goalLabel.trim()
         ? donation.goalLabel.trim()
+        : null,
+    message:
+      typeof donation?.message === "string" && donation.message.trim()
+        ? donation.message.trim()
         : null,
     videoUrl:
       typeof donation?.videoUrl === "string" && donation.videoUrl.trim()

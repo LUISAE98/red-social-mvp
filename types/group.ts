@@ -519,6 +519,7 @@ export type GroupDonationSettings = {
   description?: string | null;
   suggestedAmounts?: number[];
   goalLabel?: string | null;
+  message?: string | null;
   videoUrl?: string | null;
   playbackId?: string | null;
   videoStatus?: "ready" | "processing" | "error" | null;

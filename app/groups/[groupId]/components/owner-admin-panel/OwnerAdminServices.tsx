@@ -161,6 +161,7 @@ type ServiceDraft = {
   donationCurrency: Currency;
   donationMinimumAmount: string;
   donationGoalLabel: string;
+  donationMessage: string;
   freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
   subscriptionToFreePolicy: SubscriptionToFreePolicy;
   subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;
@@ -444,6 +445,7 @@ function createEmptyDraft(): ServiceDraft {
     donationCurrency: "MXN",
     donationMinimumAmount: "",
     donationGoalLabel: "",
+    donationMessage: "",
     freeToSubscriptionPolicy: "",
     subscriptionToFreePolicy: "",
     subscriptionPriceIncreasePolicy: "",
@@ -1111,6 +1113,7 @@ export default function OwnerAdminServices({
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const { toast: adminServicesToast, showToast: showAdminServicesToast } = useVibraToast();
+  useEffect(() => { if (err) showAdminServicesToast(err, "error"); }, [err]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [removingLegacyMembers, setRemovingLegacyMembers] = useState(false);
   const [activeLegacyFreeMembersCount, setActiveLegacyFreeMembersCount] =
@@ -1187,6 +1190,7 @@ export default function OwnerAdminServices({
       donationCurrency: donation.currency ?? "MXN",
       donationMinimumAmount: donation.minimumAmount,
       donationGoalLabel: donation.goalLabel ?? "",
+      donationMessage: (donation as { message?: string }).message ?? "",
       freeToSubscriptionPolicy: transitions.freeToSubscriptionPolicy,
       subscriptionToFreePolicy: transitions.subscriptionToFreePolicy,
       subscriptionPriceIncreasePolicy:
@@ -1663,10 +1667,8 @@ export default function OwnerAdminServices({
           workingDraft.donationMode !== "none" && donationMinimumNum != null
             ? [donationMinimumNum]
             : [],
-        goalLabel:
-          workingDraft.donationMode === "wedding"
-            ? workingDraft.donationGoalLabel.trim() || null
-            : null,
+        goalLabel: workingDraft.donationGoalLabel.trim() || null,
+        message: workingDraft.donationMessage.trim() || null,
       };
 
       const preservedPaidPostsEnabled =
@@ -1875,10 +1877,8 @@ export default function OwnerAdminServices({
               workingDraft.donationMode !== "none"
                 ? workingDraft.donationMinimumAmount
                 : "",
-            donationGoalLabel:
-              workingDraft.donationMode === "wedding"
-                ? workingDraft.donationGoalLabel
-                : "",
+            donationGoalLabel: workingDraft.donationGoalLabel,
+            donationMessage: workingDraft.donationMessage,
             freeToSubscriptionPolicy: workingDraft.freeToSubscriptionPolicy,
             subscriptionToFreePolicy: workingDraft.subscriptionToFreePolicy,
             subscriptionPriceIncreasePolicy:
@@ -1943,8 +1943,8 @@ export default function OwnerAdminServices({
           workingDraft.donationMode !== "none" ? workingDraft.donationCurrency : "MXN",
         donationMinimumAmount:
           workingDraft.donationMode !== "none" ? workingDraft.donationMinimumAmount : "",
-        donationGoalLabel:
-          workingDraft.donationMode === "wedding" ? workingDraft.donationGoalLabel : "",
+        donationGoalLabel: workingDraft.donationGoalLabel,
+        donationMessage: workingDraft.donationMessage,
         freeToSubscriptionPolicy: workingDraft.freeToSubscriptionPolicy,
         subscriptionToFreePolicy: workingDraft.subscriptionToFreePolicy,
         subscriptionPriceIncreasePolicy:
@@ -2071,7 +2071,6 @@ export default function OwnerAdminServices({
         onSaveDraft={saveServicesFromDraft}
       />
 
-      {err && <div style={noticeStyle}>{err}</div>}
       <VibraToast toast={adminServicesToast} />
     </div>
   );

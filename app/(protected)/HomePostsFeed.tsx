@@ -31,6 +31,8 @@ import {
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
 import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type HomePostsFeedProps = {
   currentUserId: string | null;
@@ -178,6 +180,8 @@ export default function HomePostsFeed({ currentUserId, refreshRef }: HomePostsFe
     return c ? c.posts.filter((p) => p.isDeleted !== true) : [];
   });
   const [error, setError] = useState<string | null>(null);
+  const { toast: feedToast, showToast: showFeedToast } = useVibraToast();
+  useEffect(() => { if (error) showFeedToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [loadingInitial, setLoadingInitial] = useState<boolean>(() => !peekFreshCache(currentUserId));
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState<boolean>(() => peekFreshCache(currentUserId)?.hasMore ?? false);
@@ -820,7 +824,7 @@ const shellStyle: CSSProperties = {
 
 return (
   <section style={shellStyle}>
-    {error && <div style={noticeStyle}>{error}</div>}
+    <VibraToast toast={feedToast} />
 
     {loadingInitial && posts.length === 0 && (
       <div

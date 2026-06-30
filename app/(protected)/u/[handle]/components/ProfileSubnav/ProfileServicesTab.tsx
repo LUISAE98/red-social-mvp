@@ -109,6 +109,7 @@ type ServiceDraft = {
   donationCurrency: Currency;
   donationMinimumAmount: string;
   donationGoalLabel: string;
+  donationMessage: string;
   donationVideoUrl: string;
   donationPlaybackId: string;
   freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
@@ -178,6 +179,7 @@ function createEmptyDraft(): ServiceDraft {
     donationCurrency: "MXN",
     donationMinimumAmount: "",
     donationGoalLabel: "",
+    donationMessage: "",
     donationVideoUrl: "",
     donationPlaybackId: "",
     freeToSubscriptionPolicy: "",
@@ -618,6 +620,7 @@ export default function ProfileServicesTab({
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const { toast, showToast } = useVibraToast();
+  useEffect(() => { if (err) showToast(err, "error"); }, [err]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const lastHydratedProfileIdRef = useRef<string | null>(null);
   const skipHydrationWhileSavingRef = useRef(false);
@@ -680,6 +683,7 @@ export default function ProfileServicesTab({
       donationCurrency: donation.currency ?? "MXN",
       donationMinimumAmount: donation.minimumAmount,
       donationGoalLabel: donation.goalLabel ?? "",
+      donationMessage: (donation as { message?: string }).message ?? "",
       donationVideoUrl: donation.videoUrl ?? "",
       donationPlaybackId: donation.playbackId ?? "",
       freeToSubscriptionPolicy: "",
@@ -952,10 +956,8 @@ export default function ProfileServicesTab({
           workingDraft.donationMode !== "none" && donationMinimumNum != null
             ? [donationMinimumNum]
             : [],
-        goalLabel:
-          workingDraft.donationMode === "wedding"
-            ? workingDraft.donationGoalLabel.trim() || null
-            : null,
+        goalLabel: workingDraft.donationGoalLabel.trim() || null,
+        message: workingDraft.donationMessage.trim() || null,
         videoUrl: workingDraft.donationVideoUrl || null,
         playbackId: workingDraft.donationPlaybackId || null,
       };
@@ -1129,7 +1131,6 @@ export default function ProfileServicesTab({
         onSaveDraft={(d) => saveServicesFromDraft(d as ServiceDraft)}
       />
 
-      {err && <div style={noticeStyle}>{err}</div>}
       <VibraToast toast={toast} />
     </div>
   );

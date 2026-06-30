@@ -2335,6 +2335,11 @@ await createExclusiveSessionRequest({
   showPosts={isOwner ? ownerShowPosts : visitorCanSeePosts}
   profileRestricted={profileRestricted}
   commentsEnabled={profileCommentsEnabled}
+  donation={userDoc.donation as { mode?: string; enabled?: boolean; visible?: boolean; message?: string | null; playbackId?: string | null } | null}
+  donationCreatorName={userDoc.displayName ?? userDoc.handle ?? null}
+  donationProfilePhoto={userDoc.photoURL ?? null}
+  donationViewerOpen={donationViewerOpen}
+  onDonate={() => setDonationViewerOpen(true)}
 />
                   </div>
                 </div>

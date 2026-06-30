@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import {
@@ -439,6 +441,8 @@ const previousPathnameRef = useRef<string | null>(null);
   const [communities, setCommunities] = useState<Community[]>([]);
   const [profiles, setProfiles] = useState<PublicUser[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { toast: searchToast, showToast: showSearchToast } = useVibraToast();
+  useEffect(() => { if (error) showSearchToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [memberMap, setMemberMap] = useState<
     Record<string, CanonicalMemberStatus>
@@ -1004,17 +1008,6 @@ to {
 
         .more-results-btn:hover {
           background: rgba(255, 255, 255, 0.09);
-        }
-
-        .error-card {
-          margin-top: 14px;
-          padding: 12px 14px;
-          border-radius: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(255, 255, 255, 0.05);
-          color: #fff;
-          font-size: 13px;
-          line-height: 1.45;
         }
 
         .result-item {
@@ -1781,7 +1774,7 @@ const visLabel =
           </div>
         )}
 
-        {error && <div className="error-card">{error}</div>}
+        <VibraToast toast={searchToast} />
       </div>
     </>
   );

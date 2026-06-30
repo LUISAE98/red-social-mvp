@@ -37,6 +37,8 @@ import LiveDirectBroadcast from "@/app/components/LiveDirectBroadcast/LiveDirect
 import LiveStreamSetup from "@/app/components/LiveStreamSetup/LiveStreamSetup";
 import SuperCommentConfigPanel from "@/app/components/LiveChat/SuperCommentConfigPanel";
 import LiveEndSummaryPanel from "@/app/components/LiveChat/LiveEndSummaryPanel";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import {
   subscribeToViewerCount,
   updatePeakViewers,
@@ -142,7 +144,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const docTouchMoveRef = useRef<((e: TouchEvent) => void) | null>(null);
   const docTouchEndRef = useRef<(() => void) | null>(null);
   const [togglingChat, setTogglingChat] = useState(false);
-  const [toggleError, setToggleError] = useState<string | null>(null);
+  const { toast: panelToast, showToast: showPanelToast } = useVibraToast();
   const [optimisticChatEnabled, setOptimisticChatEnabled] = useState<boolean | null>(null);
   const [togglingScEnabled, setTogglingScEnabled] = useState(false);
   const [optimisticScEnabled, setOptimisticScEnabled] = useState<boolean | null>(null);
@@ -355,7 +357,6 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const newValue = !chatEnabled;
     console.log("[toggleChat] current:", chatEnabled, "→ newValue:", newValue, "postId:", post.id);
     setTogglingChat(true);
-    setToggleError(null);
     setOptimisticChatEnabled(newValue);
     try {
       await updateLiveChatEnabled(post.id, newValue);
@@ -367,7 +368,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       console.error("[LiveCreatorPanel] toggleChat error:", err);
       setOptimisticChatEnabled(null);
       const msg = err instanceof Error ? err.message : String(err);
-      setToggleError(msg.includes("permission") ? "Sin permiso para cambiar el chat." : "Error al cambiar el chat.");
+      showPanelToast(msg.includes("permission") ? "Sin permiso para cambiar el chat." : "Error al cambiar el chat.", "error");
     } finally {
       setTogglingChat(false);
     }
@@ -1361,11 +1362,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             </span>
           </button>
         </div>
-        {toggleError && (
-          <div style={{ flexShrink: 0, padding: "6px 16px", borderBottom: DIV }}>
-            <span style={{ fontSize: 11, color: "#f87171", fontWeight: 600, fontFamily: FONT }}>{toggleError}</span>
-          </div>
-        )}
+        <VibraToast toast={panelToast} />
 
         <div className="lcp-chat" style={{ flex: 1, overflowY: "auto", scrollbarWidth: "none" }}>
           {messages.length === 0 ? (

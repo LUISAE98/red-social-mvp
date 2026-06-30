@@ -28,6 +28,8 @@ import {
   registerPostFeedCacheListener,
   removePostFromAllFeedCaches,
 } from "@/lib/posts/post-feed-cache";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 const SAVED_POSTS_PAGE_SIZE = 10;
 const SAVED_POSTS_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -128,6 +130,8 @@ export default function SavedPostsFeed() {
   const [pageCursor, setPageCursor] = useState<SavedPostsPageCursor | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast: feedToast, showToast: showFeedToast } = useVibraToast();
+  useEffect(() => { if (error) showFeedToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -890,7 +894,7 @@ return (
         </button>
       </form>
 
-      {error && <div style={noticeStyle}>{error}</div>}
+      <VibraToast toast={feedToast} />
 
       {loadingInitial && posts.length === 0 && (
         <div

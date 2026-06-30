@@ -12,7 +12,7 @@ type DonationFields = {
   donationMode: DonationMode;
   donationCurrency: Currency;
   donationMinimumAmount: string;
-  donationGoalLabel: string;
+  donationMessage: string;
   donationVideoUrl: string;
   donationPlaybackId: string;
 };
@@ -119,7 +119,7 @@ export default function ProfileDonation({
       ...base,
       donationMode: "none",
       donationMinimumAmount: "",
-      donationGoalLabel: "",
+      donationMessage: "",
     };
   }
 
@@ -161,8 +161,12 @@ export default function ProfileDonation({
       return;
     }
 
-    if (overlayDraft.donationMode === "wedding" && !(overlayDraft.donationGoalLabel as string).trim()) {
-      setSaveErr("Debes escribir el texto del botón para boda.");
+    if (!(overlayDraft.donationMessage as string).trim()) {
+      setSaveErr("Debes escribir un mensaje de presentación.");
+      return;
+    }
+    if ((overlayDraft.donationMessage as string).trim().length > 160) {
+      setSaveErr("El mensaje no puede superar 160 caracteres.");
       return;
     }
 
@@ -256,7 +260,7 @@ export default function ProfileDonation({
 
   function renderSummary() {
     if (!isEnabled) return null;
-    const modeLabel = draft.donationMode === "wedding" ? "Para boda" : "Donación general";
+    const modeLabel = "Donación";
     const amount = draft.donationMinimumAmount
       ? `${draft.donationMinimumAmount} ${draft.donationCurrency}`
       : null;
@@ -282,13 +286,6 @@ export default function ProfileDonation({
           <div style={{ display: "grid", gap: 4 }}>
             <div style={subtleStyle}>Monto mínimo</div>
             <div style={{ color: "#fff", fontSize: 14, fontWeight: 700 }}>{amount}</div>
-          </div>
-        )}
-
-        {draft.donationMode === "wedding" && draft.donationGoalLabel && (
-          <div style={{ display: "grid", gap: 4 }}>
-            <div style={subtleStyle}>Texto del botón</div>
-            <div style={{ color: "#fff", fontSize: 14 }}>{draft.donationGoalLabel as string}</div>
           </div>
         )}
 
@@ -345,22 +342,20 @@ export default function ProfileDonation({
         onCancel={closeOverlay}
         onConfirm={() => void confirmOverlaySave()}
       >
-        {/* Mode selector */}
+        {/* Message */}
         <div>
-          <div style={{ ...subtleStyle, marginBottom: 8 }}>Tipo de donación</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <DonationModeButtonComponent
-              active={overlayDraft.donationMode === "general"}
-              disabled={isBusy}
-              label="Donación general"
-              onClick={() => setOverlayDraft((p) => ({ ...p, donationMode: "general", donationGoalLabel: "" }))}
-            />
-            <DonationModeButtonComponent
-              active={overlayDraft.donationMode === "wedding"}
-              disabled={isBusy}
-              label="Para boda"
-              onClick={() => setOverlayDraft((p) => ({ ...p, donationMode: "wedding" }))}
-            />
+          <div style={{ ...subtleStyle, marginBottom: 8 }}>Mensaje de presentación (máx. 160 caracteres)</div>
+          <textarea
+            value={overlayDraft.donationMessage as string}
+            onChange={(e) => setOverlayDraft((p) => ({ ...p, donationMessage: e.target.value.slice(0, 160) }))}
+            placeholder="Escribe un mensaje para quienes te apoyan..."
+            disabled={isBusy}
+            rows={3}
+            maxLength={160}
+            style={{ ...inputStyle, width: "100%", resize: "vertical" }}
+          />
+          <div style={{ ...subtleStyle, textAlign: "right", marginTop: 4 }}>
+            {(overlayDraft.donationMessage as string).length} / 160
           </div>
         </div>
 
@@ -389,21 +384,6 @@ export default function ProfileDonation({
             </select>
           </div>
         </div>
-
-        {/* Wedding label */}
-        {overlayDraft.donationMode === "wedding" && (
-          <div>
-            <div style={{ ...subtleStyle, marginBottom: 8 }}>Texto visible en el botón</div>
-            <input
-              type="text"
-              value={overlayDraft.donationGoalLabel as string}
-              onChange={(e) => setOverlayDraft((p) => ({ ...p, donationGoalLabel: e.target.value }))}
-              placeholder="Ej. Apoyo para nuestra boda"
-              disabled={isBusy}
-              style={{ ...inputStyle, width: "100%" }}
-            />
-          </div>
-        )}
 
         {/* Video upload */}
         <div>

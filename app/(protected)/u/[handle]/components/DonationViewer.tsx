@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useHlsPlayer } from "@/lib/hooks/useHlsPlayer";
+import type HlsType from "hls.js";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
 
 type DonationInfo = {
@@ -25,7 +25,7 @@ type Props = {
   onDonate: () => void;
 };
 
-const FONT = 'inherit';
+const FONT = "inherit";
 
 function desktopPanelSize(): { width: number; height: number } {
   if (typeof window === "undefined") return { width: 380, height: 675 };
@@ -45,22 +45,94 @@ export default function DonationViewer({ open, donation, profileName, profilePho
   const [progress, setProgress] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsRef = useRef<HlsType | null>(null);
   const rafRef = useRef<number | null>(null);
+  const mutedRef = useRef(muted);
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
 
-  // Computed before hooks so useHlsPlayer can be called unconditionally
+  // Keep mutedRef in sync so async HLS callbacks always read the latest value
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
+
   const videoSrc = open && donation?.playbackId
     ? `https://stream.mux.com/${donation.playbackId}.m3u8`
     : open && typeof donation?.videoUrl === "string" && donation.videoUrl.startsWith("https://")
       ? donation.videoUrl
       : null;
 
-  useHlsPlayer(videoRef, videoSrc);
-
   useEffect(() => { setMounted(true); }, []);
 
-  // Desktop detection via pointer media query — same as StoryViewer
+  // ── HLS lifecycle — runs when videoSrc changes (viewer open/close) ────────────
+  useEffect(() => {
+    // Cleanup any previous instance first
+    hlsRef.current?.destroy();
+    hlsRef.current = null;
+
+    const video = videoRef.current;
+    if (!videoSrc || !video) return;
+
+    video.muted = mutedRef.current;
+
+    // Safari / iOS — native HLS
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = videoSrc;
+      video.load();
+      video.play().catch(() => {});
+      return () => {
+        video.pause();
+        video.removeAttribute("src");
+        video.load();
+      };
+    }
+
+    // Chrome / Firefox — hls.js (dynamic import for code splitting)
+    let cancelled = false;
+    import("hls.js").then(({ default: Hls }) => {
+      if (cancelled || !videoRef.current) return;
+      const v = videoRef.current;
+
+      if (!Hls.isSupported()) {
+        v.src = videoSrc;
+        v.load();
+        v.play().catch(() => {});
+        return;
+      }
+
+      const hls = new Hls({ maxBufferLength: 30, maxMaxBufferLength: 60, enableWorker: true });
+      hlsRef.current = hls;
+      hls.loadSource(videoSrc);
+      hls.attachMedia(v);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        const vid = videoRef.current;
+        if (!vid) return;
+        vid.muted = mutedRef.current;
+        vid.play().catch(() => {});
+      });
+
+      hls.on(Hls.Events.ERROR, (_e, data) => {
+        if (data.fatal) {
+          switch (data.type) {
+            case Hls.ErrorTypes.NETWORK_ERROR: hls.startLoad(); break;
+            case Hls.ErrorTypes.MEDIA_ERROR: hls.recoverMediaError(); break;
+            default: hls.destroy(); break;
+          }
+        }
+      });
+    });
+
+    return () => {
+      cancelled = true;
+      hlsRef.current?.destroy();
+      hlsRef.current = null;
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.removeAttribute("src");
+      }
+    };
+  }, [videoSrc]);
+
+  // Desktop detection via pointer media query
   useEffect(() => {
     const mql = window.matchMedia("(pointer: fine)");
     setIsDesktop(mql.matches);
@@ -77,21 +149,16 @@ export default function DonationViewer({ open, donation, profileName, profilePho
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
-  // Autoplay + mute sync
+  // Reset drag/progress when closed
   useEffect(() => {
     if (!open) {
       setDragY(0);
       setProgress(0);
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-      return;
     }
-    const el = videoRef.current;
-    if (el) {
-      el.muted = muted;
-      el.play().catch(() => {});
-    }
-  }, [open, muted]);
+  }, [open]);
 
+  // Muted sync — when user toggles, update video immediately
   useEffect(() => {
     if (videoRef.current) videoRef.current.muted = muted;
   }, [muted]);
@@ -151,7 +218,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
       ? (donation?.goalLabel?.trim() || "Sumarte a nuestro gran día 💍")
       : "Donar";
 
-  // ── Shared: mute button (SVG, identical to StoryViewer) ──────────────────────
+  // ── Shared: mute button ───────────────────────────────────────────────────────
   const muteBtn = (sz: number) => (
     <button
       type="button"
@@ -186,7 +253,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
     </button>
   );
 
-  // ── Shared: close button (SVG, identical to StoryViewer) ─────────────────────
+  // ── Shared: close button ──────────────────────────────────────────────────────
   const closeBtn = (sz: number) => (
     <button
       type="button"
@@ -210,11 +277,10 @@ export default function DonationViewer({ open, donation, profileName, profilePho
     const btnPadBottom = typeof safeBottom === "string" ? `max(8px, ${safeBottom})` : "8px";
     return (
       <>
-        {/* Video — src is managed imperatively by useHlsPlayer */}
+        {/* Video — src managed imperatively by HLS effect */}
         {videoSrc ? (
           <video
             ref={videoRef}
-            autoPlay
             loop
             playsInline
             controls={false}
@@ -231,7 +297,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
           </div>
         )}
 
-        {/* Progress bar — respects safeTop */}
+        {/* Progress bar */}
         <div style={{
           position: "absolute",
           top: safeTop,
@@ -313,7 +379,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
           zIndex: 8,
         }} />
 
-        {/* Bottom: creator + Donar button */}
+        {/* Bottom: Donar button */}
         <div style={{
           position: "absolute", bottom: 0, left: 0, right: 0,
           padding: "0 14px",
@@ -347,7 +413,7 @@ export default function DonationViewer({ open, donation, profileName, profilePho
     );
   };
 
-  // ── Desktop: 9:16 panel centered, same as StoryViewer ────────────────────────
+  // ── Desktop: 9:16 panel centered ─────────────────────────────────────────────
   if (isDesktop) {
     const { width: panelW, height: panelH } = desktopPanelSize();
     return createPortal(

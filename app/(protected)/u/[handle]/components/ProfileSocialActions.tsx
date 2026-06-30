@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type DonationInput = {
   mode: "none" | "general" | "wedding";
@@ -35,6 +38,11 @@ export default function ProfileSocialActions({
 
   const { relationship, loading, error, follow, unfollow } =
     useSocialRelationship(viewerUid, profileUid);
+  const { toast: socialToast, showToast: showSocialToast } = useVibraToast();
+
+  useEffect(() => {
+    if (error) showSocialToast(error, "error");
+  }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!viewerUid) return null;
 
@@ -87,53 +95,9 @@ export default function ProfileSocialActions({
           </button>
         )}
 
-        {showDonateButton && (
-          <>
-            <style>{`
-              .vibraProfileDonateBtn .vibraProfileDonateLabel {
-                display: inline-block;
-                transition: transform 220ms cubic-bezier(0.4,0,0.2,1);
-              }
-              .vibraProfileDonateBtn .vibraProfileDonatePlus {
-                display: inline-block;
-                opacity: 0;
-                transform: translateX(0);
-                margin-left: 4px;
-                font-weight: 700;
-                transition: opacity 200ms ease, transform 220ms cubic-bezier(0.4,0,0.2,1);
-              }
-              @media (min-width: 560px) {
-                .vibraProfileDonateBtn:hover .vibraProfileDonateLabel { transform: translateX(-6px); }
-                .vibraProfileDonateBtn:hover .vibraProfileDonatePlus { opacity: 1; transform: translateX(-6px); }
-                .vibraProfileDonateMobile { display: none !important; }
-                .vibraProfileDonateDesktop { display: inline-flex !important; align-items: center; }
-              }
-              @media (max-width: 559px) {
-                .vibraProfileDonateDesktop { display: none !important; }
-                .vibraProfileDonateMobile { display: inline !important; }
-              }
-            `}</style>
-            <button
-              type="button"
-              className="vibraProfileDonateBtn"
-              onClick={onDonate}
-              style={styles.donateButton}
-            >
-              <span className="vibraProfileDonateMobile" style={{ display: "none" }}>Donar +</span>
-              <span className="vibraProfileDonateDesktop" style={{ display: "inline-flex", alignItems: "center" }}>
-                <span className="vibraProfileDonateLabel">
-                  {donation?.mode === "wedding"
-                    ? `Apoya en su boda a ${profileName ?? ""}`
-                    : `Apoya a ${profileName ?? ""}`}
-                </span>
-                <span className="vibraProfileDonatePlus">+</span>
-              </span>
-            </button>
-          </>
-        )}
       </div>
 
-      {error && <div style={styles.error}>{error}</div>}
+      <VibraToast toast={socialToast} />
     </div>
   );
 }
@@ -200,11 +164,4 @@ const styles = {
     padding: "0 14px",
   } as const,
 
-  error: {
-    width: "100%",
-    textAlign: "center",
-    color: "rgba(255,150,150,0.95)",
-    fontSize: 12,
-    marginTop: 2,
-  } as const,
 };

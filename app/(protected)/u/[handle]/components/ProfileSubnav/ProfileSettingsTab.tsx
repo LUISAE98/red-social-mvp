@@ -2,6 +2,8 @@
 
 import { CSSProperties, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import LogoutButton from "@/app/LogoutButton";
 import BlockedAccountsOverlay from "./BlockedAccountsOverlay";
 
@@ -214,6 +216,8 @@ export default function ProfileSettingsTab({
   const [sendingPassword, setSendingPassword] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const { toast: settingsToast, showToast: showSettingsToast } = useVibraToast();
+  useEffect(() => { if (err) showSettingsToast(err, "error"); }, [err]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setLocalRestricted(isRestricted);
@@ -739,7 +743,7 @@ export default function ProfileSettingsTab({
 />
         </div>
 
-        {err && <div style={noticeStyle}>{err}</div>}
+        <VibraToast toast={settingsToast} />
         {msg && <div style={noticeStyle}>{msg}</div>}
       </div>
 
@@ -759,8 +763,6 @@ export default function ProfileSettingsTab({
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.62)", lineHeight: 1.4 }}>
             Podrás volver a cambiar tu nombre después de 60 días.
           </div>
-
-          {err && <div style={noticeStyle}>{err}</div>}
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
@@ -824,8 +826,6 @@ export default function ProfileSettingsTab({
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.42)", textAlign: "right" }}>
             {draftBio.length}/300
           </div>
-
-          {err && <div style={noticeStyle}>{err}</div>}
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button

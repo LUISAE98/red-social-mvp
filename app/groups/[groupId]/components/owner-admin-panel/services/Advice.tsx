@@ -61,6 +61,7 @@ type ServiceDraft = {
   donationCurrency: Currency;
   donationMinimumAmount: string;
   donationGoalLabel: string;
+  donationMessage: string;
   freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
   subscriptionToFreePolicy: SubscriptionToFreePolicy;
   subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;

@@ -2,6 +2,8 @@
 
 import { useState, type CSSProperties } from "react";
 import { buildPublicPostUrl } from "@/lib/posts/share-url";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type PostShareButtonProps = {
   postId: string;
@@ -15,6 +17,7 @@ const fontStack =
 export default function PostShareButton({ postId }: PostShareButtonProps) {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const { toast: shareToast, showToast: showShareToast } = useVibraToast(2400);
 
   const canShare = typeof postId === "string" && postId.trim().length > 0;
 
@@ -40,7 +43,7 @@ export default function PostShareButton({ postId }: PostShareButtonProps) {
   async function copyUrl(url: string) {
     await navigator.clipboard.writeText(url);
     setCopied(true);
-
+    showShareToast("Link copiado al portapapeles.", "success");
     window.setTimeout(() => {
       setCopied(false);
     }, 1400);
@@ -66,7 +69,7 @@ export default function PostShareButton({ postId }: PostShareButtonProps) {
       try {
         await copyUrl(url);
       } catch {
-        window.alert("No se pudo copiar el link.");
+        showShareToast("No se pudo copiar el link.", "error");
       }
     } finally {
       setBusy(false);
@@ -74,15 +77,17 @@ export default function PostShareButton({ postId }: PostShareButtonProps) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleShare}
-      aria-label={copied ? "Link copiado" : "Compartir publicación"}
-      title={copied ? "Link copiado" : "Compartir publicación"}
-      style={buttonStyle}
-    >
-      <span aria-hidden="true">{copied ? "✅" : "🔗"}</span>
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={handleShare}
+        aria-label={copied ? "Link copiado" : "Compartir publicación"}
+        title={copied ? "Link copiado" : "Compartir publicación"}
+        style={buttonStyle}
+      >
+        <span aria-hidden="true">{copied ? "✅" : "🔗"}</span>
+      </button>
+      <VibraToast toast={shareToast} />
+    </>
   );
 }
-//prueba

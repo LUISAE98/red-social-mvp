@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 export type PostFlameUser = {
   userId: string;
@@ -67,6 +69,8 @@ export default function PostFlamesPanel({
   users,
   onClose,
 }: PostFlamesPanelProps) {
+  const { toast: flameToast, showToast: showFlameToast } = useVibraToast();
+  useEffect(() => { if (error) showFlameToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   // mounted gate — prevents portal on server
   const [mounted, setMounted] = useState(false);
   // closing animation state
@@ -202,7 +206,7 @@ export default function PostFlamesPanel({
     <div style={{ padding: "8px 14px calc(16px + env(safe-area-inset-bottom))", overflowY: "auto", flex: 1, minHeight: 0 }}>
       {loading && <p style={stateStyle}>Cargando...</p>}
 
-      {!loading && error && <p style={stateStyle}>{error}</p>}
+      <VibraToast toast={flameToast} />
 
       {!loading && !error && users.length === 0 && (
         <div style={emptyCardStyle}>

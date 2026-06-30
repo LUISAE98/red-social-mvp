@@ -268,7 +268,7 @@ function Panel({
     setIsDragging(false);
   }
 
-  if (!visible) return null;
+  if (!visible && !open) return null;
 
   // On mobile: apply drag offset directly to panel; on desktop: CSS animation handles everything
   const panelStyle: React.CSSProperties = isMobile && open ? {
@@ -278,7 +278,6 @@ function Panel({
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: PANEL_CSS }} />
       <div
         role="dialog"
         aria-modal="true"
@@ -373,11 +372,6 @@ const s = {
   primaryBtnDisabled: {
     background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.36)", cursor: "not-allowed",
   } as CSSProperties,
-  errorBox: {
-    borderRadius: 13, border: "1px solid rgba(255,90,90,0.24)",
-    background: "rgba(120,18,18,0.28)", color: "#ffdada",
-    padding: "10px 12px", fontSize: 13, lineHeight: 1.4,
-  } as CSSProperties,
 };
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -403,7 +397,16 @@ export default function CreatorServiceModals({
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const { toast: serviceModalToast, showToast: showServiceModalToast } = useVibraToast();
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+    const id = "vibra-svc-panel-css";
+    if (!document.getElementById(id)) {
+      const el = document.createElement("style");
+      el.id = id;
+      el.textContent = PANEL_CSS;
+      document.head.appendChild(el);
+    }
+  }, []);
 
   useEffect(() => { if (!greetOpen) setAcceptedTerms(false); }, [greetOpen]);
   useEffect(() => { if (greetError)            showServiceModalToast(greetError, "error"); }, [greetError]);           // eslint-disable-line react-hooks/exhaustive-deps
@@ -634,8 +637,6 @@ export default function CreatorServiceModals({
             style={{ ...s.input, resize: "vertical", minHeight: 110 }}
           />
         </label>
-
-        {params.error && <div style={s.errorBox}>{params.error}</div>}
 
         <p style={{ ...s.micro, margin: 0 }}>{params.helperText}</p>
       </Panel>

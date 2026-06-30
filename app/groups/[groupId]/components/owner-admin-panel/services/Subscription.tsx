@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type Currency = "MXN" | "USD";
 
@@ -61,6 +63,7 @@ type ServiceDraft = {
   donationCurrency: Currency;
   donationMinimumAmount: string;
   donationGoalLabel: string;
+  donationMessage: string;
   freeToSubscriptionPolicy: FreeToSubscriptionPolicy;
   subscriptionToFreePolicy: SubscriptionToFreePolicy;
   subscriptionPriceIncreasePolicy: SubscriptionPriceIncreasePolicy;
@@ -311,6 +314,7 @@ export default function Subscription({
   const [overlayDraft, setOverlayDraft] = useState<ServiceDraft>(draft);
   const [showRemoveLegacyMembersModal, setShowRemoveLegacyMembersModal] =
     useState(false);
+  const { toast: subToast, showToast: showSubToast } = useVibraToast();
 
  const disabledByVisibility = isPublic;
 const disabledPanelStyle: React.CSSProperties = disabledByVisibility
@@ -480,7 +484,7 @@ function handleModify() {
 <div
   onClick={() => {
     if (disabledByVisibility) {
-      alert("No puedes activar suscripción mensual en una comunidad pública. Primero cambia la comunidad a privada u oculta.");
+      showSubToast("No puedes activar suscripción mensual en una comunidad pública. Primero cambia la comunidad a privada u oculta.", "warning");
     }
   }}
   style={{
@@ -686,6 +690,7 @@ function handleModify() {
           setShowRemoveLegacyMembersModal(false);
         }}
       />
+      <VibraToast toast={subToast} />
     </>
   );
 }

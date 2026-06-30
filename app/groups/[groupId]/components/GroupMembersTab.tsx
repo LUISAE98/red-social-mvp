@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import {
   CSSProperties,
   useEffect,
@@ -247,6 +249,8 @@ export default function GroupMembersTab({
   const [members, setMembers] = useState<EnrichedMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { toast: membersToast, showToast: showMembersToast } = useVibraToast();
+  useEffect(() => { if (error) showMembersToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<FilterValue>("all");
   const [savingVisibility, setSavingVisibility] = useState(false);
@@ -1152,7 +1156,7 @@ export default function GroupMembersTab({
         )}
 
         {canViewList && loading && <div style={emptyStyle}>Cargando integrantes...</div>}
-        {canViewList && !loading && error && <div style={emptyStyle}>{error}</div>}
+        <VibraToast toast={membersToast} />
 
         {canViewList && !loading && !error && filteredMembers.length === 0 && (
           <div style={emptyStyle}>No encontramos integrantes con ese criterio.</div>

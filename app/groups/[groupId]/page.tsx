@@ -35,7 +35,7 @@ import GroupMembersTab from "./components/GroupMembersTab";
 import GroupPostsFeed from "./components/posts/GroupPostsFeed";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import CreatorExperiencesSection from "@/components/services/CreatorExperiencesSection";
-import DonationEntryPoint from "@/components/services/DonationEntryPoint";
+import DonationFeedBanner from "@/app/components/DonationFeedBanner/DonationFeedBanner";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import {
   createGreetingRequest,
@@ -2379,18 +2379,6 @@ const avatarNode = (
                         ) : null
                       )
                     )}
-                    <DonationEntryPoint
-                      donation={groupIsPaused ? null : normalizedCurrentDonation}
-                      isLoggedIn={!!user}
-                      onRequireLogin={redirectToLogin}
-                      viewerCanDonate={!isOwner && !groupIsPaused}
-                      videoEnabled={false}
-                      videoUrl={null}
-                      name={group?.name ?? null}
-                      onDonateIntent={(payload) => {
-                        console.log("donation_intent", payload);
-                      }}
-                    />
                   </div>
 
                   {canRequestCreatorServices &&
@@ -2469,6 +2457,17 @@ const avatarNode = (
           <div className="group-tab-content" style={{ width: "100%", minWidth: 0 }}>
             {activeTab === "feed" && (
               <section className="group-tab-panel group-feed-wrap" style={{ marginTop: 12 }}>
+                {normalizedCurrentDonation?.mode === "general" && normalizedCurrentDonation?.enabled === true && normalizedCurrentDonation?.visible !== false && (
+                  <div className="group-feed-item" style={{ marginBottom: 12 }}>
+                    <DonationFeedBanner
+                      message={normalizedCurrentDonation.message ?? null}
+                      playbackId={normalizedCurrentDonation.playbackId ?? null}
+                      creatorName={group.name ?? null}
+                      profilePhoto={group.avatarUrl ?? null}
+                    />
+                  </div>
+                )}
+
                 <div className="group-feed-item">
 <GroupPostsFeed
   key={`group-posts-${groupId}-${groupPageRefreshKey}`}

@@ -30,7 +30,18 @@ import {
 import GroupPostCard from "@/app/groups/[groupId]/components/posts/GroupPostCard";
 import GroupRecommendationsRail from "@/app/components/GroupRecommendations/GroupRecommendationsRail";
 import { buildRandomRecommendationSlots } from "@/app/components/GroupRecommendations/recommendation-engine";
+import DonationFeedBanner from "@/app/components/DonationFeedBanner/DonationFeedBanner";
 import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
+
+type DonationData = {
+  mode?: string;
+  enabled?: boolean;
+  visible?: boolean;
+  message?: string | null;
+  playbackId?: string | null;
+} | null | undefined;
 
 type ProfilePostsFeedProps = {
   profileUid: string;
@@ -39,6 +50,11 @@ type ProfilePostsFeedProps = {
   showPosts?: boolean;
   profileRestricted?: boolean;
   commentsEnabled?: boolean;
+  donation?: DonationData;
+  donationCreatorName?: string | null;
+  donationProfilePhoto?: string | null;
+  donationViewerOpen?: boolean;
+  onDonate?: () => void;
 };
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
@@ -455,9 +471,18 @@ export default function ProfilePostsFeed({
   showPosts = true,
   profileRestricted = false,
   commentsEnabled = true,
+  donation,
+  donationCreatorName,
+  donationProfilePhoto,
+  donationViewerOpen,
+  onDonate,
 }: ProfilePostsFeedProps) {
+  const showDonationBanner =
+    donation?.mode === "general" && donation?.enabled === true && donation?.visible !== false;
   const [posts, setPosts] = useState<PostWithFlags[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { toast: feedToast, showToast: showFeedToast } = useVibraToast();
+  useEffect(() => { if (error) showFeedToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -1205,7 +1230,20 @@ const shellStyle: CSSProperties = {
 
   return (
     <section style={shellStyle}>
-      {error &&<div style={noticeStyle}>{error}</div>}
+      <VibraToast toast={feedToast} />
+
+      {showDonationBanner && (
+        <div style={postItemStyle}>
+          <DonationFeedBanner
+            message={donation?.message ?? null}
+            playbackId={donation?.playbackId ?? null}
+            creatorName={donationCreatorName ?? null}
+            profilePhoto={donationProfilePhoto ?? null}
+            paused={donationViewerOpen}
+            onClick={onDonate}
+          />
+        </div>
+      )}
 
       {loadingInitial && <div style={noticeStyle}>Cargando publicaciones...</div>}
 

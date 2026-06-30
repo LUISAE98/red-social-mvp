@@ -21,6 +21,8 @@ import {
   VideoSkipBackIcon,
   VideoSkipForwardIcon,
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 const fontStack =
   'inherit';
@@ -223,6 +225,10 @@ export default function GreetingReviewOverlay({
   const [storyAdded, setStoryAdded] = useState(false);
   const [addingStory, setAddingStory] = useState(false);
   const [storyError, setStoryError] = useState<string | null>(null);
+  const { toast: overlayToast, showToast: showOverlayToast } = useVibraToast();
+  useEffect(() => { if (storyError) showOverlayToast(storyError, "error"); }, [storyError]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (uploadError) showOverlayToast(uploadError, "error"); }, [uploadError]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (cameraError) showOverlayToast(cameraError, "error"); }, [cameraError]); // eslint-disable-line react-hooks/exhaustive-deps
   // viewMode story state
   const [existingStory, setExistingStory] = useState<StoryDoc | null>(null);
   const [removingStory, setRemovingStory] = useState(false);
@@ -1192,11 +1198,6 @@ export default function GreetingReviewOverlay({
             </div>
           )
         )}
-        {storyError && (
-          <span style={{ color: "#f87171", fontSize: 12, textAlign: "center", fontFamily: fontStack }}>
-            {storyError}
-          </span>
-        )}
         {!successIsLast && (
           <button type="button" onClick={handleNextGreeting} style={{
             width: "100%", height: 42, borderRadius: 12,
@@ -1822,11 +1823,6 @@ export default function GreetingReviewOverlay({
                       </span>
                       {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar de mi historia" : "Agregar a mi historia"}
                     </button>
-                    {storyError && (
-                      <span style={{ color: "#f87171", fontSize: 12, textAlign: "center", fontFamily: fontStack }}>
-                        {storyError}
-                      </span>
-                    )}
                   </>
                 )}
                 {buyerViewMode && viewMp4Url && (
@@ -1876,11 +1872,6 @@ export default function GreetingReviewOverlay({
                         </span>
                         {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar historia" : "Agregar a historia"}
                       </button>
-                      {storyError && (
-                        <span style={{ color: "#f87171", fontSize: 12, textAlign: "center", fontFamily: fontStack }}>
-                          {storyError}
-                        </span>
-                      )}
                     </>
                   ) : (
                     <div style={{ borderRadius: 12, padding: "10px 14px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8 }}>
@@ -1921,9 +1912,6 @@ export default function GreetingReviewOverlay({
                 }}>
                   Cancelar
                 </button>
-                {uploadError && (
-                  <span style={{ fontSize: 11, color: "#f87171", textAlign: "center" }}>{uploadError}</span>
-                )}
               </>
             )}
           </div>
@@ -2019,11 +2007,6 @@ export default function GreetingReviewOverlay({
                         </span>
                         {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar de mi historia" : "Agregar a mi historia"}
                       </button>
-                      {storyError && (
-                        <span style={{ color: "#f87171", fontSize: 11, textAlign: "center", fontFamily: fontStack }}>
-                          {storyError}
-                        </span>
-                      )}
                     </>
                   )}
                   {buyerViewMode && viewMp4Url && (
@@ -2073,11 +2056,6 @@ export default function GreetingReviewOverlay({
                           </span>
                           {removingStory ? "Quitando..." : addingStory ? "Agregando..." : existingStory ? "Quitar historia" : "Agregar a historia"}
                         </button>
-                        {storyError && (
-                          <span style={{ color: "#f87171", fontSize: 11, textAlign: "center", fontFamily: fontStack }}>
-                            {storyError}
-                          </span>
-                        )}
                       </>
                     ) : (
                       <div style={{ borderRadius: 10, padding: "10px 14px", border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", display: "flex", alignItems: "center", gap: 8 }}>
@@ -2109,9 +2087,6 @@ export default function GreetingReviewOverlay({
                     }}>
                       Subir video
                     </button>
-                  )}
-                  {uploadError && (
-                    <span style={{ fontSize: 11, color: "#f87171", textAlign: "center" }}>{uploadError}</span>
                   )}
                 </>
               )}
@@ -2300,9 +2275,6 @@ export default function GreetingReviewOverlay({
                   {busy ? "Procesando..." : "Rechazar"}
                 </button>
               </div>
-              {cameraError && (
-                <span style={{ fontSize: 12, color: "#f87171", textAlign: "center" }}>{cameraError}</span>
-              )}
             </div>
           </div>
         </div>
@@ -2312,7 +2284,7 @@ export default function GreetingReviewOverlay({
   }
 
   // ─── REVIEW VIEW — DESKTOP (centered modal) ──────────────────────────────────
-  return createPortal(
+  const portal = createPortal(
     <div style={{
       position: "fixed", inset: 0, zIndex: 10050,
       background: "rgba(0,0,0,0.75)",
@@ -2377,12 +2349,14 @@ export default function GreetingReviewOverlay({
             </button>
           </div>
 
-          {cameraError && (
-            <span style={{ fontSize: 12, color: "#f87171", textAlign: "center" }}>{cameraError}</span>
-          )}
         </div>
       </div>
     </div>,
     document.body
   );
+
+  return <>
+    {portal}
+    <VibraToast toast={overlayToast} />
+  </>;
 }

@@ -44,6 +44,8 @@ import {
 } from "@/lib/posts/post-feed-cache";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
 import { loadFeedWithRetry } from "@/lib/posts/feed-load-helpers";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
@@ -429,6 +431,8 @@ export default function GroupPostsFeed({
   const [broadcastLive, setBroadcastLive] = useState<Post | null>(null);
   const [posts, setPosts] = useState<PostWithAuthorState[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const { toast: feedToast, showToast: showFeedToast } = useVibraToast();
+  useEffect(() => { if (error) showFeedToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
   const [composerError, setComposerError] = useState<string | null>(null);
   const [isLiveModalOpen, setIsLiveModalOpen] = useState(false);
   const [videoUploadProgress, setVideoUploadProgress] = useState<number | null>(
@@ -1572,7 +1576,7 @@ const shellStyle: CSSProperties = {
 
       {composerError && <div style={composerErrorStyle}>{composerError}</div>}
 
-      {error && <div style={noticeStyle}>{error}</div>}
+      <VibraToast toast={feedToast} />
 
       {loadingInitial && (
         <div style={noticeStyle}>Cargando publicaciones...</div>
