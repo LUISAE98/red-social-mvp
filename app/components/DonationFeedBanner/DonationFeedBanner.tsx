@@ -120,6 +120,7 @@ export default function DonationFeedBanner({
       hls.attachMedia(video);
     } else {
       video.src = hlsUrl;
+      video.load();
       video.addEventListener("loadedmetadata", () => setVideoReady(true), { once: true });
     }
     return () => {
@@ -518,7 +519,7 @@ export default function DonationFeedBanner({
                     </p>
                   )}
                   {message && (
-                    <p style={{ margin: 0, fontSize: 13, fontWeight: 400, color: "rgba(255,255,255,0.80)", lineHeight: 1.45, textAlign: "center", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                    <p style={{ margin: 0, fontSize: 13, fontWeight: 400, color: "rgba(255,255,255,0.80)", lineHeight: 1.45, textAlign: "center" }}>
                       {message}
                     </p>
                   )}
@@ -526,7 +527,7 @@ export default function DonationFeedBanner({
               )}
               {hlsUrl && (
                 <div style={{ position: "relative", width: "52%", aspectRatio: `${dims?.w ?? 9} / ${dims?.h ?? 16}`, borderRadius: 10, overflow: "hidden", background: "#111", marginTop: 10, marginBottom: 10 }}>
-                  <video ref={videoCallbackRef} playsInline loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  <video ref={videoCallbackRef} playsInline autoPlay loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                   {muteIconBanner}
                 </div>
               )}
@@ -548,7 +549,7 @@ export default function DonationFeedBanner({
 
           {hlsUrl && (
             <div className="dbv-video-wrap portrait" style={{ width: videoWidthInline, aspectRatio }}>
-              <video ref={videoCallbackRef} playsInline loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              <video ref={videoCallbackRef} playsInline autoPlay loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               {muteIconBanner}
             </div>
           )}
@@ -605,7 +606,7 @@ export default function DonationFeedBanner({
                   </p>
                 )}
                 {message && (
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 400, color: "rgba(255,255,255,0.80)", lineHeight: 1.45, textAlign: "center", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 400, color: "rgba(255,255,255,0.80)", lineHeight: 1.45, textAlign: "center", ...(isMobile ? {} : { display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }) }}>
                     {message}
                   </p>
                 )}
@@ -615,7 +616,7 @@ export default function DonationFeedBanner({
             {/* Landscape video — 80% width, below the description */}
             {hlsUrl && (
               <div style={{ position: "relative", width: "80%", aspectRatio: `${dims?.w ?? 16} / ${dims?.h ?? 9}`, borderRadius: 10, overflow: "hidden", background: "#111", marginTop: 10, marginBottom: 10 }}>
-                <video ref={videoCallbackRef} playsInline loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                <video ref={videoCallbackRef} playsInline autoPlay loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 {muteIconBanner}
               </div>
             )}

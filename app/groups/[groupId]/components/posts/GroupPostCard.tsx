@@ -431,12 +431,13 @@ function PremiumPostPanel({
         border: "1px solid rgba(168,85,255,0.32)",
         borderRadius: 12,
         background:
-          "linear-gradient(160deg, rgba(79,70,255,0.26), rgba(168,85,255,0.22) 55%, rgba(139,92,246,0.18))",
+          "linear-gradient(160deg, rgba(79,70,255,0.38), rgba(168,85,255,0.32) 55%, rgba(139,92,246,0.28)), linear-gradient(rgba(0,0,0,0.62), rgba(0,0,0,0.62)), url('/desbloquearcontenido.png') center / cover no-repeat",
         padding: "10px 12px",
         display: "flex",
         alignItems: "center",
         gap: 10,
         fontFamily: fontStack,
+        overflow: "hidden",
       }}
     >
       <span style={{ flexShrink: 0, marginLeft: 4 }}>
