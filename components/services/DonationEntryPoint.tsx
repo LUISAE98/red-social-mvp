@@ -472,8 +472,42 @@ export default function DonationEntryPoint({
 
   return (
     <>
+      <style>{`
+        .vibraDonationBtn .vibraDonationLabel {
+          display: inline-block;
+          transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .vibraDonationBtn .vibraDonationPlus {
+          display: inline-block;
+          opacity: 0;
+          transform: translateX(0px);
+          margin-left: 4px;
+          font-weight: 700;
+          transition: opacity 200ms ease, transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @media (min-width: 768px) {
+          .vibraDonationBtn:hover .vibraDonationLabel {
+            transform: translateX(-6px);
+          }
+          .vibraDonationBtn:hover .vibraDonationPlus {
+            opacity: 1;
+            transform: translateX(-6px);
+          }
+        }
+        @media (max-width: 767px) {
+          .vibraDonationBtn { background: #93c5fd !important; }
+          .vibraDonationDesktop { display: none !important; }
+          .vibraDonationMobile { display: inline !important; }
+        }
+        @media (min-width: 768px) {
+          .vibraDonationDesktop { display: inline-flex !important; align-items: center; }
+          .vibraDonationMobile { display: none !important; }
+        }
+      `}</style>
+
       <button
         type="button"
+        className="vibraDonationBtn"
         onClick={handleOpen}
         aria-label={buttonLabel}
         style={{
@@ -494,29 +528,17 @@ export default function DonationEntryPoint({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: 7,
+          overflow: "hidden",
           ...buttonStyle,
         }}
       >
-        <span>{buttonLabel}</span>
-        <svg width="28" height="28" viewBox="0 0 64 64" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
-          <path
-            d="M39 24C36 21 27 17.5 27 12C27 7.5 31 5.5 35 7.5C37 8.5 38.5 10.5 39 12C39.5 10.5 41 8.5 43 7.5C47 5.5 51 7.5 51 12C51 17.5 42 21 39 24Z"
-            fill="currentColor"
-          />
-          <path
-            d="M8.5 39.5L17 35L25 50.5L16.5 55Z"
-            fill="currentColor" stroke="currentColor" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round"
-          />
-          <path
-            d="M18 36.5L27.5 31.5C30 30.2 32.1 30.4 34.7 31.3L43.8 34.5C46.1 35.3 46.9 37.8 45.6 39.5C44.7 40.7 43.1 41.2 41.5 40.8L33.5 38.7"
-            stroke="currentColor" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round"
-          />
-          <path
-            d="M28.5 48.5H38.5C40.2 48.5 41.6 48.1 43 47.2L56 38.7C58.1 37.3 58.7 34.9 57.5 33.2C56.3 31.6 54 31.3 51.9 32.5L43.5 37.4"
-            stroke="currentColor" strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round"
-          />
-        </svg>
+        {/* Mobile: texto corto */}
+        <span className="vibraDonationMobile" style={{ display: "none" }}>Donar +</span>
+        {/* Desktop: nombre que se mueve + "+" que aparece */}
+        <span className="vibraDonationDesktop" style={{ display: "inline-flex", alignItems: "center" }}>
+          <span className="vibraDonationLabel">{buttonLabel}</span>
+          <span className="vibraDonationPlus">+</span>
+        </span>
       </button>
 
       {open && mounted ? createPortal(modal, document.body) : null}

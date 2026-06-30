@@ -27,9 +27,20 @@ const SERVICE_CONFIG: Record<
     rgb: "125, 211, 252",
     animationClass: "vibraServiceIconWave",
     icon: (
-      <svg viewBox="0 0 512 512" fill="none" aria-hidden="true">
-        <path d="M188 56c39 5 70 35 86 71M151 91c37 8 66 37 80 70M83 276c-34-15-57-45-65-81M119 238c-29-10-51-33-61-63" stroke="currentColor" strokeWidth="28" strokeLinecap="round"/>
-        <path d="M157 143l144 144M105 196l144 144M84 267l139 139c58 58 152 58 210 0 35-35 47-87 31-134l-48-143c-9-27-47-24-52 4l-16 97-129-129c-18-18-48-18-66 0l-7 7c-18-18-48-18-66 0s-18 48 0 66l25 25" stroke="currentColor" strokeWidth="32" strokeLinecap="round" strokeLinejoin="round"/>
+      // Open palm facing viewer — 4 finger arcs + thumb + palm
+      <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {/* Index */}
+        <path d="M20 42 C20 10 28 10 28 42" />
+        {/* Middle (tallest) */}
+        <path d="M28 42 C28 6 36 6 36 42" />
+        {/* Ring */}
+        <path d="M36 42 C36 10 44 10 44 42" />
+        {/* Pinky (shortest) */}
+        <path d="M44 42 C44 22 50 22 50 42" />
+        {/* Palm bottom arc */}
+        <path d="M18 44 Q18 56 34 56 Q50 56 50 44" />
+        {/* Thumb (curves left from palm, returns to index base) */}
+        <path d="M18 44 Q10 40 8 32 Q6 22 14 18 Q18 20 22 28 Q24 38 22 42" />
       </svg>
     ),
   },
@@ -40,11 +51,17 @@ const SERVICE_CONFIG: Record<
     rgb: "250, 204, 21",
     animationClass: "vibraServiceIconBulb",
     icon: (
-      <svg viewBox="0 0 512 512" fill="none" aria-hidden="true">
-        <path d="M256 103c-69 0-125 54-125 121 0 45 24 78 54 104 15 13 22 31 22 50h98c0-19 7-37 22-50 30-26 54-59 54-104 0-67-56-121-125-121z" stroke="currentColor" strokeWidth="24" strokeLinejoin="round"/>
-        <path d="M207 379h98M211 418h90M224 455h64" stroke="currentColor" strokeWidth="24" strokeLinecap="round"/>
-        <path d="M256 48v35M365 79l-18 31M433 188h-36M147 79l18 31M79 188h36" stroke="currentColor" strokeWidth="24" strokeLinecap="round"/>
-        <path d="M228 293v-38c0-16 24-16 24 0v38M252 255c0-16 24-16 24 0v38" stroke="currentColor" strokeWidth="18" strokeLinecap="round"/>
+      // Classic lightbulb — round globe + filament + cap + base bands
+      <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {/* Bulb glass globe (closed outline) */}
+        <path d="M20 30 C20 16 44 16 44 30 C44 38 40 43 36 44 L28 44 C24 43 20 38 20 30 Z" />
+        {/* Filament — W/zigzag inside */}
+        <path d="M27 37 L29 30 L32 36 L35 30 L37 37" />
+        {/* Metal cap connecting globe to base */}
+        <path d="M28 44 L26 44 L26 48 L38 48 L38 44 L36 44" />
+        {/* Base threads */}
+        <path d="M26 52 L38 52" />
+        <path d="M28 56 L36 56" />
       </svg>
     ),
   },
@@ -55,11 +72,22 @@ const SERVICE_CONFIG: Record<
     rgb: "167, 139, 250",
     animationClass: "vibraServiceIconPulse",
     icon: (
-      <svg viewBox="0 0 512 512" fill="none" aria-hidden="true">
-        <path d="M69 232l59 45 53-83M443 232l-59 45-53-83M181 194l61-35c25-14 55-14 80 0l47 27" stroke="currentColor" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M165 276l-26 31c-13 16-10 39 6 52 16 13 39 10 52-6l10-12M207 341l-17 21c-13 16-10 39 6 52 16 13 39 10 52-6l13-16M261 392l-4 5c-13 16-10 39 6 52 16 13 39 10 52-6l12-15" stroke="currentColor" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M201 194l-54 72c22 13 49 7 65-14l16-21 122 99c16 13 39 10 52-6s10-39-6-52l-74-60" stroke="currentColor" strokeWidth="24" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M351 330l-35 44M316 374l-37 47M279 421l-19 24" stroke="currentColor" strokeWidth="24" strokeLinecap="round"/>
+      // Handshake — two arms + two hands meeting + fingers from each side
+      <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {/* Left arm */}
+        <path d="M4 56 L20 44" />
+        {/* Left hand body curving to grip */}
+        <path d="M20 44 L22 36 Q22 28 30 28 L34 28" />
+        {/* Left hand fingers (lean upper-left) */}
+        <path d="M22 42 L16 28" />
+        <path d="M26 38 L22 24" />
+        {/* Right arm */}
+        <path d="M60 56 L44 44" />
+        {/* Right hand body curving to grip */}
+        <path d="M44 44 L42 36 Q42 28 34 28 L30 28" />
+        {/* Right hand fingers (lean upper-right) */}
+        <path d="M42 42 L48 28" />
+        <path d="M38 38 L42 24" />
       </svg>
     ),
   },
@@ -70,12 +98,16 @@ const SERVICE_CONFIG: Record<
     rgb: "244, 114, 182",
     animationClass: "vibraServiceIconCrown",
     icon: (
-      <svg viewBox="0 0 512 512" fill="none" aria-hidden="true">
-        <path d="M72 413h368v51H72z" fill="currentColor"/>
-        <path d="M91 198l105 70 60-151 60 151 105-70-32 215H123L91 198z" stroke="currentColor" strokeWidth="42" strokeLinejoin="round"/>
-        <circle cx="91" cy="198" r="35" stroke="currentColor" strokeWidth="34"/>
-        <circle cx="256" cy="117" r="35" stroke="currentColor" strokeWidth="34"/>
-        <circle cx="421" cy="198" r="35" stroke="currentColor" strokeWidth="34"/>
+      // Crown — 3 peaks + filled base band + gem dots at tips
+      <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        {/* Crown outline — left base → left tip → valley → center peak → valley → right tip → right base */}
+        <path d="M8 44 L14 22 L26 34 L32 12 L38 34 L50 22 L56 44" />
+        {/* Solid base band */}
+        <rect x="8" y="44" width="48" height="8" rx="2" fill="currentColor" stroke="none" />
+        {/* Gem dots at each peak */}
+        <circle cx="14" cy="21" r="2.5" fill="currentColor" stroke="none" />
+        <circle cx="32" cy="11" r="2.5" fill="currentColor" stroke="none" />
+        <circle cx="50" cy="21" r="2.5" fill="currentColor" stroke="none" />
       </svg>
     ),
   },
@@ -86,7 +118,7 @@ const SERVICE_CONFIG: Record<
     rgb: "125, 211, 252",
     animationClass: "vibraServiceIconPulse",
     icon: (
-      <svg viewBox="0 0 64 64" aria-hidden="true">
+      <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <circle cx="32" cy="22" r="7" />
         <circle cx="19" cy="28" r="5" />
         <circle cx="45" cy="28" r="5" />
@@ -103,7 +135,7 @@ const SERVICE_CONFIG: Record<
     rgb: "244, 114, 182",
     animationClass: "vibraServiceIconSpark",
     icon: (
-      <svg viewBox="0 0 64 64" aria-hidden="true">
+      <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M35 6 17 34h14l-2 24 18-31H33l2-21Z" />
       </svg>
     ),
@@ -115,7 +147,7 @@ const SERVICE_CONFIG: Record<
     rgb: "167, 139, 250",
     animationClass: "vibraServiceIconSignal",
     icon: (
-      <svg viewBox="0 0 64 64" aria-hidden="true">
+      <svg viewBox="0 0 64 64" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <circle cx="32" cy="32" r="4" />
         <path d="M24 24c-4 4-4 12 0 16" />
         <path d="M40 24c4 4 4 12 0 16" />

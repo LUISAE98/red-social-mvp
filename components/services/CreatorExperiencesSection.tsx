@@ -221,7 +221,7 @@ export default function CreatorExperiencesSection({
             lineHeight: 1.4,
           }}
         >
-          Formas exclusivas de conectar conmigo.
+          Descubre nuevas formas de conectar conmigo.
         </p>
         <div
           style={{
@@ -275,17 +275,33 @@ export default function CreatorExperiencesSection({
               }}
             >
               {/* Icon circle placeholder */}
-              <div
-                style={{
-                  width: 46,
-                  height: 46,
-                  borderRadius: "50%",
-                  flexShrink: 0,
-                  border: `1.5px solid ${conf.color}`,
-                  boxShadow: `0 0 14px ${conf.color}2e`,
-                  background: "rgba(0,0,0,0.45)",
-                }}
-              />
+              {type === "saludo" ? (
+                <img
+                  src="/avatarsaludo.png"
+                  alt=""
+                  style={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: "50%",
+                    flexShrink: 0,
+                    objectFit: "cover",
+                    border: `1.5px solid ${conf.color}`,
+                    boxShadow: `0 0 14px ${conf.color}2e`,
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: "50%",
+                    flexShrink: 0,
+                    border: `1.5px solid ${conf.color}`,
+                    boxShadow: `0 0 14px ${conf.color}2e`,
+                    background: "rgba(0,0,0,0.45)",
+                  }}
+                />
+              )}
 
               {/* Info: title + description */}
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -331,7 +347,7 @@ export default function CreatorExperiencesSection({
                       letterSpacing: "0.01em",
                     }}
                   >
-                    Desde
+                    Consíguelo por
                   </span>
                 )}
                 {priceData.hasPrice ? (

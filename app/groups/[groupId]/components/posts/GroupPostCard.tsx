@@ -531,7 +531,7 @@ function PremiumPostPanel({
           }}
         >
           <VibraNavigationIcon type="premiumCrown" size={17} />
-          Desbloquear Contenido
+          {`Desbloquea el contenido por $${(oneTimePrice ?? 0).toLocaleString("es-MX")} ${currency ?? "MXN"}`}
         </button>
       )}
     </div>
@@ -4132,35 +4132,6 @@ cursor: isMobile ? "pointer" : "default",
   </div>
 )}
 
-{isMobile && premiumState.isBlocked && (hasMediaGrid || liveVodReady) && (
-  <button
-    type="button"
-    onClick={() => setPaymentPanelOpen(true)}
-    aria-label="Desbloquear contenido premium"
-    style={{
-      width: "100%",
-      height: 42,
-      border: "none",
-      borderRadius: 10,
-      background: "linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3)",
-      color: "#fff",
-      fontSize: 13,
-      fontWeight: 700,
-      fontFamily: fontStack,
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      marginBottom: 8,
-      WebkitTapHighlightColor: "transparent",
-    }}
-  >
-    <VibraNavigationIcon type="premiumCrown" size={18} />
-    Desbloquear Contenido
-  </button>
-)}
-
 {hasMediaGrid && (
   <div style={imageGridStyle}>
     {(() => {
@@ -4807,6 +4778,34 @@ padding: "0 0 2px 0",
       );
     })()}
   </div>
+)}
+{isMobile && premiumState.isBlocked && (isVideoPost || hasMediaGrid || liveVodReady) && (
+  <button
+    type="button"
+    onClick={() => setPaymentPanelOpen(true)}
+    aria-label="Desbloquear contenido premium"
+    style={{
+      width: "100%",
+      height: 42,
+      border: "none",
+      borderRadius: 10,
+      background: "linear-gradient(135deg, #4f46ff, #a855ff, #ff2fb3)",
+      color: "#fff",
+      fontSize: 11,
+      fontWeight: 600,
+      fontFamily: fontStack,
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      marginTop: 10,
+      WebkitTapHighlightColor: "transparent",
+    }}
+  >
+    <VibraNavigationIcon type="premiumCrown" size={17} />
+    {`Desbloquea el contenido por $${(post.oneTimePrice ?? 0).toLocaleString("es-MX")} ${post.currency ?? "MXN"}`}
+  </button>
 )}
 {premiumState.isPremium && (
   <PremiumPostPanel
