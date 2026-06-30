@@ -495,7 +495,6 @@ export default function DonationEntryPoint({
           }
         }
         @media (max-width: 767px) {
-          .vibraDonationBtn { background: #93c5fd !important; }
           .vibraDonationDesktop { display: none !important; }
           .vibraDonationMobile { display: inline !important; }
         }
@@ -515,7 +514,7 @@ export default function DonationEntryPoint({
           height: 40,
           borderRadius: 10,
           border: "none",
-          background: "#60a5fa",
+          background: "#70aefb",
           color: "#fff",
           fontFamily: "inherit",
           fontWeight: 600,

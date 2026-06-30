@@ -275,33 +275,24 @@ export default function CreatorExperiencesSection({
               }}
             >
               {/* Icon circle placeholder */}
-              {type === "saludo" ? (
-                <img
-                  src="/avatarsaludo.png"
-                  alt=""
-                  style={{
-                    width: 46,
-                    height: 46,
-                    borderRadius: "50%",
-                    flexShrink: 0,
-                    objectFit: "cover",
-                    border: `1.5px solid ${conf.color}`,
-                    boxShadow: `0 0 14px ${conf.color}2e`,
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    width: 46,
-                    height: 46,
-                    borderRadius: "50%",
-                    flexShrink: 0,
-                    border: `1.5px solid ${conf.color}`,
-                    boxShadow: `0 0 14px ${conf.color}2e`,
-                    background: "rgba(0,0,0,0.45)",
-                  }}
-                />
-              )}
+              <img
+                src={
+                  type === "saludo" ? "/avatarsaludo.png"
+                  : type === "consejo" ? "/avatarconsejo.png"
+                  : type === "clase_personalizada" ? "/avatarsesion.png"
+                  : "/avatarencuentro.png"
+                }
+                alt=""
+                style={{
+                  width: 46,
+                  height: 46,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                  objectFit: "cover",
+                  border: `1.5px solid ${conf.color}`,
+                  boxShadow: `0 0 14px ${conf.color}2e`,
+                }}
+              />
 
               {/* Info: title + description */}
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -347,7 +338,7 @@ export default function CreatorExperiencesSection({
                       letterSpacing: "0.01em",
                     }}
                   >
-                    Consíguelo por
+                    {type === "clase_personalizada" ? "Consíguela por" : "Consíguelo por"}
                   </span>
                 )}
                 {priceData.hasPrice ? (
@@ -388,7 +379,7 @@ export default function CreatorExperiencesSection({
               </div>
 
               {/* Chevron */}
-              <div className="exp-chevron" style={{ flexShrink: 0, color: "#fff", alignSelf: "center" }}>
+              <div className="exp-chevron" style={{ flexShrink: 0, color: conf.color, alignSelf: "center" }}>
                 <ChevronRight />
               </div>
             </Link>
