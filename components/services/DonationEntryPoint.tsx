@@ -472,41 +472,8 @@ export default function DonationEntryPoint({
 
   return (
     <>
-      <style>{`
-        .vibraDonationBtn .vibraDonationLabel {
-          display: inline-block;
-          transition: transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .vibraDonationBtn .vibraDonationPlus {
-          display: inline-block;
-          opacity: 0;
-          transform: translateX(0px);
-          margin-left: 4px;
-          font-weight: 700;
-          transition: opacity 200ms ease, transform 220ms cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        @media (min-width: 768px) {
-          .vibraDonationBtn:hover .vibraDonationLabel {
-            transform: translateX(-6px);
-          }
-          .vibraDonationBtn:hover .vibraDonationPlus {
-            opacity: 1;
-            transform: translateX(-6px);
-          }
-        }
-        @media (max-width: 767px) {
-          .vibraDonationDesktop { display: none !important; }
-          .vibraDonationMobile { display: inline !important; }
-        }
-        @media (min-width: 768px) {
-          .vibraDonationDesktop { display: inline-flex !important; align-items: center; }
-          .vibraDonationMobile { display: none !important; }
-        }
-      `}</style>
-
       <button
         type="button"
-        className="vibraDonationBtn"
         onClick={handleOpen}
         aria-label={buttonLabel}
         style={{
@@ -514,7 +481,7 @@ export default function DonationEntryPoint({
           height: 40,
           borderRadius: 10,
           border: "none",
-          background: "#3b82f6",
+          background: "linear-gradient(135deg, #ec4899, #9333ea)",
           color: "#fff",
           fontFamily: "inherit",
           fontWeight: 600,
@@ -527,17 +494,14 @@ export default function DonationEntryPoint({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          overflow: "hidden",
+          gap: 7,
           ...buttonStyle,
         }}
       >
-        {/* Mobile: texto corto */}
-        <span className="vibraDonationMobile" style={{ display: "none" }}>Donar +</span>
-        {/* Desktop: nombre que se mueve + "+" que aparece */}
-        <span className="vibraDonationDesktop" style={{ display: "inline-flex", alignItems: "center" }}>
-          <span className="vibraDonationLabel">{buttonLabel}</span>
-          <span className="vibraDonationPlus">+</span>
-        </span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ flexShrink: 0 }}>
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.27 2 8.5 2 5.41 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.08C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.41 22 8.5c0 3.77-3.4 6.86-8.55 11.53L12 21.35z" />
+        </svg>
+        Hacer una aportación
       </button>
 
       {open && mounted ? createPortal(modal, document.body) : null}

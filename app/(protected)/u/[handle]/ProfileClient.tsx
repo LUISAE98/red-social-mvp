@@ -2149,11 +2149,6 @@ await createExclusiveSessionRequest({
                     profileUid={userDoc.uid}
                     profileRestricted={profileRestricted}
                     profileName={userDoc.displayName ?? userDoc.handle ?? null}
-                    donation={userDoc.donation as { mode: "none" | "general" | "wedding"; enabled?: boolean; visible?: boolean; suggestedAmounts?: number[] | null } | null | undefined}
-                    onDonate={() => {
-                      if (!viewer) { redirectToLogin(); return; }
-                      setDonationViewerOpen(true);
-                    }}
                   />
 
                   {shouldHideProfileSocialContent ? (
@@ -2338,8 +2333,11 @@ await createExclusiveSessionRequest({
   donation={userDoc.donation as { mode?: string; enabled?: boolean; visible?: boolean; message?: string | null; playbackId?: string | null } | null}
   donationCreatorName={userDoc.displayName ?? userDoc.handle ?? null}
   donationProfilePhoto={userDoc.photoURL ?? null}
+  donationProfileHandle={userDoc.handle ?? null}
   donationViewerOpen={donationViewerOpen}
   onDonate={() => setDonationViewerOpen(true)}
+  onDonationClose={() => setDonationViewerOpen(false)}
+  onDonationPay={() => setDonationViewerOpen(false)}
 />
                   </div>
                 </div>
@@ -2577,18 +2575,7 @@ await createExclusiveSessionRequest({
   formatMoney={formatMoney}
 />
 
-      <DonationViewer
-        open={donationViewerOpen}
-        donation={userDoc.donation ?? null}
-        profileName={userDoc.displayName ?? userDoc.handle ?? null}
-        profilePhoto={userDoc.photoURL ?? null}
-        profileHandle={userDoc.handle ?? null}
-        onClose={() => setDonationViewerOpen(false)}
-        onDonate={() => {
-          // Payment integration — coming soon
-          setDonationViewerOpen(false);
-        }}
-      />
+      {/* DonationViewer removed — viewer is now handled inside DonationFeedBanner with the same video element */}
 
       {profileStoriesOpen && profileRingStories.length > 0 && (
         <StoryViewer

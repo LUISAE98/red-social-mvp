@@ -5,34 +5,19 @@ import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
-type DonationInput = {
-  mode: "none" | "general" | "wedding";
-  enabled?: boolean;
-  visible?: boolean;
-  suggestedAmounts?: number[] | null;
-} | null;
-
 type ProfileSocialActionsProps = {
   viewerUid: string | null | undefined;
   profileUid: string;
   profileRestricted: boolean;
   profileName?: string | null;
-  donation?: DonationInput;
-  onDonate?: () => void;
 };
 
-function shortName(name: string): string {
-  if (name.length <= 7) return name;
-  return name.slice(0, 6) + "...";
-}
 
 export default function ProfileSocialActions({
   viewerUid,
   profileUid,
   profileRestricted,
   profileName,
-  donation,
-  onDonate,
 }: ProfileSocialActionsProps) {
   const isOwnProfile = !!viewerUid && viewerUid === profileUid;
 
@@ -50,13 +35,6 @@ export default function ProfileSocialActions({
 
   const showFollowButton =
     !isOwnProfile && !profileRestricted && !relationship.hasBlocked && relationship.canFollow;
-
-  const showDonateButton =
-    donation?.enabled === true &&
-    donation?.visible !== false &&
-    (donation?.mode === "general" || donation?.mode === "wedding") &&
-    Array.isArray(donation?.suggestedAmounts) &&
-    (donation.suggestedAmounts?.length ?? 0) > 0;
 
   const followButtonLabel = loading
     ? "Procesando..."
@@ -138,29 +116,6 @@ const styles = {
     cursor: "pointer",
     WebkitTapHighlightColor: "transparent",
     transition: "opacity 150ms ease",
-    padding: "0 14px",
-  } as const,
-
-  donateButton: {
-    flex: "1 1 140px",
-    maxWidth: 260,
-    minWidth: 120,
-    minHeight: 40,
-    borderRadius: 10,
-    border: "none",
-    background: "#3b82f6",
-    color: "#fff",
-    fontFamily: "inherit",
-    fontWeight: 600,
-    fontSize: 14,
-    letterSpacing: "-0.01em",
-    cursor: "pointer",
-    WebkitTapHighlightColor: "transparent",
-    transition: "opacity 150ms ease",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
     padding: "0 14px",
   } as const,
 

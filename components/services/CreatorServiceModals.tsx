@@ -413,6 +413,7 @@ export default function CreatorServiceModals({
   useEffect(() => { if (greetSuccess)          showServiceModalToast(greetSuccess, "success"); }, [greetSuccess]);     // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (meetGreetError)        showServiceModalToast(meetGreetError, "error"); }, [meetGreetError]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (exclusiveSessionError) showServiceModalToast(exclusiveSessionError, "error"); }, [exclusiveSessionError]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (serviceToast) showServiceModalToast(serviceToast, serviceToast.startsWith("No puedes") ? "warning" : "success"); }, [serviceToast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const anyOpen = greetOpen || meetGreetOpen || exclusiveSessionOpen;
@@ -687,34 +688,11 @@ export default function CreatorServiceModals({
     document.body
   );
 
-  const toastNode = serviceToast
-    ? createPortal(
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)",
-            zIndex: 2147483647, minWidth: 280, maxWidth: "min(92vw, 560px)",
-            padding: "12px 14px", borderRadius: 12,
-            border: "1px solid rgba(255,255,255,0.14)",
-            background: "rgba(12,12,12,0.96)", color: "#fff",
-            boxShadow: "0 18px 48px rgba(0,0,0,0.45)", fontSize: 14,
-            fontWeight: 600, lineHeight: 1.35, textAlign: "center",
-            backdropFilter: "blur(10px)",
-          }}
-        >
-          {serviceToast}
-        </div>,
-        document.body
-      )
-    : null;
-
   return (
     <>
       {greetingModal}
       {meetGreetModal}
       {exclusiveSessionModal}
-      {toastNode}
       <VibraToast toast={serviceModalToast} />
     </>
   );

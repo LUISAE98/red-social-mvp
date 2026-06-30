@@ -190,6 +190,7 @@ export default function GroupServiceModals({
   useEffect(() => { if (subscriptionError) showServiceModalToast(subscriptionError, "error"); }, [subscriptionError]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (meetGreetError) showServiceModalToast(meetGreetError, "error"); }, [meetGreetError]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (exclusiveSessionError) showServiceModalToast(exclusiveSessionError, "error"); }, [exclusiveSessionError]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (serviceToast) showServiceModalToast(serviceToast, serviceToast.startsWith("No puedes") ? "warning" : "success"); }, [serviceToast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const anyOpen =
@@ -705,23 +706,12 @@ export default function GroupServiceModals({
     onChangeMessage: onChangeExclusiveSessionMessage,
   });
 
-  const toastNode =
-    mounted && serviceToast
-      ? createPortal(
-          <div style={serviceToastStyle} role="status" aria-live="polite">
-            {serviceToast}
-          </div>,
-          document.body
-        )
-      : null;
-
   return (
     <>
       {greetingModal}
       {subscriptionModal}
       {meetGreetModal}
       {exclusiveSessionModal}
-      {toastNode}
       <VibraToast toast={serviceModalToast} />
     </>
   );

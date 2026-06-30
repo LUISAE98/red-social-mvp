@@ -53,8 +53,11 @@ type ProfilePostsFeedProps = {
   donation?: DonationData;
   donationCreatorName?: string | null;
   donationProfilePhoto?: string | null;
+  donationProfileHandle?: string | null;
   donationViewerOpen?: boolean;
   onDonate?: () => void;
+  onDonationClose?: () => void;
+  onDonationPay?: () => void;
 };
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
@@ -474,8 +477,11 @@ export default function ProfilePostsFeed({
   donation,
   donationCreatorName,
   donationProfilePhoto,
+  donationProfileHandle,
   donationViewerOpen,
   onDonate,
+  onDonationClose,
+  onDonationPay,
 }: ProfilePostsFeedProps) {
   const showDonationBanner =
     donation?.mode === "general" && donation?.enabled === true && donation?.visible !== false;
@@ -1239,8 +1245,12 @@ const shellStyle: CSSProperties = {
             playbackId={donation?.playbackId ?? null}
             creatorName={donationCreatorName ?? null}
             profilePhoto={donationProfilePhoto ?? null}
-            paused={donationViewerOpen}
+            profileHandle={donationProfileHandle ?? null}
+            donationMode={donation?.mode ?? null}
+            expanded={donationViewerOpen}
             onClick={onDonate}
+            onClose={onDonationClose}
+            onDonate={onDonationPay}
           />
         </div>
       )}
