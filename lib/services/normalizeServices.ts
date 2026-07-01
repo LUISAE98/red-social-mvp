@@ -18,6 +18,8 @@ export type NormalizedService = {
 
   requiresApproval: boolean;
   sourceScope: ServiceSourceScope;
+
+  durationMinutes: number | null;
 };
 
 function isValidSourceScope(value: unknown): value is ServiceSourceScope {
@@ -72,6 +74,11 @@ export function normalizeServices(
         sourceScope: isValidSourceScope(s.sourceScope)
           ? s.sourceScope
           : fallbackSourceScope,
+
+        durationMinutes:
+          s.meta?.meetGreet?.durationMinutes ??
+          s.meta?.customClass?.durationMinutes ??
+          null,
       };
     })
     .filter((s): s is NormalizedService => !!s);

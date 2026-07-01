@@ -7,6 +7,10 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isPlatformMod() {
+      return request.auth != null && request.auth.token.get('role', '') == 'moderator';
+    }
+
     // ==========================
     // USERS / HANDLES
     // ==========================
@@ -2713,6 +2717,52 @@ function canUpdateReplyCount(delta) {
 
       // No se puede modificar ni eliminar un acceso ya otorgado
       allow update, delete: if false;
+    }
+
+    // ==========================
+    // MODERACIÓN — REPORTES
+    // ==========================
+    match /reports/{reportId} {
+      // Cualquier usuario autenticado puede crear un reporte (solo el suyo)
+      allow create: if signedIn()
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.targetType in [
+             'post', 'comment', 'comment_reply', 'live',
+             'live_chat_message', 'greeting', 'user', 'community',
+             'meet_greet', 'exclusive_session'
+           ]
+        && request.resource.data.reason in [
+             'spam', 'hate_speech', 'violence', 'illegal_content',
+             'harassment', 'misinformation', 'other'
+           ]
+        && request.resource.data.status == 'pending'
+        && request.resource.data.claimedBy == null
+        && request.resource.data.createdAt is timestamp;
+
+      // Solo moderadores de plataforma pueden leer y actualizar reportes
+      allow read, update: if isPlatformMod();
+
+      // Nunca se eliminan reportes (solo se resuelven)
+      allow delete: if false;
+    }
+
+    // ==========================
+    // MODERACIÓN — AUDIT LOG
+    // ==========================
+    match /adminAuditLog/{actionId} {
+      // Solo moderadores de plataforma pueden leer el historial
+      allow read: if isPlatformMod();
+      // Solo se escribe desde Cloud Functions con Admin SDK
+      allow write: if false;
+    }
+
+    // ==========================
+    // ACCESO GLOBAL MODERADORES
+    // ==========================
+    // Los moderadores de plataforma pueden leer cualquier documento para revisar contenido.
+    // No pueden escribir nada directamente — todas sus acciones van por Cloud Functions.
+    match /{document=**} {
+      allow read: if isPlatformMod();
     }
 
     match /{document=**} {

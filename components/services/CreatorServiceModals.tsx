@@ -157,24 +157,26 @@ const PANEL_CSS = `
   }
   .vibra-svc-handle { display: none; }
   .vibra-svc-panel { position: relative; }
-  .vibra-svc-handle, .vibra-svc-header, .vibra-svc-body, .vibra-svc-footer { position: relative; z-index: 1; }
+  .vibra-svc-handle, .vibra-svc-header, .vibra-svc-body, .vibra-svc-footer { position: relative; z-index: 2; }
 
   .vibra-svc-bg-img {
-    position: absolute; inset: 0; z-index: 0;
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 0;
     background-size: 100% auto;
     background-position: center bottom;
     background-repeat: no-repeat;
     opacity: 0.35;
   }
   .vibra-svc-bg-grad {
-    position: absolute; inset: 0; z-index: 0;
+    position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1;
     background: linear-gradient(to bottom, #0a0a0a 50%, rgba(10,10,10,0.85) 68%, rgba(10,10,10,0.4) 85%, transparent 100%);
+    -webkit-transform: translateZ(0); transform: translateZ(0);
+    will-change: opacity;
   }
 
   @media (max-width: 559px) {
     .vibra-svc-bg-img { opacity: 0.35; }
     .vibra-svc-bg-grad {
-      background: linear-gradient(to bottom, #0a0a0a 55%, rgba(10,10,10,0.88) 72%, rgba(10,10,10,0.55) 87%, rgba(10,10,10,0.25) 100%);
+      background: linear-gradient(to bottom, #0a0a0a 0%, #0a0a0a 52%, rgba(10,10,10,0.9) 68%, rgba(10,10,10,0.6) 84%, rgba(10,10,10,0.28) 100%);
     }
   }
 
@@ -395,6 +397,8 @@ export default function CreatorServiceModals({
 }: CreatorServiceModalsProps) {
   const [mounted, setMounted] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [meetGreetAcceptedTerms, setMeetGreetAcceptedTerms] = useState(false);
+  const [exclusiveSessionAcceptedTerms, setExclusiveSessionAcceptedTerms] = useState(false);
   const { toast: serviceModalToast, showToast: showServiceModalToast } = useVibraToast();
 
   useEffect(() => {
@@ -409,6 +413,8 @@ export default function CreatorServiceModals({
   }, []);
 
   useEffect(() => { if (!greetOpen) setAcceptedTerms(false); }, [greetOpen]);
+  useEffect(() => { if (!meetGreetOpen) setMeetGreetAcceptedTerms(false); }, [meetGreetOpen]);
+  useEffect(() => { if (!exclusiveSessionOpen) setExclusiveSessionAcceptedTerms(false); }, [exclusiveSessionOpen]);
   useEffect(() => { if (greetError)            showServiceModalToast(greetError, "error"); }, [greetError]);           // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (greetSuccess)          showServiceModalToast(greetSuccess, "success"); }, [greetSuccess]);     // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (meetGreetError)        showServiceModalToast(meetGreetError, "error"); }, [meetGreetError]);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -472,6 +478,39 @@ export default function CreatorServiceModals({
     >
       <p style={{ ...s.text, margin: 0 }}>{greetingUi.intro}</p>
 
+      {(greetType === "saludo" || greetType === "consejo") && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {/* Check — Saludo personalizado */}
+          <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 10, padding: "12px 10px", borderRadius: 12 }}>
+            <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={greetAccent} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+              <circle cx="12" cy="12" r="9" />
+              <path d="M8 12.5l3 3 5-5.5" />
+            </svg>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+              <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>{greetType === "consejo" ? "Consejo personal" : "Saludo personalizado"}</span>
+              <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>
+                {greetType === "consejo"
+                  ? <>{creatorName ?? "El creador"} analizará tu situación y te dará un consejo adaptado a ti.</>
+                  : <>{creatorName ?? "El creador"} grabará un saludo exclusivo mencionando los detalles que nos compartas</>}
+              </span>
+            </div>
+          </div>
+          {/* Download — Descargable */}
+          <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 10, padding: "12px 10px", borderRadius: 12 }}>
+            <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={greetAccent} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+              <path d="M12 3v12M7 11l5 5 5-5" />
+              <path d="M4 19h16" />
+            </svg>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+              <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Descargable</span>
+              <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>
+                Podrás descargar tu {greetType === "consejo" ? "consejo" : "saludo"} en video de alta calidad para guardarlo y compartirlo
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       <label style={{ display: "grid", gap: 6 }}>
         <span style={s.label}>{greetingUi.recipientLabel}</span>
         <input
@@ -494,6 +533,7 @@ export default function CreatorServiceModals({
           maxLength={greetType === "saludo" ? 500 : 900}
           rows={2}
           style={{ ...s.input, resize: "vertical", minHeight: 56 }}
+          onFocus={(e) => { setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 80); }}
         />
         <span style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", textAlign: "right" }}>
           {(greetType === "saludo" ? 500 : 900) - instructions.length} caracteres restantes
@@ -596,10 +636,28 @@ export default function CreatorServiceModals({
     submitLabel: string;
     helperText: string;
     titleId: string;
+    sectionLabel?: string;
+    showDetailIcons?: boolean;
+    extraDetailIconSlot?: React.ReactNode;
+    extraDetailIconSlot2?: React.ReactNode;
+    includesItems?: string[];
+    maxLength?: number;
+    bgImage?: string;
+    accentColor?: string;
+    accentGradient?: string;
+    accentDimColor?: string;
+    termsAccepted?: boolean;
+    onToggleTerms?: () => void;
     onClose: () => void;
     onSubmit: () => void;
     onChangeMessage: (value: string) => void;
   }) {
+    const maxLen = params.maxLength ?? 500;
+    const remaining = maxLen - params.message.length;
+    const hasTerms = typeof params.termsAccepted === "boolean";
+    const isDisabled = params.submitting || (hasTerms && !params.termsAccepted);
+    const btnBg = params.accentGradient ?? "#a855ff";
+
     return (
       <Panel
         open={params.open}
@@ -607,39 +665,159 @@ export default function CreatorServiceModals({
         titleId={params.titleId}
         submitting={params.submitting}
         onClose={params.onClose}
+        bgImage={params.bgImage}
         footer={
           <button
             type="button"
             onClick={params.onSubmit}
-            disabled={params.submitting}
-            style={{ ...s.primaryBtn, ...(params.submitting ? s.primaryBtnDisabled : {}) }}
+            disabled={isDisabled}
+            style={{ ...s.primaryBtn, background: btnBg, ...(isDisabled ? s.primaryBtnDisabled : {}) }}
           >
-            {params.submitting ? "Enviando..." : params.submitLabel}
+            {params.submitting ? "Enviando..." : params.priceLabel
+              ? <>Continuar al pago <span style={{ color: "#fff", opacity: 0.5, margin: "0 4px" }}>·</span> {params.priceLabel}</>
+              : params.submitLabel}
           </button>
         }
       >
         <p style={{ ...s.text, margin: 0 }}>{params.description}</p>
 
-        <div style={s.summaryPanel}>
-          <span style={{ ...s.label, fontWeight: 600 }}>Resumen del servicio</span>
-          <span style={s.micro}>Precio: <strong style={{ color: "#fff" }}>{params.priceLabel}</strong></span>
-          <span style={s.micro}>Duración: <strong style={{ color: "#fff" }}>{params.durationLabel}</strong></span>
-          <span style={s.micro}>Pago: <strong style={{ color: "#fff" }}>Simulado por ahora</strong></span>
+        <div style={{ display: "grid", gap: 10 }}>
+          <span style={{ ...s.label, fontWeight: 600 }}>{params.sectionLabel ?? "Resumen del servicio"}</span>
+
+          {params.showDetailIcons ? (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {/* Reloj */}
+              <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 10, padding: "12px 10px", borderRadius: 12 }}>
+                <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={params.accentColor ?? "#3b82f6"} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 3" />
+                </svg>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                  <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Duración</span>
+                  <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{params.durationLabel.replace("min", "minutos")}</span>
+                  <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>Tiempo completo dedicado para ti.</span>
+                </div>
+              </div>
+              {/* Cámara */}
+              <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 10, padding: "12px 10px", borderRadius: 12 }}>
+                <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={params.accentColor ?? "#3b82f6"} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+                  <rect x="2" y="6" width="14" height="12" rx="2" />
+                  <path d="M16 10l6-3v10l-6-3V10Z" />
+                </svg>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                  <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Modalidad</span>
+                  <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>En línea</span>
+                  <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>Desde cualquier lugar del mundo.</span>
+                </div>
+              </div>
+              {params.extraDetailIconSlot ?? null}
+              {params.extraDetailIconSlot2 ?? null}
+              {/* Palomita en círculo */}
+              <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 10, padding: "12px 10px", borderRadius: 12 }}>
+                <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={params.accentColor ?? "#3b82f6"} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M8 12.5l3 3 5-5" />
+                </svg>
+                <div style={{ display: "flex", flexDirection: "column", gap: 5, minWidth: 0 }}>
+                  <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>¿Qué incluye?</span>
+                  {(params.includesItems ?? [
+                    "Conversación personalizada",
+                    "Resuelve dudas y recibe consejos",
+                    "Ideas y recomendaciones prácticas",
+                    `Atención directa de ${creatorName ?? "el creador"}`,
+                  ]).map((item) => (
+                    <div key={item} style={{ display: "flex", alignItems: "flex-start", gap: 5 }}>
+                      <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke={params.accentColor ?? "#3b82f6"} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }}>
+                        <path d="M4 12.5l5 5 11-11" />
+                      </svg>
+                      <span style={{ color: "rgba(255,255,255,0.75)", fontSize: 10, lineHeight: 1.4 }}>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* Calendario */}
+              <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 10, padding: "12px 10px", borderRadius: 12 }}>
+                <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={params.accentColor ?? "#3b82f6"} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+                  <rect x="3" y="4" width="18" height="17" rx="2" />
+                  <path d="M3 10h18M8 2v4M16 2v4" />
+                </svg>
+                <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+                  <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Fecha y hora</span>
+                  <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>Acordaremos contigo</span>
+                  <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>El creador te escribirá para proponer opciones.</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              <span style={s.micro}>Duración: {params.durationLabel}</span>
+              <span style={s.micro}>Fecha y hora: Se acordarán contigo después de aceptar la solicitud.</span>
+            </>
+          )}
         </div>
 
-        <label style={{ display: "grid", gap: 6 }}>
-          <span style={s.label}>{params.textareaLabel}</span>
+        <div style={{ display: "grid", gap: 6 }}>
+          <span style={{ ...s.label, fontSize: 12 }}>{params.textareaLabel}</span>
           <textarea
             value={params.message}
             onChange={(e) => params.onChangeMessage(e.target.value)}
             placeholder={params.textareaPlaceholder}
             disabled={params.submitting}
-            rows={5}
-            style={{ ...s.input, resize: "vertical", minHeight: 110 }}
+            maxLength={maxLen}
+            rows={2}
+            style={{ ...s.input, resize: "vertical" }}
+            onFocus={(e) => { setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 80); }}
           />
-        </label>
+          <span style={{ ...s.micro, textAlign: "right" }}>
+            {remaining} caracteres restantes
+          </span>
+        </div>
 
-        <p style={{ ...s.micro, margin: 0 }}>{params.helperText}</p>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
+          <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={params.accentColor ?? "#3b82f6"} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }}>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 16v-4" />
+            <circle cx="12" cy="8" r="0.5" fill={params.accentColor ?? "#3b82f6"} />
+          </svg>
+          <p style={{ ...s.micro, margin: 0 }}>{params.helperText}</p>
+        </div>
+
+        {hasTerms && params.onToggleTerms && (
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ minWidth: 0, display: "grid", gap: 4 }}>
+              <span style={{ ...s.label, fontSize: 13, fontWeight: 600, color: params.accentDimColor ?? "rgba(255,255,255,0.78)" }}>
+                Acepta nuestros términos y condiciones
+              </span>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.42)", lineHeight: 1.5 }}>
+                Asegúrate de leer los términos y condiciones antes de aceptarlos.
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={params.termsAccepted}
+              aria-label="Aceptar términos y condiciones"
+              onClick={() => { if (!params.submitting) params.onToggleTerms!(); }}
+              disabled={params.submitting}
+              style={{
+                position: "relative", flexShrink: 0,
+                width: 36, height: 20, borderRadius: 999, padding: 0,
+                border: "1px solid rgba(255,255,255,0.18)",
+                background: params.termsAccepted ? (params.accentGradient ?? "#a855ff") : "rgba(255,255,255,0.10)",
+                cursor: params.submitting ? "not-allowed" : "pointer",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <span style={{
+                position: "absolute", top: 2,
+                left: params.termsAccepted ? 18 : 2,
+                width: 14, height: 14, borderRadius: "50%",
+                background: "#fff", transition: "all 0.2s ease",
+                display: "block",
+              }} />
+            </button>
+          </div>
+        )}
       </Panel>
     );
   }
@@ -648,16 +826,25 @@ export default function CreatorServiceModals({
     renderScheduledRequestModal({
       open: meetGreetOpen,
       submitting: meetGreetSubmitting,
-      title: "Solicitar encuentro en vivo",
-      description: "Envía tu solicitud de encuentro en vivo. El creador podrá aceptarla, rechazarla y después proponerte fecha y hora.",
+      title: `Tu encuentro en vivo con ${creatorName ?? "el creador"}`,
+      description: `Cuéntale a ${creatorName ?? "el creador"} de qué te gustaría hablar durante el encuentro. Mientras más contexto compartas, más personalizada podrá ser la experiencia.`,
       priceLabel: meetGreetPriceLabel,
       durationLabel: meetGreetDurationLabel,
       message: meetGreetMessage,
       error: meetGreetError,
-      textareaLabel: "Cuéntale al creador cualquier detalle importante",
-      textareaPlaceholder: "Ej. horarios preferidos, zona horaria, motivo del encuentro o cualquier contexto útil.",
+      textareaLabel: "¿Qué te gustaría tratar durante el encuentro?",
+      textareaPlaceholder: "",
       submitLabel: "Solicitar encuentro en vivo",
-      helperText: "Esta solicitud aparecerá en el panel del creador, wallet, pendientes, calendario e historial cuando el flujo esté conectado.",
+      sectionLabel: "Detalles del encuentro",
+      showDetailIcons: true,
+      maxLength: 700,
+      bgImage: "/encuentroenvivo.png",
+      accentColor: "#3b82f6",
+      accentGradient: "linear-gradient(100deg, #3b82f6, #1d4ed8)",
+      accentDimColor: "rgba(96,165,250,0.9)",
+      termsAccepted: meetGreetAcceptedTerms,
+      onToggleTerms: () => setMeetGreetAcceptedTerms(!meetGreetAcceptedTerms),
+      helperText: "Después de aceptar tu solicitud, el creador coordinará contigo todos los detalles para llevar a cabo el encuentro.",
       titleId: "vibra-svc-meetgreet-title",
       onClose: onCloseMeetGreet,
       onSubmit: onSubmitMeetGreet,
@@ -670,16 +857,51 @@ export default function CreatorServiceModals({
     renderScheduledRequestModal({
       open: exclusiveSessionOpen,
       submitting: exclusiveSessionSubmitting,
-      title: "Solicitar sesión exclusiva",
-      description: "Envía tu solicitud de sesión exclusiva. El creador podrá aceptarla, rechazarla y después proponerte fecha y hora.",
+      title: `Tu sesión exclusiva con ${creatorName ?? "el creador"}`,
+      description: `Vive una experiencia profunda y personalizada 1:1 con ${creatorName ?? "el creador"}. Tendrás hasta ${exclusiveSessionDurationLabel.replace("min", "minutos")} de atención exclusiva para trabajar en tus objetivos, resolver dudas y recibir una guía adaptada para ti.`,
       priceLabel: exclusiveSessionPriceLabel,
       durationLabel: exclusiveSessionDurationLabel,
       message: exclusiveSessionMessage,
       error: exclusiveSessionError,
-      textareaLabel: "Cuéntale al creador cualquier detalle importante",
-      textareaPlaceholder: "Ej. tema de la sesión, horarios preferidos, zona horaria o cualquier contexto útil.",
+      textareaLabel: "¿Qué te gustaría tratar durante la sesión?",
+      textareaPlaceholder: "",
       submitLabel: "Solicitar sesión exclusiva",
-      helperText: "Esta solicitud usará el mismo flujo operativo: panel del creador, wallet, pendientes, calendario e historial.",
+      sectionLabel: "Detalles de la sesión",
+      showDetailIcons: true,
+      maxLength: 700,
+      bgImage: "/sesionexclusiva.png",
+      accentColor: "#ec4899",
+      accentGradient: "linear-gradient(100deg, #ec4899, #be185d)",
+      extraDetailIconSlot: (
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 10, padding: "12px 10px", borderRadius: 12 }}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <circle cx="12" cy="12" r="9" />
+            <circle cx="12" cy="12" r="5" />
+            <circle cx="12" cy="12" r="1.5" fill="#ec4899" stroke="none" />
+          </svg>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Enfoque personalizado</span>
+            <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>La sesión se adapta a tus objetivos, retos e intereses.</span>
+          </div>
+        </div>
+      ),
+      extraDetailIconSlot2: (
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", gap: 10, padding: "12px 10px", borderRadius: 12 }}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#ec4899" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            <circle cx="12" cy="16" r="1" fill="#ec4899" stroke="none" />
+          </svg>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Experiencia privada</span>
+            <span style={{ color: "rgba(255,255,255,0.42)", fontSize: 10, lineHeight: 1.4 }}>Conversación 1:1 en un espacio completamente privado.</span>
+          </div>
+        </div>
+      ),
+      accentDimColor: "rgba(236,72,153,0.9)",
+      termsAccepted: exclusiveSessionAcceptedTerms,
+      onToggleTerms: () => setExclusiveSessionAcceptedTerms(!exclusiveSessionAcceptedTerms),
+      helperText: "Después de aceptar tu solicitud, el creador coordinará contigo todos los detalles para llevar a cabo la sesión.",
       titleId: "vibra-svc-exclusive-title",
       onClose: onCloseExclusiveSession,
       onSubmit: onSubmitExclusiveSession,

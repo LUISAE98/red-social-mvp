@@ -189,3 +189,6 @@ export { livekitWebhook } from "./livekitWebhook";
 
 // LiveKit — URL pre-firmada para descarga de grabaciones
 export { getRecordingDownloadUrl } from "./recordingDownload";
+
+// Moderación de plataforma
+export { submitReport, claimReport, resolveReport } from "./moderation";

@@ -25,6 +25,8 @@ import {
   unbanGroupMember,
   unmuteGroupMember,
 } from "@/lib/groups/groupModeration";
+import { useReport } from "@/lib/moderation/useReport";
+import ReportModal from "@/app/components/ReportModal/ReportModal";
 
 type PostCommentThreadProps = {
   postId: string;
@@ -499,6 +501,7 @@ function ReplyActionsPortal({
   onBlockComplete,
   onModerationComplete,
   onError,
+  onReport,
 }: {
   reply: CommentReply;
   groupId: string | null;
@@ -516,6 +519,7 @@ function ReplyActionsPortal({
   onBlockComplete?: () => Promise<void> | void;
   onModerationComplete?: () => Promise<void> | void;
   onError: (msg: string | null) => void;
+  onReport?: () => void;
 }) {
   const isOwnReply = currentUserId === reply.authorId;
   const canDeleteReply = isOwner || isModerator || isOwnReply;
@@ -680,6 +684,15 @@ function ReplyActionsPortal({
     );
   }
 
+  if (onReport && currentUserId && currentUserId !== reply.authorId) {
+    items.push(
+      <ActionMenuItem key="report" index={items.length} danger
+        onClick={() => { onClose(); onReport(); }}>
+        Reportar respuesta
+      </ActionMenuItem>,
+    );
+  }
+
   if (items.length === 0) return null;
 
   const daysNum = Number(muteDays);
@@ -736,6 +749,7 @@ function CommentActionsPortal({
   onBlockComplete,
   onModerationComplete,
   onError,
+  onReport,
 }: {
   comment: Comment;
   groupId: string | null;
@@ -754,6 +768,7 @@ function CommentActionsPortal({
   onBlockComplete?: () => Promise<void> | void;
   onModerationComplete?: () => Promise<void> | void;
   onError: (msg: string | null) => void;
+  onReport?: () => void;
 }) {
   const isOwnComment = currentUserId === comment.authorId;
   const canEditOwnComment = isOwnComment;
@@ -917,6 +932,15 @@ function CommentActionsPortal({
     );
   }
 
+  if (onReport && currentUserId && currentUserId !== comment.authorId) {
+    items.push(
+      <ActionMenuItem key="report" index={items.length} danger
+        onClick={() => { onClose(); onReport(); }}>
+        Reportar comentario
+      </ActionMenuItem>,
+    );
+  }
+
   if (items.length === 0) return null;
 
   const daysNum = Number(muteDays);
@@ -973,6 +997,7 @@ export default function PostCommentThread({
   onGroupMemberBlockComplete,
   onModerationComplete,
 }: PostCommentThreadProps) {
+  const { reportTarget, openReport, closeReport } = useReport();
   const [replies, setReplies] = useState<CommentReply[] | null>(null);
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [replyBoxOpen, setReplyBoxOpen] = useState(false);
@@ -1663,6 +1688,12 @@ export default function PostCommentThread({
                         onBlockComplete={onGroupMemberBlockComplete}
                         onModerationComplete={onModerationComplete}
                         onError={setInlineError}
+                        onReport={() => openReport({
+                          targetType: "comment_reply",
+                          targetId: reply.id,
+                          parentId: postId,
+                          targetOwnerId: reply.authorId,
+                        })}
                       />
                     )}
                   </div>
@@ -1672,6 +1703,8 @@ export default function PostCommentThread({
           )}
         </div>
       </div>
+
+      {reportTarget && <ReportModal target={reportTarget} onClose={closeReport} />}
 
       {/* Comment actions portal */}
       {commentMenuOpen && typeof document !== "undefined" && (
@@ -1693,6 +1726,12 @@ export default function PostCommentThread({
           onBlockComplete={onGroupMemberBlockComplete}
           onModerationComplete={onModerationComplete}
           onError={setInlineError}
+          onReport={() => openReport({
+            targetType: "comment",
+            targetId: comment.id,
+            parentId: postId,
+            targetOwnerId: comment.authorId,
+          })}
         />
       )}
     </div>

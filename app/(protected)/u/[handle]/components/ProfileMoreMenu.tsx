@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
+import { useReport } from "@/lib/moderation/useReport";
+import ReportModal from "@/app/components/ReportModal/ReportModal";
 
 type Props = {
   viewerUid: string | null | undefined;
@@ -19,6 +21,7 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
   const [menuClosing, setMenuClosing] = useState(false);
 
   const isOwnProfile = !!viewerUid && viewerUid === profileUid;
+  const { reportTarget, openReport, closeReport } = useReport();
 
   const { relationship, loading, block, unblock } = useSocialRelationship(
     viewerUid,
@@ -205,11 +208,32 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
                   Bloquear usuario
                 </button>
               )}
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  closeMenu();
+                  openReport({
+                    targetType: "user",
+                    targetId: profileUid,
+                    targetOwnerId: profileUid,
+                  });
+                }}
+                style={{
+                  ...itemStyle,
+                  color: "#f87171",
+                  borderTop: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                Reportar usuario
+              </button>
             </div>
           </div>
         </>,
         document.body
       )}
+
+      {reportTarget && <ReportModal target={reportTarget} onClose={closeReport} />}
     </>
   );
 }

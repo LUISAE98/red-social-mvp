@@ -9,21 +9,38 @@ const STROKE = 3;
 const RING_SIZE = RING_R * 2 + STROKE * 2;
 const CIRCUMFERENCE = 2 * Math.PI * RING_R;
 
+type ExitAnim = "pop" | "slide" | null;
+
 export default function ScrollToTopFAB() {
   const [visible, setVisible] = useState(false);
   const [progress, setProgress] = useState(0);
   const [pressing, setPressing] = useState(false);
-  const [exiting, setExiting] = useState(false);
+  const [exitAnim, setExitAnim] = useState<ExitAnim>(null);
 
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const exitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const exitingRef = useRef(false);
+  const wasAboveThreshold = useRef(false);
 
   useEffect(() => {
     const onScroll = () => {
       if (exitingRef.current) return;
-      setVisible(window.scrollY > 300);
+      const aboveThreshold = window.scrollY > 300;
+
+      if (aboveThreshold && !wasAboveThreshold.current) {
+        wasAboveThreshold.current = true;
+        setVisible(true);
+      } else if (!aboveThreshold && wasAboveThreshold.current) {
+        wasAboveThreshold.current = false;
+        exitingRef.current = true;
+        setExitAnim("slide");
+        exitTimerRef.current = setTimeout(() => {
+          exitingRef.current = false;
+          setExitAnim(null);
+          setVisible(false);
+        }, 360);
+      }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
@@ -54,10 +71,11 @@ export default function ScrollToTopFAB() {
         setProgress(0);
         rafRef.current = null;
         exitingRef.current = true;
-        setExiting(true);
+        wasAboveThreshold.current = false;
+        setExitAnim("pop");
         exitTimerRef.current = setTimeout(() => {
           exitingRef.current = false;
-          setExiting(false);
+          setExitAnim(null);
           setVisible(false);
         }, 380);
       }
@@ -81,8 +99,6 @@ export default function ScrollToTopFAB() {
   const cx = RING_SIZE / 2;
   const cy = RING_SIZE / 2;
 
-  // transform is intentionally omitted here — the CSS animations own it
-  // (they include translateX(-50%) in every keyframe to keep centering).
   const fabWrap: CSSProperties = {
     position: "fixed",
     bottom: "calc(54px + env(safe-area-inset-bottom))",
@@ -107,10 +123,16 @@ export default function ScrollToTopFAB() {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    boxShadow: "0 4px 18px rgba(168,85,255,0.45)",
     transform: pressing ? "scale(0.93)" : "scale(1)",
     transition: "transform 0.1s ease",
   };
+
+  const animClass =
+    exitAnim === "pop"
+      ? "stf-exit-pop"
+      : exitAnim === "slide"
+        ? "stf-exit-slide"
+        : "stf-enter";
 
   return (
     <>
@@ -122,21 +144,22 @@ export default function ScrollToTopFAB() {
           from { transform: translateX(-50%) translateY(80px); opacity: 0; }
           to   { transform: translateX(-50%) translateY(0);    opacity: 1; }
         }
+        @keyframes stfSlideOut {
+          from { transform: translateX(-50%) translateY(0);    opacity: 1; }
+          to   { transform: translateX(-50%) translateY(80px); opacity: 0; }
+        }
         @keyframes stfPopOut {
           0%   { transform: translateX(-50%) scale(1);    opacity: 1; }
           45%  { transform: translateX(-50%) scale(1.25); opacity: 1; }
           100% { transform: translateX(-50%) scale(0);    opacity: 0; }
         }
 
-        .stf-enter {
-          animation: stfSlideIn 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-        }
-        .stf-exit {
-          animation: stfPopOut 0.32s ease-in both;
-        }
+        .stf-enter     { animation: stfSlideIn  0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+        .stf-exit-slide { animation: stfSlideOut 0.32s ease-in both; }
+        .stf-exit-pop   { animation: stfPopOut   0.32s ease-in both; }
       `}</style>
       <div
-        className={`stf-fab ${exiting ? "stf-exit" : "stf-enter"}`}
+        className={`stf-fab ${animClass}`}
         style={fabWrap}
         onMouseDown={startPress}
         onMouseUp={cancelPress}

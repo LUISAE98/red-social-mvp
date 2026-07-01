@@ -80,10 +80,19 @@ body {
 
 html {
   -webkit-text-size-adjust: 100%;
-  scrollbar-gutter: stable;
   color-scheme: dark;
   /* Android: safe area y overscroll siempre negros */
   background-color: #000000;
+}
+
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  background: transparent;
 }
 
 /* Cubre el safe area inferior en Android con gesture navigation */

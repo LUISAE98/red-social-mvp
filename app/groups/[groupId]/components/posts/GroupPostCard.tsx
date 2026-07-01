@@ -56,6 +56,8 @@ import {
 } from "@/lib/posts/post-premium-state";
 import type { PostAccess } from "@/lib/posts/post-access-types";
 import { getOrCreateGuestId } from "@/lib/guest-id";
+import { useReport } from "@/lib/moderation/useReport";
+import ReportModal from "@/app/components/ReportModal/ReportModal";
 
 type InteractionBlockedReason = "login" | "join" | "restricted" | null;
 
@@ -1033,6 +1035,7 @@ onToggleProfilePin,
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const { reportTarget, openReport, closeReport } = useReport();
   const [menuClosing, setMenuClosing] = useState(false);
   const menuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressMenuCloseRef = useRef(false);
@@ -5105,38 +5108,66 @@ padding: "0 0 2px 0",
                     )}
                   </div>
                 ) : (
-                  availableActions.map((action, index) => {
-                    const isSocialAction = action === "block_user" || action === "unblock_user";
-                    const isGroupMemberBlockAction = action === "block_in_group" || action === "unblock_in_group";
-                    const isDanger =
-                      action === "ban" || action === "remove" || action === "delete_post" ||
-                      action === "block_user" || action === "block_in_group";
-                    const isBusy =
-                      moderationBusy || deleting || pinBusy ||
-                      (isSocialAction && socialRelationshipLoading) ||
-                      (isGroupMemberBlockAction && groupMemberBlockLoading);
+                  <>
+                    {availableActions.map((action, index) => {
+                      const isSocialAction = action === "block_user" || action === "unblock_user";
+                      const isGroupMemberBlockAction = action === "block_in_group" || action === "unblock_in_group";
+                      const isDanger =
+                        action === "ban" || action === "remove" || action === "delete_post" ||
+                        action === "block_user" || action === "block_in_group";
+                      const isBusy =
+                        moderationBusy || deleting || pinBusy ||
+                        (isSocialAction && socialRelationshipLoading) ||
+                        (isGroupMemberBlockAction && groupMemberBlockLoading);
 
-                    return (
+                      return (
+                        <button
+                          key={action}
+                          type="button"
+                          role="menuitem"
+                          disabled={isBusy}
+                          onClick={() => handleModerationAction(action)}
+                          style={{
+                            ...menuItemStyle,
+                            minHeight: 46,
+                            fontSize: 14,
+                            padding: "11px 16px",
+                            borderTop: index > 0 ? "1px solid rgba(255,255,255,0.08)" : "none",
+                            ...(isBusy ? { color: "rgba(255,255,255,0.35)", cursor: "not-allowed" } : {}),
+                            ...(isDanger && !isBusy ? { color: "#ff8a8a" } : {}),
+                          }}
+                        >
+                          {isBusy ? "Procesando..." : buildActionLabel(action)}
+                        </button>
+                      );
+                    })}
+                    {currentUserId && post.authorId !== currentUserId && (
                       <button
-                        key={action}
                         type="button"
                         role="menuitem"
-                        disabled={isBusy}
-                        onClick={() => handleModerationAction(action)}
+                        onClick={() => {
+                          closeMenu();
+                          openReport({
+                            targetType: "post",
+                            targetId: post.id,
+                            targetOwnerId: post.authorId,
+                          });
+                        }}
                         style={{
                           ...menuItemStyle,
                           minHeight: 46,
                           fontSize: 14,
                           padding: "11px 16px",
-                          borderTop: index > 0 ? "1px solid rgba(255,255,255,0.08)" : "none",
-                          ...(isBusy ? { color: "rgba(255,255,255,0.35)", cursor: "not-allowed" } : {}),
-                          ...(isDanger && !isBusy ? { color: "#ff8a8a" } : {}),
+                          borderTop: availableActions.length > 0
+                            ? "1px solid rgba(255,255,255,0.08)"
+                            : "none",
+                          color: "#f87171",
                         }}
                       >
-                        {isBusy ? "Procesando..." : buildActionLabel(action)}
+                        Reportar publicación
                       </button>
-                    );
-                  })
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -5371,6 +5402,10 @@ padding: "0 0 2px 0",
     await onModerationComplete?.();
   }}
 />
+  {reportTarget && (
+    <ReportModal target={reportTarget} onClose={closeReport} />
+  )}
+
   <style>
   {`
     @keyframes vibraVideoSkeleton {

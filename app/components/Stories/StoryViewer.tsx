@@ -12,6 +12,9 @@ import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import { getMutePreference, setMutePreference } from "@/lib/utils/mutePreference";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
+import { useAuth } from "@/app/providers";
+import { useReport } from "@/lib/moderation/useReport";
+import ReportModal from "@/app/components/ReportModal/ReportModal";
 
 const LABELS: Record<StoryType, string> = {
   saludo: "Saludo",
@@ -96,6 +99,9 @@ export default function StoryViewer({
   const speechGenRef = useRef(0);
   const speechTextRef = useRef<HTMLParagraphElement>(null);
   const speechCursorRef = useRef<HTMLSpanElement>(null);
+
+  const { user } = useAuth();
+  const { reportTarget, openReport, closeReport } = useReport();
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progressRafRef = useRef<number | null>(null);
@@ -921,6 +927,36 @@ export default function StoryViewer({
               >
                 {effectiveType === "saludo" ? "Quiero mi saludo" : "Quiero mi consejo"}
               </button>
+              {user && greetingAuthorUid && user.uid !== greetingAuthorUid && (
+                <button
+                  type="button"
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openReport({
+                      targetType: "greeting",
+                      targetId: story.id,
+                      targetOwnerId: greetingAuthorUid,
+                    });
+                  }}
+                  style={{
+                    padding: isDesktop ? "8px 10px" : "11px 10px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    background: "rgba(255,255,255,0.07)",
+                    color: "rgba(255,255,255,0.65)",
+                    fontSize: isDesktop ? 12 : 14,
+                    fontWeight: 600,
+                    fontFamily: FONT,
+                    cursor: "pointer",
+                    letterSpacing: "-0.01em",
+                    WebkitTapHighlightColor: "transparent",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Reportar
+                </button>
+              )}
             </div>
           </div>
         );
@@ -929,6 +965,10 @@ export default function StoryViewer({
       </div>{/* end UI overlays wrapper */}
     </>
   );
+
+  const reportModal = reportTarget ? (
+    <ReportModal target={reportTarget} onClose={closeReport} />
+  ) : null;
 
   // ── Shared: greeting purchase modal (renders above everything via its own portal) ──
   const greetModal = (
@@ -996,6 +1036,7 @@ export default function StoryViewer({
           {renderPanelContent(12, false)}
         </div>
         {greetModal}
+        {reportModal}
       </>
     );
   }
@@ -1020,6 +1061,7 @@ export default function StoryViewer({
           document.body,
         )}
         {greetModal}
+        {reportModal}
       </>
     );
   }
@@ -1059,6 +1101,7 @@ export default function StoryViewer({
         document.body,
       )}
       {greetModal}
+      {reportModal}
     </>
   );
 }

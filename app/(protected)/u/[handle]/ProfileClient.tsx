@@ -735,9 +735,8 @@ function getServicePriceLabel(type: CreatorServiceType) {
 }
 
 function getServiceDurationLabel(type: CreatorServiceType) {
-  const raw = getProfileService(type) as (NormalizedService & { durationMinutes?: number; duration?: number }) | null;
-  const minutes = raw?.durationMinutes ?? raw?.duration ?? null;
-
+  const service = getProfileService(type);
+  const minutes = service?.durationMinutes ?? null;
   if (typeof minutes !== "number") return "Duración por confirmar";
   return `${minutes} min`;
 }

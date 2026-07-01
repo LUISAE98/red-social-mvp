@@ -13,6 +13,8 @@ import { subscribeVisibleSuperComments } from "@/lib/liveChat/super-comment-serv
 import { getOrCreateGuestId } from "@/lib/guest-id";
 import type { SuperCommentConfig, SuperComment } from "@/lib/liveChat/types";
 import { DEFAULT_SUPER_COMMENT_CONFIG } from "@/lib/liveChat/types";
+import { useReport } from "@/lib/moderation/useReport";
+import ReportModal from "@/app/components/ReportModal/ReportModal";
 
 const FONT = 'inherit';
 
@@ -44,6 +46,7 @@ export default function LiveChatViewer({
   onFollow,
 }: Props) {
   const { user } = useAuth();
+  const { reportTarget, openReport, closeReport } = useReport();
   const { messages, send } = useLiveChat(liveId);
   const [text, setText] = useState("");
   const [senderInfo, setSenderInfo] = useState<SenderInfo | null>(null);
@@ -141,13 +144,14 @@ export default function LiveChatViewer({
 
   // Merge regular messages + super comments into a single time-sorted feed
   type FeedItem =
-    | { kind: "msg"; id: string; username: string; avatarUrl?: string | null; text: string; ts: number }
-    | { kind: "sc"; id: string; username: string; avatarUrl?: string | null; text: string; ts: number; tierName: string; color: string; amount: number };
+    | { kind: "msg"; id: string; userId: string; username: string; avatarUrl?: string | null; text: string; ts: number }
+    | { kind: "sc"; id: string; userId: string; username: string; avatarUrl?: string | null; text: string; ts: number; tierName: string; color: string; amount: number };
 
   const feed: FeedItem[] = [
     ...messages.map((m) => ({
       kind: "msg" as const,
       id: m.id,
+      userId: m.userId,
       username: m.username,
       avatarUrl: m.avatarUrl,
       text: m.text,
@@ -156,6 +160,7 @@ export default function LiveChatViewer({
     ...visibleSuperComments.map((sc) => ({
       kind: "sc" as const,
       id: sc.id,
+      userId: sc.userId,
       username: sc.username,
       avatarUrl: sc.avatarUrl,
       text: sc.text,
@@ -249,10 +254,20 @@ export default function LiveChatViewer({
               ) : (
                 <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
                   <Avatar url={item.avatarUrl} name={item.username} size={20} />
-                  <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "rgba(255,255,255,0.92)", alignSelf: "center" }}>
+                  <span style={{ fontSize: 12.5, fontFamily: FONT, lineHeight: 1.4, color: "rgba(255,255,255,0.92)", alignSelf: "center", flex: 1, minWidth: 0 }}>
                     <strong style={{ fontWeight: 700, color: "#fff", marginRight: 5 }}>{item.username}</strong>
                     {item.text}
                   </span>
+                  {user && item.userId !== user.uid && (
+                    <button
+                      type="button"
+                      onClick={() => openReport({ targetType: "live_chat_message", targetId: item.id, targetOwnerId: item.userId })}
+                      style={{ background: "none", border: "none", color: "rgba(255,255,255,0.25)", fontSize: 14, cursor: "pointer", padding: "0 2px", flexShrink: 0, lineHeight: 1 }}
+                      title="Reportar mensaje"
+                    >
+                      ⋯
+                    </button>
+                  )}
                 </div>
               )
             )}
@@ -433,6 +448,7 @@ export default function LiveChatViewer({
         </div>
       </div>
       {superCommentModal}
+      {reportTarget && <ReportModal target={reportTarget} onClose={closeReport} />}
     </>
   );
 }

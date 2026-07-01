@@ -510,6 +510,106 @@ export default function VideoIconsPreview() {
       <VibraToast toast={demoToast} />
 
       {/* ══════════════════════════════════════════════════════════════════════ */}
+      {/* NUEVOS ICONOS — EN PROCESO                                            */}
+      {/* ══════════════════════════════════════════════════════════════════════ */}
+
+      <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, marginBottom: 6 }}>
+        Nuevos iconos — En proceso
+      </h1>
+      <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 13, marginBottom: 32 }}>
+        Minimalistas · stroke blanco · 24×24px viewBox · para iterar uno por uno
+      </p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(9, 1fr)", gap: 2, maxWidth: 800, marginBottom: 64 }}>
+
+        {/* Reloj */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "28px 12px", borderRadius: 12, background: "rgba(255,255,255,0.04)" }}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 3" />
+          </svg>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, textAlign: "center" }}>Reloj</span>
+        </div>
+
+        {/* Cámara de video */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "28px 12px", borderRadius: 12, background: "rgba(255,255,255,0.04)" }}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="2" y="6" width="14" height="12" rx="2" />
+            <path d="M16 10l6-3v10l-6-3V10Z" />
+          </svg>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, textAlign: "center" }}>Cámara</span>
+        </div>
+
+        {/* Calendario */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "28px 12px", borderRadius: 12, background: "rgba(255,255,255,0.04)" }}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="17" rx="2" />
+            <path d="M3 10h18M8 2v4M16 2v4" />
+          </svg>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, textAlign: "center" }}>Calendario</span>
+        </div>
+
+        {/* Estrella */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "28px 12px", borderRadius: 12, background: "rgba(255,255,255,0.04)" }}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 2l2.9 6.1 6.6.9-4.8 4.6 1.2 6.5L12 17l-5.9 3 1.2-6.5L2.5 9l6.6-.9L12 2Z" />
+          </svg>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, textAlign: "center" }}>Estrella</span>
+        </div>
+
+        {/* Palomita en círculo */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "28px 12px", borderRadius: 12, background: "rgba(255,255,255,0.04)" }}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M8 12.5l3 3 5-5" />
+          </svg>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, textAlign: "center" }}>Check</span>
+        </div>
+
+        {/* Info (i en círculo) */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "28px 12px", borderRadius: 12, background: "rgba(255,255,255,0.04)" }}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 16v-4" />
+            <circle cx="12" cy="8" r="0.5" fill="#fff" />
+          </svg>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, textAlign: "center" }}>Info</span>
+        </div>
+
+        {/* Tiro al blanco */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "28px 12px", borderRadius: 12, background: "rgba(255,255,255,0.04)" }}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <circle cx="12" cy="12" r="5" />
+            <circle cx="12" cy="12" r="1.5" fill="#fff" stroke="none" />
+          </svg>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, textAlign: "center" }}>Objetivo</span>
+        </div>
+
+        {/* Candado */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "28px 12px", borderRadius: 12, background: "rgba(255,255,255,0.04)" }}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+            <circle cx="12" cy="16" r="1" fill="#fff" stroke="none" />
+          </svg>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, textAlign: "center" }}>Candado</span>
+        </div>
+
+        {/* Descargable */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "28px 12px", borderRadius: 12, background: "rgba(255,255,255,0.04)" }}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 3v12M7 11l5 5 5-5" />
+            <path d="M4 19h16" />
+          </svg>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 600, textAlign: "center" }}>Descargable</span>
+        </div>
+
+      </div>
+
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", marginBottom: 56 }} />
+
+      {/* ══════════════════════════════════════════════════════════════════════ */}
       {/* AVISOS Y NOTIFICACIONES                                               */}
       {/* ══════════════════════════════════════════════════════════════════════ */}
 

@@ -20,6 +20,8 @@ import {
 import { getOrCreateGuestId, getSavedGuestNickname, saveGuestNickname } from "@/lib/guest-id";
 import { submitSuperComment, submitSuperCommentAsGuest } from "@/lib/liveChat/super-comment-service";
 import { useSocialRelationship } from "@/lib/social/useSocialRelationship";
+import { useReport } from "@/lib/moderation/useReport";
+import ReportModal from "@/app/components/ReportModal/ReportModal";
 
 const FONT =
   'inherit';
@@ -286,6 +288,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
   const { user } = useAuth();
   const { relationship, follow } = useSocialRelationship(user?.uid ?? null, post.authorId ?? null);
   const showFollowBtn = !!user && !!post.authorId && user.uid !== post.authorId && !relationship.isFollowing;
+  const { reportTarget, openReport, closeReport } = useReport();
   const [mounted, setMounted] = useState(false);
   const [shouldRender, setShouldRender] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -2382,6 +2385,23 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 Donar +
               </button>
             ))}
+            {user && post.authorId && user.uid !== post.authorId && (
+              <button
+                onClick={() => openReport({
+                  targetType: "live",
+                  targetId: post.id,
+                  targetOwnerId: post.authorId,
+                })}
+                style={{
+                  background: "none", border: "none",
+                  color: "rgba(255,100,100,0.75)", fontSize: 11, fontWeight: 600,
+                  fontFamily: FONT, cursor: "pointer", padding: "2px 0",
+                  letterSpacing: "0.01em",
+                }}
+              >
+                Reportar live
+              </button>
+            )}
           </div>
         </div>
 
@@ -2798,6 +2818,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
         </div>
       </div>
       {donationPanel}
+      {reportTarget && <ReportModal target={reportTarget} onClose={closeReport} />}
     </>,
     document.body
   );
