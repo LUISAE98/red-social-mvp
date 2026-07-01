@@ -131,6 +131,27 @@ function formatRelativeDate(value?: { toDate?: () => Date } | null) {
   return `hace ${diffYears} años`;
 }
 
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+
+function renderWithLinks(text: string) {
+  const parts = text.split(URL_REGEX);
+  return parts.map((part, i) =>
+    URL_REGEX.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ color: "#a855f7", textDecoration: "none" }}
+      >
+        {part}
+      </a>
+    ) : (
+      part
+    )
+  );
+}
+
 function getAuthorInfo(entity: {
   authorId: string;
   authorName?: string;
@@ -1331,7 +1352,7 @@ export default function PostCommentThread({
                     wordBreak: "break-word",
                   }}
                 >
-                  {localCommentText}
+                  {renderWithLinks(localCommentText)}
                 </div>
               )}
             </div>
@@ -1591,7 +1612,7 @@ export default function PostCommentThread({
                             wordBreak: "break-word",
                           }}
                         >
-                          {reply.text}
+                          {renderWithLinks(reply.text)}
                         </div>
                       )}
 

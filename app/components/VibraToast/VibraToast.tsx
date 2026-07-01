@@ -39,10 +39,10 @@ export default function VibraToast({ toast }: Props) {
     <>
       <style>{`
         @keyframes vibraToastExpand {
-          0%   { opacity: 0; max-width: 46px; }
-          18%  { opacity: 1; max-width: 46px; }
-          70%  { opacity: 1; max-width: 480px; }
-          100% { opacity: 1; max-width: 480px; }
+          0%   { opacity: 0; clip-path: inset(0 100% 0 0 round 40px); }
+          18%  { opacity: 1; clip-path: inset(0 calc(100% - 46px) 0 0 round 40px); }
+          70%  { opacity: 1; clip-path: inset(0 0% 0 0 round 40px); }
+          100% { opacity: 1; clip-path: inset(0 0% 0 0 round 40px); }
         }
         @keyframes vibraToastIconPop {
           0%   { transform: scale(0.4); opacity: 0; }
@@ -67,7 +67,7 @@ export default function VibraToast({ toast }: Props) {
           bottom: "calc(88px + env(safe-area-inset-bottom, 0px))",
           left: "50%",
           transform: "translateX(-50%)",
-          zIndex: 11500,
+          zIndex: 2147483647,
           pointerEvents: "none",
         }}
       >
@@ -91,9 +91,8 @@ export default function VibraToast({ toast }: Props) {
             color: "#fff",
             fontSize: 14,
             fontWeight: 500,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            maxWidth: "calc(100vw - 32px)",
+            width: "max-content",
+            maxWidth: "calc(100vw - 48px)",
             animation: leaving
               ? `vibraToastFadeOut ${EXIT_MS}ms cubic-bezier(0.4,0,1,1) forwards`
               : "vibraToastExpand 500ms cubic-bezier(0.4,0,0.2,1) forwards",
@@ -137,7 +136,10 @@ export default function VibraToast({ toast }: Props) {
               <span style={{ fontSize: 13, fontWeight: 800, lineHeight: 1, color: "#fff" }}>!</span>
             )}
           </span>
-          <span style={{ animation: leaving ? "none" : "vibraToastText 500ms ease forwards" }}>
+          <span style={{
+            animation: leaving ? "none" : "vibraToastText 500ms ease forwards",
+            wordBreak: "break-word",
+          }}>
             {visible.text}
           </span>
         </div>

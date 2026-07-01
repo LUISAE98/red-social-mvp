@@ -848,7 +848,7 @@ function redirectToLogin() {
         allowCreatorStory,
       });
 
-      const successMessage = `✅ Solicitud enviada correctamente. ID: ${res.requestId}`;
+      const successMessage = "Solicitud de saludo enviada correctamente.";
 
       setServiceToast(successMessage);
       setGreetOpen(false);
@@ -916,7 +916,7 @@ function redirectToLogin() {
         durationMinutes: meetGreetDurationMinutes,
       });
 
-      const successMessage = `✅ Meet & Greet solicitado correctamente. ID: ${result.requestId}`;
+      const successMessage = "Meet & Greet solicitado correctamente.";
 
       setMeetGreetOpen(false);
       setMeetGreetMessage("");
@@ -984,14 +984,7 @@ function redirectToLogin() {
         durationMinutes: exclusiveSessionDurationMinutes,
       });
 
-      const requestId =
-        result && typeof result === "object" && "requestId" in result
-          ? String((result as { requestId?: unknown }).requestId ?? "")
-          : "";
-
-      const successMessage = requestId
-        ? `✅ Sesión exclusiva solicitada correctamente. ID: ${requestId}`
-        : "✅ Sesión exclusiva solicitada correctamente.";
+      const successMessage = "Sesión exclusiva solicitada correctamente.";
 
       setExclusiveSessionOpen(false);
       setExclusiveSessionMessage("");

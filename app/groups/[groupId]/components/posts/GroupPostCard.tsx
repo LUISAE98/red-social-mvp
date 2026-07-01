@@ -1495,7 +1495,7 @@ useEffect(() => {
     }
 
     setSelectedMediaUrl(mediaUrl);
-    void handleOpenCommentsPanel();
+    if (!isMobile) void handleOpenCommentsPanel();
   }
 
   function closeMediaViewer() {
@@ -5211,47 +5211,6 @@ padding: "0 0 2px 0",
           </div>,
           document.body
         )}
-        {selectedMediaUrl === null && (
-        <PostCommentsPanel
-          open={commentsPanelOpen}
-          isMobile={isMobile}
-          postId={post.id}
-          groupId={effectiveGroupId}
-          comments={comments}
-          loading={loadingComments}
-          currentUserId={currentUserId}
-          isOwner={isOwner}
-          isModerator={isModerator}
-          canCommentOnPosts={effectiveCanCommentOnPosts && !premiumState.isBlocked}
-          commentBlockedMessage={commentBlockedMessage}
-          commentText={commentText}
-          creatingComment={creatingComment}
-          deletingCommentId={deletingCommentId}
-          inlineError={premiumState.isBlocked ? null : inlineActionError}
-          canUseGroupMemberBlock={canUseGroupMemberBlock}
-          canModerateGroupAuthor={canModerateGroupAuthor}
-          isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
-          visibleCount={isMobile ? undefined : desktopVisibleCount}
-          hasMore={!isMobile && comments !== null && comments.length > desktopVisibleCount}
-          onLoadMore={isMobile ? undefined : () => setDesktopVisibleCount((c) => c + 5)}
-          onCloseDesktop={!isMobile ? handleToggleCommentsDesktop : undefined}
-          onCommentTextChange={setCommentText}
-          onClose={() => setCommentsPanelOpen(false)}
-          onCreateComment={handleCreateComment}
-          onDeleteComment={handleDeleteComment}
-          onLoadReplies={onLoadReplies}
-          onCreateReply={onCreateReply}
-          onDeleteReply={onDeleteReply}
-          onGroupMemberBlockComplete={async () => {
-            setComments(null);
-            await onGroupMemberBlockComplete?.();
-          }}
-          onModerationComplete={async () => {
-            await onModerationComplete?.();
-          }}
-        />
-      )}
-
       <PostFlamesPanel
         open={flamesPanelOpen}
         loading={loadingFlameUsers}
@@ -5373,6 +5332,44 @@ padding: "0 0 2px 0",
   isSaved={optimisticViewerHasSaved}
   saveBusy={saveBusy}
   savesCount={optimisticSavesCount}
+/>
+<PostCommentsPanel
+  open={commentsPanelOpen}
+  isMobile={isMobile}
+  postId={post.id}
+  groupId={effectiveGroupId}
+  comments={comments}
+  loading={loadingComments}
+  currentUserId={currentUserId}
+  isOwner={isOwner}
+  isModerator={isModerator}
+  canCommentOnPosts={effectiveCanCommentOnPosts && !premiumState.isBlocked}
+  commentBlockedMessage={commentBlockedMessage}
+  commentText={commentText}
+  creatingComment={creatingComment}
+  deletingCommentId={deletingCommentId}
+  inlineError={premiumState.isBlocked ? null : inlineActionError}
+  canUseGroupMemberBlock={canUseGroupMemberBlock}
+  canModerateGroupAuthor={canModerateGroupAuthor}
+  isPostAuthor={!!currentUserId && currentUserId === postAuthor.authorId}
+  visibleCount={isMobile ? undefined : desktopVisibleCount}
+  hasMore={!isMobile && comments !== null && comments.length > desktopVisibleCount}
+  onLoadMore={isMobile ? undefined : () => setDesktopVisibleCount((c) => c + 5)}
+  onCloseDesktop={!isMobile ? handleToggleCommentsDesktop : undefined}
+  onCommentTextChange={setCommentText}
+  onClose={() => setCommentsPanelOpen(false)}
+  onCreateComment={handleCreateComment}
+  onDeleteComment={handleDeleteComment}
+  onLoadReplies={onLoadReplies}
+  onCreateReply={onCreateReply}
+  onDeleteReply={onDeleteReply}
+  onGroupMemberBlockComplete={async () => {
+    setComments(null);
+    await onGroupMemberBlockComplete?.();
+  }}
+  onModerationComplete={async () => {
+    await onModerationComplete?.();
+  }}
 />
   <style>
   {`

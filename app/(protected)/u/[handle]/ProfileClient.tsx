@@ -1425,6 +1425,15 @@ async function handleSendPasswordReset() {
 async function handleSubmitGreeting() {
   if (!userDoc || !viewer) return;
 
+  if (!toName.trim()) {
+    setGreetError("Escribe el nombre de la persona a quien va dirigido el saludo.");
+    return;
+  }
+  if (!instructions.trim()) {
+    setGreetError("Escribe las instrucciones para el saludo.");
+    return;
+  }
+
   setGreetSubmitting(true);
   setGreetError(null);
   setGreetSuccess(null);

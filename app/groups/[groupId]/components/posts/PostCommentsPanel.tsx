@@ -261,21 +261,31 @@ export default function PostCommentsPanel({
 
   const inputStyle: CSSProperties = {
     width: "100%",
-    minHeight: 38,
-    maxHeight: 90,
+    minHeight: 24,
+    maxHeight: 44,
     padding: 0,
     border: "none",
-    borderBottom: "1px solid rgba(255,255,255,0.07)",
     background: "transparent",
     color: "#fff",
     outline: "none",
     resize: "none",
-    overflowY: "hidden",
+    overflowY: "auto",
     fontSize: 13,
     fontWeight: 300,
-    lineHeight: "20px",
+    lineHeight: "22px",
     fontFamily: fontStack,
     boxSizing: "border-box",
+  };
+
+  const pillWrapperStyle: CSSProperties = {
+    flex: 1,
+    minWidth: 0,
+    borderRadius: 14,
+    border: "1px solid rgba(255,255,255,0.15)",
+    background: "transparent",
+    padding: "5px 14px",
+    display: "flex",
+    alignItems: "center",
   };
 
   const disabledTextareaStyle: CSSProperties = {
@@ -300,8 +310,9 @@ export default function PostCommentsPanel({
 
   const primaryButtonStyle: CSSProperties = {
     ...subtleButtonStyle,
-    background: "#fff",
-    color: "#000",
+    background: "#a855f7",
+    color: "#fff",
+    border: "none",
   };
 
   const disabledButtonStyle: CSSProperties = {
@@ -372,10 +383,6 @@ export default function PostCommentsPanel({
                   textAlign: "center",
                 }}
               >
-                <span style={{ fontSize: 26, lineHeight: 1 }}>💬</span>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#fff" }}>
-                  Sé el primero en comentar
-                </p>
                 <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.52)", lineHeight: 1.4 }}>
                   Todavía no hay comentarios en esta publicación.
                 </p>
@@ -435,52 +442,43 @@ export default function PostCommentsPanel({
           <div style={{ display: "grid", gap: 8 }}>
             {inlineError && <div style={inlineErrorStyle}>{inlineError}</div>}
 
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <AutoGrowTextarea
-                  value={commentText}
-                  onChange={(e) => onCommentTextChange(e.target.value)}
-                  placeholder={
-                    canCommentOnPosts
-                      ? "Escribe un comentario..."
-                      : groupId
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={pillWrapperStyle}>
+                {canCommentOnPosts ? (
+                  <AutoGrowTextarea
+                    value={commentText}
+                    onChange={(e) => onCommentTextChange(e.target.value)}
+                    placeholder="Escribe un comentario..."
+                    maxRows={2}
+                    style={inputStyle}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    disabled
+                    placeholder={
+                      commentBlockedMessage ??
+                      (groupId
                         ? "Comentarios bloqueados en esta comunidad"
-                        : "Solo el dueño puede comentar en este perfil"
-                  }
-                  maxRows={3}
-                  style={canCommentOnPosts ? inputStyle : disabledTextareaStyle}
-                  disabled={!canCommentOnPosts}
-                />
-
-                {!canCommentOnPosts && commentBlockedMessage && (
-                  <div
+                        : "Solo el dueño puede comentar en este perfil")
+                    }
                     style={{
-                      marginTop: 2,
-                      fontSize: 11.5,
-                      lineHeight: 1.45,
-                      color: "rgba(255,255,255,0.58)",
+                      ...inputStyle,
+                      color: "rgba(255,255,255,0.46)",
+                      cursor: "not-allowed",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
                     }}
-                  >
-                    {commentBlockedMessage}
-                  </div>
+                  />
                 )}
               </div>
 
               <button
                 type="button"
-                onClick={onCreateComment}
-                disabled={
-                  !canCommentOnPosts ||
-                  creatingComment ||
-                  commentText.trim().length === 0
-                }
-                style={
-                  !canCommentOnPosts ||
-                  creatingComment ||
-                  commentText.trim().length === 0
-                    ? disabledButtonStyle
-                    : primaryButtonStyle
-                }
+                onClick={() => { if (commentText.trim().length > 0) onCreateComment(); }}
+                disabled={!canCommentOnPosts || creatingComment}
+                style={primaryButtonStyle}
               >
                 {creatingComment ? "Comentando..." : "Comentar"}
               </button>
@@ -518,7 +516,7 @@ export default function PostCommentsPanel({
         inset: 0,
         width: "100vw",
         height: "100vh",
-        zIndex: 999999,
+        zIndex: 2147483647,
         display: "flex",
         alignItems: "flex-end",
         justifyContent: "center",
@@ -671,10 +669,6 @@ export default function PostCommentsPanel({
                     textAlign: "center",
                   }}
                 >
-                  <span style={{ fontSize: 26, lineHeight: 1 }}>💬</span>
-                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "#fff" }}>
-                    Sé el primero en comentar
-                  </p>
                   <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.52)", lineHeight: 1.4 }}>
                     Todavía no hay comentarios en esta publicación.
                   </p>
@@ -717,32 +711,30 @@ export default function PostCommentsPanel({
         >
           {inlineError && <div style={inlineErrorStyle}>{inlineError}</div>}
 
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 10 }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <AutoGrowTextarea
-                value={commentText}
-                onChange={(e) => onCommentTextChange(e.target.value)}
-                placeholder={
-                  canCommentOnPosts
-                    ? "Escribe un comentario..."
-                    : "Comentarios bloqueados en esta comunidad"
-                }
-                maxRows={3}
-                style={canCommentOnPosts ? inputStyle : disabledTextareaStyle}
-                disabled={!canCommentOnPosts}
-              />
-
-              {!canCommentOnPosts && commentBlockedMessage && (
-                <div
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={pillWrapperStyle}>
+              {canCommentOnPosts ? (
+                <AutoGrowTextarea
+                  value={commentText}
+                  onChange={(e) => onCommentTextChange(e.target.value)}
+                  placeholder="Escribe un comentario..."
+                  maxRows={2}
+                  style={inputStyle}
+                />
+              ) : (
+                <input
+                  type="text"
+                  disabled
+                  placeholder={commentBlockedMessage ?? "Comentarios bloqueados en esta comunidad"}
                   style={{
-                    marginTop: 2,
-                    fontSize: 11.5,
-                    lineHeight: 1.45,
-                    color: "rgba(255,255,255,0.58)",
+                    ...inputStyle,
+                    color: "rgba(255,255,255,0.46)",
+                    cursor: "not-allowed",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
                   }}
-                >
-                  {commentBlockedMessage}
-                </div>
+                />
               )}
             </div>
 
@@ -754,13 +746,7 @@ export default function PostCommentsPanel({
                 creatingComment ||
                 commentText.trim().length === 0
               }
-              style={
-                !canCommentOnPosts ||
-                creatingComment ||
-                commentText.trim().length === 0
-                  ? disabledButtonStyle
-                  : primaryButtonStyle
-              }
+              style={primaryButtonStyle}
             >
               {creatingComment ? "Comentando..." : "Comentar"}
             </button>

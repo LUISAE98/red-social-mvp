@@ -132,6 +132,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const { messages, deleteMessage } = useLiveChat(open ? post.id : null, 50);
   const [isDesktop, setIsDesktop] = useState(false);
   const [mobileTab, setMobileTab] = useState<"supercomentarios" | "estadisticas">("supercomentarios");
+  const [portraitTab, setPortraitTab] = useState<0 | 1 | 2>(1); // 0=Supercomentarios, 1=Chat, 2=Estadísticas
   const [panelRatio, setPanelRatio] = useState(0.65);
   const bodyContainerRef = useRef<HTMLDivElement>(null);
   const videoAreaRef = useRef<HTMLDivElement>(null);
@@ -141,7 +142,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const panelDragStartRatio = useRef(0.65);
   const panelRatioRef = useRef(0.65);
   panelRatioRef.current = panelRatio;
-  const PANEL_SNAPS = [0.08, 0.30, 0.65] as const;
+  const PANEL_SNAPS = [0.15, 0.50, 0.82] as const;
   const docTouchMoveRef = useRef<((e: TouchEvent) => void) | null>(null);
   const docTouchEndRef = useRef<(() => void) | null>(null);
   const [togglingChat, setTogglingChat] = useState(false);
@@ -230,6 +231,37 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       const tabIndex = mobileTab === "supercomentarios" ? 0 : 1;
       if (tabDragOffset < -cW * 0.3 && tabIndex === 0) setMobileTab("estadisticas");
       else if (tabDragOffset > cW * 0.3 && tabIndex === 1) setMobileTab("supercomentarios");
+    }
+    setTabDragOffset(0);
+  }
+
+  // ── Handlers para 3 pestañas portrait (Supercomentarios | Chat | Estadísticas) ──
+  function onPortraitTabTouchStart(e: React.TouchEvent) {
+    tabDragStateRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, dir: null };
+  }
+  function onPortraitTabTouchMove(e: React.TouchEvent) {
+    const s = tabDragStateRef.current;
+    if (!s) return;
+    const dx = e.touches[0].clientX - s.startX;
+    const dy = e.touches[0].clientY - s.startY;
+    if (!s.dir) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      s.dir = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+    }
+    if (s.dir !== "h") return;
+    const cW = tabContainerRef.current?.offsetWidth ?? 1;
+    let offset = dx;
+    if (portraitTab === 0 && offset > 0) offset *= 0.15;
+    if (portraitTab === 2 && offset < 0) offset *= 0.15;
+    setTabDragOffset(Math.max(-cW, Math.min(cW, offset)));
+  }
+  function onPortraitTabTouchEnd() {
+    const s = tabDragStateRef.current;
+    tabDragStateRef.current = null;
+    if (s?.dir === "h") {
+      const cW = tabContainerRef.current?.offsetWidth ?? 1;
+      if (tabDragOffset < -cW * 0.3 && portraitTab < 2) setPortraitTab((portraitTab + 1) as 0 | 1 | 2);
+      else if (tabDragOffset > cW * 0.3 && portraitTab > 0) setPortraitTab((portraitTab - 1) as 0 | 1 | 2);
     }
     setTabDragOffset(0);
   }
@@ -560,45 +592,49 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   }, []);
 
   // ── Drag + snap helpers para panel portrait mobile ───────────────────────
-  const snapPanelTo = (ratio: number, animate = true) => {
-    if (animate) {
-      if (panelDragRef.current) panelDragRef.current.style.transition = "height 0.28s ease";
-      if (videoAreaRef.current) videoAreaRef.current.style.transition = "height 0.28s ease";
-      setTimeout(() => {
-        if (panelDragRef.current) panelDragRef.current.style.transition = "";
-        if (videoAreaRef.current) videoAreaRef.current.style.transition = "";
-      }, 300);
-    }
+  const snapPanelTo = (ratio: number) => {
+    if (panelDragRef.current) panelDragRef.current.style.transition = "height 0.28s ease";
+    if (videoAreaRef.current) videoAreaRef.current.style.transition = "height 0.28s ease";
     if (panelDragRef.current) panelDragRef.current.style.height = `${ratio * 100}%`;
     if (videoAreaRef.current) videoAreaRef.current.style.height = `${(1 - ratio) * 100}%`;
+    setTimeout(() => {
+      if (panelDragRef.current) panelDragRef.current.style.transition = "";
+      if (videoAreaRef.current) videoAreaRef.current.style.transition = "";
+    }, 300);
     setPanelRatio(ratio);
   };
 
-  const expandPanel = () => snapPanelTo(0.65);
+  const expandPanel = () => snapPanelTo(0.82);
 
   const startPanelDrag = (startY: number) => {
     if (isDraggingPanel.current) return;
-    isDraggingPanel.current = true;
     panelDragStartY.current = startY;
     panelDragStartRatio.current = panelRatioRef.current;
+    let dragStarted = false;
 
     docTouchMoveRef.current = (ev: TouchEvent) => {
-      if (!isDraggingPanel.current) return;
+      const deltaY = panelDragStartY.current - ev.touches[0].clientY;
+      if (!dragStarted) {
+        if (Math.abs(deltaY) < 6) return;
+        dragStarted = true;
+        isDraggingPanel.current = true;
+      }
       ev.preventDefault();
       const totalH = bodyContainerRef.current?.offsetHeight ?? window.innerHeight;
-      const deltaY = panelDragStartY.current - ev.touches[0].clientY;
-      const newRatio = Math.max(0.04, Math.min(0.92, panelDragStartRatio.current + deltaY / totalH));
+      const newRatio = Math.max(0.04, Math.min(0.93, panelDragStartRatio.current + deltaY / totalH));
       if (panelDragRef.current) panelDragRef.current.style.height = `${newRatio * 100}%`;
       if (videoAreaRef.current) videoAreaRef.current.style.height = `${(1 - newRatio) * 100}%`;
     };
 
     docTouchEndRef.current = () => {
-      if (!isDraggingPanel.current) return;
+      const wasDragging = dragStarted;
+      dragStarted = false;
       isDraggingPanel.current = false;
       if (docTouchMoveRef.current) document.removeEventListener("touchmove", docTouchMoveRef.current);
       if (docTouchEndRef.current) document.removeEventListener("touchend", docTouchEndRef.current);
+      if (!wasDragging) return;
       const totalH = bodyContainerRef.current?.offsetHeight ?? window.innerHeight;
-      const cur = (panelDragRef.current?.offsetHeight ?? totalH * 0.65) / totalH;
+      const cur = (panelDragRef.current?.offsetHeight ?? totalH * panelRatioRef.current) / totalH;
       const snapped = [...PANEL_SNAPS].reduce((a, b) => Math.abs(b - cur) < Math.abs(a - cur) ? b : a);
       snapPanelTo(snapped);
     };
@@ -609,29 +645,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
   const onPanelTouchStart = (e: React.TouchEvent) => startPanelDrag(e.touches[0].clientY);
 
-  // Nivel de contenido del panel portrait: 2=completo, 1=tabs+header chat, 0=solo barra tabs
-  const contentLevel = panelRatio >= 0.475 ? 2 : panelRatio >= 0.19 ? 1 : 0;
-
-  // Arrastra el panel hacia abajo SOLO si el dedo va hacia abajo (no interrumpe scroll del chat)
-  const onChatDragStart = (e: React.TouchEvent) => {
-    const sy = e.touches[0].clientY;
-    const sx = e.touches[0].clientX;
-    let resolved = false;
-    const onMove = (ev: TouchEvent) => {
-      if (resolved) return;
-      const dy = ev.touches[0].clientY - sy;
-      const dx = ev.touches[0].clientX - sx;
-      if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
-      resolved = true;
-      document.removeEventListener("touchmove", onMove);
-      if (dy > 0 && dy > Math.abs(dx)) startPanelDrag(sy);
-    };
-    document.addEventListener("touchmove", onMove, { passive: false });
-    document.addEventListener("touchend", () => {
-      resolved = true;
-      document.removeEventListener("touchmove", onMove);
-    }, { once: true });
-  };
+  // Cálculos para barra de 3 pestañas portrait
+  const PORTRAIT_TAB_LABELS = ["Supercomentarios", "Chat", "Estadísticas"] as const;
+  const portraitTabProgress = portraitTab - tabDragOffset / (tabContainerRef.current?.offsetWidth || 1);
+  const isPortraitDragging = tabDragOffset !== 0;
 
   if (!open || typeof document === "undefined") return null;
 
@@ -1475,8 +1492,8 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           </button>
         </div>
 
-        {/* Botón config — solo disponible antes de iniciar el live */}
-        {!isBroadcasting && liveStatus !== "live" && liveStatus !== "ended" && (
+        {/* Botón config de supercomentarios */}
+        {liveStatus !== "ended" && (
           <div style={{ flexShrink: 0, padding: "10px 12px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
             <button
               type="button"
@@ -1680,10 +1697,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     );
   }
 
-  function renderChatSection() {
+  function renderChatSection(hideHeader = false) {
     return (
       <div style={{ display: "flex", flexDirection: "column", overflow: "hidden", flex: 1, minHeight: 0 }}>
-        {sectionHeader("Chat")}
+        {!hideHeader && sectionHeader("Chat")}
 
         {/* Fila activar/desactivar chat con switch — agrupados a la derecha */}
         <div style={{
@@ -2116,53 +2133,21 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           </div>
         </div>
 
-      ) : !isDesktop && !layoutPortrait ? (
-        /* ── Mobile + Horizontal live ─────────────────────────────────────── */
-        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-
-          {/* Video — debajo del header que ya respeta safe-area-top */}
-          {(showVideo || showDirectBroadcast) && (
-            <div style={{
-              flexShrink: 0, width: "100%", height: "38%",
-              position: "relative", background: "#000", overflow: "hidden",
-            }}>
-              {showDirectBroadcast ? (
-                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
-              ) : isEnded ? (
-                <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={false} autoPlay={false} />
-              ) : (
-                <MuxLivePlaceholder />
-              )}
-            </div>
-          )}
-
-          {/* Chat en vivo — ocupa la mitad superior del espacio restante */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderBottom: DIV }}>
-            {renderChatSection()}
-          </div>
-
-          {/* Tabs: Supercomentarios | Estadísticas — mitad inferior */}
-          {renderMobileTabs()}
-        </div>
-
-      ) : !isDesktop && layoutPortrait ? (
-        /* ── Mobile + Portrait live: video miniatura + panel persiana ─────── */
+      ) : !isDesktop ? (
+        /* ── Mobile: video miniatura + panel con 3 pestañas ────────────────── */
         <div ref={bodyContainerRef} style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
-          {/* Miniatura de video — crece/encoge según panel */}
+          {/* Área de video — redimensionable con handle */}
           <div
             ref={videoAreaRef}
             style={{
               height: `${(1 - panelRatio) * 100}%`,
-              flexShrink: 0, overflow: "hidden",
-              background: "#000",
-              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0, position: "relative",
+              background: "#000", overflow: "hidden",
             }}
           >
             {showDirectBroadcast ? (
-              <div style={{ height: "100%", aspectRatio: "9/16", position: "relative", overflow: "hidden" }}>
-                <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
-              </div>
+              <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
             ) : showVideo ? (
               <div style={{ width: "100%", height: "100%", position: "relative" }}>
                 {isEnded ? (
@@ -2172,11 +2157,13 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
                 )}
               </div>
             ) : (
-              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>Sin transmisión activa</span>
+              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>Sin transmisión activa</span>
+              </div>
             )}
           </div>
 
-          {/* Panel persiana — 3 snappoints: 0.08/0.30/0.65 */}
+          {/* Panel inferior — barra de tabs sirve como drag handle */}
           <div
             ref={panelDragRef}
             style={{
@@ -2187,54 +2174,73 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               borderTop: "1px solid rgba(255,255,255,0.1)",
             }}
           >
-            {/* Handle — visible en nivel 1 y 2 */}
-            {contentLevel > 0 && (
-              <div
-                onTouchStart={onPanelTouchStart}
-                style={{
-                  flexShrink: 0, paddingTop: 10, paddingBottom: 6,
-                  display: "flex", justifyContent: "center", alignItems: "center",
-                  touchAction: "none", cursor: "grab",
-                }}
-              >
-                <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.25)" }} />
+            {/* Barra de 3 pestañas — también actúa como handle de arrastre */}
+            <div
+              onTouchStart={onPanelTouchStart}
+              style={{ flexShrink: 0, touchAction: "none" }}
+            >
+              {/* Pill indicador de arrastre */}
+              <div style={{ display: "flex", justifyContent: "center", paddingTop: 8, paddingBottom: 4 }}>
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.2)" }} />
               </div>
-            )}
-
-            {/* Chat completo — solo nivel 2 */}
-            {contentLevel === 2 && (
-              <div
-                onTouchStart={onChatDragStart}
-                style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderBottom: DIV }}
-              >
-                {renderChatSection()}
+              {/* Tab buttons */}
+              <div style={{ position: "relative", display: "flex", borderBottom: DIV }}>
+                {PORTRAIT_TAB_LABELS.map((label, i) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => { setPortraitTab(i as 0 | 1 | 2); setTabDragOffset(0); }}
+                    style={{
+                      flex: 1, padding: "9px 2px",
+                      border: "none", background: "transparent",
+                      color: `rgba(255,255,255,${Math.abs(portraitTabProgress - i) < 0.5 ? 1 : 0.3})`,
+                      fontSize: 9, fontWeight: 700, fontFamily: FONT,
+                      cursor: "pointer", letterSpacing: "0.04em", textTransform: "uppercase",
+                      transition: "color 0.2s",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+                {/* Raya indicadora */}
+                <div style={{
+                  position: "absolute", bottom: -1, height: 2,
+                  width: "33.333%", background: "#fff",
+                  left: `${Math.max(0, Math.min(2, portraitTabProgress)) * 33.333}%`,
+                  transition: isPortraitDragging ? "none" : "left 0.3s ease",
+                }} />
               </div>
-            )}
+            </div>
 
-            {/* Chat header colapsado — solo nivel 1, toca para expandir */}
-            {contentLevel === 1 && (
-              <button
-                type="button"
-                onClick={expandPanel}
-                style={{
-                  flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
-                  gap: 6, padding: "7px 16px",
-                  background: "none", border: "none", borderBottom: DIV,
-                  color: "rgba(255,255,255,0.3)", fontSize: 10, fontFamily: FONT,
-                  cursor: "pointer", letterSpacing: "0.05em",
-                }}
-              >
-                <span style={{ fontSize: 12 }}>↑</span>
-                <span>Chat en vivo</span>
-              </button>
-            )}
-
-            {/* Tabs: barra siempre visible; contenido solo en nivel > 0 */}
-            {renderMobileTabs(
-              contentLevel > 0,
-              contentLevel < 2 ? expandPanel : undefined,
-              onPanelTouchStart,
-            )}
+            {/* Contenido deslizante — 3 secciones */}
+            <div
+              ref={tabContainerRef}
+              onTouchStart={onPortraitTabTouchStart}
+              onTouchMove={onPortraitTabTouchMove}
+              onTouchEnd={onPortraitTabTouchEnd}
+              onTouchCancel={onPortraitTabTouchEnd}
+              style={{ flex: 1, overflow: "hidden", position: "relative", touchAction: "pan-y" }}
+            >
+              <div style={{
+                display: "flex", width: "300%", height: "100%",
+                transform: `translateX(calc(${-portraitTab * 33.333}% + ${tabDragOffset / 3}px))`,
+                transition: isPortraitDragging ? "none" : "transform 0.3s ease",
+                willChange: "transform",
+              }}>
+                {/* Supercomentarios */}
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+                  {renderSuperCommentsSection()}
+                </div>
+                {/* Chat */}
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+                  {renderChatSection(true)}
+                </div>
+                {/* Estadísticas */}
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
+                  {renderMobileStatsSection()}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 

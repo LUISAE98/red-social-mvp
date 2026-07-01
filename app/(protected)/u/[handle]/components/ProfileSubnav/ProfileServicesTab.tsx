@@ -1041,9 +1041,9 @@ export default function ProfileServicesTab({
         donation: nextDonation,
       });
 
-      showToast("✅ Servicios del perfil guardados.");
+      showToast("Servicios del perfil guardados.", "success");
     } catch (e: unknown) {
-      showToast((e instanceof Error ? e.message : null) ?? "❌ No se pudieron guardar los servicios del perfil.", "error");
+      showToast("No se pudieron guardar los servicios del perfil.", "error");
     } finally {
       skipHydrationWhileSavingRef.current = false;
       setSaving(false);

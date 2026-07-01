@@ -255,12 +255,14 @@ export default function ProfileGroupsTab({
       onGroupsVisibilityChanged?.(nextValue);
       showToast(
         nextValue
-          ? "✅ Ahora los visitantes pueden ver tus comunidades."
-          : "✅ Tus comunidades ya no se muestran a visitantes."
+          ? "Ahora los visitantes pueden ver tus comunidades."
+          : "Tus comunidades ya no se muestran a visitantes.",
+        "success"
       );
     } catch (e: unknown) {
       showToast(
-        (e instanceof Error ? e.message : null) ?? "❌ No se pudo actualizar la visibilidad de tus comunidades."
+        "No se pudo actualizar la visibilidad de tus comunidades.",
+        "error"
       );
     } finally {
       setSavingVisibility(false);

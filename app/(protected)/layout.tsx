@@ -11,6 +11,7 @@ import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPos
 import { useAuth } from "@/app/providers";
 import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
 import MobileBottomNav from "@/app/components/MobileBottomNav";
+import ScrollToTopFAB from "@/app/components/ScrollToTopFAB/ScrollToTopFAB";
 import GroupsSearchPanel from "@/app/components/SearchToolbar/GroupsSearchPanel";
 import { useWalletVisibility } from "@/lib/wallet/useWalletVisibility";
 import { useMobileHeaderFade } from "@/app/hooks/useMobileHeaderFade";
@@ -810,6 +811,7 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
 </div>
         </div>
 
+       <ScrollToTopFAB />
        <MobileBottomNav showWallet={showWalletRail} />
       </div>
       </MobileHeaderCtx.Provider>
