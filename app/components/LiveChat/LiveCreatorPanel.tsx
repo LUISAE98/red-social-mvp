@@ -131,6 +131,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const { user } = useAuth();
   const { messages, deleteMessage } = useLiveChat(open ? post.id : null, 50);
   const [isDesktop, setIsDesktop] = useState(false);
+  const [isMobileLandscape, setIsMobileLandscape] = useState(false);
   const [mobileTab, setMobileTab] = useState<"supercomentarios" | "estadisticas">("supercomentarios");
   const [portraitTab, setPortraitTab] = useState<0 | 1 | 2>(1); // 0=Supercomentarios, 1=Chat, 2=Estadísticas
   const [panelRatio, setPanelRatio] = useState(0.65);
@@ -385,7 +386,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       // Freeze layout while a broadcast is active — changing branches would
       // unmount LiveDirectBroadcast and its cleanup disconnects the room.
       if (isBroadcastingRef.current) return;
-      setIsDesktop(window.innerWidth >= 768);
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const mobileLandscape = w > h && w < 1024;
+      setIsMobileLandscape(mobileLandscape);
+      setIsDesktop(w >= 768 && !mobileLandscape);
     };
     update();
     window.addEventListener("resize", update);
@@ -911,7 +916,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     );
   }
 
-  function renderMobileStatsSection() {
+  function renderMobileStatsSection(cols: 2 | 3 = 2) {
     const CREATOR_SHARE = 0.77;
     const paidSuperComments = superComments.filter(sc => sc.status === "paid" && !sc.isDeleted);
     const donations    = paidSuperComments.filter(sc => !sc.text);
@@ -952,7 +957,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
     return (
       <div style={{ flex: 1, overflow: "auto", padding: "4px 8px 16px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)` }}>
           {stats.map(({ id, value, sub, label, green }) => {
             const color = green ? "#4ade80" : getTileColor(id);
             return (
@@ -2130,6 +2135,98 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 24px 48px rgba(0,0,0,0.8)",
           }}>
             {renderStatsSection()}
+          </div>
+        </div>
+
+      ) : isMobileLandscape ? (
+        /* ── Mobile Landscape: 2 columnas (video | panel con 3 pestañas) ───── */
+        <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "row" }}>
+
+          {/* ── Columna 1: Video ─────────────────────────────────────────── */}
+          <div style={{
+            flex: 1,
+            background: "#000",
+            position: "relative",
+            overflow: "hidden",
+          }}>
+            {showDirectBroadcast ? (
+              <LiveDirectBroadcast postId={post.id} onBroadcastingChange={setIsBroadcasting} onHeadphonesChange={setHeadphonesDetected} micMutedForTTS={micMutedForTTS} />
+            ) : showVideo ? (
+              <div style={{ width: "100%", height: "100%", position: "relative" }}>
+                {isEnded ? (
+                  <VideoPreview hlsUrl={hlsUrl!} fill objectFit="contain" showLiveBadge={false} autoPlay={false} />
+                ) : (
+                  <MuxLivePlaceholder />
+                )}
+              </div>
+            ) : (
+              <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.2)", fontFamily: FONT }}>Sin transmisión activa</span>
+              </div>
+            )}
+          </div>
+
+          {/* ── Columna 2: Tab panel ─────────────────────────────────────── */}
+          <div style={{
+            width: "42%",
+            display: "flex",
+            flexDirection: "column",
+            borderLeft: "1px solid rgba(255,255,255,0.08)",
+            background: "#0a0a0a",
+          }}>
+            {/* Tab bar */}
+            <div style={{ flexShrink: 0, position: "relative", display: "flex", borderBottom: DIV }}>
+              {PORTRAIT_TAB_LABELS.map((label, i) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => { setPortraitTab(i as 0 | 1 | 2); setTabDragOffset(0); }}
+                  style={{
+                    flex: 1, padding: "10px 2px",
+                    border: "none", background: "transparent",
+                    color: `rgba(255,255,255,${Math.abs(portraitTabProgress - i) < 0.5 ? 1 : 0.3})`,
+                    fontSize: 9, fontWeight: 700, fontFamily: FONT,
+                    cursor: "pointer", letterSpacing: "0.04em", textTransform: "uppercase",
+                    transition: "color 0.2s",
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+              <div style={{
+                position: "absolute", bottom: -1, height: 2,
+                width: "33.333%", background: "#fff",
+                left: `${Math.max(0, Math.min(2, portraitTabProgress)) * 33.333}%`,
+                transition: isPortraitDragging ? "none" : "left 0.3s ease",
+              }} />
+            </div>
+
+            {/* Contenido deslizante — 3 secciones */}
+            <div
+              ref={tabContainerRef}
+              onTouchStart={onPortraitTabTouchStart}
+              onTouchMove={onPortraitTabTouchMove}
+              onTouchEnd={onPortraitTabTouchEnd}
+              onTouchCancel={onPortraitTabTouchEnd}
+              style={{ flex: 1, overflow: "hidden", position: "relative", touchAction: "pan-y" }}
+            >
+              <div style={{
+                display: "flex", width: "300%", height: "100%",
+                transform: `translateX(calc(${-portraitTab * 33.333}% + ${tabDragOffset / 3}px))`,
+                transition: isPortraitDragging ? "none" : "transform 0.3s ease",
+                willChange: "transform",
+              }}>
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}>
+                  {renderSuperCommentsSection()}
+                </div>
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}>
+                  {renderChatSection(true)}
+                </div>
+                <div style={{ width: "33.333%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column", paddingBottom: "env(safe-area-inset-bottom, 0px)", paddingRight: "env(safe-area-inset-right, 0px)" }}>
+                  {renderMobileStatsSection(3)}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
