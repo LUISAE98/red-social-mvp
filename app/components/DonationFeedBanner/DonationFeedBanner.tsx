@@ -421,6 +421,12 @@ export default function DonationFeedBanner({
     );
   };
 
+  const loadingSpinner = !videoReady ? (
+    <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "#000", zIndex: 4 }}>
+      <div className="vibraPullRefreshSpinner refreshing" style={{ width: 32, height: 32 }} />
+    </div>
+  ) : null;
+
   const muteIconBanner = (
     <button type="button" aria-label={muted ? "Activar sonido" : "Silenciar"}
       onClick={(e) => { e.stopPropagation(); setMuted((m) => !m); }}
@@ -466,8 +472,8 @@ export default function DonationFeedBanner({
   return (
     <>
       <style>{`
-        .dbv-video-wrap { position: absolute; z-index: 2; border-radius: 10px; overflow: hidden; background: #111; }
-        .dbv-video-wrap.portrait  { top: 2%; right: 12%; }
+        .dbv-video-wrap { position: absolute; z-index: 2; border-radius: 10px; overflow: hidden; background: #000; }
+.dbv-video-wrap.portrait  { top: 2%; right: 12%; }
         @media (min-width: 560px) {
           .dbv-video-wrap.portrait { top: 4%; bottom: 4%; right: 4%; width: auto !important; }
         }
@@ -526,8 +532,9 @@ export default function DonationFeedBanner({
                 </div>
               )}
               {hlsUrl && (
-                <div style={{ position: "relative", width: "52%", aspectRatio: `${dims?.w ?? 9} / ${dims?.h ?? 16}`, borderRadius: 10, overflow: "hidden", background: "#111", marginTop: 10, marginBottom: 10 }}>
+                <div style={{ position: "relative", width: "52%", aspectRatio: `${dims?.w ?? 9} / ${dims?.h ?? 16}`, borderRadius: 10, overflow: "hidden", background: "#000", marginTop: 10, marginBottom: 10 }}>
                   <video ref={videoCallbackRef} playsInline autoPlay loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                  {loadingSpinner}
                   {muteIconBanner}
                 </div>
               )}
@@ -550,6 +557,7 @@ export default function DonationFeedBanner({
           {hlsUrl && (
             <div className="dbv-video-wrap portrait" style={{ width: videoWidthInline, aspectRatio }}>
               <video ref={videoCallbackRef} playsInline autoPlay loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              {loadingSpinner}
               {muteIconBanner}
             </div>
           )}
@@ -615,8 +623,9 @@ export default function DonationFeedBanner({
 
             {/* Landscape video — 80% width, below the description */}
             {hlsUrl && (
-              <div style={{ position: "relative", width: "80%", aspectRatio: `${dims?.w ?? 16} / ${dims?.h ?? 9}`, borderRadius: 10, overflow: "hidden", background: "#111", marginTop: 10, marginBottom: 10 }}>
+              <div style={{ position: "relative", width: "80%", aspectRatio: `${dims?.w ?? 16} / ${dims?.h ?? 9}`, borderRadius: 10, overflow: "hidden", background: "#000", marginTop: 10, marginBottom: 10 }}>
                 <video ref={videoCallbackRef} playsInline autoPlay loop muted style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                {loadingSpinner}
                 {muteIconBanner}
               </div>
             )}

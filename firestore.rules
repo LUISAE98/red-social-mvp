@@ -2682,6 +2682,13 @@ function canUpdateReplyCount(delta) {
     }
 
     // ==========================
+    // LIVE CREATOR STATS (récords)
+    // ==========================
+    match /liveCreatorStats/{authorId} {
+      allow read, write: if signedIn() && request.auth.uid == authorId;
+    }
+
+    // ==========================
     // LIVE ACCESS (tickets)
     // ==========================
     match /liveAccess/{liveId}/users/{userId} {

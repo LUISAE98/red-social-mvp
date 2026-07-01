@@ -50,6 +50,7 @@ import { playEdgeTTS, TTS_MIN_DURATION_SECS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 import { subscribeToTicketRevenue } from "@/lib/liveAccess/live-access-service";
 import { subscribeToVodRevenue } from "@/lib/posts/post-access-service";
+import { subscribeToPeakRevenue, updatePeakRevenueIfRecord } from "@/lib/liveCreator/creator-stats-service";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
@@ -140,7 +141,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const panelDragStartRatio = useRef(0.65);
   const panelRatioRef = useRef(0.65);
   panelRatioRef.current = panelRatio;
-  const PANEL_SNAPS = [0.25, 0.65, 0.82] as const;
+  const PANEL_SNAPS = [0.08, 0.30, 0.65] as const;
   const docTouchMoveRef = useRef<((e: TouchEvent) => void) | null>(null);
   const docTouchEndRef = useRef<(() => void) | null>(null);
   const [togglingChat, setTogglingChat] = useState(false);
@@ -166,6 +167,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [ticketCount, setTicketCount] = useState(0);
   const [vodRevenue, setVodRevenue] = useState(0);
   const [vodBuyerCount, setVodBuyerCount] = useState(0);
+  const [peakRevenue, setPeakRevenue] = useState(0);
   const viewerCountRef = useRef(0);
   viewerCountRef.current = viewerCount;
   const [superComments, setSuperComments] = useState<SuperComment[]>([]);
@@ -188,6 +190,113 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
   const [scConfigOpen, setScConfigOpen] = useState(false);
   const [headphonesDetected, setHeadphonesDetected] = useState(false);
   const [micMutedForTTS, setMicMutedForTTS] = useState(false);
+  const [itemPositions, setItemPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [liveDragPos, setLiveDragPos] = useState<{ x: number; y: number } | null>(null);
+  const [cellSize, setCellSize] = useState(75);
+  const statsGridRef = useRef<HTMLDivElement>(null);
+  const statsContainerRef = useRef<HTMLDivElement>(null);
+  const statsDragRef = useRef<{ id: string; startX: number; startY: number; origX: number; origY: number; w: number; h: number; moved: boolean } | null>(null);
+  const [tabDragOffset, setTabDragOffset] = useState(0);
+  const tabContainerRef = useRef<HTMLDivElement>(null);
+  const tabDragStateRef = useRef<{ startX: number; startY: number; dir: "h" | "v" | null } | null>(null);
+
+  function onTabTouchStart(e: React.TouchEvent) {
+    tabDragStateRef.current = { startX: e.touches[0].clientX, startY: e.touches[0].clientY, dir: null };
+  }
+  function onTabTouchMove(e: React.TouchEvent) {
+    const s = tabDragStateRef.current;
+    if (!s) return;
+    const dx = e.touches[0].clientX - s.startX;
+    const dy = e.touches[0].clientY - s.startY;
+    if (!s.dir) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      s.dir = Math.abs(dx) > Math.abs(dy) ? "h" : "v";
+    }
+    if (s.dir !== "h") return;
+    const cW = tabContainerRef.current?.offsetWidth ?? 1;
+    const tabIndex = mobileTab === "supercomentarios" ? 0 : 1;
+    // Resistance at the edges (can't go past the only adjacent tab)
+    let offset = dx;
+    if (tabIndex === 0 && offset > 0) offset *= 0.15;
+    if (tabIndex === 1 && offset < 0) offset *= 0.15;
+    setTabDragOffset(Math.max(-cW, Math.min(cW, offset)));
+  }
+  function onTabTouchEnd() {
+    const s = tabDragStateRef.current;
+    tabDragStateRef.current = null;
+    if (s?.dir === "h") {
+      const cW = tabContainerRef.current?.offsetWidth ?? 1;
+      const tabIndex = mobileTab === "supercomentarios" ? 0 : 1;
+      if (tabDragOffset < -cW * 0.3 && tabIndex === 0) setMobileTab("estadisticas");
+      else if (tabDragOffset > cW * 0.3 && tabIndex === 1) setMobileTab("supercomentarios");
+    }
+    setTabDragOffset(0);
+  }
+  const prevCellRef = useRef(75);
+  const statsLayoutKey = `vibra_live_stats_layout_${post.authorId}`;
+  const [itemColors, setItemColors] = useState<Record<string, number>>({});
+  const statsColorsKey = `vibra_live_stats_colors_${post.authorId}`;
+
+  function cellToPixels(col: number, row: number, cell: number) {
+    const tile = Math.round(cell * 70 / 75);
+    const off = Math.round((cell - tile) / 2);
+    return { x: col * cell + off, y: row * cell + off };
+  }
+
+  // Carga el layout y colores guardados al montar
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(statsLayoutKey);
+      if (raw) {
+        const coords: Record<string, { col: number; row: number }> = JSON.parse(raw);
+        const positions: Record<string, { x: number; y: number }> = {};
+        for (const [id, { col, row }] of Object.entries(coords)) {
+          positions[id] = cellToPixels(col, row, 75); // se re-escala cuando llega el ResizeObserver
+        }
+        setItemPositions(positions);
+      }
+    } catch {}
+    try {
+      const rawColors = localStorage.getItem(statsColorsKey);
+      if (rawColors) setItemColors(JSON.parse(rawColors));
+    } catch {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Ajusta el tamaño de celda para que el panel muestre siempre 20×3 celdas.
+  // Depende de isDesktop porque statsContainerRef solo existe cuando isDesktop=true.
+  useEffect(() => {
+    if (!isDesktop) return;
+    const el = statsContainerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (!width || !height) return;
+      const newCell = Math.max(16, Math.floor(Math.min(width / 20, height / 3)));
+      if (newCell !== prevCellRef.current) {
+        prevCellRef.current = newCell;
+        setCellSize(newCell);
+        // Re-deriva posiciones desde localStorage con el nuevo CELL
+        try {
+          const raw = localStorage.getItem(statsLayoutKey);
+          if (raw) {
+            const coords: Record<string, { col: number; row: number }> = JSON.parse(raw);
+            const positions: Record<string, { x: number; y: number }> = {};
+            for (const [id, { col, row }] of Object.entries(coords)) {
+              positions[id] = cellToPixels(col, row, newCell);
+            }
+            setItemPositions(positions);
+          } else {
+            setItemPositions({});
+          }
+        } catch {
+          setItemPositions({});
+        }
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [isDesktop]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Freeze the effective layout orientation during a broadcast. The `portrait`
   // prop can change mid-broadcast (e.g. LiveInlinePlayer detects stream orientation)
@@ -250,6 +359,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
+
 
   useEffect(() => {
     console.log("[LiveCreatorPanel] liveData.chatEnabled changed to:", liveData?.chatEnabled, "→ resetting optimistic");
@@ -330,6 +440,24 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       setVodBuyerCount(count);
     });
   }, [open, post.id, post.authorId, post.requiresPayment]);
+
+  // Récord histórico de ingresos totales netos
+  useEffect(() => {
+    if (!open || !post.authorId) return;
+    return subscribeToPeakRevenue(post.authorId, setPeakRevenue);
+  }, [open, post.authorId]);
+
+  // Actualiza el récord en tiempo real si se rompe durante el live
+  useEffect(() => {
+    if (!open || !post.authorId) return;
+    const CREATOR_SHARE = 0.77;
+    const paidSCs = superComments.filter(sc => sc.status === "paid" && !sc.isDeleted);
+    const grossTotal = paidSCs.reduce((sum, sc) => sum + sc.amount, 0) + ticketRevenue + vodRevenue;
+    const netTotal = grossTotal * CREATOR_SHARE;
+    if (netTotal > peakRevenue) {
+      updatePeakRevenueIfRecord(post.authorId, netTotal).catch(() => {});
+    }
+  }, [open, post.authorId, superComments, ticketRevenue, vodRevenue, peakRevenue]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Supercomentarios — disponibles en directo (CF) y RTMP (Mux/OBS)
   useEffect(() => {
@@ -431,11 +559,27 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     };
   }, []);
 
-  // ── Drag handlers para panel portrait mobile ─────────────────────────────
-  // Usa listeners a nivel document para que el drag siga aunque el dedo salga del handle
-  const onPanelTouchStart = (e: React.TouchEvent) => {
+  // ── Drag + snap helpers para panel portrait mobile ───────────────────────
+  const snapPanelTo = (ratio: number, animate = true) => {
+    if (animate) {
+      if (panelDragRef.current) panelDragRef.current.style.transition = "height 0.28s ease";
+      if (videoAreaRef.current) videoAreaRef.current.style.transition = "height 0.28s ease";
+      setTimeout(() => {
+        if (panelDragRef.current) panelDragRef.current.style.transition = "";
+        if (videoAreaRef.current) videoAreaRef.current.style.transition = "";
+      }, 300);
+    }
+    if (panelDragRef.current) panelDragRef.current.style.height = `${ratio * 100}%`;
+    if (videoAreaRef.current) videoAreaRef.current.style.height = `${(1 - ratio) * 100}%`;
+    setPanelRatio(ratio);
+  };
+
+  const expandPanel = () => snapPanelTo(0.65);
+
+  const startPanelDrag = (startY: number) => {
+    if (isDraggingPanel.current) return;
     isDraggingPanel.current = true;
-    panelDragStartY.current = e.touches[0].clientY;
+    panelDragStartY.current = startY;
     panelDragStartRatio.current = panelRatioRef.current;
 
     docTouchMoveRef.current = (ev: TouchEvent) => {
@@ -443,7 +587,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       ev.preventDefault();
       const totalH = bodyContainerRef.current?.offsetHeight ?? window.innerHeight;
       const deltaY = panelDragStartY.current - ev.touches[0].clientY;
-      const newRatio = Math.max(0.15, Math.min(0.88, panelDragStartRatio.current + deltaY / totalH));
+      const newRatio = Math.max(0.04, Math.min(0.92, panelDragStartRatio.current + deltaY / totalH));
       if (panelDragRef.current) panelDragRef.current.style.height = `${newRatio * 100}%`;
       if (videoAreaRef.current) videoAreaRef.current.style.height = `${(1 - newRatio) * 100}%`;
     };
@@ -456,13 +600,37 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       const totalH = bodyContainerRef.current?.offsetHeight ?? window.innerHeight;
       const cur = (panelDragRef.current?.offsetHeight ?? totalH * 0.65) / totalH;
       const snapped = [...PANEL_SNAPS].reduce((a, b) => Math.abs(b - cur) < Math.abs(a - cur) ? b : a);
-      if (panelDragRef.current) panelDragRef.current.style.height = `${snapped * 100}%`;
-      if (videoAreaRef.current) videoAreaRef.current.style.height = `${(1 - snapped) * 100}%`;
-      setPanelRatio(snapped);
+      snapPanelTo(snapped);
     };
 
     document.addEventListener("touchmove", docTouchMoveRef.current, { passive: false });
     document.addEventListener("touchend", docTouchEndRef.current);
+  };
+
+  const onPanelTouchStart = (e: React.TouchEvent) => startPanelDrag(e.touches[0].clientY);
+
+  // Nivel de contenido del panel portrait: 2=completo, 1=tabs+header chat, 0=solo barra tabs
+  const contentLevel = panelRatio >= 0.475 ? 2 : panelRatio >= 0.19 ? 1 : 0;
+
+  // Arrastra el panel hacia abajo SOLO si el dedo va hacia abajo (no interrumpe scroll del chat)
+  const onChatDragStart = (e: React.TouchEvent) => {
+    const sy = e.touches[0].clientY;
+    const sx = e.touches[0].clientX;
+    let resolved = false;
+    const onMove = (ev: TouchEvent) => {
+      if (resolved) return;
+      const dy = ev.touches[0].clientY - sy;
+      const dx = ev.touches[0].clientX - sx;
+      if (Math.abs(dy) < 8 && Math.abs(dx) < 8) return;
+      resolved = true;
+      document.removeEventListener("touchmove", onMove);
+      if (dy > 0 && dy > Math.abs(dx)) startPanelDrag(sy);
+    };
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend", () => {
+      resolved = true;
+      document.removeEventListener("touchmove", onMove);
+    }, { once: true });
   };
 
   if (!open || typeof document === "undefined") return null;
@@ -481,7 +649,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
     if (data.length < 2) {
       return (
-        <div style={{ height: H, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.18)", fontFamily: FONT }}>
             {data.length === 0 ? "Iniciando…" : "Acumulando datos…"}
           </span>
@@ -508,33 +676,30 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
       : `${Math.floor(elapsedMin / 60)}h ${elapsedMin % 60}m`;
 
     return (
-      <div style={{ position: "relative" }}>
-        <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: "block", overflow: "visible" }}>
-          <defs>
-            <linearGradient id="lcp-vg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#a855f7" stopOpacity="0.02" />
-            </linearGradient>
-          </defs>
-          {/* Área bajo la curva */}
-          <polygon points={areaPts} fill="url(#lcp-vg)" />
-          {/* Línea principal */}
-          <polyline points={linePts} fill="none" stroke="#a855f7" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-          {/* Punto actual */}
-          <circle cx={lastX} cy={toY(data[data.length - 1].v).toFixed(1)} r="3" fill="#a855f7" />
-        </svg>
-        {/* Etiquetas X */}
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        <div style={{ position: "relative", flex: 1, minHeight: 0 }}>
+          <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ display: "block" }}>
+            <defs>
+              <linearGradient id="lcp-vg" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#a855f7" stopOpacity="0.35" />
+                <stop offset="100%" stopColor="#a855f7" stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+            <polygon points={areaPts} fill="url(#lcp-vg)" />
+            <polyline points={linePts} fill="none" stroke="#a855f7" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+            <circle cx={lastX} cy={toY(data[data.length - 1].v).toFixed(1)} r="3" fill="#a855f7" />
+          </svg>
+          <span style={{
+            position: "absolute", top: 0, right: 0,
+            fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: FONT,
+          }}>
+            máx {maxV}
+          </span>
+        </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
           <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>Inicio</span>
           <span style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: FONT }}>+{durationLabel}</span>
         </div>
-        {/* Etiqueta Y (máximo) */}
-        <span style={{
-          position: "absolute", top: 0, right: 0,
-          fontSize: 9, color: "rgba(255,255,255,0.3)", fontFamily: FONT,
-        }}>
-          máx {maxV}
-        </span>
       </div>
     );
   }
@@ -571,8 +736,14 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     const bucketCount = Math.min(Math.ceil(durationMin / bucketMinutes), 60);
     const bucketMs = durationMs / bucketCount;
 
+    const scTimestamps = superComments
+      .filter(sc => sc.status === "paid" && !sc.isDeleted && sc.createdAt)
+      .map(sc => sc.createdAt!.toMillis());
+
+    const allTimestamps = [...chatTimestamps, ...scTimestamps];
+
     const counts = new Array<number>(bucketCount).fill(0);
-    chatTimestamps.forEach((ts) => {
+    allTimestamps.forEach((ts) => {
       const idx = Math.floor((ts - startMs) / bucketMs);
       if (idx >= 0 && idx < bucketCount) counts[idx]++;
     });
@@ -584,11 +755,11 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     };
 
     return (
-      <div>
-        <div style={{ display: "flex", gap: 2, alignItems: "flex-end", height: 32 }}>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+        <div style={{ display: "flex", gap: 2, alignItems: "flex-end", flex: 1, minHeight: 0 }}>
           {counts.map((c, i) => {
             const heat = c / maxCount;
-            const barH = Math.max(4, Math.round(4 + heat * 28));
+            const barH = `${Math.max(5, Math.round(heat * 100))}%`;
             const alpha = heat < 0.01 ? 0.08 : 0.15 + heat * 0.85;
             return (
               <div
@@ -643,242 +814,435 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
     );
   }
 
+  function renderMobileTabs(
+    showContent = true,
+    onExpand?: () => void,
+    onHeaderTouchStart?: React.TouchEventHandler<HTMLDivElement>,
+  ) {
+    const tabIndex = mobileTab === "supercomentarios" ? 0 : 1;
+    const cW = tabContainerRef.current?.offsetWidth ?? 0;
+    // progress: 0 = fully on supercomentarios, 1 = fully on estadisticas
+    const progress = Math.max(0, Math.min(1, tabIndex - tabDragOffset / (cW || 1)));
+    const isDragging = tabDragOffset !== 0;
+
+    return (
+      <div style={{ flex: showContent ? 1 : 0, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+        {/* Tab bar con indicador deslizante */}
+        <div
+          onTouchStart={onHeaderTouchStart}
+          style={{ flexShrink: 0, position: "relative", display: "flex", padding: "0 4px", borderBottom: DIV }}
+        >
+          {(["supercomentarios", "estadisticas"] as const).map((tab, i) => {
+            const active = progress > 0.5 ? i === 1 : i === 0;
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => {
+                  if (onExpand) onExpand();
+                  setMobileTab(tab);
+                  setTabDragOffset(0);
+                }}
+                style={{
+                  flex: 1, padding: "10px 4px",
+                  border: "none", background: "transparent",
+                  color: `rgba(255,255,255,${active ? 1 : 0.3})`,
+                  fontSize: 11, fontWeight: 700, fontFamily: FONT,
+                  cursor: "pointer", letterSpacing: "0.04em", textTransform: "uppercase",
+                  transition: "color 0.2s",
+                }}
+              >
+                {tab === "supercomentarios" ? "Supercomentarios" : "Estadísticas"}
+              </button>
+            );
+          })}
+          {/* Raya indicadora deslizante */}
+          <div style={{
+            position: "absolute", bottom: -1, height: 2,
+            width: "50%", background: "#fff",
+            left: `${progress * 50}%`,
+            transition: isDragging ? "none" : "left 0.3s ease",
+          }} />
+        </div>
+
+        {/* Contenido deslizante */}
+        {showContent && (
+          <div
+            ref={tabContainerRef}
+            onTouchStart={onTabTouchStart}
+            onTouchMove={onTabTouchMove}
+            onTouchEnd={onTabTouchEnd}
+            onTouchCancel={onTabTouchEnd}
+            style={{ flex: 1, overflow: "hidden", position: "relative", touchAction: "pan-y" }}
+          >
+            <div style={{
+              display: "flex", width: "200%", height: "100%",
+              transform: `translateX(calc(${-tabIndex * 50}% + ${tabDragOffset / 2}px))`,
+              transition: isDragging ? "none" : "transform 0.3s ease",
+              willChange: "transform",
+            }}>
+              <div style={{ width: "50%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                {renderSuperCommentsSection()}
+              </div>
+              <div style={{ width: "50%", height: "100%", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                {renderMobileStatsSection()}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function renderMobileStatsSection() {
+    const CREATOR_SHARE = 0.77;
+    const paidSuperComments = superComments.filter(sc => sc.status === "paid" && !sc.isDeleted);
+    const donations    = paidSuperComments.filter(sc => !sc.text);
+    const actualSCs    = paidSuperComments.filter(sc => !!sc.text);
+    const donationCount   = donations.length;
+    const donationRevenue = donations.reduce((sum, sc) => sum + sc.amount, 0);
+    const superCount   = actualSCs.length;
+    const superRevenue = actualSCs.reduce((sum, sc) => sum + sc.amount, 0);
+    const totalRevenue = donationRevenue + superRevenue + ticketRevenue + vodRevenue;
+    const net = (n: number) => n * CREATOR_SHARE;
+    const currency = liveData?.currency ?? "MXN";
+    const fmtMoney = (n: number) => n.toLocaleString("es-MX", { style: "currency", currency, maximumFractionDigits: 0 });
+    const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue);
+
+    const TILE_COLORS = ["#fff", "#f97316", "#facc15", "#f472b6", "#a855f7", "#3b82f6", "#60a5fa", "#22d3ee", "#818cf8", "#f87171", "#fb923c"];
+    function getTileColor(id: string) { return TILE_COLORS[itemColors[id] ?? 0] ?? "#fff"; }
+    function cycleColor(id: string) {
+      setItemColors(prev => {
+        const next = { ...prev, [id]: ((prev[id] ?? 0) + 1) % TILE_COLORS.length };
+        try { localStorage.setItem(statsColorsKey, JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
+
+    const stats: Array<{ id: string; value: string; sub?: string; label: string; green?: boolean }> = [
+      { id: "total",       value: fmtMoney(net(totalRevenue)),    sub: displayPeak > 0 ? `Récord ${fmtMoney(displayPeak)}` : undefined, label: "Ingreso total neto", green: true },
+      { id: "ahora",       value: viewerCount.toLocaleString("es-MX"),                                        label: "Espectadores ahora" },
+      { id: "pico",        value: peakViewerCount.toLocaleString("es-MX"),                                    label: "Pico de espectadores" },
+      { id: "unicos",      value: uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—",    label: "Espectadores únicos" },
+      { id: "seguids",     value: newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—",              label: "Nuevos seguidores" },
+      { id: "mensajes",    value: totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—",    label: "Mensajes en chat" },
+      { id: "tvisto",      value: avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—",               label: "Tiempo visto prom." },
+      { id: "donaciones",  value: fmtMoney(net(donationRevenue)), sub: `${donationCount} donacs.`,            label: "Donaciones" },
+      { id: "supercoment", value: fmtMoney(net(superRevenue)),    sub: `${superCount} SC`,                    label: "Supercomentarios" },
+      { id: "tickets",     value: fmtMoney(net(ticketRevenue)),   sub: `${ticketCount} comprados`,            label: "Tickets de acceso" },
+      { id: "vod",         value: fmtMoney(net(vodRevenue)),      sub: `${vodBuyerCount} comprados`,          label: "Ingresos VOD" },
+    ];
+
+    return (
+      <div style={{ flex: 1, overflow: "auto", padding: "4px 8px 16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+          {stats.map(({ id, value, sub, label, green }) => {
+            const color = green ? "#4ade80" : getTileColor(id);
+            return (
+              <div
+                key={id}
+                onClick={() => { if (!green) cycleColor(id); }}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+                  padding: "14px 8px", gap: 3, color,
+                  cursor: green ? "default" : "pointer",
+                }}
+              >
+                <span style={{ fontSize: 22, fontWeight: 700, color: "inherit", fontFamily: FONT, lineHeight: 1 }}>
+                  {value}
+                </span>
+                {sub && (
+                  <span style={{ fontSize: 9, color: "rgba(255,255,255,0.6)", fontFamily: FONT, lineHeight: 1.2, textAlign: "center" }}>
+                    {sub}
+                  </span>
+                )}
+                <span style={{ fontSize: 9, fontWeight: 600, color: "inherit", fontFamily: FONT, textTransform: "uppercase", letterSpacing: "0.04em", textAlign: "center" }}>
+                  {label}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   function renderStatsSection() {
     const paidSuperComments = superComments.filter((sc) => sc.status === "paid" && !sc.isDeleted);
-    const superCount = paidSuperComments.length;
-    const superRevenue = paidSuperComments.reduce((sum, sc) => sum + sc.amount, 0);
+    const donations    = paidSuperComments.filter(sc => !sc.text);
+    const actualSCs    = paidSuperComments.filter(sc => !!sc.text);
+    const donationCount   = donations.length;
+    const donationRevenue = donations.reduce((sum, sc) => sum + sc.amount, 0);
+    const superCount   = actualSCs.length;
+    const superRevenue = actualSCs.reduce((sum, sc) => sum + sc.amount, 0);
     const isPaidLive = liveData?.accessType === "paid";
     const hasVod = post.requiresPayment === true;
     const currency = liveData?.currency ?? "MXN";
 
-    const totalRevenue = superRevenue + ticketRevenue + vodRevenue;
+    const totalRevenue = donationRevenue + superRevenue + ticketRevenue + vodRevenue;
     const avgRevenuePerViewer = uniqueViewerCount > 0 ? totalRevenue / uniqueViewerCount : 0;
 
     const revenueSources = [
-      { label: "Supercomentarios", amount: superRevenue, color: "#facc15" },
-      { label: "Tickets live", amount: ticketRevenue, color: "#4ade80" },
-      { label: "VOD", amount: vodRevenue, color: "#60a5fa" },
+      { label: "Donaciones",      amount: donationRevenue, color: "#f97316" },
+      { label: "Supercomentarios", amount: superRevenue,   color: "#facc15" },
+      { label: "Tickets live",    amount: ticketRevenue,   color: "#4ade80" },
+      { label: "VOD",             amount: vodRevenue,       color: "#60a5fa" },
     ].filter((s) => s.amount > 0);
 
+    const CREATOR_SHARE = 0.77; // plataforma retiene 23%
+    const net = (amount: number) => amount * CREATOR_SHARE;
     const fmtMoney = (amount: number) =>
       amount.toLocaleString("es-MX", { style: "currency", currency, maximumFractionDigits: 0 });
 
-    const card: React.CSSProperties = {
-      display: "flex", alignItems: "center", gap: 10,
-      padding: "10px 12px", borderRadius: 10,
-      background: "rgba(255,255,255,0.04)",
-      border: "1px solid rgba(255,255,255,0.08)",
-    };
     const wideCard: React.CSSProperties = {
-      padding: "10px 12px", borderRadius: 10,
-      background: "rgba(255,255,255,0.04)",
-      border: "1px solid rgba(255,255,255,0.08)",
+      width: 700, height: 140, flexShrink: 0, alignSelf: "flex-end",
+      overflow: "hidden",
+      padding: "6px 9px",
+      display: "flex", flexDirection: "column",
+      color: "#fff",
     };
-    const iconBox = (bg: string): React.CSSProperties => ({
-      width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-      background: bg, display: "grid", placeItems: "center",
-    });
+    const tile: React.CSSProperties = {
+      width: 70, height: 70, flexShrink: 0,
+      display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center",
+      padding: "4px 5px", gap: 2,
+      overflow: "hidden",
+    };
     const lbl: React.CSSProperties = {
-      fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)",
-      textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: FONT,
+      fontSize: 9, fontWeight: 600, color: "inherit",
+      textTransform: "uppercase", letterSpacing: "0.03em", fontFamily: FONT,
+      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+      textAlign: "center",
     };
-    const val: React.CSSProperties = { fontSize: 18, fontWeight: 700, color: "#fff", lineHeight: 1, fontFamily: FONT };
+    const val: React.CSSProperties = { fontSize: 18, fontWeight: 700, color: "inherit", lineHeight: 1, fontFamily: FONT, textAlign: "center", flex: 1, display: "flex", alignItems: "center", justifyContent: "center", width: "100%" };
+    const sub: React.CSSProperties = { fontSize: 9, color: "rgba(255,255,255,0.6)", fontFamily: FONT, lineHeight: 1.2, textAlign: "center" };
+
+    const TILE_COLORS = ["#fff", "#f97316", "#facc15", "#f472b6", "#a855f7", "#3b82f6", "#60a5fa", "#22d3ee", "#818cf8", "#f87171", "#fb923c"];
+    function getTileColor(id: string) { return TILE_COLORS[itemColors[id] ?? 0] ?? "#fff"; }
+    function cycleColor(id: string) {
+      setItemColors(prev => {
+        const next = { ...prev, [id]: ((prev[id] ?? 0) + 1) % TILE_COLORS.length };
+        try { localStorage.setItem(statsColorsKey, JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
+
+    const CELL = cellSize;
+    const TILE = Math.round(CELL * 70 / 75);
+    const OFFSET = Math.round((CELL - TILE) / 2);
+    const TILE2W = 2 * CELL - 2 * OFFSET; // ancho de tile de 2 celdas (ocupa exactamente 2 celdas)
+
+    // Fila 0: 10 tiles en fila única (10 × 2 celdas = 20 celdas → ancho completo)
+    // Filas 1-2: 2 gráficas lado a lado (cada una 7 celdas × 2 celdas de alto)
+    const R0 = OFFSET;
+    const R1 = CELL + OFFSET;
+    function tx(col: number) { return col * 2 * CELL + OFFSET; } // x de cada tile (paso de 2 celdas)
+
+    // Todos los items arrastrables: tiles + charts
+    const tileItems: Array<{ id: string; defaultX: number; defaultY: number; width: number; height: number; extra?: React.CSSProperties; content: React.ReactNode }> = [
+      { id: "ahora",       defaultX: tx(0), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{viewerCount.toLocaleString("es-MX")}</span><span style={lbl}>Espectadores ahora</span></> },
+      { id: "pico",        defaultX: tx(1), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{peakViewerCount.toLocaleString("es-MX")}</span><span style={lbl}>Pico de espectadores</span></> },
+      { id: "unicos",      defaultX: tx(2), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{uniqueViewerCount > 0 ? uniqueViewerCount.toLocaleString("es-MX") : "—"}</span><span style={lbl}>Espectadores únicos</span></> },
+      { id: "seguids",     defaultX: tx(3), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{newFollowers > 0 ? newFollowers.toLocaleString("es-MX") : "—"}</span><span style={lbl}>Nuevos seguidores</span></> },
+      { id: "mensajes",    defaultX: tx(4), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{totalChatMessages > 0 ? totalChatMessages.toLocaleString("es-MX") : "—"}</span><span style={lbl}>Mensajes en chat</span></> },
+      { id: "tvisto",      defaultX: tx(5), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{avgWatchSeconds > 0 ? formatWatchTime(avgWatchSeconds) : "—"}</span><span style={lbl}>Tiempo visto prom.</span></> },
+      // TODO: restaurar condiciones (superCount > 0, isPaidLive && ticketCount > 0, hasVod && vodBuyerCount > 0, totalRevenue > 0) cuando el diseño esté listo
+      { id: "donaciones",  defaultX: tx(0), defaultY: R1, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(donationRevenue))}</span><span style={sub}>{donationCount} donacs.</span><span style={lbl}>Donaciones</span></> },
+      { id: "supercoment", defaultX: tx(6), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(superRevenue))}</span><span style={sub}>{superCount} SC</span><span style={lbl}>Supercomentarios</span></> },
+      { id: "tickets",     defaultX: tx(7), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(ticketRevenue))}</span><span style={sub}>{ticketCount} comprados</span><span style={lbl}>Tickets de acceso</span></> },
+      { id: "vod",         defaultX: tx(8), defaultY: R0, width: TILE2W, height: TILE, content: <><span style={val}>{fmtMoney(net(vodRevenue))}</span><span style={sub}>{vodBuyerCount} comprados</span><span style={lbl}>Ingresos VOD</span></> },
+      { id: "total",       defaultX: tx(9), defaultY: R0, width: TILE2W, height: TILE, content: (() => { const displayPeak = peakRevenue > 0 ? peakRevenue : net(totalRevenue); return <><span style={{ ...val, color: "#4ade80" }}>{fmtMoney(net(totalRevenue))}</span>{displayPeak > 0 && <span style={sub}>Récord {fmtMoney(displayPeak)}</span>}<span style={{ ...lbl, color: "#4ade80" }}>Ingreso total neto</span></>; })() },
+      { id: "chart_espect", defaultX: CELL*2 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>Espectadores</span>{renderViewerChart()}</> },
+      { id: "chart_activ",  defaultX: CELL*9 + OFFSET, defaultY: R1, width: CELL*7, height: CELL*2, content: <><span style={{ display: "block", ...lbl, marginBottom: 3 }}>Actividad general de tu audiencia</span>{renderHeatmap()}</> },
+    ];
+
+    function getPos(id: string, defaultX: number, defaultY: number) {
+      return itemPositions[id] ?? { x: defaultX, y: defaultY };
+    }
+
+    function saveLayout(positions: Record<string, { x: number; y: number }>) {
+      try {
+        const coords: Record<string, { col: number; row: number }> = {};
+        for (const [id, { x, y }] of Object.entries(positions)) {
+          coords[id] = { col: Math.round((x - OFFSET) / CELL), row: Math.round((y - OFFSET) / CELL) };
+        }
+        localStorage.setItem(statsLayoutKey, JSON.stringify(coords));
+      } catch {}
+    }
+
+    function rectsOverlap(
+      a: { x: number; y: number; w: number; h: number },
+      b: { x: number; y: number; w: number; h: number }
+    ) {
+      return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    }
+
+    const GRID_COLS = 20;
+    const GRID_ROWS = 3;
+
+    function findNearestFreePos(
+      homeX: number, homeY: number, w: number, h: number,
+      occupied: Array<{ x: number; y: number; w: number; h: number }>
+    ) {
+      const homeCol = Math.round((homeX - OFFSET) / CELL);
+      const homeRow = Math.round((homeY - OFFSET) / CELL);
+      const colSpan = Math.ceil(w / CELL);
+      const rowSpan = Math.ceil(h / CELL);
+      const maxCol = GRID_COLS - colSpan;
+      const maxRow = GRID_ROWS - rowSpan;
+      for (let radius = 1; radius < 30; radius++) {
+        const candidates: { col: number; row: number; dist: number }[] = [];
+        for (let dr = -radius; dr <= radius; dr++) {
+          for (let dc = -radius; dc <= radius; dc++) {
+            if (Math.abs(dr) !== radius && Math.abs(dc) !== radius) continue;
+            const col = homeCol + dc;
+            const row = homeRow + dr;
+            if (col < 0 || row < 0 || col > maxCol || row > maxRow) continue;
+            candidates.push({ col, row, dist: Math.abs(dr) + Math.abs(dc) });
+          }
+        }
+        candidates.sort((a, b) => a.dist - b.dist);
+        for (const { col, row } of candidates) {
+          const x = col * CELL + OFFSET;
+          const y = row * CELL + OFFSET;
+          const box = { x, y, w, h };
+          if (!occupied.some(occ => rectsOverlap(box, occ))) return { x, y };
+        }
+      }
+      return { x: homeX, y: homeY }; // sin cambio si no hay espacio libre
+    }
+
+    function getEffectivePos(id: string, defaultX: number, defaultY: number, w: number, h: number) {
+      const homePos = getPos(id, defaultX, defaultY);
+      if (!draggingId || !liveDragPos || id === draggingId) return homePos;
+      const draggingItem = tileItems.find(i => i.id === draggingId);
+      if (!draggingItem) return homePos;
+      const dragBox = { x: liveDragPos.x, y: liveDragPos.y, w: draggingItem.width, h: draggingItem.height };
+      if (!rectsOverlap(dragBox, { x: homePos.x, y: homePos.y, w, h })) return homePos;
+      // Occupied = dragging item + home positions of all other items (no cascade)
+      const occupied: Array<{ x: number; y: number; w: number; h: number }> = [dragBox];
+      for (const other of tileItems) {
+        if (other.id === id || other.id === draggingId) continue;
+        const p = getPos(other.id, other.defaultX, other.defaultY);
+        occupied.push({ x: p.x, y: p.y, w: other.width, h: other.height });
+      }
+      return findNearestFreePos(homePos.x, homePos.y, w, h, occupied);
+    }
+
+    function onItemDown(e: React.PointerEvent<HTMLDivElement>, id: string, defaultX: number, defaultY: number, w: number, h: number) {
+      e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      const pos = getPos(id, defaultX, defaultY);
+      statsDragRef.current = { id, startX: e.clientX, startY: e.clientY, origX: pos.x, origY: pos.y, w, h, moved: false };
+      setDraggingId(id);
+      setLiveDragPos(pos);
+    }
+
+    function onItemMove(e: React.PointerEvent<HTMLDivElement>, id: string) {
+      const drag = statsDragRef.current;
+      if (!drag || drag.id !== id) return;
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      if (!drag.moved && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) drag.moved = true;
+      const maxX = GRID_COLS * CELL - drag.w;
+      const maxY = GRID_ROWS * CELL - drag.h;
+      const x = Math.max(0, Math.min(drag.origX + dx, maxX));
+      const y = Math.max(0, Math.min(drag.origY + dy, maxY));
+      setLiveDragPos({ x, y });
+    }
+
+    function onItemUp(id: string) {
+      const drag = statsDragRef.current;
+      if (!drag || drag.id !== id) return;
+      const wasMoved = drag.moved;
+      statsDragRef.current = null;
+      const live = liveDragPos;
+      setDraggingId(null);
+      setLiveDragPos(null);
+
+      if (!wasMoved && !id.startsWith("chart_") && id !== "total") {
+        cycleColor(id);
+        return;
+      }
+
+      if (!live) return;
+
+      const maxSnapX = (GRID_COLS - Math.ceil(drag.w / CELL)) * CELL + OFFSET;
+      const maxSnapY = (GRID_ROWS - Math.ceil(drag.h / CELL)) * CELL + OFFSET;
+      const snappedX = Math.max(OFFSET, Math.min(Math.round(live.x / CELL) * CELL + OFFSET, maxSnapX));
+      const snappedY = Math.max(OFFSET, Math.min(Math.round(live.y / CELL) * CELL + OFFSET, maxSnapY));
+      const dragBox = { x: snappedX, y: snappedY, w: drag.w, h: drag.h };
+
+      setItemPositions(prev => {
+        const next: Record<string, { x: number; y: number }> = { ...prev, [id]: { x: snappedX, y: snappedY } };
+        // Build occupied list incrementally so displaced items don't land on each other
+        const occupied: Array<{ x: number; y: number; w: number; h: number }> = [{ ...dragBox }];
+        // Add home positions of non-colliding items first
+        for (const otherItem of tileItems) {
+          if (otherItem.id === id) continue;
+          const homePos = prev[otherItem.id] ?? { x: otherItem.defaultX, y: otherItem.defaultY };
+          if (!rectsOverlap(dragBox, { x: homePos.x, y: homePos.y, w: otherItem.width, h: otherItem.height })) {
+            occupied.push({ x: homePos.x, y: homePos.y, w: otherItem.width, h: otherItem.height });
+          }
+        }
+        // Now displace colliding items, each avoiding all already-occupied slots
+        for (const otherItem of tileItems) {
+          if (otherItem.id === id) continue;
+          const homePos = prev[otherItem.id] ?? { x: otherItem.defaultX, y: otherItem.defaultY };
+          if (rectsOverlap(dragBox, { x: homePos.x, y: homePos.y, w: otherItem.width, h: otherItem.height })) {
+            const freePos = findNearestFreePos(homePos.x, homePos.y, otherItem.width, otherItem.height, occupied);
+            next[otherItem.id] = freePos;
+            occupied.push({ x: freePos.x, y: freePos.y, w: otherItem.width, h: otherItem.height });
+          }
+        }
+        saveLayout(next);
+        return next;
+      });
+    }
 
     return (
-      <div style={{ flex: 1, overflow: "auto", scrollbarWidth: "none", padding: "12px 14px", display: "flex", flexDirection: "column", gap: 10 }}>
-
-        {/* ── Audiencia base (siempre visible) ──────────────── */}
-
-        <div style={card}>
-          <div style={iconBox("rgba(168,85,247,0.15)")}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={val}>{viewerCount.toLocaleString("es-MX")}</span>
-            <span style={lbl}>Espectadores ahora</span>
-          </div>
+      <div ref={statsContainerRef} style={{ flex: 1, minHeight: 0, overflow: "hidden", padding: 0 }}>
+        <div
+          ref={statsGridRef}
+          style={{
+            position: "relative",
+            width: "100%",
+            height: "100%",
+            backgroundImage: "none",
+          }}
+        >
+          {tileItems.map(({ id, defaultX, defaultY, width, height, extra, content }) => {
+            const isDragging = id === draggingId;
+            const pos = isDragging
+              ? (liveDragPos ?? getPos(id, defaultX, defaultY))
+              : getEffectivePos(id, defaultX, defaultY, width, height);
+            const isChart = id.startsWith("chart_");
+            return (
+              <div
+                key={id}
+                onPointerDown={(e) => onItemDown(e, id, defaultX, defaultY, width, height)}
+                onPointerMove={(e) => onItemMove(e, id)}
+                onPointerUp={() => onItemUp(id)}
+                onPointerCancel={() => onItemUp(id)}
+                style={{
+                  ...(isChart ? { ...wideCard, width, height, alignSelf: undefined } : { ...tile, width, height }),
+                  ...(extra ?? {}),
+                  ...(!isChart ? { color: getTileColor(id) } : {}),
+                  position: "absolute",
+                  left: pos.x,
+                  top: pos.y,
+                  cursor: isDragging ? "grabbing" : "grab",
+                  userSelect: "none",
+                  touchAction: "none",
+                  zIndex: isDragging ? 20 : 1,
+                  boxShadow: isDragging ? "0 8px 32px rgba(0,0,0,0.6)" : undefined,
+                  transition: isDragging ? "none" : "left 0.15s ease, top 0.15s ease",
+                }}
+              >
+                {content}
+              </div>
+            );
+          })}
         </div>
-
-        <div style={card}>
-          <div style={iconBox("rgba(251,146,60,0.15)")}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fb923c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" />
-            </svg>
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <span style={val}>{peakViewerCount.toLocaleString("es-MX")}</span>
-            <span style={lbl}>Pico máximo simultáneo</span>
-          </div>
-        </div>
-
-        {uniqueViewerCount > 0 && (
-          <div style={card}>
-            <div style={iconBox("rgba(34,197,94,0.12)")}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={val}>{uniqueViewerCount.toLocaleString("es-MX")}</span>
-              <span style={lbl}>Espectadores únicos</span>
-            </div>
-          </div>
-        )}
-
-        <div style={wideCard}>
-          <span style={{ display: "block", ...lbl, marginBottom: 8 }}>Espectadores en el tiempo</span>
-          {renderViewerChart()}
-        </div>
-
-        <div style={wideCard}>
-          <span style={{ display: "block", ...lbl, marginBottom: 8 }}>Heatmap de actividad</span>
-          {renderHeatmap()}
-        </div>
-
-        {/* ── Engagement (solo cuando hay datos) ────────────── */}
-
-        {totalChatMessages > 0 && (
-          <div style={card}>
-            <div style={iconBox("rgba(99,102,241,0.15)")}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#818cf8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={val}>{totalChatMessages.toLocaleString("es-MX")}</span>
-              <span style={lbl}>Mensajes en el chat</span>
-            </div>
-          </div>
-        )}
-
-        {avgWatchSeconds > 0 && (
-          <div style={card}>
-            <div style={iconBox("rgba(20,184,166,0.15)")}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2dd4bf" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-              </svg>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={val}>{formatWatchTime(avgWatchSeconds)}</span>
-              <span style={lbl}>Tiempo promedio</span>
-            </div>
-          </div>
-        )}
-
-        {newFollowers > 0 && (
-          <div style={card}>
-            <div style={iconBox("rgba(236,72,153,0.12)")}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f472b6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-                <line x1="19" y1="8" x2="19" y2="14" /><line x1="22" y1="11" x2="16" y2="11" />
-              </svg>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={val}>{newFollowers.toLocaleString("es-MX")}</span>
-              <span style={lbl}>Nuevos seguidores</span>
-            </div>
-          </div>
-        )}
-
-        {/* ── Monetización (solo cuando hay datos) ─────────── */}
-
-        {superCount > 0 && (
-          <div style={card}>
-            <div style={iconBox("rgba(250,204,21,0.12)")}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={val}>{superCount.toLocaleString("es-MX")}</span>
-              <span style={lbl}>Supercomentarios · {fmtMoney(superRevenue)}</span>
-            </div>
-          </div>
-        )}
-
-        {isPaidLive && ticketCount > 0 && (
-          <div style={card}>
-            <div style={iconBox("rgba(74,222,128,0.12)")}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" />
-              </svg>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={val}>{fmtMoney(ticketRevenue)}</span>
-              <span style={lbl}>Tickets live · {ticketCount} {ticketCount === 1 ? "comprador" : "compradores"}</span>
-            </div>
-          </div>
-        )}
-
-        {hasVod && vodBuyerCount > 0 && (
-          <div style={card}>
-            <div style={iconBox("rgba(96,165,250,0.12)")}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="23 7 16 12 23 17 23 7" /><rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
-              </svg>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={val}>{fmtMoney(vodRevenue)}</span>
-              <span style={lbl}>VOD · {vodBuyerCount} {vodBuyerCount === 1 ? "comprador" : "compradores"}</span>
-            </div>
-          </div>
-        )}
-
-        {totalRevenue > 0 && (
-          <div style={{ ...card, background: "rgba(168,85,247,0.08)", border: "1px solid rgba(168,85,247,0.2)" }}>
-            <div style={iconBox("rgba(168,85,247,0.2)")}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c084fc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23" />
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={{ ...val, color: "#c084fc" }}>{fmtMoney(totalRevenue)}</span>
-              <span style={lbl}>Ingreso total del live</span>
-            </div>
-          </div>
-        )}
-
-        {totalRevenue > 0 && uniqueViewerCount > 0 && (
-          <div style={card}>
-            <div style={iconBox("rgba(168,85,247,0.12)")}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-                <line x1="17" y1="1" x2="17" y2="7" /><line x1="14" y1="4" x2="20" y2="4" />
-              </svg>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <span style={val}>{fmtMoney(avgRevenuePerViewer)}</span>
-              <span style={lbl}>Promedio por espectador</span>
-            </div>
-          </div>
-        )}
-
-        {revenueSources.length >= 2 && (
-          <div style={wideCard}>
-            <span style={{ display: "block", ...lbl, marginBottom: 10 }}>Desglose de ingresos</span>
-            <div style={{ display: "flex", height: 8, borderRadius: 6, overflow: "hidden", gap: 2, marginBottom: 10 }}>
-              {revenueSources.map((s) => (
-                <div key={s.label} style={{ flex: s.amount, background: s.color, borderRadius: 4 }} />
-              ))}
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {revenueSources.map((s) => (
-                <div key={s.label} style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: 2, background: s.color, flexShrink: 0 }} />
-                    <span style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", fontFamily: FONT }}>{s.label}</span>
-                  </div>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: "#fff", fontFamily: FONT }}>{fmtMoney(s.amount)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     );
   }
@@ -1583,7 +1947,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               Ver Key y URL de transmisión
             </button>
           )}
-          {liveStatus !== "live" && (
+          {liveStatus !== "live" && liveStatus !== "ended" && (
             <div style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               padding: "4px 10px",
@@ -1744,11 +2108,10 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
 
           {/* Card 4: Estadísticas — fila inferior, ancho completo */}
           <div style={{
-            flex: 1, display: "flex", flexDirection: "column", overflow: "hidden",
+            flex: 1, minHeight: 0, display: "flex", flexDirection: "column", overflow: "hidden",
             background: "#0d0d12", borderRadius: 18,
             boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 24px 48px rgba(0,0,0,0.8)",
           }}>
-            {sectionHeader("Estadísticas")}
             {renderStatsSection()}
           </div>
         </div>
@@ -1779,47 +2142,14 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
           </div>
 
           {/* Tabs: Supercomentarios | Estadísticas — mitad inferior */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
-
-            {/* Tab bar */}
-            <div style={{
-              flexShrink: 0, display: "flex",
-              borderBottom: DIV,
-              padding: "0 4px",
-            }}>
-              {(["supercomentarios", "estadisticas"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  onClick={() => setMobileTab(tab)}
-                  style={{
-                    flex: 1, padding: "10px 4px",
-                    border: "none", background: "transparent",
-                    color: mobileTab === tab ? "#fff" : "rgba(255,255,255,0.3)",
-                    fontSize: 11, fontWeight: 700, fontFamily: FONT,
-                    cursor: "pointer", letterSpacing: "0.04em", textTransform: "uppercase",
-                    borderBottom: mobileTab === tab ? "2px solid #fff" : "2px solid transparent",
-                    marginBottom: -1,
-                    transition: "color 0.15s",
-                  }}
-                >
-                  {tab === "supercomentarios" ? "Supercomentarios" : "Estadísticas"}
-                </button>
-              ))}
-            </div>
-
-            {/* Tab content */}
-            <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              {mobileTab === "estadisticas" ? renderStatsSection() : renderSuperCommentsSection()}
-            </div>
-          </div>
+          {renderMobileTabs()}
         </div>
 
       ) : !isDesktop && layoutPortrait ? (
-        /* ── Mobile + Portrait live: video miniatura + panel drawer ─────── */
+        /* ── Mobile + Portrait live: video miniatura + panel persiana ─────── */
         <div ref={bodyContainerRef} style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
 
-          {/* Miniatura de video — se encoge/crece según posición del panel */}
+          {/* Miniatura de video — crece/encoge según panel */}
           <div
             ref={videoAreaRef}
             style={{
@@ -1846,7 +2176,7 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
             )}
           </div>
 
-          {/* Panel drawer — deslizable con handle en la parte superior */}
+          {/* Panel persiana — 3 snappoints: 0.08/0.30/0.65 */}
           <div
             ref={panelDragRef}
             style={{
@@ -1857,50 +2187,54 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               borderTop: "1px solid rgba(255,255,255,0.1)",
             }}
           >
-            {/* Handle de arrastre — solo onTouchStart, el move/end van a document */}
-            <div
-              onTouchStart={onPanelTouchStart}
-              style={{
-                flexShrink: 0, paddingTop: 10, paddingBottom: 10,
-                display: "flex", justifyContent: "center", alignItems: "center",
-                touchAction: "none", cursor: "grab",
-                borderBottom: DIV,
-              }}
-            >
-              <div style={{ width: 44, height: 5, borderRadius: 3, background: "rgba(255,255,255,0.3)" }} />
-            </div>
-
-            {/* Chat en vivo */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderBottom: DIV }}>
-              {renderChatSection()}
-            </div>
-
-            {/* Tabs: Supercomentarios | Estadísticas */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
-              <div style={{ flexShrink: 0, display: "flex", padding: "0 4px", borderBottom: DIV }}>
-                {(["supercomentarios", "estadisticas"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setMobileTab(tab)}
-                    style={{
-                      flex: 1, padding: "10px 4px",
-                      border: "none", background: "transparent",
-                      color: mobileTab === tab ? "#fff" : "rgba(255,255,255,0.3)",
-                      fontSize: 11, fontWeight: 700, fontFamily: FONT,
-                      cursor: "pointer", letterSpacing: "0.04em", textTransform: "uppercase",
-                      borderBottom: mobileTab === tab ? "2px solid #fff" : "2px solid transparent",
-                      marginBottom: -1, transition: "color 0.15s",
-                    }}
-                  >
-                    {tab === "supercomentarios" ? "Supercomentarios" : "Estadísticas"}
-                  </button>
-                ))}
+            {/* Handle — visible en nivel 1 y 2 */}
+            {contentLevel > 0 && (
+              <div
+                onTouchStart={onPanelTouchStart}
+                style={{
+                  flexShrink: 0, paddingTop: 10, paddingBottom: 6,
+                  display: "flex", justifyContent: "center", alignItems: "center",
+                  touchAction: "none", cursor: "grab",
+                }}
+              >
+                <div style={{ width: 40, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.25)" }} />
               </div>
-              <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                {mobileTab === "estadisticas" ? renderStatsSection() : renderSuperCommentsSection()}
+            )}
+
+            {/* Chat completo — solo nivel 2 */}
+            {contentLevel === 2 && (
+              <div
+                onTouchStart={onChatDragStart}
+                style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderBottom: DIV }}
+              >
+                {renderChatSection()}
               </div>
-            </div>
+            )}
+
+            {/* Chat header colapsado — solo nivel 1, toca para expandir */}
+            {contentLevel === 1 && (
+              <button
+                type="button"
+                onClick={expandPanel}
+                style={{
+                  flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center",
+                  gap: 6, padding: "7px 16px",
+                  background: "none", border: "none", borderBottom: DIV,
+                  color: "rgba(255,255,255,0.3)", fontSize: 10, fontFamily: FONT,
+                  cursor: "pointer", letterSpacing: "0.05em",
+                }}
+              >
+                <span style={{ fontSize: 12 }}>↑</span>
+                <span>Chat en vivo</span>
+              </button>
+            )}
+
+            {/* Tabs: barra siempre visible; contenido solo en nivel > 0 */}
+            {renderMobileTabs(
+              contentLevel > 0,
+              contentLevel < 2 ? expandPanel : undefined,
+              onPanelTouchStart,
+            )}
           </div>
         </div>
 

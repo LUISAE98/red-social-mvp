@@ -3551,22 +3551,23 @@ style={{
             position: "relative",
             width: "100%",
             aspectRatio: "16 / 7",
-            background:
-              "radial-gradient(ellipse at center, rgba(180,180,195,0.18) 0%, rgba(110,110,130,0.10) 60%, rgba(70,70,90,0.06) 100%), linear-gradient(135deg, rgba(60,60,75,0.55) 0%, rgba(30,30,45,0.85) 100%)",
+            background: "#000",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             overflow: "hidden",
           }}
         >
-          {activeLiveData?.coverUrl && (
-            <Image
-              src={activeLiveData.coverUrl}
-              alt={activeLiveData.title ?? "Live programado"}
-              fill
-              style={{ objectFit: "cover", opacity: 0.45, filter: "grayscale(20%)" }}
-            />
-          )}
+          <Image
+            src={activeLiveData?.coverUrl ?? "/live.png"}
+            alt={activeLiveData?.title ?? "Live programado"}
+            fill
+            style={{
+              objectFit: "cover",
+              opacity: activeLiveData?.coverUrl ? 0.45 : 0.65,
+              filter: activeLiveData?.coverUrl ? "grayscale(20%)" : "none",
+            }}
+          />
           {post.requiresPayment === true && !(isOwnPost || isOwner) && !hasLiveTicketAccess && !memberHasFreeAccess ? (
             <svg
               width="82" height="82" viewBox="0 0 24 24" aria-hidden="true"
