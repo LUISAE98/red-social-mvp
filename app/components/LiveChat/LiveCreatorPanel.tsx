@@ -1969,19 +1969,6 @@ export default function LiveCreatorPanel({ open, onClose, post, portrait = false
               Ver Key y URL de transmisión
             </button>
           )}
-          {liveStatus !== "live" && liveStatus !== "ended" && (
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              padding: "4px 10px",
-              borderRadius: 7, fontSize: 11, fontWeight: 700, letterSpacing: "0.06em",
-              background: "rgba(255,255,255,0.06)",
-              color: "rgba(255,255,255,0.45)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)",
-            }}>
-              {liveStatus ? (STATUS_LABELS[liveStatus] ?? liveStatus) : "—"}
-            </div>
-          )}
         </div>
       </div>}
 

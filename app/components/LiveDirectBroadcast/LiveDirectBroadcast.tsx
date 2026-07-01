@@ -570,11 +570,12 @@ export default function LiveDirectBroadcast({
     }}>
       <video ref={hiddenVideoRef} autoPlay muted playsInline style={{ display: "none" }} />
 
-      <div style={{ flex: 1, position: "relative", background: "#111", minHeight: 0 }}>
+      <div style={{ flex: 1, position: "relative", background: "#111", minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <canvas
           ref={canvasRef}
           style={{
-            width: "100%", height: "100%", objectFit: "contain",
+            maxWidth: "100%", maxHeight: "100%",
+            width: "auto", height: "auto",
             transform: "scaleX(-1)",
             display: hasMedia ? "block" : "none",
           }}
@@ -588,7 +589,6 @@ export default function LiveDirectBroadcast({
             Iniciando cámara…
           </div>
         )}
-
       </div>
 
       {error && (
