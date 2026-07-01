@@ -568,16 +568,22 @@ export default function LiveDirectBroadcast({
       borderRadius: 12, overflow: "hidden", position: "relative",
       display: "flex", flexDirection: "column", fontFamily: FONT,
     }}>
-      <video ref={hiddenVideoRef} autoPlay muted playsInline style={{ display: "none" }} />
+      {/* Canvas oculto — solo para captureStream, no se muestra */}
+      <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      <div style={{ flex: 1, position: "relative", background: "#111", minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <canvas
-          ref={canvasRef}
+      {/* Preview: video element con objectFit nativo (funciona en iOS, canvas no) */}
+      <div style={{ flex: 1, position: "relative", background: "#000", minHeight: 0 }}>
+        <video
+          ref={hiddenVideoRef}
+          autoPlay
+          muted
+          playsInline
           style={{
-            maxWidth: "100%", maxHeight: "100%",
-            width: "auto", height: "auto",
+            position: "absolute", inset: 0,
+            width: "100%", height: "100%",
+            objectFit: "contain",
             transform: "scaleX(-1)",
-            display: hasMedia ? "block" : "none",
+            display: hasMedia && !camOff ? "block" : "none",
           }}
         />
         {!hasMedia && (
@@ -604,7 +610,10 @@ export default function LiveDirectBroadcast({
 
       <div style={{
         display: "flex", alignItems: "center", gap: 8,
-        padding: "10px 12px",
+        paddingTop: 10,
+        paddingLeft: "max(12px, env(safe-area-inset-left))",
+        paddingRight: "max(12px, env(safe-area-inset-right))",
+        paddingBottom: "max(10px, env(safe-area-inset-bottom))",
         background: "rgba(0,0,0,0.85)",
         borderTop: "1px solid rgba(255,255,255,0.08)",
       }}>
