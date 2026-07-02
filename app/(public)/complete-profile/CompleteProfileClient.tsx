@@ -1,18 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { auth, db } from "@/lib/firebase";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getNextFromSearchParams } from "@/lib/auth-redirect";
 import {
-  MONTHS,
-  buildBirthDate,
-  calculateAgeFromBirthDate,
   cleanName,
   completeGoogleProfile,
-  getDaysInMonth,
   isValidHandle,
   normalizeHandle,
 } from "@/lib/auth/profileOnboarding";
@@ -33,11 +29,6 @@ export default function CompleteProfileClient() {
   const [handle, setHandle] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [birthDay, setBirthDay] = useState("");
-  const [birthMonth, setBirthMonth] = useState("");
-  const [birthYear, setBirthYear] = useState("");
-  const [sex, setSex] = useState("");
-  const [bio, setBio] = useState("");
 
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -53,14 +44,23 @@ export default function CompleteProfileClient() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-      setCheckingAuth(false);
 
       if (!user) {
+        setCheckingAuth(false);
         router.replace(`/login?next=${encodeURIComponent(nextPath)}`);
         return;
       }
+
+      // Moderadores no completan perfil — van directo al panel
+      const tokenResult = await user.getIdTokenResult();
+      if (tokenResult.claims["role"] === "moderator") {
+        router.replace("/admin");
+        return;
+      }
+
+      setCheckingAuth(false);
 
       const displayName = user.displayName?.trim() || "";
       const parts = displayName.split(/\s+/).filter(Boolean);
@@ -75,14 +75,6 @@ export default function CompleteProfileClient() {
     return () => unsubscribe();
   }, [nextPath, router]);
 
-  const availableDays = useMemo(() => {
-    const monthNumber = Number(birthMonth);
-    const yearNumber = Number(birthYear);
-    const total = getDaysInMonth(monthNumber, yearNumber);
-
-    return Array.from({ length: total }, (_, index) => String(index + 1));
-  }, [birthMonth, birthYear]);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
@@ -95,8 +87,6 @@ export default function CompleteProfileClient() {
     const normalizedHandle = normalizeHandle(handle);
     const cleanedFirstName = cleanName(firstName);
     const cleanedLastName = cleanName(lastName);
-    const birthDate = buildBirthDate(birthYear, birthMonth, birthDay);
-    const age = calculateAgeFromBirthDate(birthDate);
 
     if (!isValidHandle(normalizedHandle)) {
       setMsg("El username debe tener entre 3 y 20 caracteres: letras, números o guion bajo.");
@@ -113,16 +103,6 @@ export default function CompleteProfileClient() {
       return;
     }
 
-    if (!birthDate) {
-      setMsg("Selecciona una fecha de nacimiento válida.");
-      return;
-    }
-
-    if (!sex) {
-      setMsg("Selecciona una opción de sexo.");
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -131,9 +111,6 @@ export default function CompleteProfileClient() {
         handle: normalizedHandle,
         firstName: cleanedFirstName,
         lastName: cleanedLastName,
-        birthDate,
-        sex,
-        bio,
       });
 
       router.replace(nextPath);
@@ -224,11 +201,6 @@ export default function CompleteProfileClient() {
     fontWeight: 400,
     fontFamily: fontStack,
     boxSizing: "border-box",
-  };
-
-  const selectStyle: React.CSSProperties = {
-    ...inputStyle,
-    colorScheme: "dark",
   };
 
   const primaryButtonStyle: React.CSSProperties = {
@@ -332,86 +304,6 @@ export default function CompleteProfileClient() {
                 />
               </label>
             </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 1fr", gap: 10 }}>
-              <label style={{ display: "grid", gap: 4 }}>
-                <span style={labelTextStyle}>Día</span>
-                <select
-                  value={birthDay}
-                  onChange={(e) => setBirthDay(e.target.value)}
-                  style={selectStyle}
-                >
-                  <option value="">Día</option>
-                  {availableDays.map((day) => (
-                    <option key={day} value={day}>
-                      {day}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label style={{ display: "grid", gap: 4 }}>
-                <span style={labelTextStyle}>Mes</span>
-                <select
-                  value={birthMonth}
-                  onChange={(e) => setBirthMonth(e.target.value)}
-                  style={selectStyle}
-                >
-                  <option value="">Mes</option>
-                  {MONTHS.map((month) => (
-                    <option key={month.value} value={month.value}>
-                      {month.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label style={{ display: "grid", gap: 4 }}>
-                <span style={labelTextStyle}>Año</span>
-                <input
-                  className="completeProfileInput"
-                  value={birthYear}
-                  onChange={(e) => setBirthYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                  style={inputStyle}
-                  placeholder="1998"
-                  inputMode="numeric"
-                />
-              </label>
-            </div>
-
-            <label style={{ display: "grid", gap: 4 }}>
-              <span style={labelTextStyle}>Sexo</span>
-              <select value={sex} onChange={(e) => setSex(e.target.value)} style={selectStyle}>
-                <option value="">Seleccionar</option>
-                <option value="female">Mujer</option>
-                <option value="male">Hombre</option>
-                <option value="other">Otro</option>
-                <option value="prefer_not_say">Prefiero no decirlo</option>
-              </select>
-            </label>
-
-            <label style={{ display: "grid", gap: 4 }}>
-              <span style={labelTextStyle}>
-                Descripción del perfil{" "}
-                <span style={{ color: "rgba(255,255,255,0.40)" }}>(opcional)</span>
-              </span>
-              <textarea
-                className="completeProfileInput"
-                value={bio}
-                onChange={(e) => setBio(e.target.value.slice(0, 300))}
-                placeholder="Cuéntale a tu audiencia quién eres..."
-                rows={3}
-                style={{
-                  ...inputStyle,
-                  height: "auto",
-                  padding: "9px 11px",
-                  resize: "vertical",
-                }}
-              />
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", textAlign: "right" }}>
-                {bio.length}/300
-              </span>
-            </label>
 
             <button
               type="submit"

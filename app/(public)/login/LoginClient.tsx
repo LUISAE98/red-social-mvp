@@ -174,6 +174,13 @@ router.replace(nextPath);
       return;
     }
 
+    // Moderadores no pasan por onboarding — van directo al panel
+    const tokenResult = await credential.user.getIdTokenResult();
+    if (tokenResult.claims["role"] === "moderator") {
+      router.replace("/admin");
+      return;
+    }
+
     router.replace(`/complete-profile?next=${encodeURIComponent(nextPath)}`);
 } catch (err: unknown) {
   setIsLeavingLogin(false);

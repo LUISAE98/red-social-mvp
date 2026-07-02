@@ -83,8 +83,8 @@ type CompleteGoogleProfileInput = {
   handle: string;
   firstName: string;
   lastName: string;
-  birthDate: string;
-  sex: string;
+  birthDate?: string | null;
+  sex?: string | null;
   bio?: string;
 };
 
@@ -136,8 +136,8 @@ if (!email) {
       displayName,
       firstName,
       lastName,
-      birthDate: input.birthDate,
-      sex: input.sex,
+      birthDate: input.birthDate ?? null,
+      sex: input.sex ?? null,
       bio: input.bio?.trim() ?? "",
       role: "user",
       provider: "google",

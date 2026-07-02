@@ -8,7 +8,9 @@ service cloud.firestore {
     }
 
     function isPlatformMod() {
-      return request.auth != null && request.auth.token.get('role', '') == 'moderator';
+      return request.auth != null
+        && request.auth.token.get('role', '') == 'moderator'
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
     }
 
     // ==========================

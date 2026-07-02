@@ -2198,6 +2198,26 @@ export default function GreetingReviewOverlay({
     );
   }
 
+  const reviewBgImage = req.type === "consejo" ? "/consejo.png" : req.type === "saludo" ? "/saludo.png" : null;
+  const REVIEW_BG_CSS = `
+    .grv-bg-img {
+      position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 0;
+      background-size: 100% auto; background-position: center bottom; background-repeat: no-repeat;
+      opacity: 0.35;
+    }
+    .grv-bg-grad {
+      position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1;
+      background: linear-gradient(to bottom, #0a0a0a 50%, rgba(10,10,10,0.85) 68%, rgba(10,10,10,0.4) 85%, transparent 100%);
+      -webkit-transform: translateZ(0); transform: translateZ(0); will-change: opacity;
+    }
+    .grv-z2 { position: relative; z-index: 2; }
+    @media (max-width: 768px) {
+      .grv-bg-grad {
+        background: linear-gradient(to bottom, #0a0a0a 0%, #0a0a0a 52%, rgba(10,10,10,0.9) 68%, rgba(10,10,10,0.6) 84%, rgba(10,10,10,0.28) 100%);
+      }
+    }
+  `;
+
   // ─── REVIEW VIEW — MOBILE (bottom sheet) ────────────────────────────────────
   if (isMobile) {
     return createPortal(
@@ -2207,42 +2227,51 @@ export default function GreetingReviewOverlay({
           onClick={handleReviewBackdropClose}
           style={{
             position: "fixed", inset: 0, zIndex: 10050,
-            background: "rgba(0,0,0,0.62)",
-          }}
+            background: "rgba(0,0,0,0.52)",
+            backdropFilter: "blur(10px)",
+            WebkitBackdropFilter: "blur(10px)",
+          } as React.CSSProperties}
         />
         {/* Bottom sheet */}
         <div style={{
           position: "fixed", bottom: 0, left: 0, right: 0,
           zIndex: 10051,
-          height: "55vh",
-          overflowY: "auto",
-          borderRadius: "20px 20px 0 0",
-          background: "linear-gradient(145deg, rgb(6,3,12) 0%, rgb(10,5,20) 100%)",
-          border: "1px solid rgba(168,85,255,0.15)",
-          borderBottom: "none",
-          boxShadow: "0 -10px 40px rgba(0,0,0,0.55)",
+          maxHeight: "calc(100vh - 72px)",
+          display: "flex", flexDirection: "column",
+          borderRadius: "22px 22px 0 0",
+          background: "#0a0a0a",
+          boxShadow: "0 -24px 80px rgba(0,0,0,0.56)",
+          overflow: "hidden",
           transform: reviewSheetTransform,
-          transition: reviewSheetDragging ? "none" : "transform 320ms cubic-bezier(0.4,0,0.2,1)",
+          transition: reviewSheetDragging ? "none" : "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
           fontFamily: fontStack,
           boxSizing: "border-box",
           willChange: "transform",
         }}>
+          <style>{REVIEW_BG_CSS}</style>
+          {reviewBgImage && <div className="grv-bg-img" style={{ backgroundImage: `url('${reviewBgImage}')` }} />}
+          {reviewBgImage && <div className="grv-bg-grad" />}
           {/* Draggable header — handle + título + buyer row */}
           <div
+            className="grv-z2"
             onTouchStart={handleReviewTouchStart}
             onTouchMove={handleReviewTouchMove}
             onTouchEnd={handleReviewTouchEnd}
-            style={{ padding: "10px 16px 14px", userSelect: "none", touchAction: "none", display: "flex", flexDirection: "column", gap: 14 }}
+            style={{ padding: "10px 18px 14px", userSelect: "none", touchAction: "none", display: "flex", flexDirection: "column", gap: 14, flexShrink: 0 }}
           >
-            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.22)", margin: "0 auto" }} />
-            <span style={{ color: "#fff", fontWeight: 500, fontSize: 17, letterSpacing: "-0.02em" }}>
-              {titleText}
-            </span>
+            <div style={{ width: 36, height: 4, borderRadius: 999, background: "rgba(255,255,255,0.18)", margin: "0 auto" }} />
+            <div style={{ display: "grid", gridTemplateColumns: "72px 1fr 72px", alignItems: "center" }}>
+              <div aria-hidden="true" />
+              <span style={{ color: "#fff", fontWeight: 500, fontSize: 17, letterSpacing: "-0.02em", textAlign: "center" }}>
+                {titleText}
+              </span>
+              <button type="button" onClick={handleClose} aria-label="Cerrar" style={{ border: "none", background: "none", color: "rgba(255,255,255,0.86)", cursor: "pointer", display: "grid", placeItems: "center", justifySelf: "end", padding: 4, width: 40, height: 40, fontSize: 28, fontWeight: 300, lineHeight: 1, fontFamily: fontStack }}>×</button>
+            </div>
             <div style={slideStyle}>{buyerRow}</div>
           </div>
 
           {/* Scrollable content + actions inline */}
-          <div style={{ overflowY: "auto", padding: "0 16px", paddingBottom: "calc(20px + env(safe-area-inset-bottom))" }}>
+          <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "0 18px", paddingBottom: "calc(20px + env(safe-area-inset-bottom))" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14, ...slideStyle }}>
               {divider}
               {infoSection}
@@ -2285,73 +2314,88 @@ export default function GreetingReviewOverlay({
 
   // ─── REVIEW VIEW — DESKTOP (centered modal) ──────────────────────────────────
   const portal = createPortal(
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 10050,
-      background: "rgba(0,0,0,0.75)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      padding: 16, boxSizing: "border-box", fontFamily: fontStack,
-    }}
-      onClick={handleClose}
-    >
-      <div style={{ ...containerBase, width: "100%", maxWidth: 380, display: "grid", gap: 16 }}
-        onClick={(e) => e.stopPropagation()}
+    <>
+      <style>{`
+        @keyframes grvDesktopIn  { from { opacity:0; transform:scale(0.94) translateY(10px); } to { opacity:1; transform:scale(1) translateY(0); } }
+        ${REVIEW_BG_CSS}
+      `}</style>
+      <div style={{
+        position: "fixed", inset: 0, zIndex: 10050,
+        background: "rgba(0,0,0,0.88)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: 24, boxSizing: "border-box", fontFamily: fontStack,
+      }}
+        onClick={handleClose}
       >
-        {/* Header */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <span style={{ color: "#fff", fontWeight: 500, fontSize: 17, letterSpacing: "-0.02em" }}>
-            {titleText}
-          </span>
-          <button type="button" onClick={handleClose} style={{
-            background: "transparent", border: "none", color: "rgba(255,255,255,0.45)",
-            cursor: "pointer", padding: "4px 6px", fontSize: 16, lineHeight: 1, borderRadius: 8,
-          }}>
-            ✕
-          </button>
-        </div>
-
-        <div style={{ display: "grid", gap: 16, ...slideStyle }}>
-          {buyerRow}
-          {divider}
-          {infoSection}
-
-          {/* Actions */}
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" onClick={handleGrabar} disabled={busy} style={{
-              flex: 1, height: 38, borderRadius: 10,
-              border: "1px solid rgba(59,130,246,0.35)", background: busy ? "rgba(59,130,246,0.06)" : "rgba(59,130,246,0.18)",
-              color: busy ? "rgba(147,197,253,0.4)" : "#93c5fd",
-              fontWeight: 700, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
-              fontFamily: fontStack, transition: "background 150ms",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-            }}>
-              <span style={{
-                width: 16, height: 16, borderRadius: "50%",
-                border: "2px solid rgba(255,255,255,0.85)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                flexShrink: 0,
-              }}>
-                <span style={{
-                  width: 8, height: 8, borderRadius: "50%",
-                  background: "#ef4444",
-                  display: "block",
-                }} />
-              </span>
-              Comenzar
-            </button>
-            <button type="button" onClick={() => onReject(currentItem.id)} disabled={busy} style={{
-              flex: 1, height: 38, borderRadius: 10,
-              border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
-              color: busy ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.65)",
-              fontWeight: 600, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
-              fontFamily: fontStack, transition: "background 150ms",
-            }}>
-              {busy ? "Procesando..." : "Rechazar"}
-            </button>
+        <section style={{
+          position: "relative",
+          width: "min(100%, 540px)",
+          maxHeight: "min(88vh, 680px)",
+          display: "flex", flexDirection: "column",
+          borderRadius: 18,
+          background: "#0a0a0a",
+          boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
+          color: "#fff",
+          overflow: "hidden",
+          animation: "grvDesktopIn 180ms ease-out",
+          fontFamily: fontStack,
+        }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {reviewBgImage && <div className="grv-bg-img" style={{ backgroundImage: `url('${reviewBgImage}')` }} />}
+          {reviewBgImage && <div className="grv-bg-grad" />}
+          {/* Header */}
+          <div className="grv-z2" style={{ height: 56, display: "grid", gridTemplateColumns: "48px 1fr 48px", alignItems: "center", padding: "0 12px", borderBottom: "1px solid rgba(255,255,255,0.10)", flexShrink: 0 }}>
+            <div aria-hidden="true" />
+            <span style={{ color: "#fff", fontWeight: 500, fontSize: 17, letterSpacing: "-0.02em", textAlign: "center" }}>
+              {titleText}
+            </span>
+            <button type="button" onClick={handleClose} aria-label="Cerrar" style={{ border: "none", background: "none", color: "rgba(255,255,255,0.86)", cursor: "pointer", display: "grid", placeItems: "center", justifySelf: "end", padding: 4, width: 40, height: 40, fontSize: 28, fontWeight: 300, lineHeight: 1, fontFamily: fontStack }}>×</button>
           </div>
 
-        </div>
+          <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 20px", display: "grid", gap: 16, alignContent: "start", ...slideStyle }}>
+            {buyerRow}
+            {divider}
+            {infoSection}
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" onClick={handleGrabar} disabled={busy} style={{
+                flex: 1, height: 38, borderRadius: 10,
+                border: "1px solid rgba(59,130,246,0.35)", background: busy ? "rgba(59,130,246,0.06)" : "rgba(59,130,246,0.18)",
+                color: busy ? "rgba(147,197,253,0.4)" : "#93c5fd",
+                fontWeight: 700, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
+                fontFamily: fontStack, transition: "background 150ms",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              }}>
+                <span style={{
+                  width: 16, height: 16, borderRadius: "50%",
+                  border: "2px solid rgba(255,255,255,0.85)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  <span style={{
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: "#ef4444",
+                    display: "block",
+                  }} />
+                </span>
+                Comenzar
+              </button>
+              <button type="button" onClick={() => onReject(currentItem.id)} disabled={busy} style={{
+                flex: 1, height: 38, borderRadius: 10,
+                border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
+                color: busy ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.65)",
+                fontWeight: 600, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
+                fontFamily: fontStack, transition: "background 150ms",
+              }}>
+                {busy ? "Procesando..." : "Rechazar"}
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
-    </div>,
+    </>,
     document.body
   );
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -32,6 +32,7 @@ import type {
 
 import { CountBadge, typeLabel } from "./OwnerSidebar";
 import GreetingReviewOverlay from "./GreetingReviewOverlay";
+import SessionRequestOverlay from "./SessionRequestOverlay";
 
 import {
   acceptMeetGreetRequest,
@@ -151,7 +152,7 @@ function getTypeChipStyle(type: string): React.CSSProperties {
 function getMeetGreetStatusLabel(status: string): string {
   switch (status) {
     case "pending_creator_response":
-      return "En espera de aceptación";
+      return "En espera de aceptaciÃ³n";
     case "accepted_pending_schedule":
       return "Aceptado, pendiente de fecha";
     case "scheduled":
@@ -161,13 +162,13 @@ function getMeetGreetStatusLabel(status: string): string {
     case "rejected":
       return "Rechazado";
     case "refund_requested":
-      return "Devolución solicitada";
+      return "DevoluciÃ³n solicitada";
     case "refund_review":
-      return "Devolución en revisión";
+      return "DevoluciÃ³n en revisiÃ³n";
     case "ready_to_prepare":
       return "Ya casi inicia";
     case "in_preparation":
-      return "En preparación";
+      return "En preparaciÃ³n";
     case "completed":
       return "Completado";
     case "cancelled":
@@ -312,7 +313,7 @@ function getRelativeTime(value: unknown): string {
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
+  if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "dÃ­a" : "dÃ­as"}`;
   if (diffHours >= 1) return `Hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
   if (diffMins >= 1) return `Hace ${diffMins} ${diffMins === 1 ? "minuto" : "minutos"}`;
   return "Hace un momento";
@@ -422,7 +423,7 @@ export default function OwnerSidebarMyGroups({
   }, [greetingsByGroup]);
 
   useEffect(() => {
-    // Deduplicate by (bucketKey, type) — same logic as getServiceBucketKey in OwnerSidebar
+    // Deduplicate by (bucketKey, type) â€” same logic as getServiceBucketKey in OwnerSidebar
     const unique = new Map<string, { col: string; docId: string; type: string }>();
     for (const [bucketKey, rows] of Object.entries(greetingsByGroup)) {
       for (const row of rows) {
@@ -490,6 +491,12 @@ useEffect(() => {
   const { toast: myGroupsToast, showToast: showMyGroupsToast } = useVibraToast();
 
   const [meetGreetSectionOpen, setMeetGreetSectionOpen] = useState<Record<string, boolean>>({});
+  const [sessionOverlayData, setSessionOverlayData] = useState<{
+    id: string;
+    req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc;
+    serviceKind: "meet_greet" | "exclusive_session";
+  } | null>(null);
+  const [sessionOverlayOpen, setSessionOverlayOpen] = useState(false);
   const [rejectOpenMap, setRejectOpenMap] = useState<ToggleMap>({});
   const [scheduleOpenMap, setScheduleOpenMap] = useState<ToggleMap>({});
   const [calendarOpenMap, setCalendarOpenMap] = useState<ToggleMap>({});
@@ -593,7 +600,7 @@ useEffect(() => {
         await acceptMeetGreetRequest({ requestId });
       }
 
-      showMyGroupsToast("✅ Solicitud aceptada. Ahora puedes proponer fecha y hora.");
+      showMyGroupsToast("âœ… Solicitud aceptada. Ahora puedes proponer fecha y hora.");
 
       setScheduleOpenMap((prev) => ({
         ...prev,
@@ -626,7 +633,7 @@ useEffect(() => {
         });
       }
 
-      showMyGroupsToast("✅ Solicitud rechazada.");
+      showMyGroupsToast("âœ… Solicitud rechazada.");
 
       setRejectOpenMap((prev) => ({
         ...prev,
@@ -647,7 +654,7 @@ useEffect(() => {
     const scheduledAt = parts ? schedulePartsToIso(parts) : null;
 
     if (!scheduledAt) {
-      setMeetGreetError(requestId, "Selecciona día, mes, año, hora y minuto.");
+      setMeetGreetError(requestId, "Selecciona dÃ­a, mes, aÃ±o, hora y minuto.");
       return;
     }
     const selectedScheduleDate = new Date(scheduledAt);
@@ -665,7 +672,7 @@ if (scheduleConflict.hasConflict) {
   setMeetGreetError(
     requestId,
     scheduleConflict.message ??
-      "Ese horario ya está ocupado. Selecciona otra hora disponible."
+      "Ese horario ya estÃ¡ ocupado. Selecciona otra hora disponible."
   );
   return;
 }
@@ -687,7 +694,7 @@ if (scheduleConflict.hasConflict) {
         await proposeMeetGreetSchedule(payload);
       }
 
-      showMyGroupsToast("✅ Fecha propuesta/agendada correctamente.");
+      showMyGroupsToast("âœ… Fecha propuesta/agendada correctamente.");
 
       setScheduleOpenMap((prev) => ({
         ...prev,
@@ -726,13 +733,64 @@ if (scheduleConflict.hasConflict) {
         [requestId]: true,
       }));
 
-      showMyGroupsToast("✅ Panel de preparación abierto.");
+      showMyGroupsToast("âœ… Panel de preparaciÃ³n abierto.");
     } catch (e: unknown) {
-      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparación.", "error");
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparaciÃ³n.", "error");
     } finally {
       setMeetGreetBusy(requestId, false);
     }
   }
+
+  async function handleCreatorRejectDirect(requestId: string, kind: "meet_greet" | "exclusive_session", reason: string | null) {
+    setMeetGreetBusy(requestId, true);
+    setMeetGreetError(requestId, null);
+    setMeetGreetSuccess(requestId, null);
+    try {
+      if (kind === "exclusive_session") {
+        await rejectExclusiveSessionRequest({ requestId, rejectionReason: reason });
+      } else {
+        await rejectMeetGreetRequest({ requestId, rejectionReason: reason });
+      }
+      showMyGroupsToast("âœ… Solicitud rechazada.");
+    } catch (e: unknown) {
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.", "error");
+    } finally {
+      setMeetGreetBusy(requestId, false);
+    }
+  }
+
+  async function handleCreatorScheduleDirect(requestId: string, kind: "meet_greet" | "exclusive_session", scheduledAtIso: string | null, note: string | null) {
+    if (!scheduledAtIso) {
+      setMeetGreetError(requestId, "Selecciona dÃ­a, mes, aÃ±o, hora y minuto.");
+      return;
+    }
+    const selectedDate = new Date(scheduledAtIso);
+    const conflict = getWalletScheduleConflictResult(
+      { id: requestId, source: kind, scheduledAt: selectedDate, durationMinutes: kind === "exclusive_session" ? 60 : 30 },
+      ownerCalendarItems
+    );
+    if (conflict.hasConflict) {
+      setMeetGreetError(requestId, conflict.message ?? "Ese horario ya estÃ¡ ocupado. Selecciona otra hora disponible.");
+      return;
+    }
+    setMeetGreetBusy(requestId, true);
+    setMeetGreetError(requestId, null);
+    setMeetGreetSuccess(requestId, null);
+    try {
+      const payload = { requestId, scheduledAt: scheduledAtIso, note };
+      if (kind === "exclusive_session") {
+        await proposeExclusiveSessionSchedule(payload);
+      } else {
+        await proposeMeetGreetSchedule(payload);
+      }
+      showMyGroupsToast("âœ… Fecha propuesta/agendada correctamente.");
+    } catch (e: unknown) {
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.", "error");
+    } finally {
+      setMeetGreetBusy(requestId, false);
+    }
+  }
+
     function renderMeetGreetFeedback(requestId: string) {
     const error = meetGreetErrorMap[requestId];
     const success = meetGreetSuccessMap[requestId];
@@ -869,7 +927,7 @@ if (scheduleConflict.hasConflict) {
       rows.map((row) => ({
         id: row.id,
         kind: "exclusive_session" as const,
-        title: "Sesión exclusiva",
+        title: "SesiÃ³n exclusiva",
         groupId,
         groupName: groupNameById.get(groupId) ?? null,
         profileUserId: null,
@@ -1429,8 +1487,8 @@ boxShadow:
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); setInviteGroupId(g.id); }}
-      title="Generar link de invitación"
-      aria-label="Generar link de invitación"
+      title="Generar link de invitaciÃ³n"
+      aria-label="Generar link de invitaciÃ³n"
       style={{
         flexShrink: 0,
         marginLeft: "auto",
@@ -1503,12 +1561,12 @@ boxShadow:
                                   fontWeight: 700,
                                 }}
                               >
-                                Link de invitación
+                                Link de invitaciÃ³n
                               </span>
 
                               <span style={styles.subtle}>
                                 Genera un link con vigencia personalizada y
-                                copia automática al portapapeles.
+                                copia automÃ¡tica al portapapeles.
                               </span>
                             </div>
 
@@ -1520,7 +1578,7 @@ boxShadow:
                                 width: "100%",
                               }}
                             >
-                              Generar link de invitación
+                              Generar link de invitaciÃ³n
                             </button>
                           </div>
                         </div>
@@ -1866,7 +1924,7 @@ boxShadow:
                       )}
 
                       {scheduledServiceRequests.length > 0 && (
-                        <div style={{ ...styles.sectionPanel, gap: 0 }}>
+                        <div style={{ ...styles.sectionPanel, gap: 0, background: "rgba(59,130,246,0.11)" }}>
                           <button
                             type="button"
                             onClick={() => {
@@ -1898,7 +1956,7 @@ boxShadow:
                                 fontWeight: 550,
                               }}
                             >
-                              Meet & Greet y Sesiones Exclusivas
+                              Sesiones en vivo
                             </span>
                             <CountBadge count={scheduledServiceRequests.length} tone="pink" />
                           </button>
@@ -1914,708 +1972,51 @@ boxShadow:
                               <div style={{ display: "grid", gap: 10 }}>
                                 {sortedScheduledServiceRequests.map((r) => {
                                   const req = r.data;
-                                  const isExclusiveSession =
-                                    r.serviceKind === "exclusive_session";
-
-                                  const chipType = isExclusiveSession
-                                    ? "digital_exclusive_session"
-                                    : "meet_greet_digital";
-
-                                  const statusStyle = getMeetGreetStatusStyle(
-                                    req.status
-                                  );
-
-                                  const createdAtText = formatUnknownDate(
-                                    req.createdAt
-                                  );
-
-                                  const scheduledAtText = formatUnknownDate(
-                                    req.scheduledAt
-                                  );
-
-                                  const prepareWindowOpen = isPrepareWindowOpen(
-                                    req.scheduledAt
-                                  );
-
-                                  const noShowExpired = isNoShowExpired(
-                                    req.scheduledAt
-                                  );
-
                                   const busy = !!meetGreetBusyMap[r.id];
-                                  const creatorScheduleNote =
-                                    getCreatorScheduleNote(req);
-
-                                  const canAccept =
-                                    req.status === "pending_creator_response";
-
-                                  const canReject =
-                                    req.status === "pending_creator_response" ||
-                                    req.status === "accepted_pending_schedule" ||
-                                    req.status === "reschedule_requested";
-
-                                  const canSchedule =
-                                    req.status === "accepted_pending_schedule" ||
-                                    req.status === "reschedule_requested";
-
-                                  const canPrepare =
-                                    (req.status === "scheduled" ||
-                                      req.status === "ready_to_prepare" ||
-                                      req.status === "in_preparation") &&
-                                    prepareWindowOpen &&
-                                    !noShowExpired;
-                                                                      const scheduleParts =
-                                    schedulePartsMap[r.id] ??
-                                    getSchedulePartsFromDate(
-                                      toDateSafe(req.scheduledAt)
-                                    );
-
-                                  const updateScheduleParts = (nextParts: ScheduleParts) => {
-  setSchedulePartsMap((prev) => ({
-    ...prev,
-    [r.id]: nextParts,
-  }));
-
-  setMeetGreetError(r.id, null);
-  setMeetGreetSuccess(r.id, null);
-};
-
-                                  const selectedScheduleIso =
-                                    schedulePartsToIso(scheduleParts);
-
-                                  const selectedScheduleDate = selectedScheduleIso
-                                    ? new Date(selectedScheduleIso)
-                                    : null;
-                                    const scheduleConflict = getWalletScheduleConflictResult(
-  {
-    id: r.id,
-    source: r.serviceKind,
-    scheduledAt: selectedScheduleDate,
-    durationMinutes:
-  typeof req.durationMinutes === "number" && req.durationMinutes > 0
-    ? req.durationMinutes
-    : null,
-  },
-  ownerCalendarItems
-);
-
-const scheduleConflictMessage = scheduleConflict.message;
+                                  const sessionEarning =
+                                    req.priceSnapshot != null && req.priceSnapshot > 0
+                                      ? "$" + new Intl.NumberFormat("es-MX", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(req.priceSnapshot * 0.77) + " MXN"
+                                      : null;
 
                                   return (
-                                    <div
-                                      key={`${r.serviceKind}-${r.id}`}
-                                      style={{
-                                        ...styles.miniItem,
-                                        background: "rgba(255,255,255,0.012)",
-                                        border:
-                                          "1px solid rgba(255,255,255,0.07)",
-                                        borderRadius: 16,
-                                        padding: 10,
-                                      }}
-                                    >
-                                      <div style={{ display: "grid", gap: 6 }}>
-                                        <div
-                                          style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 8,
-                                            flexWrap: "wrap",
-                                          }}
-                                        >
-                                          <span
-                                            style={{
-                                              ...getTypeChipStyle(chipType),
-                                              borderRadius: 999,
-                                              padding: "4px 8px",
-                                              fontSize: 11,
-                                              fontWeight: 700,
-                                              lineHeight: 1,
-                                              display: "inline-flex",
-                                              alignItems: "center",
-                                              justifyContent: "center",
-                                            }}
-                                          >
-                                            {isExclusiveSession
-                                              ? "👑 Sesión exclusiva"
-                                              : "🤝 Meet & Greet"}
-                                          </span>
-
-                                          <div
-                                            style={{
-                                              fontSize: 12,
-                                              fontWeight: 700,
-                                              color: "#fff",
-                                              lineHeight: 1.25,
-                                            }}
-                                          >
-                                            {req.status === "reschedule_requested"
-                                              ? "Cambio de fecha solicitado"
-                                              : "Solicitud recibida"}
+                                    <div key={`${r.serviceKind}-${r.id}`} style={styles.miniItem}>
+                                      {/* Fila resumen */}
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                                        {req.buyerAvatarUrl ? (
+                                          <Image src={req.buyerAvatarUrl} alt={req.buyerDisplayName ?? ""} width={28} height={28} style={{ borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }} />
+                                        ) : (
+                                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 11, color: "#fff", flexShrink: 0 }}>
+                                            {getInitials(req.buyerDisplayName)}
                                           </div>
-                                        </div>
-
-                                        <div
-                                          style={{
-                                            display: "flex",
-                                            alignItems: "center",
-                                            gap: 6,
-                                            flexWrap: "wrap",
-                                          }}
-                                        >
-                                          <span style={styles.subtle}>
-                                            Comprador:
+                                        )}
+                                        <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
+                                          <span style={{ color: "#fff", fontWeight: 600, fontSize: 12, lineHeight: 1.2, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                            {req.buyerDisplayName ?? "Usuario"}
                                           </span>
-                                          {renderUserLink(req.buyerId)}
+                                          <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>
+                                            {getRelativeTime(req.createdAt)}
+                                          </span>
                                         </div>
-
-                                        <div
-                                          style={{
-                                            ...statusStyle,
-                                            borderRadius: 999,
-                                            padding: "5px 9px",
-                                            fontSize: 11,
-                                            fontWeight: 700,
-                                            lineHeight: 1,
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            width: "fit-content",
-                                          }}
-                                        >
-                                          {getMeetGreetStatusLabel(req.status)}
-                                        </div>
+                                        {sessionEarning ? (
+                                          <span style={{ color: "#86efac", fontSize: 11, fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1, flexShrink: 0 }}>{sessionEarning}</span>
+                                        ) : null}
                                       </div>
 
-                                      {canPrepare ? (
-                                        <div
-                                          style={{
-                                            borderRadius: 10,
-                                            border:
-                                              "1px solid rgba(96,165,250,0.18)",
-                                            background: "rgba(96,165,250,0.08)",
-                                            padding: "7px 8px",
-                                            fontSize: 12,
-                                            lineHeight: 1.3,
-                                            color: "#bfdbfe",
-                                          }}
-                                        >
-                                          🤝 Ya puedes entrar a preparación.
-                                        </div>
-                                      ) : null}
-                                                                            {(req.priceSnapshot != null ||
-                                        req.durationMinutes != null) && (
-                                        <div
-                                          style={{
-                                            display: "flex",
-                                            gap: 8,
-                                            flexWrap: "wrap",
-                                          }}
-                                        >
-                                          {req.priceSnapshot != null ? (
-                                            <span style={styles.subtle}>
-                                              Precio capturado:{" "}
-                                              {formatMoney(
-                                                req.priceSnapshot,
-                                                getRequestCurrency(req)
-                                              )}
-                                            </span>
-                                          ) : null}
-
-                                          {req.durationMinutes != null ? (
-                                            <span style={styles.subtle}>
-                                              Duración: {req.durationMinutes} min
-                                            </span>
-                                          ) : null}
-                                        </div>
-                                      )}
-
-                                      {creatorScheduleNote ? (
-                                        <div
-                                          style={{
-                                            borderRadius: 10,
-                                            border:
-                                              "1px solid rgba(96,165,250,0.18)",
-                                            background: "rgba(96,165,250,0.08)",
-                                            padding: "7px 8px",
-                                            whiteSpace: "pre-wrap",
-                                            fontSize: 12,
-                                            lineHeight: 1.3,
-                                            color: "#bfdbfe",
-                                          }}
-                                        >
-                                          Mensaje al comprador:{" "}
-                                          {creatorScheduleNote}
-                                        </div>
-                                      ) : null}
-
-                                      {req.buyerMessage ? (
-                                        <div
-                                          style={{
-                                            borderRadius: 10,
-                                            border:
-                                              "1px solid rgba(255,255,255,0.10)",
-                                            background: "rgba(0,0,0,0.18)",
-                                            padding: "7px 8px",
-                                            whiteSpace: "pre-wrap",
-                                            fontSize: 12,
-                                            lineHeight: 1.3,
-                                            color: "rgba(255,255,255,0.92)",
-                                          }}
-                                        >
-                                          {req.buyerMessage}
-                                        </div>
-                                      ) : null}
-
-                                      {req.rejectionReason ? (
-                                        <div
-                                          style={{
-                                            borderRadius: 10,
-                                            border:
-                                              "1px solid rgba(248,113,113,0.18)",
-                                            background: "rgba(248,113,113,0.08)",
-                                            padding: "7px 8px",
-                                            fontSize: 12,
-                                            lineHeight: 1.3,
-                                            color: "#fecaca",
-                                          }}
-                                        >
-                                          Motivo de rechazo:{" "}
-                                          {req.rejectionReason}
-                                        </div>
-                                      ) : null}
-
-                                      {req.refundReason ? (
-                                        <div
-                                          style={{
-                                            borderRadius: 10,
-                                            border:
-                                              "1px solid rgba(250,204,21,0.18)",
-                                            background: "rgba(250,204,21,0.08)",
-                                            padding: "7px 8px",
-                                            fontSize: 12,
-                                            lineHeight: 1.3,
-                                            color: "#fde68a",
-                                          }}
-                                        >
-                                          Motivo de devolución:{" "}
-                                          {req.refundReason}
-                                        </div>
-                                      ) : null}
-
-                                      {scheduledAtText ? (
-                                        <div style={styles.subtle}>
-                                          Fecha propuesta/agendada:{" "}
-                                          {scheduledAtText}
-                                        </div>
-                                      ) : null}
-
-                                      {createdAtText ? (
-                                        <div style={styles.subtle}>
-                                          {createdAtText}
-                                        </div>
-                                      ) : null}
-                                                                            {canAccept ||
-                                      canReject ||
-                                      canSchedule ||
-                                      canPrepare ? (
-                                        <div
-                                          style={{
-                                            display: "flex",
-                                            gap: 8,
-                                            flexWrap: "wrap",
-                                          }}
-                                        >
-                                          {canAccept ? (
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                handleCreatorAccept(
-                                                  r.id,
-                                                  r.serviceKind
-                                                )
-                                              }
-                                              disabled={busy}
-                                              style={{
-                                                ...styles.buttonPrimary,
-                                                opacity: busy ? 0.8 : 1,
-                                                cursor: busy
-                                                  ? "not-allowed"
-                                                  : "pointer",
-                                              }}
-                                            >
-                                              {busy
-                                                ? "Procesando..."
-                                                : "Aceptar"}
-                                            </button>
-                                          ) : null}
-
-                                          {canReject ? (
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                setRejectOpenMap((prev) => ({
-                                                  ...prev,
-                                                  [r.id]: !prev[r.id],
-                                                }))
-                                              }
-                                              disabled={busy}
-                                              style={{
-                                                ...styles.buttonSecondary,
-                                                opacity: busy ? 0.7 : 1,
-                                                cursor: busy
-                                                  ? "not-allowed"
-                                                  : "pointer",
-                                              }}
-                                            >
-                                              Rechazar
-                                            </button>
-                                          ) : null}
-
-                                          {canSchedule ? (
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                setScheduleOpenMap((prev) => ({
-                                                  ...prev,
-                                                  [r.id]: !prev[r.id],
-                                                }))
-                                              }
-                                              disabled={busy}
-                                              style={{
-                                                ...styles.buttonSecondary,
-                                                opacity: busy ? 0.7 : 1,
-                                                cursor: busy
-                                                  ? "not-allowed"
-                                                  : "pointer",
-                                              }}
-                                            >
-                                              {req.status ===
-                                              "accepted_pending_schedule"
-                                                ? "Poner fecha"
-                                                : "Proponer nueva fecha"}
-                                            </button>
-                                          ) : null}
-
-                                          {canPrepare ? (
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                handlePrepare(
-                                                  r.id,
-                                                  "creator",
-                                                  r.serviceKind
-                                                )
-                                              }
-                                              disabled={busy}
-                                              style={{
-                                                ...styles.buttonPrimary,
-                                                opacity: busy ? 0.8 : 1,
-                                                cursor: busy
-                                                  ? "not-allowed"
-                                                  : "pointer",
-                                              }}
-                                            >
-                                              {busy
-                                                ? "Procesando..."
-                                                : "Prepararse"}
-                                            </button>
-                                          ) : null}
-                                        </div>
-                                      ) : null}
-
-                                      {rejectOpenMap[r.id] ? (
-                                        <div
-                                          style={{
-                                            display: "grid",
-                                            gap: 8,
-                                          }}
-                                        >
-                                          <textarea
-                                            value={rejectReasonMap[r.id] ?? ""}
-                                            onChange={(e) =>
-                                              setRejectReasonMap((prev) => ({
-                                                ...prev,
-                                                [r.id]: e.target.value,
-                                              }))
-                                            }
-                                            placeholder="Explica por qué rechazas la solicitud."
-                                            style={{
-                                              ...styles.input,
-                                              height: 92,
-                                              resize: "vertical",
-                                            }}
-                                          />
-
-                                          <div
-                                            style={{
-                                              display: "flex",
-                                              gap: 8,
-                                              flexWrap: "wrap",
-                                            }}
-                                          >
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                handleCreatorReject(
-                                                  r.id,
-                                                  r.serviceKind
-                                                )
-                                              }
-                                              disabled={busy}
-                                              style={{
-                                                ...styles.buttonPrimary,
-                                                opacity: busy ? 0.8 : 1,
-                                                cursor: busy
-                                                  ? "not-allowed"
-                                                  : "pointer",
-                                              }}
-                                            >
-                                              {busy
-                                                ? "Procesando..."
-                                                : "Confirmar rechazo"}
-                                            </button>
-
-                                            <button
-                                              type="button"
-                                              onClick={() =>
-                                                setRejectOpenMap((prev) => ({
-                                                  ...prev,
-                                                  [r.id]: false,
-                                                }))
-                                              }
-                                              disabled={busy}
-                                              style={{
-                                                ...styles.buttonSecondary,
-                                                opacity: busy ? 0.7 : 1,
-                                                cursor: busy
-                                                  ? "not-allowed"
-                                                  : "pointer",
-                                              }}
-                                            >
-                                              Cancelar
-                                            </button>
-                                          </div>
-                                        </div>
-                                      ) : null}
-                                                                          {scheduleOpenMap[r.id] ? (
-  <div style={{ display: "grid", gap: 8 }}>
-    <button
-      type="button"
-      onClick={() =>
-        setCalendarOpenMap((prev) => ({
-          ...prev,
-          [r.id]: true,
-        }))
-      }
-      disabled={busy}
-      style={{
-        ...styles.buttonSecondary,
-        opacity: busy ? 0.7 : 1,
-        cursor: busy ? "not-allowed" : "pointer",
-        width: "fit-content",
-      }}
-    >
-      Ver calendario
-    </button>
-
-    <ScheduleDateTimeSelector
-      value={scheduleParts}
-      onChange={updateScheduleParts}
-      disabled={busy}
-    />
-
-    {scheduleConflictMessage ? (
-  <div
-    style={{
-      borderRadius: 10,
-      border: "1px solid rgba(248,113,113,0.18)",
-      background: "rgba(248,113,113,0.08)",
-      padding: "7px 8px",
-      fontSize: 12,
-      lineHeight: 1.3,
-      color: "#fecaca",
-    }}
-  >
-    {scheduleConflictMessage}
-  </div>
-) : null}
-
-    <textarea
-      value={scheduleNoteMap[r.id] ?? getCreatorScheduleNote(req) ?? ""}
-      onChange={(e) =>
-        setScheduleNoteMap((prev) => ({
-          ...prev,
-          [r.id]: e.target.value,
-        }))
-      }
-      placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
-      style={{
-        ...styles.input,
-        height: 92,
-        resize: "vertical",
-      }}
-    />
-
-    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-      <button
-  type="button"
-  onClick={() => handleCreatorSchedule(r.id, r.serviceKind)}
-  disabled={busy || scheduleConflict.hasConflict}
-  style={{
-    ...styles.buttonPrimary,
-    opacity: busy || scheduleConflict.hasConflict ? 0.55 : 1,
-    cursor: busy || scheduleConflict.hasConflict ? "not-allowed" : "pointer",
-  }}
->
-  {busy ? "Procesando..." : "Guardar fecha"}
-</button>
-
-      <button
-        type="button"
-        onClick={() => {
-          setScheduleOpenMap((prev) => ({
-            ...prev,
-            [r.id]: false,
-          }));
-          setCalendarOpenMap((prev) => ({
-            ...prev,
-            [r.id]: false,
-          }));
-          setCalendarEventOpenKey(null);
-        }}
-        disabled={busy}
-        style={{
-          ...styles.buttonSecondary,
-          opacity: busy ? 0.7 : 1,
-          cursor: busy ? "not-allowed" : "pointer",
-        }}
-      >
-        Cancelar
-      </button>
-    </div>
-
-   <ScheduleCalendarOverlay
-  open={!!calendarOpenMap[r.id]}
-  title="Calendario del creador"
-  items={ownerCalendarItems}
-  excludeId={r.id}
-  selectedDate={selectedScheduleDate}
-  conflictMessage={scheduleConflictMessage}
-  onSelectDate={(date) => {
-    updateScheduleParts(getSchedulePartsFromDate(date));
-  }}
-  onClose={() => {
-    setCalendarOpenMap((prev) => ({
-      ...prev,
-      [r.id]: false,
-    }));
-    setCalendarEventOpenKey(null);
-  }}
-  renderItem={(calendarRow) => {
-    const calendarRowKey = `${calendarRow.source}-${calendarRow.id}`;
-    const isCalendarRowOpen = calendarEventOpenKey === calendarRowKey;
-
-    return (
-      <WalletServiceRow
-        row={calendarRow}
-        open={isCalendarRowOpen}
-                calendarItems={ownerCalendarItems}
-        onToggle={() =>
-          setCalendarEventOpenKey((prev) =>
-            prev === calendarRowKey ? null : calendarRowKey
-          )
-        }
-      />
-    );
-  }}
-  footer={
-    <div style={{ display: "grid", gap: 8 }}>
-      <ScheduleDateTimeSelector
-        value={scheduleParts}
-        onChange={updateScheduleParts}
-        disabled={busy}
-      />
-      {scheduleConflictMessage ? (
-  <div
-    style={{
-      borderRadius: 10,
-      border: "1px solid rgba(248,113,113,0.18)",
-      background: "rgba(248,113,113,0.08)",
-      padding: "7px 8px",
-      fontSize: 12,
-      lineHeight: 1.3,
-      color: "#fecaca",
-    }}
-  >
-    {scheduleConflictMessage}
-  </div>
-) : null}
-
-      <textarea
-        value={scheduleNoteMap[r.id] ?? getCreatorScheduleNote(req) ?? ""}
-        onChange={(e) =>
-          setScheduleNoteMap((prev) => ({
-            ...prev,
-            [r.id]: e.target.value,
-          }))
-        }
-        placeholder="Mensaje o instrucciones para el comprador sobre esta fecha."
-        style={{
-          ...styles.input,
-          height: 92,
-          resize: "vertical",
-        }}
-      />
-
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button
-  type="button"
-  onClick={() => handleCreatorSchedule(r.id, r.serviceKind)}
-  disabled={busy || scheduleConflict.hasConflict}
-  style={{
-    ...styles.buttonPrimary,
-    opacity: busy || scheduleConflict.hasConflict ? 0.55 : 1,
-    cursor: busy || scheduleConflict.hasConflict ? "not-allowed" : "pointer",
-  }}
->
-  {busy ? "Procesando..." : "Guardar fecha"}
-</button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setCalendarOpenMap((prev) => ({
-              ...prev,
-              [r.id]: false,
-            }));
-            setCalendarEventOpenKey(null);
-          }}
-          disabled={busy}
-          style={{
-            ...styles.buttonSecondary,
-            opacity: busy ? 0.7 : 1,
-            cursor: busy ? "not-allowed" : "pointer",
-          }}
-        >
-          Cerrar calendario
-        </button>
-      </div>
-    </div>
-  }
-/>
-  </div>
-) : null}
-
-                                      {renderMeetGreetFeedback(r.id)}
-
-                                      {renderPreparationPanel(
-                                        r.id,
-                                        req,
-                                        (preparationRoleMap[
-                                          r.id
-                                        ] as "creator") ?? "creator"
-                                      )}
+                                      {/* Botón → abre overlay */}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSessionOverlayData({ id: r.id, req, serviceKind: r.serviceKind });
+                                          setSessionOverlayOpen(true);
+                                        }}
+                                        disabled={busy}
+                                        style={{ width: "100%", height: 30, borderRadius: 8, border: "none", background: "rgba(59,130,246,0.18)", color: "#93c5fd", fontWeight: 520, fontSize: 12, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}
+                                      >
+                                        {busy ? "Procesando..." : "Agendar solicitud"}
+                                      </button>
                                     </div>
                                   );
+
                                 })}
                               </div>
                             </div>
@@ -2650,7 +2051,7 @@ const scheduleConflictMessage = scheduleConflict.message;
                                   fontWeight: 700,
                                 }}
                               >
-                                Próximo a iniciar
+                                PrÃ³ximo a iniciar
                               </span>
 
                               <span
@@ -2745,8 +2146,8 @@ const scheduleConflictMessage = scheduleConflict.message;
                                           }}
                                         >
                                           {isExclusiveSession
-                                            ? "👑 Sesión exclusiva"
-                                            : "🤝 Meet & Greet"}
+                                            ? "ðŸ‘‘ SesiÃ³n exclusiva"
+                                            : "ðŸ¤ Meet & Greet"}
                                         </span>
 
                                         <div
@@ -2757,7 +2158,7 @@ const scheduleConflictMessage = scheduleConflict.message;
                                             lineHeight: 1.25,
                                           }}
                                         >
-                                          ⚠️ Próximo a iniciar
+                                          âš ï¸ PrÃ³ximo a iniciar
                                         </div>
                                       </div>
 
@@ -2804,7 +2205,7 @@ const scheduleConflictMessage = scheduleConflict.message;
                                         color: "#fde68a",
                                       }}
                                     >
-                                      ⚠️ Este servicio empieza en menos de 15
+                                      âš ï¸ Este servicio empieza en menos de 15
                                       minutos.
                                     </div>
 
@@ -2929,7 +2330,7 @@ lineHeight: 1.15,
 maxWidth: 220,
         }}
       >
-        Conecta, comparte y monetiza tu pasión.
+        Conecta, comparte y monetiza tu pasiÃ³n.
       </div>
 
       <div
@@ -2982,6 +2383,33 @@ maxWidth: 220,
           onClose={() => setReviewGreetingState(null)}
           getInitials={getInitials}
           typeLabel={typeLabel}
+        />
+      )}
+      {sessionOverlayData && (
+        <SessionRequestOverlay
+          open={sessionOverlayOpen}
+          onClose={() => {
+            setSessionOverlayOpen(false);
+            setTimeout(() => setSessionOverlayData(null), 300);
+          }}
+          request={sessionOverlayData.req}
+          requestId={sessionOverlayData.id}
+          serviceKind={sessionOverlayData.serviceKind}
+          earning={
+            sessionOverlayData.req.priceSnapshot != null && sessionOverlayData.req.priceSnapshot > 0
+              ? "$" + new Intl.NumberFormat("es-MX", { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(sessionOverlayData.req.priceSnapshot * 0.77) + " MXN"
+              : null
+          }
+          busy={!!meetGreetBusyMap[sessionOverlayData.id]}
+          feedbackError={meetGreetErrorMap[sessionOverlayData.id] ?? null}
+          feedbackSuccess={meetGreetSuccessMap[sessionOverlayData.id] ?? null}
+          ownerCalendarItems={ownerCalendarItems}
+          getInitials={getInitials}
+          onAccept={() => handleCreatorAccept(sessionOverlayData.id, sessionOverlayData.serviceKind)}
+          onReject={(reason) => handleCreatorRejectDirect(sessionOverlayData.id, sessionOverlayData.serviceKind, reason)}
+          onSchedule={(scheduledAtIso, note) => handleCreatorScheduleDirect(sessionOverlayData.id, sessionOverlayData.serviceKind, scheduledAtIso, note)}
+          onPrepare={() => handlePrepare(sessionOverlayData.id, "creator", sessionOverlayData.serviceKind)}
+          preparationNode={renderPreparationPanel(sessionOverlayData.id, sessionOverlayData.req, (preparationRoleMap[sessionOverlayData.id] as "creator") ?? "creator")}
         />
       )}
       <VibraToast toast={myGroupsToast} />

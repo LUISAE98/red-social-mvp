@@ -1,14 +1,14 @@
 import dotenv from "dotenv";
-
 dotenv.config({ path: ".env.local" });
 
-import * as admin from "firebase-admin";
+import { getApps, initializeApp, cert } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
 
 // Uso: npx ts-node scripts/set-moderator.ts --uid=<UID_DEL_USUARIO>
 // Para quitar el rol: npx ts-node scripts/set-moderator.ts --uid=<UID> --remove
 
 function initializeAdmin() {
-  if (admin.apps.length) return;
+  if (getApps().length) return;
 
   const projectId =
     process.env.FIREBASE_PROJECT_ID ??
@@ -29,12 +29,8 @@ function initializeAdmin() {
     );
   }
 
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
+  initializeApp({
+    credential: cert({ projectId, clientEmail, privateKey }),
   });
 }
 
@@ -57,10 +53,11 @@ async function main() {
     process.exit(1);
   }
 
-  // Verificar que el usuario existe
-  let userRecord: admin.auth.UserRecord;
+  const auth = getAuth();
+
+  let userRecord;
   try {
-    userRecord = await admin.auth().getUser(uid);
+    userRecord = await auth.getUser(uid);
   } catch {
     console.error(`❌  No se encontró ningún usuario con UID: ${uid}`);
     process.exit(1);
@@ -71,10 +68,10 @@ async function main() {
   if (remove) {
     const newClaims = { ...currentClaims };
     delete newClaims.role;
-    await admin.auth().setCustomUserClaims(uid, newClaims);
+    await auth.setCustomUserClaims(uid, newClaims);
     console.log(`✅  Rol de moderador ELIMINADO para ${userRecord.email ?? uid}`);
   } else {
-    await admin.auth().setCustomUserClaims(uid, { ...currentClaims, role: "moderator" });
+    await auth.setCustomUserClaims(uid, { ...currentClaims, role: "moderator" });
     console.log(`✅  Rol de moderador ASIGNADO a ${userRecord.email ?? uid}`);
   }
 

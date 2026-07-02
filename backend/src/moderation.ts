@@ -130,6 +130,28 @@ export const submitReport = onCall<SubmitReportRequest>(
       );
     }
 
+    // Para comentarios: verificar que el comentario existe en posts/{parentId}/comments/{targetId}
+    if (targetType === "comment" || targetType === "comment_reply") {
+      if (!parentId) {
+        throw new HttpsError(
+          "invalid-argument",
+          "Falta parentId para reportar un comentario."
+        );
+      }
+      const commentSnap = await db
+        .collection("posts")
+        .doc(parentId)
+        .collection("comments")
+        .doc(targetId)
+        .get();
+      if (!commentSnap.exists) {
+        throw new HttpsError(
+          "not-found",
+          "El comentario no existe en la publicación indicada."
+        );
+      }
+    }
+
     // Verificar duplicado: mismo reportero + mismo targetId
     const existingSnap = await db
       .collection("reports")

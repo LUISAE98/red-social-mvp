@@ -352,9 +352,9 @@ const s = {
   text: { fontSize: 12, fontWeight: 400, lineHeight: 1.5, color: "rgba(255,255,255,0.82)" } as CSSProperties,
   micro: { fontSize: 12, fontWeight: 400, lineHeight: 1.45, color: "rgba(255,255,255,0.70)" } as CSSProperties,
   input: {
-    width: "100%", padding: "10px 12px", borderRadius: 10,
-    border: "1px solid rgba(255,255,255,0.09)", background: "transparent",
-    color: "#fff", outline: "none", fontSize: 14, fontFamily: "inherit",
+    width: "100%", padding: "12px 13px", borderRadius: 12,
+    border: "none", background: "rgba(255,255,255,0.06)",
+    color: "#fff", outline: "none", fontSize: 13, fontWeight: 600, fontFamily: "inherit",
     boxSizing: "border-box", appearance: "none", WebkitAppearance: "none",
   } as CSSProperties,
   summaryPanel: {
@@ -761,7 +761,6 @@ export default function CreatorServiceModals({
           <textarea
             value={params.message}
             onChange={(e) => params.onChangeMessage(e.target.value)}
-            placeholder={params.textareaPlaceholder}
             disabled={params.submitting}
             maxLength={maxLen}
             rows={2}

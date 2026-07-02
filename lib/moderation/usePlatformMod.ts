@@ -6,6 +6,8 @@ import { useAuth } from "@/app/providers";
 type PlatformModState = {
   isPlatformMod: boolean;
   loading: boolean;
+  /** true cuando el claim existe pero el proveedor no es Google */
+  wrongProvider: boolean;
 };
 
 /**
@@ -16,6 +18,7 @@ type PlatformModState = {
 export function usePlatformMod(): PlatformModState {
   const { user, loading: authLoading } = useAuth();
   const [isPlatformMod, setIsPlatformMod] = useState(false);
+  const [wrongProvider, setWrongProvider] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,6 +26,7 @@ export function usePlatformMod(): PlatformModState {
 
     if (!user) {
       setIsPlatformMod(false);
+      setWrongProvider(false);
       setLoading(false);
       return;
     }
@@ -30,15 +34,28 @@ export function usePlatformMod(): PlatformModState {
     user
       .getIdTokenResult()
       .then((result) => {
-        setIsPlatformMod(result.claims["role"] === "moderator");
+        const hasClaim = result.claims["role"] === "moderator";
+        const signedInWithGoogle = user.providerData.some(
+          (p) => p.providerId === "google.com",
+        );
+
+        if (hasClaim && !signedInWithGoogle) {
+          // Tiene el claim pero entró con email/password — rechazar
+          setIsPlatformMod(false);
+          setWrongProvider(true);
+        } else {
+          setIsPlatformMod(hasClaim && signedInWithGoogle);
+          setWrongProvider(false);
+        }
       })
       .catch(() => {
         setIsPlatformMod(false);
+        setWrongProvider(false);
       })
       .finally(() => {
         setLoading(false);
       });
   }, [user, authLoading]);
 
-  return { isPlatformMod, loading };
+  return { isPlatformMod, loading, wrongProvider };
 }
