@@ -35,10 +35,12 @@ export type SessionRequestOverlayProps = {
   ownerCalendarItems: WalletServiceItem[];
   getInitials: (name?: string | null) => string;
   onAccept: () => void;
-  onReject: (reason: string | null) => void;
+  onReject: (reason: string | null) => Promise<void>;
   onSchedule: (scheduledAt: string | null, note: string | null) => void;
+  onAcceptAndSchedule: (scheduledAt: string | null, note: string | null) => void;
   onPrepare: () => void;
   preparationNode?: React.ReactNode;
+  onReschedule?: (item: WalletServiceItem, scheduledAt: string) => Promise<void>;
 };
 
 // ── Utilidades locales ────────────────────────────────────────────────────────
@@ -206,8 +208,10 @@ export default function SessionRequestOverlay({
   onAccept,
   onReject,
   onSchedule,
+  onAcceptAndSchedule,
   onPrepare,
   preparationNode,
+  onReschedule,
 }: SessionRequestOverlayProps) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -490,27 +494,24 @@ export default function SessionRequestOverlay({
             <button
               type="button"
               onClick={() => !acceptExpanded && setAcceptExpanded(true)}
-              disabled={busy || acceptExpanded}
+              disabled={acceptExpanded}
               style={{
                 flex: 1,
                 height: 36,
                 borderRadius: 6,
                 border: "none",
-                background: busy
-                  ? "rgba(255,255,255,0.10)"
-                  : isExclusive
+                background: isExclusive
                   ? "linear-gradient(100deg, #be185d, #f9a8d4)"
                   : "linear-gradient(100deg, #1d4ed8, #38bdf8)",
                 color: "#fff",
                 fontWeight: 600,
                 fontSize: 13,
-                cursor: acceptExpanded || busy ? "default" : "pointer",
-                opacity: busy ? 0.7 : 1,
+                cursor: acceptExpanded ? "default" : "pointer",
                 fontFamily: "inherit",
                 letterSpacing: "-0.01em",
               }}
             >
-              {busy ? "Procesando..." : "Aceptar y agendar sesión"}
+              Aceptar y agendar sesión
             </button>
           )}
           {canReject && (
@@ -569,7 +570,7 @@ export default function SessionRequestOverlay({
           </label>
           <button
             type="button"
-            onClick={() => onSchedule(selectedScheduleIso, scheduleNote || null)}
+            onClick={() => onAcceptAndSchedule(selectedScheduleIso, scheduleNote || null)}
             disabled={busy || scheduleConflict.hasConflict}
             style={{
               height: 36,
@@ -599,6 +600,7 @@ export default function SessionRequestOverlay({
             selectedDate={selectedScheduleDate}
             onSelectDate={(date) => { setScheduleParts(getSchedulePartsFromDate(date)); setCalendarEventKey(null); }}
             onClose={() => setCalendarOpen(false)}
+            onReschedule={onReschedule}
           />
         </div>
         </div>
@@ -619,25 +621,36 @@ export default function SessionRequestOverlay({
       )}
 
       {/* Formulario de rechazo */}
-      {rejectOpen && (
-        <div style={{ display: "grid", gap: 8 }}>
+      <div style={{ overflow: "hidden", maxHeight: rejectOpen ? "260px" : "0", opacity: rejectOpen ? 1 : 0, transition: "max-height 0.42s cubic-bezier(0.16,1,0.3,1), opacity 0.25s ease" }}>
+        <div style={{ display: "grid", gap: 10, paddingTop: 2 }}>
           <textarea
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="Explica por qué rechazas la solicitud."
+            placeholder="Explica por qué rechazas la solicitud..."
             rows={3}
-            style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.09)", background: "rgba(255,255,255,0.04)", color: "#fff", outline: "none", fontSize: 13, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }}
+            style={{ width: "100%", padding: "12px 13px", borderRadius: 12, border: "none", background: "rgba(255,255,255,0.06)", color: "#fff", outline: "none", fontSize: 13, fontWeight: 500, fontFamily: "inherit", resize: "none", boxSizing: "border-box", lineHeight: 1.5 }}
           />
           <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" onClick={() => onReject(rejectReason || null)} disabled={busy} style={{ height: 34, borderRadius: 8, border: "none", background: "#ef4444", color: "#fff", fontWeight: 600, fontSize: 13, padding: "0 14px", cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.7 : 1, fontFamily: "inherit" }}>
+            <button
+              type="button"
+              onClick={async () => {
+                try { await onReject(rejectReason || null); onClose(); } catch {}
+              }}
+              disabled={busy}
+              style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(220,38,38,0.62)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1, fontFamily: "inherit" }}
+            >
               {busy ? "Procesando..." : "Confirmar rechazo"}
             </button>
-            <button type="button" onClick={() => setRejectOpen(false)} style={{ height: 34, borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 13, padding: "0 14px", cursor: "pointer", fontFamily: "inherit" }}>
+            <button
+              type="button"
+              onClick={() => setRejectOpen(false)}
+              style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontWeight: 500, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+            >
               Cancelar
             </button>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Formulario de fecha */}
       {scheduleOpen && (

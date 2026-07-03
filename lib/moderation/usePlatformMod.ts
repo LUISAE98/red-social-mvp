@@ -35,12 +35,10 @@ export function usePlatformMod(): PlatformModState {
       .getIdTokenResult()
       .then((result) => {
         const hasClaim = result.claims["role"] === "moderator";
-        const signedInWithGoogle = user.providerData.some(
-          (p) => p.providerId === "google.com",
-        );
+        const signedInWithGoogle = result.signInProvider === "google.com";
 
         if (hasClaim && !signedInWithGoogle) {
-          // Tiene el claim pero entró con email/password — rechazar
+          // Tiene el claim pero esta sesión no usó Google — rechazar
           setIsPlatformMod(false);
           setWrongProvider(true);
         } else {

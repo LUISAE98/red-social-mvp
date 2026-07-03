@@ -221,7 +221,7 @@ export default function ProfileMoreMenu({ viewerUid, profileUid, onUnblockSucces
                 }}
                 style={{
                   ...itemStyle,
-                  color: "#f87171",
+                  color: "#fff",
                   borderTop: "1px solid rgba(255,255,255,0.08)",
                 }}
               >

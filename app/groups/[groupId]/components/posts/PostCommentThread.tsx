@@ -686,7 +686,7 @@ function ReplyActionsPortal({
 
   if (onReport && currentUserId && currentUserId !== reply.authorId) {
     items.push(
-      <ActionMenuItem key="report" index={items.length} danger
+      <ActionMenuItem key="report" index={items.length}
         onClick={() => { onClose(); onReport(); }}>
         Reportar respuesta
       </ActionMenuItem>,
@@ -934,7 +934,7 @@ function CommentActionsPortal({
 
   if (onReport && currentUserId && currentUserId !== comment.authorId) {
     items.push(
-      <ActionMenuItem key="report" index={items.length} danger
+      <ActionMenuItem key="report" index={items.length}
         onClick={() => { onClose(); onReport(); }}>
         Reportar comentario
       </ActionMenuItem>,

@@ -13,8 +13,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/app/providers";
 import type { Report } from "@/lib/moderation/types";
-import { REPORT_REASON_LABELS, MODERATOR_ACTION_LABELS } from "@/lib/moderation/types";
-import type { ModeratorAction } from "@/lib/moderation/types";
+import { REPORT_REASON_LABELS } from "@/lib/moderation/types";
 import Link from "next/link";
 
 const TARGET_LABELS: Record<string, string> = {
@@ -28,14 +27,6 @@ const TARGET_LABELS: Record<string, string> = {
   community: "Comunidad",
   meet_greet: "Meet & Greet",
   exclusive_session: "Sesión exclusiva",
-};
-
-const ACTION_COLOR: Record<string, string> = {
-  dismiss: "#6b7280",
-  warn_user: "#f59e0b",
-  remove_content: "#ef4444",
-  block_user: "#dc2626",
-  report_to_authorities: "#c084fc",
 };
 
 type FireReport = Omit<Report, "createdAt" | "claimedAt" | "resolvedAt"> & {
@@ -60,10 +51,10 @@ function rel(date: Date): string {
   if (m < 60) return `hace ${m}m`;
   const h = Math.floor(m / 60);
   if (h < 24) return `hace ${h}h`;
-  return date.toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" });
+  return `hace ${Math.floor(h / 24)}d`;
 }
 
-export default function AuditLogPage() {
+export default function MyReportsPage() {
   const { user } = useAuth();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,10 +64,10 @@ export default function AuditLogPage() {
 
     const q = query(
       collection(db, "reports"),
-      where("status", "==", "resolved"),
-      where("resolvedBy", "==", user.uid),
-      orderBy("resolvedAt", "desc"),
-      limit(200),
+      where("status", "==", "reviewing"),
+      where("claimedBy", "==", user.uid),
+      orderBy("claimedAt", "desc"),
+      limit(100),
     );
 
     const unsub = onSnapshot(
@@ -95,17 +86,17 @@ export default function AuditLogPage() {
     <div>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 700, color: "#fff", margin: 0 }}>
-          Historial
+          Asignados a mí
         </h1>
         <p style={{ fontSize: 13, color: "#555", margin: "6px 0 0" }}>
-          Reportes que tú has resuelto.
+          Reportes que estás atendiendo actualmente.
         </p>
       </div>
 
       {loading ? (
-        <div style={{ color: "#555", fontSize: 14 }}>Cargando historial...</div>
+        <div style={{ color: "#555", fontSize: 14 }}>Cargando...</div>
       ) : reports.length === 0 ? (
-        <div style={{ color: "#555", fontSize: 14 }}>Aún no has resuelto ningún reporte.</div>
+        <div style={{ color: "#555", fontSize: 14 }}>No tienes reportes asignados.</div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {reports.map((r) => (
@@ -121,15 +112,7 @@ export default function AuditLogPage() {
                 gap: 12,
               }}
             >
-              <div
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: r.resolution ? (ACTION_COLOR[r.resolution] ?? "#22c55e") : "#22c55e",
-                  flexShrink: 0,
-                }}
-              />
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#3b82f6", flexShrink: 0 }} />
 
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -139,27 +122,22 @@ export default function AuditLogPage() {
                   <span style={{ fontSize: 11, color: "#999", background: "#1a1a1a", padding: "2px 7px", borderRadius: 4 }}>
                     {REPORT_REASON_LABELS[r.reason]}
                   </span>
-                  {r.resolution && (
-                    <span style={{ fontSize: 11, color: ACTION_COLOR[r.resolution] ?? "#aaa", background: "#1a1a1a", padding: "2px 7px", borderRadius: 4 }}>
-                      {MODERATOR_ACTION_LABELS[r.resolution as ModeratorAction]}
-                    </span>
-                  )}
                 </div>
-                {r.resolutionNotes && (
-                  <div style={{ fontSize: 12, color: "#555", marginTop: 3, fontStyle: "italic" }}>
-                    "{r.resolutionNotes}"
+                {r.description && (
+                  <div style={{ fontSize: 12, color: "#555", marginTop: 3 }}>
+                    {r.description.slice(0, 100)}{r.description.length > 100 ? "…" : ""}
                   </div>
                 )}
                 <div style={{ fontSize: 11, color: "#444", marginTop: 3 }}>
-                  Resuelto {r.resolvedAt ? rel(r.resolvedAt) : "—"}
+                  Tomado {r.claimedAt ? rel(r.claimedAt) : "—"}
                 </div>
               </div>
 
               <Link
                 href={`/admin/reports/${r.id}`}
-                style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #2a2a2a", color: "#aaa", fontSize: 12, fontWeight: 600, textDecoration: "none" }}
+                style={{ padding: "6px 14px", borderRadius: 6, border: "1px solid #3b82f6", color: "#3b82f6", fontSize: 12, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}
               >
-                Ver →
+                Resolver →
               </Link>
             </div>
           ))}

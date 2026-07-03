@@ -2277,11 +2277,14 @@ export default function GreetingReviewOverlay({
               {infoSection}
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={handleGrabar} disabled={busy} style={{
-                  flex: 1, height: 44, borderRadius: 12,
-                  border: "1px solid rgba(59,130,246,0.35)",
-                  background: busy ? "rgba(59,130,246,0.06)" : "rgba(59,130,246,0.18)",
-                  color: busy ? "rgba(147,197,253,0.4)" : "#93c5fd",
-                  fontWeight: 700, fontSize: 14, cursor: busy ? "not-allowed" : "pointer",
+                  flex: 1, height: 36, borderRadius: 6,
+                  border: "none",
+                  background: busy ? "rgba(255,255,255,0.10)" : req.type === "consejo"
+                    ? "linear-gradient(100deg, #b45309, #fde047)"
+                    : "linear-gradient(100deg, #7c3aed, #c084fc)",
+                  color: "#fff",
+                  fontWeight: 700, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
+                  opacity: busy ? 0.7 : 1,
                   fontFamily: fontStack,
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 }}>
@@ -2295,10 +2298,11 @@ export default function GreetingReviewOverlay({
                   Comenzar
                 </button>
                 <button type="button" onClick={() => onReject(currentItem.id)} disabled={busy} style={{
-                  flex: 1, height: 44, borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
-                  color: busy ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.65)",
-                  fontWeight: 600, fontSize: 14, cursor: busy ? "not-allowed" : "pointer",
+                  flex: 1, height: 36, borderRadius: 6,
+                  border: "none", background: "rgba(255,255,255,0.10)",
+                  color: "rgba(255,255,255,0.70)",
+                  fontWeight: 500, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
+                  opacity: busy ? 0.7 : 1,
                   fontFamily: fontStack,
                 }}>
                   {busy ? "Procesando..." : "Rechazar"}
@@ -2361,11 +2365,15 @@ export default function GreetingReviewOverlay({
             {/* Actions */}
             <div style={{ display: "flex", gap: 8 }}>
               <button type="button" onClick={handleGrabar} disabled={busy} style={{
-                flex: 1, height: 38, borderRadius: 10,
-                border: "1px solid rgba(59,130,246,0.35)", background: busy ? "rgba(59,130,246,0.06)" : "rgba(59,130,246,0.18)",
-                color: busy ? "rgba(147,197,253,0.4)" : "#93c5fd",
+                flex: 1, height: 36, borderRadius: 6,
+                border: "none",
+                background: busy ? "rgba(255,255,255,0.10)" : req.type === "consejo"
+                  ? "linear-gradient(100deg, #b45309, #fde047)"
+                  : "linear-gradient(100deg, #7c3aed, #c084fc)",
+                color: "#fff",
                 fontWeight: 700, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
-                fontFamily: fontStack, transition: "background 150ms",
+                opacity: busy ? 0.7 : 1,
+                fontFamily: fontStack,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               }}>
                 <span style={{
@@ -2374,20 +2382,17 @@ export default function GreetingReviewOverlay({
                   display: "flex", alignItems: "center", justifyContent: "center",
                   flexShrink: 0,
                 }}>
-                  <span style={{
-                    width: 8, height: 8, borderRadius: "50%",
-                    background: "#ef4444",
-                    display: "block",
-                  }} />
+                  <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444", display: "block" }} />
                 </span>
                 Comenzar
               </button>
               <button type="button" onClick={() => onReject(currentItem.id)} disabled={busy} style={{
-                flex: 1, height: 38, borderRadius: 10,
-                border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)",
-                color: busy ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.65)",
-                fontWeight: 600, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
-                fontFamily: fontStack, transition: "background 150ms",
+                flex: 1, height: 36, borderRadius: 6,
+                border: "none", background: "rgba(255,255,255,0.10)",
+                color: "rgba(255,255,255,0.70)",
+                fontWeight: 500, fontSize: 13, cursor: busy ? "not-allowed" : "pointer",
+                opacity: busy ? 0.7 : 1,
+                fontFamily: fontStack,
               }}>
                 {busy ? "Procesando..." : "Rechazar"}
               </button>

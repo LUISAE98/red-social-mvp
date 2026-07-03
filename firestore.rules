@@ -9,8 +9,7 @@ service cloud.firestore {
 
     function isPlatformMod() {
       return request.auth != null
-        && request.auth.token.get('role', '') == 'moderator'
-        && request.auth.token.firebase.sign_in_provider == 'google.com';
+        && request.auth.token.get('role', '') == 'moderator';
     }
 
     // ==========================
@@ -815,6 +814,7 @@ function canReadGroupContent(groupId) {
     || isMember(groupId)
     || isOwner(groupId)
     || isModerator(groupId)
+    || isPlatformMod()
   );
 }
 
@@ -1414,7 +1414,8 @@ function validMemberCreateShape(groupId, userId) {
         || (signedIn() && resource.data.ownerId == request.auth.uid)
         || isMember(groupId)
         || isOwner(groupId)
-        || isModerator(groupId);
+        || isModerator(groupId)
+        || isPlatformMod();
 
 allow list: if
   (
@@ -1427,7 +1428,8 @@ allow list: if
   || resource.data.visibility == "private"
   || isMember(groupId)
   || isOwner(groupId)
-  || isModerator(groupId);
+  || isModerator(groupId)
+  || isPlatformMod();
 
       allow create: if signedIn()
         && validGroupCreateShape(request.resource.data);
@@ -1519,6 +1521,7 @@ allow list: if
 allow list: if signedIn()
   && (
     request.auth.uid == resource.data.userId
+    || isPlatformMod()
     || (
       exists(/databases/$(database)/documents/groups/$(groupId))
       && (

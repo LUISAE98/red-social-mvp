@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import GroupServiceModals from "./components/GroupServiceModals";
+import CreatorServiceModals from "@/components/services/CreatorServiceModals";
 import GroupImageCropModal from "./components/GroupImageCropModal";
 import OwnerAdminServices from "./components/owner-admin-panel/OwnerAdminServices";
 
@@ -103,7 +103,6 @@ import {
   messageBox,
   serviceModalBackdropStyle,
   serviceModalCardStyle,
-  serviceToastStyle,
 } from "@/lib/groups/groupPageStyles";
 
 type PostingMode = "members" | "owner_only";
@@ -209,6 +208,28 @@ type GroupDoc = {
 
 type CropMode = "avatar" | "cover";
 
+function formatDeletedAt(val: unknown): string {
+  if (!val) return "fecha desconocida";
+  if (
+    typeof val === "object" &&
+    val !== null &&
+    "toDate" in val &&
+    typeof (val as { toDate: unknown }).toDate === "function"
+  ) {
+    return (val as { toDate: () => Date })
+      .toDate()
+      .toLocaleString("es-MX", { dateStyle: "long", timeStyle: "short" });
+  }
+  if (val instanceof Date) {
+    return val.toLocaleString("es-MX", { dateStyle: "long", timeStyle: "short" });
+  }
+  const n = Number(val);
+  if (!isNaN(n) && n > 0) {
+    return new Date(n).toLocaleString("es-MX", { dateStyle: "long", timeStyle: "short" });
+  }
+  return String(val);
+}
+
 export default function GroupPage() {
   const params = useParams<{ groupId: string }>();
   const groupId = params.groupId;
@@ -216,6 +237,11 @@ export default function GroupPage() {
   const { user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+
+  const [isEmbed, setIsEmbed] = useState(false);
+  useEffect(() => {
+    try { setIsEmbed(window.self !== window.top); } catch { setIsEmbed(true); }
+  }, []);
 
   // Track last visit so the sidebar can show new-post counts
   useEffect(() => {
@@ -1275,7 +1301,7 @@ const openCropWithFile = useCallback(
 
   const groupIsPaused = groupDeletionState.isActive === false;
 
-  if (groupIsDeleted) {
+  if (groupIsDeleted && !isEmbed) {
     return (
       <main style={groupRoutePageWrap}>
         <div style={groupRouteContainer}>
@@ -1306,6 +1332,47 @@ const openCropWithFile = useCallback(
       </main>
     );
   }
+
+  const deletionBanner = isEmbed && groupIsDeleted ? (
+    <div
+      style={{
+        background: "#1a0505",
+        borderBottom: "1px solid #7f1d1d",
+        padding: "10px 16px",
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 10,
+      }}
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="#f87171"
+        strokeWidth="2"
+        style={{ flexShrink: 0, marginTop: 2 }}
+      >
+        <circle cx="12" cy="12" r="10" />
+        <line x1="12" y1="8" x2="12" y2="12" />
+        <line x1="12" y1="16" x2="12.01" y2="16" />
+      </svg>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#f87171" }}>
+          Comunidad eliminada
+        </div>
+        <div style={{ fontSize: 11, color: "#ef4444", marginTop: 2 }}>
+          {formatDeletedAt(groupDeletionState.deletedAt)}
+          {groupDeletionState.deletionReason
+            ? ` · ${groupDeletionState.deletionReason}`
+            : ""}
+          {groupDeletionState.deletedBy
+            ? ` · por ${groupDeletionState.deletedBy}`
+            : ""}
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   const coverBg =
     group.coverUrl ||
@@ -1521,6 +1588,7 @@ const avatarNode = (
 );
 
   const shouldShowRestrictedLanding =
+    !isEmbed &&
     !isOwner &&
     !effectiveIsMember &&
     (group.visibility === "private" || group.visibility === "hidden");
@@ -1908,84 +1976,75 @@ const avatarNode = (
 
         </main>
 
-        <GroupServiceModals
-          greetOpen={false}
-          greetSubmitting={greetSubmitting}
-          greetType={greetType}
-          creatorName={group.name ?? undefined}
-          toName={toName}
-          instructions={instructions}
-          greetError={greetError}
-          greetSuccess={greetSuccess}
-          onCloseGreeting={closeGreetingForm}
-          onSubmitGreeting={submitGreetingRequest}
-          onChangeToName={setToName}
-          onChangeInstructions={setInstructions}
-          allowCreatorStory={allowCreatorStory}
-          onChangeAllowCreatorStory={setAllowCreatorStory}
-          greetPriceLabel={greetPriceLabel}
-          subscriptionOpen={subscriptionOpen}
-          subscriptionSubmitting={subscriptionSubmitting}
-          subscriptionError={subscriptionError}
-          subscriptionPrice={subscriptionPrice}
-          subscriptionCurrencyLabel={subscriptionCurrency}
-          onCloseSubscription={closeSubscriptionModal}
-          onSubmitSubscription={handleSubscriptionCheckout}
-          meetGreetOpen={false}
-          meetGreetSubmitting={meetGreetSubmitting}
-          meetGreetMessage={meetGreetMessage}
-          meetGreetError={meetGreetError}
-          meetGreetPriceLabel={
-            meetGreetPrice != null
-              ? formatMoney(meetGreetPrice, meetGreetCurrency)
-              : "Por definir"
-          }
-          meetGreetDurationLabel={
-            meetGreetDurationMinutes != null
-              ? `${meetGreetDurationMinutes} minutos`
-              : "Por definir"
-          }
-          onCloseMeetGreet={closeMeetGreetForm}
-          onSubmitMeetGreet={submitMeetGreetRequest}
-          onChangeMeetGreetMessage={setMeetGreetMessage}
-          exclusiveSessionOpen={false}
-          exclusiveSessionSubmitting={exclusiveSessionSubmitting}
-          exclusiveSessionMessage={exclusiveSessionMessage}
-          exclusiveSessionError={exclusiveSessionError}
-          exclusiveSessionPriceLabel={
-            exclusiveSessionPrice != null
-              ? formatMoney(exclusiveSessionPrice, exclusiveSessionCurrency)
-              : "Por definir"
-          }
-          exclusiveSessionDurationLabel={
-            exclusiveSessionDurationMinutes != null
-              ? `${exclusiveSessionDurationMinutes} minutos`
-              : "Por definir"
-          }
-          onCloseExclusiveSession={closeExclusiveSessionForm}
-          onSubmitExclusiveSession={submitExclusiveSessionRequest}
-          onChangeExclusiveSessionMessage={setExclusiveSessionMessage}
-          serviceToast={serviceToast}
-          subtitleStyle={subtitleStyle}
-          textStyle={textStyle}
-          microText={microText}
-          labelStyle={labelStyle}
-          primaryButton={primaryButton}
-          secondaryButton={secondaryButton}
-          panelStyle={panelStyle}
-          inputStyle={inputStyle}
-          messageBox={messageBox}
-          serviceModalBackdropStyle={serviceModalBackdropStyle}
-          serviceModalCardStyle={serviceModalCardStyle}
-          serviceToastStyle={serviceToastStyle}
-          formatMoney={formatMoney}
-        />
+        {typeof window !== "undefined" && createPortal(
+          subscriptionOpen ? (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="group-subscription-modal-title"
+              style={serviceModalBackdropStyle}
+              onClick={() => { if (!subscriptionSubmitting) closeSubscriptionModal(); }}
+            >
+              <div
+                style={{ ...serviceModalCardStyle, maxWidth: 460 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                  <div id="group-subscription-modal-title" style={subtitleStyle}>Suscripción mensual</div>
+                  <button
+                    type="button"
+                    onClick={closeSubscriptionModal}
+                    disabled={subscriptionSubmitting}
+                    style={{ ...secondaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
+                  >
+                    Cerrar
+                  </button>
+                </div>
+                <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
+                  <div style={textStyle}>Esta comunidad requiere suscripción para unirte.</div>
+                  <div style={panelStyle}>
+                    <div style={labelStyle}>Costo mensual</div>
+                    <div style={{ marginTop: 6, fontSize: 24, fontWeight: 800, color: "#fff" }}>
+                      {subscriptionPrice != null
+                        ? formatMoney(subscriptionPrice, subscriptionCurrency)
+                        : `Precio no disponible (${subscriptionCurrency})`}
+                    </div>
+                  </div>
+                  {subscriptionError && (
+                    <div style={{ fontSize: 13, color: "#f87171", padding: "10px 14px", borderRadius: 10, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)" }}>
+                      {subscriptionError}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      onClick={handleSubscriptionCheckout}
+                      disabled={subscriptionSubmitting}
+                      style={{ ...primaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
+                    >
+                      {subscriptionSubmitting ? "Procesando..." : "Pagar y unirme"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={closeSubscriptionModal}
+                      disabled={subscriptionSubmitting}
+                      style={{ ...secondaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null,
+          document.body
+        )}
       </>
     );
   }
 
   const isPublicGroup = group.visibility === "public";
-  const canViewPublicFeed = isPublicGroup || effectiveIsMember || isOwner;
+  const canViewPublicFeed = isPublicGroup || effectiveIsMember || isOwner || isEmbed;
 
   const canCreatePosts =
     !groupIsPaused &&
@@ -2014,7 +2073,7 @@ const avatarNode = (
     ) {
       postBlockedReason = "restricted";
     } else if (!effectiveIsMember) {
-      postBlockedReason = "join";
+      postBlockedReason = isEmbed ? null : "join";
     } else {
       postBlockedReason = "restricted";
     }
@@ -2030,7 +2089,7 @@ const avatarNode = (
     ) {
       commentBlockedReason = "restricted";
     } else if (!effectiveIsMember) {
-      commentBlockedReason = "join";
+      commentBlockedReason = isEmbed ? null : "join";
     } else {
       commentBlockedReason = "restricted";
     }
@@ -2216,6 +2275,8 @@ const avatarNode = (
   }
 }
         `}</style>
+
+        {deletionBanner}
 
         <div style={groupRouteContainer}>
           <section
@@ -2413,7 +2474,7 @@ const avatarNode = (
             </div>
           </section>
 
-                    {groupIsPaused && (
+                    {groupIsPaused && !isEmbed && (
             <div style={{ ...panelStyle, marginTop: 12 }}>
               <div
                 style={{
@@ -2437,7 +2498,7 @@ const avatarNode = (
             isOwner={isOwner}
           />
 
-          {effectiveIsMember && (
+          {(effectiveIsMember || isEmbed) && (
             <div className="group-subnav-wrap" style={{ marginTop: 12 }}>
               <GroupSubnav
                 activeTab={activeTab}
@@ -2474,10 +2535,11 @@ const avatarNode = (
   postBlockedReason={postBlockedReason}
   commentBlockedReason={commentBlockedReason}
   broadcastLiveOnly={!canViewPublicFeed}
+  readOnly={isEmbed}
 />
                 </div>
 
-                {user?.uid ? (
+                {user?.uid && !isEmbed ? (
                   <div className="group-feed-item">
                     <GroupRecommendationsRail
                       currentUserId={user.uid}
@@ -2488,13 +2550,13 @@ const avatarNode = (
               </section>
             )}
 
-            {effectiveIsMember && activeTab === "members" && (
+            {(effectiveIsMember || isEmbed) && activeTab === "members" && (
               <div className="group-tab-panel" style={{ marginTop: 12 }}>
                 <GroupMembersTab
                   groupId={groupId}
                   isOwner={isOwner}
                   isModerator={isModerator}
-                  canMembersViewList={canMembersViewList}
+                  canMembersViewList={isEmbed || canMembersViewList}
                 />
               </div>
             )}
@@ -2560,7 +2622,7 @@ const avatarNode = (
         </main>
       </RefreshableArea>
 
-      <GroupServiceModals
+      <CreatorServiceModals
         greetOpen={greetOpen}
         greetSubmitting={greetSubmitting}
         greetType={greetType}
@@ -2576,13 +2638,6 @@ const avatarNode = (
         allowCreatorStory={allowCreatorStory}
         onChangeAllowCreatorStory={setAllowCreatorStory}
         greetPriceLabel={greetPriceLabel}
-        subscriptionOpen={subscriptionOpen}
-        subscriptionSubmitting={subscriptionSubmitting}
-        subscriptionError={subscriptionError}
-        subscriptionPrice={subscriptionPrice}
-        subscriptionCurrencyLabel={subscriptionCurrency}
-        onCloseSubscription={closeSubscriptionModal}
-        onSubmitSubscription={handleSubscriptionCheckout}
         meetGreetOpen={meetGreetOpen}
         meetGreetSubmitting={meetGreetSubmitting}
         meetGreetMessage={meetGreetMessage}
@@ -2618,20 +2673,71 @@ const avatarNode = (
         onSubmitExclusiveSession={submitExclusiveSessionRequest}
         onChangeExclusiveSessionMessage={setExclusiveSessionMessage}
         serviceToast={serviceToast}
-        subtitleStyle={subtitleStyle}
-        textStyle={textStyle}
-        microText={microText}
-        labelStyle={labelStyle}
-        primaryButton={primaryButton}
-        secondaryButton={secondaryButton}
-        panelStyle={panelStyle}
-        inputStyle={inputStyle}
-        messageBox={messageBox}
-        serviceModalBackdropStyle={serviceModalBackdropStyle}
-        serviceModalCardStyle={serviceModalCardStyle}
-        serviceToastStyle={serviceToastStyle}
-        formatMoney={formatMoney}
       />
+
+      {typeof window !== "undefined" && createPortal(
+        subscriptionOpen ? (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="group-subscription-modal-title"
+            style={serviceModalBackdropStyle}
+            onClick={() => { if (!subscriptionSubmitting) closeSubscriptionModal(); }}
+          >
+            <div
+              style={{ ...serviceModalCardStyle, maxWidth: 460 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+                <div id="group-subscription-modal-title" style={subtitleStyle}>Suscripción mensual</div>
+                <button
+                  type="button"
+                  onClick={closeSubscriptionModal}
+                  disabled={subscriptionSubmitting}
+                  style={{ ...secondaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
+                >
+                  Cerrar
+                </button>
+              </div>
+              <div style={{ marginTop: 10, display: "grid", gap: 12 }}>
+                <div style={textStyle}>Esta comunidad requiere suscripción para unirte.</div>
+                <div style={panelStyle}>
+                  <div style={labelStyle}>Costo mensual</div>
+                  <div style={{ marginTop: 6, fontSize: 24, fontWeight: 800, color: "#fff" }}>
+                    {subscriptionPrice != null
+                      ? formatMoney(subscriptionPrice, subscriptionCurrency)
+                      : `Precio no disponible (${subscriptionCurrency})`}
+                  </div>
+                </div>
+                {subscriptionError && (
+                  <div style={{ fontSize: 13, color: "#f87171", padding: "10px 14px", borderRadius: 10, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)" }}>
+                    {subscriptionError}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    onClick={handleSubscriptionCheckout}
+                    disabled={subscriptionSubmitting}
+                    style={{ ...primaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
+                  >
+                    {subscriptionSubmitting ? "Procesando..." : "Pagar y unirme"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeSubscriptionModal}
+                    disabled={subscriptionSubmitting}
+                    style={{ ...secondaryButton, opacity: subscriptionSubmitting ? 0.75 : 1, cursor: subscriptionSubmitting ? "not-allowed" : "pointer" }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null,
+        document.body
+      )}
 
       <GroupImageCropModal
         cropOpen={cropOpen}

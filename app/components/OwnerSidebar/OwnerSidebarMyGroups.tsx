@@ -3,9 +3,21 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
+import {
+  doc,
+  getDoc,
+  addDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  onSnapshot,
+  serverTimestamp,
+} from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import CopyLinkButton from "@/components/ui/CopyLinkButton";
 import {
   VibraNavigationIcon,
@@ -52,12 +64,115 @@ import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
 
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
+import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 
 import ScheduleDateTimeSelector, {
   getSchedulePartsFromDate,
   schedulePartsToIso,
   type ScheduleParts,
 } from "@/app/(protected)/wallet/components/ScheduleDateTimeSelector";
+
+function BuyerMessagePlayer({ message }: { message: string }) {
+  const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
+  const [speechHighlight, setSpeechHighlight] = useState<{ start: number; length: number } | null>(null);
+  const [speechRate, setSpeechRate] = useState<1 | 1.4 | 1.8>(1);
+  const speechRateRef = useRef<number>(1);
+  const speechGenRef = useRef(0);
+  const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
+
+  useEffect(() => {
+    return () => {
+      speechGenRef.current++;
+      if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
+    };
+  }, []);
+
+  const startSpeechFrom = useCallback((charIndex: number) => {
+    if (!message) return;
+    if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
+    const gen = ++speechGenRef.current;
+    const sliceText = message.slice(charIndex);
+    if (!sliceText.trim()) return;
+    setSpeechHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
+    ttsAudioRef.current = playEdgeTTS(sliceText, {
+      playbackRate: speechRateRef.current,
+      onProgress: (ratio) => {
+        if (speechGenRef.current !== gen) return;
+        const posInSlice = Math.floor(ratio * sliceText.length);
+        const absPos = charIndex + posInSlice;
+        setSpeechHighlight({ start: 0, length: absPos });
+      },
+      onEnded: () => {
+        if (speechGenRef.current !== gen) return;
+        ttsAudioRef.current = null;
+        setSpeechState("idle");
+        setSpeechHighlight(null);
+      },
+      onError: () => {
+        if (speechGenRef.current !== gen) return;
+        ttsAudioRef.current = null;
+        setSpeechState("idle");
+        setSpeechHighlight(null);
+      },
+    });
+    setSpeechState("playing");
+  }, [message]);
+
+  const handleToggleSpeech = useCallback(() => {
+    if (speechState === "playing") { ttsAudioRef.current?.audio.pause(); setSpeechState("paused"); return; }
+    if (speechState === "paused") { ttsAudioRef.current?.audio.play().catch(() => {}); setSpeechState("playing"); return; }
+    startSpeechFrom(0);
+  }, [speechState, startSpeechFrom]);
+
+  const handleCycleRate = useCallback(() => {
+    const next: 1 | 1.4 | 1.8 = speechRate === 1 ? 1.4 : speechRate === 1.4 ? 1.8 : 1;
+    speechRateRef.current = next;
+    setSpeechRate(next);
+    if (ttsAudioRef.current) ttsAudioRef.current.audio.playbackRate = next;
+  }, [speechRate]);
+
+  return (
+    <div style={{ display: "grid", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+        {speechState !== "idle" && (
+          <button
+            type="button"
+            onClick={handleCycleRate}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.55)", padding: "2px 4px", fontSize: 11, fontWeight: 700, letterSpacing: "-0.3px", fontFamily: "inherit" }}
+          >
+            {speechRate}×
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={handleToggleSpeech}
+          aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer mensaje"}
+          style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
+        >
+          {speechState === "playing" ? (
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor">
+              <rect x="5" y="4" width="4" height="16" rx="1"/>
+              <rect x="15" y="4" width="4" height="16" rx="1"/>
+            </svg>
+          ) : (
+            <svg width={14} height={14} viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="5,3 19,12 5,21"/>
+            </svg>
+          )}
+        </button>
+      </div>
+      <p style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.4, color: "rgba(255,255,255,0.9)", margin: 0, padding: "2px 0", userSelect: "none" }}>
+        {speechState === "idle" || !speechHighlight ? message : (
+          <>
+            <strong style={{ color: "#fff", fontWeight: 700 }}>{message.slice(0, speechHighlight.start + speechHighlight.length)}</strong>
+            {message.slice(speechHighlight.start + speechHighlight.length)}
+          </>
+        )}
+      </p>
+    </div>
+  );
+}
 
 type ScheduledServiceKind = "meet_greet" | "exclusive_session";
 
@@ -485,6 +600,33 @@ useEffect(() => {
   return () => mediaQuery.removeListener(sync);
 }, []);
 
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const q = query(
+      collection(db, "users", uid, "notifications"),
+      where("type", "==", "session_rescheduled"),
+      where("read", "==", false),
+      orderBy("createdAt", "desc"),
+      limit(1)
+    );
+    return onSnapshot(q, (snap) => {
+      if (snap.empty) { setRescheduleNotification(null); return; }
+      const d = snap.docs[0];
+      const data = d.data() as {
+        source?: string;
+        newScheduledAt?: string;
+        creatorName?: string | null;
+      };
+      setRescheduleNotification({
+        notifId: d.id,
+        source: data.source === "exclusive_session" ? "exclusive_session" : "meet_greet",
+        newScheduledAt: data.newScheduledAt ?? "",
+        creatorName: data.creatorName ?? null,
+      });
+    });
+  }, []);
+
   const [meetGreetBusyMap, setMeetGreetBusyMap] = useState<BusyMap>({});
   const [meetGreetErrorMap, setMeetGreetErrorMap] = useState<TextMap>({});
   const [meetGreetSuccessMap, setMeetGreetSuccessMap] = useState<TextMap>({});
@@ -497,6 +639,18 @@ useEffect(() => {
     serviceKind: "meet_greet" | "exclusive_session";
   } | null>(null);
   const [sessionOverlayOpen, setSessionOverlayOpen] = useState(false);
+  const [postScheduleCalendar, setPostScheduleCalendar] = useState<{
+    date: Date;
+    kind: "meet_greet" | "exclusive_session";
+    req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc;
+    note: string | null;
+  } | null>(null);
+  const [rescheduleNotification, setRescheduleNotification] = useState<{
+    notifId: string;
+    source: "meet_greet" | "exclusive_session";
+    newScheduledAt: string;
+    creatorName: string | null;
+  } | null>(null);
   const [rejectOpenMap, setRejectOpenMap] = useState<ToggleMap>({});
   const [scheduleOpenMap, setScheduleOpenMap] = useState<ToggleMap>({});
   const [calendarOpenMap, setCalendarOpenMap] = useState<ToggleMap>({});
@@ -741,6 +895,69 @@ if (scheduleConflict.hasConflict) {
     }
   }
 
+  async function handleCreatorAcceptAndSchedule(requestId: string, kind: "meet_greet" | "exclusive_session", scheduledAtIso: string | null, note: string | null) {
+    if (!scheduledAtIso) {
+      setMeetGreetError(requestId, "Selecciona día, mes, año, hora y minuto.");
+      return;
+    }
+    const selectedDate = new Date(scheduledAtIso);
+    const conflict = getWalletScheduleConflictResult(
+      { id: requestId, source: kind, scheduledAt: selectedDate, durationMinutes: kind === "exclusive_session" ? 60 : 30 },
+      ownerCalendarItems
+    );
+    if (conflict.hasConflict) {
+      setMeetGreetError(requestId, conflict.message ?? "Ese horario ya está ocupado. Selecciona otra hora disponible.");
+      return;
+    }
+    setMeetGreetBusy(requestId, true);
+    setMeetGreetError(requestId, null);
+    setMeetGreetSuccess(requestId, null);
+    try {
+      if (kind === "exclusive_session") {
+        await acceptExclusiveSessionRequest({ requestId });
+        await proposeExclusiveSessionSchedule({ requestId, scheduledAt: scheduledAtIso, note });
+      } else {
+        await acceptMeetGreetRequest({ requestId });
+        await proposeMeetGreetSchedule({ requestId, scheduledAt: scheduledAtIso, note });
+      }
+      setSessionOverlayOpen(false);
+      setTimeout(() => setSessionOverlayData(null), 300);
+      setPostScheduleCalendar({
+        date: new Date(scheduledAtIso),
+        kind,
+        req: sessionOverlayData!.req,
+        note: note ?? null,
+      });
+    } catch (e: unknown) {
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo agendar la sesión.", "error");
+    } finally {
+      setMeetGreetBusy(requestId, false);
+    }
+  }
+
+  async function handleRescheduleConfirm(item: WalletServiceItem, scheduledAt: string, note: string | null) {
+    if (item.source === "exclusive_session") {
+      await proposeExclusiveSessionSchedule({ requestId: item.id, scheduledAt, note });
+    } else {
+      await proposeMeetGreetSchedule({ requestId: item.id, scheduledAt, note });
+    }
+    // Notificar al comprador
+    try {
+      await addDoc(collection(db, "users", item.buyerId, "notifications"), {
+        type: "session_rescheduled",
+        sessionId: item.id,
+        source: item.source,
+        newScheduledAt: scheduledAt,
+        creatorName: null,
+        read: false,
+        createdAt: serverTimestamp(),
+      });
+    } catch {
+      // La notificación no es crítica; continúa aunque falle
+    }
+    showMyGroupsToast("✅ Sesión reagendada correctamente.");
+  }
+
   async function handleCreatorRejectDirect(requestId: string, kind: "meet_greet" | "exclusive_session", reason: string | null) {
     setMeetGreetBusy(requestId, true);
     setMeetGreetError(requestId, null);
@@ -754,6 +971,7 @@ if (scheduleConflict.hasConflict) {
       showMyGroupsToast("âœ… Solicitud rechazada.");
     } catch (e: unknown) {
       showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.", "error");
+      throw e;
     } finally {
       setMeetGreetBusy(requestId, false);
     }
@@ -2408,8 +2626,160 @@ maxWidth: 220,
           onAccept={() => handleCreatorAccept(sessionOverlayData.id, sessionOverlayData.serviceKind)}
           onReject={(reason) => handleCreatorRejectDirect(sessionOverlayData.id, sessionOverlayData.serviceKind, reason)}
           onSchedule={(scheduledAtIso, note) => handleCreatorScheduleDirect(sessionOverlayData.id, sessionOverlayData.serviceKind, scheduledAtIso, note)}
+          onAcceptAndSchedule={(scheduledAtIso, note) => handleCreatorAcceptAndSchedule(sessionOverlayData.id, sessionOverlayData.serviceKind, scheduledAtIso, note)}
           onPrepare={() => handlePrepare(sessionOverlayData.id, "creator", sessionOverlayData.serviceKind)}
           preparationNode={renderPreparationPanel(sessionOverlayData.id, sessionOverlayData.req, (preparationRoleMap[sessionOverlayData.id] as "creator") ?? "creator")}
+          onReschedule={(item, scheduledAt) => handleRescheduleConfirm(item, scheduledAt, null)}
+        />
+      )}
+
+      {rescheduleNotification && (() => {
+        const d = rescheduleNotification.newScheduledAt ? new Date(rescheduleNotification.newScheduledAt) : null;
+        const isExclusive = rescheduleNotification.source === "exclusive_session";
+        const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+        const formattedDate = d ? (() => {
+          const weekday = cap(d.toLocaleDateString("es-MX", { weekday: "long" }));
+          const month = cap(d.toLocaleDateString("es-MX", { month: "long" }));
+          return `${weekday} ${d.getDate()} de ${month} ${d.getFullYear()}`;
+        })() : null;
+        const formattedTime = d ? d.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false }) + " hrs" : null;
+
+        return (
+          <div style={{
+            position: "fixed", inset: 0, width: "100vw", height: "100vh",
+            zIndex: 1000001, display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 24, background: "rgba(0,0,0,0.88)", fontFamily: "inherit",
+          }}>
+            <div style={{
+              width: "min(420px, 100%)", borderRadius: 18, background: "#0a0a0a",
+              boxShadow: "0 0 0 1px rgba(255,255,255,0.08), 0 32px 72px rgba(0,0,0,0.9)",
+              color: "#fff", padding: "28px 24px 24px",
+              display: "flex", flexDirection: "column", gap: 16,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+                  background: isExclusive ? "rgba(190,24,93,0.22)" : "rgba(29,78,216,0.22)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke={isExclusive ? "#f472b6" : "#60a5fa"} strokeWidth="2" strokeLinecap="round">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                </div>
+                <div>
+                  <p style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#fff", letterSpacing: "-0.01em" }}>
+                    Sesión reagendada
+                  </p>
+                  <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.50)" }}>
+                    {isExclusive ? "Sesión exclusiva" : "Meet & Greet"}
+                  </p>
+                </div>
+              </div>
+              {formattedDate && (
+                <div style={{
+                  padding: "12px 14px", borderRadius: 12,
+                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
+                  display: "flex", flexDirection: "column", gap: 4,
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{formattedDate}</span>
+                  {formattedTime && <span style={{ fontSize: 13, color: "rgba(255,255,255,0.55)" }}>{formattedTime}</span>}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={async () => {
+                  const uid = auth.currentUser?.uid;
+                  if (uid && rescheduleNotification.notifId) {
+                    try {
+                      await updateDoc(
+                        doc(db, "users", uid, "notifications", rescheduleNotification.notifId),
+                        { read: true }
+                      );
+                    } catch { /* no crítico */ }
+                  }
+                  setRescheduleNotification(null);
+                }}
+                style={{
+                  width: "100%", height: 44, borderRadius: 12, border: "none",
+                  background: isExclusive ? "#be185d" : "#1d4ed8",
+                  color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {postScheduleCalendar && (
+        <ScheduleCalendarOverlay
+          open
+          title="Calendario"
+          items={ownerCalendarItems}
+          selectedDate={postScheduleCalendar.date}
+          selectedVariant={postScheduleCalendar.kind === "exclusive_session" ? "pink" : "blue"}
+          onClose={() => setPostScheduleCalendar(null)}
+          onReschedule={(item, scheduledAt) => handleRescheduleConfirm(item, scheduledAt, null)}
+          topContent={
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Título + círculo verde después del texto */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 17, fontWeight: 500, color: "#fff", letterSpacing: "-0.02em", lineHeight: 1.2 }}>
+                  {postScheduleCalendar.kind === "exclusive_session" ? "Sesión exclusiva agendada" : "Sesión en vivo agendada"}
+                </span>
+                <div style={{
+                  width: 22, height: 22, borderRadius: "50%", background: "#22c55e",
+                  display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Avatar + nombre centrado + fecha/hora al final */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+                  background: "rgba(255,255,255,0.08)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  overflow: "hidden",
+                }}>
+                  {postScheduleCalendar.req.buyerAvatarUrl
+                    ? <img src={postScheduleCalendar.req.buyerAvatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    : <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{getInitials(postScheduleCalendar.req.buyerDisplayName)}</span>
+                  }
+                </div>
+                <span style={{ flex: 1, fontSize: 14, fontWeight: 500, color: "#fff", letterSpacing: "-0.01em" }}>
+                  {postScheduleCalendar.req.buyerDisplayName ?? postScheduleCalendar.req.buyerUsername ?? "Comprador"}
+                </span>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.70)" }}>
+                    {(() => {
+                      const d = postScheduleCalendar.date;
+                      const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+                      const weekday = cap(d.toLocaleDateString("es-MX", { weekday: "long" }));
+                      const month = cap(d.toLocaleDateString("es-MX", { month: "long" }));
+                      return `${weekday} ${d.getDate()} de ${month} ${d.getFullYear()}`;
+                    })()}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.45)" }}>
+                    {postScheduleCalendar.date.toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false })} hrs
+                  </span>
+                </div>
+              </div>
+
+              {/* Mensaje del comprador */}
+              {postScheduleCalendar.req.buyerMessage && (
+                <BuyerMessagePlayer message={postScheduleCalendar.req.buyerMessage} />
+              )}
+            </div>
+          }
         />
       )}
       <VibraToast toast={myGroupsToast} />

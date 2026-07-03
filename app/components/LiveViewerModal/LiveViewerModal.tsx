@@ -2394,7 +2394,7 @@ export default function LiveViewerModal({ open, onClose, post, onManage, initial
                 })}
                 style={{
                   background: "none", border: "none",
-                  color: "rgba(255,100,100,0.75)", fontSize: 11, fontWeight: 600,
+                  color: "#fff", fontSize: 11, fontWeight: 600,
                   fontFamily: FONT, cursor: "pointer", padding: "2px 0",
                   letterSpacing: "0.01em",
                 }}

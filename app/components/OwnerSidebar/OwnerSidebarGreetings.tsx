@@ -347,16 +347,24 @@ function getSectionForMeetGreetStatus(status: string): ServiceSectionKey {
 }
 
 function getSectionVisual(key: ServiceSectionKey): {
-  icon: string;
+  icon: ReactNode;
   title: string;
   countTone: React.CSSProperties;
+  containerStyle?: React.CSSProperties;
 } {
   if (key === "rejected") {
     return {
-      icon: "❌",
+      icon: (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+          <path d="M8 8L16 16" />
+          <path d="M16 8L8 16" />
+        </svg>
+      ),
       title: "Servicios rechazados",
-      countTone: {
-        color: "#f43f5e",
+      countTone: { color: "#f43f5e" },
+      containerStyle: {
+        background: "#ef4444",
+        border: "none",
       },
     };
   }
@@ -372,10 +380,20 @@ function getSectionVisual(key: ServiceSectionKey): {
   }
 
   return {
-    icon: "🧾",
+    icon: (
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.2" />
+        <path d="M12 7.5V12.5" />
+        <path d="M12 12.5L15.2 14.3" />
+      </svg>
+    ),
     title: "Pendientes",
     countTone: {
       color: "#f43f5e",
+    },
+    containerStyle: {
+      background: "#7c3aed",
+      border: "none",
     },
   };
 }
@@ -629,16 +647,16 @@ function SectionBlock({
         <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
           <span
             style={{
-              width: 28,
-              height: 28,
+              width: 26,
+              height: 26,
               borderRadius: "50%",
               background: "rgba(255,255,255,0.06)",
               border: "1px solid rgba(255,255,255,0.10)",
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 14,
               flexShrink: 0,
+              ...visual.containerStyle,
             }}
           >
             {visual.icon}
@@ -1970,19 +1988,20 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
             <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
               <span
                 style={{
-                  width: 28,
-                  height: 28,
+                  width: 26,
+                  height: 26,
                   borderRadius: "50%",
-                  background: "rgba(34,197,94,0.12)",
-                  border: "1px solid rgba(34,197,94,0.24)",
+                  background: "#22c55e",
+                  border: "none",
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 14,
                   flexShrink: 0,
                 }}
               >
-                🎬
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.92)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M5 12L10 17L19 8" />
+                </svg>
               </span>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", lineHeight: 1.2, minWidth: 0 }}>
                 Entregados

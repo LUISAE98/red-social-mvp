@@ -84,6 +84,15 @@ const [contextScrolled, setContextScrolled] = useState(false);
 
 // Páginas de grupo específico: /groups/[groupId]/... (excluyendo /groups/new)
 const isGroupDetailPage = /^\/groups\/[^/]+/.test(pathname) && !pathname.startsWith("/groups/new");
+const [isEmbed, setIsEmbed] = useState(false);
+
+useEffect(() => {
+  try {
+    setIsEmbed(window.self !== window.top);
+  } catch {
+    setIsEmbed(true);
+  }
+}, []);
 
   const fontStack =
     'inherit';
@@ -133,7 +142,9 @@ useEffect(() => {
 }, [pathname, isGroupDetailPage]);
 
 
-const contentAreaClassName = "contentArea contentAreaWithWallet";
+const contentAreaClassName = isEmbed
+  ? "contentArea contentAreaEmbed"
+  : "contentArea contentAreaWithWallet";
 
   return (
     <>
@@ -459,6 +470,12 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
   padding-right: calc(var(--wallet-rail-width) + var(--shell-column-gap) + var(--shell-gutter));
 }
 
+.contentAreaEmbed {
+  grid-template-columns: minmax(0, 1fr);
+  padding-left: 0;
+  padding-right: 0;
+}
+
 .sidebarCol {
   position: sticky;
   top: calc(env(safe-area-inset-top) + 90px);
@@ -760,24 +777,27 @@ const contentAreaClassName = "contentArea contentAreaWithWallet";
         </header>
 
         <div className={contentAreaClassName}>
-          <div className="sidebarCol">
-            <OwnerSidebar />
-          </div>
+          {!isEmbed && (
+            <div className="sidebarCol">
+              <OwnerSidebar />
+            </div>
+          )}
 
           <main className="mainCol">
             <div className="mainInner" ref={mainInnerRef}>{children}</div>
           </main>
 
-<div className="walletCol">
-  <WalletDesktopRail
-    activePath={pathname}
-    showWallet={showWalletRail}
-  />
-
-</div>
+          {!isEmbed && (
+            <div className="walletCol">
+              <WalletDesktopRail
+                activePath={pathname}
+                showWallet={showWalletRail}
+              />
+            </div>
+          )}
         </div>
 
-       <MobileBottomNav showWallet={showWalletRail} />
+       {!isEmbed && <MobileBottomNav showWallet={showWalletRail} />}
       </div>
       </MobileHeaderCtx.Provider>
     </>

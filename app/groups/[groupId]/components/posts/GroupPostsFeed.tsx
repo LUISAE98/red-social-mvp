@@ -71,6 +71,7 @@ type GroupPostsFeedProps = {
   commentBlockedReason?: InteractionBlockedReason;
   publicPremiumOnly?: boolean;
   broadcastLiveOnly?: boolean;
+  readOnly?: boolean;
 };
 
 type MemberStatus = "active" | "muted" | "banned" | "removed" | null;
@@ -423,6 +424,7 @@ export default function GroupPostsFeed({
   commentBlockedReason = null,
   publicPremiumOnly = false,
   broadcastLiveOnly = false,
+  readOnly = false,
 }: GroupPostsFeedProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -1562,13 +1564,13 @@ const shellStyle: CSSProperties = {
             </div>
           ) : null}
         </div>
-      ) : (
+      ) : postBlockedReason !== null ? (
         <div style={interactionHintStyle}>
           {buildPostBlockedMessage(postBlockedReason)}
         </div>
-      )}
+      ) : null}
 
-      {!canCommentOnPosts && (
+      {!canCommentOnPosts && commentBlockedReason !== null && (
         <div style={interactionHintStyle}>
           {buildCommentBlockedMessage(commentBlockedReason)}
         </div>
@@ -1590,16 +1592,18 @@ const shellStyle: CSSProperties = {
             groupId={groupId}
             canDelete={false}
             onLoadComments={handleLoadComments}
-            onCreateComment={handleCreateComment}
-            onDeleteComment={handleDeleteComment}
+            onCreateComment={readOnly ? async () => [] : handleCreateComment}
+            onDeleteComment={readOnly ? async () => [] : handleDeleteComment}
             onLoadReplies={handleLoadReplies}
-            onCreateReply={handleCreateReply}
-            onDeleteReply={handleDeleteReply}
-            canCommentOnPosts={canCommentOnPosts}
-            commentBlockedReason={commentBlockedReason}
+            onCreateReply={readOnly ? async () => [] : handleCreateReply}
+            onDeleteReply={readOnly ? async () => [] : handleDeleteReply}
+            onToggleFlame={readOnly ? undefined : handleToggleFlame}
+            onToggleSave={readOnly ? undefined : handleToggleSave}
+            canCommentOnPosts={readOnly ? false : canCommentOnPosts}
+            commentBlockedReason={readOnly ? null : commentBlockedReason}
             currentUserId={currentUid}
-            isOwner={isOwner}
-            isModerator={isModerator}
+            isOwner={false}
+            isModerator={false}
             viewerIsMember={viewerIsMember}
           />
         </div>
@@ -1635,29 +1639,29 @@ const shellStyle: CSSProperties = {
             <GroupPostCard
               post={post}
               groupId={groupId}
-              canDelete={canDeletePost}
-              onDelete={canDeletePost ? handleDeletePost : undefined}
+              canDelete={readOnly ? false : canDeletePost}
+              onDelete={readOnly ? undefined : (canDeletePost ? handleDeletePost : undefined)}
               onLoadComments={handleLoadComments}
-              onCreateComment={handleCreateComment}
-              onDeleteComment={handleDeleteComment}
+              onCreateComment={readOnly ? async () => [] : handleCreateComment}
+              onDeleteComment={readOnly ? async () => [] : handleDeleteComment}
               onLoadReplies={handleLoadReplies}
-              onCreateReply={handleCreateReply}
-              onDeleteReply={handleDeleteReply}
-              onToggleFlame={handleToggleFlame}
-              onToggleSave={handleToggleSave}
-              onToggleGroupPin={handleToggleGroupPin}
-              onToggleProfilePin={handleToggleProfilePin}
+              onCreateReply={readOnly ? async () => [] : handleCreateReply}
+              onDeleteReply={readOnly ? async () => [] : handleDeleteReply}
+              onToggleFlame={readOnly ? undefined : handleToggleFlame}
+              onToggleSave={readOnly ? undefined : handleToggleSave}
+              onToggleGroupPin={readOnly ? undefined : handleToggleGroupPin}
+              onToggleProfilePin={readOnly ? undefined : handleToggleProfilePin}
               currentUserId={currentUid}
-              isOwner={isOwner}
-              isModerator={isModerator}
+              isOwner={readOnly ? false : isOwner}
+              isModerator={readOnly ? false : isModerator}
               viewerIsMember={viewerIsMember}
               showGroupContext={false}
-              canModerateGroupAuthor={isOwner || isModerator}
-              canUseGroupMemberBlock={!isOwner && viewerIsMember}
-              onModerationComplete={loadPosts}
-              onGroupMemberBlockComplete={handleGroupMemberBlockComplete}
-              canCommentOnPosts={canCommentOnPosts}
-              commentBlockedReason={commentBlockedReason}
+              canModerateGroupAuthor={readOnly ? false : (isOwner || isModerator)}
+              canUseGroupMemberBlock={readOnly ? false : (!isOwner && viewerIsMember)}
+              onModerationComplete={readOnly ? undefined : loadPosts}
+              onGroupMemberBlockComplete={readOnly ? undefined : handleGroupMemberBlockComplete}
+              canCommentOnPosts={readOnly ? false : canCommentOnPosts}
+              commentBlockedReason={readOnly ? null : commentBlockedReason}
             />
           </div>
         );

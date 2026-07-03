@@ -495,6 +495,10 @@ export default function ProfilePostsFeed({
   const [pageCursor, setPageCursor] =
     useState<UserProfilePostsPageCursor | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [isEmbed, setIsEmbed] = useState(false);
+  useEffect(() => {
+    try { setIsEmbed(window.self !== window.top); } catch { setIsEmbed(true); }
+  }, []);
   const infiniteScrollTargetRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
   const hasMoreRef = useRef(false);
@@ -1257,7 +1261,7 @@ const shellStyle: CSSProperties = {
 
       {loadingInitial && <div style={noticeStyle}>Cargando publicaciones...</div>}
 
-      {!loadingInitial && posts.length === 0 && viewerUid && (
+      {!loadingInitial && posts.length === 0 && viewerUid && !isEmbed && (
         <div style={recommendationWrapperStyle}>
           <GroupRecommendationsRail
             currentUserId={viewerUid}
@@ -1316,7 +1320,7 @@ const shellStyle: CSSProperties = {
               canCommentOnPosts={!post.groupId ? (isOwner || commentsEnabled) : undefined}
             />
 
-            {shouldRenderRecommendations && viewerUid && (
+            {shouldRenderRecommendations && viewerUid && !isEmbed && (
               <div style={recommendationWrapperStyle}>
                 <GroupRecommendationsRail
                   currentUserId={viewerUid}
@@ -1339,7 +1343,8 @@ const shellStyle: CSSProperties = {
       {!loadingInitial &&
         posts.length > 0 &&
         !hasInlineRecommendation &&
-        viewerUid && (
+        viewerUid &&
+        !isEmbed && (
           <div style={recommendationWrapperStyle}>
             <GroupRecommendationsRail
               currentUserId={viewerUid}

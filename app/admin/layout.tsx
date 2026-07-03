@@ -6,11 +6,14 @@ import { useEffect, useState } from "react";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { usePlatformMod } from "@/lib/moderation/usePlatformMod";
+import { AdminPreviewContext } from "./context";
 
 const NAV_ITEMS = [
-  { label: "Reportes", href: "/admin/reports" },
-  { label: "Usuarios", href: "/admin/users" },
+  { label: "Reportes generales", href: "/admin/reports" },
+  { label: "Asignados a mí", href: "/admin/my-reports" },
+  { label: "Asignados a otros", href: "/admin/other-reports" },
   { label: "Historial", href: "/admin/audit-log" },
+  { label: "Comunidades ocultas", href: "/admin/hidden-communities" },
 ];
 
 const MOBILE_BREAKPOINT = 900;
@@ -25,6 +28,8 @@ export default function AdminLayout({
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [iframeLoading, setIframeLoading] = useState(false);
 
   useEffect(() => {
     function check() {
@@ -41,10 +46,20 @@ export default function AdminLayout({
     }
   }, [isPlatformMod, loading, wrongProvider, router]);
 
+  // Reset preview when navigating between sections
+  useEffect(() => {
+    setPreviewUrl(null);
+  }, [pathname]);
+
   async function handleSignOut() {
     setSigningOut(true);
     await signOut(auth);
     router.replace("/login");
+  }
+
+  function handleSetPreviewUrl(url: string | null) {
+    setPreviewUrl(url);
+    if (url) setIframeLoading(true);
   }
 
   if (loading) {
@@ -140,120 +155,196 @@ export default function AdminLayout({
   }
 
   return (
-    <>
-      <style jsx>{`
-        .shell {
-          display: flex;
-          min-height: 100dvh;
-          background: #0a0a0a;
-          color: #fff;
-        }
+    <AdminPreviewContext.Provider
+      value={{ previewUrl, setPreviewUrl: handleSetPreviewUrl }}
+    >
+      <>
+        <style jsx>{`
+          .shell {
+            display: flex;
+            height: 100dvh;
+            overflow: hidden;
+            background: #0a0a0a;
+            color: #fff;
+          }
 
-        .sidebar {
-          width: 220px;
-          flex-shrink: 0;
-          border-right: 1px solid #1a1a1a;
-          display: flex;
-          flex-direction: column;
-          padding: 24px 0 16px;
-          position: sticky;
-          top: 0;
-          height: 100dvh;
-          overflow-y: auto;
-        }
+          /* Col 1 — nav */
+          .sidebar {
+            width: 200px;
+            flex-shrink: 0;
+            border-right: 1px solid #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            padding: 24px 0 16px;
+            height: 100dvh;
+            overflow-y: auto;
+          }
 
-        .sidebarTitle {
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: #555;
-          padding: 0 20px 16px;
-        }
+          .sidebarTitle {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #444;
+            padding: 0 16px 14px;
+          }
 
-        .navItem {
-          display: block;
-          padding: 10px 20px;
-          font-size: 14px;
-          font-weight: 500;
-          color: #888;
-          text-decoration: none;
-          border-left: 2px solid transparent;
-          transition: color 150ms, border-color 150ms, background 150ms;
-        }
+          .navItem {
+            display: block;
+            padding: 9px 16px;
+            font-size: 13px;
+            font-weight: 500;
+            color: #777;
+            text-decoration: none;
+            border-left: 2px solid transparent;
+            transition: color 150ms, border-color 150ms, background 150ms;
+          }
 
-        .navItem:hover {
-          color: #fff;
-          background: #111;
-        }
+          .navItem:hover {
+            color: #fff;
+            background: #111;
+          }
 
-        .navItemActive {
-          color: #a855ff;
-          border-left-color: #a855ff;
-          background: #130a1f;
-        }
+          .navItemActive {
+            color: #a855ff;
+            border-left-color: #a855ff;
+            background: #130a1f;
+          }
 
-        .main {
-          flex: 1;
-          min-width: 0;
-          padding: 32px;
-          max-width: 1100px;
-        }
-      `}</style>
+          /* Col 2 — list content */
+          .content {
+            width: 400px;
+            flex-shrink: 0;
+            border-right: 1px solid #1a1a1a;
+            height: 100dvh;
+            overflow-y: auto;
+            padding: 24px 20px;
+          }
 
-      <div className="shell">
-        <nav className="sidebar">
-          <div className="sidebarTitle">Moderación</div>
+          /* Col 3 — preview */
+          .preview {
+            flex: 1;
+            min-width: 0;
+            height: 100dvh;
+            position: relative;
+            background: #050505;
+          }
 
-          {NAV_ITEMS.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={[
-                "navItem",
-                pathname.startsWith(item.href) ? "navItemActive" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
+          .previewPlaceholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: #2a2a2a;
+            user-select: none;
+          }
+
+          .previewIframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+          }
+
+          .iframeLoadingOverlay {
+            position: absolute;
+            inset: 0;
+            background: #050505;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #333;
+            font-size: 13px;
+            pointer-events: none;
+          }
+        `}</style>
+
+        <div className="shell">
+          {/* Col 1 — Navigation */}
+          <nav className="sidebar">
+            <div className="sidebarTitle">Moderación</div>
+
+            {NAV_ITEMS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={[
+                  "navItem",
+                  pathname.startsWith(item.href) ? "navItemActive" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+              >
+                {item.label}
+              </Link>
+            ))}
+
+            <div style={{ flex: 1 }} />
+
+            <button
+              onClick={handleSignOut}
+              disabled={signingOut}
+              style={{
+                margin: "0 10px",
+                padding: "8px 12px",
+                borderRadius: 8,
+                border: "1px solid #1e1e1e",
+                background: "transparent",
+                color: "#444",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: signingOut ? "not-allowed" : "pointer",
+                textAlign: "left",
+                transition: "color 150ms, border-color 150ms",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.color = "#f87171";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "#3d1515";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.color = "#444";
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "#1e1e1e";
+              }}
             >
-              {item.label}
-            </Link>
-          ))}
+              {signingOut ? "Cerrando..." : "Cerrar sesión"}
+            </button>
+          </nav>
 
-          {/* Spacer empuja el botón al fondo */}
-          <div style={{ flex: 1 }} />
+          {/* Col 2 — Page content (list) */}
+          <div className="content">{children}</div>
 
-          <button
-            onClick={handleSignOut}
-            disabled={signingOut}
-            style={{
-              margin: "0 12px",
-              padding: "9px 14px",
-              borderRadius: 8,
-              border: "1px solid #1e1e1e",
-              background: "transparent",
-              color: "#555",
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: signingOut ? "not-allowed" : "pointer",
-              textAlign: "left",
-              transition: "color 150ms, border-color 150ms",
-            }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = "#f87171";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "#3d1515";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLButtonElement).style.color = "#555";
-              (e.currentTarget as HTMLButtonElement).style.borderColor = "#1e1e1e";
-            }}
-          >
-            {signingOut ? "Cerrando sesión..." : "Cerrar sesión"}
-          </button>
-        </nav>
-
-        <main className="main">{children}</main>
-      </div>
-    </>
+          {/* Col 3 — Preview iframe */}
+          <div className="preview">
+            {previewUrl ? (
+              <>
+                {iframeLoading && (
+                  <div className="iframeLoadingOverlay">Cargando...</div>
+                )}
+                <iframe
+                  key={previewUrl}
+                  src={previewUrl}
+                  className="previewIframe"
+                  onLoad={() => setIframeLoading(false)}
+                />
+              </>
+            ) : (
+              <div className="previewPlaceholder">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M3 9h18" />
+                  <path d="M9 21V9" />
+                </svg>
+                <span style={{ fontSize: 13 }}>
+                  Selecciona un elemento para previsualizar
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </>
+    </AdminPreviewContext.Provider>
   );
 }

@@ -5161,7 +5161,7 @@ padding: "0 0 2px 0",
                           borderTop: availableActions.length > 0
                             ? "1px solid rgba(255,255,255,0.08)"
                             : "none",
-                          color: "#f87171",
+                          color: "#fff",
                         }}
                       >
                         Reportar publicación
