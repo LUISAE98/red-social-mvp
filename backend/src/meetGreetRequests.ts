@@ -998,6 +998,43 @@ export const requestMeetGreetReschedule = onCall(
   }
 );
 
+export const declineMeetGreetReschedule = onCall(
+  {
+    region: REGION,
+    cors: true,
+  },
+  async (request) => {
+    const uid = requireAuth(request.auth?.uid);
+    const requestId = asTrimmedString(request.data?.requestId, "requestId", 120);
+
+    const { ref, data } = await getMeetGreetOrThrow(requestId);
+    ensureCreator(data, uid);
+    ensureStatusAllowed(
+      data.status as MeetGreetStatus,
+      ["reschedule_requested"],
+      "declinar cambio de fecha"
+    );
+
+    const scheduledAt = data.scheduledAt as TimestampLike | null;
+    const nextStatus: MeetGreetStatus =
+      scheduledAt ? buildPreparationStatus(scheduledAt) : "scheduled";
+
+    await ref.update({
+      status: nextStatus,
+      rescheduleRequestedAt: null,
+      updatedAt: nowTs(),
+    });
+
+    logger.info("meet_greet_reschedule_declined", {
+      requestId,
+      creatorId: uid,
+      buyerId: data.buyerId,
+    });
+
+    return { ok: true, requestId, status: nextStatus };
+  }
+);
+
 export const requestMeetGreetRefund = onCall(
   {
     region: REGION,
@@ -1180,4 +1217,36 @@ export async function expireMeetGreetNoShowsHandler() {
   });
 
   return expiredCount;
+}
+
+export async function autoExpirePendingMeetGreetRequestsHandler(): Promise<number> {
+  const twoMonthsAgo = new Date();
+  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+  const cutoff = admin.firestore.Timestamp.fromDate(twoMonthsAgo);
+
+  const snap = await db
+    .collection(MEET_GREET_COLLECTION)
+    .where("status", "==", "pending_creator_response")
+    .where("createdAt", "<=", cutoff)
+    .limit(200)
+    .get();
+
+  if (snap.empty) return 0;
+
+  const now = admin.firestore.Timestamp.now();
+  const batch = db.batch();
+
+  snap.docs.forEach((doc) => {
+    batch.update(doc.ref, {
+      status: "refund_requested" as MeetGreetStatus,
+      rejectionReason: "El creador no respondió la solicitud.",
+      autoExpiredAt: now,
+      updatedAt: now,
+    });
+  });
+
+  await batch.commit();
+
+  logger.info("auto_expire_pending_meet_greet_requests", { expiredCount: snap.size });
+  return snap.size;
 }

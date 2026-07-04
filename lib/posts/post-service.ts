@@ -32,6 +32,7 @@ import {
 
 import type {
   Comment,
+  CommentEditEntry,
   CommentReply,
   GroupMemberBlockRelationship,
   GroupVisibility,
@@ -3556,10 +3557,9 @@ export async function fetchPostComments(postId: string): Promise<Comment[]> {
 
   const snap = await getDocs(q);
 
-  const rawComments: Comment[] = snap.docs.map((d) => ({
-    id: d.id,
-    ...(d.data() as Omit<Comment, "id">),
-  }));
+  const rawComments: Comment[] = snap.docs
+    .map((d) => ({ id: d.id, ...(d.data() as Omit<Comment, "id">) }))
+    .filter((c) => !c.isDeleted);
 
   const userMap = await fetchUsersByIds(
     rawComments.map((comment) => comment.authorId)
@@ -3701,7 +3701,11 @@ const currentLikes =
 const currentSaves =
   typeof currentCounts.saves === "number" ? currentCounts.saves : 0;
 
-await deleteDoc(commentRef);
+await updateDoc(commentRef, {
+  isDeleted: true,
+  deletedAt: serverTimestamp(),
+  updatedAt: serverTimestamp(),
+});
 
 await updateDoc(postRef, {
   counts: {
@@ -3756,12 +3760,14 @@ export async function fetchCommentReplies(params: {
 
   const snap = await getDocs(q);
 
-  const rawReplies: CommentReply[] = snap.docs.map((d) => ({
-    id: d.id,
-    postId: params.postId,
-    commentId: params.commentId,
-    ...(d.data() as Omit<CommentReply, "id" | "postId" | "commentId">),
-  }));
+  const rawReplies: CommentReply[] = snap.docs
+    .map((d) => ({
+      id: d.id,
+      postId: params.postId,
+      commentId: params.commentId,
+      ...(d.data() as Omit<CommentReply, "id" | "postId" | "commentId">),
+    }))
+    .filter((r) => !r.isDeleted);
 
   const userMap = await fetchUsersByIds(
     rawReplies.map((reply) => reply.authorId)
@@ -4008,7 +4014,11 @@ export async function deletePostCommentReply(params: {
     const freshPostSaves =
       typeof freshPostCounts.saves === "number" ? freshPostCounts.saves : 0;
 
-    transaction.delete(replyRef);
+    transaction.update(replyRef, {
+      isDeleted: true,
+      deletedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
 
     transaction.update(commentRef, {
       counts: {
@@ -4030,6 +4040,83 @@ export async function deletePostCommentReply(params: {
 
   clearPostCommentsCache(params.postId);
   clearCommentRepliesCache(params.postId, params.commentId);
+}
+
+async function fetchEditHistory(path: string[]): Promise<CommentEditEntry[]> {
+  try {
+    const snap = await getDocs(
+      query(collection(db, ...path as [string, ...string[]]), orderBy("editedAt", "asc")),
+    );
+    return snap.docs.map((d) => ({
+      previousText: typeof d.data().previousText === "string" ? d.data().previousText : "",
+      editedAt: d.data().editedAt as Timestamp,
+      editedBy: typeof d.data().editedBy === "string" ? d.data().editedBy : undefined,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchPostCommentsAdmin(postId: string): Promise<Comment[]> {
+  assertValidId(postId, "postId");
+
+  const snap = await getDocs(
+    query(collection(db, "posts", postId, "comments"), orderBy("createdAt", "asc"), limit(100)),
+  );
+
+  const rawComments: Comment[] = snap.docs.map((d) => ({
+    id: d.id,
+    ...(d.data() as Omit<Comment, "id">),
+  }));
+
+  const commentsWithHistory = await Promise.all(
+    rawComments.map(async (c) => {
+      const h = c.editedAt
+        ? await fetchEditHistory(["posts", postId, "comments", c.id, "editHistory"])
+        : [];
+      return h.length > 0 ? { ...c, editHistory: h } : c;
+    }),
+  );
+
+  const userMap = await fetchUsersByIds(commentsWithHistory.map((c) => c.authorId));
+  return commentsWithHistory.map((c) => hydrateComment(c, userMap));
+}
+
+export async function fetchCommentRepliesAdmin(params: {
+  postId: string;
+  commentId: string;
+}): Promise<CommentReply[]> {
+  assertValidId(params.postId, "postId");
+  assertValidId(params.commentId, "commentId");
+
+  const snap = await getDocs(
+    query(
+      collection(db, "posts", params.postId, "comments", params.commentId, "replies"),
+      orderBy("createdAt", "asc"),
+      limit(100),
+    ),
+  );
+
+  const rawReplies: CommentReply[] = snap.docs.map((d) => ({
+    id: d.id,
+    postId: params.postId,
+    commentId: params.commentId,
+    ...(d.data() as Omit<CommentReply, "id" | "postId" | "commentId">),
+  }));
+
+  const repliesWithHistory = await Promise.all(
+    rawReplies.map(async (r) => {
+      const h = r.editedAt
+        ? await fetchEditHistory([
+            "posts", params.postId, "comments", params.commentId, "replies", r.id, "editHistory",
+          ])
+        : [];
+      return h.length > 0 ? { ...r, editHistory: h } : r;
+    }),
+  );
+
+  const userMap = await fetchUsersByIds(repliesWithHistory.map((r) => r.authorId));
+  return repliesWithHistory.map((r) => hydrateCommentReply(r, userMap));
 }
 
 export async function fetchPostFlameUsers(

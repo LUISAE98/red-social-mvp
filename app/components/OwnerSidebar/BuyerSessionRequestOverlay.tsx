@@ -3,47 +3,74 @@
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { GreetingRequestDoc } from "./OwnerSidebar";
+import type { MeetGreetRequestDoc, ExclusiveSessionRequestDoc } from "./OwnerSidebar";
 import { playEdgeTTS } from "@/lib/tts/edge-tts-client";
 import type { EdgeTTSHandle } from "@/lib/tts/edge-tts-client";
 
-function formatMoney(amount: number): string {
-  return "$" + new Intl.NumberFormat("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) + " MXN";
-}
-
-const btnPrimary: React.CSSProperties = {
-  width: "100%", height: 42, borderRadius: 5, border: "none",
-  background: "#a855ff", color: "rgba(255,255,255,0.98)",
-  fontSize: 17, fontWeight: 500, cursor: "pointer",
-  fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
-};
-const btnSecondary: React.CSSProperties = {
-  width: "100%", height: 42, borderRadius: 5, border: "none",
-  background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.70)",
-  fontSize: 15, fontWeight: 500, cursor: "pointer",
-  fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
-};
+type SessionRequest = MeetGreetRequestDoc | ExclusiveSessionRequestDoc;
+type ScheduledServiceKind = "meet_greet" | "exclusive_session";
 
 const PANEL_CLOSE_THRESHOLD = 130;
+
+function getSessionStatusLabel(status: string): string {
+  switch (status) {
+    case "pending_creator_response": return "Pendiente";
+    case "accepted_pending_schedule": return "Aceptado";
+    case "scheduled": return "Agendado";
+    case "reschedule_requested": return "Cambio de fecha";
+    case "rejected": return "Rechazado";
+    case "refund_requested":
+    case "refund_review": return "En proceso de devolución";
+    case "ready_to_prepare": return "Ya casi inicia";
+    case "in_preparation": return "En preparación";
+    case "completed": return "Completado";
+    case "cancelled": return "Cancelado";
+    default: return status || "Pendiente";
+  }
+}
+
+function getSessionStatusStyle(status: string): React.CSSProperties {
+  if (status === "rejected" || status === "cancelled" || status === "refund_requested" || status === "refund_review")
+    return { background: "rgba(244,63,94,0.14)", color: "#fda4af", border: "1px solid rgba(244,63,94,0.22)" };
+  if (status === "scheduled" || status === "accepted_pending_schedule" || status === "completed")
+    return { background: "rgba(34,197,94,0.12)", color: "#86efac", border: "1px solid rgba(34,197,94,0.24)" };
+  if (status === "in_preparation")
+    return { background: "rgba(96,165,250,0.16)", color: "#93c5fd", border: "1px solid rgba(96,165,250,0.30)" };
+  if (status === "reschedule_requested" || status === "ready_to_prepare")
+    return { background: "rgba(250,204,21,0.12)", color: "#fde047", border: "1px solid rgba(250,204,21,0.26)" };
+  return { background: "rgba(168,85,255,0.14)", color: "#d8b4fe", border: "1px solid rgba(168,85,255,0.22)" };
+}
 
 function applyPanelOffset(raw: number): number {
   if (raw >= 0) return Math.min(window.innerHeight, raw);
   return raw * 0.2;
 }
 
-function formatDate(ts: { toDate: () => Date } | undefined): string {
-  if (!ts) return "";
+function toDate(ts: unknown): Date | null {
+  if (!ts) return null;
+  if (ts instanceof Date) return ts;
+  if (
+    typeof ts === "object" && ts !== null && "toDate" in ts &&
+    typeof (ts as { toDate?: unknown }).toDate === "function"
+  ) return (ts as { toDate: () => Date }).toDate();
+  return null;
+}
+
+function formatDate(ts: unknown): string {
+  const d = toDate(ts);
+  if (!d) return "";
   try {
     return new Intl.DateTimeFormat("es-MX", {
       day: "numeric", month: "long", year: "numeric",
       hour: "2-digit", minute: "2-digit",
-    }).format(ts.toDate());
-  } catch { return ts.toDate().toLocaleString("es-MX"); }
+    }).format(d);
+  } catch { return d.toLocaleString("es-MX"); }
 }
 
-function getRelativeTime(ts?: { toDate: () => Date } | null): string {
-  if (!ts) return "Hace un momento";
-  const diffMs = Date.now() - ts.toDate().getTime();
+function getRelativeTime(ts: unknown): string {
+  const d = toDate(ts);
+  if (!d) return "Hace un momento";
+  const diffMs = Date.now() - d.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
@@ -53,24 +80,8 @@ function getRelativeTime(ts?: { toDate: () => Date } | null): string {
   return "Hace un momento";
 }
 
-function getTypeLabel(type: string): string {
-  if (type === "consejo") return "Consejo";
-  if (type === "mensaje") return "Mensaje";
-  return "Saludo";
-}
-
-function getStatusLabel(status: string): string {
-  if (status === "accepted") return "En proceso";
-  if (status === "delivered") return "Entregado";
-  if (status === "rejected") return "Rechazado";
-  return "Pendiente";
-}
-
-function getStatusStyle(status: string): React.CSSProperties {
-  if (status === "delivered") return { background: "rgba(34,197,94,0.14)", color: "#86efac", border: "1px solid rgba(34,197,94,0.22)" };
-  if (status === "rejected") return { background: "rgba(244,63,94,0.14)", color: "#fda4af", border: "1px solid rgba(244,63,94,0.22)" };
-  if (status === "accepted") return { background: "rgba(59,130,246,0.14)", color: "#93c5fd", border: "1px solid rgba(59,130,246,0.22)" };
-  return { background: "rgba(168,85,255,0.14)", color: "#d8b4fe", border: "1px solid rgba(168,85,255,0.22)" };
+function formatMoney(amount: number): string {
+  return "$" + new Intl.NumberFormat("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount) + " MXN";
 }
 
 const ANIM_CSS = `
@@ -88,15 +99,24 @@ const ANIM_CSS = `
 `;
 
 type Props = {
-  item: { id: string; data: GreetingRequestDoc };
-  sourceName: string;
-  sourceAvatar: string | null;
+  item: { id: string; data: SessionRequest; serviceKind: ScheduledServiceKind };
+  creatorName: string;
+  creatorAvatar: string | null;
+  canRefund: boolean;
+  canRetry: boolean;
+  canReschedule?: boolean;
+  busy: boolean;
   onClose: () => void;
-  onRefund?: (reason: string) => void;
-  onRetry?: () => void;
+  onRefund: (reason: string) => void;
+  onRetry: () => void;
+  onReschedule?: (reason: string) => void;
 };
 
-export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAvatar, onClose, onRefund, onRetry }: Props) {
+export default function BuyerSessionRequestOverlay({
+  item, creatorName, creatorAvatar,
+  canRefund, canRetry, canReschedule,
+  busy, onClose, onRefund, onRetry, onReschedule,
+}: Props) {
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [closing, setClosing] = useState(false);
@@ -104,6 +124,8 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
   const [isPanelDragging, setIsPanelDragging] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
   const [refundReason, setRefundReason] = useState("");
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [rescheduleReason, setRescheduleReason] = useState("");
   const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
   const [speechHighlight, setSpeechHighlight] = useState<{ start: number; length: number } | null>(null);
   const [speechRate, setSpeechRate] = useState<1 | 1.4 | 1.8>(1);
@@ -116,17 +138,12 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
   const closeRef = useRef<() => void>(() => {});
 
   const req = item.data;
-  const typeLabel = getTypeLabel(req.type);
-  const bgImage = req.type === "consejo" ? "/consejo.png" : "/saludo.png";
-  const retryBtnBg = req.type === "consejo" ? "rgba(250,204,21,0.85)" : req.type === "mensaje" ? "rgba(96,165,250,0.85)" : "#a855ff";
-  const retryBtnColor = req.type === "consejo" ? "#111" : "#fff";
-  const priceColor = req.type === "consejo" ? "#fde047" : req.type === "mensaje" ? "#93c5fd" : "#d8b4fe";
-  const createdAt = req.createdAt as { toDate: () => Date } | undefined;
-  const sourceInitial = sourceName.charAt(0).toUpperCase();
-  const instructionsLabel =
-    req.type === "consejo" ? "¿Cuál es el contexto del consejo?" :
-    req.type === "mensaje" ? "¿Cuál es el contexto del mensaje?" :
-    "¿Cuál es el contexto del saludo?";
+  const isExclusive = item.serviceKind === "exclusive_session";
+  const bgImage = isExclusive ? "/sesionexclusiva.png" : "/encuentroenvivo.png";
+  const retryBtnBg = isExclusive ? "rgba(236,72,153,0.85)" : "rgba(59,130,246,0.85)";
+  const priceColor = isExclusive ? "#f9a8d4" : "#93c5fd";
+  const serviceTitle = isExclusive ? "Sesión exclusiva" : "Meet & Greet";
+  const creatorInitial = creatorName.charAt(0).toUpperCase();
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
@@ -154,7 +171,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
   }, []);
 
   const startSpeechFrom = useCallback((charIndex: number) => {
-    const text = req.instructions ?? "";
+    const text = req.buyerMessage ?? "";
     if (!text) return;
     if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
     speechOffsetRef.current = charIndex;
@@ -187,7 +204,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
       },
     });
     setSpeechState("playing");
-  }, [req.instructions]);
+  }, [req.buyerMessage]);
 
   const handleToggleSpeech = useCallback(() => {
     if (speechState === "playing") { ttsAudioRef.current?.audio.pause(); setSpeechState("paused"); return; }
@@ -231,10 +248,10 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
 
   const divider = <div style={{ height: 1, background: "rgba(255,255,255,0.07)" }} />;
 
-  const sourceRow = (
+  const creatorRow = (
     <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-      {sourceAvatar ? (
-        <Image src={sourceAvatar} alt={sourceName} width={40} height={40}
+      {creatorAvatar ? (
+        <Image src={creatorAvatar} alt={creatorName} width={40} height={40}
           style={{ borderRadius: "50%", objectFit: "cover", border: "1px solid rgba(255,255,255,0.12)", flexShrink: 0 }}
         />
       ) : (
@@ -243,21 +260,36 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
           border: "1px solid rgba(255,255,255,0.12)", display: "flex", alignItems: "center",
           justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", flexShrink: 0,
         }}>
-          {sourceInitial}
+          {creatorInitial}
         </div>
       )}
       <div style={{ minWidth: 0, flex: 1 }}>
         <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {sourceName}
+          {creatorName}
         </span>
         <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>
-          {getStatusLabel(req.status)}
+          {getSessionStatusLabel(req.status)}
         </span>
       </div>
-      {req.priceSnapshot != null && (
-        <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
-          <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8 }}>Pagaste</span>
-          <span style={{ color: priceColor, fontWeight: 700, fontSize: 17 }}>{formatMoney(req.priceSnapshot)}</span>
+      {(req.durationMinutes != null || req.priceSnapshot != null) && (
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 10 }}>
+          {req.durationMinutes != null && (
+            <>
+              <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 0 }}>
+                <span style={{ color: "#fff", fontWeight: 700, fontSize: 22, lineHeight: 1.1 }}>{req.durationMinutes}</span>
+                <span style={{ color: "#fff", fontSize: 11, fontWeight: 500 }}>minutos</span>
+              </div>
+              {req.priceSnapshot != null && (
+                <div style={{ width: 1, height: 36, background: "rgba(255,255,255,0.15)", flexShrink: 0 }} />
+              )}
+            </>
+          )}
+          {req.priceSnapshot != null && (
+            <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
+              <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8 }}>Pagaste</span>
+              <span style={{ color: priceColor, fontWeight: 700, fontSize: 17 }}>{formatMoney(req.priceSnapshot)}</span>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -265,17 +297,17 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
 
   const infoFields = (
     <div style={{ display: "grid", gap: 14 }}>
-      {req.toName ? (
+      {req.scheduledAt ? (
         <div style={{ display: "grid", gap: 2 }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>¿Para quién es?</span>
-          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{req.toName}</span>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Fecha agendada</span>
+          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(req.scheduledAt)}</span>
         </div>
       ) : null}
 
-      {req.instructions ? (
+      {req.buyerMessage ? (
         <div style={{ display: "grid", gap: 4 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, flex: 1 }}>{instructionsLabel}</span>
+            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, flex: 1 }}>Tu mensaje</span>
             {speechState !== "idle" && (
               <button
                 type="button"
@@ -288,7 +320,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
             )}
             <button
               type="button"
-              aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer contexto"}
+              aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer mensaje"}
               onClick={handleToggleSpeech}
               style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
             >
@@ -309,7 +341,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
             style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.82)" }}
           >
             {(() => {
-              const text = req.instructions;
+              const text = req.buyerMessage;
               if (speechState === "idle" || !speechHighlight) return text;
               const { start, length } = speechHighlight;
               return (
@@ -323,23 +355,50 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
         </div>
       ) : null}
 
-      {createdAt ? (
+      {req.createdAt ? (
         <div style={{ display: "grid", gap: 2 }}>
           <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Solicitado el</span>
-          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(createdAt)}</span>
+          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(req.createdAt)}</span>
         </div>
       ) : null}
 
-      {(req.status === "rejected" || req.status === "refund_requested" || req.status === "refund_review") && req.updatedAt ? (
+      {(req.status === "rejected" || req.status === "refund_requested" || req.status === "refund_review") && (req.rejectedAt ?? req.updatedAt) ? (
         <div style={{ display: "grid", gap: 2 }}>
           <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Rechazado el</span>
-          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(req.updatedAt as { toDate: () => Date })}</span>
+          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(req.rejectedAt ?? req.updatedAt)}</span>
+        </div>
+      ) : null}
+
+      {req.rejectionReason ? (
+        <div style={{
+          display: "grid", gap: 4,
+          background: "rgba(120,18,18,0.28)", border: "1px solid rgba(255,90,90,0.24)",
+          borderRadius: 13, padding: "10px 12px",
+        }}>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Motivo de rechazo</span>
+          <span style={{ color: "#ffdada", fontSize: 13, lineHeight: 1.4 }}>{req.rejectionReason}</span>
+        </div>
+      ) : null}
+
+      {req.autoRejectReason === "creator_no_show_after_15_minutes" ? (
+        <div style={{ background: "rgba(120,18,18,0.28)", border: "1px solid rgba(255,90,90,0.24)", borderRadius: 13, padding: "10px 12px" }}>
+          <span style={{ color: "#ffdada", fontSize: 13, lineHeight: 1.4 }}>
+            El creador no se conectó dentro de los 15 minutos posteriores a la hora agendada.
+          </span>
+        </div>
+      ) : null}
+
+      {req.autoRejectReason === "buyer_no_show_after_15_minutes" ? (
+        <div style={{ background: "rgba(120,18,18,0.28)", border: "1px solid rgba(255,90,90,0.24)", borderRadius: 13, padding: "10px 12px" }}>
+          <span style={{ color: "#ffdada", fontSize: 13, lineHeight: 1.4 }}>
+            No te conectaste dentro de los 15 minutos posteriores a la hora agendada.
+          </span>
         </div>
       ) : null}
     </div>
   );
 
-  const isTerminal = ["rejected", "refund_requested", "refund_review", "delivered"].includes(req.status);
+  const isTerminal = ["rejected", "refund_requested", "refund_review", "completed", "cancelled"].includes(req.status);
 
   const noticeBlock = !isTerminal ? (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
@@ -369,25 +428,111 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
       />
       <div style={{ display: "flex", gap: 8 }}>
         <button type="button"
-          onClick={() => { onRefund?.(refundReason); setRefundOpen(false); }}
-          style={{ ...btnPrimary, flex: 1, width: "auto", background: "rgba(220,38,38,0.80)", fontSize: 15 }}
+          onClick={() => { onRefund(refundReason); setRefundOpen(false); }}
+          disabled={busy}
+          style={{
+            flex: 1, height: 42, borderRadius: 5, border: "none",
+            background: busy ? "rgba(255,255,255,0.1)" : "rgba(220,38,38,0.80)",
+            color: busy ? "rgba(255,255,255,0.36)" : "rgba(255,255,255,0.98)",
+            fontSize: 15, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer",
+            fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
+          }}
         >
-          Confirmar devolución
+          {busy ? "Procesando..." : "Confirmar devolución"}
         </button>
-        <button type="button" onClick={() => setRefundOpen(false)}
-          style={{ ...btnSecondary, flex: 1, width: "auto" }}
+        <button type="button" onClick={() => setRefundOpen(false)} style={{
+          flex: 1, height: 42, borderRadius: 5, border: "none",
+          background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.70)",
+          fontSize: 15, fontWeight: 500, cursor: "pointer",
+          fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
+        }}>
+          Cancelar
+        </button>
+      </div>
+    </div>
+  ) : rescheduleOpen ? (
+    <div style={{ display: "grid", gap: 8 }}>
+      <textarea
+        value={rescheduleReason}
+        onChange={(e) => setRescheduleReason(e.target.value)}
+        placeholder="Sugiere un horario o describe cuándo puedes..."
+        style={{
+          background: "rgba(255,255,255,0.06)", border: "none", borderRadius: 12,
+          color: "#fff", fontSize: 13, padding: "10px 12px", resize: "none",
+          height: 80, fontFamily: "inherit", lineHeight: 1.5, outline: "none",
+          width: "100%", boxSizing: "border-box",
+        }}
+      />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button type="button"
+          onClick={() => { onReschedule?.(rescheduleReason); setRescheduleOpen(false); }}
+          disabled={busy}
+          style={{
+            flex: 1, height: 42, borderRadius: 5, border: "none",
+            background: busy ? "rgba(255,255,255,0.1)" : retryBtnBg,
+            color: busy ? "rgba(255,255,255,0.36)" : "#fff",
+            fontSize: 15, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer",
+            fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
+          }}
         >
+          {busy ? "Enviando..." : "Confirmar solicitud"}
+        </button>
+        <button type="button" onClick={() => setRescheduleOpen(false)} style={{
+          flex: 1, height: 42, borderRadius: 5, border: "none",
+          background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.70)",
+          fontSize: 15, fontWeight: 500, cursor: "pointer",
+          fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
+        }}>
           Cancelar
         </button>
       </div>
     </div>
   ) : req.status === "rejected" ? (
     <div style={{ display: "flex", gap: 8 }}>
-      <button type="button" onClick={onRetry} style={{ ...btnPrimary, flex: 1, width: "auto", background: retryBtnBg, color: retryBtnColor }}>
+      <button type="button" onClick={onRetry} disabled={busy} style={{
+        flex: 1, height: 42, borderRadius: 5, border: "none",
+        background: busy ? "rgba(255,255,255,0.1)" : retryBtnBg,
+        color: busy ? "rgba(255,255,255,0.36)" : "#fff",
+        fontSize: 15, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer",
+        fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
+      }}>
         Intentar de nuevo
       </button>
-      <button type="button" onClick={() => setRefundOpen(true)} style={{ ...btnSecondary, flex: 1, width: "auto" }}>
+      <button type="button" onClick={() => setRefundOpen(true)} disabled={busy} style={{
+        flex: 1, height: 42, borderRadius: 5, border: "none",
+        background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.70)",
+        fontSize: 15, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer",
+        fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
+      }}>
         Solicitar devolución
+      </button>
+    </div>
+  ) : canReschedule ? (
+    <div style={{ display: "grid", gap: 8 }}>
+      {(() => {
+        const used = item.data.rescheduleRequestsUsed ?? 0;
+        const remaining = Math.max(0, 2 - used);
+        if (remaining === 1) {
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", borderRadius: 8, border: "1px solid rgba(250,204,21,0.24)", background: "rgba(250,204,21,0.08)" }}>
+              <svg width={13} height={13} viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10" stroke="#fde047" strokeWidth="2"/>
+                <path d="M12 7v5" stroke="#fde047" strokeWidth="2" strokeLinecap="round"/>
+                <circle cx="12" cy="16" r="1" fill="#fde047"/>
+              </svg>
+              <span style={{ fontSize: 12, color: "#fde047", lineHeight: 1.4 }}>Este es tu último intento de cambio de horario.</span>
+            </div>
+          );
+        }
+        return null;
+      })()}
+      <button type="button" onClick={() => setRescheduleOpen(true)} style={{
+        width: "100%", height: 42, borderRadius: 5, border: "none",
+        background: retryBtnBg, color: "#fff",
+        fontSize: 15, fontWeight: 500, cursor: "pointer",
+        fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
+      }}>
+        Reagendar
       </button>
     </div>
   ) : null;
@@ -458,7 +603,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
                 >
                   <div aria-hidden="true" />
                   <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
-                    {typeLabel} solicitado
+                    {serviceTitle}
                   </h3>
                   <button type="button" onClick={handleClose} style={{
                     width: 40, height: 40, border: "none", background: "transparent",
@@ -468,7 +613,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
                 </header>
                 <div className="vibra-panel-mobile-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "12px 14px 8px" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    {sourceRow}
+                    {creatorRow}
                     {infoFields}
                     {noticeBlock}
                     <div style={{ height: 4 }} />
@@ -524,7 +669,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
           <header style={{ ...headerStyle, gridTemplateColumns: "48px 1fr 48px", borderBottom: "1px solid rgba(255,255,255,0.12)" }}>
             <div aria-hidden="true" />
             <h3 style={{ margin: 0, textAlign: "center", fontSize: 17, fontWeight: 500, letterSpacing: "-0.02em", lineHeight: 1.2, color: "#fff" }}>
-              {typeLabel} solicitado
+              {serviceTitle}
             </h3>
             <button type="button" onClick={handleClose} aria-label="Cerrar" style={{
               border: "none", background: "none", color: "#fff", cursor: "pointer",
@@ -538,7 +683,7 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
 
           <div className="vibra-panel-scroll" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 8px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {sourceRow}
+              {creatorRow}
               {infoFields}
               {noticeBlock}
             </div>

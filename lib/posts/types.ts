@@ -445,6 +445,12 @@ export type CommentCounts = {
   likes?: number;
 };
 
+export type CommentEditEntry = {
+  previousText: string;
+  editedAt: Timestamp;
+  editedBy?: string;
+};
+
 export type CommentReactionType = "flame";
 
 export type CommentReaction = {
@@ -462,6 +468,8 @@ export type Comment = {
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
   editedAt?: Timestamp | null;
+  isDeleted?: boolean;
+  deletedAt?: Timestamp | null;
 
   authorId: string;
   authorName?: string;
@@ -481,6 +489,9 @@ export type Comment = {
 
   /** Solo presente en posts premium de grupo. false = accedió por compra (no es miembro/suscriptor). */
   authorIsGroupMember?: boolean;
+
+  /** Solo presente en modo admin. Versiones anteriores del texto antes de cada edición. */
+  editHistory?: CommentEditEntry[];
 };
 
 export type CommentReply = {
@@ -489,6 +500,8 @@ export type CommentReply = {
   createdAt?: Timestamp | null;
   updatedAt?: Timestamp | null;
   editedAt?: Timestamp | null;
+  isDeleted?: boolean;
+  deletedAt?: Timestamp | null;
 
   postId: string;
   commentId: string;
@@ -503,4 +516,7 @@ export type CommentReply = {
 
   /** Solo presente en posts premium de grupo. false = accedió por compra (no es miembro/suscriptor). */
   authorIsGroupMember?: boolean;
+
+  /** Solo presente en modo admin. Versiones anteriores del texto antes de cada edición. */
+  editHistory?: CommentEditEntry[];
 };

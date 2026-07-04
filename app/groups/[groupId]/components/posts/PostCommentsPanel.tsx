@@ -59,6 +59,7 @@ type PostCommentsPanelProps = {
   ) => Promise<CommentReply[]>;
   onGroupMemberBlockComplete?: () => Promise<void> | void;
   onModerationComplete?: () => Promise<void> | void;
+  showAdminDetails?: boolean;
 };
 
 const fontStack =
@@ -148,6 +149,7 @@ export default function PostCommentsPanel({
   onDeleteReply,
   onGroupMemberBlockComplete,
   onModerationComplete,
+  showAdminDetails = false,
 }: PostCommentsPanelProps) {
   useEffect(() => {
     if (!open || !isMobile) return;
@@ -410,6 +412,7 @@ export default function PostCommentsPanel({
                   onDeleteReply={onDeleteReply}
                   onGroupMemberBlockComplete={onGroupMemberBlockComplete}
                   onModerationComplete={onModerationComplete}
+                  showAdminDetails={showAdminDetails}
                 />
               ))}
 
@@ -693,6 +696,7 @@ export default function PostCommentsPanel({
                     onCreateReply={onCreateReply}
                     onDeleteReply={onDeleteReply}
                     onGroupMemberBlockComplete={onGroupMemberBlockComplete}
+                    showAdminDetails={showAdminDetails}
                   />
                 ))}
             </div>

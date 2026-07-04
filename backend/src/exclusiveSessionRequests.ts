@@ -958,6 +958,43 @@ export const requestExclusiveSessionReschedule = onCall(
   }
 );
 
+export const declineExclusiveSessionReschedule = onCall(
+  {
+    region: REGION,
+    cors: true,
+  },
+  async (request) => {
+    const uid = requireAuth(request.auth?.uid);
+    const requestId = asTrimmedString(request.data?.requestId, "requestId", 120);
+
+    const { ref, data } = await getExclusiveSessionOrThrow(requestId);
+    ensureCreator(data, uid);
+    ensureStatusAllowed(
+      data.status as ExclusiveSessionStatus,
+      ["reschedule_requested"],
+      "declinar cambio de fecha"
+    );
+
+    const scheduledAt = data.scheduledAt as TimestampLike | null;
+    const nextStatus: ExclusiveSessionStatus =
+      scheduledAt ? buildPreparationStatus(scheduledAt) : "scheduled";
+
+    await ref.update({
+      status: nextStatus,
+      rescheduleRequestedAt: null,
+      updatedAt: nowTs(),
+    });
+
+    logger.info("exclusive_session_reschedule_declined", {
+      requestId,
+      creatorId: uid,
+      buyerId: data.buyerId,
+    });
+
+    return { ok: true, requestId, status: nextStatus };
+  }
+);
+
 export const requestExclusiveSessionRefund = onCall(
   {
     region: REGION,
@@ -1137,4 +1174,36 @@ export async function expireExclusiveSessionNoShowsHandler() {
   });
 
   return expiredCount;
+}
+
+export async function autoExpirePendingExclusiveSessionRequestsHandler(): Promise<number> {
+  const twoMonthsAgo = new Date();
+  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+  const cutoff = admin.firestore.Timestamp.fromDate(twoMonthsAgo);
+
+  const snap = await db
+    .collection(EXCLUSIVE_SESSION_COLLECTION)
+    .where("status", "==", "pending_creator_response")
+    .where("createdAt", "<=", cutoff)
+    .limit(200)
+    .get();
+
+  if (snap.empty) return 0;
+
+  const now = admin.firestore.Timestamp.now();
+  const batch = db.batch();
+
+  snap.docs.forEach((doc) => {
+    batch.update(doc.ref, {
+      status: "refund_requested" as ExclusiveSessionStatus,
+      rejectionReason: "El creador no respondió la solicitud.",
+      autoExpiredAt: now,
+      updatedAt: now,
+    });
+  });
+
+  await batch.commit();
+
+  logger.info("auto_expire_pending_exclusive_session_requests", { expiredCount: snap.size });
+  return snap.size;
 }

@@ -19,6 +19,8 @@ import type {
   MeetGreetRequestDoc,
   ExclusiveSessionRequestDoc,
 } from "./OwnerSidebar";
+import VibraToast from "@/app/components/VibraToast/VibraToast";
+import { useVibraToast } from "@/lib/hooks/useVibraToast";
 
 type SessionRequest = MeetGreetRequestDoc | ExclusiveSessionRequestDoc;
 
@@ -36,11 +38,12 @@ export type SessionRequestOverlayProps = {
   getInitials: (name?: string | null) => string;
   onAccept: () => void;
   onReject: (reason: string | null) => Promise<void>;
-  onSchedule: (scheduledAt: string | null, note: string | null) => void;
+  onSchedule: (scheduledAt: string | null, note: string | null) => Promise<void> | void;
   onAcceptAndSchedule: (scheduledAt: string | null, note: string | null) => void;
   onPrepare: () => void;
   preparationNode?: React.ReactNode;
   onReschedule?: (item: WalletServiceItem, scheduledAt: string) => Promise<void>;
+  onKeepSchedule?: () => Promise<void>;
 };
 
 // ── Utilidades locales ────────────────────────────────────────────────────────
@@ -67,6 +70,17 @@ function toDateSafe(value: unknown): Date | null {
 function formatUnknownDate(value: unknown): string | null {
   const date = toDateSafe(value);
   return date ? date.toLocaleString("es-MX") : null;
+}
+
+function formatScheduledDate(value: unknown): string | null {
+  const date = toDateSafe(value);
+  if (!date) return null;
+  const day = date.getDate();
+  const month = date.toLocaleString("es-MX", { month: "long" });
+  const year = date.getFullYear();
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${day} de ${month.charAt(0).toUpperCase() + month.slice(1)} del ${year} a las ${hh}:${mm} horas`;
 }
 
 function formatMoney(value: number, currency?: string | null): string {
@@ -212,6 +226,7 @@ export default function SessionRequestOverlay({
   onPrepare,
   preparationNode,
   onReschedule,
+  onKeepSchedule,
 }: SessionRequestOverlayProps) {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
@@ -241,6 +256,7 @@ export default function SessionRequestOverlay({
   const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
   const speechTextRef = useRef<HTMLParagraphElement>(null);
   const speechCursorRef = useRef<HTMLSpanElement>(null);
+  const { toast: rescheduleToast, showToast: showRescheduleToast } = useVibraToast();
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -356,7 +372,7 @@ export default function SessionRequestOverlay({
   const chipType = isExclusive ? "digital_exclusive_session" : "meet_greet_digital";
   const status = req.status;
   const creatorScheduleNote = getCreatorScheduleNote(req);
-  const scheduledAtText = formatUnknownDate(req.scheduledAt);
+  const scheduledAtText = formatScheduledDate(req.scheduledAt);
   const prepareWindowOpen = isPrepareWindowOpen(req.scheduledAt);
   const noShowExpired = isNoShowExpired(req.scheduledAt);
   const canAccept = status === "pending_creator_response";
@@ -371,7 +387,10 @@ export default function SessionRequestOverlay({
     ownerCalendarItems
   );
 
-  const panelTitle = isExclusive ? "Agendar sesión exclusiva" : "Agendar sesión en vivo";
+  const isRescheduleRequested = status === "reschedule_requested";
+  const panelTitle = isRescheduleRequested
+    ? isExclusive ? "Reagendar sesión exclusiva" : "Reagendar sesión en vivo"
+    : isExclusive ? "Agendar sesión exclusiva" : "Agendar sesión en vivo";
 
   if (!mounted || !visible) return null;
 
@@ -405,7 +424,7 @@ export default function SessionRequestOverlay({
 
       {/* Mensaje del comprador + TTS */}
       {req.buyerMessage ? (
-        <div style={{ display: "grid", gap: 6 }}>
+        <div style={{ display: "grid", gap: 6, opacity: isRescheduleRequested ? 0.38 : 1, transition: "opacity 0.2s" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
             {speechState !== "idle" && (
               <button
@@ -459,8 +478,20 @@ export default function SessionRequestOverlay({
         <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>Fecha propuesta: {scheduledAtText}</div>
       )}
 
+      {/* Motivo del cambio de fecha (debajo de la fecha propuesta) */}
+      {isRescheduleRequested && (() => {
+        const lastEntry = req.rescheduleHistory?.at(-1);
+        const rescheduleReason = lastEntry?.reason;
+        if (!rescheduleReason) return null;
+        return (
+          <p style={{ margin: 0, whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.9)" }}>
+            {rescheduleReason}
+          </p>
+        );
+      })()}
+
       {/* Nota del creador */}
-      {creatorScheduleNote && (
+      {creatorScheduleNote && !isRescheduleRequested && (
         <div style={{ borderRadius: 10, border: "1px solid rgba(96,165,250,0.18)", background: "rgba(96,165,250,0.08)", padding: "9px 11px", whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.4, color: "#bfdbfe" }}>
           Mensaje al comprador: {creatorScheduleNote}
         </div>
@@ -514,7 +545,7 @@ export default function SessionRequestOverlay({
               Aceptar y agendar sesión
             </button>
           )}
-          {canReject && (
+          {canReject && !isRescheduleRequested && (
             <button
               type="button"
               onClick={() => setRejectOpen((p) => !p)}
@@ -539,8 +570,8 @@ export default function SessionRequestOverlay({
         </div>
       )}
 
-      {/* Formulario de agendar (expande al aceptar) */}
-      {canAccept && (
+      {/* Formulario de agendar (expande al aceptar o reagendar) */}
+      {(canAccept || isRescheduleRequested) && (
         <div style={{ overflow: "hidden", maxHeight: acceptExpanded ? "700px" : "0", opacity: acceptExpanded ? 1 : 0, transition: "max-height 0.42s cubic-bezier(0.16,1,0.3,1), opacity 0.28s ease" }}>
         <div style={{ display: "grid", gap: 10, paddingTop: 2 }}>
           <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "2px 0" }} />
@@ -568,30 +599,32 @@ export default function SessionRequestOverlay({
               style={{ width: "100%", padding: "12px 13px", borderRadius: 12, border: "none", background: "rgba(255,255,255,0.06)", color: "#fff", outline: "none", fontSize: 13, fontWeight: 600, fontFamily: "inherit", resize: "vertical", boxSizing: "border-box" }}
             />
           </label>
-          <button
-            type="button"
-            onClick={() => onAcceptAndSchedule(selectedScheduleIso, scheduleNote || null)}
-            disabled={busy || scheduleConflict.hasConflict}
-            style={{
-              height: 36,
-              borderRadius: 6,
-              border: "none",
-              background: busy || scheduleConflict.hasConflict
-                ? "rgba(255,255,255,0.10)"
-                : isExclusive
-                ? "#be185d"
-                : "#1d4ed8",
-              color: "#fff",
-              fontWeight: 600,
-              fontSize: 13,
-              cursor: busy || scheduleConflict.hasConflict ? "not-allowed" : "pointer",
-              opacity: busy || scheduleConflict.hasConflict ? 0.55 : 1,
-              fontFamily: "inherit",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            {busy ? "Procesando..." : "Confirmar y agendar sesión"}
-          </button>
+          {!isRescheduleRequested && (
+            <button
+              type="button"
+              onClick={() => onAcceptAndSchedule(selectedScheduleIso, scheduleNote || null)}
+              disabled={busy || scheduleConflict.hasConflict}
+              style={{
+                height: 36,
+                borderRadius: 6,
+                border: "none",
+                background: busy || scheduleConflict.hasConflict
+                  ? "rgba(255,255,255,0.10)"
+                  : isExclusive
+                  ? "#be185d"
+                  : "#1d4ed8",
+                color: "#fff",
+                fontWeight: 600,
+                fontSize: 13,
+                cursor: busy || scheduleConflict.hasConflict ? "not-allowed" : "pointer",
+                opacity: busy || scheduleConflict.hasConflict ? 0.55 : 1,
+                fontFamily: "inherit",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {busy ? "Procesando..." : "Confirmar y agendar sesión"}
+            </button>
+          )}
           <ScheduleCalendarOverlay
             open={calendarOpen}
             title="Calendario del creador"
@@ -607,10 +640,65 @@ export default function SessionRequestOverlay({
       )}
       {(canSchedule || canPrepare) && (
         <div style={{ display: "flex", gap: 8 }}>
-          {canSchedule && (
+          {canSchedule && !isRescheduleRequested && (
             <button type="button" onClick={() => setScheduleOpen((p) => !p)} disabled={busy} style={{ height: 34, borderRadius: 8, border: "1px solid rgba(96,165,250,0.30)", background: "rgba(96,165,250,0.10)", color: "#93c5fd", fontWeight: 500, fontSize: 13, padding: "0 14px", cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.7 : 1, fontFamily: "inherit" }}>
-              {status === "accepted_pending_schedule" ? "Poner fecha" : "Proponer nueva fecha"}
+              Poner fecha
             </button>
+          )}
+          {isRescheduleRequested && !acceptExpanded && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setScheduleNote(req.buyerMessage ?? "");
+                  setAcceptExpanded(true);
+                }}
+                disabled={busy}
+                style={{
+                  flex: 1,
+                  height: 36,
+                  borderRadius: 6,
+                  border: "none",
+                  background: isExclusive
+                    ? "linear-gradient(100deg, #be185d, #f9a8d4)"
+                    : "linear-gradient(100deg, #1d4ed8, #38bdf8)",
+                  color: "#fff",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  cursor: busy ? "not-allowed" : "pointer",
+                  opacity: busy ? 0.7 : 1,
+                  fontFamily: "inherit",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Reagendar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (onKeepSchedule) {
+                    await onKeepSchedule();
+                  }
+                  onClose();
+                }}
+                disabled={busy}
+                style={{
+                  flex: 1,
+                  height: 36,
+                  borderRadius: 6,
+                  border: "none",
+                  background: "rgba(255,255,255,0.10)",
+                  color: "rgba(255,255,255,0.70)",
+                  fontWeight: 500,
+                  fontSize: 13,
+                  cursor: busy ? "not-allowed" : "pointer",
+                  opacity: busy ? 0.7 : 1,
+                  fontFamily: "inherit",
+                }}
+              >
+                No cambiar la fecha
+              </button>
+            </>
           )}
           {canPrepare && (
             <button type="button" onClick={onPrepare} disabled={busy} style={{ height: 34, borderRadius: 8, border: "none", background: "#3b82f6", color: "#fff", fontWeight: 600, fontSize: 13, padding: "0 14px", cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.7 : 1, fontFamily: "inherit" }}>
@@ -728,6 +816,73 @@ export default function SessionRequestOverlay({
     </div>
   );
 
+  // ── Footer fijo (reagendar) ─────────────────────��─────────────────────────
+  const footerNode = isRescheduleRequested && acceptExpanded ? (
+    <div style={{ display: "flex", gap: 8 }}>
+      <button
+        type="button"
+        onClick={async () => {
+          const currentAt = toDateSafe(req.scheduledAt);
+          const newAt = selectedScheduleIso ? new Date(selectedScheduleIso) : null;
+          if (currentAt && newAt) {
+            const sameMinute = Math.floor(currentAt.getTime() / 60000) === Math.floor(newAt.getTime() / 60000);
+            if (sameMinute) {
+              showRescheduleToast("No puedes reagendar en la misma fecha y horario", "error");
+              return;
+            }
+          }
+          try {
+            await onSchedule(selectedScheduleIso, scheduleNote || null);
+            showRescheduleToast("✅ Sesión reagendada correctamente.", "success");
+            onClose();
+          } catch {
+            // el error ya lo muestra handleCreatorScheduleDirect
+          }
+        }}
+        disabled={busy || scheduleConflict.hasConflict}
+        style={{
+          flex: 1,
+          height: 44,
+          borderRadius: 10,
+          border: "none",
+          background: busy || scheduleConflict.hasConflict
+            ? "rgba(255,255,255,0.10)"
+            : isExclusive
+            ? "#be185d"
+            : "#1d4ed8",
+          color: "#fff",
+          fontWeight: 600,
+          fontSize: 14,
+          cursor: busy || scheduleConflict.hasConflict ? "not-allowed" : "pointer",
+          opacity: busy || scheduleConflict.hasConflict ? 0.55 : 1,
+          fontFamily: "inherit",
+          letterSpacing: "-0.01em",
+        }}
+      >
+        {busy ? "Procesando..." : "Confirmar nueva fecha"}
+      </button>
+      <button
+        type="button"
+        onClick={() => { setAcceptExpanded(false); setCalendarOpen(false); }}
+        disabled={busy}
+        style={{
+          flex: 1,
+          height: 44,
+          borderRadius: 10,
+          border: "none",
+          background: "rgba(255,255,255,0.10)",
+          color: "rgba(255,255,255,0.70)",
+          fontWeight: 500,
+          fontSize: 14,
+          cursor: busy ? "not-allowed" : "pointer",
+          fontFamily: "inherit",
+        }}
+      >
+        Cancelar
+      </button>
+    </div>
+  ) : null;
+
   // ── Header compartido ─────────────────────────────────────────────────────
   const headerNode = (
     <header
@@ -769,6 +924,7 @@ export default function SessionRequestOverlay({
   const panel = (
     <>
       <style>{OVERLAY_CSS}</style>
+      <VibraToast toast={rescheduleToast} />
       {isMobile ? (
         // Bottom sheet
         <div
@@ -804,6 +960,11 @@ export default function SessionRequestOverlay({
             <div className="sro-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "22px 18px 24px" }}>
               {bodyContent}
             </div>
+            {footerNode && (
+              <div className="sro-z2" style={{ flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.08)", padding: "12px 18px 28px" }}>
+                {footerNode}
+              </div>
+            )}
           </div>
         </div>
       ) : (
@@ -837,6 +998,11 @@ export default function SessionRequestOverlay({
             <div className="sro-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "22px 20px 20px" }}>
               {bodyContent}
             </div>
+            {footerNode && (
+              <div className="sro-z2" style={{ flexShrink: 0, borderTop: "1px solid rgba(255,255,255,0.08)", padding: "12px 20px 16px" }}>
+                {footerNode}
+              </div>
+            )}
           </section>
         </div>
       )}

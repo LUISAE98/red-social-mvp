@@ -51,6 +51,7 @@ import {
   proposeMeetGreetSchedule,
   rejectMeetGreetRequest,
   setMeetGreetPreparing,
+  declineMeetGreetReschedule,
 } from "@/lib/meetGreet/meetGreetRequests";
 
 import {
@@ -58,6 +59,7 @@ import {
   proposeExclusiveSessionSchedule,
   rejectExclusiveSessionRequest,
   setExclusiveSessionPreparing,
+  declineExclusiveSessionReschedule,
 } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 
 import LiveRingAvatar from "@/app/components/LiveRing/LiveRingAvatar";
@@ -977,6 +979,18 @@ if (scheduleConflict.hasConflict) {
     }
   }
 
+  async function handleKeepSchedule(requestId: string, kind: "meet_greet" | "exclusive_session") {
+    try {
+      if (kind === "exclusive_session") {
+        await declineExclusiveSessionReschedule({ requestId });
+      } else {
+        await declineMeetGreetReschedule(requestId);
+      }
+    } catch {
+      // silently ignore — overlay closes either way
+    }
+  }
+
   async function handleCreatorScheduleDirect(requestId: string, kind: "meet_greet" | "exclusive_session", scheduledAtIso: string | null, note: string | null) {
     if (!scheduledAtIso) {
       setMeetGreetError(requestId, "Selecciona dÃ­a, mes, aÃ±o, hora y minuto.");
@@ -1001,9 +1015,10 @@ if (scheduleConflict.hasConflict) {
       } else {
         await proposeMeetGreetSchedule(payload);
       }
-      showMyGroupsToast("âœ… Fecha propuesta/agendada correctamente.");
+      showMyGroupsToast("✅ Fecha propuesta/agendada correctamente.");
     } catch (e: unknown) {
       showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo guardar la fecha.", "error");
+      throw e;
     } finally {
       setMeetGreetBusy(requestId, false);
     }
@@ -2230,7 +2245,7 @@ boxShadow:
                                         disabled={busy}
                                         style={{ width: "100%", height: 30, borderRadius: 8, border: "none", background: "rgba(59,130,246,0.18)", color: "#93c5fd", fontWeight: 520, fontSize: 12, cursor: busy ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: busy ? 0.7 : 1 }}
                                       >
-                                        {busy ? "Procesando..." : "Agendar solicitud"}
+                                        {busy ? "Procesando..." : req.status === "reschedule_requested" ? "Reagendar" : "Agendar solicitud"}
                                       </button>
                                     </div>
                                   );
@@ -2630,6 +2645,7 @@ maxWidth: 220,
           onPrepare={() => handlePrepare(sessionOverlayData.id, "creator", sessionOverlayData.serviceKind)}
           preparationNode={renderPreparationPanel(sessionOverlayData.id, sessionOverlayData.req, (preparationRoleMap[sessionOverlayData.id] as "creator") ?? "creator")}
           onReschedule={(item, scheduledAt) => handleRescheduleConfirm(item, scheduledAt, null)}
+          onKeepSchedule={() => handleKeepSchedule(sessionOverlayData.id, sessionOverlayData.serviceKind)}
         />
       )}
 

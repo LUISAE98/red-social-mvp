@@ -4,8 +4,9 @@ import { onRequest } from "firebase-functions/v2/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 
-import { expireMeetGreetNoShowsHandler } from "./meetGreetRequests";
-import { expireExclusiveSessionNoShowsHandler } from "./exclusiveSessionRequests";
+import { expireMeetGreetNoShowsHandler, autoExpirePendingMeetGreetRequestsHandler } from "./meetGreetRequests";
+import { expireExclusiveSessionNoShowsHandler, autoExpirePendingExclusiveSessionRequestsHandler } from "./exclusiveSessionRequests";
+import { autoExpirePendingGreetingRequestsHandler } from "./greetingRequests";
 
 // Healthcheck público
 export const healthcheck = onRequest(
@@ -45,6 +46,25 @@ export const expireScheduledServiceNoShows = onSchedule(
   }
 );
 
+export const autoExpirePendingServiceRequests = onSchedule(
+  {
+    schedule: "every 24 hours",
+    timeZone: "America/Mexico_City",
+    region: "us-central1",
+  },
+  async () => {
+    logger.info("autoExpirePendingServiceRequests started");
+
+    await Promise.all([
+      autoExpirePendingGreetingRequestsHandler(),
+      autoExpirePendingMeetGreetRequestsHandler(),
+      autoExpirePendingExclusiveSessionRequestsHandler(),
+    ]);
+
+    logger.info("autoExpirePendingServiceRequests finished");
+  }
+);
+
 // Join requests
 export { approveJoinRequest, rejectJoinRequest } from "./joinRequests";
 
@@ -72,6 +92,7 @@ export {
   rejectMeetGreetRequest,
   proposeMeetGreetSchedule,
   requestMeetGreetReschedule,
+  declineMeetGreetReschedule,
   requestMeetGreetRefund,
   setMeetGreetPreparing,
 } from "./meetGreetRequests";
@@ -83,6 +104,7 @@ export {
   rejectExclusiveSessionRequest,
   proposeExclusiveSessionSchedule,
   requestExclusiveSessionReschedule,
+  declineExclusiveSessionReschedule,
   requestExclusiveSessionRefund,
   setExclusiveSessionPreparing,
 } from "./exclusiveSessionRequests";

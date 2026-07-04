@@ -10,7 +10,7 @@ if (admin.apps.length === 0) {
 const db = admin.firestore();
 
 type GreetingType = "saludo" | "consejo" | "mensaje";
-type GreetingStatus = "pending" | "accepted" | "rejected";
+type GreetingStatus = "pending" | "accepted" | "rejected" | "refund_requested";
 type GreetingSource = "group" | "profile";
 
 type GroupMonetizationShape = {
@@ -587,3 +587,35 @@ export const respondGreetingRequest = onCall(
     return { ok: true };
   }
 );
+
+export async function autoExpirePendingGreetingRequestsHandler(): Promise<number> {
+  const twoMonthsAgo = new Date();
+  twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+  const cutoff = admin.firestore.Timestamp.fromDate(twoMonthsAgo);
+
+  const snap = await db
+    .collection("greetingRequests")
+    .where("status", "==", "pending")
+    .where("createdAt", "<=", cutoff)
+    .limit(200)
+    .get();
+
+  if (snap.empty) return 0;
+
+  const now = admin.firestore.Timestamp.now();
+  const batch = db.batch();
+
+  snap.docs.forEach((doc) => {
+    batch.update(doc.ref, {
+      status: "refund_requested" as GreetingStatus,
+      rejectionReason: "El creador no respondió la solicitud.",
+      autoExpiredAt: now,
+      updatedAt: now,
+    });
+  });
+
+  await batch.commit();
+
+  logger.info("auto_expire_pending_greeting_requests", { expiredCount: snap.size });
+  return snap.size;
+}

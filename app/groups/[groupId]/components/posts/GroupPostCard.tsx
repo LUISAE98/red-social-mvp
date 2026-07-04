@@ -99,6 +99,7 @@ type GroupPostCardProps = {
   onGroupMemberBlockComplete?: () => Promise<void> | void;
   canCommentOnPosts?: boolean;
   commentBlockedReason?: InteractionBlockedReason;
+  showDeletedBanner?: boolean;
 };
 
 type ModerationAction =
@@ -1024,6 +1025,7 @@ onToggleProfilePin,
   onGroupMemberBlockComplete,
   canCommentOnPosts = true,
   commentBlockedReason = null,
+  showDeletedBanner = false,
 }: GroupPostCardProps) {
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [commentsPanelOpen, setCommentsPanelOpen] = useState(false);
@@ -2943,6 +2945,34 @@ const shouldClampFeedPostText =
 
   return (
     <article ref={cardRef} style={cardStyle}>
+      {showDeletedBanner && post.isDeleted === true && (
+        <div
+          style={{
+            background: "#1a0505",
+            borderBottom: "1px solid rgba(239, 68, 68, 0.25)",
+            margin: isMobile ? "-14px -12px 12px" : "-12px -12px 10px",
+            padding: "6px 14px",
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14H6L5 6" />
+            <path d="M10 11v6M14 11v6" />
+            <path d="M9 6V4h6v2" />
+          </svg>
+          <div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#f87171" }}>Post eliminado</span>
+            {post.deletedAt && (
+              <span style={{ fontSize: 10, color: "rgba(239,68,68,0.65)", marginLeft: 6 }}>
+                {post.deletedAt.toDate().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
       <div
         style={{
           display: "flex",
@@ -5401,6 +5431,7 @@ padding: "0 0 2px 0",
   onModerationComplete={async () => {
     await onModerationComplete?.();
   }}
+  showAdminDetails={showDeletedBanner}
 />
   {reportTarget && (
     <ReportModal target={reportTarget} onClose={closeReport} />

@@ -176,6 +176,12 @@ export function proposeExclusiveSessionSchedule(payload: {
   });
 }
 
+export function declineExclusiveSessionReschedule(payload: { requestId: string }) {
+  return callExclusiveSessionFunction("declineExclusiveSessionReschedule", {
+    requestId: assertNonEmptyString(payload.requestId, "requestId"),
+  });
+}
+
 export function requestExclusiveSessionReschedule(payload: {
   requestId: string;
   reason?: string | null;

@@ -88,6 +88,10 @@ export function schedulePartsToIso(parts: ScheduleParts): string | null {
     return null;
   }
 
+  if (date.getTime() <= Date.now()) {
+    return null;
+  }
+
   return date.toISOString();
 }
 
@@ -96,59 +100,123 @@ export default function ScheduleDateTimeSelector({
   onChange,
   disabled = false,
 }: Props) {
-  const currentYear = new Date().getFullYear();
-
-  const yearOptions = Array.from({ length: 4 }, (_, index) =>
-    String(currentYear + index)
-  );
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const currentDay = now.getDate();
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
 
   const selectedYear = Number(value.year);
-const selectedMonth = Number(value.month);
+  const selectedMonth = Number(value.month);
+  const selectedDay = Number(value.day);
+  const selectedHour = Number(value.hour);
 
-const daysInSelectedMonth =
-  Number.isInteger(selectedYear) &&
-  Number.isInteger(selectedMonth) &&
-  selectedMonth >= 1 &&
-  selectedMonth <= 12
-    ? new Date(selectedYear, selectedMonth, 0).getDate()
-    : 31;
+  const isSelectedYear = selectedYear === currentYear;
+  const isSelectedYearMonth = isSelectedYear && selectedMonth === currentMonth;
+  const isToday =
+    isSelectedYearMonth && selectedDay === currentDay;
+  const isSameHour = isToday && selectedHour === currentHour;
 
-const dayOptions = Array.from({ length: daysInSelectedMonth }, (_, index) =>
-  String(index + 1).padStart(2, "0")
-);
-
-  const hourOptions = Array.from({ length: 24 }, (_, index) =>
-    String(index).padStart(2, "0")
+  const yearOptions = Array.from({ length: 4 }, (_, i) =>
+    String(currentYear + i)
   );
 
-  const minuteOptions = ["00", "15", "30", "45"];
+  const daysInSelectedMonth =
+    Number.isInteger(selectedYear) &&
+    Number.isInteger(selectedMonth) &&
+    selectedMonth >= 1 &&
+    selectedMonth <= 12
+      ? new Date(selectedYear, selectedMonth, 0).getDate()
+      : 31;
+
+  const allDayOptions = Array.from({ length: daysInSelectedMonth }, (_, i) =>
+    String(i + 1).padStart(2, "0")
+  );
+  const dayOptions = isSelectedYearMonth
+    ? allDayOptions.filter((d) => Number(d) >= currentDay)
+    : allDayOptions;
+
+  const allMonthOptions = MONTH_OPTIONS;
+  const monthOptions = isSelectedYear
+    ? allMonthOptions.filter((m) => Number(m.value) >= currentMonth)
+    : allMonthOptions;
+
+  const allHourOptions = Array.from({ length: 24 }, (_, i) =>
+    String(i).padStart(2, "0")
+  );
+  const hourOptions = isToday
+    ? allHourOptions.filter((h) => {
+        const hNum = Number(h);
+        if (hNum > currentHour) return true;
+        if (hNum === currentHour) {
+          return ["00", "15", "30", "45"].some((m) => Number(m) > currentMinute);
+        }
+        return false;
+      })
+    : allHourOptions;
+
+  const allMinuteOptions = ["00", "15", "30", "45"];
+  const minuteOptions = isSameHour
+    ? allMinuteOptions.filter((m) => Number(m) > currentMinute)
+    : allMinuteOptions;
 
   function updatePart(key: keyof ScheduleParts, nextValue: string) {
-  const nextParts = {
-    ...value,
-    [key]: nextValue,
-  };
+    const nextParts: ScheduleParts = { ...value, [key]: nextValue };
 
-  const nextYear = Number(nextParts.year);
-  const nextMonth = Number(nextParts.month);
-  const nextDay = Number(nextParts.day);
+    const nextYear = Number(nextParts.year);
+    const nextMonth = Number(nextParts.month);
+    const nextDay = Number(nextParts.day);
+    const nextHour = Number(nextParts.hour);
 
-  if (
-    (key === "month" || key === "year") &&
-    Number.isInteger(nextYear) &&
-    Number.isInteger(nextMonth) &&
-    nextMonth >= 1 &&
-    nextMonth <= 12
-  ) {
-    const maxDay = new Date(nextYear, nextMonth, 0).getDate();
-
-    if (Number.isInteger(nextDay) && nextDay > maxDay) {
-      nextParts.day = String(maxDay).padStart(2, "0");
+    if (
+      (key === "month" || key === "year") &&
+      Number.isInteger(nextYear) &&
+      Number.isInteger(nextMonth) &&
+      nextMonth >= 1 &&
+      nextMonth <= 12
+    ) {
+      const maxDay = new Date(nextYear, nextMonth, 0).getDate();
+      if (Number.isInteger(nextDay) && nextDay > maxDay) {
+        nextParts.day = String(maxDay).padStart(2, "0");
+      }
     }
-  }
 
-  onChange(nextParts);
-}
+    const nowSnap = new Date();
+    const nYear = nowSnap.getFullYear();
+    const nMonth = nowSnap.getMonth() + 1;
+    const nDay = nowSnap.getDate();
+    const nHour = nowSnap.getHours();
+    const nMinute = nowSnap.getMinutes();
+
+    const nextIsToday =
+      nextYear === nYear && nextMonth === nMonth && nextDay === nDay;
+    const nextIsSameHour = nextIsToday && nextHour === nHour;
+
+    if (nextIsToday) {
+      const validHours = Array.from({ length: 24 }, (_, i) => i).filter((h) => {
+        if (h > nHour) return true;
+        if (h === nHour) return ["00", "15", "30", "45"].some((m) => Number(m) > nMinute);
+        return false;
+      });
+
+      if (validHours.length > 0 && !validHours.includes(nextHour)) {
+        nextParts.hour = String(validHours[0]).padStart(2, "0");
+        nextParts.minute = "00";
+      }
+    }
+
+    if (nextIsSameHour) {
+      const validMinutes = ["00", "15", "30", "45"].filter(
+        (m) => Number(m) > nMinute
+      );
+      if (validMinutes.length > 0 && !validMinutes.includes(nextParts.minute)) {
+        nextParts.minute = validMinutes[0];
+      }
+    }
+
+    onChange(nextParts);
+  }
 
   return (
     <>
@@ -235,9 +303,9 @@ const dayOptions = Array.from({ length: daysInSelectedMonth }, (_, index) =>
               disabled={disabled}
               className="field"
             >
-              {dayOptions.map((day) => (
-                <option key={day} value={day}>
-                  {day}
+              {dayOptions.map((d) => (
+                <option key={d} value={d}>
+                  {d}
                 </option>
               ))}
             </select>
@@ -251,7 +319,7 @@ const dayOptions = Array.from({ length: daysInSelectedMonth }, (_, index) =>
               disabled={disabled}
               className="field"
             >
-              {MONTH_OPTIONS.map((month) => (
+              {monthOptions.map((month) => (
                 <option key={month.value} value={month.value}>
                   {month.label}
                 </option>
@@ -285,9 +353,9 @@ const dayOptions = Array.from({ length: daysInSelectedMonth }, (_, index) =>
               disabled={disabled}
               className="field"
             >
-              {hourOptions.map((hour) => (
-                <option key={hour} value={hour}>
-                  {hour}
+              {hourOptions.map((h) => (
+                <option key={h} value={h}>
+                  {h}
                 </option>
               ))}
             </select>
@@ -301,9 +369,9 @@ const dayOptions = Array.from({ length: daysInSelectedMonth }, (_, index) =>
               disabled={disabled}
               className="field"
             >
-              {minuteOptions.map((minute) => (
-                <option key={minute} value={minute}>
-                  {minute}
+              {minuteOptions.map((m) => (
+                <option key={m} value={m}>
+                  {m}
                 </option>
               ))}
             </select>

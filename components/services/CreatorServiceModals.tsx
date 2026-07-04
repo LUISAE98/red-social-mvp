@@ -48,6 +48,7 @@ type CreatorServiceModalsProps = {
   onChangeExclusiveSessionMessage: (value: string) => void;
 
   serviceToast: string | null;
+  isRetry?: boolean;
 
   // Legacy style props — kept for API compat, styles handled internally now
   subtitleStyle?: CSSProperties;
@@ -394,6 +395,7 @@ export default function CreatorServiceModals({
   onCloseExclusiveSession, onSubmitExclusiveSession, onChangeExclusiveSessionMessage,
 
   serviceToast,
+  isRetry,
 }: CreatorServiceModalsProps) {
   const [mounted, setMounted] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
@@ -472,7 +474,7 @@ export default function CreatorServiceModals({
           disabled={greetSubmitting || !acceptedTerms}
           style={{ ...s.primaryBtn, background: greetAccent, ...((greetSubmitting || !acceptedTerms) ? s.primaryBtnDisabled : {}) }}
         >
-          {greetSubmitting ? "Enviando..." : greetPriceLabel ? <>Continuar al pago <span style={{ color: "#fff", opacity: 0.5, margin: "0 4px" }}>·</span> {greetPriceLabel}</> : "Continuar al pago"}
+          {greetSubmitting ? "Enviando..." : isRetry ? "Intentar" : greetPriceLabel ? <>Continuar al pago <span style={{ color: "#fff", opacity: 0.5, margin: "0 4px" }}>·</span> {greetPriceLabel}</> : "Continuar al pago"}
         </button>
       }
     >
@@ -651,6 +653,7 @@ export default function CreatorServiceModals({
     onClose: () => void;
     onSubmit: () => void;
     onChangeMessage: (value: string) => void;
+    isRetry?: boolean;
   }) {
     const maxLen = params.maxLength ?? 500;
     const remaining = maxLen - params.message.length;
@@ -673,7 +676,7 @@ export default function CreatorServiceModals({
             disabled={isDisabled}
             style={{ ...s.primaryBtn, background: btnBg, ...(isDisabled ? s.primaryBtnDisabled : {}) }}
           >
-            {params.submitting ? "Enviando..." : params.priceLabel
+            {params.submitting ? "Enviando..." : params.isRetry ? "Intentar" : params.priceLabel
               ? <>Continuar al pago <span style={{ color: "#fff", opacity: 0.5, margin: "0 4px" }}>·</span> {params.priceLabel}</>
               : params.submitLabel}
           </button>
@@ -848,6 +851,7 @@ export default function CreatorServiceModals({
       onClose: onCloseMeetGreet,
       onSubmit: onSubmitMeetGreet,
       onChangeMessage: onChangeMeetGreetMessage,
+      isRetry,
     }),
     document.body
   );
@@ -905,6 +909,7 @@ export default function CreatorServiceModals({
       onClose: onCloseExclusiveSession,
       onSubmit: onSubmitExclusiveSession,
       onChangeMessage: onChangeExclusiveSessionMessage,
+      isRetry,
     }),
     document.body
   );

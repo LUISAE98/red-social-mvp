@@ -369,6 +369,7 @@ const [greetSubmitting, setGreetSubmitting] = useState(false);
 const [greetType, setGreetType] = useState<GreetingType>("saludo");
 const [toName, setToName] = useState("");
 const [instructions, setInstructions] = useState("");
+const [isRetry, setIsRetry] = useState(false);
 const [allowCreatorStory, setAllowCreatorStory] = useState(true);
 const [greetError, setGreetError] = useState<string | null>(null);
 const [greetSuccess, setGreetSuccess] = useState<string | null>(null);
@@ -749,6 +750,7 @@ function resetGreetingModal() {
   setToName("");
   setInstructions("");
   setAllowCreatorStory(true);
+  setIsRetry(false);
 }
 
 function resetMeetGreetModal() {
@@ -756,6 +758,7 @@ function resetMeetGreetModal() {
   setMeetGreetSubmitting(false);
   setMeetGreetError(null);
   setMeetGreetMessage("");
+  setIsRetry(false);
 }
 
 function resetExclusiveSessionModal() {
@@ -763,6 +766,7 @@ function resetExclusiveSessionModal() {
   setExclusiveSessionSubmitting(false);
   setExclusiveSessionError(null);
   setExclusiveSessionMessage("");
+  setIsRetry(false);
 }
 
   useEffect(() => {
@@ -967,20 +971,38 @@ function handleUnblockFailed() {
     return;
   }
 
-  if (service === "saludo" || service === "consejo") {
-    setGreetType(service);
+  const retry = searchParams.get("retry") === "true";
+  const prefillToName = searchParams.get("toName") ?? "";
+  const prefillInstructions = searchParams.get("instructions") ?? "";
+  const prefillMessage = searchParams.get("message") ?? "";
+
+  if (service === "saludo" || service === "consejo" || service === "mensaje") {
+    setGreetType(service as GreetingType);
+    if (retry) {
+      setIsRetry(true);
+      if (prefillToName) setToName(prefillToName);
+      if (prefillInstructions) setInstructions(prefillInstructions);
+    }
     setGreetOpen(true);
     closeServiceQueryParam();
     return;
   }
 
   if (service === "meet_greet_digital") {
+    if (retry) {
+      setIsRetry(true);
+      if (prefillMessage) setMeetGreetMessage(prefillMessage);
+    }
     setMeetGreetOpen(true);
     closeServiceQueryParam();
     return;
   }
 
   if (service === "clase_personalizada") {
+    if (retry) {
+      setIsRetry(true);
+      if (prefillMessage) setExclusiveSessionMessage(prefillMessage);
+    }
     setExclusiveSessionOpen(true);
     closeServiceQueryParam();
   }
@@ -2506,6 +2528,7 @@ await createExclusiveSessionRequest({
   onCloseExclusiveSession={resetExclusiveSessionModal}
   onSubmitExclusiveSession={handleSubmitExclusiveSession}
   onChangeExclusiveSessionMessage={setExclusiveSessionMessage}
+  isRetry={isRetry}
   serviceToast={serviceToast}
   subtitleStyle={styles.subtitle}
   textStyle={styles.microText}

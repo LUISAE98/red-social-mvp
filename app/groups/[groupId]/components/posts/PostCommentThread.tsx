@@ -54,6 +54,7 @@ type PostCommentThreadProps = {
   ) => Promise<CommentReply[]>;
   onGroupMemberBlockComplete?: () => Promise<void> | void;
   onModerationComplete?: () => Promise<void> | void;
+  showAdminDetails?: boolean;
 };
 
 const fontStack =
@@ -996,6 +997,7 @@ export default function PostCommentThread({
   onDeleteReply,
   onGroupMemberBlockComplete,
   onModerationComplete,
+  showAdminDetails = false,
 }: PostCommentThreadProps) {
   const { reportTarget, openReport, closeReport } = useReport();
   const [replies, setReplies] = useState<CommentReply[] | null>(null);
@@ -1269,6 +1271,29 @@ export default function PostCommentThread({
 
   return (
     <div style={{ display: "grid", gap: 8 }}>
+      {showAdminDetails && comment.isDeleted === true && (
+        <div style={{
+          background: "rgba(26,5,5,0.9)",
+          border: "1px solid rgba(239,68,68,0.2)",
+          borderRadius: 6,
+          padding: "5px 10px",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+            <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+          </svg>
+          <div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "#f87171" }}>Comentario eliminado</span>
+            {comment.deletedAt && (
+              <span style={{ fontSize: 10, color: "rgba(239,68,68,0.6)", marginLeft: 6 }}>
+                {comment.deletedAt.toDate().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <Link href={author.profileHref} style={{ flexShrink: 0 }}>
           <Avatar name={author.authorName} avatarUrl={author.avatarUrl} />
@@ -1378,6 +1403,29 @@ export default function PostCommentThread({
                   }}
                 >
                   {renderWithLinks(localCommentText)}
+                </div>
+              )}
+
+              {showAdminDetails && comment.editHistory && comment.editHistory.length > 0 && (
+                <div style={{ marginTop: 8, display: "grid", gap: 4 }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(251,191,36,0.65)", letterSpacing: "0.05em" }}>
+                    VERSIONES ANTERIORES
+                  </div>
+                  {comment.editHistory.map((entry, idx) => (
+                    <div key={idx} style={{
+                      padding: "5px 8px",
+                      borderRadius: 6,
+                      background: "rgba(251,191,36,0.05)",
+                      border: "1px solid rgba(251,191,36,0.12)",
+                    }}>
+                      <div style={{ fontSize: 10, color: "rgba(251,191,36,0.5)", marginBottom: 3 }}>
+                        {entry.editedAt?.toDate().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 300, color: "rgba(255,255,255,0.5)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                        {entry.previousText}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -1522,7 +1570,32 @@ export default function PostCommentThread({
                   (!isOwner && !isModerator && !!currentUserId && currentUserId !== reply.authorId);
 
                 return (
-                  <div key={reply.id} style={{ display: "flex", alignItems: "flex-start", gap: 9, paddingLeft: 4 }}>
+                  <div key={reply.id} style={{ display: "grid", gap: 6 }}>
+                    {showAdminDetails && reply.isDeleted === true && (
+                      <div style={{
+                        background: "rgba(26,5,5,0.9)",
+                        border: "1px solid rgba(239,68,68,0.2)",
+                        borderRadius: 6,
+                        padding: "4px 9px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        marginLeft: 4,
+                      }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                          <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
+                        </svg>
+                        <div>
+                          <span style={{ fontSize: 10.5, fontWeight: 700, color: "#f87171" }}>Respuesta eliminada</span>
+                          {reply.deletedAt && (
+                            <span style={{ fontSize: 9.5, color: "rgba(239,68,68,0.6)", marginLeft: 6 }}>
+                              {reply.deletedAt.toDate().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 9, paddingLeft: 4 }}>
                     <Link href={replyAuthor.profileHref} style={{ flexShrink: 0 }}>
                       <Avatar name={replyAuthor.authorName} avatarUrl={replyAuthor.avatarUrl} size={26} />
                     </Link>
@@ -1641,6 +1714,29 @@ export default function PostCommentThread({
                         </div>
                       )}
 
+                      {showAdminDetails && reply.editHistory && reply.editHistory.length > 0 && (
+                        <div style={{ marginTop: 7, display: "grid", gap: 4 }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: "rgba(251,191,36,0.65)", letterSpacing: "0.05em" }}>
+                            VERSIONES ANTERIORES
+                          </div>
+                          {reply.editHistory.map((entry, idx) => (
+                            <div key={idx} style={{
+                              padding: "4px 7px",
+                              borderRadius: 5,
+                              background: "rgba(251,191,36,0.05)",
+                              border: "1px solid rgba(251,191,36,0.12)",
+                            }}>
+                              <div style={{ fontSize: 9.5, color: "rgba(251,191,36,0.5)", marginBottom: 2 }}>
+                                {entry.editedAt?.toDate().toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "short" })}
+                              </div>
+                              <div style={{ fontSize: 11.5, fontWeight: 300, color: "rgba(255,255,255,0.5)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                                {entry.previousText}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       {/* Reply action row */}
                       <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 12 }}>
                         {canCommentOnPosts && (
@@ -1696,6 +1792,7 @@ export default function PostCommentThread({
                         })}
                       />
                     )}
+                  </div>
                   </div>
                 );
               })}

@@ -4,7 +4,7 @@
 
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { collection, doc, getDoc, onSnapshot, query, Timestamp, where } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, orderBy, query, Timestamp, where } from "firebase/firestore";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { auth, db, functions } from "@/lib/firebase";
 import type {
@@ -21,9 +21,11 @@ import {
   deletePostComment,
   deletePostCommentReply,
   fetchCommentReplies,
+  fetchCommentRepliesAdmin,
   fetchGroupPostsPage,
   fetchGroupPublicPostsPage,
   fetchPostComments,
+  fetchPostCommentsAdmin,
   softDeletePost,
   toggleGroupPostPin,
   togglePostFlame,
@@ -432,6 +434,7 @@ export default function GroupPostsFeed({
 
   const [broadcastLive, setBroadcastLive] = useState<Post | null>(null);
   const [posts, setPosts] = useState<PostWithAuthorState[]>([]);
+  const [deletedPosts, setDeletedPosts] = useState<PostWithAuthorState[]>([]);
   const [error, setError] = useState<string | null>(null);
   const { toast: feedToast, showToast: showFeedToast } = useVibraToast();
   useEffect(() => { if (error) showFeedToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -539,6 +542,25 @@ export default function GroupPostsFeed({
 
     return () => unsub();
   }, []);
+
+  // Admin-only: subscribe to deleted posts for this group
+  useEffect(() => {
+    if (!readOnly) return;
+    const q = query(
+      collection(db, "posts"),
+      where("groupId", "==", groupId),
+      where("isDeleted", "==", true),
+      orderBy("createdAt", "desc"),
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      setDeletedPosts(
+        snap.docs.map((d) =>
+          normalizeFeedPost({ ...(d.data() as Post), id: d.id } as PostWithAuthorState),
+        ),
+      );
+    }, () => {});
+    return () => unsub();
+  }, [readOnly, groupId]);
 
   // Subscribe to the group document to detect broadcast lives.
   // When activeLivePostId is set on this group and the post originates from a different
@@ -1294,6 +1316,15 @@ const uploadedVideoCovers =
     }
   }
 
+  async function handleLoadCommentsAdmin(postId: string): Promise<Comment[]> {
+    try {
+      return await fetchPostCommentsAdmin(postId);
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar los comentarios.");
+      throw e;
+    }
+  }
+
   async function syncPostCommentsCount(postId: string) {
     const comments = await fetchPostComments(postId);
 
@@ -1353,6 +1384,18 @@ const uploadedVideoCovers =
     try {
       setError(null);
       return await fetchCommentReplies({ postId, commentId });
+    } catch (e: unknown) {
+      setError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las respuestas.");
+      throw e;
+    }
+  }
+
+  async function handleLoadRepliesAdmin(
+    postId: string,
+    commentId: string,
+  ): Promise<CommentReply[]> {
+    try {
+      return await fetchCommentRepliesAdmin({ postId, commentId });
     } catch (e: unknown) {
       setError((e instanceof Error ? e.message : null) ?? "No se pudieron cargar las respuestas.");
       throw e;
@@ -1591,10 +1634,10 @@ const shellStyle: CSSProperties = {
             post={broadcastLive}
             groupId={groupId}
             canDelete={false}
-            onLoadComments={handleLoadComments}
+            onLoadComments={readOnly ? handleLoadCommentsAdmin : handleLoadComments}
             onCreateComment={readOnly ? async () => [] : handleCreateComment}
             onDeleteComment={readOnly ? async () => [] : handleDeleteComment}
-            onLoadReplies={handleLoadReplies}
+            onLoadReplies={readOnly ? handleLoadRepliesAdmin : handleLoadReplies}
             onCreateReply={readOnly ? async () => [] : handleCreateReply}
             onDeleteReply={readOnly ? async () => [] : handleDeleteReply}
             onToggleFlame={readOnly ? undefined : handleToggleFlame}
@@ -1609,13 +1652,18 @@ const shellStyle: CSSProperties = {
         </div>
       )}
 
-      {!broadcastLiveOnly && !loadingInitial && posts.length === 0 && !broadcastLive && (
+      {!broadcastLiveOnly && !loadingInitial && posts.length === 0 && deletedPosts.length === 0 && !broadcastLive && (
         <div style={noticeStyle}>
           Todavía no hay publicaciones en esta comunidad.
         </div>
       )}
 
-      {posts.map((post, index) => {
+      {(readOnly
+        ? [...posts, ...deletedPosts].sort(
+            (a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0),
+          )
+        : posts
+      ).map((post, index) => {
         const canDeletePost =
           isOwner || isModerator || currentUid === post.authorId;
 
@@ -1641,10 +1689,10 @@ const shellStyle: CSSProperties = {
               groupId={groupId}
               canDelete={readOnly ? false : canDeletePost}
               onDelete={readOnly ? undefined : (canDeletePost ? handleDeletePost : undefined)}
-              onLoadComments={handleLoadComments}
+              onLoadComments={readOnly ? handleLoadCommentsAdmin : handleLoadComments}
               onCreateComment={readOnly ? async () => [] : handleCreateComment}
               onDeleteComment={readOnly ? async () => [] : handleDeleteComment}
-              onLoadReplies={handleLoadReplies}
+              onLoadReplies={readOnly ? handleLoadRepliesAdmin : handleLoadReplies}
               onCreateReply={readOnly ? async () => [] : handleCreateReply}
               onDeleteReply={readOnly ? async () => [] : handleDeleteReply}
               onToggleFlame={readOnly ? undefined : handleToggleFlame}
@@ -1662,6 +1710,7 @@ const shellStyle: CSSProperties = {
               onGroupMemberBlockComplete={readOnly ? undefined : handleGroupMemberBlockComplete}
               canCommentOnPosts={readOnly ? false : canCommentOnPosts}
               commentBlockedReason={readOnly ? null : commentBlockedReason}
+              showDeletedBanner={readOnly && post.isDeleted === true}
             />
           </div>
         );

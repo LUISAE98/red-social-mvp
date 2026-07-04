@@ -295,6 +295,18 @@ export async function proposeMeetGreetSchedule(
   }
 }
 
+export async function declineMeetGreetReschedule(requestId: string): Promise<void> {
+  try {
+    const callable = httpsCallable<{ requestId: string }, { ok: boolean }>(
+      functions,
+      "declineMeetGreetReschedule"
+    );
+    await callable({ requestId: assertNonEmptyString(requestId, "requestId") });
+  } catch (error: unknown) {
+    throw normalizeCallableError(error);
+  }
+}
+
 export async function requestMeetGreetReschedule(
   input: RequestMeetGreetRescheduleInput
 ): Promise<RequestMeetGreetRescheduleResult> {

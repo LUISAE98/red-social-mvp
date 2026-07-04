@@ -2229,11 +2229,13 @@ function canModeratePostCommentData(data) {
     );
 }
 
-      allow get: if canReadPost()
+      allow get: if isPlatformMod()
+  || canReadPost()
   || canReadPostFromOwnHomeFeed()
   || canReadPostFromOwnSavedPosts();
 
-allow list: if canReadPost()
+allow list: if isPlatformMod()
+  || canReadPost()
   || canReadPostFromOwnHomeFeed()
   || canReadPostFromOwnSavedPosts()
   || canListPublicSearchablePost()
@@ -2481,13 +2483,25 @@ function canUpdateReplyCount(delta) {
     );
 }
 
+        function canSoftDeleteComment() {
+          return signedIn()
+            && request.resource.data.diff(resource.data).changedKeys().hasOnly(["isDeleted", "deletedAt", "updatedAt"])
+            && request.resource.data.isDeleted == true
+            && resource.data.get('isDeleted', false) != true
+            && (
+              resource.data.authorId == request.auth.uid
+              || canModeratePostCommentData(parentPost().data)
+            );
+        }
+
         allow get, list: if canReadComment();
 
         allow create: if canCreateComment();
 
         allow update: if canUpdateReplyCount(1)
           || canUpdateReplyCount(-1)
-          || canEditComment();
+          || canEditComment()
+          || canSoftDeleteComment();
 
         allow delete: if canDeleteComment();
 
@@ -2535,11 +2549,23 @@ function canUpdateReplyCount(delta) {
               && request.resource.data.updatedAt is timestamp;
           }
 
+          function canSoftDeleteReply() {
+            return signedIn()
+              && request.resource.data.diff(resource.data).changedKeys().hasOnly(["isDeleted", "deletedAt", "updatedAt"])
+              && request.resource.data.isDeleted == true
+              && resource.data.get('isDeleted', false) != true
+              && (
+                resource.data.authorId == request.auth.uid
+                || canModeratePostCommentData(parentPost().data)
+              );
+          }
+
           allow get, list: if canReadReply();
 
           allow create: if canCreateReply();
 
-          allow update: if canEditReply();
+          allow update: if canEditReply()
+            || canSoftDeleteReply();
 
           allow delete: if canDeleteReply();
 

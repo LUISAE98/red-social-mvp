@@ -604,6 +604,8 @@ const canRequestMeetGreet =
   const [exclusiveSessionSubmitting, setExclusiveSessionSubmitting] = useState(false);
   const [exclusiveSessionError, setExclusiveSessionError] = useState<string | null>(null);
 
+  const [isRetry, setIsRetry] = useState(false);
+
   const greetOffering = useMemo(() => {
     return normalizedCurrentOfferings.find((o) => o.type === greetType) ?? null;
   }, [normalizedCurrentOfferings, greetType]);
@@ -830,6 +832,7 @@ function redirectToLogin() {
     setToName("");
     setInstructions("");
     setAllowCreatorStory(true);
+    setIsRetry(false);
     clearServiceQuery();
   }
 
@@ -908,6 +911,7 @@ function redirectToLogin() {
     setMeetGreetSubmitting(false);
     setMeetGreetError(null);
     setMeetGreetMessage("");
+    setIsRetry(false);
     clearServiceQuery();
   }
 
@@ -977,6 +981,7 @@ function redirectToLogin() {
     setExclusiveSessionSubmitting(false);
     setExclusiveSessionError(null);
     setExclusiveSessionMessage("");
+    setIsRetry(false);
     clearServiceQuery();
   }
 
@@ -1071,7 +1076,15 @@ function redirectToLogin() {
   return;
 }
 
+      const retry = searchParams.get("retry") === "true";
+      const prefillToName = searchParams.get("toName") ?? "";
+      const prefillInstructions = searchParams.get("instructions") ?? "";
       openGreetingForm(requestedService);
+      if (retry) {
+        setIsRetry(true);
+        if (prefillToName) setToName(prefillToName);
+        if (prefillInstructions) setInstructions(prefillInstructions);
+      }
       return;
     }
 
@@ -1096,7 +1109,13 @@ function redirectToLogin() {
   clearServiceQuery();
   return;
 }
+      const retryMG = searchParams.get("retry") === "true";
+      const prefillMsgMG = searchParams.get("message") ?? "";
       openMeetGreetForm();
+      if (retryMG) {
+        setIsRetry(true);
+        if (prefillMsgMG) setMeetGreetMessage(prefillMsgMG);
+      }
       return;
     }
 
@@ -1122,7 +1141,13 @@ function redirectToLogin() {
         return;
       }
 
+      const retryES = searchParams.get("retry") === "true";
+      const prefillMsgES = searchParams.get("message") ?? "";
       openExclusiveSessionForm();
+      if (retryES) {
+        setIsRetry(true);
+        if (prefillMsgES) setExclusiveSessionMessage(prefillMsgES);
+      }
       return;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2672,6 +2697,7 @@ const avatarNode = (
         onCloseExclusiveSession={closeExclusiveSessionForm}
         onSubmitExclusiveSession={submitExclusiveSessionRequest}
         onChangeExclusiveSessionMessage={setExclusiveSessionMessage}
+        isRetry={isRetry}
         serviceToast={serviceToast}
       />
 

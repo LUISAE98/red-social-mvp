@@ -31,8 +31,8 @@ export default function WalletSectionShell({
         .header {
           display: flex;
           flex-direction: column;
-          gap: 14px;
-          margin-bottom: 28px;
+          gap: 8px;
+          margin-bottom: 18px;
         }
 
         .title {
@@ -62,8 +62,8 @@ export default function WalletSectionShell({
           }
 
           .header {
-            gap: 12px;
-            margin-bottom: 22px;
+            gap: 6px;
+            margin-bottom: 14px;
           }
 
           .title {

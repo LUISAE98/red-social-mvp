@@ -161,39 +161,26 @@ function ViewModeIconButton({
     <>
       <style jsx>{`
         .button {
-          width: 52px;
-          height: 52px;
-          min-width: 52px;
-          border-radius: 18px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(255, 255, 255, 0.05);
-          color: #ffffff;
           display: inline-flex;
           align-items: center;
           justify-content: center;
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          border: none;
+          background: none;
+          color: #a855f7;
           cursor: pointer;
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.03),
-            0 10px 24px rgba(0, 0, 0, 0.14);
-          transition:
-            background 0.18s ease,
-            border-color 0.18s ease,
-            transform 0.18s ease;
+          padding: 0;
+          transition: color 0.15s ease;
         }
 
         .button:hover {
-          background: rgba(255, 255, 255, 0.08);
-          border-color: rgba(255, 255, 255, 0.18);
+          color: #c084fc;
         }
 
         .button:active {
-          transform: scale(0.98);
-        }
-
-        .emojiIcon {
-          font-size: 24px;
-          line-height: 1;
-          transform: translateY(3px);
+          transform: scale(0.95);
         }
       `}</style>
 
@@ -204,9 +191,23 @@ function ViewModeIconButton({
         title={isList ? "Ver calendario" : "Ver lista"}
         aria-label={isList ? "Ver calendario" : "Ver lista"}
       >
-        <span className="emojiIcon" aria-hidden="true">
-          {isList ? "📅" : "🗒️"}
-        </span>
+        {isList ? (
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+        ) : (
+          <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <line x1="8" y1="6" x2="21" y2="6" />
+            <line x1="8" y1="12" x2="21" y2="12" />
+            <line x1="8" y1="18" x2="21" y2="18" />
+            <circle cx="3" cy="6" r="1" fill="currentColor" stroke="none" />
+            <circle cx="3" cy="12" r="1" fill="currentColor" stroke="none" />
+            <circle cx="3" cy="18" r="1" fill="currentColor" stroke="none" />
+          </svg>
+        )}
       </button>
     </>
   );
@@ -251,90 +252,87 @@ function EventsOverlay({
   return createPortal(
     <>
       <style jsx global>{`
+        @keyframes walCalIn {
+          from { opacity: 0; transform: scale(0.94) translateY(10px); }
+          to   { opacity: 1; transform: scale(1)    translateY(0);    }
+        }
+
         .walletCalendarOverlay {
           position: fixed;
           inset: 0;
+          width: 100vw;
+          height: 100vh;
           z-index: 2147483647;
-          background: rgba(0, 0, 0, 0.64);
-          backdrop-filter: blur(8px);
+          background: rgba(0, 0, 0, 0.88);
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 20px;
+          padding: 24px;
+          font-family: inherit;
         }
 
         .walletCalendarOverlayPanel {
-          width: min(760px, 100%);
-          max-height: min(80vh, 760px);
-          overflow: auto;
-          border-radius: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: linear-gradient(180deg, rgba(14, 14, 16, 0.98), rgba(10, 10, 12, 0.98));
-          box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4);
+          width: min(720px, 100%);
+          max-height: min(88vh, 680px);
+          display: flex;
+          flex-direction: column;
+          border-radius: 18px;
+          background: #0a0a0a;
+          box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 32px 72px rgba(0, 0, 0, 0.9);
+          color: #fff;
+          overflow: hidden;
+          animation: walCalIn 180ms ease-out;
         }
 
         .walletCalendarOverlayHeader {
-          position: sticky;
-          top: 0;
-          z-index: 2;
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 16px;
-          padding: 22px 22px 16px;
-          background: rgba(10, 10, 12, 0.92);
-          backdrop-filter: blur(10px);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          height: 56px;
+          display: grid;
+          grid-template-columns: 48px 1fr 48px;
+          align-items: center;
+          padding: 0 12px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+          flex-shrink: 0;
         }
 
         .walletCalendarOverlayTitle {
           margin: 0;
-          font-size: 20px;
+          font-size: 17px;
           line-height: 1.2;
-          font-weight: 800;
+          font-weight: 500;
           color: #fff;
+          text-align: center;
+          letter-spacing: -0.02em;
           text-transform: capitalize;
         }
 
-        .walletCalendarOverlaySubtitle {
-          margin: 8px 0 0;
-          font-size: 13px;
-          line-height: 1.55;
-          color: rgba(255, 255, 255, 0.64);
-        }
-
         .walletCalendarOverlayClose {
-          width: 42px;
-          height: 42px;
-          min-width: 42px;
-          border-radius: 14px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: rgba(255, 255, 255, 0.05);
+          width: 40px;
+          height: 40px;
+          border: none;
+          background: none;
           color: #fff;
           display: inline-flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
+          justify-self: end;
         }
 
         .walletCalendarOverlayContent {
-          padding: 18px 22px 22px;
-          display: flex;
-          flex-direction: column;
+          flex: 1;
+          overflow-y: auto;
+          min-height: 0;
+          padding: 18px 20px 20px;
+          display: grid;
           gap: 12px;
+          align-content: start;
         }
 
-        @media (max-width: 720px) {
-          .walletCalendarOverlay {
-            padding: 12px;
-            align-items: flex-end;
-          }
-
-          .walletCalendarOverlayPanel {
-            width: 100%;
-            max-height: 88vh;
-            border-radius: 22px 22px 0 0;
-          }
+        .walletCalendarOverlayContent::-webkit-scrollbar { width: 7px; }
+        .walletCalendarOverlayContent::-webkit-scrollbar-track { background: transparent; }
+        .walletCalendarOverlayContent::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.18);
+          border-radius: 999px;
         }
       `}</style>
 
@@ -344,14 +342,8 @@ function EventsOverlay({
           onClick={(event) => event.stopPropagation()}
         >
           <div className="walletCalendarOverlayHeader">
-            <div>
-              <h3 className="walletCalendarOverlayTitle">{title}</h3>
-              <p className="walletCalendarOverlaySubtitle">
-                {items.length} evento{items.length === 1 ? "" : "s"} programado
-                {items.length === 1 ? "" : "s"} para este día.
-              </p>
-            </div>
-
+            <div aria-hidden="true" />
+            <h3 className="walletCalendarOverlayTitle">{title}</h3>
             <button
               type="button"
               className="walletCalendarOverlayClose"
@@ -366,8 +358,8 @@ function EventsOverlay({
           </div>
 
           <div className="walletCalendarOverlayContent">
-  <WalletList items={items.filter(isSafeCalendarItem)} calendarItems={items} />
-</div>
+            <WalletList items={items.filter(isSafeCalendarItem)} calendarItems={items} />
+          </div>
         </div>
       </div>
     </>,
@@ -395,18 +387,11 @@ function MonthCard({
       <style jsx>{`
         .monthCard {
           width: 100%;
-          border: 1px solid ${hasMonthEvents
-            ? "rgba(59, 130, 246, 0.72)"
-            : "rgba(255, 255, 255, 0.06)"};
-          background: ${hasMonthEvents
-            ? "linear-gradient(180deg, rgba(59, 130, 246, 0.08), rgba(255, 255, 255, 0.025))"
-            : "rgba(255, 255, 255, 0.025)"};
-          border-radius: 20px;
-          padding: 16px;
+          border: none;
+          background: rgba(255, 255, 255, 0.06);
+          border-radius: 18px;
+          padding: 12px;
           box-sizing: border-box;
-          box-shadow: ${hasMonthEvents
-            ? "0 0 0 1px rgba(59, 130, 246, 0.12), 0 14px 30px rgba(59, 130, 246, 0.12)"
-            : "0 10px 22px rgba(0, 0, 0, 0.12)"};
         }
 
         .monthHeader {
@@ -421,7 +406,7 @@ function MonthCard({
           margin: 0;
           font-size: 15px;
           line-height: 1.2;
-          font-weight: 700;
+          font-weight: 500;
           color: #fff;
           letter-spacing: -0.02em;
           text-transform: capitalize;
@@ -436,7 +421,7 @@ function MonthCard({
           padding: 0 8px;
           border-radius: 999px;
           background: rgba(59, 130, 246, 0.16);
-          border: 1px solid rgba(59, 130, 246, 0.42);
+          border: none;
           color: #93c5fd;
           font-size: 11px;
           font-weight: 700;
@@ -477,12 +462,15 @@ function MonthCard({
           align-items: center;
           justify-content: center;
           padding: 0;
+          border: none;
         }
 
         .dayCell {
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(255, 255, 255, 0.03);
-          color: transparent;
+          background: rgba(255, 255, 255, 0.06);
+          color: rgba(255, 255, 255, 0.28);
+          font-size: 10px;
+          font-weight: 500;
+          cursor: default;
         }
 
         .dayCellMuted {
@@ -490,27 +478,16 @@ function MonthCard({
         }
 
         .dayButton {
-          border: 1px solid rgba(59, 130, 246, 0.52);
           background: rgba(59, 130, 246, 0.28);
           color: #fff;
           font-size: 12px;
           font-weight: 700;
           line-height: 1;
           cursor: pointer;
-          transition:
-            transform 0.18s ease,
-            background 0.18s ease,
-            border-color 0.18s ease,
-            box-shadow 0.18s ease;
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.08),
-            0 0 0 1px rgba(59, 130, 246, 0.08);
         }
 
         .dayButton:hover {
-          transform: translateY(-1px);
-          background: rgba(59, 130, 246, 0.4);
-          border-color: rgba(59, 130, 246, 0.72);
+          background: rgba(59, 130, 246, 0.42);
         }
       `}</style>
 
@@ -532,37 +509,36 @@ function MonthCard({
           {previewDays.map((day) => {
             const inMonth = isSameMonth(day, month.firstDate);
             const dayKey = getDayKey(day);
-            const items = inMonth ? eventsByDay.get(dayKey) ?? [] : [];
-            const hasEvent = items.length > 0;
+            const dayItems = inMonth ? eventsByDay.get(dayKey) ?? [] : [];
+            const hasEvent = dayItems.length > 0;
 
-            if (!inMonth || !hasEvent) {
+            if (hasEvent) {
+              const countLabel = getDayCountLabel(dayItems.length);
+              const countTitle =
+                dayItems.length > 9
+                  ? `${dayItems.length} eventos programados`
+                  : `${dayItems.length} evento${dayItems.length === 1 ? "" : "s"}`;
               return (
-                <div
+                <button
                   key={day.toISOString()}
-                  className={`dayCell ${!inMonth ? "dayCellMuted" : ""}`}
+                  type="button"
+                  className="dayButton"
+                  onClick={() => onSelectDay(dayKey)}
+                  title={countTitle}
+                  aria-label={countTitle}
                 >
-                  •
-                </div>
+                  {countLabel}
+                </button>
               );
             }
 
-            const countLabel = getDayCountLabel(items.length);
-            const countTitle =
-              items.length > 9
-                ? `${items.length} eventos programados`
-                : `${items.length} evento${items.length === 1 ? "" : "s"}`;
-
             return (
-              <button
+              <div
                 key={day.toISOString()}
-                type="button"
-                className="dayButton"
-                onClick={() => onSelectDay(dayKey)}
-                title={countTitle}
-                aria-label={countTitle}
+                className={`dayCell ${!inMonth ? "dayCellMuted" : ""}`}
               >
-                {countLabel}
-              </button>
+                {inMonth ? day.getDate() : ""}
+              </div>
             );
           })}
         </div>
@@ -609,7 +585,7 @@ export default function WalletCalendarioPage() {
     <WalletSectionShell activeTab="calendar">
       {walletData.error ? <WalletErrorBox message={walletData.error} /> : null}
 
-      <WalletCard title="Calendario">
+      <WalletCard title="Calendario" transparent>
         <style jsx>{`
           .cardButtonSlot {
             display: flex;
@@ -628,12 +604,6 @@ export default function WalletCalendarioPage() {
             gap: 14px;
           }
 
-          @media (max-width: 1200px) {
-            .monthsGrid {
-              grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-          }
-
           @media (max-width: 720px) {
             .cardButtonSlot {
               margin-top: -46px;
@@ -641,7 +611,7 @@ export default function WalletCalendarioPage() {
             }
 
             .monthsGrid {
-              grid-template-columns: 1fr;
+              grid-template-columns: repeat(2, minmax(0, 1fr));
             }
           }
         `}</style>

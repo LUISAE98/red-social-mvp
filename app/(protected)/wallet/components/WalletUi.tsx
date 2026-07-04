@@ -212,11 +212,13 @@ export function WalletCard({
   description,
   headerRight,
   children,
+  transparent = false,
 }: {
   title: string;
   description?: string;
   headerRight?: React.ReactNode;
   children?: React.ReactNode;
+  transparent?: boolean;
 }) {
   return (
     <>
@@ -224,7 +226,7 @@ export function WalletCard({
         .card {
           border-radius: 22px;
           border: none;
-          background: rgba(90, 41, 174, 0.14);
+          background: ${transparent ? "transparent" : "rgba(90, 41, 174, 0.14)"};
           padding: 18px;
           box-shadow: none;
         }

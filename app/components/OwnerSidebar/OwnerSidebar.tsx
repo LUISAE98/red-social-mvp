@@ -159,6 +159,8 @@ export type GreetingRequestDoc = {
   videoStatus?: "uploading" | "ready" | "error" | string | null;
   videoDuration?: number | null;
   allowCreatorStory?: boolean;
+  priceSnapshot?: number | null;
+  currency?: string | null;
 };
 
 export type MeetGreetStatus =
@@ -831,6 +833,10 @@ const handleOwnerSidebarPullRefresh = useCallback(async () => {
     Array<{ id: string; data: GreetingRequestDoc }>
   >(() => ownerSidebarCache?.buyerDelivered ?? []);
 
+  const [buyerRejectedGreetings, setBuyerRejectedGreetings] = useState<
+    Array<{ id: string; data: GreetingRequestDoc }>
+  >([]);
+
   const [meetGreetsByGroup, setMeetGreetsByGroup] = useState<
     Record<string, Array<{ id: string; data: MeetGreetRequestDoc }>>
   >(() => ownerSidebarCache?.meetGreetsByGroup ?? {});
@@ -1003,6 +1009,9 @@ miniItem: {
   padding: 9,
   display: "grid",
   gap: 7,
+  width: "100%",
+  boxSizing: "border-box",
+  minWidth: 0,
 },
   };
 
@@ -1654,6 +1663,13 @@ miniItem: {
       limit(50)
     );
 
+    const buyerRejectedQ = query(
+      collection(db, "greetingRequests"),
+      where("buyerId", "==", viewer.uid),
+      where("status", "in", ["rejected", "refund_requested"]),
+      limit(50)
+    );
+
     const unsubIncoming = onSnapshot(
       incomingQ,
       (snap) => {
@@ -1757,10 +1773,23 @@ miniItem: {
       }
     );
 
+    const unsubBuyerRejected = onSnapshot(
+      buyerRejectedQ,
+      (snap) => {
+        const rows = snap.docs.map((d) => ({
+          id: d.id,
+          data: d.data() as GreetingRequestDoc,
+        }));
+        setBuyerRejectedGreetings(rows);
+      },
+      () => { setBuyerRejectedGreetings([]); }
+    );
+
     return () => {
       unsubIncoming();
       unsubBuyer();
       unsubBuyerDelivered();
+      unsubBuyerRejected();
     };
   }, [viewer?.uid, ownerSidebarRefreshKey]);
 
@@ -2164,10 +2193,10 @@ const groupsForSeen = [
   }, [buyerPending, buyerMeetGreets, buyerExclusiveSessions]);
 
   useEffect(() => {
-    if (pendingCount === 0 && buyerDelivered.length === 0 && activeView === "greetings") {
+    if (pendingCount === 0 && buyerDelivered.length === 0 && buyerRejectedGreetings.length === 0 && activeView === "greetings") {
       setActiveView("owned");
     }
-  }, [pendingCount, buyerDelivered.length, activeView]);
+  }, [pendingCount, buyerDelivered.length, buyerRejectedGreetings.length, activeView]);
 
   const prevGreetingsTotalRef = useRef(0);
   useEffect(() => {
@@ -2944,11 +2973,12 @@ newPostsCounts={newPostsCounts}
   </div>
 )}
 
-{activeView === "greetings" && (pendingCount > 0 || buyerDelivered.length > 0) && (
+{activeView === "greetings" && (pendingCount > 0 || buyerDelivered.length > 0 || buyerRejectedGreetings.length > 0) && (
   <div className="owner-sidebar-view-transition" key="greetings">
     <OwnerSidebarGreetings
               buyerPending={buyerPending}
               buyerDelivered={buyerDelivered}
+              buyerRejectedGreetings={buyerRejectedGreetings}
               buyerExclusiveSessions={buyerExclusiveSessions}
               exclusiveSessionsByGroup={{}}
               groupMetaMap={groupMetaMap}
