@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef } from "react";
+
 export type ScheduleParts = {
   day: string;
   month: string;
@@ -160,6 +162,57 @@ export default function ScheduleDateTimeSelector({
   const minuteOptions = isSameHour
     ? allMinuteOptions.filter((m) => Number(m) > currentMinute)
     : allMinuteOptions;
+
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  // Normalize hour/minute when today is selected and the stored value is in the past.
+  // This happens on mount (e.g. dialog opens with null → "00:00") and whenever
+  // isToday transitions from false → true.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!isToday) return;
+
+    const nowSnap = new Date();
+    const nHour = nowSnap.getHours();
+    const nMinute = nowSnap.getMinutes();
+
+    const validHours = Array.from({ length: 24 }, (_, i) => i).filter((h) => {
+      if (h > nHour) return true;
+      if (h === nHour) {
+        return ["00", "15", "30", "45"].some((m) => Number(m) > nMinute);
+      }
+      return false;
+    });
+
+    if (validHours.length === 0) return;
+
+    const snap = valueRef.current;
+    const selectedH = Number(snap.hour);
+
+    if (!validHours.includes(selectedH)) {
+      const firstH = validHours[0];
+      const firstMin =
+        firstH === nHour
+          ? (["00", "15", "30", "45"].find((m) => Number(m) > nMinute) ?? "00")
+          : "00";
+      onChangeRef.current({
+        ...snap,
+        hour: String(firstH).padStart(2, "0"),
+        minute: firstMin,
+      });
+      return;
+    }
+
+    if (selectedH === nHour) {
+      const validMins = ["00", "15", "30", "45"].filter((m) => Number(m) > nMinute);
+      if (validMins.length > 0 && !validMins.includes(snap.minute)) {
+        onChangeRef.current({ ...snap, minute: validMins[0] });
+      }
+    }
+  }, [isToday]);
 
   function updatePart(key: keyof ScheduleParts, nextValue: string) {
     const nextParts: ScheduleParts = { ...value, [key]: nextValue };

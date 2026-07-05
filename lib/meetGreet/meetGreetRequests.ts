@@ -51,6 +51,7 @@ export type ProposeMeetGreetScheduleInput = {
   requestId: string;
   scheduledAt: string;
   note?: string | null;
+  creatorTimezone?: string | null;
 };
 
 export type ProposeMeetGreetScheduleResult = {
@@ -279,7 +280,7 @@ export async function proposeMeetGreetSchedule(
 ): Promise<ProposeMeetGreetScheduleResult> {
   try {
     const callable = httpsCallable<
-      { requestId: string; scheduledAt: string; note: string | null },
+      { requestId: string; scheduledAt: string; note: string | null; creatorTimezone: string | null },
       ProposeMeetGreetScheduleResult
     >(functions, "proposeMeetGreetSchedule");
 
@@ -287,6 +288,7 @@ export async function proposeMeetGreetSchedule(
       requestId: assertNonEmptyString(input.requestId, "requestId"),
       scheduledAt: assertIsoDateString(input.scheduledAt, "scheduledAt"),
       note: normalizeOptionalString(input.note),
+      creatorTimezone: normalizeOptionalString(input.creatorTimezone),
     });
 
     return result.data;

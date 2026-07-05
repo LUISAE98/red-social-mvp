@@ -18,6 +18,7 @@ import { setMeetGreetPreparing } from "@/lib/meetGreet/meetGreetRequests";
 import { setExclusiveSessionPreparing } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import { callGetRecordingDownloadUrl } from "@/lib/liveKit/sessionLifecycle";
 import { formatWalletMoney } from "@/lib/wallet/ownerWallet";
+import { formatScheduledAt } from "@/lib/utils/timezoneDisplay";
 import type { LiveKitSessionRecordingStatus } from "@/types/livekit";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -57,6 +58,7 @@ type BuyerSessionDoc = {
   recordingExpiresAt: string | null;
   preparingBuyerAt: FirestoreDateLike;
   updatedAt: FirestoreDateLike;
+  creatorTimezone: string | null;
 };
 
 type BuyerSession = BuyerSessionDoc & {
@@ -249,7 +251,18 @@ function SessionCard({ session }: { session: BuyerSession }) {
             {sourceLabel ? ` · ${sourceLabel}` : ""}
           </div>
           {session.scheduledAtDate ? (
-            <div style={cardMeta}>{formatDate(session.scheduledAtDate)}</div>
+            <div style={cardMeta}>
+              {formatDate(session.scheduledAtDate)}
+              {(() => {
+                const tzd = formatScheduledAt(session.scheduledAtDate, session.creatorTimezone);
+                if (!tzd?.showBoth) return null;
+                return (
+                  <span style={{ display: "block", fontSize: 11, color: "rgba(255,255,255,0.38)", marginTop: 2 }}>
+                    {tzd.creatorTime} hrs para el creador ({tzd.creatorLabel})
+                  </span>
+                );
+              })()}
+            </div>
           ) : null}
         </div>
 
@@ -457,6 +470,7 @@ export default function SessionsPage() {
         preparingBuyerAtDate: toDate(data.preparingBuyerAt),
         updatedAt: data.updatedAt ?? null,
         updatedAtDate: toDate(data.updatedAt),
+        creatorTimezone: data.creatorTimezone ?? null,
       };
     }
 

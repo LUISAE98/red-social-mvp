@@ -69,6 +69,7 @@ export type MeetGreetRequestRecord = LiveKitSessionFields & {
   scheduledAt: string | null;
   scheduledBy: string | null;
   scheduleProposedAt: string | null;
+  creatorTimezone: string | null;
   creatorScheduleNote: string | null;
   creatorScheduleNoteUpdatedAt: string | null;
   scheduleHistory: MeetGreetScheduleHistoryItem[];

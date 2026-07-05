@@ -256,8 +256,8 @@ export default function BuyerGreetingRequestOverlay({ item, sourceName, sourceAv
       </div>
       {req.priceSnapshot != null && (
         <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
-          <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8 }}>Pagaste</span>
-          <span style={{ color: priceColor, fontWeight: 700, fontSize: 17 }}>{formatMoney(req.priceSnapshot)}</span>
+          <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8, lineHeight: 1 }}>Pagaste</span>
+          <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot)}</span>
         </div>
       )}
     </div>

@@ -979,7 +979,8 @@ export default function OwnerSidebarGreetings({
     setError(requestId, null);
     setSuccess(requestId, null);
     try {
-      const payload = { requestId, scheduledAt: scheduledAtIso, note };
+      const creatorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const payload = { requestId, scheduledAt: scheduledAtIso, note, creatorTimezone };
       if (kind === "exclusive_session") {
         await proposeExclusiveSessionSchedule(payload);
       } else {
@@ -1012,12 +1013,13 @@ export default function OwnerSidebarGreetings({
     setError(requestId, null);
     setSuccess(requestId, null);
     try {
+      const creatorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
       if (kind === "exclusive_session") {
         await acceptExclusiveSessionRequest({ requestId });
-        await proposeExclusiveSessionSchedule({ requestId, scheduledAt: scheduledAtIso, note });
+        await proposeExclusiveSessionSchedule({ requestId, scheduledAt: scheduledAtIso, note, creatorTimezone });
       } else {
         await acceptMeetGreetRequest({ requestId });
-        await proposeMeetGreetSchedule({ requestId, scheduledAt: scheduledAtIso, note });
+        await proposeMeetGreetSchedule({ requestId, scheduledAt: scheduledAtIso, note, creatorTimezone });
       }
       showGreetingsToast("✅ Sesión aceptada y agendada.");
       setIncomingSessionOverlayOpen(false);
@@ -1067,10 +1069,12 @@ async function handleCreatorSchedule(
   setSuccess(requestId, null);
 
   try {
+    const creatorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     const payload = {
       requestId,
       scheduledAt,
       note: scheduleNoteMap[requestId] ?? null,
+      creatorTimezone,
     };
 
     if (kind === "exclusive_session") {
@@ -1666,6 +1670,7 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         autoRejectReason: item.data.autoRejectReason ?? null,
         createdAt,
         updatedAt,
+        creatorScheduleCount: Array.isArray((item.data as { scheduleHistory?: unknown[] }).scheduleHistory) ? (item.data as { scheduleHistory: unknown[] }).scheduleHistory.length : 0,
         recordingStatus: null,
         recordingUrl: null,
         recordingDurationSeconds: null,

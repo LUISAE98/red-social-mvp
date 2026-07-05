@@ -67,6 +67,43 @@ function formatDate(ts: unknown): string {
   } catch { return d.toLocaleString("es-MX"); }
 }
 
+function fmtDateSplit(ts: unknown): { dayTime: string; dateStr: string } | null {
+  const d = toDate(ts);
+  if (!d) return null;
+  const weekday = d.toLocaleString("es-MX", { weekday: "long" });
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = d.toLocaleString("es-MX", { month: "long" });
+  const year = d.getFullYear();
+  return {
+    dayTime: `${weekday.charAt(0).toUpperCase() + weekday.slice(1)} ${hh}:${mm} hrs`,
+    dateStr: `${day} de ${month.charAt(0).toUpperCase() + month.slice(1)} de ${year}`,
+  };
+}
+
+type ChatEntry = { role: "buyer" | "creator"; text: string; ts: unknown };
+
+function buildChatEntries(req: SessionRequest): ChatEntry[] {
+  const mg = req as MeetGreetRequestDoc;
+  const entries: ChatEntry[] = [];
+  if (mg.buyerMessage) {
+    entries.push({ role: "buyer", text: mg.buyerMessage, ts: mg.createdAt ?? null });
+  }
+  const schedHistory = mg.scheduleHistory ?? [];
+  for (const e of schedHistory) {
+    if (e.note) entries.push({ role: "creator", text: e.note, ts: e.proposedAt ?? null });
+  }
+  if (schedHistory.every(e => !e.note) && mg.creatorScheduleNote) {
+    entries.push({ role: "creator", text: mg.creatorScheduleNote, ts: mg.creatorScheduleNoteUpdatedAt ?? null });
+  }
+  for (const e of mg.rescheduleHistory ?? []) {
+    if (e.reason) entries.push({ role: "buyer", text: e.reason, ts: e.requestedAt ?? null });
+  }
+  entries.sort((a, b) => (toDate(a.ts)?.getTime() ?? 0) - (toDate(b.ts)?.getTime() ?? 0));
+  return entries;
+}
+
 function getRelativeTime(ts: unknown): string {
   const d = toDate(ts);
   if (!d) return "Hace un momento";
@@ -126,14 +163,14 @@ export default function BuyerSessionRequestOverlay({
   const [refundReason, setRefundReason] = useState("");
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [rescheduleReason, setRescheduleReason] = useState("");
-  const [speechState, setSpeechState] = useState<"idle" | "playing" | "paused">("idle");
-  const [speechHighlight, setSpeechHighlight] = useState<{ start: number; length: number } | null>(null);
-  const [speechRate, setSpeechRate] = useState<1 | 1.4 | 1.8>(1);
-  const speechRateRef = useRef<number>(1);
-  const speechOffsetRef = useRef(0);
-  const speechGenRef = useRef(0);
-  const ttsAudioRef = useRef<EdgeTTSHandle | null>(null);
-  const speechTextRef = useRef<HTMLSpanElement | null>(null);
+  // TTS — unified chat
+  const [chatTtsIdx, setChatTtsIdx] = useState<number | null>(null);
+  const [chatTtsState, setChatTtsState] = useState<"idle" | "playing" | "paused">("idle");
+  const [chatTtsHighlight, setChatTtsHighlight] = useState<{ start: number; length: number } | null>(null);
+  const [chatTtsRate, setChatTtsRate] = useState<1 | 1.4 | 1.8>(1);
+  const chatTtsRateRef = useRef<number>(1);
+  const chatTtsGenRef = useRef(0);
+  const chatTtsAudioRef = useRef<EdgeTTSHandle | null>(null);
   const pointerStartRef = useRef({ y: 0, offset: 0 });
   const closeRef = useRef<() => void>(() => {});
 
@@ -142,7 +179,7 @@ export default function BuyerSessionRequestOverlay({
   const bgImage = isExclusive ? "/sesionexclusiva.png" : "/encuentroenvivo.png";
   const retryBtnBg = isExclusive ? "rgba(236,72,153,0.85)" : "rgba(59,130,246,0.85)";
   const priceColor = isExclusive ? "#f9a8d4" : "#93c5fd";
-  const serviceTitle = isExclusive ? "Sesión exclusiva" : "Meet & Greet";
+  const serviceTitle = isExclusive ? "Sesión exclusiva" : "Sesión en vivo";
   const creatorInitial = creatorName.charAt(0).toUpperCase();
 
   useEffect(() => { setMounted(true); }, []);
@@ -162,62 +199,49 @@ export default function BuyerSessionRequestOverlay({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
   useEffect(() => {
-    const genRef = speechGenRef;
-    const audioRef = ttsAudioRef;
+    const genRef = chatTtsGenRef;
+    const audioRef = chatTtsAudioRef;
     return () => {
       genRef.current++;
       if (audioRef.current) { audioRef.current.stop(); audioRef.current = null; }
     };
   }, []);
 
-  const startSpeechFrom = useCallback((charIndex: number) => {
-    const text = req.buyerMessage ?? "";
-    if (!text) return;
-    if (ttsAudioRef.current) { ttsAudioRef.current.stop(); ttsAudioRef.current = null; }
-    speechOffsetRef.current = charIndex;
-    const gen = ++speechGenRef.current;
-    const sliceText = text.slice(charIndex);
-    if (!sliceText.trim()) return;
-    setSpeechHighlight(charIndex > 0 ? { start: charIndex, length: 0 } : null);
-    ttsAudioRef.current = playEdgeTTS(sliceText, {
-      playbackRate: speechRateRef.current,
+  const playChatTts = useCallback((idx: number, text: string) => {
+    if (chatTtsAudioRef.current) { chatTtsAudioRef.current.stop(); chatTtsAudioRef.current = null; }
+    if (!text.trim()) return;
+    const gen = ++chatTtsGenRef.current;
+    setChatTtsIdx(idx);
+    setChatTtsHighlight(null);
+    chatTtsAudioRef.current = playEdgeTTS(text, {
+      playbackRate: chatTtsRateRef.current,
       onProgress: (ratio) => {
-        if (speechGenRef.current !== gen) return;
-        const posInSlice = Math.floor(ratio * sliceText.length);
-        const absPos = charIndex + posInSlice;
-        const ahead = sliceText.slice(posInSlice);
+        if (chatTtsGenRef.current !== gen) return;
+        const pos = Math.floor(ratio * text.length);
+        const ahead = text.slice(pos);
         const spaceAt = ahead.search(/[\s\n]/);
-        const length = spaceAt === -1 ? Math.min(ahead.length, 8) : spaceAt;
-        setSpeechHighlight({ start: absPos, length: Math.max(1, length) });
+        setChatTtsHighlight({ start: pos, length: Math.max(1, spaceAt === -1 ? Math.min(ahead.length, 8) : spaceAt) });
       },
-      onEnded: () => {
-        if (speechGenRef.current !== gen) return;
-        ttsAudioRef.current = null;
-        setSpeechState("idle");
-        setSpeechHighlight(null);
-      },
-      onError: () => {
-        if (speechGenRef.current !== gen) return;
-        ttsAudioRef.current = null;
-        setSpeechState("idle");
-        setSpeechHighlight(null);
-      },
+      onEnded: () => { if (chatTtsGenRef.current !== gen) return; chatTtsAudioRef.current = null; setChatTtsState("idle"); setChatTtsHighlight(null); setChatTtsIdx(null); },
+      onError: () => { if (chatTtsGenRef.current !== gen) return; chatTtsAudioRef.current = null; setChatTtsState("idle"); setChatTtsHighlight(null); setChatTtsIdx(null); },
     });
-    setSpeechState("playing");
-  }, [req.buyerMessage]);
+    setChatTtsState("playing");
+  }, []);
 
-  const handleToggleSpeech = useCallback(() => {
-    if (speechState === "playing") { ttsAudioRef.current?.audio.pause(); setSpeechState("paused"); return; }
-    if (speechState === "paused") { ttsAudioRef.current?.audio.play().catch(() => {}); setSpeechState("playing"); return; }
-    startSpeechFrom(0);
-  }, [speechState, startSpeechFrom]);
+  const handleToggleChatTts = useCallback((idx: number, text: string) => {
+    if (chatTtsIdx === idx) {
+      if (chatTtsState === "playing") { chatTtsAudioRef.current?.audio.pause(); setChatTtsState("paused"); return; }
+      if (chatTtsState === "paused") { chatTtsAudioRef.current?.audio.play().catch(() => {}); setChatTtsState("playing"); return; }
+    }
+    playChatTts(idx, text);
+  }, [chatTtsIdx, chatTtsState, playChatTts]);
 
-  const handleCycleRate = useCallback(() => {
-    const next: 1 | 1.4 | 1.8 = speechRate === 1 ? 1.4 : speechRate === 1.4 ? 1.8 : 1;
-    speechRateRef.current = next;
-    setSpeechRate(next);
-    if (ttsAudioRef.current) ttsAudioRef.current.audio.playbackRate = next;
-  }, [speechRate]);
+  const handleCycleChatRate = useCallback(() => {
+    const next: 1 | 1.4 | 1.8 = chatTtsRate === 1 ? 1.4 : chatTtsRate === 1.4 ? 1.8 : 1;
+    chatTtsRateRef.current = next;
+    setChatTtsRate(next);
+    if (chatTtsAudioRef.current) chatTtsAudioRef.current.audio.playbackRate = next;
+  }, [chatTtsRate]);
 
   function handleClose() {
     if (isMobile) {
@@ -286,8 +310,8 @@ export default function BuyerSessionRequestOverlay({
           )}
           {req.priceSnapshot != null && (
             <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 1 }}>
-              <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8 }}>Pagaste</span>
-              <span style={{ color: priceColor, fontWeight: 700, fontSize: 17 }}>{formatMoney(req.priceSnapshot)}</span>
+              <span style={{ color: priceColor, fontSize: 10, fontWeight: 500, opacity: 0.8, lineHeight: 1 }}>Pagaste</span>
+              <span style={{ color: priceColor, fontWeight: 700, fontSize: 24, lineHeight: 1 }}>{formatMoney(req.priceSnapshot)}</span>
             </div>
           )}
         </div>
@@ -297,70 +321,95 @@ export default function BuyerSessionRequestOverlay({
 
   const infoFields = (
     <div style={{ display: "grid", gap: 14 }}>
-      {req.scheduledAt ? (
-        <div style={{ display: "grid", gap: 2 }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Fecha agendada</span>
-          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(req.scheduledAt)}</span>
-        </div>
-      ) : null}
-
-      {req.buyerMessage ? (
-        <div style={{ display: "grid", gap: 4 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12, flex: 1 }}>Tu mensaje</span>
-            {speechState !== "idle" && (
-              <button
-                type="button"
-                aria-label="Cambiar velocidad de lectura"
-                onClick={handleCycleRate}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.55)", padding: "2px 4px", display: "flex", alignItems: "center", flexShrink: 0, fontSize: 11, fontWeight: 700, letterSpacing: "-0.3px" }}
-              >
-                {speechRate}×
-              </button>
-            )}
-            <button
-              type="button"
-              aria-label={speechState === "playing" ? "Pausar lectura" : speechState === "paused" ? "Reanudar lectura" : "Leer mensaje"}
-              onClick={handleToggleSpeech}
-              style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
-            >
-              {speechState === "playing" ? (
-                <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="5" y="4" width="4" height="16" rx="1"/>
-                  <rect x="15" y="4" width="4" height="16" rx="1"/>
-                </svg>
-              ) : (
-                <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor">
-                  <polygon points="5,3 19,12 5,21"/>
-                </svg>
-              )}
-            </button>
+      {/* Fechas: agendada + solicitud */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 8 }}>
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: 10, padding: "12px 10px", borderRadius: 12 }}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={priceColor} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Fecha agendada</span>
+            {(() => { const p = fmtDateSplit(req.scheduledAt); return p ? (
+              <>
+                <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{p.dayTime}</span>
+                <span style={{ color: "#fff", fontSize: 12, fontWeight: 400, lineHeight: 1.2 }}>{p.dateStr}</span>
+              </>
+            ) : <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>Sin fecha</span>; })()}
           </div>
-          <span
-            ref={speechTextRef}
-            style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.82)" }}
-          >
-            {(() => {
-              const text = req.buyerMessage;
-              if (speechState === "idle" || !speechHighlight) return text;
-              const { start, length } = speechHighlight;
-              return (
-                <>
-                  <strong style={{ color: "#fff", fontWeight: 700 }}>{text.slice(0, start + length)}</strong>
-                  {text.slice(start + length)}
-                </>
-              );
-            })()}
-          </span>
         </div>
-      ) : null}
+        <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start", justifyContent: "center", gap: 10, padding: "12px 10px", borderRadius: 12 }}>
+          <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={priceColor} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0 }}>
+            <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" />
+          </svg>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+            <span style={{ color: "#fff", fontSize: 11, fontWeight: 600, lineHeight: 1.2 }}>Solicitado</span>
+            {(() => { const p = fmtDateSplit(req.createdAt); return p ? (
+              <>
+                <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>{p.dayTime}</span>
+                <span style={{ color: "#fff", fontSize: 12, fontWeight: 400, lineHeight: 1.2 }}>{p.dateStr}</span>
+              </>
+            ) : <span style={{ color: "#fff", fontSize: 13, fontWeight: 400, lineHeight: 1.2 }}>—</span>; })()}
+          </div>
+        </div>
+      </div>
 
-      {req.createdAt ? (
-        <div style={{ display: "grid", gap: 2 }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>Solicitado el</span>
-          <span style={{ color: "#fff", fontWeight: 600, fontSize: 13 }}>{formatDate(req.createdAt)}</span>
-        </div>
-      ) : null}
+      {/* Historial de mensajes (buyer + creator, cronológico) */}
+      {(() => {
+        const chatEntries = buildChatEntries(req);
+        if (chatEntries.length === 0) return null;
+        return (
+          <div style={{ display: "grid", gap: 12 }}>
+            {chatEntries.map((entry, idx) => {
+              const isBuyer = entry.role === "buyer";
+              const avatarUrl = isBuyer ? req.buyerAvatarUrl : creatorAvatar;
+              const displayName = isBuyer ? (req.buyerDisplayName ?? null) : creatorName;
+              const initial = isBuyer ? (req.buyerDisplayName ?? "U").charAt(0).toUpperCase() : creatorInitial;
+              const isActive = chatTtsIdx === idx;
+              const isPlaying = isActive && chatTtsState === "playing";
+              return (
+                <div key={idx} style={{ display: "grid", gap: 2 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 4 }}>
+                    {isActive && chatTtsState !== "idle" && (
+                      <button type="button" onClick={handleCycleChatRate} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.55)", padding: "2px 4px", fontSize: 11, fontWeight: 700, letterSpacing: "-0.3px", fontFamily: "inherit" }}>
+                        {chatTtsRate}×
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleChatTts(idx, entry.text)}
+                      aria-label={isPlaying ? "Pausar lectura" : isActive && chatTtsState === "paused" ? "Reanudar lectura" : "Leer mensaje"}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", padding: 2, display: "flex", alignItems: "center", flexShrink: 0, transition: "color 0.15s" }}
+                    >
+                      {isPlaying ? (
+                        <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="4" height="16" rx="1"/><rect x="15" y="4" width="4" height="16" rx="1"/></svg>
+                      ) : (
+                        <svg width={13} height={13} viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+                      )}
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+                    {avatarUrl ? (
+                      <Image src={avatarUrl} alt={displayName ?? ""} width={28} height={28} style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                    ) : (
+                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 11, color: "#fff", flexShrink: 0 }}>
+                        {initial}
+                      </div>
+                    )}
+                    <span style={{ whiteSpace: "pre-wrap", fontSize: 13, lineHeight: 1.5, color: "rgba(255,255,255,0.82)", flex: 1, display: "block", paddingTop: 4 }}>
+                      {isActive && chatTtsHighlight ? (
+                        <>
+                          <strong style={{ color: "#fff", fontWeight: 700 }}>{entry.text.slice(0, chatTtsHighlight.start + chatTtsHighlight.length)}</strong>
+                          {entry.text.slice(chatTtsHighlight.start + chatTtsHighlight.length)}
+                        </>
+                      ) : entry.text}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {(req.status === "rejected" || req.status === "refund_requested" || req.status === "refund_review") && (req.rejectedAt ?? req.updatedAt) ? (
         <div style={{ display: "grid", gap: 2 }}>

@@ -67,6 +67,7 @@ type WalletScheduledDoc = {
   creatorScheduleNoteUpdatedAt?: FirestoreTimestampLike;
   rescheduleRequestsUsed: number;
   rescheduleRequestedAt: FirestoreTimestampLike;
+  scheduleHistory?: Array<unknown>;
   preparingBuyerAt: FirestoreTimestampLike;
   preparingCreatorAt: FirestoreTimestampLike;
   preparationOpenedAt: FirestoreTimestampLike;
@@ -179,6 +180,7 @@ rejectionReason: string | null;
   createdAt: Date | null;
   updatedAt: Date | null;
   allowCreatorStory?: boolean;
+  creatorScheduleCount: number;
   recordingStatus: LiveKitSessionRecordingStatus | null;
   recordingUrl: string | null;
   recordingDurationSeconds: number | null;
@@ -521,6 +523,7 @@ function normalizeScheduledRow(
     noShowRole,
     createdAt,
     updatedAt: updatedAt ?? autoRejectedAt ?? rejectedAt ?? noShowRejectAt,
+    creatorScheduleCount: Array.isArray(data.scheduleHistory) ? data.scheduleHistory.length : 0,
     recordingStatus: data.recordingStatus ?? null,
     recordingUrl: data.recordingUrl ?? null,
     recordingDurationSeconds: data.recordingDurationSeconds ?? null,
@@ -585,6 +588,7 @@ function normalizeGreetingRow(
     createdAt: toDateSafe(data.createdAt),
     updatedAt: toDateSafe(data.updatedAt),
     allowCreatorStory: typeof data.allowCreatorStory === "boolean" ? data.allowCreatorStory : undefined,
+    creatorScheduleCount: 0,
     recordingStatus: null,
     recordingUrl: null,
     recordingDurationSeconds: null,

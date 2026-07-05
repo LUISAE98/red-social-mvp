@@ -224,6 +224,7 @@ export type MeetGreetRequestDoc = {
   scheduledAt?: Timestamp | null;
   scheduledBy?: string | null;
   scheduleProposedAt?: Timestamp | null;
+  creatorTimezone?: string | null;
   creatorScheduleNote?: string | null;
   creatorScheduleNoteUpdatedAt?: Timestamp | null;
   scheduleHistory?: Array<{

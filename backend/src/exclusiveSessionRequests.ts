@@ -840,6 +840,7 @@ export const proposeExclusiveSessionSchedule = onCall(
     const requestId = asTrimmedString(request.data?.requestId, "requestId", 120);
     const scheduledAtIso = asIsoDateString(request.data?.scheduledAt, "scheduledAt");
     const note = asOptionalTrimmedString(request.data?.note, "note", 1000) ?? null;
+    const creatorTimezone = asOptionalTrimmedString(request.data?.creatorTimezone, "creatorTimezone", 100) ?? null;
 
     const { ref, data } = await getExclusiveSessionOrThrow(requestId);
     ensureCreator(data, uid);
@@ -869,6 +870,7 @@ export const proposeExclusiveSessionSchedule = onCall(
       scheduledAt,
       scheduledBy: uid,
       scheduleProposedAt: nowTs(),
+      creatorTimezone: creatorTimezone,
       creatorScheduleNote: note ?? null,
       creatorScheduleNoteUpdatedAt: nowTs(),
       noShowRejectAt: getNoShowRejectAt(scheduledAt),

@@ -168,11 +168,13 @@ export function proposeExclusiveSessionSchedule(payload: {
   requestId: string;
   scheduledAt: string;
   note?: string | null;
+  creatorTimezone?: string | null;
 }) {
   return callExclusiveSessionFunction("proposeExclusiveSessionSchedule", {
     requestId: assertNonEmptyString(payload.requestId, "requestId"),
     scheduledAt: assertIsoDateString(payload.scheduledAt, "scheduledAt"),
     note: normalizeOptionalString(payload.note),
+    creatorTimezone: normalizeOptionalString(payload.creatorTimezone),
   });
 }
 
