@@ -68,6 +68,7 @@ type WalletScheduledDoc = {
   rescheduleRequestsUsed: number;
   rescheduleRequestedAt: FirestoreTimestampLike;
   scheduleHistory?: Array<unknown>;
+  rescheduleHistory?: Array<unknown>;
   preparingBuyerAt: FirestoreTimestampLike;
   preparingCreatorAt: FirestoreTimestampLike;
   preparationOpenedAt: FirestoreTimestampLike;
@@ -181,6 +182,8 @@ rejectionReason: string | null;
   updatedAt: Date | null;
   allowCreatorStory?: boolean;
   creatorScheduleCount: number;
+  scheduleHistory: Array<{ proposedAt?: unknown; proposedBy?: string | null; startsAt?: unknown; note?: string | null }>;
+  rescheduleHistory: Array<{ requestedAt?: unknown; requestedBy?: string | null; reason?: string | null; countAfterRequest?: number | null }>;
   recordingStatus: LiveKitSessionRecordingStatus | null;
   recordingUrl: string | null;
   recordingDurationSeconds: number | null;
@@ -524,6 +527,8 @@ function normalizeScheduledRow(
     createdAt,
     updatedAt: updatedAt ?? autoRejectedAt ?? rejectedAt ?? noShowRejectAt,
     creatorScheduleCount: Array.isArray(data.scheduleHistory) ? data.scheduleHistory.length : 0,
+    scheduleHistory: Array.isArray(data.scheduleHistory) ? (data.scheduleHistory as WalletServiceItem["scheduleHistory"]) : [],
+    rescheduleHistory: Array.isArray(data.rescheduleHistory) ? (data.rescheduleHistory as WalletServiceItem["rescheduleHistory"]) : [],
     recordingStatus: data.recordingStatus ?? null,
     recordingUrl: data.recordingUrl ?? null,
     recordingDurationSeconds: data.recordingDurationSeconds ?? null,
@@ -589,6 +594,8 @@ function normalizeGreetingRow(
     updatedAt: toDateSafe(data.updatedAt),
     allowCreatorStory: typeof data.allowCreatorStory === "boolean" ? data.allowCreatorStory : undefined,
     creatorScheduleCount: 0,
+    scheduleHistory: [],
+    rescheduleHistory: [],
     recordingStatus: null,
     recordingUrl: null,
     recordingDurationSeconds: null,

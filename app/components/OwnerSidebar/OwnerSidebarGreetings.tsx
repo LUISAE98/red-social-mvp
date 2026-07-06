@@ -1671,6 +1671,8 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         createdAt,
         updatedAt,
         creatorScheduleCount: Array.isArray((item.data as { scheduleHistory?: unknown[] }).scheduleHistory) ? (item.data as { scheduleHistory: unknown[] }).scheduleHistory.length : 0,
+        scheduleHistory: Array.isArray((item.data as { scheduleHistory?: unknown[] }).scheduleHistory) ? ((item.data as { scheduleHistory: unknown[] }).scheduleHistory as WalletServiceItem["scheduleHistory"]) : [],
+        rescheduleHistory: Array.isArray((item.data as { rescheduleHistory?: unknown[] }).rescheduleHistory) ? ((item.data as { rescheduleHistory: unknown[] }).rescheduleHistory as WalletServiceItem["rescheduleHistory"]) : [],
         recordingStatus: null,
         recordingUrl: null,
         recordingDurationSeconds: null,

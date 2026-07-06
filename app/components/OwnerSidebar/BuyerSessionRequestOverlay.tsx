@@ -91,16 +91,25 @@ function buildChatEntries(req: SessionRequest): ChatEntry[] {
     entries.push({ role: "buyer", text: mg.buyerMessage, ts: mg.createdAt ?? null });
   }
   const schedHistory = mg.scheduleHistory ?? [];
-  for (const e of schedHistory) {
-    if (e.note) entries.push({ role: "creator", text: e.note, ts: e.proposedAt ?? null });
+  const reschedHistory = mg.rescheduleHistory ?? [];
+  // When schedHistory has more entries than reschedHistory, the first sched entry
+  // is the initial scheduling (before any buyer reschedule). Otherwise every sched
+  // entry is a direct response to the corresponding resched entry at the same index.
+  const hasInitialSched = schedHistory.length > reschedHistory.length;
+  if (hasInitialSched && schedHistory[0]?.note) {
+    entries.push({ role: "creator", text: schedHistory[0].note, ts: schedHistory[0].proposedAt ?? null });
   }
-  if (schedHistory.every(e => !e.note) && mg.creatorScheduleNote) {
+  for (let i = 0; i < reschedHistory.length; i++) {
+    const resched = reschedHistory[i];
+    if (resched?.reason) entries.push({ role: "buyer", text: resched.reason, ts: resched.requestedAt ?? null });
+    const schedIdx = hasInitialSched ? i + 1 : i;
+    const sched = schedHistory[schedIdx];
+    if (sched?.note) entries.push({ role: "creator", text: sched.note, ts: sched.proposedAt ?? null });
+  }
+  // Fallback: if scheduleHistory has no notes at all but creatorScheduleNote is set
+  if (!schedHistory.some(e => e.note) && mg.creatorScheduleNote) {
     entries.push({ role: "creator", text: mg.creatorScheduleNote, ts: mg.creatorScheduleNoteUpdatedAt ?? null });
   }
-  for (const e of mg.rescheduleHistory ?? []) {
-    if (e.reason) entries.push({ role: "buyer", text: e.reason, ts: e.requestedAt ?? null });
-  }
-  entries.sort((a, b) => (toDate(a.ts)?.getTime() ?? 0) - (toDate(b.ts)?.getTime() ?? 0));
   return entries;
 }
 
@@ -442,6 +451,19 @@ export default function BuyerSessionRequestOverlay({
           <span style={{ color: "#ffdada", fontSize: 13, lineHeight: 1.4 }}>
             No te conectaste dentro de los 15 minutos posteriores a la hora agendada.
           </span>
+        </div>
+      ) : null}
+
+      {(req.rescheduleRequestsUsed ?? 0) >= 2 && !["rejected", "refund_requested", "refund_review", "completed", "cancelled"].includes(req.status) ? (
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
+          <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke={priceColor} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flexShrink: 0, marginTop: 1 }}>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 16v-4" />
+            <circle cx="12" cy="8" r="0.5" fill={priceColor} />
+          </svg>
+          <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.5 }}>
+            Ya no tienes más intentos disponibles para solicitar un cambio de horario.
+          </p>
         </div>
       ) : null}
     </div>
