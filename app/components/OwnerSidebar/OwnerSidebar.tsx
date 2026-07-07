@@ -43,6 +43,37 @@ import { useSidebarVisitCounts } from "@/lib/hooks/useSidebarVisitCounts";
 import { useNewPostsCounts } from "@/lib/hooks/useNewPostsCounts";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
+import {
+  visibilitySectionTitle,
+  typeLabel,
+  getServiceBucketKey,
+  isMeetGreetCreatorActiveItem,
+  isBuyerRequestedVisibleItem,
+  fmtDate,
+  getInitials,
+  friendlyJoinErrorMessage,
+  buildDisplayName,
+  OWNER_SIDEBAR_FOLLOWING_LIMIT,
+  normalizeOwnerSidebarNoShowStatus,
+  normalizeSidebarMemberStatus,
+  normalizeSidebarGroupRole,
+  sortGroupsWithModsFirst,
+  resolveSidebarSubscriptionEnabled,
+  resolveSidebarSubscriptionPrice,
+  resolveSidebarSubscriptionCurrency,
+  formatSidebarMoney,
+} from "./OwnerSidebar.utils";
+
+// Re-export de helpers públicos para preservar la API previa del módulo
+// (consumido por wallet/*, overlays y componentes hermanos del sidebar).
+export {
+  visibilitySectionTitle,
+  typeLabel,
+  fmtDate,
+  getInitials,
+  friendlyJoinErrorMessage,
+  buildDisplayName,
+};
 
 export type Currency = "MXN" | "USD";
 export type SidebarMemberStatus =
@@ -299,218 +330,6 @@ export type TopView = "owned" | "communities" | "following" | "greetings";
 export type TabIconProps = {
   active: boolean;
 };
-
-export function visibilitySectionTitle(v: string) {
-  if (v === "public") return "Comunidades públicas";
-  if (v === "private") return "Comunidades privadas";
-  if (v === "hidden") return "Comunidades ocultas";
-  return "Otras comunidades";
-}
-
-export function typeLabel(t: string) {
-  if (t === "saludo") return "Saludo";
-  if (t === "consejo") return "Consejo";
-  if (t === "mensaje") return "Mensaje";
-  if (t === "meet_greet_digital") return "Meet & Greet";
-  if (t === "clase_personalizada") return "Sesión exclusiva";
-  if (t === "exclusive_session") return "Sesión exclusiva";
-  if (t === "digital_exclusive_session") return "Sesión exclusiva";
-  return t;
-}
-
-function getServiceBucketKey(data: {
-  source?: string | null;
-  profileUserId?: string | null;
-  creatorId?: string | null;
-  groupId?: string | null;
-}) {
-  if (data.source === "profile") {
-    return `profile:${data.profileUserId ?? data.creatorId ?? "unknown"}`;
-  }
-
-  return data.groupId ?? null;
-}
-
-
-
-function isMeetGreetCreatorActiveItem(status?: MeetGreetStatus | null) {
-  return (
-    status === "pending_creator_response" ||
-    status === "accepted_pending_schedule" ||
-    status === "scheduled" ||
-    status === "reschedule_requested" ||
-    status === "ready_to_prepare" ||
-    status === "in_preparation"
-  );
-}
-
-function isMeetGreetPendingItem(status?: MeetGreetStatus | null) {
-  return (
-    status === "pending_creator_response" ||
-    status === "accepted_pending_schedule" ||
-    status === "scheduled" ||
-    status === "reschedule_requested" ||
-    status === "ready_to_prepare" ||
-    status === "in_preparation"
-  );
-}
-
-function isBuyerRequestedVisibleItem(status?: MeetGreetStatus | null) {
-  return (
-    isMeetGreetPendingItem(status) ||
-    status === "rejected" ||
-    status === "refund_requested" ||
-    status === "refund_review" ||
-    status === "cancelled"
-  );
-}
-
-export function fmtDate(ts?: Timestamp | null) {
-  if (!ts) return "";
-  return ts.toDate().toLocaleString("es-MX");
-}
-
-export function getInitials(name?: string | null) {
-  const raw = (name ?? "").trim();
-  if (!raw) return "C";
-  const parts = raw.split(/\s+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? "";
-  const second = parts[1]?.[0] ?? "";
-  return `${first}${second}`.toUpperCase() || "C";
-}
-
-export function friendlyJoinErrorMessage(err: unknown) {
-  const errMsg = err instanceof Error ? err.message : "";
-  const msg = errMsg.toLowerCase();
-  if (
-    msg.includes("solicitud no existe") ||
-    msg.includes("not-found") ||
-    msg.includes("does not exist")
-  ) {
-    return null;
-  }
-  return errMsg || "Ocurrió un error.";
-}
-
-export function buildDisplayName(user?: Partial<UserDoc> | null, uid?: string) {
-  const dn = user?.displayName?.trim();
-  if (dn) return dn;
-
-  const full = [user?.firstName?.trim(), user?.lastName?.trim()]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-
-  if (full) return full;
-  if (uid) return `Usuario ${uid.slice(0, 6)}`;
-  return "Usuario";
-}
-
-const OWNER_SIDEBAR_NO_SHOW_GRACE_MS = 15 * 60 * 1000;
-const OWNER_SIDEBAR_FOLLOWING_LIMIT = 30;
-
-function shouldOwnerSidebarTreatAsNoShowRejected(
-  item?: Pick<MeetGreetRequestDoc, "status" | "scheduledAt"> | null,
-  nowMs = Date.now()
-) {
-  if (!item?.scheduledAt) return false;
-
-  if (
-    item.status !== "scheduled" &&
-    item.status !== "ready_to_prepare" &&
-    item.status !== "in_preparation"
-  ) {
-    return false;
-  }
-
-  return (
-    nowMs >=
-    item.scheduledAt.toDate().getTime() + OWNER_SIDEBAR_NO_SHOW_GRACE_MS
-  );
-}
-
-function normalizeOwnerSidebarNoShowStatus<T extends MeetGreetRequestDoc>(
-  item: T,
-  nowMs = Date.now()
-): T {
-  if (!shouldOwnerSidebarTreatAsNoShowRejected(item, nowMs)) return item;
-
-  return {
-    ...item,
-    status: "rejected",
-    rejectionReason:
-      item.rejectionReason ??
-      "Rechazado automáticamente por no iniciar la sesión dentro de los 15 minutos de tolerancia.",
-  };
-}
-
-function normalizeSidebarMemberStatus(raw: unknown): SidebarMemberStatus {
-  if (raw === "banned") return "banned";
-  if (raw === "muted") return "muted";
-  if (raw === "subscribed") return "subscribed";
-  if (raw === "active") return "active";
-  if (raw === "removed") return "removed";
-
-  if (raw === "kicked") return "removed";
-  if (raw === "expelled") return "removed";
-
-  return null;
-}
-
-function normalizeSidebarGroupRole(raw: unknown): GroupRoleLite {
-  if (raw === "owner") return "owner";
-  if (raw === "mod" || raw === "moderator") return "mod";
-  if (raw === "member") return "member";
-  return null;
-}
-
-function sortGroupsWithModsFirst(items: GroupDocLite[]) {
-  return [...items].sort((a, b) => {
-    const aIsMod = a.memberRole === "mod" ? 0 : 1;
-    const bIsMod = b.memberRole === "mod" ? 0 : 1;
-
-    if (aIsMod !== bIsMod) return aIsMod - bIsMod;
-
-    const aName = (a.name ?? "").trim().toLocaleLowerCase("es-MX");
-    const bName = (b.name ?? "").trim().toLocaleLowerCase("es-MX");
-    return aName.localeCompare(bName, "es-MX");
-  });
-}
-
-function resolveSidebarSubscriptionEnabled(group?: GroupDocLite | null) {
-  return (
-    group?.monetization?.subscriptionsEnabled === true ||
-    group?.monetization?.isPaid === true
-  );
-}
-
-function resolveSidebarSubscriptionPrice(group?: GroupDocLite | null) {
-  return (
-    group?.monetization?.subscriptionPriceMonthly ??
-    group?.monetization?.priceMonthly ??
-    null
-  );
-}
-
-function resolveSidebarSubscriptionCurrency(group?: GroupDocLite | null) {
-  return (
-    group?.monetization?.subscriptionCurrency ??
-    group?.monetization?.currency ??
-    null
-  );
-}
-
-function formatSidebarMoney(value: number, currency: Currency) {
-  try {
-    return new Intl.NumberFormat("es-MX", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 2,
-    }).format(value);
-  } catch {
-    return `${currency} ${value.toFixed(2)}`;
-  }
-}
 
 export function Switch({
   checked,
