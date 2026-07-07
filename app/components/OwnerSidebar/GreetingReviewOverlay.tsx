@@ -2202,18 +2202,34 @@ export default function GreetingReviewOverlay({
   const REVIEW_BG_CSS = `
     .grv-bg-img {
       position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 0;
-      background-size: 100% auto; background-position: center bottom; background-repeat: no-repeat;
-      opacity: 0.35;
+      background-size: cover; background-position: center 40%; background-repeat: no-repeat;
+      opacity: 0.52;
     }
     .grv-bg-grad {
       position: absolute; top: 0; right: 0; bottom: 0; left: 0; z-index: 1;
-      background: linear-gradient(to bottom, #0a0a0a 50%, rgba(10,10,10,0.85) 68%, rgba(10,10,10,0.4) 85%, transparent 100%);
+      background: linear-gradient(to bottom,
+        #0a0a0a 28%,
+        rgba(10,10,10,0.72) 46%,
+        rgba(10,10,10,0.62) 60%,
+        rgba(10,10,10,0.82) 78%,
+        #0a0a0a 100%
+      );
       -webkit-transform: translateZ(0); transform: translateZ(0); will-change: opacity;
     }
     .grv-z2 { position: relative; z-index: 2; }
-    @media (max-width: 768px) {
+    @media (max-width: 900px) {
+      .grv-bg-img {
+        background-position: center 38%;
+      }
       .grv-bg-grad {
-        background: linear-gradient(to bottom, #0a0a0a 0%, #0a0a0a 52%, rgba(10,10,10,0.9) 68%, rgba(10,10,10,0.6) 84%, rgba(10,10,10,0.28) 100%);
+        background: linear-gradient(to bottom,
+          #0a0a0a 0%,
+          #0a0a0a 34%,
+          rgba(10,10,10,0.72) 52%,
+          rgba(10,10,10,0.62) 64%,
+          rgba(10,10,10,0.82) 80%,
+          #0a0a0a 100%
+        );
       }
     }
   `;
@@ -2260,7 +2276,7 @@ export default function GreetingReviewOverlay({
             style={{ padding: "10px 18px 14px", userSelect: "none", touchAction: "none", display: "flex", flexDirection: "column", gap: 14, flexShrink: 0 }}
           >
             <div style={{ width: 36, height: 4, borderRadius: 999, background: "rgba(255,255,255,0.18)", margin: "0 auto" }} />
-            <div style={{ display: "grid", gridTemplateColumns: "72px 1fr 72px", alignItems: "center" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "72px 1fr 72px", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 10, marginBottom: 4 }}>
               <div aria-hidden="true" />
               <span style={{ color: "#fff", fontWeight: 500, fontSize: 17, letterSpacing: "-0.02em", textAlign: "center" }}>
                 {titleText}
@@ -2273,7 +2289,6 @@ export default function GreetingReviewOverlay({
           {/* Scrollable content + actions inline */}
           <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "0 18px", paddingBottom: "calc(20px + env(safe-area-inset-bottom))" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14, ...slideStyle }}>
-              {divider}
               {infoSection}
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={handleGrabar} disabled={busy} style={{
@@ -2359,7 +2374,6 @@ export default function GreetingReviewOverlay({
 
           <div className="grv-z2" style={{ flex: 1, overflowY: "auto", minHeight: 0, padding: "18px 20px 20px", display: "grid", gap: 16, alignContent: "start", ...slideStyle }}>
             {buyerRow}
-            {divider}
             {infoSection}
 
             {/* Actions */}

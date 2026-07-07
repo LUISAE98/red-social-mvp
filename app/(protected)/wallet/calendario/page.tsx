@@ -247,9 +247,9 @@ type ServiceCardTheme = {
 function getServiceCardTheme(kind: string): ServiceCardTheme {
   switch (kind) {
     case "saludo":
-      return { bgImage: "/saludo.png", btnBg: "rgba(250,204,21,0.20)", btnColor: "#fde047" };
+      return { bgImage: "/saludo.png", btnBg: "rgba(168,85,247,0.22)", btnColor: "#d8b4fe" };
     case "consejo":
-      return { bgImage: "/consejo.png", btnBg: "rgba(168,85,247,0.22)", btnColor: "#d8b4fe" };
+      return { bgImage: "/consejo.png", btnBg: "rgba(250,204,21,0.20)", btnColor: "#fde047" };
     case "mensaje":
       return { bgImage: null, btnBg: "rgba(168,85,247,0.22)", btnColor: "#d8b4fe" };
     case "meet_greet":

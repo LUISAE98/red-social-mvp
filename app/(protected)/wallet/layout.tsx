@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import WalletSubNav, { type WalletTabKey } from "./components/WalletSubNav";
 import { WalletDataContext } from "./components/WalletDataContext";
@@ -35,6 +35,16 @@ export default function WalletLayout({
   const pathname = usePathname();
   const activeTab = pathToTab(pathname);
 
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 900px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   const direction = useMemo(() => {
     if (typeof window === "undefined") return 0;
     const prev = sessionStorage.getItem(STORAGE_KEY) as WalletTabKey | null;
@@ -59,7 +69,7 @@ export default function WalletLayout({
           display: flex;
           flex-direction: column;
           gap: 8px;
-          margin-bottom: 18px;
+          margin-bottom: 6px;
         }
 
         .walletTitle {
@@ -84,7 +94,7 @@ export default function WalletLayout({
 
           .walletHeader {
             gap: 6px;
-            margin-bottom: 14px;
+            margin-bottom: 4px;
           }
 
           .walletTitle {
@@ -103,9 +113,15 @@ export default function WalletLayout({
           <div className="walletContent">
             <motion.div
               key={pathname}
-              initial={{ x: direction > 0 ? "100%" : direction < 0 ? "-100%" : 0 }}
-              animate={{ x: 0 }}
-              transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
+              initial={isMobile
+                ? { y: "100%", opacity: 0.6 }
+                : { x: direction > 0 ? "100%" : direction < 0 ? "-100%" : 0 }
+              }
+              animate={isMobile ? { y: 0, opacity: 1 } : { x: 0 }}
+              transition={isMobile
+                ? { type: "spring", stiffness: 380, damping: 36, mass: 0.85 }
+                : { type: "spring", stiffness: 320, damping: 32, mass: 0.9 }
+              }
             >
               {children}
             </motion.div>

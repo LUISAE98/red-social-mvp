@@ -780,13 +780,14 @@ export function WalletServiceRow({
       <>
         <style jsx>{`
           .wGCard {
-            position: relative;
             overflow: hidden;
             border-radius: 14px;
-            padding: 13px 14px;
+          }
+          .wGCardInner {
             display: flex;
             align-items: center;
             gap: 12px;
+            padding: 13px 14px;
           }
           @media (max-width: 640px) {
             .wGCard { cursor: pointer; }
@@ -794,60 +795,60 @@ export function WalletServiceRow({
             .wGCardChevron { display: flex !important; }
           }
         `}</style>
-        <div
-          className="wGCard"
-          onClick={handleGreetingClick}
-          style={{
-            background: theme.bgImage
-              ? `linear-gradient(rgba(8,8,10,0.78), rgba(8,8,10,0.78)), url(${theme.bgImage}) center / cover no-repeat`
-              : "rgba(255,255,255,0.04)",
-            fontFamily: walletFontStack,
-          }}
-        >
-          {row.buyerAvatarUrl ? (
-            <Image src={row.buyerAvatarUrl} alt={row.buyerDisplayName ?? ""} width={40} height={40}
-              style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.14)", position: "relative", zIndex: 1 }} />
-          ) : (
-            <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0, background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", position: "relative", zIndex: 1 }}>
-              {initial}
-            </div>
-          )}
-          <div style={{ flex: 1, minWidth: 0, overflow: "hidden", position: "relative", zIndex: 1 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-              <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
-                {row.buyerDisplayName ?? "Usuario"}
-              </span>
-              {row.priceSnapshot != null ? (
-                <span style={{ color: isHistory && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
-                  +{formatWalletMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100)} MXN
-                </span>
-              ) : null}
-            </div>
-            <div style={{ color: "rgba(255,255,255,0.48)", fontSize: 11, lineHeight: 1.3, marginTop: 3 }}>
-              {isHistory && historyStatusLabel
-                ? <span style={{ color: historyStatusColor }}>{historyStatusLabel}</span>
-                : (sentLabel ?? getRelativeTime(row.createdAt))}
-            </div>
-          </div>
-          <button
-            className="wGCardBtn"
-            type="button"
-            onClick={(e) => { e.stopPropagation(); handleGreetingClick(); }}
+        <div className="wGCard" onClick={handleGreetingClick}>
+          <div
+            className="wGCardInner"
             style={{
-              flexShrink: 0, width: 148, height: 32, borderRadius: 8, border: "none",
-              background: theme.btnBg, color: theme.btnColor,
-              fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: walletFontStack,
-              whiteSpace: "nowrap", position: "relative", zIndex: 1,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+              fontFamily: walletFontStack,
+              background: theme.bgImage
+                ? `linear-gradient(rgba(8,8,10,0.78), rgba(8,8,10,0.78)), url(${theme.bgImage}) center / cover no-repeat`
+                : "rgba(255,255,255,0.04)",
             }}
           >
-            {actionLabel}
-          </button>
-          <span className="wGCardChevron" style={{ display: "none", flexShrink: 0, color: theme.btnColor, alignItems: "center", justifyContent: "center", zIndex: 1, position: "relative" }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </span>
+            {row.buyerAvatarUrl ? (
+              <Image src={row.buyerAvatarUrl} alt={row.buyerDisplayName ?? ""} width={40} height={40}
+                style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.14)" }} />
+            ) : (
+              <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0, background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff" }}>
+                {initial}
+              </div>
+            )}
+            <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
+                  {row.buyerDisplayName ?? "Usuario"}
+                </span>
+                {row.priceSnapshot != null ? (
+                  <span style={{ color: isHistory && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
+                    +{formatWalletMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100)} MXN
+                  </span>
+                ) : null}
+              </div>
+              <div style={{ color: "rgba(255,255,255,0.48)", fontSize: 11, lineHeight: 1.3, marginTop: 3 }}>
+                {isHistory && historyStatusLabel
+                  ? <span style={{ color: historyStatusColor }}>{historyStatusLabel}</span>
+                  : (sentLabel ?? getRelativeTime(row.createdAt))}
+              </div>
+            </div>
+            <button
+              className="wGCardBtn"
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleGreetingClick(); }}
+              style={{
+                flexShrink: 0, width: 148, height: 32, borderRadius: 8, border: "none",
+                background: theme.btnBg, color: theme.btnColor,
+                fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: walletFontStack,
+                whiteSpace: "nowrap", display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              {actionLabel}
+            </button>
+            <span className="wGCardChevron" style={{ display: "none", flexShrink: 0, color: theme.btnColor, alignItems: "center", justifyContent: "center" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </span>
+          </div>
         </div>
       </>
     );
