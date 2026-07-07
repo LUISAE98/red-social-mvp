@@ -28,7 +28,10 @@ export default function WalletSectionShell({
         }
       `}</style>
 
-      <RefreshableArea onRefresh={handleWalletPullRefresh}>
+      <RefreshableArea
+        onRefresh={handleWalletPullRefresh}
+        indicatorTop="var(--wallet-header-bottom, calc(env(safe-area-inset-top) + 20px))"
+      >
         <section className="content">{children}</section>
       </RefreshableArea>
     </>

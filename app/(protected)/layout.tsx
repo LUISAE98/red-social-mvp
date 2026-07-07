@@ -4,8 +4,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { consumeNavSlideDir } from "@/lib/nav-slide";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
+import { consumeNavSlideDir, peekNavSlideDir } from "@/lib/nav-slide";
 import { usePathname, useRouter } from "next/navigation";
 import VibraSavedPostIcon from "@/app/components/VibraServiceIcons/VibraSavedPostIcon";
 import { useAuth } from "@/app/providers";
@@ -79,8 +80,12 @@ function AuthenticatedProfileShell({
 const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 const { hasWallet: showWalletRail } = useWalletVisibility(user?.uid);
 const { headerRef, safeAreaRef } = useMobileHeaderFade();
-const mainInnerRef = useRef<HTMLDivElement>(null);
-const pendingAnimDirRef = useRef<"left" | "right" | null>(null);
+// Peek (no destruye) durante render para que framer-motion reciba el initial correcto
+const slideDir = useMemo(() => {
+  if (typeof window === "undefined") return 0;
+  const d = peekNavSlideDir();
+  return d === "right" ? 1 : d === "left" ? -1 : 0;
+}, [pathname]);
 
 // Estado para header contextual (avatar + nombre que pasan las páginas hijas)
 const [headerData, setHeaderData] = useState<MobileHeaderData>({ avatarUrl: null, name: null });
@@ -114,26 +119,12 @@ useEffect(() => {
     setContextScrolled(false);
   }, [pathname]);
 
-  // Restore scroll before paint so there's no visible jump
+  // Restaurar scroll antes del paint + limpiar _dir después de haberlo leído en useMemo
   useLayoutEffect(() => {
     const dir = consumeNavSlideDir();
     if (!dir) return;
     const saved = sessionStorage.getItem(`nav:scroll:${pathname}`);
     window.scrollTo({ top: saved !== null ? parseInt(saved) : 0, behavior: "instant" });
-    pendingAnimDirRef.current = dir;
-  }, [pathname]);
-
-  // Animate after paint so position:fixed children (e.g. OwnerSidebar) are
-  // already in the DOM when iOS creates the transform stacking context.
-  useEffect(() => {
-    const dir = pendingAnimDirRef.current;
-    pendingAnimDirRef.current = null;
-    if (!dir) return;
-    const el = mainInnerRef.current;
-    if (el) {
-      el.setAttribute("data-nav-enter", dir);
-      el.addEventListener("animationend", () => el.removeAttribute("data-nav-enter"), { once: true });
-    }
   }, [pathname]);
 
   // Scroll listener: comportamiento diferente según la ruta
@@ -818,7 +809,13 @@ const contentAreaClassName = isEmbed
           )}
 
           <main className="mainCol">
-            <div className="mainInner" ref={mainInnerRef}>{children}</div>
+            <motion.div
+              className="mainInner"
+              key={pathname}
+              initial={{ x: slideDir > 0 ? "100%" : slideDir < 0 ? "-100%" : 0 }}
+              animate={{ x: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
+            >{children}</motion.div>
           </main>
 
           {!isEmbed && (

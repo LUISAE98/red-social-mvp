@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
-const DURATION = 1000;
+const DURATION = 500;
 const INNER_SIZE = 46;
 const RING_R = 26;
 const STROKE = 3;

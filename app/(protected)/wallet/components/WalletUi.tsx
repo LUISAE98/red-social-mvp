@@ -220,6 +220,27 @@ function getRelativeTime(date: Date | null): string {
 
 const walletFontStack = 'inherit';
 
+function AvatarImg({ src, alt, initial }: { src: string; alt: string; initial: string }) {
+  const [error, setError] = useState(false);
+  const fallbackStyle: React.CSSProperties = {
+    width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+    background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    fontWeight: 700, fontSize: 14, color: "#fff",
+  };
+  if (error || !src) return <div style={fallbackStyle}>{initial}</div>;
+  return (
+    <Image
+      src={src}
+      alt={alt}
+      width={40}
+      height={40}
+      onError={() => setError(true)}
+      style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.14)" }}
+    />
+  );
+}
+
 export function WalletCard({
   title,
   description,
@@ -805,14 +826,7 @@ export function WalletServiceRow({
                 : "rgba(255,255,255,0.04)",
             }}
           >
-            {row.buyerAvatarUrl ? (
-              <Image src={row.buyerAvatarUrl} alt={row.buyerDisplayName ?? ""} width={40} height={40}
-                style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.14)" }} />
-            ) : (
-              <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0, background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff" }}>
-                {initial}
-              </div>
-            )}
+            <AvatarImg src={row.buyerAvatarUrl ?? ""} alt={row.buyerDisplayName ?? ""} initial={initial} />
             <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                 <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
@@ -882,14 +896,7 @@ export function WalletServiceRow({
         `}</style>
         <div className="wSCard" onClick={() => onView(row)}>
           <div className="wSCardInner" style={{ fontFamily: walletFontStack, background: theme.bgImage ? `linear-gradient(rgba(8,8,10,0.78), rgba(8,8,10,0.78)), url(${theme.bgImage}) center / cover no-repeat` : "rgba(255,255,255,0.04)" }}>
-            {row.buyerAvatarUrl ? (
-              <Image src={row.buyerAvatarUrl} alt={row.buyerDisplayName ?? ""} width={40} height={40}
-                style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.14)" }} />
-            ) : (
-              <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0, background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff" }}>
-                {(row.buyerDisplayName ?? "U").charAt(0).toUpperCase()}
-              </div>
-            )}
+            <AvatarImg src={row.buyerAvatarUrl ?? ""} alt={row.buyerDisplayName ?? ""} initial={(row.buyerDisplayName ?? "U").charAt(0).toUpperCase()} />
             <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
                 <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
@@ -1071,14 +1078,7 @@ export function WalletServiceRow({
             fontFamily: walletFontStack,
           }}
         >
-          {row.buyerAvatarUrl ? (
-            <Image src={row.buyerAvatarUrl} alt={row.buyerDisplayName ?? ""} width={40} height={40}
-              style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.14)" }} />
-          ) : (
-            <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0, background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff" }}>
-              {(row.buyerDisplayName ?? "U").charAt(0).toUpperCase()}
-            </div>
-          )}
+          <AvatarImg src={row.buyerAvatarUrl ?? ""} alt={row.buyerDisplayName ?? ""} initial={(row.buyerDisplayName ?? "U").charAt(0).toUpperCase()} />
           <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
               <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>

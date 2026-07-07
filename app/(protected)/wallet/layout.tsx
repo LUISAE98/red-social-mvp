@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import WalletSubNav, { type WalletTabKey } from "./components/WalletSubNav";
 import { WalletDataContext } from "./components/WalletDataContext";
@@ -35,14 +35,24 @@ export default function WalletLayout({
   const pathname = usePathname();
   const activeTab = pathToTab(pathname);
 
-  const [isMobile, setIsMobile] = useState(false);
+  const headerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 900px)");
-    setIsMobile(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    const el = headerRef.current;
+    if (!el) return;
+    const update = () => {
+      document.documentElement.style.setProperty(
+        "--wallet-header-bottom",
+        `${el.getBoundingClientRect().bottom}px`
+      );
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty("--wallet-header-bottom");
+    };
   }, []);
 
   const direction = useMemo(() => {
@@ -105,7 +115,7 @@ export default function WalletLayout({
 
       <WalletDataContext.Provider value={walletData}>
         <div className="walletLayout">
-          <div className="walletHeader">
+          <div ref={headerRef} className="walletHeader">
             <h1 className="walletTitle">Wallet</h1>
             <WalletSubNav activeTab={activeTab} />
           </div>
@@ -113,15 +123,9 @@ export default function WalletLayout({
           <div className="walletContent">
             <motion.div
               key={pathname}
-              initial={isMobile
-                ? { y: "100%", opacity: 0.6 }
-                : { x: direction > 0 ? "100%" : direction < 0 ? "-100%" : 0 }
-              }
-              animate={isMobile ? { y: 0, opacity: 1 } : { x: 0 }}
-              transition={isMobile
-                ? { type: "spring", stiffness: 380, damping: 36, mass: 0.85 }
-                : { type: "spring", stiffness: 320, damping: 32, mass: 0.9 }
-              }
+              initial={{ x: direction > 0 ? "100%" : direction < 0 ? "-100%" : 0 }}
+              animate={{ x: 0 }}
+              transition={{ type: "spring", stiffness: 320, damping: 32, mass: 0.9 }}
             >
               {children}
             </motion.div>
