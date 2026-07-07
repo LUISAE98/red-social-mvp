@@ -485,15 +485,36 @@ export default function ProfilePostsFeed({
 }: ProfilePostsFeedProps) {
   const showDonationBanner =
     donation?.mode === "general" && donation?.enabled === true && donation?.visible !== false;
-  const [posts, setPosts] = useState<PostWithFlags[]>([]);
+
+  // Synchronous cache snapshot — used for lazy state initializers to avoid
+  // skeleton flash on re-navigation. Must be computed before any useState.
+  const _initCacheKey = getProfileFeedCacheKey({
+    profileUid,
+    viewerUid,
+    isOwner,
+    showPosts,
+    profileRestricted,
+  });
+  const _initCacheSnap = (() => {
+    const cached = profileFeedMemoryCache.get(_initCacheKey);
+    if (!cached || Date.now() - cached.updatedAt > PROFILE_FEED_CACHE_TTL_MS) return null;
+    // Same processing-video guard the effect uses
+    const hasProcessing = cached.posts.some(isVideoPostStillProcessing);
+    if (hasProcessing) return null;
+    return cached;
+  })();
+
+  const [posts, setPosts] = useState<PostWithFlags[]>(
+    () => _initCacheSnap ? _initCacheSnap.posts.filter((p) => !p.isDeleted) : []
+  );
   const [error, setError] = useState<string | null>(null);
   const { toast: feedToast, showToast: showFeedToast } = useVibraToast();
   useEffect(() => { if (error) showFeedToast(error, "error"); }, [error]); // eslint-disable-line react-hooks/exhaustive-deps
-  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [loadingInitial, setLoadingInitial] = useState<boolean>(() => !_initCacheSnap);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(false);
+  const [hasMore, setHasMore] = useState<boolean>(() => _initCacheSnap?.hasMore ?? false);
   const [pageCursor, setPageCursor] =
-    useState<UserProfilePostsPageCursor | null>(null);
+    useState<UserProfilePostsPageCursor | null>(() => _initCacheSnap?.cursor ?? null);
   const [isMobile, setIsMobile] = useState(false);
   const [isEmbed, setIsEmbed] = useState(false);
   useEffect(() => {
@@ -501,8 +522,10 @@ export default function ProfilePostsFeed({
   }, []);
   const infiniteScrollTargetRef = useRef<HTMLDivElement | null>(null);
   const loadingMoreRef = useRef(false);
-  const hasMoreRef = useRef(false);
-  const pageCursorRef = useRef<UserProfilePostsPageCursor | null>(null);
+  const hasMoreRef = useRef<boolean>(_initCacheSnap?.hasMore ?? false);
+  const pageCursorRef = useRef<UserProfilePostsPageCursor | null>(_initCacheSnap?.cursor ?? null);
+  // True when states were already initialized from cache — skip first effect run
+  const _cacheInitializedRef = useRef(!!_initCacheSnap);
   const videoProcessingPollsRef = useRef<Record<string, number>>({});
   const feedRequestIdRef = useRef(0);
 
@@ -748,6 +771,14 @@ const cacheKey = useMemo(
 
       const cacheHasProcessingVideos =
         cached?.posts.some(isVideoPostStillProcessing) === true;
+
+      // States already hydrated via lazy initializer — skip redundant setState calls
+      if (_cacheInitializedRef.current && cacheIsFresh && !cacheHasProcessingVideos) {
+        _cacheInitializedRef.current = false;
+        // Refs already set at declaration — nothing more to do
+        return;
+      }
+      _cacheInitializedRef.current = false;
 
       if (cacheIsFresh && !cacheHasProcessingVideos) {
         setPosts(cached.posts.filter((post) => post.isDeleted !== true));

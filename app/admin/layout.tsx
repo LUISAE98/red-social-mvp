@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { label: "Asignados a otros", href: "/admin/other-reports" },
   { label: "Historial", href: "/admin/audit-log" },
   { label: "Comunidades ocultas", href: "/admin/hidden-communities" },
+  { label: "Comunidades privadas", href: "/admin/private-communities" },
 ];
 
 const MOBILE_BREAKPOINT = 900;
@@ -31,6 +32,8 @@ export default function AdminLayout({
   const [signingOut, setSigningOut] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [iframeLoading, setIframeLoading] = useState(false);
+  const [navUrl, setNavUrl] = useState("/groups");
+  const [navInput, setNavInput] = useState("/groups");
 
   useEffect(() => {
     function check() {
@@ -50,6 +53,8 @@ export default function AdminLayout({
   // Reset preview when navigating between sections
   useEffect(() => {
     setPreviewUrl(null);
+    setNavUrl("/groups");
+    setNavInput("/groups");
   }, [pathname]);
 
   async function handleSignOut() {
@@ -60,7 +65,19 @@ export default function AdminLayout({
 
   function handleSetPreviewUrl(url: string | null) {
     setPreviewUrl(url);
-    if (url) setIframeLoading(true);
+    if (url) {
+      setNavUrl(url);
+      setNavInput(url);
+      setIframeLoading(true);
+    }
+  }
+
+  function handleNavNavigate() {
+    let url = navInput.trim();
+    if (!url) return;
+    if (!url.startsWith("http") && !url.startsWith("/")) url = `/${url}`;
+    setNavUrl(url);
+    setIframeLoading(true);
   }
 
   if (loading) {
@@ -302,6 +319,59 @@ export default function AdminLayout({
             pointer-events: none;
             z-index: 1;
           }
+
+          .previewNavBar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-bottom: 1px solid #111;
+            flex-shrink: 0;
+            background: #0a0a0a;
+          }
+
+          .previewNavInput {
+            flex: 1;
+            background: #111;
+            border: 1px solid #1e1e1e;
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 12px;
+            color: #aaa;
+            outline: none;
+            font-family: "SF Mono", "Fira Code", monospace;
+            transition: border-color 150ms, color 150ms;
+          }
+
+          .previewNavInput:focus {
+            border-color: #3a3a3a;
+            color: #ddd;
+          }
+
+          .previewNavInput::placeholder {
+            color: #2a2a2a;
+          }
+
+          .previewNavButton {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border: 1px solid #1e1e1e;
+            border-radius: 6px;
+            background: #111;
+            color: #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: color 150ms, border-color 150ms;
+          }
+
+          .previewNavButton:hover {
+            color: #aaa;
+            border-color: #333;
+          }
         `}</style>
 
         <div className="shell">
@@ -364,31 +434,39 @@ export default function AdminLayout({
           {/* Col 3 — Preview iframe */}
           <div className="preview">
             <div className="previewTitle">Navegador</div>
+            <div className="previewNavBar">
+              <input
+                className="previewNavInput"
+                value={navInput}
+                onChange={(e) => setNavInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleNavNavigate();
+                }}
+                placeholder="/groups"
+                spellCheck={false}
+              />
+              <button
+                type="button"
+                className="previewNavButton"
+                onClick={handleNavNavigate}
+                title="Navegar"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12 5 19 12 12 19" />
+                </svg>
+              </button>
+            </div>
             <div className="previewBody">
-              {previewUrl ? (
-                <>
-                  {iframeLoading && (
-                    <div className="iframeLoadingOverlay">Cargando...</div>
-                  )}
-                  <iframe
-                    key={previewUrl}
-                    src={previewUrl}
-                    className="previewIframe"
-                    onLoad={() => setIframeLoading(false)}
-                  />
-                </>
-              ) : (
-                <div className="previewPlaceholder">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <path d="M3 9h18" />
-                    <path d="M9 21V9" />
-                  </svg>
-                  <span style={{ fontSize: 13 }}>
-                    Selecciona un elemento para previsualizar
-                  </span>
-                </div>
+              {iframeLoading && (
+                <div className="iframeLoadingOverlay">Cargando...</div>
               )}
+              <iframe
+                key={navUrl}
+                src={navUrl}
+                className="previewIframe"
+                onLoad={() => setIframeLoading(false)}
+              />
             </div>
           </div>
         </div>

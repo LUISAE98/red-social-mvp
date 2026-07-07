@@ -245,7 +245,8 @@ const filteredItems = useMemo(() => {
 
     {viewRow && overlayItems.length > 0 && (
       <GreetingReviewOverlay
-        viewMode
+        viewMode={viewRow.status !== "rejected" && viewRow.status !== "devolucion"}
+        readOnly={viewRow.status === "rejected" || viewRow.status === "devolucion"}
         items={overlayItems}
         buyers={overlayBuyers}
         greetingBusyId={null}

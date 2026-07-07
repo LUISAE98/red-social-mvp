@@ -30,6 +30,23 @@ const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 const VIBRA_GRADIENT = "linear-gradient(135deg, #ec4899 0%, #9333ea 52%, #3b82f6 100%)";
 const SEEN_COLOR = "rgba(255,255,255,0.28)";
 
+// ─── Module-level cache — survives navigation in the same tab ─────────────────
+type StoriesIdsEntry = { creatorIds: string[]; groupIds: string[]; cachedAt: number };
+const storiesIdsCache = new Map<string, StoriesIdsEntry>();
+const STORIES_IDS_TTL_MS = 5 * 60 * 1000;
+
+function peekStoriesIds(uid: string): StoriesIdsEntry | null {
+  const e = storiesIdsCache.get(uid);
+  if (!e || Date.now() - e.cachedAt > STORIES_IDS_TTL_MS) return null;
+  return e;
+}
+function setStoriesIds(uid: string, ids: string[], gids: string[]) {
+  storiesIdsCache.set(uid, { creatorIds: ids, groupIds: gids, cachedAt: Date.now() });
+}
+export function invalidateStoriesCache(uid: string) {
+  storiesIdsCache.delete(uid);
+}
+
 type DisplayInfo = {
   displayName: string | null;
   photoURL: string | null;
@@ -53,9 +70,11 @@ const fontStack =
   'inherit';
 
 export default function HomeStoriesRow({ currentUserId }: Props) {
-  const [loaded, setLoaded] = useState(false);
-  const [creatorIds, setCreatorIds] = useState<string[]>([]);
-  const [groupIds, setGroupIds] = useState<string[]>([]);
+  const [loaded, setLoaded] = useState<boolean>(() => !!peekStoriesIds(currentUserId));
+  const [creatorIds, setCreatorIds] = useState<string[]>(() => peekStoriesIds(currentUserId)?.creatorIds ?? []);
+  const [groupIds, setGroupIds] = useState<string[]>(() => peekStoriesIds(currentUserId)?.groupIds ?? []);
+  // Track whether we've given subscriptions time to fire (prevents layout shift)
+  const [subscriptionSettled, setSubscriptionSettled] = useState<boolean>(() => !!peekStoriesIds(currentUserId));
   // entityId → livePostId, real-time
   const [profileLives, setProfileLives] = useState<Map<string, string>>(new Map());
   const [groupLives, setGroupLives] = useState<Map<string, string>>(new Map());
@@ -76,6 +95,15 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
   // Refs so the mobile "group finished" callback always sees the latest data without stale closures
   const storyGroupsRef = useRef<StoryGroup[]>([]);
   const activeGroupRef = useRef<StoryGroup | null>(null);
+
+  // After loaded becomes true, give subscriptions up to 500ms to fire before we
+  // allow the component to return null (avoids a brief height-0 layout shift).
+  useEffect(() => {
+    if (!loaded) return;
+    if (subscriptionSettled) return;
+    const t = setTimeout(() => setSubscriptionSettled(true), 500);
+    return () => clearTimeout(t);
+  }, [loaded, subscriptionSettled]);
 
   // Sync isDesktop with media query changes (e.g. connecting/disconnecting a mouse)
   useEffect(() => {
@@ -110,6 +138,7 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
           .map((d) => d.id)
           .slice(0, 30);
         setGroupIds(gids);
+        setStoriesIds(currentUserId, ids, gids);
       } catch (err) {
         console.error("[HomeStoriesRow] load", err);
       } finally {
@@ -357,7 +386,9 @@ export default function HomeStoriesRow({ currentUserId }: Props) {
     }
   }
 
-  if (!loaded) {
+  const waitingForSubscription = loaded && !subscriptionSettled && (creatorIds.length > 0 || groupIds.length > 0) && allGroups.length === 0 && liveEntities.length === 0;
+
+  if (!loaded || waitingForSubscription) {
     return (
       <div
         style={{

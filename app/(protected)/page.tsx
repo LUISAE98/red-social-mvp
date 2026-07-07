@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/providers";
 import HomePostsFeed from "./HomePostsFeed";
-import HomeStoriesRow from "@/app/components/Stories/HomeStoriesRow";
+import HomeStoriesRow, { invalidateStoriesCache } from "@/app/components/Stories/HomeStoriesRow";
 import RefreshableArea from "@/components/refresh/RefreshableArea";
+import { invalidateRecommendationCache } from "@/app/components/GroupRecommendations/recommendation-engine";
 
 const SESSION_UID_KEY = "vibra:uid";
 
@@ -79,7 +80,13 @@ const pageWrap: CSSProperties = {
     <main style={pageWrap}>
       <div style={container}>
         <div style={feedWrap}>
-          <RefreshableArea onRefresh={() => refreshRef.current()}>
+          <RefreshableArea onRefresh={() => {
+            if (effectiveUid) {
+              invalidateStoriesCache(effectiveUid);
+              invalidateRecommendationCache(effectiveUid);
+            }
+            return refreshRef.current();
+          }}>
             <HomeStoriesRow currentUserId={effectiveUid} />
             <HomePostsFeed currentUserId={effectiveUid} refreshRef={refreshRef} />
           </RefreshableArea>

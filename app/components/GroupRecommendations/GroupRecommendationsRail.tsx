@@ -36,6 +36,7 @@ import {
   completeRecommendationsOnboarding,
   fetchRecommendedGroupsForUser,
   fetchRecommendedProfilesForUser,
+  getCachedResult,
   invalidateRecommendationCache,
   onRecommendationCacheInvalidated,
   recommendationEngineConstants,
@@ -49,6 +50,17 @@ import type {
   RecommendationProfileCard,
   RecommendationRailContext,
 } from "./types";
+
+// Module-level profile cache — survives navigation in the same tab
+type ProfileCacheEntry = { profiles: RecommendationProfileCard[]; cachedAt: number };
+const profileCache = new Map<string, ProfileCacheEntry>();
+const PROFILE_CACHE_TTL_MS = 90_000;
+
+function peekProfiles(uid: string): RecommendationProfileCard[] | null {
+  const e = profileCache.get(uid);
+  if (!e || Date.now() - e.cachedAt > PROFILE_CACHE_TTL_MS) return null;
+  return e.profiles;
+}
 
 type Props = {
   currentUserId: string;
@@ -948,6 +960,45 @@ function LiveRecommendationCard({
   );
 }
 
+// ─── Skeleton ────────────────────────────────────────────────────────────────
+
+function SkeletonRail() {
+  return (
+    <>
+      <style>{`
+        @keyframes vibraRecsSkeleton {
+          0%,100% { opacity: 0.38; }
+          50%      { opacity: 0.65; }
+        }
+      `}</style>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          overflowX: "hidden",
+          paddingBottom: 6,
+          paddingLeft: 12,
+          paddingRight: 12,
+        }}
+      >
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} style={{ minWidth: 200, maxWidth: 200, flexShrink: 0 }}>
+            <div
+              style={{
+                width: "100%",
+                aspectRatio: "9 / 11",
+                borderRadius: 20,
+                background: "rgba(255,255,255,0.07)",
+                animation: `vibraRecsSkeleton 1.6s ease-in-out ${i * 0.18}s infinite`,
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function GroupRecommendationsRail({
@@ -959,8 +1010,8 @@ export default function GroupRecommendationsRail({
   const [selectedCategories, setSelectedCategories] = useState<
     CanonicalGroupCategory[]
   >([]);
-  const [result, setResult] = useState<RecommendationFetchResult | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [result, setResult] = useState<RecommendationFetchResult | null>(() => getCachedResult(currentUserId));
+  const [loading, setLoading] = useState<boolean>(() => !getCachedResult(currentUserId));
   const [savingOnboarding, setSavingOnboarding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [joinStates, setJoinStates] = useState<
@@ -969,7 +1020,7 @@ export default function GroupRecommendationsRail({
   const [joinLoadingByGroup, setJoinLoadingByGroup] = useState<
     Record<string, boolean>
   >({});
-  const [profileCards, setProfileCards] = useState<RecommendationProfileCard[]>([]);
+  const [profileCards, setProfileCards] = useState<RecommendationProfileCard[]>(() => peekProfiles(currentUserId) ?? []);
   const [followStates, setFollowStates] = useState<Record<string, boolean>>({});
   const [followLoadingByProfile, setFollowLoadingByProfile] = useState<
     Record<string, boolean>
@@ -997,7 +1048,7 @@ export default function GroupRecommendationsRail({
       return;
     }
 
-    setLoading(true);
+    if (!getCachedResult(currentUserId)) setLoading(true);
     setError(null);
 
     try {
@@ -1007,6 +1058,7 @@ export default function GroupRecommendationsRail({
       ]);
       setResult(next);
       setSelectedCategories(next.selectedCategories);
+      profileCache.set(currentUserId, { profiles, cachedAt: Date.now() });
       setProfileCards(profiles);
       setFollowStates(Object.fromEntries(profiles.map((p) => [p.uid, false])));
 
@@ -1343,17 +1395,7 @@ export default function GroupRecommendationsRail({
         </div>
       ) : null}
 
-      {loading ? (
-        <div
-          style={{
-            fontSize: 14,
-            color: "rgba(255,255,255,0.68)",
-            fontFamily: fontStack,
-          }}
-        >
-          Cargando recomendaciones...
-        </div>
-      ) : null}
+      {loading ? <SkeletonRail /> : null}
 
       {showOnboarding ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>

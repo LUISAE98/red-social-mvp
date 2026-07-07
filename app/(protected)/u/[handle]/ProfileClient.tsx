@@ -295,6 +295,18 @@ type ProfileCacheEntry = {
 const profileCache = new Map<string, ProfileCacheEntry>();
 // ──────────────────────────────────────────────────────────────────────────────
 
+// ─── Module-level block status cache ──────────────────────────────────────────
+const BLOCK_STATUS_TTL_MS = 2 * 60 * 1000; // 2 minutes
+
+type BlockStatusEntry = {
+  viewerHasBlocked: boolean;
+  viewerIsBlocked: boolean;
+  cachedAt: number;
+};
+
+const blockStatusCache = new Map<string, BlockStatusEntry>();
+// ──────────────────────────────────────────────────────────────────────────────
+
 export default function ProfileClient() {
   const params = useParams<{ handle: string }>();
   const pathname = usePathname();
@@ -323,9 +335,27 @@ export default function ProfileClient() {
   const [msg, setMsg] = useState<string | null>(null);
   const { toast: profileToast, showToast: showProfileToast } = useVibraToast();
 
-  const [profileBlockedByViewer, setProfileBlockedByViewer] = useState(false);
-  const [viewerBlockedByProfile, setViewerBlockedByProfile] = useState(false);
-  const [blockStatusLoading, setBlockStatusLoading] = useState(true);
+  const [profileBlockedByViewer, setProfileBlockedByViewer] = useState<boolean>(() => {
+    const viewerUid = auth.currentUser?.uid;
+    const profileUid = profileCache.get(handle)?.userDoc?.uid;
+    if (!viewerUid || !profileUid || viewerUid === profileUid) return false;
+    const e = blockStatusCache.get(`${viewerUid}:${profileUid}`);
+    return (e && Date.now() - e.cachedAt < BLOCK_STATUS_TTL_MS) ? e.viewerHasBlocked : false;
+  });
+  const [viewerBlockedByProfile, setViewerBlockedByProfile] = useState<boolean>(() => {
+    const viewerUid = auth.currentUser?.uid;
+    const profileUid = profileCache.get(handle)?.userDoc?.uid;
+    if (!viewerUid || !profileUid || viewerUid === profileUid) return false;
+    const e = blockStatusCache.get(`${viewerUid}:${profileUid}`);
+    return (e && Date.now() - e.cachedAt < BLOCK_STATUS_TTL_MS) ? e.viewerIsBlocked : false;
+  });
+  const [blockStatusLoading, setBlockStatusLoading] = useState<boolean>(() => {
+    const viewerUid = auth.currentUser?.uid;
+    const profileUid = profileCache.get(handle)?.userDoc?.uid;
+    if (!viewerUid || !profileUid || viewerUid === profileUid) return false;
+    const e = blockStatusCache.get(`${viewerUid}:${profileUid}`);
+    return !(e && Date.now() - e.cachedAt < BLOCK_STATUS_TTL_MS);
+  });
   const [pendingUnblock, setPendingUnblock] = useState(false);
   const prevBlockedByViewerRef = useRef(false);
 
@@ -872,6 +902,9 @@ useEffect(() => {
 
   let viewerBlockReady = false;
   let profileBlockReady = false;
+  // Track latest values so we can write to cache once both are resolved
+  const resolved = { viewerHasBlocked: false, viewerIsBlocked: false };
+  const blockCacheKey = `${viewer.uid}:${profileUid}`;
 
   const viewerBlockedProfileRef = doc(
     db,
@@ -893,17 +926,21 @@ useEffect(() => {
     viewerBlockedProfileRef,
     (snap) => {
       viewerBlockReady = true;
+      resolved.viewerHasBlocked = snap.exists();
       setProfileBlockedByViewer(snap.exists());
 
       if (viewerBlockReady && profileBlockReady) {
+        blockStatusCache.set(blockCacheKey, { ...resolved, cachedAt: Date.now() });
         setBlockStatusLoading(false);
       }
     },
     () => {
       viewerBlockReady = true;
+      resolved.viewerHasBlocked = false;
       setProfileBlockedByViewer(false);
 
       if (viewerBlockReady && profileBlockReady) {
+        blockStatusCache.set(blockCacheKey, { ...resolved, cachedAt: Date.now() });
         setBlockStatusLoading(false);
       }
     }
@@ -913,17 +950,21 @@ useEffect(() => {
     profileBlockedViewerRef,
     (snap) => {
       profileBlockReady = true;
+      resolved.viewerIsBlocked = snap.exists();
       setViewerBlockedByProfile(snap.exists());
 
       if (viewerBlockReady && profileBlockReady) {
+        blockStatusCache.set(blockCacheKey, { ...resolved, cachedAt: Date.now() });
         setBlockStatusLoading(false);
       }
     },
     () => {
       profileBlockReady = true;
+      resolved.viewerIsBlocked = false;
       setViewerBlockedByProfile(false);
 
       if (viewerBlockReady && profileBlockReady) {
+        blockStatusCache.set(blockCacheKey, { ...resolved, cachedAt: Date.now() });
         setBlockStatusLoading(false);
       }
     }

@@ -37,6 +37,17 @@ type GroupListItem = {
   memberCount?: number;
 };
 
+// Module-level cache — survives navigation in the same tab
+type GroupsCacheEntry = { groups: GroupListItem[]; cachedAt: number };
+const groupsCache = new Map<string, GroupsCacheEntry>();
+const GROUPS_CACHE_TTL_MS = 3 * 60 * 1000;
+
+function peekGroups(key: string): GroupListItem[] | null {
+  const e = groupsCache.get(key);
+  if (!e || Date.now() - e.cachedAt > GROUPS_CACHE_TTL_MS) return null;
+  return e.groups;
+}
+
 function initials(name: string) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   const a = parts[0]?.[0] ?? "";
@@ -120,8 +131,9 @@ export default function ProfileGroupsTab({
   groupsVisibleToVisitors,
   onGroupsVisibilityChanged,
 }: ProfileGroupsTabProps) {
-  const [groups, setGroups] = useState<GroupListItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = `${profileUid}:${isOwner}`;
+  const [groups, setGroups] = useState<GroupListItem[]>(() => peekGroups(cacheKey) ?? []);
+  const [loading, setLoading] = useState<boolean>(() => !peekGroups(cacheKey));
   const [savingVisibility, setSavingVisibility] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const { toast, showToast } = useVibraToast();
@@ -216,6 +228,7 @@ export default function ProfileGroupsTab({
           .filter((g) => !!g.name && (isOwner || g.visibility !== "hidden"))
           .sort((a, b) => a.name.localeCompare(b.name, "es"));
 
+        groupsCache.set(cacheKey, { groups: next, cachedAt: Date.now() });
         setGroups(next);
 
         if (!next.length) {
@@ -369,6 +382,11 @@ export default function ProfileGroupsTab({
               "desc desc";
           }
         }
+
+        @keyframes pulse {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 0.25; }
+        }
       `}</style>
 
       <div
@@ -429,13 +447,20 @@ export default function ProfileGroupsTab({
         </div>
 
         {loading ? (
-          <div
-            style={{
-              fontSize: 13,
-              color: "rgba(255,255,255,0.72)",
-            }}
-          >
-            Cargando comunidades...
+          <div className="profile-groups-grid">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="profile-group-card"
+                style={{
+                  background:
+                    "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%)",
+                  animation: "pulse 1.6s ease-in-out infinite",
+                  maxWidth: 320,
+                }}
+                aria-hidden="true"
+              />
+            ))}
           </div>
         ) : msg && !groups.length ? (
           <div

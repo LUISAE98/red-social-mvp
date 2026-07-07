@@ -8,6 +8,17 @@ import {
 } from "@/lib/social/sharedCommunities";
 import SharedCommunitiesOverlay from "./SharedCommunitiesOverlay";
 
+// Module-level cache — survives navigation in the same tab
+type CommunitiesCacheEntry = { communities: SharedCommunity[]; cachedAt: number };
+const communitiesCache = new Map<string, CommunitiesCacheEntry>();
+const COMMUNITIES_CACHE_TTL_MS = 3 * 60 * 1000;
+
+function peekCommunities(key: string): SharedCommunity[] | null {
+  const e = communitiesCache.get(key);
+  if (!e || Date.now() - e.cachedAt > COMMUNITIES_CACHE_TTL_MS) return null;
+  return e.communities;
+}
+
 type SharedCommunitiesBadgeProps = {
   profileUid: string;
   viewerUid: string | null;
@@ -25,12 +36,17 @@ export default function SharedCommunitiesBadge({
   profileUid,
   viewerUid,
 }: SharedCommunitiesBadgeProps) {
-  const [communities, setCommunities] = useState<SharedCommunity[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const cacheKey = `${viewerUid}:${profileUid}`;
+  const shouldFetch = Boolean(profileUid && viewerUid && profileUid !== viewerUid);
+
+  const [communities, setCommunities] = useState<SharedCommunity[]>(() =>
+    shouldFetch ? (peekCommunities(cacheKey) ?? []) : []
+  );
+  const [isLoading, setIsLoading] = useState<boolean>(() =>
+    shouldFetch ? !peekCommunities(cacheKey) : false
+  );
   const [isOverlayOpen, setIsOverlayOpen] = useState(false);
   const [isTouchPopping, setIsTouchPopping] = useState(false);
-
-  const shouldFetch = Boolean(profileUid && viewerUid && profileUid !== viewerUid);
 
   useEffect(() => {
     let isMounted = true;
@@ -46,6 +62,7 @@ export default function SharedCommunitiesBadge({
       try {
         const response = await getSharedCommunitiesWithProfile(profileUid);
         if (!isMounted) return;
+        communitiesCache.set(cacheKey, { communities: response.communities, cachedAt: Date.now() });
         setCommunities(response.communities);
       } catch (error) {
         console.error("Error loading shared communities:", error);
@@ -63,7 +80,7 @@ export default function SharedCommunitiesBadge({
     return () => {
       isMounted = false;
     };
-  }, [profileUid, shouldFetch]);
+  }, [profileUid, shouldFetch, cacheKey]);
 
   const shouldShowPlus = communities.length > 3;
 
@@ -71,7 +88,25 @@ export default function SharedCommunitiesBadge({
     return communities.slice(0, 3);
   }, [communities]);
 
-  if (!shouldFetch || isLoading || communities.length === 0) {
+  if (!shouldFetch || communities.length === 0) {
+    if (isLoading) {
+      // Placeholder that matches the badge dimensions to avoid layout shift
+      return (
+        <span
+          className="flex items-center"
+          style={{ minWidth: 32, minHeight: 32, opacity: 0.35 }}
+          aria-hidden="true"
+        >
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="relative flex h-8 w-8 shrink-0 rounded-full bg-neutral-800"
+              style={{ marginLeft: i === 0 ? 0 : -15, zIndex: 20 + i }}
+            />
+          ))}
+        </span>
+      );
+    }
     return null;
   }
 

@@ -34,7 +34,7 @@ const MAX_CATEGORY_QUERY_SIZE = 10;
 const MAX_RECOMMENDATIONS = 18;
 const MAX_TAGS_TRACKED = 40;
 const RANDOM_GROUP_FETCH_LIMIT = 40;
-const RECOMMENDATION_CACHE_TTL_MS = 90_000;
+const RECOMMENDATION_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 const SHOWN_GROUPS_KEY_PREFIX = "red-social-mvp:shown-groups:";
 const SHOWN_GROUPS_MAX = 100;
 const SHOWN_GROUPS_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
@@ -51,7 +51,7 @@ const resultCache = new Map<string, CachedResult>();
 type InvalidationListener = () => void;
 const invalidationListeners = new Set<InvalidationListener>();
 
-function getCachedResult(uid: string): RecommendationFetchResult | null {
+export function getCachedResult(uid: string): RecommendationFetchResult | null {
   const entry = resultCache.get(uid);
   if (!entry) return null;
   if (Date.now() - entry.cachedAt > RECOMMENDATION_CACHE_TTL_MS) {

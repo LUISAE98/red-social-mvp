@@ -145,6 +145,18 @@ export default function RootLayout({
       </head>
 
       <body className={`${plusJakarta.variable} antialiased`}>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              document.addEventListener('error', function(e) {
+                var img = e.target;
+                if (img && img.tagName === 'IMG' && img.src && img.src !== '') {
+                  img.style.visibility = 'hidden';
+                }
+              }, true);
+            `,
+          }}
+        />
         <div id="desktop-refresh-splash">
           <div className="desktop-refresh-aura" />
 
