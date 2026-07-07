@@ -151,17 +151,19 @@ type Props = {
   canRefund: boolean;
   canRetry: boolean;
   canReschedule?: boolean;
+  canPrepare?: boolean;
   busy: boolean;
   onClose: () => void;
   onRefund: (reason: string) => void;
   onRetry: () => void;
   onReschedule?: (reason: string) => void;
+  onPrepare?: () => void;
 };
 
 export default function BuyerSessionRequestOverlay({
   item, creatorName, creatorAvatar,
-  canRefund, canRetry, canReschedule,
-  busy, onClose, onRefund, onRetry, onReschedule,
+  canRefund, canRetry, canReschedule, canPrepare,
+  busy, onClose, onRefund, onRetry, onReschedule, onPrepare,
 }: Props) {
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -606,6 +608,16 @@ export default function BuyerSessionRequestOverlay({
         Reagendar
       </button>
     </div>
+  ) : canPrepare ? (
+    <button type="button" onClick={() => onPrepare?.()} disabled={busy} style={{
+      width: "100%", height: 42, borderRadius: 5, border: "none",
+      background: busy ? "rgba(255,255,255,0.1)" : retryBtnBg,
+      color: busy ? "rgba(255,255,255,0.36)" : "#fff",
+      fontSize: 15, fontWeight: 500, cursor: busy ? "not-allowed" : "pointer",
+      fontFamily: "inherit", letterSpacing: "-0.02em", display: "grid", placeItems: "center",
+    }}>
+      {busy ? "Procesando..." : "Prepararse"}
+    </button>
   ) : null;
 
   const headerStyle: React.CSSProperties = {

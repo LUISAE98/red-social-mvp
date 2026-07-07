@@ -722,7 +722,7 @@ export default function VideoIconsPreview() {
         <SectionLabel number={4} title="InviteLinkModal — noticeStyle (info/neutro)" tag="warn" />
         <Meta>
           Inline · dentro del modal · para confirmaciones neutras{"\n"}
-          Usado en: "Link generado. Ya puedes copiarlo." · "Link copiado al portapapeles."
+          Usado en: &quot;Link generado. Ya puedes copiarlo.&quot; · &quot;Link copiado al portapapeles.&quot;
         </Meta>
 
         <div style={{ maxWidth: 480, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -752,7 +752,7 @@ export default function VideoIconsPreview() {
         <SectionLabel number={5} title="InviteLinkModal — errorStyle (error rojo suave)" tag="warn" />
         <Meta>
           Inline · dentro del modal · para errores de validación de forma de invitación{"\n"}
-          Usado en: "La duración debe ser mayor a 0." · "Los días deben estar entre 1 y 30." · "Los usos deben estar entre 1 y 1000."
+          Usado en: &quot;La duración debe ser mayor a 0.&quot; · &quot;Los días deben estar entre 1 y 30.&quot; · &quot;Los usos deben estar entre 1 y 1000.&quot;
         </Meta>
 
         <div style={{ maxWidth: 480 }}>

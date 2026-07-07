@@ -269,7 +269,7 @@ function getTypeChipStyle(type: string): React.CSSProperties {
 function getMeetGreetStatusLabel(status: string): string {
   switch (status) {
     case "pending_creator_response":
-      return "En espera de aceptaciÃ³n";
+      return "En espera de aceptación";
     case "accepted_pending_schedule":
       return "Aceptado, pendiente de fecha";
     case "scheduled":
@@ -279,13 +279,13 @@ function getMeetGreetStatusLabel(status: string): string {
     case "rejected":
       return "Rechazado";
     case "refund_requested":
-      return "DevoluciÃ³n solicitada";
+      return "Devolución solicitada";
     case "refund_review":
-      return "DevoluciÃ³n en revisiÃ³n";
+      return "Devolución en revisión";
     case "ready_to_prepare":
       return "Ya casi inicia";
     case "in_preparation":
-      return "En preparaciÃ³n";
+      return "En preparación";
     case "completed":
       return "Completado";
     case "cancelled":
@@ -430,7 +430,7 @@ function getRelativeTime(value: unknown): string {
   const diffMins = Math.floor(diffMs / 60000);
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "dÃ­a" : "dÃ­as"}`;
+  if (diffDays >= 1) return `Hace ${diffDays} ${diffDays === 1 ? "día" : "días"}`;
   if (diffHours >= 1) return `Hace ${diffHours} ${diffHours === 1 ? "hora" : "horas"}`;
   if (diffMins >= 1) return `Hace ${diffMins} ${diffMins === 1 ? "minuto" : "minutos"}`;
   return "Hace un momento";
@@ -540,7 +540,7 @@ export default function OwnerSidebarMyGroups({
   }, [greetingsByGroup]);
 
   useEffect(() => {
-    // Deduplicate by (bucketKey, type) â€” same logic as getServiceBucketKey in OwnerSidebar
+    // Deduplicate by (bucketKey, type) — same logic as getServiceBucketKey in OwnerSidebar
     const unique = new Map<string, { col: string; docId: string; type: string }>();
     for (const [bucketKey, rows] of Object.entries(greetingsByGroup)) {
       for (const row of rows) {
@@ -708,7 +708,7 @@ useEffect(() => {
     return hasMeetGreetTimedService || hasExclusiveSessionTimedService;
   }, [meetGreetsByGroup, exclusiveSessionsByGroup]);
 
-  const [, setOwnerSidebarUiTick] = useState(0);
+  const [ownerSidebarUiTick, setOwnerSidebarUiTick] = useState(0);
 
   useEffect(() => {
     if (!hasTimedScheduledServices) return;
@@ -719,6 +719,50 @@ useEffect(() => {
 
     return () => window.clearInterval(interval);
   }, [hasTimedScheduledServices]);
+
+  const creatorAutoOpenedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    // No interrumpir al creador si está en una sesión activa
+    if (Object.values(preparationOpenMap).some(Boolean)) return;
+
+    const allUpcoming: Array<{
+      id: string;
+      req: MeetGreetRequestDoc | ExclusiveSessionRequestDoc;
+      serviceKind: "meet_greet" | "exclusive_session";
+    }> = [];
+    Object.values(meetGreetsByGroup).forEach((rows) => {
+      rows.forEach((row) => {
+        if (["scheduled", "ready_to_prepare", "in_preparation"].includes(row.data.status)) {
+          allUpcoming.push({ id: row.id, req: row.data, serviceKind: "meet_greet" });
+        }
+      });
+    });
+    Object.values(exclusiveSessionsByGroup).forEach((rows) => {
+      rows.forEach((row) => {
+        if (["scheduled", "ready_to_prepare", "in_preparation"].includes(row.data.status)) {
+          allUpcoming.push({ id: row.id, req: row.data, serviceKind: "exclusive_session" });
+        }
+      });
+    });
+
+    for (const session of allUpcoming) {
+      const startDate = toDateSafe(session.req.scheduledAt);
+      if (!startDate) continue;
+      const minsLeft = (startDate.getTime() - Date.now()) / 60000;
+      let bucket: string | null = null;
+      if (minsLeft <= 15 && minsLeft > 10) bucket = "15";
+      else if (minsLeft <= 10 && minsLeft > 5) bucket = "10";
+      else if (minsLeft <= 5 && minsLeft > 0) bucket = "5";
+      if (!bucket) continue;
+      const key = `${session.id}-${bucket}`;
+      if (creatorAutoOpenedRef.current.has(key)) continue;
+      creatorAutoOpenedRef.current.add(key);
+      setSessionOverlayData({ id: session.id, req: session.req, serviceKind: session.serviceKind });
+      setSessionOverlayOpen(true);
+      break;
+    }
+  }, [ownerSidebarUiTick, meetGreetsByGroup, exclusiveSessionsByGroup, preparationOpenMap]);
 
   function setMeetGreetBusy(requestId: string, value: boolean) {
     setMeetGreetBusyMap((prev) => ({
@@ -756,7 +800,7 @@ useEffect(() => {
         await acceptMeetGreetRequest({ requestId });
       }
 
-      showMyGroupsToast("âœ… Solicitud aceptada. Ahora puedes proponer fecha y hora.");
+      showMyGroupsToast("✅ Solicitud aceptada. Ahora puedes proponer fecha y hora.");
 
       setScheduleOpenMap((prev) => ({
         ...prev,
@@ -789,7 +833,7 @@ useEffect(() => {
         });
       }
 
-      showMyGroupsToast("âœ… Solicitud rechazada.");
+      showMyGroupsToast("✅ Solicitud rechazada.");
 
       setRejectOpenMap((prev) => ({
         ...prev,
@@ -810,7 +854,7 @@ useEffect(() => {
     const scheduledAt = parts ? schedulePartsToIso(parts) : null;
 
     if (!scheduledAt) {
-      setMeetGreetError(requestId, "Selecciona dÃ­a, mes, aÃ±o, hora y minuto.");
+      setMeetGreetError(requestId, "Selecciona día, mes, año, hora y minuto.");
       return;
     }
     const selectedScheduleDate = new Date(scheduledAt);
@@ -828,7 +872,7 @@ if (scheduleConflict.hasConflict) {
   setMeetGreetError(
     requestId,
     scheduleConflict.message ??
-      "Ese horario ya estÃ¡ ocupado. Selecciona otra hora disponible."
+      "Ese horario ya está ocupado. Selecciona otra hora disponible."
   );
   return;
 }
@@ -850,7 +894,7 @@ if (scheduleConflict.hasConflict) {
         await proposeMeetGreetSchedule(payload);
       }
 
-      showMyGroupsToast("âœ… Fecha propuesta/agendada correctamente.");
+      showMyGroupsToast("✅ Fecha propuesta/agendada correctamente.");
 
       setScheduleOpenMap((prev) => ({
         ...prev,
@@ -889,9 +933,9 @@ if (scheduleConflict.hasConflict) {
         [requestId]: true,
       }));
 
-      showMyGroupsToast("âœ… Panel de preparaciÃ³n abierto.");
+      showMyGroupsToast("✅ Panel de preparación abierto.");
     } catch (e: unknown) {
-      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparaciÃ³n.", "error");
+      showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo abrir la preparación.", "error");
     } finally {
       setMeetGreetBusy(requestId, false);
     }
@@ -970,7 +1014,7 @@ if (scheduleConflict.hasConflict) {
       } else {
         await rejectMeetGreetRequest({ requestId, rejectionReason: reason });
       }
-      showMyGroupsToast("âœ… Solicitud rechazada.");
+      showMyGroupsToast("✅ Solicitud rechazada.");
     } catch (e: unknown) {
       showMyGroupsToast((e instanceof Error ? e.message : null) ?? "No se pudo rechazar la solicitud.", "error");
       throw e;
@@ -993,7 +1037,7 @@ if (scheduleConflict.hasConflict) {
 
   async function handleCreatorScheduleDirect(requestId: string, kind: "meet_greet" | "exclusive_session", scheduledAtIso: string | null, note: string | null) {
     if (!scheduledAtIso) {
-      setMeetGreetError(requestId, "Selecciona dÃ­a, mes, aÃ±o, hora y minuto.");
+      setMeetGreetError(requestId, "Selecciona día, mes, año, hora y minuto.");
       return;
     }
     const selectedDate = new Date(scheduledAtIso);
@@ -1002,7 +1046,7 @@ if (scheduleConflict.hasConflict) {
       ownerCalendarItems
     );
     if (conflict.hasConflict) {
-      setMeetGreetError(requestId, conflict.message ?? "Ese horario ya estÃ¡ ocupado. Selecciona otra hora disponible.");
+      setMeetGreetError(requestId, conflict.message ?? "Ese horario ya está ocupado. Selecciona otra hora disponible.");
       return;
     }
     setMeetGreetBusy(requestId, true);
@@ -1163,7 +1207,7 @@ if (scheduleConflict.hasConflict) {
       rows.map((row) => ({
         id: row.id,
         kind: "exclusive_session" as const,
-        title: "SesiÃ³n exclusiva",
+        title: "Sesión exclusiva",
         groupId,
         groupName: groupNameById.get(groupId) ?? null,
         profileUserId: null,
@@ -1726,8 +1770,8 @@ boxShadow:
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); setInviteGroupId(g.id); }}
-      title="Generar link de invitaciÃ³n"
-      aria-label="Generar link de invitaciÃ³n"
+      title="Generar link de invitación"
+      aria-label="Generar link de invitación"
       style={{
         flexShrink: 0,
         marginLeft: "auto",
@@ -1800,12 +1844,12 @@ boxShadow:
                                   fontWeight: 700,
                                 }}
                               >
-                                Link de invitaciÃ³n
+                                Link de invitación
                               </span>
 
                               <span style={styles.subtle}>
                                 Genera un link con vigencia personalizada y
-                                copia automÃ¡tica al portapapeles.
+                                copia automática al portapapeles.
                               </span>
                             </div>
 
@@ -1817,7 +1861,7 @@ boxShadow:
                                 width: "100%",
                               }}
                             >
-                              Generar link de invitaciÃ³n
+                              Generar link de invitación
                             </button>
                           </div>
                         </div>
@@ -2290,7 +2334,7 @@ boxShadow:
                                   fontWeight: 700,
                                 }}
                               >
-                                PrÃ³ximo a iniciar
+                                Próximo a iniciar
                               </span>
 
                               <span
@@ -2385,8 +2429,8 @@ boxShadow:
                                           }}
                                         >
                                           {isExclusiveSession
-                                            ? "ðŸ‘‘ SesiÃ³n exclusiva"
-                                            : "ðŸ¤ Meet & Greet"}
+                                            ? "👑 Sesión exclusiva"
+                                            : "🤝 Meet & Greet"}
                                         </span>
 
                                         <div
@@ -2397,7 +2441,7 @@ boxShadow:
                                             lineHeight: 1.25,
                                           }}
                                         >
-                                          âš ï¸ PrÃ³ximo a iniciar
+                                          ⚠️ Próximo a iniciar
                                         </div>
                                       </div>
 
@@ -2444,7 +2488,7 @@ boxShadow:
                                         color: "#fde68a",
                                       }}
                                     >
-                                      âš ï¸ Este servicio empieza en menos de 15
+                                      ⚠️ Este servicio empieza en menos de 15
                                       minutos.
                                     </div>
 
@@ -2569,7 +2613,7 @@ lineHeight: 1.15,
 maxWidth: 220,
         }}
       >
-        Conecta, comparte y monetiza tu pasiÃ³n.
+        Conecta, comparte y monetiza tu pasión.
       </div>
 
       <div

@@ -69,23 +69,43 @@ async function handleRoomFinished(event: WebhookEvent): Promise<void> {
     return;
   }
 
-  const { status } = session.data;
+  const { status, startedAt, creatorJoinedAt, buyerJoinedAt } = session.data;
 
   // Solo actuar si la sesión no fue completada ya por endSession
   const activeStatuses = new Set(["scheduled", "ready_to_prepare", "in_preparation"]);
   if (!activeStatuses.has(status as string)) return;
 
-  await session.ref.update({
-    status: "completed",
-    roomStatus: "ended",
-    endedAt: new Date().toISOString(),
-    updatedAt: admin.firestore.Timestamp.now(),
-  });
+  // Si ninguno de los participantes se unió, es un no-show → rechazar en lugar de completar
+  const sessionStarted = !!startedAt || (!!creatorJoinedAt && !!buyerJoinedAt);
+  const now = admin.firestore.Timestamp.now();
 
-  logger.info("livekit_webhook_room_finished_session_closed", {
-    roomName,
-    sessionId: session.ref.id,
-  });
+  if (sessionStarted) {
+    await session.ref.update({
+      status: "completed",
+      roomStatus: "ended",
+      endedAt: new Date().toISOString(),
+      updatedAt: now,
+    });
+    logger.info("livekit_webhook_room_finished_session_closed", {
+      roomName,
+      sessionId: session.ref.id,
+      finalStatus: "completed",
+    });
+  } else {
+    await session.ref.update({
+      status: "rejected",
+      roomStatus: "ended",
+      endedAt: new Date().toISOString(),
+      autoRejectedAt: now,
+      autoRejectReason: "La sesión finalizó sin que ambos participantes se conectaran.",
+      updatedAt: now,
+    });
+    logger.info("livekit_webhook_room_finished_no_show_rejected", {
+      roomName,
+      sessionId: session.ref.id,
+      previousStatus: status,
+    });
+  }
 }
 
 async function handleEgressStarted(event: WebhookEvent): Promise<void> {

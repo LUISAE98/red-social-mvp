@@ -25,6 +25,15 @@
       }
     ],
     "paths": {
+      "@/app/(protected)/*": ["./app/[locale]/(protected)/*"],
+      "@/app/(public)/*":    ["./app/[locale]/(public)/*"],
+      "@/app/groups/*":      ["./app/[locale]/groups/*"],
+      "@/app/admin/*":       ["./app/[locale]/admin/*"],
+      "@/app/search/*":      ["./app/[locale]/search/*"],
+      "@/app/p/*":           ["./app/[locale]/p/*"],
+      "@/app/invite/*":      ["./app/[locale]/invite/*"],
+      "@/app/live-overlay/*":["./app/[locale]/live-overlay/*"],
+      "@/app/dev/*":         ["./app/[locale]/dev/*"],
       "@/*": [
         "./*"
       ]

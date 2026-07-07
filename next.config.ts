@@ -1,5 +1,8 @@
 import { withSentryConfig } from "@sentry/nextjs";
+import createNextIntlPlugin from "next-intl/plugin";
 import type { NextConfig } from "next";
+
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
   // Desactiva el indicador visual de Next en desarrollo
@@ -28,7 +31,7 @@ const nextConfig: NextConfig = {
   turbopack: {},
 };
 
-export default withSentryConfig(nextConfig, {
+export default withSentryConfig(withNextIntl(nextConfig), {
   org: "programin-social",
   project: "javascript-nextjs",
   silent: !process.env.CI,

@@ -808,7 +808,7 @@ export default function OwnerSidebarGreetings({
     );
   }, [buyerScheduledServices, incomingScheduledServices]);
 
-  const [, setOwnerSidebarGreetingsUiTick] = useState(0);
+  const [greetingsUiTick, setOwnerSidebarGreetingsUiTick] = useState(0);
 
   useEffect(() => {
     if (!hasTimedScheduledServices) return;
@@ -819,6 +819,36 @@ export default function OwnerSidebarGreetings({
 
     return () => window.clearInterval(interval);
   }, [hasTimedScheduledServices]);
+
+  const buyerAutoOpenedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    for (const row of buyerScheduledServices) {
+      if (!["scheduled", "ready_to_prepare", "in_preparation"].includes(row.data.status)) continue;
+      const startDate = (() => {
+        const v = row.data.scheduledAt;
+        if (!v) return null;
+        if (v instanceof Date) return v;
+        if (typeof v === "object" && v !== null && "toDate" in v && typeof (v as { toDate?: unknown }).toDate === "function") return (v as { toDate: () => Date }).toDate();
+        return null;
+      })();
+      if (!startDate) continue;
+      const minsLeft = (startDate.getTime() - Date.now()) / 60000;
+      let bucket: string | null = null;
+      if (minsLeft <= 15 && minsLeft > 10) bucket = "15";
+      else if (minsLeft <= 10 && minsLeft > 5) bucket = "10";
+      else if (minsLeft <= 5 && minsLeft > 0) bucket = "5";
+      if (!bucket) continue;
+      const key = `${row.id}-${bucket}`;
+      if (buyerAutoOpenedRef.current.has(key)) continue;
+      buyerAutoOpenedRef.current.add(key);
+      const creatorMini = userMiniMap[row.data.creatorId] ?? null;
+      const creatorName = creatorMini?.displayName ?? "Creador";
+      const creatorAvatar = creatorMini?.photoURL ?? null;
+      setViewSessionItem({ row, creatorName, creatorAvatar });
+      break;
+    }
+  }, [greetingsUiTick, buyerScheduledServices, userMiniMap]);
 
   const completedBuyerScheduledRows = useMemo<ScheduledRow[]>(() => {
     return buyerScheduledServices.filter((row) => row.data.status === "completed");
@@ -1545,6 +1575,11 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
       const creatorInitial2 = creatorName2.charAt(0).toUpperCase();
       const relTime2 = req.createdAt ? getRelativeTime(req.createdAt as { toDate: () => Date }) : null;
       const cardColors2 = getServiceCardColors(row.serviceKind);
+      const noShowExpired2 = isNoShowExpired(req.scheduledAt);
+      const canPrepareCard =
+        (req.status === "scheduled" || req.status === "ready_to_prepare" || req.status === "in_preparation") &&
+        isPrepareWindowOpen(req.scheduledAt) &&
+        !noShowExpired2;
       return (
         <div key={itemKey} style={{
           ...styles.miniItem,
@@ -1582,7 +1617,7 @@ const creatorScheduleNote = getCreatorScheduleNote(req);
               fontWeight: 600, fontSize: 11, cursor: "pointer", whiteSpace: "nowrap",
             }}
           >
-            Ver solicitud
+            {canPrepareCard ? "Prepararse" : "Ver solicitud"}
           </button>
         </div>
       );
@@ -2155,6 +2190,10 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
         (req.status === "scheduled" || req.status === "ready_to_prepare") &&
         remainingReschedules(req) > 0 &&
         !noShowExpired;
+      const canPrepareOverlay =
+        (req.status === "scheduled" || req.status === "ready_to_prepare" || req.status === "in_preparation") &&
+        isPrepareWindowOpen(req.scheduledAt) &&
+        !noShowExpired;
       return (
         <BuyerSessionRequestOverlay
           item={row}
@@ -2163,8 +2202,13 @@ const buildCalendarItems = useMemo<WalletServiceItem[]>(() => {
           canRefund={canRequestRefund}
           canRetry={canRetry}
           canReschedule={canRequestRescheduleOverlay}
+          canPrepare={canPrepareOverlay}
           busy={!!busyMap[row.id]}
           onClose={() => setViewSessionItem(null)}
+          onPrepare={() => {
+            handlePrepare(row.id, "buyer", row.serviceKind);
+            setViewSessionItem(null);
+          }}
           onRefund={(reason) => {
             setViewSessionItem(null);
             handleBuyerRefund(row.id, row.serviceKind, reason);

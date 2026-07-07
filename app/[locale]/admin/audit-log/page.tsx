@@ -147,7 +147,7 @@ export default function AuditLogPage() {
                 </div>
                 {r.resolutionNotes && (
                   <div style={{ fontSize: 12, color: "#555", marginTop: 3, fontStyle: "italic" }}>
-                    "{r.resolutionNotes}"
+                    &quot;{r.resolutionNotes}&quot;
                   </div>
                 )}
                 <div style={{ fontSize: 11, color: "#444", marginTop: 3 }}>

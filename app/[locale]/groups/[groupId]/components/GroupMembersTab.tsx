@@ -29,7 +29,7 @@ import {
   removeGroupMember,
   unbanGroupMember,
   unmuteGroupMember,
-} from "../../../../lib/groups/groupModeration";
+} from "../../../../../lib/groups/groupModeration";
 
 type GroupMembersTabProps = {
   groupId: string;

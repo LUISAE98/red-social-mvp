@@ -237,7 +237,7 @@ export const endSession = onCall(
     if (!snap.exists) throw new HttpsError("not-found", "La sesión no existe.");
 
     const session = snap.data()!;
-    const { creatorId, buyerId, status, livekitEgressId, recordingStatus } = session;
+    const { creatorId, buyerId, status, livekitEgressId, recordingStatus, startedAt, creatorJoinedAt, buyerJoinedAt } = session;
 
     const isCreator = uid === creatorId;
     const isBuyer = uid === buyerId;
@@ -252,13 +252,22 @@ export const endSession = onCall(
       );
     }
 
+    // Si ninguno se unió realmente, marcar como rechazado (no-show) en vez de completado
+    const sessionStarted = !!startedAt || (!!creatorJoinedAt && !!buyerJoinedAt);
+    const finalStatus = sessionStarted ? "completed" : "rejected";
+
     const now = new Date().toISOString();
     const updates: Record<string, unknown> = {
-      status: "completed",
+      status: finalStatus,
       roomStatus: "ended",
       endedAt: now,
       updatedAt: admin.firestore.Timestamp.now(),
     };
+
+    if (!sessionStarted) {
+      updates.autoRejectedAt = admin.firestore.Timestamp.now();
+      updates.autoRejectReason = "La sesión finalizó sin que ambos participantes se conectaran.";
+    }
 
     // Detener grabación activa → el webhook de LiveKit (Bloque 9) actualizará a "ready"
     if (livekitEgressId && recordingStatus === "recording") {

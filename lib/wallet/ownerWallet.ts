@@ -414,10 +414,15 @@ function shouldTreatAsAutoRejected(
     | "autoRejectedAt"
     | "preparingCreatorAt"
     | "preparingBuyerAt"
+    | "preparationOpenedAt"
   >
 ): boolean {
   if (row.status === "rejected") return true;
   if (row.autoRejectedAt) return true;
+
+  // "completed" sin sala de preparación abierta = no-show que el webhook marcó incorrectamente
+  if (row.status === "completed" && !row.preparationOpenedAt) return true;
+
   if (!isCalendarScheduledStatus(row.status)) return false;
   if (!row.noShowRejectAt) return false;
   if (row.noShowRejectAt.getTime() > Date.now()) return false;
@@ -466,6 +471,7 @@ function normalizeScheduledRow(
     autoRejectedAt,
     preparingCreatorAt,
     preparingBuyerAt,
+    preparationOpenedAt,
   })
     ? "rejected"
     : rawStatus;

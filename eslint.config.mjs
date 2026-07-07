@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Compiled backend output — not source code
     "backend/lib/**",
+    // Scripts de operaciones/mantenimiento (Node CommonJS) — no son código de la app
+    "backend/scripts/**",
   ]),
 ]);
 

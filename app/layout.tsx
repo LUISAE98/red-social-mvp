@@ -2,6 +2,7 @@ import { AuthProvider } from "./providers";
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { Suspense } from "react";
+import { getLocale } from "next-intl/server";
 import "./globals.css";
 import RootChrome from "./RootChrome";
 import VibraGlobalBackground from "./components/VibraGlobalBackground";
@@ -38,13 +39,15 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+
   return (
-    <html lang="es" style={{ backgroundColor: "#000000" }}>
+    <html lang={locale} style={{ backgroundColor: "#000000" }}>
       <head>
         <style
           dangerouslySetInnerHTML={{
