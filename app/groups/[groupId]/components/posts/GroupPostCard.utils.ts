@@ -1,0 +1,339 @@
+// GroupPostCard.utils.ts
+// Funciones puras y tipos auxiliares extraídos de GroupPostCard.tsx.
+// No dependen de estado del componente; se pueden testear y reutilizar de forma aislada.
+
+export const fontStack = 'inherit';
+
+export type InteractionBlockedReason = "login" | "join" | "restricted" | null;
+
+export type ModerationAction =
+  | "edit_post"
+  | "mute"
+  | "unmute"
+  | "ban"
+  | "unban"
+  | "remove"
+  | "pin_group_post"
+  | "unpin_group_post"
+  | "pin_profile_post"
+  | "unpin_profile_post"
+  | "block_user"
+  | "unblock_user"
+  | "block_in_group"
+  | "unblock_in_group"
+  | "delete_post";
+
+export function getDateFromTimestamp(value?: { toDate?: () => Date } | null) {
+  if (!value?.toDate) return null;
+
+  try {
+    const date = value.toDate();
+    return date instanceof Date && !Number.isNaN(date.getTime()) ? date : null;
+  } catch {
+    return null;
+  }
+}
+
+export function formatExactDate(value?: { toDate?: () => Date } | null) {
+  const date = getDateFromTimestamp(value);
+
+  if (!date) return "Fecha no disponible";
+
+  try {
+    return new Intl.DateTimeFormat("es-MX", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(date);
+  } catch {
+    return "Fecha no disponible";
+  }
+}
+
+export function formatRelativeDate(value?: { toDate?: () => Date } | null) {
+  const date = getDateFromTimestamp(value);
+
+  if (!date) return "Ahora mismo";
+
+  const diffMs = Date.now() - date.getTime();
+  const diffSeconds = Math.max(0, Math.floor(diffMs / 1000));
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+  const diffWeeks = Math.floor(diffDays / 7);
+  const diffMonths = Math.floor(diffDays / 30);
+  const diffYears = Math.floor(diffDays / 365);
+
+  if (diffSeconds < 30) return "Ahora mismo";
+  if (diffSeconds < 60) return `hace ${diffSeconds} segundos`;
+
+  if (diffMinutes === 1) return "hace 1 minuto";
+  if (diffMinutes < 60) return `hace ${diffMinutes} minutos`;
+
+  if (diffHours === 1) return "hace 1 hora";
+  if (diffHours < 24) return `hace ${diffHours} horas`;
+
+  if (diffDays === 1) return "hace 1 día";
+  if (diffDays < 7) return `hace ${diffDays} días`;
+
+  if (diffWeeks === 1) return "hace 1 semana";
+  if (diffWeeks < 5) return `hace ${diffWeeks} semanas`;
+
+  if (diffMonths === 1) return "hace 1 mes";
+  if (diffMonths < 12) return `hace ${diffMonths} meses`;
+
+  if (diffYears === 1) return "hace 1 año";
+  return `hace ${diffYears} años`;
+}
+
+export function formatScheduledLiveDate(
+  value?: { toDate?: () => Date } | null,
+): string {
+  const date = getDateFromTimestamp(value);
+  if (!date) return "Fecha por confirmar";
+
+  try {
+    const now = new Date();
+    const isToday =
+      date.getFullYear() === now.getFullYear() &&
+      date.getMonth() === now.getMonth() &&
+      date.getDate() === now.getDate();
+
+    const timePart = new Intl.DateTimeFormat("es-MX", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(date);
+
+    if (isToday) return `Hoy a las ${timePart}`;
+
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    const isTomorrow =
+      date.getFullYear() === tomorrow.getFullYear() &&
+      date.getMonth() === tomorrow.getMonth() &&
+      date.getDate() === tomorrow.getDate();
+
+    if (isTomorrow) return `Mañana a las ${timePart}`;
+
+    const datePart = new Intl.DateTimeFormat("es-MX", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }).format(date);
+
+    return `${datePart.charAt(0).toUpperCase()}${datePart.slice(1)} a las ${timePart}`;
+  } catch {
+    return "Fecha por confirmar";
+  }
+}
+
+export function formatMediaDuration(seconds?: number | null): string | null {
+  if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds <= 0) {
+    return null;
+  }
+
+  const totalSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+export function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
+  if (parts.length === 0) return "U";
+  return parts.map((part) => part.charAt(0).toUpperCase()).join("");
+}
+
+export function getAuthorInfo(
+  entity: { authorId?: string | null } & Record<string, unknown>
+) {
+  const authorId = typeof entity.authorId === "string" ? entity.authorId : "";
+
+  const authorName =
+    typeof entity.authorName === "string" && entity.authorName.trim().length > 0
+      ? entity.authorName.trim()
+      : typeof entity.displayName === "string" &&
+          entity.displayName.trim().length > 0
+        ? entity.displayName.trim()
+        : typeof entity.name === "string" && entity.name.trim().length > 0
+          ? entity.name.trim()
+          : authorId || "Usuario";
+
+  const avatarUrl =
+    typeof entity.authorAvatarUrl === "string" &&
+    entity.authorAvatarUrl.trim().length > 0
+      ? entity.authorAvatarUrl.trim()
+      : typeof entity.avatarUrl === "string" && entity.avatarUrl.trim().length > 0
+        ? entity.avatarUrl.trim()
+        : typeof entity.photoURL === "string" && entity.photoURL.trim().length > 0
+          ? entity.photoURL.trim()
+          : null;
+
+  const username =
+    typeof entity.authorUsername === "string" &&
+    entity.authorUsername.trim().length > 0
+      ? entity.authorUsername.trim()
+      : typeof entity.username === "string" && entity.username.trim().length > 0
+        ? entity.username.trim()
+        : null;
+
+  const profileHref = username ? `/u/${username}` : `/u/${authorId}`;
+
+  return {
+    authorId,
+    authorName,
+    avatarUrl,
+    profileHref,
+    initials: getInitials(authorName),
+  };
+}
+
+export function getGroupInfo(entity: Record<string, unknown>) {
+  const forcedGroupId =
+    typeof entity.forcedGroupId === "string" && entity.forcedGroupId.trim().length > 0
+      ? entity.forcedGroupId.trim()
+      : null;
+
+  const rawGroupId =
+    typeof entity.groupId === "string" && entity.groupId.trim().length > 0
+      ? entity.groupId.trim()
+      : null;
+
+  const groupId = forcedGroupId || rawGroupId;
+
+  const groupName =
+    typeof entity.groupName === "string" && entity.groupName.trim().length > 0
+      ? entity.groupName.trim()
+      : null;
+
+  const groupAvatarUrl =
+    typeof entity.groupAvatarUrl === "string" &&
+    entity.groupAvatarUrl.trim().length > 0
+      ? entity.groupAvatarUrl.trim()
+      : null;
+
+  const rawVisibility =
+    typeof entity.groupVisibility === "string"
+      ? entity.groupVisibility.trim().toLowerCase()
+      : "";
+
+  const visibility =
+    rawVisibility === "public" || rawVisibility === "private" || rawVisibility === "hidden"
+      ? rawVisibility
+      : null;
+
+  const href = groupId ? `/groups/${groupId}` : null;
+
+  return {
+    groupId,
+    groupName,
+    groupAvatarUrl,
+    visibility,
+    href,
+    initials: getInitials(groupName || "Comunidad"),
+  };
+}
+
+export function getCommunityVisibilityLabel(visibility: string | null) {
+  switch (visibility) {
+    case "public":
+      return "Comunidad pública";
+    case "private":
+      return "Comunidad privada";
+    case "hidden":
+      return "Comunidad oculta";
+    default:
+      return "Comunidad";
+  }
+}
+
+export function resolveEffectiveMemberStatus(rawStatus: unknown, mutedUntil: unknown) {
+  const status =
+    typeof rawStatus === "string" ? rawStatus.trim().toLowerCase() : "";
+
+  if (status === "banned") return "banned";
+  if (status === "removed" || status === "kicked" || status === "expelled") {
+    return "removed";
+  }
+
+  if (status === "muted") {
+    if (mutedUntil !== null && mutedUntil !== undefined && typeof (mutedUntil as { toDate?: unknown }).toDate === "function") {
+      const until = (mutedUntil as { toDate: () => unknown }).toDate();
+      if (until instanceof Date && until.getTime() <= Date.now()) {
+        return "active";
+      }
+    }
+    return "muted";
+  }
+
+  return "active";
+}
+
+export function buildCommentBlockedMessage(reason: InteractionBlockedReason): string {
+  if (reason === "login") {
+    return "Inicia sesión para comentar en esta comunidad.";
+  }
+
+  if (reason === "join") {
+    return "Debes unirte a esta comunidad para comentar.";
+  }
+
+  if (reason === "restricted") {
+    return "No puedes comentar en esta comunidad por la configuración actual o por tu estado dentro de la comunidad.";
+  }
+
+  return "No puedes comentar en esta comunidad en este momento.";
+}
+
+export function truncatePostText(text: string, maxLength: number) {
+  if (text.length <= maxLength) return text;
+
+  const sliced = text.slice(0, maxLength).trim();
+  const lastSpace = sliced.lastIndexOf(" ");
+
+  return `${sliced.slice(0, lastSpace > 40 ? lastSpace : sliced.length).trim()}...`;
+}
+
+export function buildActionLabel(action: ModerationAction) {
+  if (action === "edit_post") return "Editar publicación";
+  if (action === "mute") return "Mutear";
+  if (action === "unmute") return "Quitar mute";
+  if (action === "ban") return "Banear";
+  if (action === "unban") return "Quitar ban";
+  if (action === "remove") return "Expulsar de la comunidad";
+  if (action === "pin_group_post") return "Fijar en grupo";
+  if (action === "unpin_group_post") return "Desfijar del grupo";
+  if (action === "pin_profile_post") return "Fijar en mi perfil";
+  if (action === "unpin_profile_post") return "Desfijar de mi perfil";
+  if (action === "block_user") return "Bloquear de mi perfil";
+  if (action === "unblock_user") return "Desbloquear de mi perfil";
+  if (action === "block_in_group") return "Bloquear en este grupo";
+  if (action === "unblock_in_group") return "Desbloquear en este grupo";
+  return "Eliminar publicación";
+}
+
+export function getMenuActionTexts(action: ModerationAction): { loading: string; done: string } | null {
+  if (action === "delete_post") return { loading: "Eliminando publicación", done: "Publicación eliminada" };
+  if (action === "pin_group_post") return { loading: "Fijando en grupo", done: "Fijado en grupo" };
+  if (action === "unpin_group_post") return { loading: "Desfijando del grupo", done: "Desfijado del grupo" };
+  if (action === "pin_profile_post") return { loading: "Fijando en perfil", done: "Fijado en perfil" };
+  if (action === "unpin_profile_post") return { loading: "Desfijando del perfil", done: "Desfijado del perfil" };
+  if (action === "ban") return { loading: "Baneando integrante", done: "Integrante baneado" };
+  if (action === "unban") return { loading: "Quitando ban", done: "Ban quitado" };
+  if (action === "remove") return { loading: "Expulsando integrante", done: "Integrante expulsado" };
+  if (action === "unmute") return { loading: "Quitando mute", done: "Mute quitado" };
+  return null;
+}
+
+export function buildPremiumPreviewClips(duration: number): Array<{ start: number; end: number }> {
+  const CLIP_DURATION = 20;
+  const numClips = Math.max(1, Math.min(Math.floor(duration / 60), 10));
+  const clips: Array<{ start: number; end: number }> = [];
+  for (let i = 0; i < numClips; i++) {
+    const start = (duration / numClips) * i;
+    const end = Math.min(start + CLIP_DURATION, duration - 0.1);
+    if (start < duration - 1) clips.push({ start, end });
+  }
+  return clips;
+}
