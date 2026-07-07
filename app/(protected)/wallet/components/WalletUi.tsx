@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   formatWalletMoney,
   getWalletScheduleConflictResult,
@@ -34,6 +35,18 @@ import ScheduleDateTimeSelector, {
 import ScheduleCalendarOverlay from "./ScheduleCalendarOverlay";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import VibraToast from "@/app/components/VibraToast/VibraToast";
+
+type ServiceCardTheme = { bgImage: string | null; btnBg: string; btnColor: string };
+function getServiceCardTheme(kind: string): ServiceCardTheme {
+  switch (kind) {
+    case "saludo":      return { bgImage: "/saludo.png",        btnBg: "rgba(168,85,247,0.22)",  btnColor: "#d8b4fe" };
+    case "consejo":     return { bgImage: "/consejo.png",       btnBg: "rgba(250,204,21,0.20)",  btnColor: "#fde047" };
+    case "mensaje":     return { bgImage: null,                 btnBg: "rgba(168,85,247,0.22)",  btnColor: "#d8b4fe" };
+    case "meet_greet":  return { bgImage: "/encuentroenvivo.png", btnBg: "rgba(29,78,216,0.28)", btnColor: "#93c5fd" };
+    case "exclusive_session": return { bgImage: "/sesionexclusiva.png", btnBg: "rgba(190,24,93,0.28)", btnColor: "#f9a8d4" };
+    default:            return { bgImage: null,                 btnBg: "rgba(168,85,247,0.22)",  btnColor: "#d8b4fe" };
+  }
+}
 
 function getServiceEmoji(row: WalletServiceItem): string {
   if (row.status === "rejected" || row.status === "cancelled") return "❌";
@@ -214,7 +227,7 @@ export function WalletCard({
   children,
   transparent = false,
 }: {
-  title: string;
+  title?: string;
   description?: string;
   headerRight?: React.ReactNode;
   children?: React.ReactNode;
@@ -289,14 +302,17 @@ export function WalletCard({
       `}</style>
 
       <div className="card">
-        <div className="cardHeader">
-          <div className="cardHeaderMain">
-            <h2 className="cardTitle">{title}</h2>
-            {description ? <p className="cardDescription">{description}</p> : null}
+        {(title || description || headerRight) ? (
+          <div className="cardHeader">
+            {(title || description) ? (
+              <div className="cardHeaderMain">
+                {title ? <h2 className="cardTitle">{title}</h2> : null}
+                {description ? <p className="cardDescription">{description}</p> : null}
+              </div>
+            ) : null}
+            {headerRight ? <div className="cardHeaderRight">{headerRight}</div> : null}
           </div>
-
-          {headerRight ? <div className="cardHeaderRight">{headerRight}</div> : null}
-        </div>
+        ) : null}
 
         {children ? <div className="cardBody">{children}</div> : null}
       </div>
@@ -563,6 +579,18 @@ export function WalletServiceRow({
   const statusTone = getStatusTone(row);
   const subtitle = buildRowSubtitle(row);
   const meta = getWalletServiceRowMeta(row);
+
+  const historyStatusLabel: string | null =
+    row.status === "rejected" || row.status === "cancelled"
+      ? "Rechazado"
+      : row.status === "refund_requested" || row.status === "refund_review"
+      ? "En devolución"
+      : null;
+
+  const historyStatusColor: string =
+    row.status === "refund_requested" || row.status === "refund_review"
+      ? "#fde047"
+      : "#f87171";
   const emoji = getServiceEmoji(row);
 
   const isGreeting = row.source === "greeting";
@@ -743,101 +771,163 @@ export function WalletServiceRow({
     const actionLabel = isHistory
       ? (row.kind === "consejo" ? "Ver consejo" : row.kind === "mensaje" ? "Ver mensaje" : "Ver saludo")
       : (row.kind === "consejo" ? "Grabar consejo" : row.kind === "saludo" ? "Grabar saludo" : "Grabar");
-    const sourceName =
-      row.requestSource === "profile"
-        ? (row.profileDisplayName ?? "Mi perfil")
-        : (row.groupName ?? null);
-    const sourceAvatarUrl = row.sourceAvatarUrl ?? null;
     const sentLabel = isHistory && row.deliveredAt
       ? `${row.kind === "consejo" ? "Consejo" : row.kind === "mensaje" ? "Mensaje" : "Saludo"} enviado el ${new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", year: "numeric" }).format(row.deliveredAt)}`
       : null;
+    const theme = getServiceCardTheme(row.kind);
+    const handleGreetingClick = () => isHistory ? onView?.(row) : onRecord?.(row);
     return (
       <>
-      <style jsx>{`
-        .greetingCardRow {
-          border-radius: 14px;
-          border: 1px solid transparent;
-          background: transparent;
-          padding: 13px 2px;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          box-sizing: border-box;
-          font-family: ${walletFontStack};
-        }
-      `}</style>
-      <div className="greetingCardRow">
-        {row.buyerAvatarUrl ? (
-          <Image
-            src={row.buyerAvatarUrl}
-            alt={row.buyerDisplayName ?? ""}
-            width={36}
-            height={36}
-            style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.12)" }}
-          />
-        ) : (
-          <div style={{
-            width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-            background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontWeight: 700, fontSize: 13, color: "#fff",
-          }}>
-            {initial}
-          </div>
-        )}
-        <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 5, flexWrap: "nowrap", overflow: "hidden" }}>
-            <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
-              {row.buyerDisplayName ?? "Usuario"}
-            </span>
-            {sourceName ? (
-              <>
-                <span style={{ color: "rgba(255,255,255,0.25)", fontSize: 12, lineHeight: 1, flexShrink: 0 }}>|</span>
-                {sourceAvatarUrl ? (
-                  <Image
-                    src={sourceAvatarUrl}
-                    alt={sourceName}
-                    width={16}
-                    height={16}
-                    style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.1)" }}
-                  />
-                ) : (
-                  <div style={{ width: 16, height: 16, borderRadius: "50%", flexShrink: 0, background: "rgba(255,255,255,0.07)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, color: "#fff" }}>
-                    {sourceName.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 11, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
-                  {sourceName}
-                </span>
-              </>
-            ) : null}
-          </div>
-          <div style={{ color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3, marginTop: 2 }}>
-            {sentLabel ?? getRelativeTime(row.createdAt)}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => isHistory ? onView?.(row) : onRecord?.(row)}
+        <style jsx>{`
+          .wGCard {
+            position: relative;
+            overflow: hidden;
+            border-radius: 14px;
+            padding: 13px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+          }
+          @media (max-width: 640px) {
+            .wGCard { cursor: pointer; }
+            .wGCardBtn { display: none !important; }
+            .wGCardChevron { display: flex !important; }
+          }
+        `}</style>
+        <div
+          className="wGCard"
+          onClick={handleGreetingClick}
           style={{
-            flexShrink: 0,
-            width: 122,
-            height: 32,
-            padding: 0,
-            borderRadius: 8,
-            border: "none",
-            background: "rgba(168,85,255,0.18)",
-            color: "#d8b4fe",
-            fontWeight: 600,
-            fontSize: 12,
-            cursor: "pointer",
+            background: theme.bgImage
+              ? `linear-gradient(rgba(8,8,10,0.78), rgba(8,8,10,0.78)), url(${theme.bgImage}) center / cover no-repeat`
+              : "rgba(255,255,255,0.04)",
             fontFamily: walletFontStack,
-            whiteSpace: "nowrap",
           }}
         >
-          {actionLabel}
-        </button>
-      </div>
+          {row.buyerAvatarUrl ? (
+            <Image src={row.buyerAvatarUrl} alt={row.buyerDisplayName ?? ""} width={40} height={40}
+              style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.14)", position: "relative", zIndex: 1 }} />
+          ) : (
+            <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0, background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", position: "relative", zIndex: 1 }}>
+              {initial}
+            </div>
+          )}
+          <div style={{ flex: 1, minWidth: 0, overflow: "hidden", position: "relative", zIndex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+              <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
+                {row.buyerDisplayName ?? "Usuario"}
+              </span>
+              {row.priceSnapshot != null ? (
+                <span style={{ color: isHistory && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
+                  +{formatWalletMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100)} MXN
+                </span>
+              ) : null}
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.48)", fontSize: 11, lineHeight: 1.3, marginTop: 3 }}>
+              {isHistory && historyStatusLabel
+                ? <span style={{ color: historyStatusColor }}>{historyStatusLabel}</span>
+                : (sentLabel ?? getRelativeTime(row.createdAt))}
+            </div>
+          </div>
+          <button
+            className="wGCardBtn"
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleGreetingClick(); }}
+            style={{
+              flexShrink: 0, width: 148, height: 32, borderRadius: 8, border: "none",
+              background: theme.btnBg, color: theme.btnColor,
+              fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: walletFontStack,
+              whiteSpace: "nowrap", position: "relative", zIndex: 1,
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            }}
+          >
+            {actionLabel}
+          </button>
+          <span className="wGCardChevron" style={{ display: "none", flexShrink: 0, color: theme.btnColor, alignItems: "center", justifyContent: "center", zIndex: 1, position: "relative" }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </span>
+        </div>
+      </>
+    );
+  }
+
+  const theme = getServiceCardTheme(row.kind);
+
+  if (isScheduledService && onView) {
+    const actionLabel =
+      row.status === "reschedule_requested" ? "Reagendar" :
+      ["scheduled", "ready_to_prepare", "in_preparation", "completed"].includes(row.status) ? "Ver solicitud" :
+      "Agendar solicitud";
+    return (
+      <>
+        <style jsx>{`
+          .wSCard {
+            overflow: hidden;
+            border-radius: 14px;
+          }
+          .wSCardInner {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 14px;
+          }
+          @media (max-width: 640px) {
+            .wSCard { cursor: pointer; }
+            .wSCardBtn { display: none !important; }
+            .wSCardChevron { display: flex !important; }
+          }
+        `}</style>
+        <div className="wSCard" onClick={() => onView(row)}>
+          <div className="wSCardInner" style={{ fontFamily: walletFontStack, background: theme.bgImage ? `linear-gradient(rgba(8,8,10,0.78), rgba(8,8,10,0.78)), url(${theme.bgImage}) center / cover no-repeat` : "rgba(255,255,255,0.04)" }}>
+            {row.buyerAvatarUrl ? (
+              <Image src={row.buyerAvatarUrl} alt={row.buyerDisplayName ?? ""} width={40} height={40}
+                style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.14)" }} />
+            ) : (
+              <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0, background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff" }}>
+                {(row.buyerDisplayName ?? "U").charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
+                  {row.buyerDisplayName ?? "Usuario"}
+                </span>
+                {row.priceSnapshot != null ? (
+                  <span style={{ color: mode === "history" && historyStatusLabel ? historyStatusColor : "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
+                    +{formatWalletMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100)} MXN
+                  </span>
+                ) : null}
+              </div>
+              <div style={{ color: "rgba(255,255,255,0.48)", fontSize: 11, lineHeight: 1.3, marginTop: 3 }}>
+                {mode === "history" && historyStatusLabel
+                  ? <span style={{ color: historyStatusColor }}>{historyStatusLabel}</span>
+                  : row.scheduledAt
+                  ? (() => {
+                      const label = new Intl.DateTimeFormat("es-MX", {
+                        weekday: "long", day: "numeric", month: "long", year: "numeric",
+                      }).format(row.scheduledAt);
+                      return label.charAt(0).toUpperCase() + label.slice(1);
+                    })()
+                  : "Por agendar"}
+              </div>
+            </div>
+            <button
+              className="wSCardBtn"
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onView(row); }}
+              style={{ flexShrink: 0, width: 148, height: 32, borderRadius: 8, border: "none", background: theme.btnBg, color: theme.btnColor, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: walletFontStack, whiteSpace: "nowrap", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              {actionLabel}
+            </button>
+            <span className="wSCardChevron" style={{ display: "none", flexShrink: 0, color: theme.btnColor, alignItems: "center", justifyContent: "center" }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </span>
+          </div>
+        </div>
       </>
     );
   }
@@ -845,110 +935,6 @@ export function WalletServiceRow({
   return (
     <>
       <style jsx>{`
-        .walletServiceCard {
-          border-radius: 18px;
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          background: rgba(255, 255, 255, 0.03);
-          overflow: hidden;
-          transition:
-            border-color 0.18s ease,
-            background 0.18s ease,
-            box-shadow 0.18s ease;
-        }
-
-        .walletServiceCardOpen {
-          border-color: rgba(255, 255, 255, 0.14);
-          background: rgba(255, 255, 255, 0.045);
-          box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
-        }
-
-        .walletServiceHeader {
-          width: 100%;
-          background: transparent;
-          border: none;
-          padding: 14px 15px;
-          display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: 14px;
-          text-align: left;
-          cursor: pointer;
-        }
-
-        .walletServiceMain {
-          min-width: 0;
-          flex: 1;
-          display: grid;
-          gap: 6px;
-        }
-
-        .walletServiceTopRow {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          min-width: 0;
-          flex-wrap: wrap;
-        }
-
-        .walletServiceEmoji {
-          font-size: 16px;
-          line-height: 1;
-          flex-shrink: 0;
-        }
-
-        .walletServiceTitle {
-          font-size: 14px;
-          font-weight: 700;
-          line-height: 1.3;
-          letter-spacing: -0.01em;
-          color: #fff;
-        }
-
-        .walletServiceSubline {
-          color: rgba(255, 255, 255, 0.68);
-          font-size: 12px;
-          line-height: 1.5;
-          white-space: pre-wrap;
-        }
-
-        .walletServiceSublineDanger {
-          color: #fca5a5;
-          font-size: 12px;
-          line-height: 1.5;
-          white-space: pre-wrap;
-        }
-
-        .walletServiceSublineWarning {
-          color: #fde68a;
-          font-size: 12px;
-          line-height: 1.5;
-          white-space: pre-wrap;
-        }
-
-        .walletServiceRight {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          flex-shrink: 0;
-        }
-
-        .walletServiceMeta {
-          border-radius: 999px;
-          padding: 7px 10px;
-          background: rgba(255, 255, 255, 0.06);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: rgba(255, 255, 255, 0.82);
-          font-size: 11px;
-          font-weight: 500;
-          line-height: 1;
-        }
-
-        .walletChevron {
-          color: rgba(255, 255, 255, 0.64);
-          font-size: 14px;
-          line-height: 1;
-        }
-
         .walletServiceBody {
           padding: 0 15px 15px;
           border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -1064,44 +1050,52 @@ export function WalletServiceRow({
           line-height: 1.45;
         }
 
-        @media (max-width: 900px) {
-          .walletServiceHeader {
-            flex-direction: column;
-            align-items: flex-start;
-          }
-
-          .walletServiceRight {
-            width: 100%;
-            justify-content: space-between;
-          }
-        }
       `}</style>
 
-      <div className={`walletServiceCard ${open ? "walletServiceCardOpen" : ""}`}>
-        <button type="button" className="walletServiceHeader" onClick={onToggle}>
-          <div className="walletServiceMain">
-            <div className="walletServiceTopRow">
-              <span className="walletServiceEmoji">{emoji}</span>
-              <div className="walletServiceTitle">{row.title}</div>
+      <div style={{ overflow: "hidden", borderRadius: 14 }}>
+        <button
+          type="button"
+          onClick={onToggle}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            width: "100%",
+            border: "none",
+            padding: "13px 14px",
+            background: theme.bgImage
+              ? `linear-gradient(rgba(8,8,10,0.78), rgba(8,8,10,0.78)), url(${theme.bgImage}) center / cover no-repeat`
+              : "rgba(255,255,255,0.04)",
+            cursor: "pointer",
+            fontFamily: walletFontStack,
+          }}
+        >
+          {row.buyerAvatarUrl ? (
+            <Image src={row.buyerAvatarUrl} alt={row.buyerDisplayName ?? ""} width={40} height={40}
+              style={{ borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "1px solid rgba(255,255,255,0.14)" }} />
+          ) : (
+            <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0, background: "rgba(255,255,255,0.09)", border: "1px solid rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff" }}>
+              {(row.buyerDisplayName ?? "U").charAt(0).toUpperCase()}
             </div>
-
-            <div
-              className={
-                statusTone === "danger"
-                  ? "walletServiceSublineDanger"
-                  : statusTone === "warning"
-                    ? "walletServiceSublineWarning"
-                    : "walletServiceSubline"
-              }
-            >
+          )}
+          <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+              <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flexShrink: 1 }}>
+                {row.buyerDisplayName ?? "Usuario"}
+              </span>
+              {row.priceSnapshot != null ? (
+                <span style={{ color: "#86efac", fontWeight: 600, fontSize: 11, lineHeight: 1.2, whiteSpace: "nowrap", flexShrink: 0 }}>
+                  +{formatWalletMoney(Math.round(row.priceSnapshot * 0.77 * 100) / 100)} MXN
+                </span>
+              ) : null}
+            </div>
+            <div style={{ color: "rgba(255,255,255,0.48)", fontSize: 11, lineHeight: 1.3, marginTop: 3 }}>
               {subtitle}
             </div>
           </div>
-
-          <div className="walletServiceRight">
-            <div className="walletServiceMeta">{meta}</div>
-            <div className="walletChevron">{open ? "▴" : "▾"}</div>
-          </div>
+          <span style={{ flexShrink: 0, height: 32, padding: "0 12px", borderRadius: 8, background: theme.btnBg, color: theme.btnColor, fontWeight: 600, fontSize: 12, display: "flex", alignItems: "center", gap: 4, whiteSpace: "nowrap" }}>
+            {open ? "Cerrar" : "Ver"}&nbsp;<span style={{ fontSize: 9 }}>{open ? "▴" : "▾"}</span>
+          </span>
         </button>
 
         {open ? (
@@ -1638,206 +1632,283 @@ export function WalletFilterMenu<T extends string>({
   value,
   options,
   onChange,
+  allValue,
+  transparent = false,
 }: {
   label?: string;
   menuLabel: string;
-  value: T;
-  options: Array<{ value: T; label: string; emoji?: string }>;
-  onChange: (value: T) => void;
+  value: T[];
+  options: Array<{ value: T; label: string; emoji?: string; color?: string }>;
+  onChange: (value: T[]) => void;
+  allValue: T;
+  transparent?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const [closing, setClosing] = useState(false);
+  const [pending, setPending] = useState<T[]>(value);
+
+  function openMenu() {
+    setPending(value);
+    setClosing(false);
+    setOpen(true);
+  }
+
+  function toggleOption(opt: T) {
+    if (opt === allValue) {
+      setPending([allValue]);
+      return;
+    }
+    setPending((prev) => {
+      const withoutAll = prev.filter((v) => v !== allValue);
+      const already = withoutAll.includes(opt);
+      const next = already
+        ? withoutAll.filter((v) => v !== opt)
+        : [...withoutAll, opt];
+      return next.length === 0 ? [allValue] : next;
+    });
+  }
+
+  function closeMenu() {
+    setClosing(true);
+    setTimeout(() => {
+      setOpen(false);
+      setClosing(false);
+    }, 150);
+  }
+
+  function handleAccept() {
+    onChange(pending);
+    closeMenu();
+  }
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (!wrapperRef.current) return;
-      if (!wrapperRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
     function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-      }
+      if (event.key === "Escape" && open) closeMenu();
     }
-
-    document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [open]);
 
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, []);
+  const panel = open
+    ? createPortal(
+        <>
+          <style jsx global>{`
+            @keyframes vbFilterFadeIn {
+              from { opacity: 0; }
+              to   { opacity: 1; }
+            }
+            @keyframes vbFilterFadeOut {
+              from { opacity: 1; }
+              to   { opacity: 0; }
+            }
+            @keyframes vbFilterScaleIn {
+              from { opacity: 0; transform: scale(0.88); }
+              to   { opacity: 1; transform: scale(1); }
+            }
+            @keyframes vbFilterScaleOut {
+              from { opacity: 1; transform: scale(1); }
+              to   { opacity: 0; transform: scale(0.88); }
+            }
+            @keyframes vbFilterCirclePop {
+              0%   { transform: scale(0.5); }
+              65%  { transform: scale(1.3); }
+              100% { transform: scale(1); }
+            }
+            @keyframes vbFilterCircleUnpop {
+              0%   { transform: scale(1); }
+              40%  { transform: scale(0.7); }
+              100% { transform: scale(1); }
+            }
+          `}</style>
 
-  return (
-    <>
-      <style jsx>{`
-        .filterWrapper {
-          position: relative;
-        }
+          {/* Backdrop */}
+          <div
+            onClick={closeMenu}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 99990,
+              background: "rgba(0,0,0,0.50)",
+              animation: closing
+                ? "vbFilterFadeOut 0.15s ease forwards"
+                : "vbFilterFadeIn 0.18s ease forwards",
+            }}
+          />
 
-        .filterButton {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          border-radius: 12px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(255, 255, 255, 0.05);
-          padding: 9px 12px;
-          color: rgba(255, 255, 255, 0.88);
-          font-size: 13px;
-          font-weight: 600;
-          line-height: 1;
-          box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
-          transition:
-            background 0.18s ease,
-            border-color 0.18s ease;
-        }
-
-        .filterButton:hover {
-          background: rgba(255, 255, 255, 0.08);
-          border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        .filterMenu {
-          position: absolute;
-          right: 0;
-          top: calc(100% + 8px);
-          z-index: 30;
-          width: 240px;
-          overflow: hidden;
-          border-radius: 18px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: #121212;
-          box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
-        }
-
-        .filterMenuHeader {
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          padding: 11px 12px;
-          color: rgba(255, 255, 255, 0.52);
-          font-size: 11px;
-          font-weight: 700;
-          line-height: 1;
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-        }
-
-        .filterMenuBody {
-          padding: 8px;
-        }
-
-        .filterMenuItem {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          border: none;
-          background: transparent;
-          border-radius: 12px;
-          padding: 10px 12px;
-          color: rgba(255, 255, 255, 0.82);
-          font-size: 13px;
-          font-weight: 500;
-          text-align: left;
-          transition:
-            background 0.18s ease,
-            color 0.18s ease;
-        }
-
-        .filterMenuItem:hover {
-          background: rgba(255, 255, 255, 0.06);
-          color: #fff;
-        }
-
-        .filterMenuItemActive {
-          background: #ffffff;
-          color: #000000;
-        }
-
-        .filterMenuItemActive:hover {
-          background: #ffffff;
-          color: #000000;
-        }
-
-        .filterMenuItemLeft {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          min-width: 0;
-        }
-
-        .filterMenuEmoji {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          width: 18px;
-          flex-shrink: 0;
-          font-size: 14px;
-          line-height: 1;
-        }
-
-        .filterMenuStatus {
-          font-size: 11px;
-          font-weight: 700;
-          line-height: 1;
-          opacity: 0.72;
-        }
-      `}</style>
-
-      <div ref={wrapperRef} className="filterWrapper">
-        <button
-          type="button"
-          className="filterButton"
-          onClick={() => setOpen((prev) => !prev)}
-          aria-haspopup="menu"
-          aria-expanded={open}
-        >
-          <FilterIcon />
-          <span>{label}</span>
-        </button>
-
-        {open ? (
-          <div className="filterMenu" role="menu">
-            <div className="filterMenuHeader">{menuLabel}</div>
-
-            <div className="filterMenuBody">
-              {options.map((option) => {
-                const isActive = option.value === value;
-
+          {/* Panel wrapper */}
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 99991,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
+            }}
+          >
+            {/* Panel */}
+            <div
+              role="menu"
+              style={{
+                pointerEvents: "auto",
+                width: "min(300px, 88vw)",
+                background: "rgba(8,9,11,0.985)",
+                borderRadius: 16,
+                border: "1px solid rgba(255,255,255,0.10)",
+                boxShadow:
+                  "0 30px 90px rgba(0,0,0,0.56), 0 0 0 1px rgba(255,255,255,0.035)",
+                backdropFilter: "blur(10px)",
+                overflow: "hidden",
+                animation: closing
+                  ? "vbFilterScaleOut 0.15s ease forwards"
+                  : "vbFilterScaleIn 0.18s ease forwards",
+              }}
+            >
+              {/* Items */}
+              {options.map((option, index) => {
+                const isSelected = pending.includes(option.value);
                 return (
                   <button
                     key={option.value}
                     type="button"
                     role="menuitem"
-                    onClick={() => {
-                      onChange(option.value);
-                      setOpen(false);
+                    onClick={() => toggleOption(option.value)}
+                    style={{
+                      width: "100%",
+                      border: "none",
+                      borderTop:
+                        index > 0
+                          ? "1px solid rgba(255,255,255,0.06)"
+                          : "none",
+                      background: "transparent",
+                      color: isSelected
+                        ? (option.color ?? "#fff")
+                        : (option.color ? option.color + "bb" : "rgba(255,255,255,0.72)"),
+                      fontSize: 14,
+                      fontWeight: isSelected ? 600 : 400,
+                      textAlign: "left",
+                      cursor: "pointer",
+                      minHeight: 48,
+                      padding: "11px 16px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
                     }}
-                    className={`filterMenuItem ${
-                      isActive ? "filterMenuItemActive" : ""
-                    }`}
                   >
-                    <span className="filterMenuItemLeft">
-                      {option.emoji ? (
-                        <span className="filterMenuEmoji">{option.emoji}</span>
-                      ) : null}
-                      <span>{option.label}</span>
-                    </span>
+                    <span>{option.label}</span>
 
-                    {isActive ? (
-                      <span className="filterMenuStatus">Activo</span>
-                    ) : null}
+                    {/* Selection circle */}
+                    <div
+                      key={String(isSelected)}
+                      style={{
+                        flexShrink: 0,
+                        width: 22,
+                        height: 22,
+                        borderRadius: "50%",
+                        border: isSelected
+                          ? "none"
+                          : "1.5px solid rgba(255,255,255,0.25)",
+                        background: isSelected ? "#22c55e" : "transparent",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        animation: isSelected
+                          ? "vbFilterCirclePop 0.28s cubic-bezier(0.34,1.56,0.64,1) forwards"
+                          : "vbFilterCircleUnpop 0.18s ease forwards",
+                      }}
+                    >
+                      {isSelected ? (
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 12 12"
+                          fill="none"
+                        >
+                          <path
+                            d="M2 6L5 9L10 3"
+                            stroke="#fff"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      ) : null}
+                    </div>
                   </button>
                 );
               })}
+
+              {/* Aceptar */}
+              <div
+                style={{
+                  padding: "4px 16px 8px",
+                  borderTop: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={handleAccept}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    borderRadius: 8,
+                    background: "transparent",
+                    color: "rgba(255,255,255,0.88)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    padding: "7px 16px",
+                    cursor: "pointer",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  Aceptar
+                </button>
+              </div>
             </div>
           </div>
-        ) : null}
-      </div>
+        </>,
+        document.body
+      )
+    : null;
+
+  return (
+    <>
+      <style jsx>{`
+        .filterButton {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          border-radius: 12px;
+          border: none;
+          background: transparent;
+          padding: 9px 12px;
+          color: rgba(255, 255, 255, 0.88);
+          font-size: 13px;
+          font-weight: 600;
+          line-height: 1;
+          transition: background 0.18s ease;
+          cursor: pointer;
+        }
+
+        .filterButton:hover {
+          background: rgba(255, 255, 255, 0.06);
+        }
+      `}</style>
+
+      <button
+        type="button"
+        className="filterButton"
+        onClick={openMenu}
+        aria-haspopup="menu"
+        aria-expanded={open}
+      >
+        <FilterIcon />
+        <span>{label}</span>
+      </button>
+
+      {panel}
     </>
   );
 }

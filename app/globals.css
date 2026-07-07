@@ -85,11 +85,24 @@ html {
   background-color: #000000;
 }
 
-* {
+/* Reserva el espacio del scrollbar en html para evitar layout shift */
+html {
+  scrollbar-gutter: stable;
+  scrollbar-color: transparent transparent;
+}
+html::-webkit-scrollbar {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+/* Oculta scrollbars en el resto de elementos */
+:not(html) {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
-*::-webkit-scrollbar {
+:not(html)::-webkit-scrollbar {
   width: 0;
   height: 0;
   background: transparent;

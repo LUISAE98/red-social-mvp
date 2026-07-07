@@ -3,8 +3,8 @@
 import { useMemo, useState } from "react";
 import type { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/app/providers";
-import { useOwnerWalletData } from "@/lib/wallet/ownerWallet";
 import type { WalletServiceItem } from "@/lib/wallet/ownerWallet";
+import { useWalletData } from "../components/WalletDataContext";
 import WalletSectionShell from "../components/WalletSectionShell";
 import {
   EmptyRows,
@@ -23,18 +23,16 @@ type HistoryFilter =
   | "meet_greet"
   | "exclusive_session"
   | "saludo"
-  | "consejo"
-  | "mensaje";
+  | "consejo";
 
-const FILTER_OPTIONS: Array<{ value: HistoryFilter; label: string; emoji?: string }> = [
+const FILTER_OPTIONS: Array<{ value: HistoryFilter; label: string; emoji?: string; color?: string }> = [
   { value: "all", label: "Todo", emoji: "📋" },
-  { value: "rejected", label: "Rechazados", emoji: "❌" },
-  { value: "refund_in_progress", label: "En devolución", emoji: "💸" },
-  { value: "meet_greet", label: "Meet & Greet", emoji: "🤝" },
+  { value: "meet_greet", label: "Sesión en vivo", emoji: "🤝" },
   { value: "exclusive_session", label: "Sesión exclusiva", emoji: "👑" },
   { value: "saludo", label: "Saludos", emoji: "👋" },
   { value: "consejo", label: "Consejos", emoji: "💡" },
-  { value: "mensaje", label: "Mensajes", emoji: "💬" },
+  { value: "refund_in_progress", label: "En devolución", emoji: "💸", color: "#f87171" },
+  { value: "rejected", label: "Rechazados", emoji: "❌", color: "#f87171" },
 ];
 
 function getInitials(name?: string | null): string {
@@ -104,49 +102,36 @@ function isExpiredScheduledService(row: WalletServiceItem): boolean {
   return isNoShowExpired(row.scheduledAt);
 }
 
+function rowMatchesFilter(row: WalletServiceItem, f: HistoryFilter): boolean {
+  switch (f) {
+    case "all":
+      return true;
+    case "rejected":
+      return isScheduledService(row)
+        ? row.status === "rejected" || row.status === "cancelled"
+        : row.status === "rejected";
+    case "refund_in_progress":
+      return (
+        isScheduledService(row) &&
+        (row.status === "refund_requested" || row.status === "refund_review")
+      );
+    default:
+      return row.kind === f;
+  }
+}
+
 function filterHistoryItems(
   rows: WalletServiceItem[],
-  filter: HistoryFilter
+  filters: HistoryFilter[]
 ): WalletServiceItem[] {
-  switch (filter) {
-    case "all":
-      return rows;
-
-    case "rejected":
-      return rows.filter((row) => {
-        if (isScheduledService(row)) {
-          return row.status === "rejected" || row.status === "cancelled";
-        }
-
-        return row.status === "rejected";
-      });
-
-    case "refund_in_progress":
-      return rows.filter((row) => {
-        if (!isScheduledService(row)) return false;
-
-        return (
-          row.status === "refund_requested" ||
-          row.status === "refund_review"
-        );
-      });
-
-    case "meet_greet":
-    case "exclusive_session":
-    case "saludo":
-    case "consejo":
-    case "mensaje":
-      return rows.filter((row) => row.kind === filter);
-
-    default:
-      return rows;
-  }
+  if (filters.includes("all") || filters.length === 0) return rows;
+  return rows.filter((row) => filters.some((f) => rowMatchesFilter(row, f)));
 }
 
 export default function WalletHistorialPage() {
   const { user } = useAuth();
-  const walletData = useOwnerWalletData(user?.uid);
-  const [filter, setFilter] = useState<HistoryFilter>("all");
+  const walletData = useWalletData();
+  const [filter, setFilter] = useState<HistoryFilter[]>(["all"]);
   const [viewRow, setViewRow] = useState<WalletServiceItem | null>(null);
 
   const overlayBuyers: Record<string, UserMini | null> = useMemo(() => {
@@ -200,6 +185,7 @@ const filteredItems = useMemo(() => {
 
       <WalletCard
         title="Historial"
+        transparent
         headerRight={
           <WalletFilterMenu
             label="Filtro"
@@ -207,22 +193,53 @@ const filteredItems = useMemo(() => {
             value={filter}
             options={FILTER_OPTIONS}
             onChange={setFilter}
+            allValue="all"
           />
         }
       >
-        {walletData.loading ? (
-          <EmptyRows
-            title="Cargando historial"
-            subtitle="Estamos leyendo tus servicios procesados."
-          />
-        ) : filteredItems.length > 0 ? (
-          <WalletList items={filteredItems} mode="history" onView={setViewRow} />
-        ) : (
-          <EmptyRows
-            title="Sin historial"
-            subtitle="No hay movimientos para el filtro seleccionado."
-          />
-        )}
+        <>
+          <style jsx>{`
+            @keyframes skelPulseH {
+              0%, 100% { opacity: 0.5; }
+              50%       { opacity: 1; }
+            }
+            .skelH {
+              background: rgba(255,255,255,0.10);
+              border-radius: 6px;
+              animation: skelPulseH 1.4s ease-in-out infinite;
+            }
+            .skelCardH {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              padding: 13px 14px;
+              border-radius: 14px;
+              background: rgba(255,255,255,0.04);
+            }
+          `}</style>
+
+          {walletData.loading ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="skelCardH">
+                  <div className="skelH" style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0 }} />
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div className="skelH" style={{ width: "50%", height: 13, borderRadius: 5 }} />
+                    <div className="skelH" style={{ width: "35%", height: 11, borderRadius: 5 }} />
+                  </div>
+                  <div className="skelH" style={{ width: 90, height: 32, borderRadius: 8, flexShrink: 0 }} />
+                </div>
+              ))}
+            </div>
+          ) : filteredItems.length > 0 ? (
+            <WalletList items={filteredItems} mode="history" onView={setViewRow} />
+          ) : (
+            <EmptyRows
+              title="Sin historial"
+              subtitle="No hay movimientos para el filtro seleccionado."
+            />
+          )}
+        </>
       </WalletCard>
     </WalletSectionShell>
 

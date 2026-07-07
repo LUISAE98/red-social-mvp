@@ -6,9 +6,9 @@ import { createPortal } from "react-dom";
 import { useAuth } from "@/app/providers";
 import {
   formatWalletMoney,
-  useOwnerWalletData,
   type WalletServiceItem,
 } from "@/lib/wallet/ownerWallet";
+import { useWalletData } from "../components/WalletDataContext";
 import { proposeExclusiveSessionSchedule } from "@/lib/exclusiveSession/exclusiveSessionRequests";
 import { proposeMeetGreetSchedule } from "@/lib/meetGreet/meetGreetRequests";
 import SessionRequestOverlay from "@/app/components/OwnerSidebar/SessionRequestOverlay";
@@ -264,27 +264,40 @@ function getServiceCardTheme(kind: string): ServiceCardTheme {
 function CalendarEventCard({
   item,
   onView,
+  inOverlay = false,
 }: {
   item: WalletServiceItem;
   onView: () => void;
+  inOverlay?: boolean;
 }) {
   const initial = (item.buyerDisplayName ?? "U").charAt(0).toUpperCase();
   const theme = getServiceCardTheme(item.kind);
 
   return (
+    <>
+      <style jsx>{`
+        .calEvCard {
+          position: relative;
+          overflow: hidden;
+          border-radius: 14px;
+          padding: 13px 14px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        @media (max-width: 640px) {
+          .calEvCard { cursor: pointer; }
+          .calEvCardBtn { display: none !important; }
+          .calEvCardChevron { display: flex !important; }
+        }
+      `}</style>
     <div
+      className="calEvCard"
+      onClick={onView}
       style={{
-        position: "relative",
-        overflow: "hidden",
-        borderRadius: 14,
-        border: "1px solid rgba(255,255,255,0.08)",
         background: theme.bgImage
           ? `linear-gradient(rgba(8,8,10,0.78), rgba(8,8,10,0.78)), url(${theme.bgImage}) center / cover no-repeat`
           : "rgba(255,255,255,0.04)",
-        padding: "13px 14px",
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
       }}
     >
       {item.buyerAvatarUrl ? (
@@ -383,12 +396,13 @@ function CalendarEventCard({
       </div>
 
       <button
+        className="calEvCardBtn"
         type="button"
-        onClick={onView}
+        onClick={(e) => { e.stopPropagation(); onView(); }}
         style={{
           flexShrink: 0,
+          width: 148,
           height: 32,
-          padding: "0 14px",
           borderRadius: 8,
           border: "none",
           background: theme.btnBg,
@@ -400,11 +414,20 @@ function CalendarEventCard({
           whiteSpace: "nowrap",
           position: "relative",
           zIndex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
         Ver solicitud
       </button>
+      <span className="calEvCardChevron" style={{ display: "none", flexShrink: 0, color: theme.btnColor, alignItems: "center", justifyContent: "center", position: "relative", zIndex: 1 }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </span>
     </div>
+    </>
   );
 }
 
@@ -652,6 +675,7 @@ function EventsOverlay({
                       key={`${item.source}-${item.id}`}
                       item={item}
                       onView={() => onViewItem(item)}
+                      inOverlay
                     />
                   ))}
                 </div>
@@ -765,6 +789,7 @@ function EventsOverlay({
                   key={`${item.source}-${item.id}`}
                   item={item}
                   onView={() => onViewItem(item)}
+                  inOverlay
                 />
               ))}
             </div>
@@ -978,7 +1003,7 @@ function MonthCard({
 
 export default function WalletCalendarioPage() {
   const { user } = useAuth();
-  const walletData = useOwnerWalletData(user?.uid);
+  const walletData = useWalletData();
 
   const [viewMode, setViewMode] = useState<CalendarViewMode>("calendar");
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(null);
@@ -1137,6 +1162,24 @@ export default function WalletCalendarioPage() {
               grid-template-columns: repeat(2, minmax(0, 1fr));
             }
           }
+
+          @keyframes skelPulseC {
+            0%, 100% { opacity: 0.5; }
+            50%       { opacity: 1; }
+          }
+          .skelC {
+            background: rgba(255,255,255,0.10);
+            border-radius: 6px;
+            animation: skelPulseC 1.4s ease-in-out infinite;
+          }
+          .skelCardC {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 14px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.04);
+          }
         `}</style>
 
         <div className="cardButtonSlot">
@@ -1145,10 +1188,18 @@ export default function WalletCalendarioPage() {
 
         <div className="calendarContentOffset">
           {walletData.loading ? (
-            <EmptyRows
-              title="Cargando calendario"
-              subtitle="Estamos leyendo tus Meet & Greet y sesiones exclusivas programadas."
-            />
+            <div style={{ display: "grid", gap: 8 }}>
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="skelCardC">
+                  <div className="skelC" style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0 }} />
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div className="skelC" style={{ width: "48%", height: 13, borderRadius: 5 }} />
+                    <div className="skelC" style={{ width: "65%", height: 11, borderRadius: 5 }} />
+                  </div>
+                  <div className="skelC" style={{ width: 110, height: 32, borderRadius: 8, flexShrink: 0 }} />
+                </div>
+              ))}
+            </div>
           ) : calendarItems.length === 0 ? (
             <EmptyRows
               title="Sin eventos programados"

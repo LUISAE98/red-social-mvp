@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import type { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/app/providers";
-import { useOwnerWalletData, type WalletServiceItem } from "@/lib/wallet/ownerWallet";
+import { formatWalletMoney, type WalletServiceItem } from "@/lib/wallet/ownerWallet";
+import { useWalletData } from "../components/WalletDataContext";
 import WalletSectionShell from "../components/WalletSectionShell";
 import {
   EmptyRows,
@@ -13,15 +14,31 @@ import {
   WalletList,
 } from "../components/WalletUi";
 import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
-import type { GreetingRequestDoc, UserMini } from "@/app/components/OwnerSidebar/OwnerSidebar";
+import SessionRequestOverlay from "@/app/components/OwnerSidebar/SessionRequestOverlay";
+import type {
+  GreetingRequestDoc,
+  MeetGreetRequestDoc,
+  UserMini,
+} from "@/app/components/OwnerSidebar/OwnerSidebar";
+import {
+  acceptMeetGreetRequest,
+  rejectMeetGreetRequest,
+  proposeMeetGreetSchedule,
+  setMeetGreetPreparing,
+} from "@/lib/meetGreet/meetGreetRequests";
+import {
+  acceptExclusiveSessionRequest,
+  rejectExclusiveSessionRequest,
+  proposeExclusiveSessionSchedule,
+  setExclusiveSessionPreparing,
+} from "@/lib/exclusiveSession/exclusiveSessionRequests";
 
 type PendingFilter =
   | "all"
   | "meet_greet"
   | "exclusive_session"
   | "saludo"
-  | "consejo"
-  | "mensaje";
+  | "consejo";
 
 const FILTER_OPTIONS: Array<{
   value: PendingFilter;
@@ -29,11 +46,10 @@ const FILTER_OPTIONS: Array<{
   emoji?: string;
 }> = [
   { value: "all", label: "Todos", emoji: "📋" },
-  { value: "meet_greet", label: "Meet & Greet", emoji: "🤝" },
+  { value: "meet_greet", label: "Sesión en vivo", emoji: "🤝" },
   { value: "exclusive_session", label: "Sesión exclusiva", emoji: "👑" },
   { value: "saludo", label: "Saludos", emoji: "👋" },
   { value: "consejo", label: "Consejos", emoji: "💡" },
-  { value: "mensaje", label: "Mensajes", emoji: "💬" },
 ];
 
 function isSafePendingStatus(status: string): boolean {
@@ -48,9 +64,7 @@ function isSafePendingStatus(status: string): boolean {
 
 function isNoShowExpired(value: Date | null): boolean {
   if (!value) return false;
-
   const rejectAt = value.getTime() + 15 * 60 * 1000;
-
   return Date.now() >= rejectAt;
 }
 
@@ -63,9 +77,7 @@ function isExpiredScheduledService(item: {
 }): boolean {
   const isScheduledService =
     item.kind === "meet_greet" || item.kind === "exclusive_session";
-
   if (!isScheduledService) return false;
-
   if (
     item.status !== "scheduled" &&
     item.status !== "ready_to_prepare" &&
@@ -73,7 +85,6 @@ function isExpiredScheduledService(item: {
   ) {
     return false;
   }
-
   return isNoShowExpired(item.scheduledAt);
 }
 
@@ -96,27 +107,61 @@ function rowToGreetingDoc(row: WalletServiceItem, creatorId: string): GreetingRe
   };
 }
 
+function rowToFakeRequest(row: WalletServiceItem): MeetGreetRequestDoc {
+  return {
+    buyerId: row.buyerId,
+    buyerDisplayName: row.buyerDisplayName ?? null,
+    buyerAvatarUrl: row.buyerAvatarUrl ?? null,
+    buyerUsername: row.buyerUsername ?? null,
+    creatorId: "",
+    status: row.status,
+    buyerMessage: row.requestText ?? null,
+    priceSnapshot: row.priceSnapshot ?? null,
+    durationMinutes: row.durationMinutes ?? null,
+    scheduledAt: row.scheduledAt,
+    createdAt: row.createdAt,
+    creatorScheduleNote: row.creatorScheduleNote ?? null,
+    scheduleHistory: row.scheduleHistory,
+    rescheduleHistory: row.rescheduleHistory,
+    rescheduleRequestsUsed: 0,
+    rejectionReason: row.rejectionReason ?? null,
+    refundReason: null,
+  } as unknown as MeetGreetRequestDoc;
+}
+
 export default function WalletPendientesPage() {
   const { user } = useAuth();
-  const walletData = useOwnerWalletData(user?.uid);
-  const [filter, setFilter] = useState<PendingFilter>("all");
+  const walletData = useWalletData();
+  const [filter, setFilter] = useState<PendingFilter[]>(["all"]);
   const [recordRow, setRecordRow] = useState<WalletServiceItem | null>(null);
   const [greetingBusyId, setGreetingBusyId] = useState<string | null>(null);
 
-  const safePendingItems = useMemo(() => {
-  return walletData.pendingCurrent.filter((item) => {
-    if (!isSafePendingStatus(item.status)) return false;
-    if (isExpiredScheduledService(item)) return false;
+  const [viewItem, setViewItem] = useState<WalletServiceItem | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [feedbackSuccess, setFeedbackSuccess] = useState<string | null>(null);
 
-    return true;
-  });
-}, [walletData.pendingCurrent]);
+  const safePendingItems = useMemo(() => {
+    return walletData.pendingCurrent.filter((item) => {
+      if (!isSafePendingStatus(item.status)) return false;
+      if (isExpiredScheduledService(item)) return false;
+      return true;
+    });
+  }, [walletData.pendingCurrent]);
 
   const totalPendingCount = safePendingItems.length;
 
+  const totalPendingAmount = useMemo(() => {
+    const sum = safePendingItems.reduce((acc, item) => {
+      if (item.priceSnapshot == null) return acc;
+      return acc + Math.round(item.priceSnapshot * 0.77 * 100) / 100;
+    }, 0);
+    return sum > 0 ? sum : null;
+  }, [safePendingItems]);
+
   const filteredItems = useMemo(() => {
-    if (filter === "all") return safePendingItems;
-    return safePendingItems.filter((item) => item.kind === filter);
+    if (filter.includes("all")) return safePendingItems;
+    return safePendingItems.filter((item) => filter.includes(item.kind as PendingFilter));
   }, [filter, safePendingItems]);
 
   const filteredCount = filteredItems.length;
@@ -138,47 +183,228 @@ export default function WalletPendientesPage() {
     return [{ id: recordRow.id, data: rowToGreetingDoc(recordRow, user.uid) }];
   }, [recordRow, user?.uid]);
 
+  const fakeRequest = useMemo(
+    () => viewItem ? rowToFakeRequest(viewItem) : null,
+    [viewItem]
+  );
+
+  const viewItemEarning = useMemo(() => {
+    if (!viewItem?.priceSnapshot || viewItem.priceSnapshot <= 0) return null;
+    return "$" + new Intl.NumberFormat("es-MX", { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+      .format(viewItem.priceSnapshot * 0.77) + " MXN";
+  }, [viewItem]);
+
+  function closeViewItem() {
+    setViewItem(null);
+    setFeedbackError(null);
+    setFeedbackSuccess(null);
+    setBusy(false);
+  }
+
+  async function handleAccept() {
+    if (!viewItem) return;
+    setBusy(true);
+    setFeedbackError(null);
+    try {
+      if (viewItem.source === "exclusive_session") {
+        await acceptExclusiveSessionRequest({ requestId: viewItem.id });
+      } else {
+        await acceptMeetGreetRequest({ requestId: viewItem.id });
+      }
+    } catch (e) {
+      setFeedbackError((e instanceof Error ? e.message : null) ?? "No se pudo aceptar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleReject(reason: string | null) {
+    if (!viewItem) return;
+    setBusy(true);
+    setFeedbackError(null);
+    try {
+      if (viewItem.source === "exclusive_session") {
+        await rejectExclusiveSessionRequest({ requestId: viewItem.id, rejectionReason: reason ?? undefined });
+      } else {
+        await rejectMeetGreetRequest({ requestId: viewItem.id, rejectionReason: reason ?? undefined });
+      }
+      closeViewItem();
+    } catch (e) {
+      setFeedbackError((e instanceof Error ? e.message : null) ?? "No se pudo rechazar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleSchedule(scheduledAtIso: string | null, _note: string | null) {
+    if (!viewItem || !scheduledAtIso) return;
+    setBusy(true);
+    setFeedbackError(null);
+    try {
+      const creatorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (viewItem.source === "exclusive_session") {
+        await proposeExclusiveSessionSchedule({ requestId: viewItem.id, scheduledAt: scheduledAtIso, creatorTimezone });
+      } else {
+        await proposeMeetGreetSchedule({ requestId: viewItem.id, scheduledAt: scheduledAtIso, creatorTimezone });
+      }
+      setFeedbackSuccess("✅ Sesión agendada.");
+      setTimeout(closeViewItem, 900);
+    } catch (e) {
+      setFeedbackError((e instanceof Error ? e.message : null) ?? "No se pudo agendar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleAcceptAndSchedule(scheduledAtIso: string | null, note: string | null) {
+    if (!viewItem) return;
+    setBusy(true);
+    setFeedbackError(null);
+    try {
+      const creatorTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (viewItem.source === "exclusive_session") {
+        await acceptExclusiveSessionRequest({ requestId: viewItem.id });
+        if (scheduledAtIso) await proposeExclusiveSessionSchedule({ requestId: viewItem.id, scheduledAt: scheduledAtIso, creatorTimezone });
+      } else {
+        await acceptMeetGreetRequest({ requestId: viewItem.id });
+        if (scheduledAtIso) await proposeMeetGreetSchedule({ requestId: viewItem.id, scheduledAt: scheduledAtIso, creatorTimezone });
+      }
+      setFeedbackSuccess("✅ Sesión aceptada y agendada.");
+      setTimeout(closeViewItem, 900);
+    } catch (e) {
+      setFeedbackError((e instanceof Error ? e.message : null) ?? "No se pudo aceptar y agendar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handlePrepare() {
+    if (!viewItem) return;
+    setBusy(true);
+    setFeedbackError(null);
+    try {
+      if (viewItem.source === "exclusive_session") {
+        await setExclusiveSessionPreparing({ requestId: viewItem.id, role: "creator" });
+      } else {
+        await setMeetGreetPreparing({ requestId: viewItem.id, role: "creator" });
+      }
+    } catch (e) {
+      setFeedbackError((e instanceof Error ? e.message : null) ?? "No se pudo preparar.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <WalletSectionShell activeTab="pending">
       {walletData.error ? <WalletErrorBox message={walletData.error} /> : null}
 
-      <WalletCard
-        title={`Pendientes (${totalPendingCount})`}
-        headerRight={
-          <WalletFilterMenu
-            label="Filtro"
-            menuLabel="Filtrar pendientes"
-            value={filter}
-            options={FILTER_OPTIONS}
-            onChange={setFilter}
-          />
-        }
-      >
-        {walletData.loading ? (
-          <EmptyRows
-            title="Cargando pendientes"
-            subtitle="Estamos leyendo tus servicios y solicitudes activas."
-          />
-        ) : filteredCount > 0 ? (
-          <WalletList
-            items={filteredItems}
-            calendarItems={walletData.calendar}
-            onRecord={setRecordRow}
-          />
-        ) : (
-          <EmptyRows
-            title={
-              totalPendingCount > 0
-                ? "No hay resultados para este filtro"
-                : "Sin pendientes actuales"
+      <WalletCard transparent>
+        <>
+          <style jsx>{`
+            @keyframes skelPulse {
+              0%, 100% { opacity: 0.5; }
+              50%       { opacity: 1; }
             }
-            subtitle={
-              totalPendingCount > 0
-                ? "Cambia el filtro para ver otros pendientes activos."
-                : "No tienes servicios pendientes por atender en este momento."
+            .skel {
+              background: rgba(255,255,255,0.10);
+              border-radius: 6px;
+              animation: skelPulse 1.4s ease-in-out infinite;
             }
-          />
-        )}
+            .skelCard {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              padding: 13px 14px;
+              border-radius: 14px;
+              background: rgba(255,255,255,0.04);
+            }
+          `}</style>
+
+          {/* ── Loading skeletons ── */}
+          {walletData.loading ? (
+            <>
+              <div style={{ marginTop: -8, marginBottom: 14, textAlign: "center" }}>
+                <div className="skel" style={{ width: 120, height: 11, borderRadius: 5, margin: "0 auto 8px" }} />
+                <div className="skel" style={{ width: 180, height: 32, borderRadius: 8, margin: "0 auto 10px" }} />
+                <div className="skel" style={{ width: 100, height: 13, borderRadius: 5, margin: "0 auto" }} />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="skelCard">
+                    <div className="skel" style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0 }} />
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+                      <div className="skel" style={{ width: "55%", height: 13, borderRadius: 5 }} />
+                      <div className="skel" style={{ width: "38%", height: 11, borderRadius: 5 }} />
+                    </div>
+                    <div className="skel" style={{ width: 90, height: 32, borderRadius: 8, flexShrink: 0 }} />
+                  </div>
+                ))}
+              </div>
+            </>
+
+          /* ── Sin pendientes ── */
+          ) : totalPendingCount === 0 ? (
+            <div style={{ marginTop: -8, marginBottom: 0, textAlign: "center" }}>
+              <p style={{ margin: "0 0 4px", fontSize: 12, color: "rgba(255,255,255,0.50)", fontFamily: "inherit", fontWeight: 500 }}>
+                Monto total a liberar
+              </p>
+              <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.03em", color: "rgba(255,255,255,0.25)", fontFamily: "inherit" }}>
+                $0.00 MXN
+              </p>
+              <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.45)", fontFamily: "inherit", fontWeight: 400 }}>
+                No tienes pendientes por el momento
+              </p>
+            </div>
+
+          /* ── Con pendientes ── */
+          ) : (
+            <>
+              {totalPendingAmount != null && (
+                <div style={{ marginTop: -8, marginBottom: 14, textAlign: "center" }}>
+                  <p style={{ margin: "0 0 4px", fontSize: 12, color: "rgba(255,255,255,0.50)", fontFamily: "inherit", fontWeight: 500 }}>
+                    Monto total a liberar
+                  </p>
+                  <p style={{ margin: "0 0 8px", fontSize: 28, fontWeight: 700, lineHeight: 1, letterSpacing: "-0.03em", color: "#86efac", fontFamily: "inherit" }}>
+                    {formatWalletMoney(Math.round(totalPendingAmount * 100) / 100)} MXN
+                  </p>
+                  <p style={{ margin: 0, fontSize: 13, color: "#fff", fontFamily: "inherit", fontWeight: 500 }}>
+                    {totalPendingCount} pendiente{totalPendingCount !== 1 ? "s" : ""}
+                  </p>
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <WalletFilterMenu
+                  label="Filtro"
+                  menuLabel="Filtrar pendientes"
+                  value={filter}
+                  options={FILTER_OPTIONS}
+                  onChange={setFilter}
+                  allValue="all"
+                  transparent
+                />
+              </div>
+              {filteredCount > 0 ? (
+                <WalletList
+                  items={filteredItems}
+                  calendarItems={walletData.calendar}
+                  onRecord={setRecordRow}
+                  onView={(row) => {
+                    setViewItem(row);
+                    setFeedbackError(null);
+                    setFeedbackSuccess(null);
+                    setBusy(false);
+                  }}
+                />
+              ) : (
+                <EmptyRows
+                  title="No hay resultados para este filtro"
+                  subtitle="Cambia el filtro para ver otros pendientes activos."
+                />
+              )}
+            </>
+          )}
+        </>
       </WalletCard>
 
       {recordRow && overlayItems.length > 0 && (
@@ -209,6 +435,28 @@ export default function WalletPendientesPage() {
           onClose={() => setRecordRow(null)}
           getInitials={(name) => (name ?? "U").split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
           typeLabel={(t) => t === "consejo" ? "Consejo" : t === "mensaje" ? "Mensaje" : "Saludo"}
+        />
+      )}
+
+      {viewItem && fakeRequest && (
+        <SessionRequestOverlay
+          open={viewItem !== null}
+          onClose={closeViewItem}
+          request={fakeRequest}
+          requestId={viewItem.id}
+          serviceKind={viewItem.source as "meet_greet" | "exclusive_session"}
+          busy={busy}
+          feedbackError={feedbackError}
+          feedbackSuccess={feedbackSuccess}
+          earning={viewItemEarning}
+          ownerCalendarItems={walletData.calendar}
+          getInitials={(name) => name?.charAt(0).toUpperCase() ?? "?"}
+          onAccept={handleAccept}
+          onReject={handleReject}
+          onSchedule={handleSchedule}
+          onAcceptAndSchedule={handleAcceptAndSchedule}
+          onPrepare={handlePrepare}
+          onKeepSchedule={async () => closeViewItem()}
         />
       )}
     </WalletSectionShell>

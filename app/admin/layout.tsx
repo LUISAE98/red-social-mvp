@@ -9,6 +9,7 @@ import { usePlatformMod } from "@/lib/moderation/usePlatformMod";
 import { AdminPreviewContext } from "./context";
 
 const NAV_ITEMS = [
+  { label: "Mi perfil", href: "/admin/profile" },
   { label: "Reportes generales", href: "/admin/reports" },
   { label: "Asignados a mí", href: "/admin/my-reports" },
   { label: "Asignados a otros", href: "/admin/other-reports" },
@@ -218,7 +219,26 @@ export default function AdminLayout({
             border-right: 1px solid #1a1a1a;
             height: 100dvh;
             overflow-y: auto;
-            padding: 24px 20px;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+          }
+
+          .contentTitle {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #444;
+            padding: 24px 20px 14px;
+            flex-shrink: 0;
+            border-bottom: 1px solid #111;
+          }
+
+          .contentInner {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 20px;
           }
 
           /* Col 3 — preview */
@@ -228,6 +248,25 @@ export default function AdminLayout({
             height: 100dvh;
             position: relative;
             background: #050505;
+            display: flex;
+            flex-direction: column;
+          }
+
+          .previewTitle {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #444;
+            padding: 24px 20px 14px;
+            flex-shrink: 0;
+            border-bottom: 1px solid #111;
+          }
+
+          .previewBody {
+            flex: 1;
+            min-height: 0;
+            position: relative;
           }
 
           .previewPlaceholder {
@@ -247,6 +286,8 @@ export default function AdminLayout({
             height: 100%;
             border: none;
             display: block;
+            position: absolute;
+            inset: 0;
           }
 
           .iframeLoadingOverlay {
@@ -259,13 +300,14 @@ export default function AdminLayout({
             color: #333;
             font-size: 13px;
             pointer-events: none;
+            z-index: 1;
           }
         `}</style>
 
         <div className="shell">
           {/* Col 1 — Navigation */}
           <nav className="sidebar">
-            <div className="sidebarTitle">Moderación</div>
+            <div className="sidebarTitle">Menú del moderador</div>
 
             {NAV_ITEMS.map((item) => (
               <Link
@@ -314,34 +356,40 @@ export default function AdminLayout({
           </nav>
 
           {/* Col 2 — Page content (list) */}
-          <div className="content">{children}</div>
+          <div className="content">
+            <div className="contentTitle">Panel informativo</div>
+            <div className="contentInner">{children}</div>
+          </div>
 
           {/* Col 3 — Preview iframe */}
           <div className="preview">
-            {previewUrl ? (
-              <>
-                {iframeLoading && (
-                  <div className="iframeLoadingOverlay">Cargando...</div>
-                )}
-                <iframe
-                  key={previewUrl}
-                  src={previewUrl}
-                  className="previewIframe"
-                  onLoad={() => setIframeLoading(false)}
-                />
-              </>
-            ) : (
-              <div className="previewPlaceholder">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <path d="M3 9h18" />
-                  <path d="M9 21V9" />
-                </svg>
-                <span style={{ fontSize: 13 }}>
-                  Selecciona un elemento para previsualizar
-                </span>
-              </div>
-            )}
+            <div className="previewTitle">Navegador</div>
+            <div className="previewBody">
+              {previewUrl ? (
+                <>
+                  {iframeLoading && (
+                    <div className="iframeLoadingOverlay">Cargando...</div>
+                  )}
+                  <iframe
+                    key={previewUrl}
+                    src={previewUrl}
+                    className="previewIframe"
+                    onLoad={() => setIframeLoading(false)}
+                  />
+                </>
+              ) : (
+                <div className="previewPlaceholder">
+                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M3 9h18" />
+                    <path d="M9 21V9" />
+                  </svg>
+                  <span style={{ fontSize: 13 }}>
+                    Selecciona un elemento para previsualizar
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRef, useEffect, useState } from "react";
 import {
   VibraNavigationIcon,
   VibraNavigationIconsStyles,
@@ -28,6 +29,23 @@ export default function WalletSubNav({
 }: {
   activeTab: WalletTabKey;
 }) {
+  const tabRefs = useRef<(HTMLAnchorElement | null)[]>([]);
+  const navRef = useRef<HTMLDivElement | null>(null);
+  const [indicatorStyle, setIndicatorStyle] = useState<{ left: number; width: number } | null>(null);
+
+  useEffect(() => {
+    const activeIndex = TABS.findIndex((t) => t.key === activeTab);
+    const tabEl = tabRefs.current[activeIndex];
+    const navEl = navRef.current;
+    if (!tabEl || !navEl) return;
+
+    const tabRect = tabEl.getBoundingClientRect();
+    const navRect = navEl.getBoundingClientRect();
+    const indicatorW = Math.min(72, tabRect.width - 20);
+    const left = tabRect.left - navRect.left + (tabRect.width - indicatorW) / 2;
+    setIndicatorStyle({ left, width: indicatorW });
+  }, [activeTab]);
+
   return (
     <>
       <style jsx>{`
@@ -37,11 +55,11 @@ export default function WalletSubNav({
         }
 
         .nav {
+          position: relative;
           width: 100%;
           display: grid;
           grid-template-columns: repeat(4, minmax(0, 1fr));
           align-items: stretch;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .tabLink {
@@ -50,29 +68,35 @@ export default function WalletSubNav({
         }
 
         .tabInner {
-          position: relative;
           min-width: 0;
           min-height: 56px;
           display: flex;
+          flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 8px;
+          gap: 9px;
           padding: 0 10px 10px;
-          color: rgba(255, 255, 255, 0.72);
+          color: rgba(168, 85, 247, 0.55);
           font-size: 16px;
           font-weight: 500;
           line-height: 1;
           letter-spacing: -0.02em;
           white-space: nowrap;
-          transition: color 0.18s ease, opacity 0.18s ease;
+          transition: color 0.18s ease;
+        }
+
+        .tabContent {
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
 
         .tabLink:hover .tabInner {
-          color: #ffffff;
+          color: #c084fc;
         }
 
         .tabInnerActive {
-          color: #ffffff;
+          color: #c084fc;
           font-weight: 700;
         }
 
@@ -92,63 +116,78 @@ export default function WalletSubNav({
 
         .indicator {
           position: absolute;
-          left: 50%;
-          bottom: 2px;
-          transform: translateX(-50%);
-          width: 72px;
-          max-width: calc(100% - 20px);
+          bottom: 7px;
           height: 3px;
           border-radius: 999px;
-          background: #ffffff;
+          background: #a855f7;
+          transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                      width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                      opacity 0.18s ease;
         }
 
         @media (max-width: 900px) {
           .tabInner {
             min-height: 52px;
-            padding: 0 8px 8px;
-            gap: 0;
+            padding: 0 8px 10px;
+            gap: 4px;
           }
 
-          .emoji {
-            font-size: 19px;
+          .tabContent {
+            gap: 0;
           }
 
           .label {
             display: none;
           }
-
-          .indicator {
-            width: 34px;
-            max-width: calc(100% - 16px);
-            bottom: 3px;
-          }
         }
       `}</style>
 
+      <style jsx global>{`
+        @media (max-width: 900px) {
+          .walletSubNavEmoji .vibraNavigationIconSvg {
+            width: 28px !important;
+            height: 28px !important;
+          }
+        }
+      `}</style>
       <VibraNavigationIconsStyles />
 
       <div className="wrap">
-        <nav className="nav" aria-label="Secciones de wallet">
-          {TABS.map((tab) => {
+        <nav ref={navRef} className="nav" aria-label="Secciones de wallet">
+          {TABS.map((tab, index) => {
             const isActive = activeTab === tab.key;
 
             return (
               <Link
                 key={tab.key}
                 href={tab.href}
+                ref={(el) => { tabRefs.current[index] = el; }}
                 className="tabLink"
                 aria-current={isActive ? "page" : undefined}
               >
                 <span className={`tabInner ${isActive ? "tabInnerActive" : ""}`}>
-                  <span className="emoji" aria-hidden="true">
-                    <VibraNavigationIcon type={tab.icon} size={20} strokeWidth={1.75} />
+                  <span className="tabContent">
+                    <span className="emoji walletSubNavEmoji" aria-hidden="true">
+                      <VibraNavigationIcon type={tab.icon} size={22} strokeWidth={2} />
+                    </span>
+                    <span className="label">{tab.label}</span>
                   </span>
-                  <span className="label">{tab.label}</span>
-                  {isActive ? <span className="indicator" /> : null}
                 </span>
               </Link>
             );
           })}
+
+          {/* Sliding indicator — single element outside the tabs */}
+          {indicatorStyle ? (
+            <span
+              className="indicator"
+              style={{
+                left: indicatorStyle.left,
+                width: indicatorStyle.width,
+                opacity: 1,
+              }}
+            />
+          ) : null}
         </nav>
       </div>
     </>

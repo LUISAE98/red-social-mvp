@@ -2788,6 +2788,14 @@ function canUpdateReplyCount(delta) {
     }
 
     // ==========================
+    // PERFILES DE ADMINISTRADOR
+    // ==========================
+    match /adminProfiles/{uid} {
+      allow read: if isPlatformMod();
+      allow write: if isPlatformMod() && request.auth.uid == uid;
+    }
+
+    // ==========================
     // ACCESO GLOBAL MODERADORES
     // ==========================
     // Los moderadores de plataforma pueden leer cualquier documento para revisar contenido.
