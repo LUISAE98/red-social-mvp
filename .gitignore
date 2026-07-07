@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...pero la plantilla sin secretos de la raíz sí se versiona
+!/.env.example
 
 # vercel
 .vercel
@@ -39,6 +41,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# volcados/artefactos de análisis de lint (no versionar)
+lint-output*.txt
+lint-unused*.txt
+lint-analyze.js
+lint-parse.js
 
 
 # Backend env files
