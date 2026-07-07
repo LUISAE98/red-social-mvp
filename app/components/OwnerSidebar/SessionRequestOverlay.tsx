@@ -24,6 +24,7 @@ import VibraToast from "@/app/components/VibraToast/VibraToast";
 import { useVibraToast } from "@/lib/hooks/useVibraToast";
 import { auth, db } from "@/lib/firebase";
 import { doc, getDoc } from "firebase/firestore";
+import { callGetRecordingDownloadUrl } from "@/lib/liveKit/sessionLifecycle";
 
 type SessionRequest = MeetGreetRequestDoc | ExclusiveSessionRequestDoc;
 
@@ -44,6 +45,7 @@ export type SessionRequestOverlayProps = {
   onSchedule: (scheduledAt: string | null, note: string | null) => Promise<void> | void;
   onAcceptAndSchedule: (scheduledAt: string | null, note: string | null) => void;
   onPrepare: () => void;
+  readOnly?: boolean;
   preparationNode?: React.ReactNode;
   onReschedule?: (item: WalletServiceItem, scheduledAt: string) => Promise<void>;
   onKeepSchedule?: () => Promise<void>;
@@ -261,6 +263,7 @@ export default function SessionRequestOverlay({
   onSchedule,
   onAcceptAndSchedule,
   onPrepare,
+  readOnly = false,
   preparationNode,
   onReschedule,
   onKeepSchedule,
@@ -297,6 +300,8 @@ export default function SessionRequestOverlay({
   const { toast: rescheduleToast, showToast: showRescheduleToast } = useVibraToast();
 
   const [ownerPhotoFromDb, setOwnerPhotoFromDb] = useState<string | null>(null);
+  const [downloadBusy, setDownloadBusy] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   useEffect(() => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
@@ -430,7 +435,9 @@ export default function SessionRequestOverlay({
   );
 
   const isRescheduleRequested = status === "reschedule_requested";
-  const panelTitle = isRescheduleRequested
+  const panelTitle = readOnly
+    ? "Ver solicitud"
+    : isRescheduleRequested
     ? isExclusive ? "Reagendar sesión exclusiva" : "Reagendar sesión en vivo"
     : isExclusive ? "Agendar sesión exclusiva" : "Agendar sesión en vivo";
 
@@ -474,8 +481,8 @@ export default function SessionRequestOverlay({
           <div style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {req.buyerDisplayName ?? "Usuario"}
           </div>
-          <div style={{ color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3, marginTop: 1 }}>
-            {getRelativeTime((req as MeetGreetRequestDoc).createdAt)}
+          <div style={{ color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3, marginTop: 4 }}>
+            {getMeetGreetStatusLabel(status)}
           </div>
         </div>
         {earning && (
@@ -597,7 +604,7 @@ export default function SessionRequestOverlay({
       )}
 
       {/* Botones de acción */}
-      {(canAccept || canReject) && (
+      {!readOnly && (canAccept || canReject) && (
         <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
           {canAccept && (
             <button
@@ -649,7 +656,7 @@ export default function SessionRequestOverlay({
       )}
 
       {/* Formulario de agendar (expande al aceptar, poner fecha o reagendar) */}
-      {(canAccept || canSchedule) && (
+      {!readOnly && (canAccept || canSchedule) && (
         <div style={{ overflow: "hidden", maxHeight: acceptExpanded ? "700px" : "0", opacity: acceptExpanded ? 1 : 0, transition: "max-height 0.42s cubic-bezier(0.16,1,0.3,1), opacity 0.28s ease" }}>
         <div style={{ display: "grid", gap: 10, paddingTop: 2 }}>
           <div style={{ height: 1, background: "rgba(255,255,255,0.08)", margin: "2px 0" }} />
@@ -719,7 +726,7 @@ export default function SessionRequestOverlay({
         </div>
         </div>
       )}
-      {(canSchedule || canPrepare) && (
+      {!readOnly && (canSchedule || canPrepare) && (
         <div style={{ display: "flex", gap: 8 }}>
           {isRescheduleRequested && !acceptExpanded && (
             <>
@@ -784,36 +791,38 @@ export default function SessionRequestOverlay({
       )}
 
       {/* Formulario de rechazo */}
-      <div style={{ overflow: "hidden", maxHeight: rejectOpen ? "260px" : "0", opacity: rejectOpen ? 1 : 0, transition: "max-height 0.42s cubic-bezier(0.16,1,0.3,1), opacity 0.25s ease" }}>
-        <div style={{ display: "grid", gap: 10, paddingTop: 2 }}>
-          <textarea
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="Explica por qué rechazas la solicitud..."
-            rows={3}
-            style={{ width: "100%", padding: "12px 13px", borderRadius: 12, border: "none", background: "rgba(255,255,255,0.06)", color: "#fff", outline: "none", fontSize: 13, fontWeight: 500, fontFamily: "inherit", resize: "none", boxSizing: "border-box", lineHeight: 1.5 }}
-          />
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              onClick={async () => {
-                try { await onReject(rejectReason || null); onClose(); } catch {}
-              }}
-              disabled={busy}
-              style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(220,38,38,0.62)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1, fontFamily: "inherit" }}
-            >
-              {busy ? "Procesando..." : "Confirmar rechazo"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setRejectOpen(false)}
-              style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontWeight: 500, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
-            >
-              Cancelar
-            </button>
+      {!readOnly && (
+        <div style={{ overflow: "hidden", maxHeight: rejectOpen ? "260px" : "0", opacity: rejectOpen ? 1 : 0, transition: "max-height 0.42s cubic-bezier(0.16,1,0.3,1), opacity 0.25s ease" }}>
+          <div style={{ display: "grid", gap: 10, paddingTop: 2 }}>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Explica por qué rechazas la solicitud..."
+              rows={3}
+              style={{ width: "100%", padding: "12px 13px", borderRadius: 12, border: "none", background: "rgba(255,255,255,0.06)", color: "#fff", outline: "none", fontSize: 13, fontWeight: 500, fontFamily: "inherit", resize: "none", boxSizing: "border-box", lineHeight: 1.5 }}
+            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  try { await onReject(rejectReason || null); onClose(); } catch {}
+                }}
+                disabled={busy}
+                style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(220,38,38,0.62)", color: "#fff", fontWeight: 600, fontSize: 13, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1, fontFamily: "inherit" }}
+              >
+                {busy ? "Procesando..." : "Confirmar rechazo"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setRejectOpen(false)}
+                style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", fontWeight: 500, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Feedback */}
       {feedbackError && (
@@ -833,8 +842,115 @@ export default function SessionRequestOverlay({
   );
 
   // ── Footer fijo ───────────────────────────────────────────────────────────
-  const showScheduleFooter = canSchedule && !canAccept && (status !== "scheduled" || canCreatorInitiateReschedule);
-  const footerNode = showScheduleFooter ? (
+  const showScheduleFooter = !readOnly && canSchedule && !canAccept && (status !== "scheduled" || canCreatorInitiateReschedule);
+
+  const downloadDaysLeft = status === "completed" ? (() => {
+    const ref = toDateSafe(req.scheduledAt);
+    if (!ref) return 30;
+    const elapsed = Math.floor((Date.now() - ref.getTime()) / (1000 * 60 * 60 * 24));
+    return Math.max(0, 30 - elapsed);
+  })() : null;
+  const canDownload = downloadDaysLeft !== null && downloadDaysLeft > 0;
+
+  const footerNode = readOnly ? (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {status === "completed" && (
+        <>
+          <div style={{
+            fontSize: 12,
+            textAlign: "center",
+            color: canDownload ? "rgba(255,255,255,0.5)" : "#fca5a5",
+            fontWeight: 500,
+          }}>
+            {canDownload
+              ? `Te queda${downloadDaysLeft === 1 ? "" : "n"} ${downloadDaysLeft} día${downloadDaysLeft === 1 ? "" : "s"} para descargar la sesión`
+              : "Ya no puedes descargar esta sesión"}
+          </div>
+          {downloadError && (
+            <div style={{ fontSize: 12, color: "#fca5a5", textAlign: "center" }}>{downloadError}</div>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              disabled={!canDownload || downloadBusy}
+              onClick={async () => {
+                setDownloadBusy(true);
+                setDownloadError(null);
+                try {
+                  const url = await callGetRecordingDownloadUrl({ sessionId: requestId, sessionType: serviceKind });
+                  window.location.href = url;
+                } catch {
+                  setDownloadError("No se pudo obtener el enlace.");
+                } finally {
+                  setDownloadBusy(false);
+                }
+              }}
+              style={{
+                flex: 1,
+                height: 44,
+                borderRadius: 10,
+                border: "none",
+                background: !canDownload
+                  ? "rgba(255,255,255,0.08)"
+                  : isExclusive ? "rgba(236,72,153,0.18)" : "rgba(59,130,246,0.18)",
+                color: !canDownload
+                  ? "rgba(255,255,255,0.3)"
+                  : isExclusive ? "#f9a8d4" : "#93c5fd",
+                fontWeight: 600,
+                fontSize: 14,
+                cursor: !canDownload || downloadBusy ? "not-allowed" : "pointer",
+                opacity: downloadBusy ? 0.7 : 1,
+                fontFamily: "inherit",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              {downloadBusy ? "Obteniendo..." : "Descargar sesión"}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                flex: 1,
+                height: 44,
+                borderRadius: 10,
+                border: "none",
+                background: "rgba(255,255,255,0.08)",
+                color: "#fff",
+                fontWeight: 600,
+                fontSize: 14,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
+        </>
+      )}
+      {status !== "completed" && (
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            width: "100%",
+            height: 44,
+            borderRadius: 10,
+            border: "none",
+            background: "rgba(255,255,255,0.08)",
+            color: "#fff",
+            fontWeight: 600,
+            fontSize: 14,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            letterSpacing: "-0.01em",
+          }}
+        >
+          Cerrar
+        </button>
+      )}
+    </div>
+  ) : showScheduleFooter ? (
     <div style={{ display: "flex", gap: 8 }}>
       {!acceptExpanded && !isRescheduleRequested ? (
         <button

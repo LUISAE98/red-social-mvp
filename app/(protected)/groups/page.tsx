@@ -1,8 +1,21 @@
 "use client";
 
+import { useLayoutEffect, useState } from "react";
 import OwnerSidebar from "@/app/components/OwnerSidebar/OwnerSidebar";
 
 export default function GroupsMobilePage() {
+  const [isEmbed, setIsEmbed] = useState(false);
+
+  useLayoutEffect(() => {
+    try {
+      setIsEmbed(window.self !== window.top);
+    } catch {
+      setIsEmbed(true);
+    }
+  }, []);
+
+  if (isEmbed) return null;
+
   return (
     <div
       style={{

@@ -15,6 +15,8 @@ import {
 } from "../components/WalletUi";
 import GreetingReviewOverlay from "@/app/components/OwnerSidebar/GreetingReviewOverlay";
 import type { GreetingRequestDoc, UserMini } from "@/app/components/OwnerSidebar/OwnerSidebar";
+import SessionRequestOverlay from "@/app/components/OwnerSidebar/SessionRequestOverlay";
+import type { MeetGreetRequestDoc } from "@/app/components/OwnerSidebar/OwnerSidebar";
 
 type HistoryFilter =
   | "all"
@@ -74,6 +76,28 @@ function rowToGreetingDoc(row: WalletServiceItem, creatorId: string): GreetingRe
       : undefined,
     allowCreatorStory: row.allowCreatorStory,
   };
+}
+
+function rowToFakeRequest(row: WalletServiceItem): MeetGreetRequestDoc {
+  return {
+    buyerId: row.buyerId,
+    buyerDisplayName: row.buyerDisplayName ?? null,
+    buyerAvatarUrl: row.buyerAvatarUrl ?? null,
+    buyerUsername: row.buyerUsername ?? null,
+    creatorId: "",
+    status: row.status,
+    buyerMessage: row.requestText ?? null,
+    priceSnapshot: row.priceSnapshot ?? null,
+    durationMinutes: row.durationMinutes ?? null,
+    scheduledAt: row.scheduledAt,
+    createdAt: row.createdAt,
+    creatorScheduleNote: row.creatorScheduleNote ?? null,
+    scheduleHistory: row.scheduleHistory,
+    rescheduleHistory: row.rescheduleHistory,
+    rescheduleRequestsUsed: 0,
+    rejectionReason: row.rejectionReason ?? null,
+    refundReason: null,
+  } as unknown as MeetGreetRequestDoc;
 }
 
 function isScheduledService(row: WalletServiceItem): boolean {
@@ -150,6 +174,12 @@ export default function WalletHistorialPage() {
     if (!viewRow || !user?.uid) return [];
     return [{ id: viewRow.id, data: rowToGreetingDoc(viewRow, user.uid) }];
   }, [viewRow, user?.uid]);
+
+  const sessionViewRow = viewRow && isScheduledService(viewRow) ? viewRow : null;
+  const fakeSessionRequest = useMemo(
+    () => (sessionViewRow ? rowToFakeRequest(sessionViewRow) : null),
+    [sessionViewRow]
+  );
 
   const historyItems = useMemo(() => {
   const expiredItems = walletData.pendingCurrent
@@ -243,7 +273,7 @@ const filteredItems = useMemo(() => {
       </WalletCard>
     </WalletSectionShell>
 
-    {viewRow && overlayItems.length > 0 && (
+    {viewRow && !isScheduledService(viewRow) && overlayItems.length > 0 && (
       <GreetingReviewOverlay
         viewMode={viewRow.status !== "rejected" && viewRow.status !== "devolucion"}
         readOnly={viewRow.status === "rejected" || viewRow.status === "devolucion"}
@@ -254,6 +284,28 @@ const filteredItems = useMemo(() => {
         onClose={() => setViewRow(null)}
         getInitials={getInitials}
         typeLabel={typeLabel}
+      />
+    )}
+
+    {sessionViewRow && fakeSessionRequest && (
+      <SessionRequestOverlay
+        open={true}
+        onClose={() => setViewRow(null)}
+        request={fakeSessionRequest}
+        requestId={sessionViewRow.id}
+        serviceKind={sessionViewRow.source as "meet_greet" | "exclusive_session"}
+        earning={null}
+        busy={false}
+        feedbackError={null}
+        feedbackSuccess={null}
+        ownerCalendarItems={[]}
+        getInitials={(name) => (name ?? "?").charAt(0).toUpperCase()}
+        onAccept={() => {}}
+        onReject={async () => {}}
+        onSchedule={async () => {}}
+        onAcceptAndSchedule={() => {}}
+        onPrepare={() => {}}
+        readOnly={true}
       />
     )}
   </>

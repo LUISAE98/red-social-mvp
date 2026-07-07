@@ -27,6 +27,17 @@ import { useVibraToast } from "@/lib/hooks/useVibraToast";
 const fontStack =
   'inherit';
 
+function getGreetingStatusLabel(status: string): string {
+  switch (status) {
+    case "delivered": return "Entregado";
+    case "rejected": return "Rechazado";
+    case "devolucion": return "En devolución";
+    case "accepted": return "Aceptado";
+    case "pending": return "Pendiente";
+    default: return status || "Pendiente";
+  }
+}
+
 function getRelativeTime(createdAt?: { toDate: () => Date } | null): string {
   if (!createdAt) return "Hace un momento";
   const diffMs = Date.now() - createdAt.toDate().getTime();
@@ -1288,8 +1299,8 @@ export default function GreetingReviewOverlay({
         <span style={{ color: "#fff", fontWeight: 600, fontSize: 13, lineHeight: 1.2, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {buyerSourceName ?? "Creador"}
         </span>
-        <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>
-          {getRelativeTime(req.deliveredAt ?? req.createdAt)}
+        <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3, marginTop: 4 }}>
+          {getGreetingStatusLabel(req.status)}
         </span>
       </div>
     </div>
@@ -1325,8 +1336,8 @@ export default function GreetingReviewOverlay({
             {buyer?.displayName ?? "Usuario"}
           </span>
         )}
-        <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3 }}>
-          {getRelativeTime(req.createdAt)}
+        <span style={{ display: "block", color: "rgba(255,255,255,0.42)", fontSize: 11, lineHeight: 1.3, marginTop: 4 }}>
+          {getGreetingStatusLabel(req.status)}
         </span>
       </div>
       {earningFormatted && (
@@ -2293,15 +2304,17 @@ export default function GreetingReviewOverlay({
             <div style={{ display: "flex", flexDirection: "column", gap: 14, ...slideStyle }}>
               {infoSection}
               {readOnly ? (
-                <button type="button" onClick={handleClose} style={{
-                  width: "100%", height: 36, borderRadius: 6,
-                  border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.08)",
-                  color: "#fff",
-                  fontWeight: 500, fontSize: 13, cursor: "pointer",
-                  fontFamily: fontStack,
-                }}>
-                  Cerrar
-                </button>
+                <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 14, marginTop: 6 }}>
+                  <button type="button" onClick={handleClose} style={{
+                    width: "100%", height: 44, borderRadius: 10,
+                    border: "none", background: "rgba(255,255,255,0.08)",
+                    color: "#fff",
+                    fontWeight: 600, fontSize: 14, cursor: "pointer",
+                    fontFamily: fontStack, letterSpacing: "-0.01em",
+                  }}>
+                    Cerrar
+                  </button>
+                </div>
               ) : (
                 <div style={{ display: "flex", gap: 8 }}>
                   <button type="button" onClick={handleGrabar} disabled={busy} style={{
@@ -2392,15 +2405,17 @@ export default function GreetingReviewOverlay({
 
             {/* Actions */}
             {readOnly ? (
-              <button type="button" onClick={handleClose} style={{
-                width: "100%", height: 36, borderRadius: 6,
-                border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.08)",
-                color: "#fff",
-                fontWeight: 500, fontSize: 13, cursor: "pointer",
-                fontFamily: fontStack,
-              }}>
-                Cerrar
-              </button>
+              <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 14, marginTop: 6 }}>
+                <button type="button" onClick={handleClose} style={{
+                  width: "100%", height: 44, borderRadius: 10,
+                  border: "none", background: "rgba(255,255,255,0.08)",
+                  color: "#fff",
+                  fontWeight: 600, fontSize: 14, cursor: "pointer",
+                  fontFamily: fontStack, letterSpacing: "-0.01em",
+                }}>
+                  Cerrar
+                </button>
+              </div>
             ) : (
               <div style={{ display: "flex", gap: 8 }}>
                 <button type="button" onClick={handleGrabar} disabled={busy} style={{

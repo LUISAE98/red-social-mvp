@@ -97,7 +97,7 @@ const isHomePage = pathname === "/";
 const isProfilePage = /^\/u\/[^/]+/.test(pathname);
 const [isEmbed, setIsEmbed] = useState(false);
 
-useEffect(() => {
+useLayoutEffect(() => {
   try {
     setIsEmbed(window.self !== window.top);
   } catch {

@@ -86,7 +86,7 @@ const [contextScrolled, setContextScrolled] = useState(false);
 const isGroupDetailPage = /^\/groups\/[^/]+/.test(pathname) && !pathname.startsWith("/groups/new");
 const [isEmbed, setIsEmbed] = useState(false);
 
-useEffect(() => {
+useLayoutEffect(() => {
   try {
     setIsEmbed(window.self !== window.top);
   } catch {

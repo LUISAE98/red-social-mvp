@@ -789,8 +789,9 @@ export function WalletServiceRow({
   if (isGreeting) {
     const initial = (row.buyerDisplayName ?? "U").charAt(0).toUpperCase();
     const isHistory = mode === "history";
+    const isReadOnly = isHistory && (row.status === "rejected" || row.status === "devolucion");
     const actionLabel = isHistory
-      ? (row.kind === "consejo" ? "Ver consejo" : row.kind === "mensaje" ? "Ver mensaje" : "Ver saludo")
+      ? (isReadOnly ? "Ver solicitud" : row.kind === "consejo" ? "Ver consejo" : row.kind === "mensaje" ? "Ver mensaje" : "Ver saludo")
       : (row.kind === "consejo" ? "Grabar consejo" : row.kind === "saludo" ? "Grabar saludo" : "Grabar");
     const sentLabel = isHistory && row.deliveredAt
       ? `${row.kind === "consejo" ? "Consejo" : row.kind === "mensaje" ? "Mensaje" : "Saludo"} enviado el ${new Intl.DateTimeFormat("es-MX", { day: "numeric", month: "short", year: "numeric" }).format(row.deliveredAt)}`
@@ -872,6 +873,8 @@ export function WalletServiceRow({
 
   if (isScheduledService && onView) {
     const actionLabel =
+      mode === "history" && row.status === "completed" ? "Ver sesión" :
+      mode === "history" && ["rejected", "cancelled", "refund_requested", "refund_review"].includes(row.status) ? "Ver solicitud" :
       row.status === "reschedule_requested" ? "Reagendar" :
       ["scheduled", "ready_to_prepare", "in_preparation", "completed"].includes(row.status) ? "Ver solicitud" :
       "Agendar solicitud";

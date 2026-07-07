@@ -107,7 +107,7 @@ export default function WalletDesktopRail({
     { key: "saved", label: "Guardados", href: "/saved", icon: "saved" },
   ];
 
-  const [walletOpen, setWalletOpen] = useState(false);
+  const [walletOpen, setWalletOpen] = useState(true);
 
   const activeWalletTab = resolveWalletRailTab(activePath);
   const activeMainTab = resolveMainRailTab(activePath);
