@@ -31,6 +31,12 @@ import {
   VideoPipIcon,
   VideoAirPlayIcon,
 } from "@/app/components/VibraServiceIcons/VibraVideoIcons";
+import {
+  fontStack,
+  formatMediaDuration,
+  getVideoSrc,
+} from "./PostImageViewer.utils";
+import { Avatar } from "./PostImageViewer.components";
 
 type ImageMedia = {
   url: string;
@@ -93,106 +99,6 @@ type PostImageViewerProps = {
   onVideoClose?: (currentTime: number) => void;
   externalVideoElement?: HTMLVideoElement | null;
 };
-
-const fontStack =
-  'inherit';
-
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean).slice(0, 2);
-  if (parts.length === 0) return "U";
-  return parts.map((part) => part.charAt(0).toUpperCase()).join("");
-}
-
-function formatMediaDuration(seconds?: number | null): string {
-  if (
-    typeof seconds !== "number" ||
-    !Number.isFinite(seconds) ||
-    seconds <= 0
-  ) {
-    return "0:00";
-  }
-
-  const totalSeconds = Math.max(0, Math.floor(seconds));
-  const minutes = Math.floor(totalSeconds / 60);
-  const remainingSeconds = totalSeconds % 60;
-
-  return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
-}
-
-function getVideoSrc(media: ViewerMediaItem | null): string | null {
-  if (!media || media.type !== "video") return null;
-
-  if (typeof media.hlsUrl === "string" && media.hlsUrl.trim().length > 0) {
-    return media.hlsUrl.trim();
-  }
-
-  if (
-    typeof media.playbackUrl === "string" &&
-    media.playbackUrl.trim().length > 0
-  ) {
-    return media.playbackUrl.trim();
-  }
-
-  if (
-    typeof media.url === "string" &&
-    media.url.trim().length > 0 &&
-    !media.url.startsWith("mux://uploads/")
-  ) {
-    return media.url.trim();
-  }
-
-  return null;
-}
-
-function Avatar({
-  name,
-  avatarUrl,
-  size = 36,
-}: {
-  name: string;
-  avatarUrl?: string | null;
-  size?: number;
-}) {
-  if (avatarUrl) {
-    return (
-      <Image
-        src={avatarUrl}
-        alt={name}
-        width={size}
-        height={size}
-        style={{
-          borderRadius: "50%",
-          objectFit: "cover",
-          display: "block",
-          border: "1px solid rgba(255,255,255,0.10)",
-          background: "rgba(255,255,255,0.06)",
-          flexShrink: 0,
-        }}
-      />
-    );
-  }
-
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        width: size,
-        height: size,
-        borderRadius: "50%",
-        display: "grid",
-        placeItems: "center",
-        background: "rgba(255,255,255,0.08)",
-        border: "1px solid rgba(255,255,255,0.10)",
-        color: "#fff",
-        fontSize: Math.max(11, Math.floor(size * 0.32)),
-        fontWeight: 600,
-        flexShrink: 0,
-      }}
-    >
-      {getInitials(name)}
-    </div>
-  );
-}
 
 export default function PostImageViewer({
   open,

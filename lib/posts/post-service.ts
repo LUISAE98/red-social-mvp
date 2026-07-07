@@ -46,6 +46,23 @@ import type {
 import { httpsCallable } from "firebase/functions";
 import { buildPostSearchIndex } from "./postSearchIndex";
 import { buildPremiumAccessFields } from "./premium";
+import {
+  type PostingMode,
+  pickString,
+  assertValidId,
+  normalizeGroupVisibility,
+  normalizePostingMode,
+  normalizeCommentsEnabled,
+  readGroupName,
+  readGroupAvatarUrl,
+  getTimestampDate,
+  readTimestampMillis,
+  readProfileDisplayName,
+  readProfileAvatarUrl,
+  truncateForShare,
+  chunkArray,
+  isProfileRestricted,
+} from "./post-service.helpers";
 
 type AuthorSnapshot = {
   uid: string;
@@ -94,7 +111,6 @@ type GroupMemberStatus =
   | "banned"
   | "removed"
   | null;
-type PostingMode = "members" | "owner_only";
 
 type GroupWriteAccess = {
   ownerId: string | null;
@@ -574,46 +590,6 @@ async function assertNoProfileCommentBlock(
   }
 }
 
-function readTimestampMillis(value: unknown): number | null {
-  if (!value) return null;
-
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "toMillis" in value &&
-    typeof (value as Timestamp).toMillis === "function"
-  ) {
-    const millis = (value as Timestamp).toMillis();
-    return Number.isFinite(millis) ? millis : null;
-  }
-
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "toDate" in value &&
-    typeof (value as { toDate: () => Date }).toDate === "function"
-  ) {
-    const date = (value as { toDate: () => Date }).toDate();
-    const millis = date.getTime();
-    return Number.isFinite(millis) ? millis : null;
-  }
-
-  if (value instanceof Date) {
-    const millis = value.getTime();
-    return Number.isFinite(millis) ? millis : null;
-  }
-
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : null;
-  }
-
-  if (typeof value === "string") {
-    const millis = new Date(value).getTime();
-    return Number.isFinite(millis) ? millis : null;
-  }
-
-  return null;
-}
 
 async function assertUserCanCommentOnProfilePost(params: {
   profileId: string;
@@ -684,68 +660,6 @@ function getPostCommentsCacheKey(postId: string, viewerUid?: string | null): str
   return `${postId}__${viewerUid || "anon"}`;
 }
 
-function pickString(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0
-    ? value.trim()
-    : null;
-}
-
-function assertValidId(value: string, label: string) {
-  if (!value || !value.trim()) {
-    throw new Error(`Falta ${label}.`);
-  }
-}
-
-function normalizeGroupVisibility(value: unknown): GroupVisibility | null {
-  if (value === "public" || value === "private" || value === "hidden") {
-    return value;
-  }
-  return null;
-}
-
-function normalizePostingMode(value: unknown): PostingMode {
-  return value === "owner_only" ? "owner_only" : "members";
-}
-
-function normalizeCommentsEnabled(value: unknown): boolean {
-  return value !== false;
-}
-
-function readGroupName(data: Record<string, unknown>): string | null {
-  return (
-    pickString(data.name) ||
-    pickString(data.title) ||
-    pickString(data.groupName) ||
-    pickString(data.displayName) ||
-    null
-  );
-}
-
-function readGroupAvatarUrl(data: Record<string, unknown>): string | null {
-  return (
-    pickString(data.avatarUrl) ||
-    pickString(data.photoURL) ||
-    pickString(data.imageUrl) ||
-    pickString(data.groupAvatarUrl) ||
-    null
-  );
-}
-
-function getTimestampDate(value: unknown): Date | null {
-  if (!value) return null;
-  if (typeof (value as { toDate?: unknown }).toDate === "function") {
-    const d = (value as { toDate: () => unknown }).toDate();
-    return d instanceof Date && !Number.isNaN(d.getTime()) ? d : null;
-  }
-  if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    return value;
-  }
-  if (typeof value === "string" || typeof value === "number") {
-    const d = new Date(value);
-    return Number.isNaN(d.getTime()) ? null : d;
-  }
-  return null;
-}
 
 function resolveEffectiveMembershipStatus(
   rawStatus: unknown,
@@ -912,28 +826,6 @@ function getPostGroupIds(posts: Post[]): string[] {
     );
 }
 
-function readProfileDisplayName(data: Record<string, unknown>): string | null {
-  return (
-    pickString(data.displayName) ||
-    pickString(data.name) ||
-    [pickString(data.firstName), pickString(data.lastName)]
-      .filter(Boolean)
-      .join(" ")
-      .trim() ||
-    pickString(data.username) ||
-    pickString(data.handle) ||
-    null
-  );
-}
-
-function readProfileAvatarUrl(data: Record<string, unknown>): string | null {
-  return (
-    pickString(data.avatarUrl) ||
-    pickString(data.photoURL) ||
-    pickString(data.imageUrl) ||
-    null
-  );
-}
 
 async function fetchProfileById(profileId: string): Promise<ProfileLookup> {
   const snap = await getDoc(doc(db, "users", profileId));
@@ -1143,15 +1035,6 @@ function hydratePost(
   });
 }
 
-function truncateForShare(value: string, maxLength = 160): string {
-  const cleanValue = value.trim().replace(/\s+/g, " ");
-
-  if (cleanValue.length <= maxLength) {
-    return cleanValue;
-  }
-
-  return `${cleanValue.slice(0, maxLength - 1).trim()}…`;
-}
 
 function getPostPrimaryShareImageUrl(post: {
   media?: PostMedia[];
@@ -2148,19 +2031,6 @@ export async function fetchHomePosts(userUid: string): Promise<Post[]> {
   return page.posts;
 }
 
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-
-  for (let i = 0; i < items.length; i += size) {
-    chunks.push(items.slice(i, i + size));
-  }
-
-  return chunks;
-}
-
-function isProfileRestricted(data: Record<string, unknown>): boolean {
-  return data.profileRestricted === true;
-}
 
 function normalizeProfileFeedPost(
   snap: QueryDocumentSnapshot<DocumentData>
